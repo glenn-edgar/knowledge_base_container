@@ -1,0 +1,48 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+virtualenv/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+
+# Environment variables
+.env
+.env.local
+*.env
+
+# Jupyter notebooks
+*.ipynb_checkpoints/
+
+# Testing and coverage
+.coverage
+coverage.xml
+*.cover
+*.pytest_cache/
+tox/
+nosetests.xml
+
+# Logs
+*.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+
+# macOS
+.DS_Store
+
