@@ -1,0 +1,5 @@
+# Disable Docker logging AND suppress terminal output
+docker run --log-driver=none myapp > /dev/null 2>&1
+
+# Disable Docker logging AND suppress terminal output
+docker run --log-driver=none myapp   output will occur if run -it

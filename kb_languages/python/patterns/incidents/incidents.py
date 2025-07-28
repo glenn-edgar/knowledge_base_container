@@ -12,7 +12,7 @@ class Incident:
     """
     
     def __init__(self, 
-                 stream_logger: Callable[[Dict], None],
+            
                  status_logger: Callable[[Dict], None], 
                  get_status_data: Callable[[], Dict],
                  buffer_size: int = 100,
@@ -22,14 +22,14 @@ class Incident:
         Initialize the Incident manager.
         
         Args:
-            stream_logger: Function to log streaming alert data
+        
             status_logger: Function to log status and analysis data  
             get_status_data: Function to retrieve current status configuration
             buffer_size: Size of the cycling analysis buffer
             flapping_threshold: Number of state changes to trigger flapping detection
             flapping_window_minutes: Time window for flapping detection
         """
-        self.stream_logger = stream_logger
+        
         self.status_logger = status_logger
         self.get_status_data = get_status_data
         
@@ -52,19 +52,15 @@ class Incident:
         """
         # Get current status configuration
         status_config = self.get_status_data()
+        if status_config is None or not isinstance(status_config, dict):
+            status_config = {}
         ignore_alert = status_config.get("ignore_alert", False)
+        acknowledge_alert = status_config.get("acknowledge_alert", False)
         
         # Add to cycling buffer for analysis
         self.cycling_buffer.add_json_sample(state, data)
         
-        # Stream logging - only log state changes when not ignoring
-        if not ignore_alert and state != self.last_logged_state:
-            stream_data = data.copy()
-            stream_data['alert_state'] = state
-            stream_data['timestamp'] = datetime.now(timezone.utc).isoformat()
-            self.stream_logger(stream_data)
-            self.last_logged_state = state
-        
+     
         # Update current state
         self.alert_state = state
         
@@ -75,6 +71,7 @@ class Incident:
         status_data = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'ignore_alert': ignore_alert,
+            'acknowledge_alert': acknowledge_alert,
             'alert_state': state,
             'state_changed': state != self.last_logged_state,
             'analysis': {
@@ -114,18 +111,9 @@ if __name__ == "__main__":
     }
     
     # Mock loggers and storage
-    stream_logs = []
-    status_logs = []
     
-    def mock_stream_logger(data: Dict) -> None:
-        """Mock stream logger that stores data."""
-        log_entry = {
-            'type': 'stream',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'data': data
-        }
-        stream_logs.append(log_entry)
-        print(f"STREAM LOG: {json.dumps(data, indent=2)}")
+    status_logs = []
+  
     
     def mock_status_logger(data: Dict) -> None:
         """Mock status logger that stores data."""
@@ -143,7 +131,7 @@ if __name__ == "__main__":
     
     # Create incident manager
     incident = Incident(
-        stream_logger=mock_stream_logger,
+        
         status_logger=mock_status_logger,
         get_status_data=mock_get_status_data,
         buffer_size=50,
@@ -198,12 +186,10 @@ if __name__ == "__main__":
     
     # Test 6: Log summaries
     print("6. Log summaries:")
-    print(f"Stream log entries: {len(stream_logs)}")
+    
     print(f"Status log entries: {len(status_logs)}")
     
-    print("\nStream log sample:")
-    if stream_logs:
-        print(json.dumps(stream_logs[-1], indent=2))
+    
     
     print("\nStatus log sample:")
     if status_logs:
