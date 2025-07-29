@@ -36,7 +36,7 @@ class Composite_File_Loader(File_manager, Volume_Manager, File_Table):
         
         def call_back(file_path, data):
             print("update", update, volume_name, file_path)
-            self.store_file(update, volume_name, file_path, data)
+            self.store_record(update, volume_name, file_path, data)
         self.read_directory(call_back, starting_directory, extension_list)
         
     def update_content(self, volume_name:str, file_path:str, file_name:str, file_extension:str, data:str):
@@ -69,7 +69,14 @@ if __name__ == "__main__":
     composite_file_loader.add_volume("postgres", postgres_path, "postgres")
     composite_file_loader.load_directory(update=False, volume_name="kb_memory", extension_list=[".go"])
     composite_file_loader.load_directory(update=False, volume_name="postgres", extension_list=[".go"])
-    #composite_file_loader.delete_by_volume("kb_memory")
+    kb_memory_path = os.getcwd()+"/exported_files/kb_go/kb_memory"
+    composite_file_loader.export_files_to_disk("kb_memory",kb_memory_path)
+    postgres_path = os.getcwd()+"/exported_files/kb_go/postgres"
+    composite_file_loader.export_files_to_disk("postgres",postgres_path)
+    
+    
+    composite_file_loader.delete_by_volume("kb_memory")
+    composite_file_loader.delete_by_volume("postgres")
    
     conn.close()
         

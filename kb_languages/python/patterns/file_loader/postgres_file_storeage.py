@@ -72,7 +72,7 @@ class File_Table:
         
         return ltree_path, file_name, file_extension
 
-    def store_file(self, update, volume, file_path, data):
+    def store_record(self, update, volume, file_path, data):
         """
         Store file data in the database.
         
@@ -120,25 +120,25 @@ class File_Table:
             
             self.conn.commit()
         
-        def retrieve_file(self, sql_statement):
-            """
-            Execute SQL statement and return results as a list of dictionaries.
+    def retrieve_file(self, sql_statement):
+        """
+        Execute SQL statement and return results as a list of dictionaries.
+        
+        Args:
+            sql_statement: String - SQL SELECT statement
             
-            Args:
-                sql_statement: String - SQL SELECT statement
-                
-            Returns:
-                list: List of dictionaries representing the query results
-                
-            Raises:
-                Exception: If SQL execution fails
-            """
-            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
-                cursor.execute(sql_statement)
-                results = cursor.fetchall()
-                
-                # Convert RealDictRow objects to regular dictionaries
-                return [dict(row) for row in results]
+        Returns:
+            list: List of dictionaries representing the query results
+            
+        Raises:
+            Exception: If SQL execution fails
+        """
+        with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(sql_statement)
+            results = cursor.fetchall()
+            
+            # Convert RealDictRow objects to regular dictionaries
+            return [dict(row) for row in results]
         
         
     def delete_by_volume(self, volume):
@@ -209,13 +209,13 @@ class File_Table:
             file_extension: String - file extension without dot
             
         Returns:
-            bool: True if record exists, False otherwise
+            tuple: (bool, int|None) - (True/False if record exists, record ID or None)
             
         Raises:
             Exception: If database operation fails
         """
         check_sql = f"""
-        SELECT 1 FROM {self.table_name} 
+        SELECT id FROM {self.table_name} 
         WHERE volume = %s AND file_path = %s AND file_name = %s AND file_extension = %s
         LIMIT 1
         """
@@ -224,4 +224,209 @@ class File_Table:
             cursor.execute(check_sql, (volume, file_path, file_name, file_extension))
             result = cursor.fetchone()
             
-            return result is not None
+            if result is not None:
+                return True, result[0]  # Return True and the record ID
+            else:
+                return False, None      # Return False and None
+            
+            
+            
+    def export_files_to_disk(self, volume, base_path=None):
+        """
+        Export all files from the database for a specific volume to disk.
+        
+        Args:
+            volume: String - volume identifier to export
+            base_path: String - optional override for base directory path. If None, uses path from volume table
+            
+        Returns:
+            dict: Summary with counts of files processed, created, and any errors
+            
+        Raises:
+            Exception: If database operation or file writing fails
+        """
+        import os
+        from pathlib import Path
+        
+        # Initialize counters for summary
+        summary = {
+            'files_processed': 0,
+            'files_created': 0,
+            'directories_created': 0,
+            'errors': []
+        }
+        
+        # Get base path from volume table if not provided
+        if base_path is None:
+            volume_sql = f"""
+            SELECT base_path FROM volume 
+            WHERE volume = %s
+            """
+            try:
+                with self.conn.cursor() as cursor:
+                    cursor.execute(volume_sql, (volume,))
+                    volume_result = cursor.fetchone()
+                    if volume_result is None:
+                        raise Exception(f"Volume '{volume}' not found in volume table")
+                    base_path = volume_result[0]
+            except Exception as e:
+                raise Exception(f"Error retrieving base path from volume table: {str(e)}")
+        
+        # Retrieve all files for the specified volume
+        select_sql = f"""
+        SELECT volume, file_path, file_name, file_extension, content, file_size
+        FROM {self.table_name}
+        WHERE volume = %s
+        ORDER BY file_path, file_name
+        """
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(select_sql, (volume,))
+                results = cursor.fetchall()
+                
+                for row in results:
+                    summary['files_processed'] += 1
+                    
+                    try:
+                        # Extract file information
+                        file_path_ltree = row['file_path']
+                        file_name = row['file_name']
+                        file_extension = row['file_extension']
+                        content = row['content'] or ''  # Handle None content
+                        
+                        # Convert ltree path back to filesystem path
+                        if file_path_ltree == 'root':
+                            # File is in root directory
+                            relative_path = ''
+                        else:
+                            # Convert ltree format (dots) back to filesystem format (slashes)
+                            relative_path = file_path_ltree.replace('.', os.sep)
+                        
+                        # Construct full filename with extension
+                        if file_extension:
+                            full_filename = f"{file_name}.{file_extension}"
+                        else:
+                            full_filename = file_name
+                        
+                        # Create full file path
+                        if relative_path:
+                            full_file_path = os.path.join(base_path, relative_path, full_filename)
+                            directory_path = os.path.join(base_path, relative_path)
+                        else:
+                            full_file_path = os.path.join(base_path, full_filename)
+                            directory_path = base_path
+                        
+                        # Create directory structure if it doesn't exist
+                        if not os.path.exists(directory_path):
+                            os.makedirs(directory_path, exist_ok=True)
+                            summary['directories_created'] += 1
+                        
+                        # Write file content to disk
+                        with open(full_file_path, 'w', encoding='utf-8') as f:
+                            f.write(content)
+                        
+                        summary['files_created'] += 1
+                        
+                    except Exception as e:
+                        error_msg = f"Error processing file {file_name}.{file_extension}: {str(e)}"
+                        summary['errors'].append(error_msg)
+                        continue
+        
+        except Exception as e:
+            raise Exception(f"Database error while exporting files: {str(e)}")
+        
+        return summary
+
+    def export_single_file_to_disk(self, volume, record_id, base_path=None):
+        """
+        Export a single file record from the database to disk.
+        
+        Args:
+            volume: String - volume identifier
+            record_id: Int - ID of the specific record to export
+            base_path: String - optional override for base directory path. If None, uses path from volume table
+            
+        Returns:
+            str: Full path where the file was created
+            
+        Raises:
+            Exception: If record not found, database operation fails, or file writing fails
+        """
+        import os
+        from pathlib import Path
+        
+        # Get base path from volume table if not provided
+        if base_path is None:
+            volume_sql = f"""
+            SELECT base_path FROM volume 
+            WHERE volume = %s
+            """
+            try:
+                with self.conn.cursor() as cursor:
+                    cursor.execute(volume_sql, (volume,))
+                    volume_result = cursor.fetchone()
+                    if volume_result is None:
+                        raise Exception(f"Volume '{volume}' not found in volume table")
+                    base_path = volume_result[0]
+            except Exception as e:
+                raise Exception(f"Error retrieving base path from volume table: {str(e)}")
+        
+        # Retrieve the specific file record
+        select_sql = f"""
+        SELECT volume, file_path, file_name, file_extension, content, file_size
+        FROM {self.table_name}
+        WHERE volume = %s AND id = %s
+        """
+        
+        try:
+            with self.conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                cursor.execute(select_sql, (volume, record_id))
+                row = cursor.fetchone()
+                
+                if row is None:
+                    raise Exception(f"Record with ID {record_id} not found for volume '{volume}'")
+                
+                # Extract file information
+                file_path_ltree = row['file_path']
+                file_name = row['file_name']
+                file_extension = row['file_extension']
+                content = row['content'] or ''  # Handle None content
+                
+                # Convert ltree path back to filesystem path
+                if file_path_ltree == 'root':
+                    # File is in root directory
+                    relative_path = ''
+                else:
+                    # Convert ltree format (dots) back to filesystem format (slashes)
+                    relative_path = file_path_ltree.replace('.', os.sep)
+                
+                # Construct full filename with extension
+                if file_extension:
+                    full_filename = f"{file_name}.{file_extension}"
+                else:
+                    full_filename = file_name
+                
+                # Create full file path
+                if relative_path:
+                    full_file_path = os.path.join(base_path, relative_path, full_filename)
+                    directory_path = os.path.join(base_path, relative_path)
+                else:
+                    full_file_path = os.path.join(base_path, full_filename)
+                    directory_path = base_path
+                
+                # Create directory structure if it doesn't exist
+                if not os.path.exists(directory_path):
+                    os.makedirs(directory_path, exist_ok=True)
+                
+                # Write file content to disk
+                with open(full_file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                
+                return full_file_path
+        
+        except Exception as e:
+            if "Record with ID" in str(e) and "not found" in str(e):
+                raise  # Re-raise record not found exception as-is
+            else:
+                raise Exception(f"Error exporting file: {str(e)}")
