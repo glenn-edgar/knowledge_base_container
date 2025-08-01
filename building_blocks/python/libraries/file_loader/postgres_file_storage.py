@@ -230,8 +230,12 @@ class File_Table:
                 return False, None      # Return False and None
             
             
-            
-    def export_files_to_disk(self, volume, base_path=None):
+    # content = call_back_function(content) is a function that takes the following arguments: content
+    # content is the data of the file
+    # it returns the modified content
+    # if call_back_function is None, the content is not modified
+    def export_files_to_disk(self, volume, base_path=None, call_back_function=None):
+        
         """
         Export all files from the database for a specific volume to disk.
         
@@ -271,7 +275,7 @@ class File_Table:
                     base_path = volume_result[0]
             except Exception as e:
                 raise Exception(f"Error retrieving base path from volume table: {str(e)}")
-        
+
         # Retrieve all files for the specified volume
         select_sql = f"""
         SELECT volume, file_path, file_name, file_extension, content, file_size
@@ -288,12 +292,13 @@ class File_Table:
                 for row in results:
                     summary['files_processed'] += 1
                     
+                    
                     try:
                         # Extract file information
                         file_path_ltree = row['file_path']
                         file_name = row['file_name']
                         file_extension = row['file_extension']
-                        content = row['content'] or ''  # Handle None content
+                        content = row['content'] or ''  # Handle None conte
                         
                         # Convert ltree path back to filesystem path
                         if file_path_ltree == 'root':
@@ -309,7 +314,7 @@ class File_Table:
                         else:
                             full_filename = file_name
                         
-                        # Create full file path
+                        
                         if relative_path:
                             full_file_path = os.path.join(base_path, relative_path, full_filename)
                             directory_path = os.path.join(base_path, relative_path)
@@ -317,10 +322,14 @@ class File_Table:
                             full_file_path = os.path.join(base_path, full_filename)
                             directory_path = base_path
                         
+                    
                         # Create directory structure if it doesn't exist
                         if not os.path.exists(directory_path):
                             os.makedirs(directory_path, exist_ok=True)
                             summary['directories_created'] += 1
+                        
+                        if call_back_function is not None:
+                            content = call_back_function(content)
                         
                         # Write file content to disk
                         with open(full_file_path, 'w', encoding='utf-8') as f:
@@ -329,9 +338,7 @@ class File_Table:
                         summary['files_created'] += 1
                         
                     except Exception as e:
-                        error_msg = f"Error processing file {file_name}.{file_extension}: {str(e)}"
-                        summary['errors'].append(error_msg)
-                        continue
+                        raise e
         
         except Exception as e:
             raise Exception(f"Database error while exporting files: {str(e)}")
