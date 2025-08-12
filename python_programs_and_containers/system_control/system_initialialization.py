@@ -7,12 +7,13 @@ class System_Initialization:
     def __init__(self):
         self.read_mount_data()
         print(self.postgres_connector)
-        self.postgres_manager = Postgres_Manager(self.postgres_connector)
+        self.postgres_manager = Postgres_Manager(self.postgres_connector,True)
         system_create = os.getenv('system_create')
         secrets_load = os.getenv('secrets_load')
         print(system_create)
         print(secrets_load)
         host = self.postgres_connector['host']
+        docker_host = self.postgres_connector['docker_ip']
         port = self.postgres_connector['port']
         dbname = self.postgres_connector['dbname']
         user = self.postgres_connector['user']
@@ -20,9 +21,9 @@ class System_Initialization:
         base_table = self.postgres_connector['base_table']
         print("postgres connector", self.postgres_connector)
         if system_create == 'true':
-            self.construct_data_tables = Construct_Data_Tables(host, port, dbname, user, password, base_table)
+            self.construct_data_tables = Construct_Data_Tables(docker_host, port, dbname, user, password, base_table)
             
-        self.kb_data_structures = KB_Data_Structures(host, port, dbname, user, password, base_table)
+        self.kb_data_structures = KB_Data_Structures(docker_host, port, dbname, user, password, base_table)
         print("done")
         #postgres has started at this point
         #load knowledge base connection

@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements file
+RUN apt-get update && apt-get install -y iputils-ping
 COPY requirements.txt .
 
 # Install Python dependencies

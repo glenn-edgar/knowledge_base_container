@@ -1,5 +1,5 @@
 # Use Python 3.11 slim image as base
-FROM nanodataceneter/python-ml:latest
+FROM nanodatacenter/python_base_image
 
 # Set working directory
 WORKDIR /app
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
+RUN apt update && apt install -y postgresql-client
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt .
 

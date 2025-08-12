@@ -11,12 +11,13 @@ from libraries.postgres_connection_manager.postgres_connection import Postgres_C
 
 
 class Postgres_Manager:
-    def __init__(self,postgres_object:dict):
+    def __init__(self,postgres_object:dict,container_flag:bool):
         self.postgres_object = postgres_object
         self.container_manager = ContainerManager(self.postgres_object['container'])
-        self.postgres_connection_manager = Postgres_Connection_Manager(self.postgres_object)
+        self.postgres_connection_manager = Postgres_Connection_Manager(self.postgres_object,container_flag)
         self.start_postgres_container()
         self.postgres_connection_manager.wait_for_connection(max_attempts=2)
+        
         
     def start_postgres_container(self):
         if not self.container_manager.is_container_running():
@@ -37,4 +38,4 @@ class Postgres_Manager:
             return False
         
     def postgres_monitor(self):
-        self.postgres_connection_manager.wait_for_connection(max_attempts=1)
+        self.postgres_connection_manager.wait_for_connection(max_attempts,container_flag )

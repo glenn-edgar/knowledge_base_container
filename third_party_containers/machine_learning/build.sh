@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-IMAGE_NAME="nanodataceneter/python-ml"
+IMAGE_NAME="nanodatacenter/python-ml"
 CONTAINER_NAME="python-ml"
 PORT="8000"
 

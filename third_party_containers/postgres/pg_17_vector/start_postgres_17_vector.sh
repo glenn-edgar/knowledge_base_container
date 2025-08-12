@@ -6,6 +6,7 @@ echo "Starting PostgreSQL 17 with pgvector (official image)..."
 # Option 2: More secure with specific host binding (recommended for production)
 # Option 2: More secure with specific host binding (recommended for production)
 docker run -d \
+  --network bridge \
   --name postgres-vector \
   -e POSTGRES_DB=knowledge_base \
   -e POSTGRES_USER=gedgar \
