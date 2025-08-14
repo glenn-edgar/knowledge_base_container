@@ -1,8 +1,8 @@
 import os
 import json
 from postgres_manager import Postgres_Manager
-from knowledge_base.construct_kb.construct_data_tables import Construct_Data_Tables
-from knowledge_base.data_structures.kb_data_structures import KB_Data_Structures
+from common_libraries.knowledge_base.construct_kb.construct_data_tables import Construct_Data_Tables
+from common_libraries.knowledge_base.data_structures.kb_data_structures import KB_Data_Structures
 class System_Initialization:
     def __init__(self):
         self.read_mount_data()
