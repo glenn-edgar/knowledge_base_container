@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Callable, Dict, Any, Optional
-import cycling_logging
+from .cycling_logging import AlertCyclingBuffer, CyclingAnalysis
 
 class Incident:
     """
@@ -33,7 +33,7 @@ class Incident:
         self.status_logger = status_logger
         self.get_status_data = get_status_data
         
-        self.cycling_buffer = cycling_logging.AlertCyclingBuffer(
+        self.cycling_buffer = AlertCyclingBuffer(
             buffer_size=buffer_size, 
             flapping_threshold=flapping_threshold, 
             flapping_window_minutes=flapping_window_minutes
@@ -92,7 +92,7 @@ class Incident:
         # Log status
         self.status_logger(status_data)
     
-    def get_current_analysis(self) -> cycling_logging.CyclingAnalysis:
+    def get_current_analysis(self) -> CyclingAnalysis:
         """Get the current cycling analysis."""
         return self.cycling_buffer.analyze_cycling()
     

@@ -5,6 +5,7 @@ import os
 
 # Configuration
 BROKER = "localhost"  # Try "host.docker.internal" or container IP (e.g., 172.17.0.2) if localhost fails
+#BROKER = "192.168.1.158"
 PORT = 1883          # Standard MQTT port
 TOPIC = "my/test/topic"
 MESSAGE = "Hello, MQTT!"
