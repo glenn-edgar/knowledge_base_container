@@ -241,106 +241,281 @@ class KVStoreReader:
         return self._connected and self._client.is_connected()
 
 
-def main():
-    """Demo showing how to read retained messages as KV store."""
+def write_test_data():
+    """
+    Write test data to MQTT broker as retained messages.
+    This simulates populating a KV store.
+    """
+    print("=== Writing Test Data to MQTT KV Store ===\n")
     
-    print("=== MQTT KV Store Reader Demo ===\n")
+    # Create publisher with connection verification
+    publisher_connected = threading.Event()
+    
+    def on_connect(client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
+            publisher_connected.set()
+            print("✓ Publisher connected to broker")
+        else:
+            print(f"✗ Publisher connection failed: {reason_code}")
+    
+    publisher = mqtt.Client(
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        client_id="kv-writer",
+        clean_session=True
+    )
+    publisher.on_connect = on_connect
+    
+    try:
+        # Connect and start the network loop
+        print("Connecting publisher to localhost:1883...")
+        publisher.connect("localhost", 1883)
+        publisher.loop_start()
+        
+        # Wait for connection confirmation
+        if not publisher_connected.wait(timeout=5.0):
+            print("✗ Failed to connect to broker. Is Mosquitto running?")
+            return False
+        
+        # Define test data to publish
+        test_data = {
+            # Configuration data
+            "kv/example/config/host": "192.168.1.100",
+            "kv/example/config/port": "8080",
+            "kv/example/config/enabled": "true",
+            "kv/example/config/timeout": "30",
+            "kv/example/config/retry_count": "3",
+            
+            # Status data
+            "kv/example/status/uptime": "3600",
+            "kv/example/status/connections": "42",
+            "kv/example/status/last_error": "none",
+            "kv/example/status/cpu_usage": "15.7",
+            
+            # System information
+            "kv/system/version": "1.2.3",
+            "kv/system/build": "2024.12.20",
+            "kv/system/hostname": "mqtt-server-01",
+            "kv/system/os": "Linux 5.15.0",
+            
+            # Application data
+            "kv/app/users/count": "1250",
+            "kv/app/users/active": "523",
+            "kv/app/database/connected": "true",
+            "kv/app/database/pool_size": "10",
+            
+            # Some nested structure
+            "kv/sensors/temperature/living_room": "22.5",
+            "kv/sensors/temperature/bedroom": "20.1",
+            "kv/sensors/humidity/living_room": "45",
+            "kv/sensors/humidity/bedroom": "50",
+        }
+        
+        print(f"\nPublishing {len(test_data)} retained messages...")
+        success_count = 0
+        
+        for topic, value in test_data.items():
+            info = publisher.publish(topic, value, qos=1, retain=True)
+            if info.rc != mqtt.MQTT_ERR_SUCCESS:
+                print(f"  ✗ Failed to queue: {topic}")
+                continue
+            
+            try:
+                info.wait_for_publish(timeout=2.0)
+                print(f"  ✓ {topic} = {value}")
+                success_count += 1
+            except (ValueError, RuntimeError) as e:
+                print(f"  ✗ Failed: {topic} - {e}")
+        
+        print(f"\n✓ Successfully published {success_count}/{len(test_data)} messages")
+        return success_count == len(test_data)
+        
+    except Exception as e:
+        print(f"\n✗ Error writing test data: {e}")
+        return False
+        
+    finally:
+        # Clean shutdown
+        print("Closing publisher connection...")
+        publisher.loop_stop()
+        publisher.disconnect()
+        print("Publisher disconnected\n")
+
+
+def demonstrate_kvstore_reader():
+    """
+    Demonstrate the KVStoreReader class functionality.
+    This shows all the different ways to read from the KV store.
+    """
+    print("=== Demonstrating KVStoreReader Class ===\n")
     
     # Create reader instance
+    print("1. Creating KVStoreReader instance...")
     reader = KVStoreReader(
         host="localhost",
         port=1883,
         client_id="kv-reader-demo",
-        use_mqttv5=False  # Use v3.1.1 for compatibility
+        use_mqttv5=False,  # Use v3.1.1 for compatibility
+        keepalive=60
     )
     
-    # Connect to broker
-    print("Connecting to broker...")
+    # Test connection
+    print("\n2. Testing connection to broker...")
     if not reader.connect(timeout=5.0):
-        print("Failed to connect to broker. Is Mosquitto running?")
-        return 1
+        print("✗ Failed to connect to broker")
+        return False
+    
+    print(f"✓ Connected successfully")
+    print(f"  Connection status: {reader.is_connected()}")
     
     try:
-        # First, let's publish some retained messages to test
-        print("\n1. Publishing test retained messages...")
-        publisher = mqtt.Client(
-            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            client_id="kv-publisher",
-            clean_session=True
-        )
-        publisher.connect("localhost", 1883)
-        
-        # Publish some test KV pairs
-        test_data = {
-            "kv/example/config/host": "192.168.1.100",
-            "kv/example/config/port": "8080",
-            "kv/example/config/enabled": "true",
-            "kv/example/status/uptime": "3600",
-            "kv/example/status/connections": "42",
-            "kv/system/version": "1.2.3",
-            "kv/system/build": "2024.12.20",
-        }
-        
-        for topic, value in test_data.items():
-            info = publisher.publish(topic, value, qos=1, retain=True)
-            info.wait_for_publish()
-            print(f"  ✓ Published: {topic} = {value}")
-        
-        publisher.disconnect()
-        time.sleep(0.5)
-        
-        # Read all values under kv/example/
-        print("\n2. Reading all values under 'kv/example/#':")
-        values = reader.read_pattern("kv/example/#", timeout=2.0)
-        if values:
-            print("Retrieved KV entries:")
-            for topic, value in sorted(values.items()):
-                print(f"  {topic} => {value}")
+        # Demonstrate reading all values under a pattern
+        print("\n3. Reading all values under 'kv/example/#' (wildcards):")
+        print("-" * 50)
+        example_values = reader.read_pattern("kv/example/#", timeout=2.0)
+        if example_values:
+            print(f"Found {len(example_values)} entries:")
+            for topic, value in sorted(example_values.items()):
+                category = topic.split('/')[2] if len(topic.split('/')) > 2 else 'unknown'
+                key = topic.split('/')[-1]
+                print(f"  [{category}] {key}: {value}")
         else:
-            print("  No retained messages found")
+            print("  No retained messages found under kv/example/#")
         
-        # Read specific config values
-        print("\n3. Reading config values under 'kv/example/config/+':")
+        # Demonstrate reading with single-level wildcard
+        print("\n4. Reading config values with 'kv/example/config/+' (single-level wildcard):")
+        print("-" * 50)
         config_values = reader.read_pattern("kv/example/config/+", timeout=1.0)
         if config_values:
-            print("Configuration:")
+            print("Configuration parameters:")
             for topic, value in sorted(config_values.items()):
-                key = topic.split('/')[-1]
-                print(f"  {key}: {value}")
+                param = topic.split('/')[-1]
+                print(f"  {param} = {value}")
+        else:
+            print("  No config values found")
         
-        # Read a single value
-        print("\n4. Reading single value 'kv/system/version':")
+        # Demonstrate reading a single specific value
+        print("\n5. Reading single value 'kv/system/version' (exact topic):")
+        print("-" * 50)
         version = reader.read_single("kv/system/version", timeout=1.0)
         if version:
             print(f"  System version: {version}")
+            
+            # Also try reading other system values
+            build = reader.read_single("kv/system/build", timeout=1.0)
+            hostname = reader.read_single("kv/system/hostname", timeout=1.0)
+            if build:
+                print(f"  Build date: {build}")
+            if hostname:
+                print(f"  Hostname: {hostname}")
         else:
             print("  Version not found")
         
-        # Read all retained messages
-        print("\n5. Reading ALL retained messages on broker:")
+        # Demonstrate reading sensor data with pattern
+        print("\n6. Reading sensor data 'kv/sensors/+/+' (multiple wildcards):")
+        print("-" * 50)
+        sensor_values = reader.read_pattern("kv/sensors/+/+", timeout=1.5)
+        if sensor_values:
+            # Organize by sensor type
+            sensors = {}
+            for topic, value in sensor_values.items():
+                parts = topic.split('/')
+                if len(parts) >= 4:
+                    sensor_type = parts[2]
+                    location = parts[3]
+                    if sensor_type not in sensors:
+                        sensors[sensor_type] = {}
+                    sensors[sensor_type][location] = value
+            
+            for sensor_type, locations in sorted(sensors.items()):
+                print(f"  {sensor_type.capitalize()}:")
+                for location, value in sorted(locations.items()):
+                    print(f"    {location}: {value}")
+        else:
+            print("  No sensor data found")
+        
+        # Demonstrate reading all retained messages
+        print("\n7. Reading ALL retained messages on broker with '#':")
+        print("-" * 50)
         all_values = reader.read_all("#", timeout=2.0)
         if all_values:
-            print(f"Found {len(all_values)} retained messages:")
-            for topic, value in sorted(all_values.items())[:10]:  # Show first 10
-                print(f"  {topic} => {value[:50]}{'...' if len(value) > 50 else ''}")
-            if len(all_values) > 10:
-                print(f"  ... and {len(all_values) - 10} more")
+            print(f"Total retained messages on broker: {len(all_values)}")
+            
+            # Group by top-level topic
+            topics_by_prefix = {}
+            for topic in all_values.keys():
+                prefix = topic.split('/')[0] if '/' in topic else topic
+                topics_by_prefix[prefix] = topics_by_prefix.get(prefix, 0) + 1
+            
+            print("Message distribution:")
+            for prefix, count in sorted(topics_by_prefix.items()):
+                print(f"  {prefix}/: {count} messages")
+            
+            # Show a few examples
+            print("\nFirst 5 messages:")
+            for topic, value in list(sorted(all_values.items()))[:5]:
+                print(f"  {topic} = {value[:50]}{'...' if len(value) > 50 else ''}")
         else:
             print("  No retained messages found on broker")
         
-        print("\n✓ Demo completed successfully!")
+        # Demonstrate pattern for app-specific data
+        print("\n8. Reading application metrics 'kv/app/+/+':")
+        print("-" * 50)
+        app_values = reader.read_pattern("kv/app/+/+", timeout=1.0)
+        if app_values:
+            print("Application metrics:")
+            for topic, value in sorted(app_values.items()):
+                parts = topic.split('/')
+                if len(parts) >= 4:
+                    category = parts[2]
+                    metric = parts[3]
+                    print(f"  {category}.{metric} = {value}")
+        else:
+            print("  No application metrics found")
         
-    except KeyboardInterrupt:
-        print("\n\nInterrupted by user")
-        return 130
+        print("\n✓ Demonstration completed successfully!")
+        return True
+        
     except Exception as e:
-        print(f"\n✗ Error: {e}")
-        return 1
+        print(f"\n✗ Error during demonstration: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
         
     finally:
-        print("\nDisconnecting...")
+        # Always disconnect
+        print("\n9. Cleaning up...")
+        print(f"  Final connection status: {reader.is_connected()}")
         reader.disconnect()
+        print("  Reader disconnected")
+
+
+def main():
+    """Main function to run the complete demo."""
+    print("=" * 60)
+    print(" MQTT KV Store Reader - Complete Demo")
+    print("=" * 60)
+    print()
     
+    # Step 1: Write test data
+    write_success = write_test_data()
+    if not write_success:
+        print("✗ Failed to write test data. Exiting.")
+        return 1
+    
+    # Small delay to ensure all messages are processed
+    print("Waiting for messages to settle...")
+    time.sleep(1.0)
+    print()
+    
+    # Step 2: Demonstrate reading the data
+    read_success = demonstrate_kvstore_reader()
+    if not read_success:
+        print("✗ Demonstration failed.")
+        return 1
+    
+    print("\n" + "=" * 60)
+    print(" Demo completed! All connections closed.")
+    print("=" * 60)
     return 0
 
 
