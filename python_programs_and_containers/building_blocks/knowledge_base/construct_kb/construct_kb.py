@@ -3,7 +3,7 @@ import json
 from typing import Union, Optional, Dict, Any
 from psycopg2 import sql
 from psycopg2.extensions import adapt, AsIs
-from construct_kb.base_construct_kb import KnowledgeBaseManager
+from .base_construct_kb import KnowledgeBaseManager
 
 
 
