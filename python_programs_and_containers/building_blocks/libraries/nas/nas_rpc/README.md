@@ -1,361 +1,535 @@
-# NAS_RPC - NATS-based RPC Implementation
+# NAS_RPC
 
-A robust Python implementation of Remote Procedure Calls (RPC) over NATS messaging system, providing both client and server functionality in a single, easy-to-use class.
+A lightweight Python RPC (Remote Procedure Call) implementation over NATS messaging system with namespace support. This library enables both RPC server and client functionality with automatic request-response handling, timeout support, and namespace isolation.
 
 ## Features
 
-- **Bidirectional RPC**: Single class acts as both RPC client and server
-- **Async/Await Support**: Full asynchronous operation support
-- **Multiple Registration Methods**: Use decorators or direct registration for RPC methods
-- **Error Handling**: Automatic exception propagation from server to client
-- **Timeout Support**: Configurable timeouts for all RPC calls
-- **Batch Operations**: Execute multiple RPC calls in parallel
-- **Connection Sharing**: Create instances from existing NATS connections
-- **Request Tracking**: Unique request IDs with proper correlation
-- **JSON-RPC Style**: Familiar request/response format
+- 🚀 **Full RPC Implementation** - Both server and client in a single class
+- 📦 **Namespace Isolation** - Separate RPC methods by environment or application
+- ⚡ **Async/Await Support** - Full asynchronous operation with Python asyncio
+- 🔄 **Multiple Call Patterns** - Synchronous, asynchronous, and batch calls
+- 🎯 **Method Registration** - Simple decorator-based method registration
+- ⏱️ **Timeout Support** - Configurable timeouts for all RPC calls
+- 🛡️ **Error Handling** - Proper RPC error codes and exception propagation
+- 🔌 **Direct NATS Protocol** - No external dependencies, pure Python implementation
+- 🏷️ **Type Hints** - Full type hint support for better IDE integration
 
 ## Installation
 
 ### Prerequisites
 
+- Python 3.7+
+- NATS Server running (default: localhost:4222)
+
+### Install NATS Server
+
 ```bash
-pip install nats-py
+# Using Docker
+docker run -p 4222:4222 -ti nats:latest
+
+# Or download from https://nats.io/download/
 ```
 
-### Quick Start
+### Install Dependencies
+
+```bash
+pip install asyncio
+```
+
+## Quick Start
+
+### Basic RPC Server and Client
 
 ```python
 import asyncio
 from nas_rpc import NAS_RPC
 
 async def main():
-    # Create and connect RPC instance
-    rpc = NAS_RPC("nats://localhost:4222")
-    await rpc.connect()
-    
-    # Register an RPC method
-    @rpc.rpc_method("math.add")
-    async def add(a: float, b: float) -> float:
-        return a + b
-    
-    # Start the server
-    await rpc.start_server()
-    
-    # Make an RPC call
-    result = await rpc.call("math.add", {"a": 5, "b": 3})
-    print(f"Result: {result}")  # Output: Result: 8
-    
-    await rpc.disconnect()
-
-asyncio.run(main())
-```
-
-## Usage
-
-### Creating an RPC Instance
-
-#### Standard Connection
-```python
-rpc = NAS_RPC("nats://localhost:4222")
-await rpc.connect()
-```
-
-#### From Existing Connection
-```python
-# Use an existing NATS connection
-existing_conn = some_nats_connection
-rpc = await NAS_RPC.from_connection(existing_conn)
-```
-
-### Server-Side: Registering RPC Methods
-
-#### Using Decorators
-```python
-@rpc.rpc_method("user.get")
-async def get_user(user_id: int) -> dict:
-    # Your implementation here
-    return {"id": user_id, "name": "John Doe"}
-```
-
-#### Direct Registration
-```python
-async def calculate(expression: str) -> float:
-    return eval(expression)  # Example only - don't use eval in production!
-
-rpc.register_handler("math.calculate", calculate)
-```
-
-#### Starting the Server
-```python
-# Start listening on all registered methods
-await rpc.start_server()
-
-# Or with a prefix for all methods
-await rpc.start_server("api.v1")  # Methods will be: api.v1.method_name
-```
-
-### Client-Side: Making RPC Calls
-
-#### Synchronous Call (with await)
-```python
-# Call with dictionary parameters
-result = await rpc.call("math.add", {"a": 10, "b": 20})
-
-# Call with list parameters
-result = await rpc.call("math.multiply", [5, 4])
-
-# Call with timeout
-result = await rpc.call("slow.operation", {"data": "value"}, timeout=10.0)
-```
-
-#### Asynchronous Call (fire and check later)
-```python
-# Send request without waiting
-request_id = await rpc.call_async("long.operation", {"input": "data"})
-
-# Do other work...
-
-# Get the result later
-result = await rpc.get_response(request_id, timeout=5.0)
-```
-
-#### Batch Calls
-```python
-# Execute multiple calls in parallel
-batch_calls = [
-    ("user.get", {"user_id": 1}),
-    ("user.get", {"user_id": 2}),
-    ("stats.calculate", {"metric": "daily"}),
-]
-
-results = await rpc.call_batch(batch_calls, timeout=5.0)
-# Returns list of results in the same order
-```
-
-### Error Handling
-
-The RPC system automatically propagates exceptions from server to client:
-
-```python
-# Server side
-@rpc.rpc_method("divide")
-async def divide(a: float, b: float) -> float:
-    if b == 0:
-        raise ValueError("Division by zero")
-    return a / b
-
-# Client side
-try:
-    result = await rpc.call("divide", {"a": 10, "b": 0})
-except Exception as e:
-    print(f"RPC Error: {e}")  # Will print the division by zero error
-```
-
-## Complete Example
-
-```python
-import asyncio
-from nas_rpc import NAS_RPC
-
-async def setup_server():
-    """Setup and start RPC server."""
-    server = NAS_RPC("nats://localhost:4222")
+    # Create RPC server
+    server = NAS_RPC("localhost", 4222, namespace="myapp")
     await server.connect()
     
-    # Register multiple methods
-    @server.rpc_method("user.create")
-    async def create_user(name: str, email: str) -> dict:
-        # Simulate user creation
-        return {
-            "id": 123,
-            "name": name,
-            "email": email,
-            "created": "2024-01-01T00:00:00Z"
-        }
+    # Register a method
+    @server.rpc_method("greet")
+    async def greet(name: str) -> str:
+        return f"Hello, {name}!"
     
-    @server.rpc_method("user.list")
-    async def list_users(limit: int = 10) -> list:
-        # Return sample users
-        return [
-            {"id": i, "name": f"User {i}"} 
-            for i in range(1, min(limit + 1, 101))
-        ]
+    # Start the server
+    await server.start_server()
     
-    @server.rpc_method("math.factorial")
-    async def factorial(n: int) -> int:
-        if n < 0:
-            raise ValueError("Factorial not defined for negative numbers")
-        if n == 0:
-            return 1
-        result = 1
-        for i in range(1, n + 1):
-            result *= i
-        return result
-    
-    await server.start_server("api")
-    return server
-
-async def run_client():
-    """Run RPC client examples."""
-    client = NAS_RPC("nats://localhost:4222")
+    # Create RPC client (same namespace)
+    client = NAS_RPC("localhost", 4222, namespace="myapp")
     await client.connect()
     
-    # Create a user
-    user = await client.call("api.user.create", {
-        "name": "Alice Smith",
-        "email": "alice@example.com"
-    })
-    print(f"Created user: {user}")
-    
-    # List users
-    users = await client.call("api.user.list", {"limit": 5})
-    print(f"Users: {users}")
-    
-    # Calculate factorial
-    result = await client.call("api.math.factorial", {"n": 5})
-    print(f"5! = {result}")
-    
-    # Batch operations
-    batch = [
-        ("api.math.factorial", {"n": 3}),
-        ("api.math.factorial", {"n": 4}),
-        ("api.math.factorial", {"n": 5}),
-    ]
-    results = await client.call_batch(batch)
-    print(f"Batch factorial results: {results}")
-    
-    return client
-
-async def main():
-    # Start server
-    server = await setup_server()
-    print("RPC Server started")
-    
-    # Run client operations
-    client = await run_client()
+    # Make RPC call
+    result = await client.call("greet", {"name": "World"})
+    print(result)  # Output: Hello, World!
     
     # Cleanup
     await client.disconnect()
     await server.disconnect()
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
 ## API Reference
 
-### Class: `NAS_RPC`
+### Initialization
 
-#### Constructor
 ```python
-NAS_RPC(servers: str = "nats://localhost:4222", **connection_options)
+rpc = NAS_RPC(
+    host="localhost",      # NATS server host
+    port=4222,            # NATS server port
+    namespace="default"   # Namespace for RPC isolation
+)
 ```
 
-#### Class Methods
-- `async from_connection(existing_connection: NATS, servers: str = "nats://localhost:4222")` - Create instance from existing connection
+### Connection Management
 
-#### Connection Methods
-- `async connect()` - Establish connection to NATS server
-- `async disconnect()` - Close connection and cleanup resources
+#### `connect()`
+Establish connection to NATS server.
 
-#### Server Methods
-- `register_handler(method: str, handler: Callable)` - Register an RPC method handler
-- `rpc_method(name: str = None)` - Decorator for registering RPC methods
-- `async start_server(prefix: str = "")` - Start the RPC server
+```python
+success = await rpc.connect()
+if success:
+    print("Connected!")
+```
 
-#### Client Methods
-- `async call(method: str, params: Union[Dict, list] = None, timeout: float = 5.0)` - Make RPC call and wait for response
-- `async call_async(method: str, params: Union[Dict, list] = None)` - Make async RPC call without waiting
-- `async get_response(request_id: str, timeout: float = 5.0)` - Get response for async call
-- `async call_batch(calls: list, timeout: float = 5.0)` - Execute multiple RPC calls in parallel
+#### `wait_connected(timeout=5.0)`
+Wait for connection with timeout.
+
+```python
+if await rpc.wait_connected(timeout=10.0):
+    print("Connected within 10 seconds")
+```
+
+#### `disconnect()`
+Close connection and cleanup resources.
+
+```python
+await rpc.disconnect()
+```
+
+### RPC Server Methods
+
+#### `register_handler(method, handler)`
+Register an RPC method handler.
+
+```python
+async def add(a: float, b: float) -> float:
+    return a + b
+
+server.register_handler("math.add", add)
+```
+
+#### `rpc_method(name=None)`
+Decorator for registering RPC methods.
+
+```python
+@server.rpc_method("math.multiply")
+async def multiply(x: float, y: float) -> float:
+    return x * y
+
+# Or use function name as method name
+@server.rpc_method()
+async def divide(a: float, b: float) -> float:
+    return a / b  # Method name will be "divide"
+```
+
+#### `start_server(prefix="")`
+Start the RPC server with optional prefix.
+
+```python
+# Without prefix - methods registered as-is
+await server.start_server()
+
+# With prefix - all methods get prefix
+await server.start_server("api")
+# "math.add" becomes "api.math.add"
+```
+
+### RPC Client Methods
+
+#### `call(method, params=None, timeout=5.0)`
+Make a synchronous RPC call and wait for response.
+
+```python
+# With dictionary parameters
+result = await client.call("math.add", {"a": 5, "b": 3})
+
+# With list parameters
+result = await client.call("math.multiply", [4, 7])
+
+# With timeout
+result = await client.call("slow.method", {"data": "test"}, timeout=30.0)
+```
+
+#### `call_async(method, params=None)`
+Make an asynchronous RPC call without waiting.
+
+```python
+# Start async call
+request_id = await client.call_async("long.process", {"input": data})
+
+# Do other work...
+await do_something_else()
+
+# Get the result later
+result = await client.get_response(request_id, timeout=10.0)
+```
+
+#### `call_batch(calls, timeout=5.0)`
+Make multiple RPC calls in parallel.
+
+```python
+batch_calls = [
+    ("math.add", {"a": 1, "b": 2}),
+    ("math.multiply", {"x": 3, "y": 4}),
+    ("string.concat", {"str1": "Hello", "str2": "World"})
+]
+
+results = await client.call_batch(batch_calls)
+for i, result in enumerate(results):
+    if isinstance(result, Exception):
+        print(f"Call {i} failed: {result}")
+    else:
+        print(f"Call {i} result: {result}")
+```
 
 ## Advanced Usage
 
-### Custom Error Handling
+### Complete RPC Service Example
 
 ```python
-@rpc.rpc_method("validate.email")
-async def validate_email(email: str) -> bool:
-    if "@" not in email:
-        raise ValueError("Invalid email format")
-    # More validation logic
+import asyncio
+from nas_rpc import NAS_RPC
+
+class CalculatorService:
+    def __init__(self):
+        self.rpc = NAS_RPC("localhost", 4222, namespace="calculator")
+        self.setup_methods()
+    
+    def setup_methods(self):
+        @self.rpc.rpc_method("add")
+        async def add(a: float, b: float) -> float:
+            return a + b
+        
+        @self.rpc.rpc_method("subtract")
+        async def subtract(a: float, b: float) -> float:
+            return a - b
+        
+        @self.rpc.rpc_method("multiply")
+        async def multiply(a: float, b: float) -> float:
+            return a * b
+        
+        @self.rpc.rpc_method("divide")
+        async def divide(a: float, b: float) -> float:
+            if b == 0:
+                raise ValueError("Division by zero")
+            return a / b
+        
+        @self.rpc.rpc_method("power")
+        async def power(base: float, exponent: float) -> float:
+            return base ** exponent
+    
+    async def start(self):
+        await self.rpc.connect()
+        await self.rpc.start_server()
+        print("Calculator service started")
+    
+    async def stop(self):
+        await self.rpc.disconnect()
+
+# Run the service
+async def main():
+    service = CalculatorService()
+    await service.start()
+    
+    # Keep running
+    try:
+        await asyncio.Event().wait()
+    except KeyboardInterrupt:
+        await service.stop()
+
+asyncio.run(main())
+```
+
+### Error Handling
+
+```python
+# Server-side error handling
+@server.rpc_method("validate")
+async def validate(data: str) -> bool:
+    if not data:
+        raise ValueError("Data cannot be empty")
+    if len(data) < 5:
+        raise ValueError("Data too short")
     return True
 
-# Client side with specific error handling
+# Client-side error handling
 try:
-    is_valid = await rpc.call("validate.email", {"email": "invalid"})
+    result = await client.call("validate", {"data": ""})
 except Exception as e:
-    if "Invalid email format" in str(e):
-        print("Email validation failed")
-    else:
-        raise
+    print(f"Validation failed: {e}")
+    # Output: RPC Error (-32603): Internal error: Data cannot be empty
 ```
 
-### Performance Optimization
+### Namespace Isolation
 
 ```python
-# For high-throughput scenarios, use async calls
-request_ids = []
-for i in range(100):
-    req_id = await rpc.call_async("process.item", {"id": i})
-    request_ids.append(req_id)
+# Production server
+server_prod = NAS_RPC("localhost", 4222, namespace="production")
+await server_prod.connect()
 
-# Collect results
-results = []
-for req_id in request_ids:
-    try:
-        result = await rpc.get_response(req_id, timeout=10.0)
-        results.append(result)
-    except TimeoutError:
-        results.append(None)  # Handle timeout as needed
+@server_prod.rpc_method("get_data")
+async def get_prod_data():
+    return {"env": "production", "data": "real data"}
+
+await server_prod.start_server()
+
+# Development server (different namespace)
+server_dev = NAS_RPC("localhost", 4222, namespace="development")
+await server_dev.connect()
+
+@server_dev.rpc_method("get_data")
+async def get_dev_data():
+    return {"env": "development", "data": "test data"}
+
+await server_dev.start_server()
+
+# Clients can only call methods in their namespace
+client_prod = NAS_RPC("localhost", 4222, namespace="production")
+await client_prod.connect()
+result = await client_prod.call("get_data")  # Gets production data
+
+client_dev = NAS_RPC("localhost", 4222, namespace="development")
+await client_dev.connect()
+result = await client_dev.call("get_data")  # Gets development data
 ```
 
-## Best Practices
+### Context Manager Usage
 
-1. **Always use async/await**: The library is built for asynchronous operations
-2. **Handle timeouts appropriately**: Set reasonable timeouts based on expected operation duration
-3. **Use batch calls for multiple operations**: More efficient than sequential calls
-4. **Implement proper error handling**: Both on server and client side
-5. **Clean up connections**: Always call `disconnect()` when done
-6. **Use descriptive method names**: Follow a naming convention like `service.action`
-7. **Validate inputs on server side**: Don't trust client input blindly
+```python
+async with NAS_RPC("localhost", 4222, namespace="temp") as rpc:
+    @rpc.rpc_method("echo")
+    async def echo(message: str) -> str:
+        return f"Echo: {message}"
+    
+    await rpc.start_server()
+    
+    result = await rpc.call("echo", {"message": "Hello"})
+    print(result)  # Output: Echo: Hello
+    
+# Connection automatically closed
+```
 
-## Limitations
+### Method Prefixes
 
-- Requires NATS server to be running
-- All parameters and return values must be JSON-serializable
-- Maximum message size limited by NATS configuration (default 1MB)
-- No built-in authentication (use NATS security features)
+```python
+# Register methods with different prefixes
+@server.rpc_method("add")
+async def add(a, b):
+    return a + b
+
+@server.rpc_method("concat")
+async def concat(s1, s2):
+    return s1 + s2
+
+# Start with prefix
+await server.start_server("v1")
+
+# Client must use full path
+result = await client.call("v1.add", {"a": 1, "b": 2})
+result = await client.call("v1.concat", {"s1": "Hello", "s2": "World"})
+```
+
+## RPC Protocol
+
+### Request Format
+```json
+{
+    "id": "unique-request-id",
+    "method": "method.name",
+    "params": {
+        "param1": "value1",
+        "param2": "value2"
+    }
+}
+```
+
+### Response Format (Success)
+```json
+{
+    "id": "unique-request-id",
+    "result": "method result",
+    "error": null
+}
+```
+
+### Response Format (Error)
+```json
+{
+    "id": "unique-request-id",
+    "result": null,
+    "error": {
+        "code": -32603,
+        "message": "Internal error: Division by zero"
+    }
+}
+```
+
+### Error Codes
+- `-32700`: Parse error - Invalid JSON
+- `-32602`: Invalid params - Wrong parameter types or count
+- `-32603`: Internal error - Method execution failed
+
+## Performance Considerations
+
+### Connection Management
+- Each NAS_RPC instance maintains its own connection
+- Use a single server instance for all methods
+- Reuse client instances for multiple calls
+
+### Timeout Settings
+```python
+# Short timeout for fast methods
+result = await client.call("fast.method", params, timeout=1.0)
+
+# Longer timeout for slow operations
+result = await client.call("slow.process", params, timeout=60.0)
+
+# Batch calls with appropriate timeout
+results = await client.call_batch(calls, timeout=30.0)
+```
+
+### Namespace Best Practices
+```python
+# Environment-based namespaces
+namespace = os.getenv("ENVIRONMENT", "development")
+rpc = NAS_RPC("localhost", 4222, namespace=namespace)
+
+# Service-based namespaces
+auth_service = NAS_RPC(namespace="auth")
+user_service = NAS_RPC(namespace="users")
+payment_service = NAS_RPC(namespace="payments")
+```
+
+## Example Applications
+
+### Microservices Communication
+```python
+# User service
+user_service = NAS_RPC(namespace="users")
+await user_service.connect()
+
+@user_service.rpc_method("get_user")
+async def get_user(user_id: int):
+    # Fetch from database
+    return {"id": user_id, "name": "John Doe"}
+
+await user_service.start_server()
+
+# Order service calling user service
+order_service = NAS_RPC(namespace="users")  # Same namespace to call users
+await order_service.connect()
+
+user = await order_service.call("get_user", {"user_id": 123})
+```
+
+### Task Distribution
+```python
+# Worker
+worker = NAS_RPC(namespace="tasks")
+await worker.connect()
+
+@worker.rpc_method("process_image")
+async def process_image(image_url: str):
+    # Process image
+    return {"status": "completed", "url": processed_url}
+
+await worker.start_server()
+
+# Dispatcher
+dispatcher = NAS_RPC(namespace="tasks")
+await dispatcher.connect()
+
+# Distribute tasks
+tasks = [
+    ("process_image", {"image_url": url1}),
+    ("process_image", {"image_url": url2}),
+    ("process_image", {"image_url": url3})
+]
+
+results = await dispatcher.call_batch(tasks, timeout=30.0)
+```
+
+## Testing
+
+```python
+import asyncio
+import pytest
+from nas_rpc import NAS_RPC
+
+@pytest.mark.asyncio
+async def test_rpc_call():
+    # Setup server
+    server = NAS_RPC(namespace="test")
+    await server.connect()
+    
+    @server.rpc_method("add")
+    async def add(a, b):
+        return a + b
+    
+    await server.start_server()
+    
+    # Test client
+    client = NAS_RPC(namespace="test")
+    await client.connect()
+    
+    result = await client.call("add", {"a": 5, "b": 3})
+    assert result == 8
+    
+    # Cleanup
+    await client.disconnect()
+    await server.disconnect()
+```
 
 ## Troubleshooting
 
 ### Connection Issues
 ```python
-# Check if connected
-if not rpc._connected:
-    await rpc.connect()
+rpc = NAS_RPC("localhost", 4222, namespace="myapp")
+
+if not await rpc.connect():
+    print("Failed to connect to NATS")
+    print("Check if NATS server is running: docker ps | grep nats")
 ```
 
 ### Timeout Errors
-- Increase timeout value for long-running operations
-- Check NATS server is running and accessible
-- Verify method name is correct and server is listening
+- Increase timeout for slow methods
+- Check if server and client are in same namespace
+- Verify NATS server is running and accessible
 
-### Serialization Errors
-- Ensure all parameters and return values are JSON-serializable
-- Use basic types: dict, list, str, int, float, bool, None
+### Method Not Found
+- Ensure server has started with `start_server()`
+- Check namespace matches between client and server
+- Verify method name and prefix are correct
+
+## Limitations
+
+1. **No Bidirectional Streaming** - Only request-response pattern
+2. **JSON Serialization** - Parameters and results must be JSON serializable
+3. **Single Response** - Each request gets exactly one response
+4. **Namespace Isolation** - No cross-namespace calls
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+Feel free to submit issues, fork the repository, and create pull requests for any improvements.
 
 ## License
 
-[Your License Here]
+This project is provided as-is for educational and development purposes.
 
-## See Also
+## Acknowledgments
 
-- [NATS Documentation](https://docs.nats.io/)
-- [nats-py Documentation](https://github.com/nats-io/nats.py)
-
-
+Built on top of [NATS.io](https://nats.io/), a high-performance messaging system for cloud native applications.

@@ -1,390 +1,719 @@
-# NASQueue - NATS-based Message Queue Implementation
+# NASQueue
 
-A Python implementation of a message queue system built on top of NATS messaging system, providing simple push/pop operations with internal queueing capabilities.
+A lightweight Python queue implementation over NATS messaging system with namespace support. This library provides push/pop queue functionality with automatic message queuing, subscription-based message collection, and namespace isolation for multi-tenant environments.
 
 ## Features
 
-- **Simple Queue Operations**: Push and pop messages with ease
-- **Internal Message Queue**: Local deque-based queue for message storage
-- **NATS Integration**: Full NATS pub/sub capabilities
-- **Subscription Support**: Subscribe to subjects and automatically queue received messages
-- **Connection Sharing**: Create instances from existing NATS connections
-- **Async/Await Support**: Fully asynchronous operations
-- **Message Type Flexibility**: Support for strings, bytes, and other data types
-- **Headers Support**: Optional message headers for metadata
+- 📦 **Queue Operations** - Simple push/pop interface for message queuing
+- 🏷️ **Namespace Isolation** - Separate queues by environment or application
+- 📨 **Auto-Subscribe** - Automatically queue incoming messages from subscriptions
+- 👥 **Queue Groups** - Load balancing support for distributed workers
+- ⏱️ **Timeout Support** - Pop operations with configurable timeout
+- 🔄 **Multiple Data Types** - Support for strings, bytes, JSON, and binary data
+- 📊 **Queue Management** - Monitor queue size and clear operations
+- 🔌 **Direct NATS Protocol** - No external dependencies, pure Python implementation
+- ⚡ **Async/Await** - Full asynchronous operation with Python asyncio
 
 ## Installation
 
 ### Prerequisites
 
+- Python 3.7+
+- NATS Server running (default: localhost:4222)
+
+### Install NATS Server
+
 ```bash
-pip install nats-py
+# Using Docker
+docker run -p 4222:4222 -ti nats:latest
+
+# Or download from https://nats.io/download/
 ```
 
-### Quick Start
+### Install Dependencies
+
+```bash
+pip install asyncio
+```
+
+## Quick Start
+
+### Basic Queue Operations
 
 ```python
 import asyncio
 from nas_queue import NASQueue
 
 async def main():
-    # Create and connect
-    queue = NASQueue("nats://localhost:4222")
+    # Create queue client
+    queue = NASQueue("localhost", 4222, namespace="myapp")
     await queue.connect()
     
-    # Push messages
-    await queue.push("my.subject", "Hello, World!")
-    await queue.push("my.subject", {"type": "data", "value": 42})
+    # Push messages to queue
+    await queue.push("orders", "Order #1001")
+    await queue.push("orders", {"id": 1002, "amount": 99.99})
     
-    # Pop messages
+    # Check queue size
+    print(f"Queue size: {queue.queue_size()}")
+    
+    # Pop messages from queue
     while queue.queue_size() > 0:
         msg = await queue.pop()
-        print(f"Got: {msg['message']}")
+        print(f"Popped: {msg['message']}")
     
+    # Cleanup
     await queue.disconnect()
 
 asyncio.run(main())
 ```
 
-## Usage
+## API Reference
 
-### Creating a Queue Instance
+### Initialization
 
-#### Standard Connection
-```python
-queue = NASQueue("nats://localhost:4222")
-await queue.connect()
-```
-
-#### From Existing Connection
-```python
-# Reuse an existing NATS connection
-existing_connection = some_nats_client.nc
-queue = NASQueue.from_connection(existing_connection)
-```
-
-#### With Connection Options
 ```python
 queue = NASQueue(
-    "nats://localhost:4222",
-    name="my-queue-client",
-    reconnect_time_wait=2,
-    max_reconnect_attempts=10
+    host="localhost",      # NATS server host
+    port=4222,            # NATS server port
+    namespace="default"   # Namespace for queue isolation
 )
-await queue.connect()
 ```
 
-### Push Operations
+### Connection Management
 
-#### Basic Push
+#### `connect()`
+Establish connection to NATS server.
+
 ```python
-# Push a string message
-await queue.push("subject.name", "Hello, NATS!")
-
-# Push bytes
-await queue.push("subject.name", b"Binary data")
-
-# Push other types (will be converted to string)
-await queue.push("subject.name", {"key": "value"})
-await queue.push("subject.name", 12345)
+success = await queue.connect()
+if success:
+    print("Connected to NATS!")
 ```
 
-#### Push with Headers
+#### `wait_connected(timeout=5.0)`
+Wait for connection with timeout.
+
 ```python
-headers = {
-    "correlation-id": "123456",
-    "content-type": "application/json"
-}
-await queue.push("subject.name", "Message content", headers=headers)
+if await queue.wait_connected(timeout=10.0):
+    print("Connected within 10 seconds")
 ```
 
-### Pop Operations
+#### `disconnect()`
+Close connection and cleanup resources.
 
 ```python
-# Pop a message from the queue
-message = await queue.pop()
-
-if message:
-    print(f"Subject: {message['subject']}")
-    print(f"Message: {message['message'].decode()}")  # bytes to string
-    print(f"Headers: {message['headers']}")
+await queue.disconnect()
 ```
 
-### Subscription and Auto-Queueing
+#### `is_connected()`
+Check connection status.
 
 ```python
-# Subscribe to a subject and automatically queue received messages
-await queue.subscribe_and_queue("events.>")
-
-# Messages received on matching subjects will be added to the queue
-# Pop them as needed
-while queue.queue_size() > 0:
-    msg = await queue.pop()
-    # Process message
+if queue.is_connected():
+    await queue.push("test", "message")
 ```
 
-#### Queue Groups
+### Queue Operations
+
+#### `push(subject, message, headers=None)`
+Push a message to the queue and publish to NATS.
+
 ```python
-# Subscribe with queue group for load balancing
-await queue.subscribe_and_queue("worker.tasks", queue="workers")
+# Push string
+await queue.push("events", "User logged in")
+
+# Push JSON object
+await queue.push("events", {"type": "login", "user_id": 123})
+
+# Push binary data
+await queue.push("files", b"Binary content here")
+
+# Push with headers (stored but not used in basic NATS)
+await queue.push("priority", "Important message", headers={"priority": "high"})
+```
+
+#### `pop(timeout=None)`
+Pop a message from the queue.
+
+```python
+# Pop immediately (returns None if empty)
+msg = await queue.pop()
+
+# Pop with timeout (waits up to 5 seconds)
+msg = await queue.pop(timeout=5.0)
+
+if msg:
+    print(f"Subject: {msg['subject']}")
+    print(f"Message: {msg['message']}")
+    print(f"Timestamp: {msg['timestamp']}")
+```
+
+#### `subscribe_and_queue(subject, queue_group="")`
+Subscribe to a subject and automatically queue received messages.
+
+```python
+# Simple subscription
+await queue.subscribe_and_queue("events")
+
+# With queue group for load balancing
+await queue.subscribe_and_queue("tasks", queue_group="workers")
+```
+
+#### `unsubscribe(sid=None)`
+Unsubscribe from subscriptions.
+
+```python
+# Unsubscribe from specific subscription
+sid = await queue.subscribe_and_queue("events")
+await queue.unsubscribe(sid)
+
+# Unsubscribe from all
+await queue.unsubscribe()
 ```
 
 ### Queue Management
 
+#### `queue_size()`
+Get the current number of messages in the queue.
+
 ```python
-# Check queue size
 size = queue.queue_size()
-print(f"Queue has {size} messages")
-
-# Clear all messages
-queue.clear_queue()
-
-# Unsubscribe from current subscription
-await queue.unsubscribe()
+print(f"Messages in queue: {size}")
 ```
 
-## Complete Example
+#### `clear_queue()`
+Remove all messages from the queue.
+
+```python
+queue.clear_queue()
+print("Queue cleared")
+```
+
+#### `get_namespace()`
+Get the current namespace.
+
+```python
+namespace = queue.get_namespace()
+print(f"Current namespace: {namespace}")
+```
+
+## Advanced Usage
+
+### Producer-Consumer Pattern
 
 ```python
 import asyncio
-import json
 from nas_queue import NASQueue
 
-async def producer_example():
-    """Example of a message producer."""
-    producer = NASQueue("nats://localhost:4222")
-    await producer.connect()
+# Producer
+async def producer():
+    queue = NASQueue("localhost", 4222, namespace="tasks")
+    await queue.connect()
     
-    # Send different types of messages
-    for i in range(5):
-        # Send JSON-like data
-        data = {
-            "id": i,
-            "timestamp": f"2024-01-01T12:00:{i:02d}",
-            "value": i * 10
-        }
-        await producer.push("data.stream", json.dumps(data))
-        
-        # Send with headers
-        await producer.push(
-            "events.important",
-            f"Event {i}",
-            headers={"priority": "high", "sequence": str(i)}
-        )
+    for i in range(10):
+        await queue.push("work", f"Task #{i+1}")
+        print(f"Produced: Task #{i+1}")
+        await asyncio.sleep(0.5)
     
-    await producer.disconnect()
-    print("Producer finished sending messages")
+    await queue.disconnect()
 
-async def consumer_example():
-    """Example of a message consumer."""
-    consumer = NASQueue("nats://localhost:4222")
-    await consumer.connect()
+# Consumer
+async def consumer(worker_id):
+    queue = NASQueue("localhost", 4222, namespace="tasks")
+    await queue.connect()
     
-    # Subscribe to multiple subjects
-    await consumer.subscribe_and_queue("data.>")
+    # Subscribe to receive tasks
+    await queue.subscribe_and_queue("work")
     
-    # Wait a bit for messages to arrive
-    await asyncio.sleep(1)
-    
-    # Process all queued messages
-    print(f"Consumer has {consumer.queue_size()} messages in queue")
-    
-    while consumer.queue_size() > 0:
-        msg = await consumer.pop()
+    while True:
+        msg = await queue.pop(timeout=1.0)
         if msg:
-            try:
-                # Try to parse as JSON
-                data = json.loads(msg['message'].decode())
-                print(f"Received data: {data}")
-            except json.JSONDecodeError:
-                # Handle as plain text
-                print(f"Received: {msg['message'].decode()}")
+            print(f"Worker {worker_id} processing: {msg['message'].decode()}")
+            await asyncio.sleep(1)  # Simulate work
+        else:
+            break
     
-    await consumer.unsubscribe()
-    await consumer.disconnect()
-    print("Consumer finished processing")
+    await queue.disconnect()
 
-async def shared_connection_example():
-    """Example of sharing connections between instances."""
-    # Create primary client
-    primary = NASQueue("nats://localhost:4222")
-    await primary.connect()
+# Run producer and consumers
+async def main():
+    await asyncio.gather(
+        producer(),
+        consumer(1),
+        consumer(2)
+    )
+
+asyncio.run(main())
+```
+
+### Load Balancing with Queue Groups
+
+```python
+# Multiple workers sharing the load
+async def worker(worker_id):
+    queue = NASQueue("localhost", 4222, namespace="workers")
+    await queue.connect()
     
-    # Create secondary clients using the same connection
-    queue1 = NASQueue.from_connection(primary.nc)
-    queue2 = NASQueue.from_connection(primary.nc)
+    # All workers subscribe with same queue group
+    await queue.subscribe_and_queue("tasks", queue_group="worker_pool")
     
-    # Each queue maintains its own internal message queue
-    await queue1.push("channel.1", "Message for queue 1")
-    await queue2.push("channel.2", "Message for queue 2")
+    while True:
+        msg = await queue.pop(timeout=2.0)
+        if msg:
+            print(f"Worker {worker_id}: {msg['message'].decode()}")
+            # Process task...
+        else:
+            break
     
-    # Each queue has independent message storage
-    print(f"Queue 1 size: {queue1.queue_size()}")  # 1
-    print(f"Queue 2 size: {queue2.queue_size()}")  # 1
+    await queue.disconnect()
+
+# Dispatcher
+async def dispatcher():
+    queue = NASQueue("localhost", 4222, namespace="workers")
+    await queue.connect()
     
-    await primary.disconnect()
+    # Send tasks that will be distributed among workers
+    for i in range(20):
+        await queue.push("tasks", f"Task {i+1}")
+    
+    await queue.disconnect()
 
 async def main():
-    # Run producer and consumer
-    await producer_example()
-    await consumer_example()
-    
-    # Demonstrate shared connections
-    await shared_connection_example()
+    # Start 3 workers and dispatcher
+    await asyncio.gather(
+        dispatcher(),
+        worker(1),
+        worker(2),
+        worker(3)
+    )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+asyncio.run(main())
 ```
 
-## API Reference
+### Namespace Isolation
 
-### Class: `NASQueue`
-
-#### Constructor
 ```python
-NASQueue(servers: str = "nats://localhost:4222", **connection_options)
+# Production queue
+queue_prod = NASQueue("localhost", 4222, namespace="production")
+await queue_prod.connect()
+await queue_prod.push("orders", "Production order")
+
+# Development queue (isolated)
+queue_dev = NASQueue("localhost", 4222, namespace="development")
+await queue_dev.connect()
+await queue_dev.push("orders", "Test order")
+
+# Each namespace has its own queue
+print(f"Prod queue: {queue_prod.queue_size()}")  # 1
+print(f"Dev queue: {queue_dev.queue_size()}")    # 1
+
+# Subscriptions are also isolated by namespace
+await queue_prod.subscribe_and_queue("events")
+await queue_dev.push("events", "Dev event")  # Won't be received by prod
 ```
-- `servers`: NATS server URL(s)
-- `**connection_options`: Additional NATS connection options
 
-#### Class Methods
-- `from_connection(existing_connection: NATS, servers: str = "nats://localhost:4222")` - Create instance from existing NATS connection
+### Message Types and Serialization
 
-#### Connection Methods
-- `async connect()` - Establish connection to NATS server
-- `async disconnect()` - Close connection to NATS server
+```python
+queue = NASQueue("localhost", 4222, namespace="data")
+await queue.connect()
 
-#### Queue Operations
-- `async push(subject: str, message: Any, headers: Optional[Dict] = None)` - Push message to queue and publish to NATS
-- `async pop(timeout: Optional[float] = None)` - Pop message from local queue
-- `queue_size()` - Get current queue size
-- `clear_queue()` - Clear all messages from queue
+# String messages (automatically encoded to bytes)
+await queue.push("text", "Hello, World!")
 
-#### Subscription Methods
-- `async subscribe_and_queue(subject: str, queue: str = "")` - Subscribe and auto-queue messages
-- `async unsubscribe()` - Unsubscribe from current subscription
+# JSON objects (automatically serialized)
+await queue.push("json", {
+    "user_id": 123,
+    "action": "login",
+    "timestamp": "2024-01-01T10:00:00Z"
+})
+
+# Binary data
+image_data = b"\x89PNG\r\n\x1a\n..."
+await queue.push("images", image_data)
+
+# Complex nested structures
+await queue.push("complex", {
+    "metadata": {
+        "version": "1.0",
+        "author": "system"
+    },
+    "data": [1, 2, 3, 4, 5],
+    "nested": {
+        "deep": {
+            "value": 42
+        }
+    }
+})
+
+# Pop and handle different types
+msg = await queue.pop()
+if msg:
+    try:
+        # Try to decode as string
+        text = msg['message'].decode()
+        print(f"Text message: {text}")
+    except:
+        # Handle as binary
+        print(f"Binary message of {len(msg['message'])} bytes")
+```
+
+### Context Manager Usage
+
+```python
+async with NASQueue("localhost", 4222, namespace="temp") as queue:
+    await queue.push("test", "Message in context")
+    
+    msg = await queue.pop()
+    if msg:
+        print(f"Got: {msg['message'].decode()}")
+    
+# Connection automatically closed
+```
+
+### Event-Driven Processing
+
+```python
+class EventProcessor:
+    def __init__(self, namespace="events"):
+        self.queue = NASQueue("localhost", 4222, namespace=namespace)
+    
+    async def start(self):
+        await self.queue.connect()
+        
+        # Subscribe to different event types
+        await self.queue.subscribe_and_queue("user.login")
+        await self.queue.subscribe_and_queue("user.logout")
+        await self.queue.subscribe_and_queue("order.created")
+        await self.queue.subscribe_and_queue("order.completed")
+    
+    async def process_events(self):
+        while True:
+            msg = await self.queue.pop(timeout=1.0)
+            if msg:
+                subject = msg['subject']
+                data = msg['message'].decode()
+                
+                if subject == "user.login":
+                    await self.handle_login(data)
+                elif subject == "user.logout":
+                    await self.handle_logout(data)
+                elif subject == "order.created":
+                    await self.handle_order_created(data)
+                elif subject == "order.completed":
+                    await self.handle_order_completed(data)
+    
+    async def handle_login(self, data):
+        print(f"User logged in: {data}")
+    
+    async def handle_logout(self, data):
+        print(f"User logged out: {data}")
+    
+    async def handle_order_created(self, data):
+        print(f"Order created: {data}")
+    
+    async def handle_order_completed(self, data):
+        print(f"Order completed: {data}")
+    
+    async def stop(self):
+        await self.queue.disconnect()
+
+# Usage
+async def main():
+    processor = EventProcessor()
+    await processor.start()
+    
+    # Simulate events
+    event_queue = NASQueue("localhost", 4222, namespace="events")
+    await event_queue.connect()
+    
+    await event_queue.push("user.login", "user123")
+    await event_queue.push("order.created", "order456")
+    await event_queue.push("order.completed", "order456")
+    await event_queue.push("user.logout", "user123")
+    
+    # Process events
+    await processor.process_events()
+    
+    await event_queue.disconnect()
+    await processor.stop()
+
+asyncio.run(main())
+```
+
+## Message Format
+
+Messages in the queue have the following structure:
+
+```python
+{
+    'subject': 'original.subject',    # Subject without namespace
+    'message': b'message bytes',      # Message content as bytes
+    'headers': None,                  # Optional headers
+    'reply_to': None,                 # Reply subject if any
+    'timestamp': datetime.now()       # When message was received
+}
+```
+
+## Performance Considerations
+
+### Queue Size Management
+```python
+# Monitor queue size
+if queue.queue_size() > 1000:
+    print("Warning: Queue is getting large")
+    
+# Clear old messages if needed
+if queue.queue_size() > 10000:
+    queue.clear_queue()
+```
+
+### Batch Processing
+```python
+# Process messages in batches
+async def process_batch(queue, batch_size=10):
+    batch = []
+    
+    for _ in range(batch_size):
+        msg = await queue.pop()
+        if msg:
+            batch.append(msg)
+        else:
+            break
+    
+    if batch:
+        # Process entire batch at once
+        await process_messages(batch)
+```
+
+### Connection Reuse
+```python
+# Reuse single connection for multiple operations
+queue = NASQueue("localhost", 4222, namespace="app")
+await queue.connect()
+
+# Multiple operations on same connection
+for i in range(100):
+    await queue.push("events", f"Event {i}")
+
+# Don't create new connections unnecessarily
+# BAD: Creating connection for each message
+for i in range(100):
+    q = NASQueue()
+    await q.connect()
+    await q.push("events", f"Event {i}")
+    await q.disconnect()
+```
 
 ## Use Cases
 
-### 1. Work Queue Pattern
+### Task Queue
 ```python
-# Worker subscribes to task queue
-worker = NASQueue()
-await worker.connect()
-await worker.subscribe_and_queue("tasks.pending", queue="workers")
+# Task queue for background jobs
+task_queue = NASQueue(namespace="tasks")
+await task_queue.connect()
 
-# Process tasks as they arrive
+# Producer adds tasks
+await task_queue.push("email", json.dumps({
+    "to": "user@example.com",
+    "subject": "Welcome!",
+    "template": "welcome"
+}))
+
+# Worker processes tasks
+await task_queue.subscribe_and_queue("email")
 while True:
-    if worker.queue_size() > 0:
-        task = await worker.pop()
-        # Process task
-    await asyncio.sleep(0.1)
+    task = await task_queue.pop(timeout=5.0)
+    if task:
+        email_data = json.loads(task['message'].decode())
+        await send_email(email_data)
 ```
 
-### 2. Event Buffer
+### Log Aggregation
 ```python
-# Buffer events for batch processing
-buffer = NASQueue()
+# Centralized log collection
+log_queue = NASQueue(namespace="logs")
+await log_queue.connect()
+
+# Applications push logs
+await log_queue.push("app.errors", json.dumps({
+    "timestamp": datetime.now().isoformat(),
+    "level": "ERROR",
+    "message": "Database connection failed",
+    "service": "user-service"
+}))
+
+# Log processor
+await log_queue.subscribe_and_queue("app.errors")
+while True:
+    log_entry = await log_queue.pop()
+    if log_entry:
+        # Store in database or forward to monitoring
+        await process_log(log_entry)
+```
+
+### Message Buffer
+```python
+# Buffer messages during high load
+buffer = NASQueue(namespace="buffer")
 await buffer.connect()
-await buffer.subscribe_and_queue("events.>")
 
-# Process in batches
-while True:
-    await asyncio.sleep(5)  # Wait 5 seconds
-    batch = []
-    while buffer.queue_size() > 0 and len(batch) < 100:
+# Receive from external source and buffer
+await buffer.subscribe_and_queue("incoming.data")
+
+# Process at controlled rate
+async def controlled_processor():
+    while True:
+        # Process one message per second
         msg = await buffer.pop()
-        batch.append(msg)
-    
-    if batch:
-        # Process batch
-        process_batch(batch)
+        if msg:
+            await slow_process(msg)
+        await asyncio.sleep(1)
 ```
 
-### 3. Message Bridge
+## Testing
+
 ```python
-# Bridge between different subjects
-bridge = NASQueue()
-await bridge.connect()
-await bridge.subscribe_and_queue("source.>")
+import asyncio
+import pytest
+from nas_queue import NASQueue
 
-while True:
-    if bridge.queue_size() > 0:
-        msg = await bridge.pop()
-        # Transform and republish
-        transformed = transform_message(msg)
-        await bridge.push("destination.topic", transformed)
+@pytest.mark.asyncio
+async def test_push_pop():
+    queue = NASQueue(namespace="test")
+    await queue.connect()
+    
+    # Test push
+    await queue.push("test", "Hello")
+    assert queue.queue_size() == 1
+    
+    # Test pop
+    msg = await queue.pop()
+    assert msg is not None
+    assert msg['message'] == b"Hello"
+    assert msg['subject'] == "test"
+    
+    # Test empty pop
+    msg = await queue.pop()
+    assert msg is None
+    
+    await queue.disconnect()
+
+@pytest.mark.asyncio
+async def test_subscription():
+    queue = NASQueue(namespace="test")
+    await queue.connect()
+    
+    # Subscribe first
+    await queue.subscribe_and_queue("events")
+    
+    # Publish message
+    await queue.push("events", "Test event")
+    
+    # Wait for message to arrive
+    await asyncio.sleep(0.1)
+    
+    # Should have one message
+    assert queue.queue_size() == 1
+    
+    msg = await queue.pop()
+    assert msg['message'] == b"Test event"
+    
+    await queue.disconnect()
 ```
-
-## Best Practices
-
-1. **Connection Management**: Always disconnect when done to free resources
-2. **Error Handling**: Wrap operations in try-except blocks for production code
-3. **Queue Size Monitoring**: Check queue size to prevent memory issues
-4. **Message Encoding**: Be consistent with message encoding/decoding
-5. **Subscription Patterns**: Use wildcards (`>`, `*`) for flexible subject matching
-6. **Queue Groups**: Use queue groups for load balancing across multiple consumers
-
-## Differences from Standard NATS
-
-- **Internal Queue**: Messages are stored locally in addition to NATS pub/sub
-- **Pop Operation**: Retrieves from local queue, not from NATS
-- **Push Operation**: Adds to local queue AND publishes to NATS
-- **Message Persistence**: Local queue provides temporary message storage
-
-## Limitations
-
-- Messages in local queue are lost if process crashes
-- No built-in persistence mechanism
-- Queue size limited by available memory
-- No automatic queue overflow handling
-- Single subscription at a time per instance
 
 ## Troubleshooting
 
 ### Connection Issues
 ```python
-# Check connection status
-if not queue._connected:
-    await queue.connect()
+queue = NASQueue("localhost", 4222, namespace="myapp")
+
+if not await queue.connect():
+    print("Failed to connect to NATS")
+    print("Check if NATS server is running: docker ps | grep nats")
+    print("Check if port 4222 is accessible: telnet localhost 4222")
 ```
 
-### Empty Queue
+### Messages Not Being Received
+- Verify publisher and subscriber are in the same namespace
+- Check subscription is active before publishing
+- Add small delay after subscribe before publishing
+- Ensure NATS server is running and accessible
+
+### Queue Growing Too Large
 ```python
-# Ensure subscription is active
-await queue.subscribe_and_queue("subject")
-
-# Wait for messages to arrive
-await asyncio.sleep(0.5)
-
-# Then check queue
-if queue.queue_size() > 0:
-    msg = await queue.pop()
+# Monitor and manage queue size
+async def queue_monitor(queue):
+    while True:
+        size = queue.queue_size()
+        if size > 10000:
+            print(f"Warning: Queue size is {size}")
+            # Consider clearing old messages
+            # queue.clear_queue()
+        await asyncio.sleep(60)
 ```
 
 ### Memory Usage
+- Clear queue periodically if messages accumulate
+- Process messages in batches
+- Use queue groups to distribute load
+
+## Limitations
+
+1. **Local Queue Only** - Messages are queued locally, not persisted
+2. **No Persistence** - Messages lost on disconnect
+3. **Memory Bound** - Queue size limited by available memory
+4. **No Priority** - FIFO order only
+5. **No Deduplication** - Duplicate messages are queued
+
+## Best Practices
+
+1. **Always Check Connection**
 ```python
-# Monitor and clear queue periodically
-if queue.queue_size() > 10000:
-    print("Queue too large, clearing old messages")
-    # Process or clear messages
+if await queue.connect():
+    await queue.push("test", "message")
+else:
+    print("Connection failed")
+```
+
+2. **Handle Pop Timeouts**
+```python
+msg = await queue.pop(timeout=5.0)
+if msg:
+    process(msg)
+else:
+    print("No messages available")
+```
+
+3. **Use Queue Groups for Scaling**
+```python
+# Multiple workers with same queue group
+await queue.subscribe_and_queue("tasks", queue_group="workers")
+```
+
+4. **Clear Queue When Needed**
+```python
+if queue.queue_size() > MAX_SIZE:
     queue.clear_queue()
 ```
 
-## Requirements
+5. **Use Appropriate Namespaces**
+```python
+# Environment-based
+namespace = os.getenv("ENVIRONMENT", "development")
 
-- Python 3.7+
-- nats-py library
-- Running NATS server
+# Service-based
+namespace = f"{service_name}.{environment}"
+```
+
+## Contributing
+
+Feel free to submit issues, fork the repository, and create pull requests for any improvements.
 
 ## License
 
-[Your License Here]
+This project is provided as-is for educational and development purposes.
 
-## See Also
+## Acknowledgments
 
-- [NATS Documentation](https://docs.nats.io/)
-- [nats-py Documentation](https://github.com/nats-io/nats.py)
-- [NATS Pub/Sub Pattern](https://docs.nats.io/nats-concepts/core-nats/pubsub)
-- [NATS Queue Groups](https://docs.nats.io/nats-concepts/core-nats/queue)
-
+Built on top of [NATS.io](https://nats.io/), a high-performance messaging system for cloud native applications.
