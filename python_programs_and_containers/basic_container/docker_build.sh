@@ -1,5 +1,5 @@
 
-cp  -r ../common_libraries/    common_libraries
+cp  -r ../building_blocks/    building_blocks
 docker build . -t nanodatacenter/python_base_image
-rm  -r common_libraries
+rm  -r building_blocks
 
