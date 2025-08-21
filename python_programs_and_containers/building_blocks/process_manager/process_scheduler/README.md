@@ -1,6 +1,6 @@
-# Process Aggregator
+# Process scheduler
 
-A robust Python-based process supervisor and aggregator that manages multiple child processes with automatic restart capabilities, error logging, and zombie process reaping.
+A robust Python-based process supervisor and scheduler that manages multiple child processes with automatic restart capabilities, error logging, and zombie process reaping.
 
 ## Features
 
@@ -23,7 +23,7 @@ A robust Python-based process supervisor and aggregator that manages multiple ch
 Simply copy the script to your project directory. No external dependencies required.
 
 ```bash
-chmod +x aggregator.py
+chmod +x ProcessScheduler.py
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ chmod +x aggregator.py
 
 ```python
 from pathlib import Path
-from aggregator import Aggregator
+from proc import ProcessScheduler
 
 BASE_DIR = Path("/path/to/your/programs")
 PROGRAMS = {
@@ -41,7 +41,7 @@ PROGRAMS = {
     "service3": ["node", "service3.js"],
 }
 
-agg = Aggregator(BASE_DIR, PROGRAMS)
+agg = ProcessScheduler(BASE_DIR, PROGRAMS)
 try:
     agg.start()
 except KeyboardInterrupt:
@@ -56,7 +56,7 @@ def custom_error_handler(process_name: str, json_data: str):
     # Log to external service, send alerts, etc.
     print(f"Process {process_name} failed with code {data['return_code']}")
     
-agg = Aggregator(
+agg = ProcessScheduler(
     BASE_DIR, 
     PROGRAMS, 
     err_dir=Path("/var/log/myapp"),
@@ -66,7 +66,7 @@ agg = Aggregator(
 
 ## API Reference
 
-### `Aggregator` Class
+### `ProcessScheduler` Class
 
 #### Constructor Parameters
 
@@ -77,7 +77,7 @@ agg = Aggregator(
 
 #### Methods
 
-- `start()`: Starts the aggregator and all child processes
+- `start()`: Starts the ProcessScheduler and all child processes
 - `stop()`: Initiates graceful shutdown of all processes
 
 ### `ChildSpec` Class
@@ -155,7 +155,7 @@ PROGRAMS = {
 - Stdout is redirected to `/dev/null` (only stderr is captured)
 - No inter-process communication mechanism
 - No process health checks beyond exit code monitoring
-- Single-threaded event loop per aggregator instance
+- Single-threaded event loop per ProcessScheduler instance
 
 ## License
 
@@ -166,5 +166,5 @@ PROGRAMS = {
 [Add contribution guidelines if applicable]
 
 to run full test suit 
-python3 aggregator.py --test
+python3 ProcessScheduler.py --test
 

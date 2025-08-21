@@ -18,6 +18,8 @@ def run_kb_config_scripts(kb_definitions: Path, timeout: float = 300):
         RuntimeError: If the script fails with a non-zero exit code
     """
     # Verify file ~/mount_kb_definitions/start.py exists
+    print("kb definitions: ", kb_definitions)
+    
     start_script = kb_definitions / "start.py"
     if not start_script.exists():
         raise FileNotFoundError(f"Start script not found: {start_script}")
@@ -25,6 +27,7 @@ def run_kb_config_scripts(kb_definitions: Path, timeout: float = 300):
     
     # Run the script ~/mount_kb_definitions/start.py
     print(f"Running start script with timeout of {timeout} seconds...")
+    
     try:
         result = subprocess.run(
             [sys.executable, str(start_script)],

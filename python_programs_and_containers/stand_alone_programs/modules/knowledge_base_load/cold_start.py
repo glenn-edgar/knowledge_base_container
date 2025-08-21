@@ -50,7 +50,7 @@ def main():
     update_file = home_dir / "mount_startup" / "update.json"
     current_directory = os.getcwd()
     config_map = {
-        "working": current_directory+"/configs/mount_kb_definitions"
+        "working": current_directory+"/knowledge_base_load/configs/mount_kb_definitions"
     }
     update_dir = home_dir / "mount_kb_definitions"
     result, files_transferred = load_configuration_scripts(config_file, update_file, config_map, update_dir, force_update)

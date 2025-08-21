@@ -99,39 +99,29 @@ def construct_knowledge_base(config):
 
 def main():
     """Main execution function."""
-    try:
-        # Step 1: Set up building blocks path
-        building_block_path = setup_building_blocks()
+
+    # Step 1: Set up building blocks path
+    building_block_path = setup_building_blocks()
+    
+    # Step 2: Load PostgreSQL configuration
+    config = load_postgres_config()
+    
+    # Step 3: Construct the knowledge base
+    kb_constructor = construct_knowledge_base(config)
+    
+    # Step 4: Any additional operations
+    # ... add more operations here as needed ...
+    
+    
+    print("Knowledge base built successfully!")
+    
+    
+    return 0  # Success
         
-        # Step 2: Load PostgreSQL configuration
-        config = load_postgres_config()
-        
-        # Step 3: Construct the knowledge base
-        kb_constructor = construct_knowledge_base(config)
-        
-        # Step 4: Any additional operations
-        # ... add more operations here as needed ...
-        
-        print("\n" + "="*50)
-        print("Knowledge base built successfully!")
-        print("="*50)
-        
-        return 0  # Success
-        
-    except Exception as e:
-        print("\n" + "="*50)
-        print("ERROR: Knowledge base construction failed!")
-        print(f"Reason: {e}")
-        print("="*50)
-        print("\nFull traceback:")
-        traceback.print_exc()
-        return 1  # Failure
+    
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    main()
     
-    if exit_code != 0:
-        raise RuntimeError("kb not built")
-    raise RuntimeError("kb not built")
-    sys.exit(exit_code)
+  

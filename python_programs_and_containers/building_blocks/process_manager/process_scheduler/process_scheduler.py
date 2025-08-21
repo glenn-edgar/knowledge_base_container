@@ -14,7 +14,7 @@ class ChildSpec:
     def __init__(self, name: str, cmd: List[str], err_dir: Path):
         self.name = name
         self.cmd = cmd
-        self.err_file = open(err_dir / f"{name}.stderr.log", "ab", buffering=0)
+        self.err_file = open(err_dir / f"{name}.stderr.log", "wb", buffering=0)
         self.process: Optional[asyncio.subprocess.Process] = None
         self.backoff = 1
         self.restarts = 0
@@ -53,7 +53,7 @@ class ChildSpec:
             pass
 
 
-class Aggregator:
+class ProcessScheduler:
     def __init__(
         self,
         base_dir: Path,
@@ -148,17 +148,17 @@ class Aggregator:
         await self._shutdown()
 
     async def _shutdown(self):
-        print("[aggregator] stopping children...")
+        print("[ProcessScheduler] stopping children...")
         await asyncio.gather(*(c.stop() for c in self.programs), return_exceptions=True)
         try:
             await asyncio.wait_for(asyncio.gather(*self.tasks, return_exceptions=True), timeout=10)
         except asyncio.TimeoutError:
-            print("[aggregator] force killing lingering children...")
+            print("[ProcessScheduler] force killing lingering children...")
             for c in self.programs:
                 await c.stop(sig=signal.SIGKILL)
         for c in self.programs:
             c.close()
-        print("[aggregator] stopped")
+        print("[ProcessScheduler] stopped")
 
     def start(self):
         # Create a new event loop to avoid deprecation warning
@@ -180,14 +180,14 @@ if __name__ == "__main__":
     import shutil
     
     def run_tests():
-        """Run test suite for the Aggregator"""
+        """Run test suite for the ProcessScheduler"""
         print("=" * 60)
-        print("Running Aggregator Test Suite")
+        print("Running ProcessScheduler Test Suite")
         print("=" * 60)
         
         # Test 1: Basic process management
         print("\n[TEST 1] Basic process management")
-        test_dir = Path(tempfile.mkdtemp(prefix="aggregator_test_"))
+        test_dir = Path(tempfile.mkdtemp(prefix="ProcessScheduler_test_"))
         print(f"Test directory: {test_dir}")
         
         try:
@@ -228,7 +228,7 @@ sys.exit(1)
                     print(f"  [{name}] exited with code {data['return_code']}")
                     print(f"  stderr preview: {stderr[:100]}")
                 
-                agg = Aggregator(test_dir, programs, err_dir=test_dir, error_handler=test_handler)
+                agg = ProcessScheduler(test_dir, programs, err_dir=test_dir, error_handler=test_handler)
                 
                 # Run for 5 seconds then stop
                 async def timeout_stop():
@@ -253,7 +253,7 @@ sys.exit(1)
         
         # Test 2: Crash and restart behavior
         print("\n[TEST 2] Crash and restart with backoff")
-        test_dir = Path(tempfile.mkdtemp(prefix="aggregator_test_"))
+        test_dir = Path(tempfile.mkdtemp(prefix="ProcessScheduler_test_"))
         
         try:
             crash_script = test_dir / "crash.py"
@@ -276,7 +276,7 @@ sys.exit(42)
                     restart_times.append(data["timestamp"])
                     print(f"  Restart #{len(restart_times)} at {data['utc_iso']}")
                 
-                agg = Aggregator(test_dir, programs, err_dir=test_dir, error_handler=restart_handler)
+                agg = ProcessScheduler(test_dir, programs, err_dir=test_dir, error_handler=restart_handler)
                 
                 async def stop_after_restarts():
                     await asyncio.sleep(10)  # Allow multiple restarts
@@ -305,7 +305,7 @@ sys.exit(42)
         
         # Test 3: Signal handling
         print("\n[TEST 3] Signal handling and graceful shutdown")
-        test_dir = Path(tempfile.mkdtemp(prefix="aggregator_test_"))
+        test_dir = Path(tempfile.mkdtemp(prefix="ProcessScheduler_test_"))
         
         try:
             long_runner = test_dir / "long_runner.py"
@@ -339,7 +339,7 @@ while True:
                         shutdown_graceful["status"] = True
                         print(f"  Process shut down gracefully")
                 
-                agg = Aggregator(test_dir, programs, err_dir=test_dir, error_handler=signal_handler)
+                agg = ProcessScheduler(test_dir, programs, err_dir=test_dir, error_handler=signal_handler)
                 
                 async def trigger_shutdown():
                     await asyncio.sleep(2)
@@ -367,7 +367,7 @@ while True:
     
     def run_example():
         """Run the example usage"""
-        print("Running example aggregator...")
+        print("Running example ProcessScheduler...")
         print("Configure BASE_DIR and PROGRAMS, then press Ctrl+C to stop\n")
         
         # You can modify these paths for your actual programs
@@ -403,7 +403,7 @@ while True:
             if stderr:
                 print(f"  Stderr: {stderr[:200]}")
         
-        agg = Aggregator(BASE_DIR, PROGRAMS, error_handler=my_handler)
+        agg = ProcessScheduler(BASE_DIR, PROGRAMS, error_handler=my_handler)
         try:
             agg.start()
         except KeyboardInterrupt:
