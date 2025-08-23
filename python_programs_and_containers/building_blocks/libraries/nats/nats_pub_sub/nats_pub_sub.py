@@ -24,7 +24,7 @@ class Message:
     original_topic: Optional[str] = None  # Topic without namespace prefix
 
 
-class NasPubSub:
+class NatsPubSub:
     """NATS Client with publish/subscribe functionality and namespace support."""
     
     def __init__(self, host: str = "localhost", port: int = 4222, 
@@ -585,7 +585,7 @@ async def test_connection():
     print("-" * 50)
     
     # Try manual connection first
-    client = NasPubSub("localhost", 4222, namespace="test", auto_connect=False)
+    client = NatsPubSub("localhost", 4222, namespace="test", auto_connect=False)
     
     # Try simple connection method
     connected = await client.connect()
@@ -648,7 +648,7 @@ async def test_simple():
     print("-" * 50)
     
     # Create client without auto-connect
-    client = NasPubSub("localhost", 4222, namespace="simple", auto_connect=False)
+    client = NatsPubSub("localhost", 4222, namespace="simple", auto_connect=False)
     
     # Manually connect
     if await client.connect():
@@ -686,8 +686,8 @@ async def main():
     print("=" * 50)
     
     # Create clients with different namespaces (no auto-connect)
-    client_prod = NasPubSub("localhost", 4222, namespace="production", auto_connect=False)
-    client_dev = NasPubSub("localhost", 4222, namespace="development", auto_connect=False)
+    client_prod = NatsPubSub("localhost", 4222, namespace="production", auto_connect=False)
+    client_dev = NatsPubSub("localhost", 4222, namespace="development", auto_connect=False)
     
     # Manually connect
     prod_connected = await client_prod.connect()

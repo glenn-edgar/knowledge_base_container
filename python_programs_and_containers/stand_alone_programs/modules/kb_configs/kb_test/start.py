@@ -115,7 +115,7 @@ def main():
     
     print("Knowledge base built successfully!")
     
-    
+    raise Exception("test exception")
     return 0  # Success
         
     

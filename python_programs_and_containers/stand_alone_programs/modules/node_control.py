@@ -14,6 +14,7 @@ build_block_path = home_dir/ "knowledge_base_assembly" / "python_programs_and_co
 sys.path.append(str(build_block_path))
 from container_management.container_manager import ContainerManager
 from container_management.postgres_connection_waiter import PostgresConnectionWaiter
+from process_manager.process_sequencer.process_sequencer import ProcessSequencer
 
 class NodeControl:
     def __init__(self, force_update:bool=False,
@@ -202,18 +203,18 @@ class NodeControl:
             except Exception as e:
                 print(f"Warning: Could not remove {item}: {e}")
     
-        # Copy files from transfer_dir to exec_dir
-        print(f"Copying files from {self.transfer_dir} to {self.exec_dir}")
+        # Copy files from transfer_dir to script_dir
+        print(f"Copying files from {self.transfer_dir} to {self.script_dir}")
         files_transferred = []
         
         for item in self.transfer_dir.iterdir():
             try:
                 if item.is_file():
-                    shutil.copy2(item, self.exec_dir)
+                    shutil.copy2(item, self.script_dir)
                     files_transferred.append(item.name)
                     print(f"Copied file: {item.name}")
                 elif item.is_dir():
-                    dest_dir = self.exec_dir / item.name
+                    dest_dir = self.script_dir / item.name
                     shutil.copytree(item, dest_dir)
                     files_transferred.append(f"{item.name}/")
                     print(f"Copied directory: {item.name}")
@@ -224,6 +225,43 @@ class NodeControl:
         
         print(f"Configuration data is loaded. Files transferred: {files_transferred}")
         return True , files_transferred
+    
+    def execute_configuration_script(self):
+        
+        start_script = self.script_dir / "start.py"
+        if not start_script.exists():
+            raise FileNotFoundError(f"start.py not found at {start_script}")
+        script_sequencer = ProcessSequencer(base_dir=self.script_dir, 
+                                            programs=[{"name": "knowledge_base_load", "cmd": ["python3", start_script], "timeout": 30}],
+                                            err_dir= Path("/tmp/node_control/kb_load"),
+                                            continue_on_error= False)
+        result =script_sequencer.start()
+    
+        results = script_sequencer.get_results()
+        
+        # Print summary
+        script_sequencer.print_summary()
+        
+        # Get specific result
+        kb_result = script_sequencer.get_result("knowledge_base_load")
+        if kb_result:
+            print(f"\nKnowledge base load result:")
+            print(f"  Success: {kb_result['success']}")
+            print(f"  Return code: {kb_result['return_code']}")
+            print(f"  Elapsed time: {kb_result['elapsed_time']:.2f}s")
+            
+            # Get decoded output directly
+            output = kb_result['decode_output']
+            
+            
+            # Check if it failed
+            if not kb_result['success']:
+                raise RuntimeError(f"Configuration script failed:\n{output}")
+        
+
+
+
+  
     
     def initialize_nast_topics(self):
         pass
@@ -241,7 +279,7 @@ class NodeControl:
                 print(f"Updating configuration for {self.config_name}")
                 if self.config_name != "":
                     self.load_configuration_scripts()
-                pass # execute configuration script
+                self.execute_configuration_script()
                 pass # do file loader
                 pass # do secrets loader
             pass ### set up master fields on postgres container
@@ -260,7 +298,7 @@ class NodeControl:
 
     
 if __name__ == "__main__":
-    kb_config_dir = Path.cwd() / "kb_configs"
+    kb_config_dir = Path.cwd() / "kb_configs" / "kb_test"
     kb_config_name = "kb_test"
     config_defs = {kb_config_name: {"config_dir": kb_config_dir}}
     node_control = NodeControl(force_update=True, config_defs=config_defs, config_name=kb_config_name)

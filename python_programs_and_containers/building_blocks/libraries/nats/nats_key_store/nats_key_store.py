@@ -32,7 +32,7 @@ class KeyMetadata:
     checksum: Optional[str] = None
 
 
-class NASKeyStore:
+class NATSKeyStore:
     """
     Simplified NAS client for storing and retrieving keys.
     Uses direct request/response pattern without subscriptions.
@@ -446,7 +446,7 @@ if __name__ == "__main__":
         print("Testing simplified NAS operations...")
         
         # Create client
-        client = NASKeyStore("localhost", 4222, "test_namespace")
+        client = NATSKeyStore("localhost", 4222, "test_namespace")
         
         # Test connection
         connected = await client.ping()
@@ -505,7 +505,7 @@ if __name__ == "__main__":
         print("\n" + "=" * 50)
         print("Testing TTL...")
         
-        client = NASKeyStore("localhost", 4222)
+        client = NATSKeyStore("localhost", 4222)
         
         # Store with TTL
         await client.store("temp:data", "temporary", KeyFormat.TEXT, ttl=2)
@@ -527,7 +527,7 @@ if __name__ == "__main__":
         print("\n" + "=" * 50)
         print("Testing bulk operations...")
         
-        client = NASKeyStore("localhost", 4222)
+        client = NATSKeyStore("localhost", 4222)
         
         # Bulk store
         items = {

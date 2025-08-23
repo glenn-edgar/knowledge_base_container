@@ -14,7 +14,7 @@ class ConnectionState(Enum):
     ERROR = "error"
 
 
-class NASQueue:
+class NatsQueue:
     """
     NAS Queue with push/pop functionality and namespace support.
     
@@ -472,7 +472,7 @@ async def test_connection():
     print("Testing NASQueue connection...")
     print("-" * 50)
     
-    queue = NASQueue("localhost", 4222, namespace="test")
+    queue = NatsQueue("localhost", 4222, namespace="test")
     
     # Manually connect
     if await queue.connect():
@@ -507,8 +507,8 @@ async def main():
     print("=" * 50)
     
     # Create clients with different namespaces
-    queue_prod = NASQueue("localhost", 4222, namespace="production")
-    queue_dev = NASQueue("localhost", 4222, namespace="development")
+    queue_prod = NatsQueue("localhost", 4222, namespace="production")
+    queue_dev = NatsQueue("localhost", 4222, namespace="development")
     
     # Manually connect
     prod_connected = await queue_prod.connect()
@@ -583,8 +583,8 @@ async def main():
     print("\n--- Testing queue groups ---")
     
     # Create two workers in same namespace with same queue group
-    worker1 = NASQueue("localhost", 4222, namespace="workers")
-    worker2 = NASQueue("localhost", 4222, namespace="workers")
+    worker1 = NatsQueue("localhost", 4222, namespace="workers")
+    worker2 = NatsQueue("localhost", 4222, namespace="workers")
     
     if not await worker1.connect():
         print("Worker1 failed to connect")
@@ -620,7 +620,7 @@ async def main():
     
     # Test context manager
     print("\n--- Testing context manager ---")
-    async with NASQueue("localhost", 4222, namespace="context_test") as queue_test:
+    async with NatsQueue("localhost", 4222, namespace="context_test") as queue_test:
         if queue_test.is_connected():
             await queue_test.push("test_message", "Hello from context manager")
             print(f"Test queue size: {queue_test.queue_size()}")
