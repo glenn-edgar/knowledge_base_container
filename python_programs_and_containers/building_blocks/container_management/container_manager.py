@@ -13,13 +13,33 @@ class ContainerManager:
         except Exception as e:
             raise RuntimeError(f"Failed to initialize Docker client: {e}")
     
+    @classmethod
+    def container_exists(cls, container_name: str) -> bool:
+        """
+        Class method to check if a container exists (in any state).
+        
+        Args:
+            container_name: Name of the container to check
+            
+        Returns:
+            bool: True if container exists, False otherwise
+        """
+        try:
+            client = docker.from_env()
+            client.containers.get(container_name)
+            return True
+        except docker.errors.NotFound:
+            return False
+        except Exception as e:
+            raise RuntimeError(f"Error checking if container exists: {e}")
+    
     def start_container(self) -> docker.models.containers.Container:
         """Start the prebuilt container"""
         try:
             # Check if container already exists and is running
             container = self.docker_client.containers.get(self.container_name)
             if container.status == 'running':
-                raise RuntimeError(f"Container '{self.container_name}' is already running")
+                return container
             elif container.status in ['paused', 'exited']:
                 # Start existing container
                 container.start()
@@ -123,4 +143,15 @@ class ContainerManager:
             raise RuntimeError(f"Error executing command in container: {e}")
 
 
-
+# Example usage:
+if __name__ == "__main__":
+    # Check if a container exists without creating an instance
+    if ContainerManager.container_exists("my-postgres-container"):
+        print("Container exists!")
+        manager = ContainerManager("my-postgres-container")
+        if manager.is_container_running():
+            print("Container is running")
+        else:
+            print("Container exists but is not running")
+    else:
+        print("Container does not exist")

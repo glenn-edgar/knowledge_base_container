@@ -4,8 +4,10 @@ from pathlib import Path
 from typing import List, Tuple
 import sys
 
-home_dir = Path.home()
-build_block_path = home_dir/ "knowledge_base_assembly" / "python_programs_and_containers" / "building_blocks"
+
+cwd = Path.cwd()
+
+build_block_path = cwd / "building_blocks"
 sys.path.append(str(build_block_path))
 from container_management.container_manager import ContainerManager
 from container_management.postgres_connection_waiter import PostgresConnectionWaiter
@@ -31,8 +33,7 @@ def determine_initial_containers(config_file: Path, site_db: Path, node_db: Path
     
     if not site_db.exists():
         raise FileNotFoundError(f"Site database file not found: {site_db}")
-    if not node_db.exists():
-        raise FileNotFoundError(f"Node database file not found: {node_db}")
+    
    
     # Load configuration file
     with open(config_file, 'r') as f:
@@ -47,13 +48,10 @@ def determine_initial_containers(config_file: Path, site_db: Path, node_db: Path
     if config["master"]:
         with open(site_db, 'r') as f:
             container_list = json.load(f)
-        with open(node_db, 'r') as f:
-            container_list.extend(json.load(f))
+    
         return True, container_list
     else:
-        with open(node_db, 'r') as f:
-            container_list = json.load(f)
-        return False, container_list
+        return False, []
 
 
 def start_containers(container_list: List[str]) -> None:
