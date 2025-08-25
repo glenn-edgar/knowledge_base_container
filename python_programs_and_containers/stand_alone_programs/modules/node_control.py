@@ -231,10 +231,16 @@ class NodeControl:
         start_script = self.script_dir / "start.py"
         if not start_script.exists():
             raise FileNotFoundError(f"start.py not found at {start_script}")
-        script_sequencer = ProcessSequencer(base_dir=self.script_dir, 
+        try:
+            script_sequencer = ProcessSequencer(base_dir=self.script_dir, 
                                             programs=[{"name": "knowledge_base_load", "cmd": ["python3", start_script], "timeout": 30}],
                                             err_dir= Path("/tmp/node_control/kb_load"),
                                             continue_on_error= False)
+        except Exception as e:
+            result = script_sequencer.get_results()
+            # mark nats db
+            raise e
+        
         result =script_sequencer.start()
     
         results = script_sequencer.get_results()
@@ -244,6 +250,7 @@ class NodeControl:
         
         # Get specific result
         kb_result = script_sequencer.get_result("knowledge_base_load")
+        print(f"kb_result: {kb_result}")
         if kb_result:
             print(f"\nKnowledge base load result:")
             print(f"  Success: {kb_result['success']}")
@@ -251,7 +258,11 @@ class NodeControl:
             print(f"  Elapsed time: {kb_result['elapsed_time']:.2f}s")
             
             # Get decoded output directly
-            output = kb_result['decode_output']
+            output = kb_result['decoded_output']
+            output_base64 = kb_result['encoded_output']
+            print(f"output_base64: {output_base64}")
+            print(f"output: {output}")
+            
             
             
             # Check if it failed
