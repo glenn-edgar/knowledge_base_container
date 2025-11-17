@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_vycdt4q2_kb_table[1] = {
+const chaintree_kb_info_t ct_7mwy459r_kb_table[1] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,

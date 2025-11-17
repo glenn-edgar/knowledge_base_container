@@ -2,7 +2,7 @@
 #include "test_header_nodes.h"
 
 /* Node array with complete initialization */
-const chaintree_node_t ct_vycdt4q2_nodes[41] = {
+const chaintree_node_t ct_7mwy459r_nodes[41] = {
     /* [0] _0 */
     {
         .node_index = 0,

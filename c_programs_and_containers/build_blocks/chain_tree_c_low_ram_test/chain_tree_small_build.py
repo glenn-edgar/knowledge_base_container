@@ -127,6 +127,12 @@ def add_header(yaml_file):
 
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python chain_tree_small_build.py <yaml_file>")
+        sys.exit(1)
+    yaml_file = str(sys.argv[1])
+    print(yaml_file)
     test_list = ["first_test","second_test"]
                 
     test_dict = { "first_test": first_test, "second_test": second_test}
@@ -143,7 +149,7 @@ if __name__ == "__main__":
         
     #test_list = ["seventeenth_test","eighteenth_test"]    
    
-    ct = add_header("basic_tests.yaml")
+    ct = add_header(yaml_file)
     for test in test_list:
     
         test_dict[test](ct,test)

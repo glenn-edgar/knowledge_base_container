@@ -2,7 +2,7 @@
 #include "test_header_node_data.h"
 
 /* JSON records array */
-const json_record_t ct_vycdt4q2_node_data_records[123] = {
+const json_record_t ct_7mwy459r_node_data_records[123] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 1 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 10 } },
@@ -129,7 +129,7 @@ const json_record_t ct_vycdt4q2_node_data_records[123] = {
 };
 
 /* String data buffer */
-const char ct_vycdt4q2_node_data_strings[128] = {
+const char ct_7mwy459r_node_data_strings[128] = {
     0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x5f, 0x30, 0x00, 0x5f, 0x31, 0x00,
     0x5f, 0x32, 0x00, 0x5f, 0x33, 0x00, 0x5f, 0x34, 0x00, 0x5f, 0x35, 0x00, 0x66, 0x69, 0x72, 0x73,
     0x74, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x00, 0x76, 0x69, 0x72, 0x74, 0x75, 0x61, 0x6c, 0x5f, 0x66,
@@ -141,7 +141,7 @@ const char ct_vycdt4q2_node_data_strings[128] = {
 };
 
 /* Record control array (maps node data IDs to record ranges) */
-const record_control_t ct_vycdt4q2_node_data_controls[41] = {
+const record_control_t ct_7mwy459r_node_data_controls[41] = {
     { .start_position = 0, .num_records = 3 },
     { .start_position = 3, .num_records = 3 },
     { .start_position = 6, .num_records = 3 },

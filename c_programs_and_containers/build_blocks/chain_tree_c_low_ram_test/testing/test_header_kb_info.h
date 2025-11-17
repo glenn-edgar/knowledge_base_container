@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_VYCDT4Q2_KB_COUNT 1
+#define CT_7MWY459R_KB_COUNT 1
 
-extern const chaintree_kb_info_t ct_vycdt4q2_kb_table[1];
+extern const chaintree_kb_info_t ct_7mwy459r_kb_table[1];
 
 #endif /* TEST_HEADER_KB_INFO_H */

@@ -79,11 +79,16 @@ if __name__ == "__main__":
                 
     test_dict = { "first_test": first_test}
 
-
+    import sys
+    if len(sys.argv) != 2:
+        print("Usage: python chain_tree_incremental_build.py <yaml_file>")
+        sys.exit(1)
+    yaml_file = str(sys.argv[1])
+    print(yaml_file)
     single_test = "seventeenth_test"
     single_test_flag = False
     if single_test_flag == True:
-        ct = add_header("basic_tests.yaml")
+        ct = add_header(yaml_file)
         test_dict[single_test](ct,single_test)
         ct.check_and_generate_yaml()
         ct.display_chain_tree_function_mapping()
@@ -91,7 +96,7 @@ if __name__ == "__main__":
         
     #test_list = ["seventeenth_test","eighteenth_test"]    
    
-    ct = add_header("c_results/basic_tests.yaml")
+    ct = add_header(yaml_file)
     for test in test_list:
     
         test_dict[test](ct,test)

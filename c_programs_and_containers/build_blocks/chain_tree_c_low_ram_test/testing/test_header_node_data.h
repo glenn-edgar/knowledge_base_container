@@ -5,8 +5,8 @@
 #include "chaintree_support.h"
 
 /* Node data arrays (defined in .c file) */
-extern const json_record_t ct_vycdt4q2_node_data_records[123];
-extern const char ct_vycdt4q2_node_data_strings[128];
-extern const record_control_t ct_vycdt4q2_node_data_controls[41];
+extern const json_record_t ct_7mwy459r_node_data_records[123];
+extern const char ct_7mwy459r_node_data_strings[128];
+extern const record_control_t ct_7mwy459r_node_data_controls[41];
 
 #endif /* TEST_HEADER_NODE_DATA_H */
