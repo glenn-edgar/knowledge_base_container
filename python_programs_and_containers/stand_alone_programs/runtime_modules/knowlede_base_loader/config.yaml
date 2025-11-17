@@ -1,0 +1,116 @@
+app.name:
+  label: app
+  label_dict:
+    description: Application name
+  node_dict:
+    type: string
+    value: MyApplication
+  node_name: name
+app.version:
+  label: app
+  label_dict:
+    description: Version info
+  node_dict:
+    build: 42
+    value: 1.0.0
+  node_name: version
+database.postgresql:
+  label: database
+  label_dict:
+    description: Database configuration
+  node_dict:
+    enabled: true
+    port: 5432
+  node_name: postgresql
+database.postgresql.auth.password:
+  label: auth
+  label_dict:
+    required: true
+    sensitive: true
+  node_dict:
+    encrypted: false
+    value: secret123
+  node_name: password
+database.postgresql.auth.username:
+  label: auth
+  label_dict:
+    required: true
+  node_dict:
+    value: db_user
+  node_name: username
+database.postgresql.connection.host:
+  label: connection
+  label_dict:
+    required: true
+  node_dict:
+    type: hostname
+    value: localhost
+  node_name: host
+database.postgresql.connection.max_connections:
+  label: connection
+  label_dict:
+    max: 1000
+    min: 1
+  node_dict:
+    timeout: 30
+    value: 100
+  node_name: max_connections
+database.postgresql.pool.settings:
+  label: pool
+  label_dict:
+    description: Connection pool settings
+  node_dict:
+    overflow: 5
+    size: 10
+  node_name: settings
+database.postgresql.pool.settings.timeout.connection:
+  label: timeout
+  label_dict:
+    unit: seconds
+  node_dict:
+    seconds: 30
+  node_name: connection
+database.postgresql.pool.settings.timeout.idle:
+  label: timeout
+  label_dict:
+    unit: seconds
+  node_dict:
+    seconds: 300
+  node_name: idle
+logging.file:
+  label: logging
+  label_dict:
+    description: Log file configuration
+  node_dict:
+    max_size: 10MB
+    path: /var/log/app.log
+    rotate: true
+  node_name: file
+logging.level:
+  label: logging
+  label_dict:
+    options:
+    - DEBUG
+    - INFO
+    - WARNING
+    - ERROR
+  node_dict:
+    format: json
+    value: INFO
+  node_name: level
+server.host:
+  label: server
+  label_dict:
+    description: Server binding address
+  node_dict:
+    value: 0.0.0.0
+  node_name: host
+server.port:
+  label: server
+  label_dict:
+    description: Server port
+    max: 65535
+    min: 1
+  node_dict:
+    value: 8080
+  node_name: port

@@ -1,0 +1,134 @@
+-- Root node
+door_controller
+
+-- Serial Message Handler Branch
+door_controller.serial_handler
+door_controller.serial_handler.wait_message
+door_controller.serial_handler.wait_message.check_data_available
+door_controller.serial_handler.wait_message.read_serial
+door_controller.serial_handler.wait_message.parse_message
+
+door_controller.serial_handler.message_dispatch
+door_controller.serial_handler.message_dispatch.cmd_open
+door_controller.serial_handler.message_dispatch.cmd_close
+door_controller.serial_handler.message_dispatch.cmd_stop
+door_controller.serial_handler.message_dispatch.cmd_status
+door_controller.serial_handler.message_dispatch.cmd_emergency
+
+-- Motor Control Branch
+door_controller.motor_control
+door_controller.motor_control.state_machine
+
+-- Emergency State (Priority 0)
+door_controller.motor_control.state_machine.emergency
+door_controller.motor_control.state_machine.emergency.disable_motor
+door_controller.motor_control.state_machine.emergency.set_freewheel
+door_controller.motor_control.state_machine.emergency.send_emergency_status
+door_controller.motor_control.state_machine.emergency.wait_reset
+
+-- Opening State (Priority 1)
+door_controller.motor_control.state_machine.opening
+door_controller.motor_control.state_machine.opening.set_forward
+door_controller.motor_control.state_machine.opening.set_pwm_open
+door_controller.motor_control.state_machine.opening.enable_motor
+
+door_controller.motor_control.state_machine.opening.monitors
+door_controller.motor_control.state_machine.opening.monitors.current_sense
+door_controller.motor_control.state_machine.opening.monitors.current_sense.check_overcurrent
+door_controller.motor_control.state_machine.opening.monitors.position_sense
+door_controller.motor_control.state_machine.opening.monitors.position_sense.check_limit_open
+door_controller.motor_control.state_machine.opening.monitors.obstacle_sense
+door_controller.motor_control.state_machine.opening.monitors.obstacle_sense.check_stall
+
+door_controller.motor_control.state_machine.opening.shutdown
+door_controller.motor_control.state_machine.opening.shutdown.disable_motor
+door_controller.motor_control.state_machine.opening.shutdown.set_brake
+door_controller.motor_control.state_machine.opening.shutdown.brake_delay
+door_controller.motor_control.state_machine.opening.shutdown.set_freewheel
+door_controller.motor_control.state_machine.opening.shutdown.send_open_status
+
+-- Closing State (Priority 2)
+door_controller.motor_control.state_machine.closing
+door_controller.motor_control.state_machine.closing.set_reverse
+door_controller.motor_control.state_machine.closing.set_pwm_close
+door_controller.motor_control.state_machine.closing.enable_motor
+
+door_controller.motor_control.state_machine.closing.monitors
+door_controller.motor_control.state_machine.closing.monitors.current_sense
+door_controller.motor_control.state_machine.closing.monitors.current_sense.check_overcurrent
+door_controller.motor_control.state_machine.closing.monitors.position_sense
+door_controller.motor_control.state_machine.closing.monitors.position_sense.check_limit_closed
+door_controller.motor_control.state_machine.closing.monitors.obstacle_sense
+door_controller.motor_control.state_machine.closing.monitors.obstacle_sense.check_stall
+door_controller.motor_control.state_machine.closing.monitors.obstacle_sense.post_obstruction
+door_controller.motor_control.state_machine.closing.monitors.obstacle_sense.post_auto_reverse
+
+door_controller.motor_control.state_machine.closing.shutdown
+door_controller.motor_control.state_machine.closing.shutdown.disable_motor
+door_controller.motor_control.state_machine.closing.shutdown.set_brake
+door_controller.motor_control.state_machine.closing.shutdown.brake_delay
+door_controller.motor_control.state_machine.closing.shutdown.set_freewheel
+door_controller.motor_control.state_machine.closing.shutdown.send_closed_status
+
+-- Auto Reverse State (Priority 3)
+door_controller.motor_control.state_machine.auto_reverse
+door_controller.motor_control.state_machine.auto_reverse.disable_motor
+door_controller.motor_control.state_machine.auto_reverse.pause
+door_controller.motor_control.state_machine.auto_reverse.set_forward
+door_controller.motor_control.state_machine.auto_reverse.set_pwm_reduced
+door_controller.motor_control.state_machine.auto_reverse.enable_motor
+door_controller.motor_control.state_machine.auto_reverse.reverse_delay
+door_controller.motor_control.state_machine.auto_reverse.disable_motor_final
+door_controller.motor_control.state_machine.auto_reverse.set_freewheel
+door_controller.motor_control.state_machine.auto_reverse.send_obstruction_status
+
+-- Idle State (Priority 4)
+door_controller.motor_control.state_machine.idle
+door_controller.motor_control.state_machine.idle.disable_motor
+door_controller.motor_control.state_machine.idle.set_freewheel
+door_controller.motor_control.state_machine.idle.wait_command
+
+-- Status Reporter Branch
+door_controller.status_reporter
+door_controller.status_reporter.wait_trigger
+door_controller.status_reporter.collect_send
+door_controller.status_reporter.collect_send.read_diagnostics
+door_controller.status_reporter.collect_send.read_position
+door_controller.status_reporter.collect_send.read_current
+door_controller.status_reporter.collect_send.read_temperature
+door_controller.status_reporter.collect_send.assemble_message
+door_controller.status_reporter.collect_send.send_serial
+
+-- Diagnostics Monitor Branch
+door_controller.diagnostics
+door_controller.diagnostics.thermal_protection
+door_controller.diagnostics.thermal_protection.check_temperature
+door_controller.diagnostics.thermal_protection.post_thermal_shutdown
+door_controller.diagnostics.thermal_protection.post_emergency
+
+door_controller.diagnostics.voltage_monitor
+door_controller.diagnostics.voltage_monitor.check_voltage
+door_controller.diagnostics.voltage_monitor.post_voltage_error
+door_controller.diagnostics.voltage_monitor.post_emergency
+
+door_controller.diagnostics.fault_pin_monitor
+door_controller.diagnostics.fault_pin_monitor.check_fault_pin
+door_controller.diagnostics.fault_pin_monitor.read_fault_status
+door_controller.diagnostics.fault_pin_monitor.log_fault_code
+door_controller.diagnostics.fault_pin_monitor.post_emergency
+
+
+
+Total: 92 nodes
+Breaking down by major branch:
+Root:                                    1 node
+├── Serial Handler:                     11 nodes
+├── Motor Control:                      58 nodes
+│   ├── Emergency State:                 5 nodes
+│   ├── Opening State:                  16 nodes
+│   ├── Closing State:                  18 nodes
+│   ├── Auto Reverse State:             10 nodes
+│   └── Idle State:                      4 nodes
+│   (plus 2 structural nodes)
+├── Status Reporter:                     8 nodes
+└── Diagnostics:   

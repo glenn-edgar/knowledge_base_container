@@ -1,0 +1,5 @@
+
+#docker run [OPTIONS] IMAGE[:TAG|@DIGEST] [COMMAND] [ARG...]
+
+#docker run -ti --rm  --network host    --mount type=bind,source=/home/pi/mountpoint/lacuma_conf/site_config,target=/data/    nanodatacenter/eto /bin/bash 
+docker run  --log-driver none  -ti --rm --network host      --mount type=bind,source=/home/pi/system_config/,target=/data/     nanodatacenter/lacima_configuration  /usr/local/bin/bash 

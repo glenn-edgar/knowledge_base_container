@@ -1,0 +1,6 @@
+cd lacima_site_configuration
+./build_all.bsh
+cd ../
+
+
+

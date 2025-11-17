@@ -1,0 +1,214 @@
+The prod_, test_, and dev_ files in the example_multiple_configs() function demonstrate a common pattern for managing different environment configurations. Let me clarify:
+What They Represent
+These are example configurations for different deployment environments:
+pythondef example_multiple_configs():
+    """Generate multiple configurations"""
+    
+    configs = {
+        # Development environment config
+        "dev_config": {
+            "mode": "development",
+            "debug": True,           # Enable debug logging
+            "log_level": "verbose",
+            "database": "localhost"
+        },
+        
+        # Production environment config
+        "prod_config": {
+            "mode": "production", 
+            "debug": False,          # Disable debug in production
+            "log_level": "error",
+            "database": "prod.example.com"
+        },
+        
+        # Test environment config
+        "test_config": {
+            "mode": "test",
+            "debug": True,           # Enable debug for tests
+            "log_level": "info",
+            "database": "test.example.com"
+        }
+    }
+    
+    # Generate separate C files for each environment
+    for name, data in configs.items():
+        gen = MsgPackCodeGenerator(name)
+        gen.load_dict(data)
+        files = gen.generate_all("output/")
+Generated Files
+This would generate three separate sets of C files:
+output/
+├── dev_config_data.h          # Development config header
+├── dev_config_data.c          # Development config source
+├── dev_config_runtime.h       # Development runtime header
+├── dev_config_runtime.c       # Development runtime source
+├── prod_config_data.h         # Production config header
+├── prod_config_data.c         # Production config source
+├── prod_config_runtime.h      # Production runtime header
+├── prod_config_runtime.c      # Production runtime source
+├── test_config_data.h         # Test config header
+├── test_config_data.c         # Test config source
+├── test_config_runtime.h      # Test runtime header
+└── test_config_runtime.c      # Test runtime source
+Real-World Use Case Example
+Scenario: Embedded IoT Device
+python#!/usr/bin/env python3
+"""
+Generate configuration files for different deployment environments
+"""
+
+from msgpack_gen import MsgPackCodeGenerator
+
+# Development configuration (verbose, local servers)
+dev_config = {
+    "device_id": "DEV-001",
+    "network": {
+        "wifi_ssid": "Dev-WiFi",
+        "server_url": "http://localhost:8000",
+        "ssl_verify": False,
+        "retry_count": 3
+    },
+    "logging": {
+        "level": "debug",
+        "uart_output": True,
+        "sd_card_log": True
+    },
+    "sensors": {
+        "sample_rate_ms": 5000,      # Sample every 5 seconds
+        "calibration_mode": True
+    }
+}
+
+# Production configuration (minimal logging, secure)
+prod_config = {
+    "device_id": "PROD-{SERIAL}",    # Replaced at runtime
+    "network": {
+        "wifi_ssid": "Company-IoT",
+        "server_url": "https://iot.company.com/api",
+        "ssl_verify": True,
+        "retry_count": 10
+    },
+    "logging": {
+        "level": "error",            # Only errors
+        "uart_output": False,
+        "sd_card_log": False
+    },
+    "sensors": {
+        "sample_rate_ms": 60000,     # Sample every minute
+        "calibration_mode": False
+    }
+}
+
+# Test/QA configuration (for automated testing)
+test_config = {
+    "device_id": "TEST-001",
+    "network": {
+        "wifi_ssid": "Test-WiFi",
+        "server_url": "http://test.company.com:8080",
+        "ssl_verify": False,
+        "retry_count": 1            # Fail fast in tests
+    },
+    "logging": {
+        "level": "info",
+        "uart_output": True,
+        "sd_card_log": True
+    },
+    "sensors": {
+        "sample_rate_ms": 1000,      # Fast sampling for tests
+        "calibration_mode": True
+    }
+}
+
+# Generate all configurations
+for name, config in [("dev_config", dev_config),
+                     ("prod_config", prod_config),
+                     ("test_config", test_config)]:
+    gen = MsgPackCodeGenerator(name)
+    gen.load_dict(config)
+    gen.generate_all("config/")
+    print(f"✓ Generated {name}")
+How to Use in C Code
+You would then compile with different configs depending on your build target:
+Makefile Example
+makefile# Development build
+firmware_dev.elf: main.c dev_config_data.c dev_config_runtime.c
+	$(CC) -DCONFIG_DEV -o $@ $^
+
+# Production build
+firmware_prod.elf: main.c prod_config_data.c prod_config_runtime.c
+	$(CC) -DCONFIG_PROD -o $@ $^
+
+# Test build
+firmware_test.elf: main.c test_config_data.c test_config_runtime.c
+	$(CC) -DCONFIG_TEST -o $@ $^
+C Code Usage
+c// main.c
+
+#ifdef CONFIG_DEV
+    #include "dev_config_data.h"
+    #include "dev_config_runtime.h"
+    #define config_init dev_config_init
+    #define config_root dev_config_root
+    #define config_arena dev_config_arena
+#elif defined(CONFIG_PROD)
+    #include "prod_config_data.h"
+    #include "prod_config_runtime.h"
+    #define config_init prod_config_init
+    #define config_root prod_config_root
+    #define config_arena prod_config_arena
+#elif defined(CONFIG_TEST)
+    #include "test_config_data.h"
+    #include "test_config_runtime.h"
+    #define config_init test_config_init
+    #define config_root test_config_root
+    #define config_arena test_config_arena
+#endif
+
+int main(void) {
+    // Initialize configuration
+    if (!config_init()) {
+        printf("Failed to init config\n");
+        return -1;
+    }
+    
+    const MsgPackNode* root = config_root();
+    
+    // Access configuration
+    const MsgPackNode* mode = msgpack_map_get_str(&config_arena, root, "mode");
+    // ... rest of code uses same API regardless of environment
+}
+Other Common Use Cases
+1. Multi-Device Configurations
+python# Different configs for different hardware variants
+configs = {
+    "sensor_v1_config": {...},   # Old hardware
+    "sensor_v2_config": {...},   # New hardware
+    "gateway_config": {...}      # Gateway device
+}
+2. Feature Flags
+pythonconfigs = {
+    "basic_features": {"wifi": True, "bluetooth": False},
+    "full_features": {"wifi": True, "bluetooth": True, "lte": True}
+}
+3. Regional Settings
+pythonconfigs = {
+    "config_us": {"region": "US", "frequency": 915, "units": "imperial"},
+    "config_eu": {"region": "EU", "frequency": 868, "units": "metric"}
+}
+4. Customer-Specific Builds
+pythonconfigs = {
+    "customer_a_config": {"logo": "CustomerA", "features": [...]},
+    "customer_b_config": {"logo": "CustomerB", "features": [...]}
+}
+Summary
+The prod_, test_, and dev_ files are just example names to demonstrate:
+✅ One tool can generate multiple configuration variants
+✅ Each variant gets its own set of C files
+✅ You choose which to compile into your firmware
+✅ Common pattern in embedded/IoT development
+You don't need to use these names - they're just examples. You can name your configs anything meaningful for your project:
+pythongen = MsgPackCodeGenerator("my_robot_config")
+gen = MsgPackCodeGenerator("sensor_calibration")
+gen = MsgPackCodeGenerator("network_settings")
+# ... whatever makes sense for your application
+

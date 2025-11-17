@@ -1,0 +1,527 @@
+import json
+from typing import Dict, List, Callable, Any, Optional, Tuple
+from dataclasses import dataclass
+from enum import IntEnum
+
+
+class LogLevel(IntEnum):
+    """Log levels for incident logging"""
+    DEBUG = 0
+    INFORMATIONAL = 1
+    NOTICE = 2
+    WARNING = 3
+    ERROR = 4
+    CRITICAL = 5
+    ALERT = 6
+    EMERGENCY = 7
+
+
+@dataclass
+class ContainerDescriptor:
+    """Container configuration descriptor"""
+    temporary: bool
+    managed_container: bool
+    docker_image: str
+    command_string: str
+    command_map: Dict[str, str]
+
+
+@dataclass
+class ServiceDefinition:
+    """Service definition for graph generation"""
+    name: str
+    master_flag: bool
+    node: str
+    containers: List[str]
+    graph_generation: Callable[[], None]
+
+
+class SiteUtilities:
+    """Python translation of the Go site utilities package"""
+    
+    # Constants
+    NO_RUN = ""
+    TEMP_RUN = "./run.bsh"
+    MANAGED_RUN = "./process_control.bsh"
+    
+    COMMAND_START = "docker run -d  --network host --log-driver  local  --name"
+    COMMAND_RUN = "docker run   -it --network host --log-driver  local  --rm  --name"
+    
+    def __init__(self, config_file: str = "/data/redis_configuration.json"):
+        self.config_file = config_file
+        self.site_data_store: Dict[str, Any] = {}
+        self.ip: str = ""
+        self.port: int = 0
+        
+        # Build configuration and data constructor placeholders
+        self.bc_rec = None  # Build_Configuration equivalent
+        self.cd_rec = None  # Package_Constructor equivalent
+        
+        # Container management
+        self.drive_mounts: Dict[str, str] = {}
+        self.container_map: Dict[str, ContainerDescriptor] = {}
+        self.command_string_first_part: str = ""
+        self.command_string_run_part: str = ""
+        
+        # Service management
+        self.service_map: Dict[str, ServiceDefinition] = {}
+        self.service_list: List[ServiceDefinition] = []
+        self.node_set: Dict[str, bool] = {}
+        self.container_set: Dict[str, bool] = {}
+        
+        # System state
+        self.system_name: str = ""
+        self.working_site: str = ""
+        
+        # Mount point configurations
+        self.data_mount = ["DATA"]
+        self.null_mount = []
+        
+    def setup_site_file(self):
+        """Load site configuration from JSON file"""
+        try:
+            with open(self.config_file, 'r') as f:
+                self.site_data_store = json.load(f)
+            
+            self.ip = self.site_data_store.get("host", "")
+            self.port = int(self.site_data_store.get("port", 0))
+        except FileNotFoundError:
+            raise Exception(f"Configuration file not found: {self.config_file}")
+        except json.JSONDecodeError:
+            raise Exception(f"Invalid JSON in configuration file: {self.config_file}")
+    
+    def initialize_site_environment(self):
+        """Initialize the site environment"""
+        self.init_service_generation()
+        self.setup_container_run_commands()
+    
+    def init_service_generation(self):
+        """Initialize service generation data structures"""
+        self.service_map = {}
+        self.service_list = []
+        self.node_set = {}
+        self.container_set = {}
+    
+    def setup_container_run_commands(self):
+        """Setup container run command templates"""
+        self.initialize_container_data_structures(self.COMMAND_START, self.COMMAND_RUN)
+    
+    def initialize_container_data_structures(self, start_part: str, run_part: str):
+        """Initialize container data structures"""
+        self.container_map = {}
+        self.command_string_first_part = start_part
+        self.command_string_run_part = run_part
+    
+    def setup_mount_points(self):
+        """Initialize mount points dictionary"""
+        self.drive_mounts = {}
+    
+    def add_mount_point(self, mount_name: str, mount_path: str):
+        """Add a mount point mapping"""
+        if mount_name in self.drive_mounts:
+            raise ValueError(f"Duplicate mount name {mount_name}")
+        self.drive_mounts[mount_name] = mount_path
+    
+    def add_container(self, temp_flag: bool, container_name: str, docker_image: str, 
+                     command_string: str, command_map: Dict[str, str], mounts: List[str]):
+        """Add a container configuration"""
+        # Expand mount points
+        expanded_mount = []
+        for name in mounts:
+            if name not in self.drive_mounts:
+                raise ValueError(f"Mount point {name} not found")
+            expanded_mount.append(self.drive_mounts[name])
+        
+        if container_name in self.container_map:
+            raise ValueError(f"Duplicate container name {container_name}")
+        
+        # Create container descriptor
+        descriptor = ContainerDescriptor(
+            temporary=temp_flag,
+            managed_container=(command_string == self.MANAGED_RUN),
+            docker_image=docker_image,
+            command_string="",
+            command_map=command_map
+        )
+        
+        # Build command string
+        mount_str = "  ".join(expanded_mount)
+        if not temp_flag:
+            descriptor.command_string = f"{self.command_string_first_part}  {container_name}  {mount_str} {docker_image} {command_string}"
+        else:
+            descriptor.command_string = f"{self.command_string_run_part}  {container_name}  {mount_str} {docker_image} {command_string}"
+        
+        self.container_map[container_name] = descriptor
+    
+    def add_node(self, node_name: str):
+        """Add a node to the system"""
+        self.check_for_duplicate_node(node_name)
+        self.node_set[node_name] = True
+    
+    def construct_service_def(self, service_name: str, master_flag: bool, node_name: str,
+                            containers: List[str], graph_generation: Callable[[], None]):
+        """Construct a service definition"""
+        self.check_for_duplicate_system(service_name)
+        self.register_service_containers(containers)
+        
+        service_element = ServiceDefinition(
+            name=service_name,
+            master_flag=master_flag,
+            node=node_name,
+            containers=containers,
+            graph_generation=graph_generation
+        )
+        
+        self.service_map[service_name] = service_element
+        self.service_list.append(service_element)
+    
+    def construct_system(self, sys_name: str, data_db: int, properties: Dict[str, Any]):
+        """Construct the system configuration"""
+        properties["data_db"] = data_db
+        self.setup_site_file()
+        
+        # Initialize build configuration (placeholder)
+        # self.bc_rec = BuildConfiguration(self.ip, self.port)
+        # self.cd_rec = PackageConstructor(self.bc_rec)
+        
+        self.system_name = sys_name
+        # self.bc_rec.add_header_node("SYSTEM", self.system_name, properties)
+    
+    def end_system(self):
+        """End system configuration"""
+        # self.bc_rec.end_header_node("SYSTEM", self.system_name)
+        pass
+    
+    def construct_site(self, site: str, configuration_file_path: str):
+        """Construct site configuration"""
+        # Find containers for the master node
+        system_containers, startup_containers = self.determine_master_containers()
+        
+        # Generate top node for site
+        self.start_site_definitions(site, configuration_file_path, system_containers, startup_containers)
+        
+        # Generate data structures for services
+        self.expand_service_definitions()
+        
+        # Add containers to graph
+        self.add_containers_to_graph()
+        
+        # Add nodes to graph
+        self.add_nodes_to_graph()
+        
+        # Add ending site def
+        self.end_site_definitions(site)
+    
+    def start_site_definitions(self, site_name: str, configuration_file_path: str,
+                             system_containers: List[str], startup_containers: List[str]):
+        """Start site definitions"""
+        self.working_site = site_name
+        properties = {
+            "startup_containers": startup_containers,
+            "containers": system_containers,
+            "file_path": configuration_file_path
+        }
+        # self.bc_rec.add_header_node("SITE", site_name, properties)
+    
+    def end_site_definitions(self, site_name: str):
+        """End site definitions"""
+        # self.bc_rec.end_header_node("SITE", site_name)
+        pass
+    
+    def determine_master_containers(self) -> Tuple[List[str], List[str]]:
+        """Determine master node containers"""
+        system_containers = []
+        startup_containers = []
+        
+        master_containers = self.find_containers(True, "")
+        for container in master_containers:
+            temp = self.container_map[container]
+            if temp.temporary:
+                startup_containers.append(container)
+            else:
+                system_containers.append(container)
+        
+        return system_containers, startup_containers
+    
+    def determine_node_containers(self, node: str) -> List[str]:
+        """Determine containers for a specific node"""
+        node_containers_list = []
+        node_containers = self.find_containers(False, node)
+        
+        for container in node_containers:
+            temp = self.container_map[container]
+            if temp.temporary:
+                raise ValueError(f"Temporary containers can only be assigned to master not node container {container}")
+            else:
+                node_containers_list.append(container)
+        
+        return node_containers_list
+    
+    def find_containers(self, master_flag: bool, node: str) -> List[str]:
+        """Find containers based on master flag and node"""
+        result = []
+        
+        for element in self.service_list:
+            if element.master_flag != master_flag:
+                continue
+            
+            if master_flag:
+                result = self.add_containers_to_list(result, element.containers)
+            elif node == element.node:
+                result = self.add_containers_to_list(result, element.containers)
+        
+        return result
+    
+    def add_containers_to_list(self, input_list: List[str], new_elements: List[str]) -> List[str]:
+        """Add containers to list"""
+        for element in new_elements:
+            input_list.append(element)
+        return input_list
+    
+    def add_containers_to_graph(self):
+        """Add containers to configuration graph"""
+        # self.bc_rec.add_header_node("CONTAINER_LIST", "CONTAINER_LIST", {})
+        self.expand_container_definitions()
+        # self.bc_rec.end_header_node("CONTAINER_LIST", "CONTAINER_LIST")
+    
+    def add_nodes_to_graph(self):
+        """Add nodes to configuration graph"""
+        # self.bc_rec.add_header_node("NODE_LIST", "NODE_LIST", {})
+        for node in self.node_set:
+            containers = self.determine_node_containers(node)
+            self.construct_node(node, containers)
+        # self.bc_rec.end_header_node("NODE_LIST", "NODE_LIST")
+    
+    def expand_container_definitions(self):
+        """Expand container definitions"""
+        for element in self.service_list:
+            self.register_containers(element.containers)
+    
+    def expand_service_definitions(self):
+        """Expand service definitions"""
+        for element in self.service_list:
+            element.graph_generation()
+    
+    def register_containers(self, container_list: List[str]):
+        """Register multiple containers"""
+        for container_name in container_list:
+            self.register_container(container_name)
+    
+    def register_container(self, container_name: str):
+        """Register a single container"""
+        if container_name not in self.container_map:
+            raise ValueError(f"Container does not exist: {container_name}")
+        
+        container = self.container_map[container_name]
+        
+        # Properties of the container
+        properties = {
+            "container_image": container.docker_image,
+            "startup_command": container.command_string,
+            "command_map": container.command_map
+        }
+        
+        # Add container node (placeholder for actual implementation)
+        # self.bc_rec.add_header_node("CONTAINER", container_name, properties)
+        
+        # Construct streaming logs for container resources
+        description = f"{container_name} container resource"
+        self.construct_streaming_logs("container_resource", description, ["vsz", "rss", "cpu"])
+        
+        if container.managed_container:
+            # Process control failure logging
+            description = f"{container_name} process_control_failure"
+            self.construct_incident_logging("process_control_failure", description, LogLevel.EMERGENCY)
+            
+            # Managed process failure logging
+            description = f"{container_name} managed_process_failure"
+            self.construct_incident_logging("managed_process_failure", description, LogLevel.EMERGENCY)
+            
+            # Watchdog logging
+            description = f"{container_name} container controller watchdog"
+            self.construct_watchdog_logging("process_control", description, 20)
+        
+        # Add container structures package
+        # self.cd_rec.construct_package("CONTAINER_STRUCTURES")
+        # self.cd_rec.add_hash("PROCESS_STATUS")
+        # self.cd_rec.close_package_construction()
+        # self.bc_rec.end_header_node("CONTAINER", container_name)
+    
+    def construct_node(self, name: str, containers: List[str]):
+        """Construct a node configuration"""
+        properties = {"containers": containers}
+        # self.bc_rec.add_header_node("NODE", name, properties)
+        
+        # Node reboot incident logging
+        description = f"{name} node reboot"
+        self.construct_incident_logging("NODE_REBOOT", description, LogLevel.EMERGENCY)
+        
+        # Node monitoring
+        keys = ["FREE_CPU", "RAM", "TEMPERATURE", "DISK_SPACE", "SWAP_SPACE", 
+                "CONTEXT_SWITCHES", "BLOCK_DEV", "IO_SPACE", "RUN_QUEUE", "EDEV"]
+        
+        # self.bc_rec.add_header_node("NODE_MONITORING", "NODE_MONITORING", {})
+        description = f"{name} node_monitor"
+        self.construct_streaming_logs("node_monitor", description, keys)
+        
+        for key in keys:
+            self.construct_incident_logging(key, f"CPU_Mon:{key}", LogLevel.EMERGENCY)
+        
+        # self.bc_rec.end_header_node("NODE_MONITORING", "NODE_MONITORING")
+        
+        # RPC Server
+        self.construct_rpc_server("NODE_CONTROL", f"rpc for controlling node: {name}", 10, 15, {})
+        
+        # self.bc_rec.end_header_node("NODE", name)
+    
+    def construct_incident_logging(self, command_code: str, description: str, log_level: LogLevel):
+        """Construct incident logging configuration"""
+        if log_level > 7:
+            log_level = LogLevel.EMERGENCY
+        
+        properties = {
+            "description": description,
+            "log_level": int(log_level)
+        }
+        
+        # Implementation placeholder
+        # self.bc_rec.add_header_node("INCIDENT_LOG", command_code, properties)
+        # self.cd_rec.construct_package("INCIDENT_LOG")
+        # self.cd_rec.add_single_element("TIME_STAMP")
+        # self.cd_rec.add_single_element("STATUS")
+        # self.cd_rec.add_single_element("LAST_ERROR")
+        # self.cd_rec.add_single_element("ERROR_TIME")
+        # self.cd_rec.close_package_construction()
+        # self.bc_rec.end_header_node("INCIDENT_LOG", command_code)
+    
+    def construct_postgres_streaming_logs(self, description: str, stream_name: str, 
+                                        user: str, password: str, database_name: str, time_limit: int):
+        """Construct PostgreSQL streaming logs"""
+        properties = {"description": description}
+        # self.bc_rec.add_header_node("POSTGRES_LOG", stream_name, properties)
+        # self.cd_rec.construct_package("POSTGRES_LOG")
+        # self.cd_rec.create_postgres_stream("POSTGRES_LOG", user, password, database_name, time_limit)
+        # self.cd_rec.close_package_construction()
+        # self.bc_rec.end_header_node("POSTGRES_LOG", stream_name)
+    
+    def construct_streaming_logs(self, stream_name: str, description: str, keys: List[str]):
+        """Construct streaming logs configuration"""
+        properties = {
+            "keys": keys,
+            "description": description  # Fixed typo from original
+        }
+        # self.bc_rec.add_header_node("STREAMING_LOG", stream_name, properties)
+        # self.bc_rec.end_header_node("STREAMING_LOG", stream_name)
+    
+    def construct_rpc_server(self, command_code: str, description: str, 
+                           depth: int, timeout: int, properties: Dict[str, Any]):
+        """Construct RPC server configuration"""
+        properties["description"] = description
+        
+        # self.bc_rec.add_header_node("RPC_SERVER", command_code, properties)
+        # self.cd_rec.construct_package("RPC_SERVER")
+        # self.cd_rec.add_rpc_server("RPC_SERVER", depth, timeout)
+        # self.cd_rec.close_package_construction()
+        
+        self.construct_streaming_logs(command_code, f"{description} performance log", 
+                                    ["queue_depth", "utilization"])
+        
+        # self.bc_rec.end_header_node("RPC_SERVER", command_code)
+    
+    def construct_watchdog_logging(self, command_code: str, description: str, max_time_interval: int):
+        """Construct watchdog logging configuration"""
+        properties = {
+            "description": description,
+            "max_time_interval": max_time_interval
+        }
+        
+        # self.bc_rec.add_header_node("WATCH_DOG", command_code, properties)
+        # self.cd_rec.construct_package("WATCH_DOG")
+        # self.cd_rec.add_single_element("WATCH_DOG_TS")
+        # self.cd_rec.close_package_construction()
+        # self.bc_rec.end_header_node("WATCH_DOG", command_code)
+    
+    def done(self):
+        """Finalize configuration"""
+        # self.bc_rec.check_namespace()
+        # self.bc_rec.store_keys()
+        # self.bc_rec.store_dictionary()
+        pass
+    
+    # Validation methods
+    def check_for_duplicate_node(self, node_name: str):
+        """Check for duplicate node names"""
+        if node_name in self.node_set:
+            raise ValueError("Duplicate node")
+    
+    def check_for_existing_node(self, node_name: str):
+        """Check if node exists"""
+        if node_name not in self.node_set:
+            raise ValueError("Node not defined")
+    
+    def check_for_duplicate_system(self, service_name: str):
+        """Check for duplicate system names"""
+        if service_name in self.service_map:
+            raise ValueError("Duplicate system")
+    
+    def check_for_duplicate_container(self, container: str):
+        """Check for duplicate container names"""
+        if container in self.container_set:
+            raise ValueError("Duplicate container")
+    
+    def register_service_containers(self, containers: List[str]):
+        """Register containers for a service"""
+        for container in containers:
+            self.check_for_duplicate_container(container)
+            self.container_set[container] = True
+
+
+# Example usage:
+if __name__ == "__main__":
+    # Initialize the site utilities
+    site_utils = SiteUtilities("/path/to/config.json")
+    
+    # Setup environment
+    site_utils.initialize_site_environment()
+    site_utils.setup_mount_points()
+    
+    # Add mount points
+    site_utils.add_mount_point("DATA", "/data")
+    site_utils.add_mount_point("LOGS", "/var/log")
+    
+    # Add containers  
+    site_utils.add_container(
+        temp_flag=False,
+        container_name="web_server",
+        docker_image="nginx:latest",
+        command_string="./start_nginx.sh",
+        command_map={"nginx": "nginx -g 'daemon off;'"},
+        mounts=["DATA", "LOGS"]
+    )
+    
+    # Add nodes
+    site_utils.add_node("node1")
+    
+    # Define a service
+    def web_service_generation():
+        print("Generating web service configuration")
+    
+    site_utils.construct_service_def(
+        service_name="web_service",
+        master_flag=True,
+        node_name="",
+        containers=["web_server"],
+        graph_generation=web_service_generation
+    )
+    
+    # Construct system
+    site_utils.construct_system("production_system", data_db=1, properties={"env": "production"})
+    
+    # Construct site
+    site_utils.construct_site("main_site", "/config/site.json")
+    
+    # Finalize
+    site_utils.end_system()
+    site_utils.done()
+
+

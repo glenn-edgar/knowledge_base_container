@@ -1,0 +1,47 @@
+Good choice - keeps it simple and avoids joins. Here's your final main table schema:
+
+## Main Node Table (Final)
+
+```sql
+CREATE TABLE IF NOT EXISTS "kb.second_test.GATE_root._0.COL_wait._2" (
+    -- Core node identification
+    label TEXT NOT NULL,
+    node_name TEXT NOT NULL,
+    
+    -- label_dict fields (flattened)
+    main_function_name TEXT,
+    initialization_function_name TEXT,
+    aux_function_name TEXT,
+    termination_function_name TEXT,
+    parent_ltree_name TEXT,
+    ltree_name TEXT PRIMARY KEY,
+    
+    -- node_dict fields (flattened)
+  
+    column_data TEXT,
+    
+    -- Tree state booleans
+    auto_start BOOLEAN DEFAULT 1,
+    enabled BOOLEAN DEFAULT 0,
+    initialized BOOLEAN DEFAULT 0,
+    
+    -- Template tracking
+    is_template BOOLEAN DEFAULT 0,
+    is_instanced_template BOOLEAN DEFAULT 0,
+    template_name TEXT
+);
+```
+
+## Links Detail Table (unchanged)
+
+```sql
+CREATE TABLE IF NOT EXISTS "kb.second_test.GATE_root._0.COL_wait._2_links" (
+    ltree_name TEXT PRIMARY KEY,
+    parent_ltree_name TEXT NOT NULL,
+    child_ltree_name TEXT NOT NULL,
+    link_order INTEGER NOT NULL,
+    FOREIGN KEY (parent_ltree_name) REFERENCES nodes(ltree_name)
+);
+```
+
+Single table, atomic operations, straightforward queries. The ~50-100 bytes overhead per record is negligible compared to the operational simplicity you gain.

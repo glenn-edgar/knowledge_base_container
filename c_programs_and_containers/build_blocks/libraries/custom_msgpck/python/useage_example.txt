@@ -1,0 +1,13 @@
+# Single configuration (simple use)
+python msgpack_gen.py config.json
+
+# Multiple configurations with shared runtime
+python msgpack_gen.py config1.json -n device_config --data-only -o build/
+python msgpack_gen.py config2.json -n sensor_config --data-only -o build/
+python msgpack_gen.py config3.json -n network_config --data-only -o build/
+python msgpack_gen.py --runtime-only --runtime-name shared_runtime -o build/
+
+# Production preprocessor
+python production_preprocessor.py
+
+

@@ -1,0 +1,2 @@
+#go build -ldflags '-linkmode external -w -extldflags "-static"'
+go build -ldflags '-linkmode external  -extldflags "-static"' $1

@@ -1,0 +1,213 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Project-specific executables
+example_direct
+example_static
+example_dynamic
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Build directories
+build/
+Build/
+BUILD/
+bin/
+target/
+out/
+cmake-build-*/
+.cmake/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Makefiles (generated)
+Makefile
+*.make
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.VC.db
+*.VC.opendb
+*.VC.VC.opendb
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.psess
+*.vsp
+*.vspx
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# CLion
+.idea/
+cmake-build-*/
+
+# Eclipse
+.cproject
+.project
+.settings/
+
+# QtCreator
+*.pro.user
+*.pro.user.*
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+!*.xcworkspace/contents.xcworkspacedata
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+
+# Conan
+conanfile.txt.user
+conaninfo.txt
+conanbuildinfo.*
+graph_info.json
+
+# vcpkg
+vcpkg_installed/
+
+# pkg-config
+*.pc
+
+# Testing
+Testing/
+test_results/
+coverage/
+*.gcda
+*.gcno
+*.gcov
+*.log
+
+# Profiling
+gmon.out
+*.prof
+callgrind.*
+perf.data
+perf.data.old
+
+# Valgrind
+vgcore.*
+*.memcheck
+
+# Core dumps
+core
+core.*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# Package managers
+*.deb
+*.rpm
+*.tar.gz
+*.zip
+
+# Documentation build
+doc/html/
+doc/latex/
+docs/_build/
+Doxyfile.bak
+
+# Tags and symbols
+tags
+TAGS
+.tags
+.TAGS
+cscope.*
+*.taghl
+

@@ -1,0 +1,4 @@
+
+
+docker build --tag nanodatacenter/lacima_configuration .
+
