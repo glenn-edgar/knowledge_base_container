@@ -16,6 +16,7 @@ typedef bool (*boolean_function_t)(void *handle, unsigned node_index,
 typedef struct {
     uint16_t node_index;
     uint16_t parent_index;
+    uint16_t depth;                /* Tree depth (pairs: 0=root, 1=children, 2=grandchildren, etc.) */
     uint16_t link_start;
     uint16_t link_count;          /* Bits 0-14: count, Bit 15: auto_start flag */
     uint16_t main_function_index;
@@ -40,6 +41,7 @@ typedef struct {
     uint16_t root_node_index;
     uint16_t start_index;
     uint16_t node_count;
+    uint16_t max_depth;           /* Maximum tree depth in this KB */
 } chaintree_kb_info_t;
 
 /* ===== Node Data Structures ===== */

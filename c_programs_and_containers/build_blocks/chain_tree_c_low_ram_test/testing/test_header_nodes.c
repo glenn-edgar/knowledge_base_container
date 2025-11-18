@@ -2,7 +2,7 @@
 #include "test_header_nodes.h"
 
 /* Node array with complete initialization */
-const chaintree_node_t ct_7mwy459r_nodes[41] = {
+const chaintree_node_t ct_aqmxq7uc_nodes[33] = {
     /* [0] _0 */
     {
         .node_index = 0,
@@ -25,7 +25,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 1
+        .node_data_id = 65535
     },
     /* [2] _1 [AUTO_START] */
     {
@@ -37,7 +37,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 2
+        .node_data_id = 65535
     },
     /* [3] _2 [AUTO_START] */
     {
@@ -49,7 +49,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 3
+        .node_data_id = 65535
     },
     /* [4] _3 [AUTO_START] */
     {
@@ -61,7 +61,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 4
+        .node_data_id = 65535
     },
     /* [5] _4 [AUTO_START] */
     {
@@ -73,7 +73,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 5
+        .node_data_id = 65535
     },
     /* [6] _5 [AUTO_START] */
     {
@@ -85,7 +85,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 2,
         .aux_function_index = 2,
         .term_function_index = 3,
-        .node_data_id = 6
+        .node_data_id = 65535
     },
     /* [7] _0 */
     {
@@ -97,7 +97,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 1,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 7
+        .node_data_id = 1
     },
     /* [8] _1 */
     {
@@ -109,7 +109,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 8
+        .node_data_id = 2
     },
     /* [9] _2 */
     {
@@ -121,7 +121,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 9
+        .node_data_id = 65535
     },
     /* [10] _0 */
     {
@@ -133,7 +133,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 10
+        .node_data_id = 3
     },
     /* [11] _1 */
     {
@@ -145,7 +145,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 12,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 11
+        .node_data_id = 4
     },
     /* [12] _2 */
     {
@@ -157,7 +157,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 12
+        .node_data_id = 5
     },
     /* [13] _3 */
     {
@@ -169,7 +169,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 13
+        .node_data_id = 65535
     },
     /* [14] _0 */
     {
@@ -181,7 +181,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 14
+        .node_data_id = 6
     },
     /* [15] _1 */
     {
@@ -193,7 +193,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 10,
         .aux_function_index = 5,
         .term_function_index = 11,
-        .node_data_id = 15
+        .node_data_id = 7
     },
     /* [16] _2 */
     {
@@ -205,7 +205,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 16
+        .node_data_id = 8
     },
     /* [17] _3 */
     {
@@ -217,7 +217,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 17
+        .node_data_id = 65535
     },
     /* [18] _0 */
     {
@@ -229,7 +229,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 18
+        .node_data_id = 9
     },
     /* [19] _1 */
     {
@@ -241,7 +241,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 12,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 19
+        .node_data_id = 10
     },
     /* [20] _2 */
     {
@@ -253,7 +253,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 20
+        .node_data_id = 11
     },
     /* [21] _3 */
     {
@@ -265,7 +265,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 7,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 21
+        .node_data_id = 12
     },
     /* [22] _4 */
     {
@@ -277,7 +277,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 22
+        .node_data_id = 13
     },
     /* [23] _5 */
     {
@@ -289,7 +289,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 23
+        .node_data_id = 65535
     },
     /* [24] _0 */
     {
@@ -301,7 +301,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 24
+        .node_data_id = 14
     },
     /* [25] _1 */
     {
@@ -313,7 +313,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 8,
         .aux_function_index = 1,
         .term_function_index = 9,
-        .node_data_id = 25
+        .node_data_id = 15
     },
     /* [26] _2 */
     {
@@ -325,7 +325,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 26
+        .node_data_id = 16
     },
     /* [27] _3 */
     {
@@ -337,7 +337,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 27
+        .node_data_id = 65535
     },
     /* [28] _0 */
     {
@@ -349,7 +349,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 28
+        .node_data_id = 17
     },
     /* [29] _1 */
     {
@@ -361,7 +361,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 8,
         .aux_function_index = 4,
         .term_function_index = 9,
-        .node_data_id = 29
+        .node_data_id = 18
     },
     /* [30] _2 */
     {
@@ -373,7 +373,7 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 6,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 30
+        .node_data_id = 19
     },
     /* [31] _3 */
     {
@@ -385,114 +385,18 @@ const chaintree_node_t ct_7mwy459r_nodes[41] = {
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 31
+        .node_data_id = 65535
     },
     /* [32] first_test */
     {
         .node_index = 32,
         .parent_index = 65535,
         .link_start = 31,
-        .link_count = 0x0001,  /* count=1, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 32
-    },
-    /* [33] virtual_functions */
-    {
-        .node_index = 33,
-        .parent_index = 32,
-        .link_start = 32,
-        .link_count = 0x0004,  /* count=4, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 33
-    },
-    /* [34] main_functions */
-    {
-        .node_index = 34,
-        .parent_index = 33,
-        .link_start = 36,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 0,
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
-        .node_data_id = 34
-    },
-    /* [35] one_shot_functions */
-    {
-        .node_index = 35,
-        .parent_index = 33,
-        .link_start = 36,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 35
-    },
-    /* [36] boolean_functions */
-    {
-        .node_index = 36,
-        .parent_index = 33,
-        .link_start = 36,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 36
-    },
-    /* [37] complete_functions */
-    {
-        .node_index = 37,
-        .parent_index = 65535,
-        .link_start = 36,
-        .link_count = 0x0003,  /* count=3, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 37
-    },
-    /* [38] one_shot_functions */
-    {
-        .node_index = 38,
-        .parent_index = 37,
-        .link_start = 39,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 38
-    },
-    /* [39] boolean_functions */
-    {
-        .node_index = 39,
-        .parent_index = 37,
-        .link_start = 39,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 39
-    },
-    /* [40] main_functions */
-    {
-        .node_index = 40,
-        .parent_index = 37,
-        .link_start = 39,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 40
+        .node_data_id = 65535
     }
 };

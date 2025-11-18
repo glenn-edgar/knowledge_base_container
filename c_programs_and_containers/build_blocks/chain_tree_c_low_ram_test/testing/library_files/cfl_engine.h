@@ -51,6 +51,21 @@ typedef struct cfl_test_control_t {
     unsigned node_count;
 } cfl_test_control_t;
 
+
+ 
+ typedef struct {
+    const json_record_t *records;      // From flash_handle->node_data_records
+    uint32_t records_count;            // From flash_handle->node_data_records_count
+    const char *strings;               // From flash_handle->node_data_strings
+    uint32_t strings_size;             // From flash_handle->node_data_strings_size
+    const record_control_t *controls;  // From flash_handle->node_data_controls
+    uint32_t controls_count;           // From flash_handle->node_data_controls_count
+    
+    // Current operation state
+    uint32_t current_control_idx;      // Active control region index
+    int error_code;                    // Last error code
+} json_decoder_ctx_t;
+
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
     cfl_perm_t *perm;      /* Pointer to perm */
@@ -69,7 +84,9 @@ struct CFL_RUNTIME_HANDLE {
     bool cfl_engine_flag;
     unsigned cfl_node_execution_count;
     unsigned max_level;
-    const chaintree_handle_t* flash_handle; /* Pointer to flash handle */
+    CT_StackEntry*  stack;
+    json_decoder_ctx_t *json_decoder_ctx; /* Pointer to json decoder context */
+    const chaintree_handle_t* flash_handle; /* Pointer to flash hanle */
 /* Pointer to engine handle */
 };
 

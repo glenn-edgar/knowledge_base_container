@@ -46,7 +46,7 @@ void cfl_engine_init_test(cfl_runtime_handle_t *handle,unsigned start_node, unsi
     
 }
 
-CT_StackEntry stack[1024];
+
      
 
 bool cfl_execute_event(cfl_runtime_handle_t *handle){
@@ -54,22 +54,19 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle){
      if(cfl_engine_node_is_enabled(handle, node_index) == false) {
         return false;
      }
-     handle->max_level = 0;
+     printf("cfl_execute_event node count: %d\n", handle->flash_handle->node_count);
      handle->cfl_engine_flag = true;
      handle->cfl_node_execution_count = 0;
      CT_ReturnCode return_code = ct_walker_walk(
         handle->walker,
         handle,
         node_index,
-        CT_ITERATIVE,
-        stack,
-        1024,
-        0xFFFF
+        handle->stack,
+        handle->max_level,
+        handle->walker->max_level,
+        handle->flash_handle->node_count
     );
-    printf("max_level: %d\n", handle->max_level);
-    printf("return_code: %d\n", return_code);
-    exit(0);
-     return false;
+    return false;
 }
 
 
@@ -83,9 +80,7 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
     const one_shot_function_t one_shot_function = handle->flash_handle->one_shot_functions[node->init_function_index];
     const boolean_function_t boolean_function = handle->flash_handle->boolean_functions[node->aux_function_index];
  
-    if (handle->max_level < level) {
-        handle->max_level = level;
-    }
+    
     printf("cfl_execute_node node index: %d\n", node_id);
     
     if (cfl_engine_node_is_initialized(handle, node_id) == false) {

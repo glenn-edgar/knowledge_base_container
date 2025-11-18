@@ -26,7 +26,18 @@ class NodeIndexBuilder:
     
     Creates the final node array ordering using breadth-first traversal
     and builds index mappings for parent/child relationships.
+    
+    Filters out non-operational metadata nodes used only for function cataloging.
     """
+    
+    # Node labels that indicate function definition metadata (not operational)
+    METADATA_NODE_LABELS = {
+        'virtual_functions',
+        'complete_functions',
+        'main_functions',
+        'one_shot_functions',
+        'boolean_functions',
+    }
     
     def __init__(self, handle: ChainTreeYamlHandle):
         self.handle = handle
@@ -38,23 +49,88 @@ class NodeIndexBuilder:
         # Computed indices
         self.ltree_to_final_index: Dict[str, int] = {}  # ltree_name -> final array index
         self.final_index_to_ltree: List[str] = []  # Array of ltree names in final order
-    
-    def build_node_ordering(self) -> None:
-        """Build the node ordering for all knowledge bases."""
-        current_index = 0
         
-        for kb_name in self.handle.get_kb_names():
-            self.kb_start_index[kb_name] = current_index
+        # Track filtered nodes
+        self.filtered_nodes: Set[str] = set()  # ltree names of filtered nodes Array of ltree names in final order
+    
+    
+    def get_node_depth(self, ltree_name: str) -> int:
+        """
+        Calculate tree depth from ltree name.
+        Format: kb.kb_name.level1.level2...
+        Depth is the number of levels after kb.kb_name
+        
+        Args:
+            ltree_name: Full ltree path (e.g., "kb.first_test.root.child1")
             
-            # Use breadth-first traversal to get node order
-            node_order = self.handle.traverse_kb_breadth_first(kb_name)
-            self.kb_node_order[kb_name] = node_order
+        Returns:
+            Depth (0 for root, 1 for first level children, etc.)
+        """
+        parts = ltree_name.split('.')
+        # Subtract 2 for "kb" and "kb_name" prefix
+        if len(parts) < 2:
+            return 0
+        return int(len(parts) / 2)
+    
+    def _is_metadata_node(self, ltree_name: str) -> bool:
+            """
+            Check if a node is a function definition metadata node (should be filtered).
             
-            # Assign final indices
-            for ltree_name in node_order:
-                self.ltree_to_final_index[ltree_name] = current_index
-                self.final_index_to_ltree.append(ltree_name)
-                current_index += 1
+            Metadata nodes are used only during build for function cataloging,
+            not for runtime execution.
+            
+            Args:
+                ltree_name: Full ltree path of the node
+                
+            Returns:
+                True if node should be filtered out, False if operational
+            """
+            node_data = self.handle.get_node_data(ltree_name)
+            if not node_data:
+                return False
+            
+            # Check node label
+            label = node_data.get('label', '')
+            if label in self.METADATA_NODE_LABELS:
+                return True
+            
+            # Check if parent is a metadata node (entire subtree should be filtered)
+            parent_ltree = self.handle.get_node_parent(ltree_name)
+            if parent_ltree and parent_ltree in self.filtered_nodes:
+                return True
+            
+            return False
+  
+    def build_node_ordering(self) -> None:
+            """Build the node ordering for all knowledge bases, filtering metadata nodes."""
+            current_index = 0
+            total_filtered = 0
+            
+            for kb_name in self.handle.get_kb_names():
+                self.kb_start_index[kb_name] = current_index
+                
+                # Use breadth-first traversal to get node order
+                all_nodes = self.handle.traverse_kb_breadth_first(kb_name)
+                
+                # Filter out metadata nodes
+                operational_nodes = []
+                for ltree_name in all_nodes:
+                    if self._is_metadata_node(ltree_name):
+                        self.filtered_nodes.add(ltree_name)
+                        total_filtered += 1
+                    else:
+                        operational_nodes.append(ltree_name)
+                
+                self.kb_node_order[kb_name] = operational_nodes
+                
+                # Assign final indices only to operational nodes
+                for ltree_name in operational_nodes:
+                    self.ltree_to_final_index[ltree_name] = current_index
+                    self.final_index_to_ltree.append(ltree_name)
+                    current_index += 1
+            
+            if total_filtered > 0:
+                print(f"  Filtered out {total_filtered} function definition metadata nodes")
     
     def get_node_final_index(self, ltree_name: str) -> int:
         """Get the final array index for a node."""
@@ -235,24 +311,35 @@ class LinkTableBuilder:
         self.node_link_info: Dict[str, Dict] = {}  # ltree_name -> {start, count}
     
     def build_link_table(self) -> None:
-        """Build the link table for all nodes."""
-        
-        for ltree_name in self.node_builder.final_index_to_ltree:
-            children = self.handle.get_node_children(ltree_name)
+            """Build the link table for all nodes, skipping filtered children."""
             
-            # Record where this node's links start and how many there are
-            link_start = len(self.link_table)
-            link_count = len(children)
-            
-            self.node_link_info[ltree_name] = {
-                'link_start': link_start,
-                'link_count': link_count
-            }
-            
-            # Add child indices to link table
-            for child_ltree in children:
-                child_index = self.node_builder.get_node_final_index(child_ltree)
-                self.link_table.append(child_index)
+            for ltree_name in self.node_builder.final_index_to_ltree:
+                children = self.handle.get_node_children(ltree_name)
+                
+                # Filter out children that were excluded from node array
+                operational_children = []
+                for child_ltree in children:
+                    # Skip if child was filtered as metadata node
+                    if child_ltree in self.node_builder.filtered_nodes:
+                        continue
+                    # Skip if child doesn't have a final index (shouldn't happen, but safe)
+                    if child_ltree not in self.node_builder.ltree_to_final_index:
+                        continue
+                    operational_children.append(child_ltree)
+                
+                # Record where this node's links start and how many there are
+                link_start = len(self.link_table)
+                link_count = len(operational_children)
+                
+                self.node_link_info[ltree_name] = {
+                    'link_start': link_start,
+                    'link_count': link_count
+                }
+                
+                # Add child indices to link table (only operational children)
+                for child_ltree in operational_children:
+                    child_index = self.node_builder.get_node_final_index(child_ltree)
+                    self.link_table.append(child_index)
     
     def get_node_link_info(self, ltree_name: str) -> Dict:
         """Get link information for a node."""
@@ -397,7 +484,7 @@ class HeaderFileGenerator:
         
         # Stage 5: Encode node data with JsonRecordEncoder
         print("\nStage 5: Encoding node data...")
-        self.data_encoder = NodeDataEncoder(self.handle, self.node_builder)
+        self.data_encoder = NodeDataEncoder(self.handle, self.node_builder, self.function_builder)
         self.data_encoder.encode_node_data()
         self.data_encoder.print_summary()
         
@@ -475,6 +562,7 @@ class HeaderFileGenerator:
             "typedef struct {",
             "    uint16_t node_index;",
             "    uint16_t parent_index;",
+            "    uint16_t depth;                /* Tree depth (pairs: 0=root, 1=children, 2=grandchildren, etc.) */",
             "    uint16_t link_start;",
             "    uint16_t link_count;          /* Bits 0-14: count, Bit 15: auto_start flag */",
             "    uint16_t main_function_index;",
@@ -499,6 +587,7 @@ class HeaderFileGenerator:
             "    uint16_t root_node_index;",
             "    uint16_t start_index;",
             "    uint16_t node_count;",
+            "    uint16_t max_depth;           /* Maximum tree depth in this KB */",
             "} chaintree_kb_info_t;",
             "",
             "/* ===== Node Data Structures ===== */",
@@ -579,7 +668,7 @@ class HeaderFileGenerator:
             f.write("\n".join(lines))
         
         print(f"  Generated: {output_file}")
-
+        
     def _generate_instance_header(self) -> None:
         """Generate instance-specific top-level header."""
         output_file = self.yaml_file.parent / f"{self.handle_name}.h"  # Use handle_name, not unique_id
@@ -1324,91 +1413,93 @@ class HeaderFileGenerator:
         print(f"  Generated: {output_file}")    
         
     def _generate_node_array_implementation(self) -> None:
-        """Generate node array implementation with actual data using typed names."""
-        output_file = self.yaml_file.parent / f"{self.handle_name}_nodes.c"
+            """Generate node array implementation with actual data using typed names."""
+            output_file = self.yaml_file.parent / f"{self.handle_name}_nodes.c"
+            
+            lines = [
+                "/* Auto-generated by ChainTree Pipeline */",
+                f'#include "{self.handle_name}_nodes.h"',
+                "",
+                "/* Node array with complete initialization */",
+                f"const chaintree_node_t {self.unique_id}_nodes[{self.node_builder.get_total_nodes()}] = {{"
+            ]
+            
+            # Generate each node entry
+            for i, ltree_name in enumerate(self.node_builder.final_index_to_ltree):
+                node_data = self.handle.get_node_data(ltree_name)
+                
+                if not node_data:
+                    lines.append(f"    /* [{i}] ERROR: Node not found: {ltree_name} */")
+                    continue
+                
+                # Get node functions
+                functions = self.handle.get_node_functions(ltree_name)
+                
+                # Convert to typed names and get function indices
+                typed_main = self.function_builder.get_typed_main_name(functions['main'])
+                typed_init = self.function_builder.get_typed_one_shot_name(functions['init'])
+                typed_aux = self.function_builder.get_typed_boolean_name(functions['aux'])
+                typed_term = self.function_builder.get_typed_one_shot_name(functions['term'])
+                
+                main_idx = self.function_builder.main_indexer.get_index(functions['main'])
+                init_idx = self.function_builder.one_shot_indexer.get_index(functions['init'])
+                aux_idx = self.function_builder.boolean_indexer.get_index(functions['aux'])
+                term_idx = self.function_builder.one_shot_indexer.get_index(functions['term'])
+                
+                # Get link info
+                link_info = self.link_builder.get_node_link_info(ltree_name)
+                link_start = link_info['link_start']
+                link_count = link_info['link_count']
+                
+                # Get auto_start flag from node_dict
+                node_dict = node_data.get('node_dict', {})
+                auto_start = node_dict.get('auto_start', False)
+                
+                # Pack link_count with auto_start in bit 15
+                packed_link_count = link_count & 0x7FFF
+                if auto_start:
+                    packed_link_count |= 0x8000
+                
+                # Get parent index - UPDATED LOGIC HERE
+                parent_ltree = self.handle.get_node_parent(ltree_name)
+                
+                # Check if parent exists and is operational (not filtered)
+                if parent_ltree and parent_ltree in self.node_builder.ltree_to_final_index:
+                    parent_idx = self.node_builder.get_node_final_index(parent_ltree)
+                else:
+                    parent_idx = 0xFFFF  # No parent or parent was filtered
+                
+                # Get data ID
+                data_id = self.data_encoder.get_node_data_id(ltree_name)
+                
+                # Generate node entry with comment showing auto_start status
+                node_name = node_data.get('node_name', 'unknown')
+                auto_start_comment = " [AUTO_START]" if auto_start else ""
+                lines.append(f"    /* [{i}] {node_name}{auto_start_comment} */")
+                lines.append(f"    {{")
+                lines.append(f"        .node_index = {i},")
+                lines.append(f"        .parent_index = {parent_idx},")
+                lines.append(f"        .link_start = {link_start},")
+                lines.append(f"        .link_count = 0x{packed_link_count:04X},  /* count={link_count}, auto_start={auto_start} */")
+                lines.append(f"        .main_function_index = {main_idx},")
+                lines.append(f"        .init_function_index = {init_idx},")
+                lines.append(f"        .aux_function_index = {aux_idx},")
+                lines.append(f"        .term_function_index = {term_idx},")
+                lines.append(f"        .node_data_id = {data_id}")
+                
+                if i < self.node_builder.get_total_nodes() - 1:
+                    lines.append(f"    }},")
+                else:
+                    lines.append(f"    }}")
+            
+            lines.append("};")
+            lines.append("")
+            
+            with open(output_file, 'w') as f:
+                f.write("\n".join(lines))
+            
+            print(f"  Generated: {output_file}")
         
-        lines = [
-            "/* Auto-generated by ChainTree Pipeline */",
-            f'#include "{self.handle_name}_nodes.h"',
-            "",
-            "/* Node array with complete initialization */",
-            f"const chaintree_node_t {self.unique_id}_nodes[{self.node_builder.get_total_nodes()}] = {{"
-        ]
-        
-        # Generate each node entry
-        for i, ltree_name in enumerate(self.node_builder.final_index_to_ltree):
-            node_data = self.handle.get_node_data(ltree_name)
-            
-            if not node_data:
-                lines.append(f"    /* [{i}] ERROR: Node not found: {ltree_name} */")
-                continue
-            
-            # Get node functions
-            functions = self.handle.get_node_functions(ltree_name)
-            
-            # Convert to typed names and get function indices
-            typed_main = self.function_builder.get_typed_main_name(functions['main'])
-            typed_init = self.function_builder.get_typed_one_shot_name(functions['init'])
-            typed_aux = self.function_builder.get_typed_boolean_name(functions['aux'])
-            typed_term = self.function_builder.get_typed_one_shot_name(functions['term'])
-            
-            main_idx = self.function_builder.main_indexer.get_index(functions['main'])
-            init_idx = self.function_builder.one_shot_indexer.get_index(functions['init'])
-            aux_idx = self.function_builder.boolean_indexer.get_index(functions['aux'])
-            term_idx = self.function_builder.one_shot_indexer.get_index(functions['term'])
-            
-            # Get link info
-            link_info = self.link_builder.get_node_link_info(ltree_name)
-            link_start = link_info['link_start']
-            link_count = link_info['link_count']
-            
-            # Get auto_start flag from node_dict
-            node_dict = node_data.get('node_dict', {})
-            auto_start = node_dict.get('auto_start', False)
-            
-            # Pack link_count with auto_start in bit 15
-            # link_count: bits 0-14 (max 32767), auto_start: bit 15
-            packed_link_count = link_count & 0x7FFF
-            if auto_start:
-                packed_link_count |= 0x8000
-            
-            # Get parent index
-            parent_ltree = self.handle.get_node_parent(ltree_name)
-            if parent_ltree and parent_ltree in self.node_builder.ltree_to_final_index:
-                parent_idx = self.node_builder.get_node_final_index(parent_ltree)
-            else:
-                parent_idx = 0xFFFF  # No parent
-            
-            # Get data ID
-            data_id = self.data_encoder.get_node_data_id(ltree_name)
-            
-            # Generate node entry with comment showing auto_start status
-            node_name = node_data.get('node_name', 'unknown')
-            auto_start_comment = " [AUTO_START]" if auto_start else ""
-            lines.append(f"    /* [{i}] {node_name}{auto_start_comment} */")
-            lines.append(f"    {{")
-            lines.append(f"        .node_index = {i},")
-            lines.append(f"        .parent_index = {parent_idx},")
-            lines.append(f"        .link_start = {link_start},")
-            lines.append(f"        .link_count = 0x{packed_link_count:04X},  /* count={link_count}, auto_start={auto_start} */")
-            lines.append(f"        .main_function_index = {main_idx},")
-            lines.append(f"        .init_function_index = {init_idx},")
-            lines.append(f"        .aux_function_index = {aux_idx},")
-            lines.append(f"        .term_function_index = {term_idx},")
-            lines.append(f"        .node_data_id = {data_id}")
-            
-            if i < self.node_builder.get_total_nodes() - 1:
-                lines.append(f"    }},")
-            else:
-                lines.append(f"    }}")
-        
-        lines.append("};")
-        lines.append("")
-        
-        with open(output_file, 'w') as f:
-            f.write("\n".join(lines))
-        
-        print(f"  Generated: {output_file}")
     def _generate_link_table_implementation(self) -> None:
         """Generate link table implementation."""
         output_file = self.yaml_file.parent / f"{self.handle_name}_links.c"
@@ -1541,12 +1632,20 @@ class HeaderFileGenerator:
             # Root node is the first node in breadth-first traversal
             root_node_index = start_idx
             
+            # Calculate max depth for this KB
+            max_depth = 0
+            for i in range(start_idx, end_idx):
+                ltree_name = self.node_builder.final_index_to_ltree[i]
+                depth = self.node_builder.get_node_depth(ltree_name)
+                max_depth = max(max_depth, depth)
+            
             lines.extend([
                 "    {",
                 f'        .kb_name = "{kb_name}",',
                 f"        .root_node_index = {root_node_index},",
                 f"        .start_index = {start_idx},",
-                f"        .node_count = {node_count}",
+                f"        .node_count = {node_count},",
+                f"        .max_depth = {max_depth}",
                 "    },"
             ])
         
@@ -1559,7 +1658,6 @@ class HeaderFileGenerator:
             f.write("\n".join(lines))
         
         print(f"  Generated: {output_file}")
-
 
 if __name__ == "__main__":
     yaml_file = Path("chaintree_config.yaml")

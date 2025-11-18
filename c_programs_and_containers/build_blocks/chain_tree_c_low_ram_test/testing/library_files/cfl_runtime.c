@@ -6,6 +6,7 @@
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
 
+static unsigned int cfl_calculate_max_level( const chaintree_handle_t* flash_handle);
 static bool cfl_check_for_active_nodes(cfl_runtime_handle_t* handle);
 static void cfl_set_timer_reference(cfl_runtime_handle_t* handle);
 
@@ -66,7 +67,16 @@ cfl_runtime_handle_t* cfl_runtime_create( cfl_perm_t* perm, cfl_runtime_create_p
     perm_used_bytes = cfl_perm_used_bytes(perm);
     perm_free_bytes = cfl_perm_free_bytes(perm);
     printf("perm_used_bytes after timer handle init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
+    handle->max_level = cfl_calculate_max_level(flash_handle);
     handle->flash_handle = flash_handle;
+    handle->stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(CT_StackEntry) * handle->max_level));
+    perm_used_bytes = cfl_perm_used_bytes(perm);
+    perm_free_bytes = cfl_perm_free_bytes(perm);
+    printf("perm_used_bytes after stack init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
+    handle->json_decoder_ctx = (json_decoder_ctx_t*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(json_decoder_ctx_t)));
+    perm_used_bytes = cfl_perm_used_bytes(perm);
+    perm_free_bytes = cfl_perm_free_bytes(perm);
+    printf("perm_used_bytes after json decoder ctx init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     cfl_engine_create(handle);
     perm_used_bytes = cfl_perm_used_bytes(perm);
     perm_free_bytes = cfl_perm_free_bytes(perm);
@@ -249,3 +259,19 @@ static void cfl_queue_internal_system_event(cfl_runtime_handle_t* handle,
         }
     }
 }
+
+/**
+ * Calculate stack size that supports both DFS and BFS traversal
+ * Use at initialization when max_depth and max_leaves are known
+ */
+static unsigned int cfl_calculate_max_level( const chaintree_handle_t* flash_handle) {
+     unsigned int max_depth = 0;
+     unsigned number_of_kbs = flash_handle->kb_count;
+     for(unsigned i = 0; i < number_of_kbs; i++) {
+        const chaintree_kb_info_t* kb = &flash_handle->kb_table[i];
+        if(kb->max_depth > max_depth) {
+            max_depth = kb->max_depth;
+        }
+     }
+     return max_depth + 1; // for safety margin
+    }

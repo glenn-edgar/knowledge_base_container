@@ -2,7 +2,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "cfl_runtime.h"
+#include "json_node_decoder.h"
 
 
 
@@ -76,14 +78,24 @@ void cfl_gate_node_term_one_shot_fn(void *handle, uint16_t node_index){
 
 void cfl_log_message_one_shot_fn(void *handle, uint16_t node_index){
 
-    //  (void)node_index;
-  
-    (void)handle;
-    (void)node_index;
-   
-    printf("cfl_log_message_one_shot_fn\n");
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    const char *message;
+    double timestamp;
+
+    timestamp = cfl_timer_get_timestamp(runtime->timer_handle);
+    
+    // Step 1: Initialize decoder for this node's data
+    json_decoder_init_from_runtime(runtime, node_index);
+    
+    // Step 2: Extract the value using path notation
+    json_extract_string_runtime(runtime, "node_dict.message", &message);
+    
+    // Step 3: Use the value (state now points to "open")
+    // No need to free - string points into flash memory
+    
+    printf("Timestamp: %f, Node Index: %d, Message: %s  \n", timestamp, node_index, message );
     exit(0);
-    }
+}
 
 void cfl_send_named_event_one_shot_fn(void *handle, uint16_t node_index){
 

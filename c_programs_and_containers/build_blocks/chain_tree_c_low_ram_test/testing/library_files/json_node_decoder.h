@@ -1,351 +1,370 @@
-#ifndef JSON_NODE_DECODER_H
-#define JSON_NODE_DECODER_H
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <stddef.h>
-
 /* ============================================================================
- * Core Data Structures
+ * Runtime Handle Integration
  * ============================================================================ */
 
-/**
- * JSON value types supported in preprocessed records
+ #ifndef JSON_NODE_DECODER_H
+ #define JSON_NODE_DECODER_H
+ 
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+ 
+ #include "cfl_runtime.h"
+ 
+ /* ============================================================================
+  * json_node_decoder.h - JSON Decoder for ChainTree Node Data
+  * ============================================================================ */
+ 
+ #include <stdint.h>
+ #include <stdbool.h>
+ #include <stddef.h>
+ 
+ /* Forward declarations */
+ 
+ 
+ /* Note: json_type_t, json_record_t, and record_control_t are defined 
+    in your existing code with the following structure:
+ 
+ typedef enum {
+     JSON_TYPE_STRING = 0,
+     JSON_TYPE_INT32 = 1,
+     JSON_TYPE_FLOAT32 = 2,
+     JSON_TYPE_NULL = 3,
+     JSON_TYPE_BOOL = 4,
+     JSON_TYPE_ARRAY = 5,
+     JSON_TYPE_OBJECT = 6
+ } json_type_t;
+ 
+ typedef struct {
+     json_type_t object_type;
+     union {
+         uint32_t string_offset;
+         int32_t i32_value;
+         float f32_value;
+         uint8_t bool_value;
+         uint32_t container_count;
+     } value;
+ } json_record_t;
+ 
+ typedef struct {
+     uint32_t start_position;
+     uint32_t num_records;
+ } record_control_t;
  */
-typedef enum {
-    JSON_TYPE_NULL = 0,
-    JSON_TYPE_BOOL,
-    JSON_TYPE_INT,
-    JSON_TYPE_DOUBLE,
-    JSON_TYPE_STRING,
-    JSON_TYPE_OBJECT,
-    JSON_TYPE_ARRAY,
-    JSON_TYPE_INVALID = 0xFF
-} json_type_t;
-
-/**
- * Preprocessed JSON record entry
- * Memory-efficient structure for embedded systems
- */
-typedef struct {
-    uint16_t key_offset;        // Offset into string table for key name
-    uint8_t  type;              // json_type_t
-    uint8_t  flags;             // Optional, required, etc.
-    union {
-        bool     bool_val;
-        int64_t  int_val;
-        double   double_val;
-        uint16_t string_offset; // Offset into string table
-        struct {
-            uint16_t first_child;   // Index of first child record
-            uint16_t child_count;   // Number of children
-        } container;
-    } value;
-} json_record_t;
-
-/**
- * Control structure for record metadata
- */
-typedef struct {
-    uint16_t record_count;      // Total number of records
-    uint16_t string_table_size; // Size of string table
-    uint16_t root_record;       // Index of root record
-    uint16_t reserved;          // Alignment/future use
-} record_control_t;
-
-/**
- * Decoder context for stateful operations
- */
-typedef struct {
-    const json_record_t *records;
-    const record_control_t *control;
-    const char *strings;
-    uint16_t current_record;
-    int error_code;
-} json_decoder_ctx_t;
-
-/* Error codes */
-#define JSON_OK                 0
-#define JSON_ERR_INVALID_RECORD -1
-#define JSON_ERR_TYPE_MISMATCH  -2
-#define JSON_ERR_NOT_FOUND      -3
-#define JSON_ERR_NULL_PTR       -4
-#define JSON_ERR_OUT_OF_BOUNDS  -5
-
-/* ============================================================================
- * Core Decoder Functions
- * ============================================================================ */
-
-/**
- * Initialize decoder context
- * 
- * @param ctx Context to initialize
- * @param records Preprocessed JSON records
- * @param control Record control structure
- * @param strings String table
- * @param record_num Starting record number
- * @return JSON_OK on success, error code otherwise
- */
-int json_decoder_init(
-    json_decoder_ctx_t *ctx,
-    const json_record_t *records,
-    const record_control_t *control,
-    const char *strings,
-    uint16_t record_num
-);
-
-/**
- * Get record by number with bounds checking
- */
-static inline const json_record_t *json_get_record(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num
-)
-{
-    if (!ctx || !ctx->records || record_num >= ctx->control->record_count) {
-        return NULL;
-    }
-    return &ctx->records[record_num];
-}
-
-/**
- * Get string from string table by offset
- */
-static inline const char *json_get_string(
-    const json_decoder_ctx_t *ctx,
-    uint16_t offset
-)
-{
-    if (!ctx || !ctx->strings || offset >= ctx->control->string_table_size) {
-        return NULL;
-    }
-    return &ctx->strings[offset];
-}
-
-/**
- * Get key name for a record
- */
-static inline const char *json_get_key(
-    const json_decoder_ctx_t *ctx,
-    const json_record_t *record
-)
-{
-    if (!record) return NULL;
-    return json_get_string(ctx, record->key_offset);
-}
-
-/* ============================================================================
- * Type-Safe Value Extraction
- * ============================================================================ */
-
-/**
- * Extract boolean value from record
- */
-int json_get_bool(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    bool *out_value
-);
-
-/**
- * Extract integer value from record
- */
-int json_get_int(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    int64_t *out_value
-);
-
-/**
- * Extract double value from record
- */
-int json_get_double(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    double *out_value
-);
-
-/**
- * Extract string value from record
- * Returns pointer into string table (no allocation)
- */
-int json_get_string_value(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    const char **out_value
-);
-
-/**
- * Check if record is null
- */
-bool json_is_null(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num
-);
-
-/* ============================================================================
- * Object/Array Navigation
- * ============================================================================ */
-
-/**
- * Find child record by key name (for objects)
- * 
- * @param ctx Decoder context
- * @param parent_record Parent object record number
- * @param key Key to search for
- * @param out_record Output record number if found
- * @return JSON_OK if found, JSON_ERR_NOT_FOUND otherwise
- */
-int json_find_child(
-    const json_decoder_ctx_t *ctx,
-    uint16_t parent_record,
-    const char *key,
-    uint16_t *out_record
-);
-
-/**
- * Get child by index (for arrays)
- */
-int json_get_child_at(
-    const json_decoder_ctx_t *ctx,
-    uint16_t parent_record,
-    uint16_t index,
-    uint16_t *out_record
-);
-
-/**
- * Get number of children (for objects/arrays)
- */
-int json_get_child_count(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    uint16_t *out_count
-);
-
-/**
- * Iterate over object/array children
- * 
- * @param ctx Decoder context
- * @param parent_record Parent record number
- * @param iterator Iterator state (initialize to 0)
- * @param out_record Output child record number
- * @return JSON_OK if child found, JSON_ERR_NOT_FOUND when done
- */
-int json_iterate_children(
-    const json_decoder_ctx_t *ctx,
-    uint16_t parent_record,
-    uint16_t *iterator,
-    uint16_t *out_record
-);
-
-/* ============================================================================
- * Convenience Helper Functions
- * ============================================================================ */
-
-/**
- * Get boolean value from object by key
- */
-int json_object_get_bool(
-    const json_decoder_ctx_t *ctx,
-    uint16_t object_record,
-    const char *key,
-    bool *out_value
-);
-
-/**
- * Get integer value from object by key
- */
-int json_object_get_int(
-    const json_decoder_ctx_t *ctx,
-    uint16_t object_record,
-    const char *key,
-    int64_t *out_value
-);
-
-/**
- * Get double value from object by key
- */
-int json_object_get_double(
-    const json_decoder_ctx_t *ctx,
-    uint16_t object_record,
-    const char *key,
-    double *out_value
-);
-
-/**
- * Get string value from object by key
- */
-int json_object_get_string(
-    const json_decoder_ctx_t *ctx,
-    uint16_t object_record,
-    const char *key,
-    const char **out_value
-);
-
-/**
- * Get nested object by key path (e.g., "settings.network.port")
- * Uses temporary buffer for path parsing
- */
-int json_get_nested_value(
-    const json_decoder_ctx_t *ctx,
-    uint16_t root_record,
-    const char *path,
-    uint16_t *out_record
-);
-
-/* ============================================================================
- * Type Checking and Validation
- * ============================================================================ */
-
-/**
- * Get type of record
- */
-static inline json_type_t json_get_type(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num
-)
-{
-    const json_record_t *record = json_get_record(ctx, record_num);
-    return record ? (json_type_t)record->type : JSON_TYPE_INVALID;
-}
-
-/**
- * Check if record is of expected type
- */
-bool json_check_type(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    json_type_t expected_type
-);
-
-/**
- * Validate entire record structure (for debugging)
- */
-int json_validate_records(
-    const json_decoder_ctx_t *ctx
-);
-
-/* ============================================================================
- * Debug and Diagnostic Functions
- * ============================================================================ */
-
-/**
- * Print record structure (for debugging)
- */
-#ifdef JSON_DEBUG
-void json_print_record(
-    const json_decoder_ctx_t *ctx,
-    uint16_t record_num,
-    int indent_level
-);
-
-void json_print_all_records(
-    const json_decoder_ctx_t *ctx
-);
-
-const char *json_type_to_string(json_type_t type);
-const char *json_error_to_string(int error_code);
-#endif
-
-#endif /* JSON_NODE_DECODER_H */
-
+ 
+ /* ============================================================================
+  * Decoder Context
+  * ============================================================================ */
+ 
+ /* ============================================================================
+  * Core Decoder Functions
+  * ============================================================================ */
+ 
+ /**
+  * Initialize decoder context from flash handle
+  * 
+  * @param ctx Context to initialize
+  * @param flash_handle Pointer to chaintree flash handle structure
+  * @param node_data_control_index Control region index (typically node->node_data_id)
+  * Uses EXCEPTION for all errors
+  */
+ void json_decoder_init(
+     json_decoder_ctx_t *ctx,
+     const chaintree_handle_t *flash_handle,
+     uint32_t node_data_control_index
+ );
+ 
+ /**
+  * Get record by index with bounds checking
+  */
+ static inline const json_record_t *json_get_record(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx)
+ {
+     if (!ctx || !ctx->records || record_idx >= ctx->records_count) {
+         return NULL;
+     }
+     return &ctx->records[record_idx];
+ }
+ 
+ /**
+  * Get string from string table by offset
+  */
+ static inline const char *json_get_string(
+     const json_decoder_ctx_t *ctx,
+     uint32_t offset)
+ {
+     if (!ctx || !ctx->strings || offset >= ctx->strings_size) {
+         return NULL;
+     }
+     return &ctx->strings[offset];
+ }
+ 
+ /* ============================================================================
+  * Runtime Handle Integration (Primary Interface)
+  * ============================================================================ */
+ 
+ /**
+  * Initialize decoder context for a specific node using runtime handle
+  * 
+  * @param runtime Runtime handle containing flash_handle and json_decoder_ctx
+  * @param node_id Node data control index (typically from chaintree_node_t->node_data_id)
+  * Uses EXCEPTION for all errors
+  */
+ void json_decoder_init_from_runtime(
+     cfl_runtime_handle_t *runtime,
+     uint32_t node_id
+ );
+ 
+ /**
+  * Extract int32 value by path from current active node
+  * 
+  * @param runtime Runtime handle
+  * @param path Dot-separated path (e.g., "node_dict.timeout")
+  * @param out Output value pointer
+  * Uses EXCEPTION for errors including not found and type mismatch
+  */
+ void json_extract_int32_runtime(
+     const cfl_runtime_handle_t *runtime,
+     const char *path,
+     int32_t *out
+ );
+ 
+ /**
+  * Extract float32 value by path from current active node
+  */
+ void json_extract_float32_runtime(
+     const cfl_runtime_handle_t *runtime,
+     const char *path,
+     float *out
+ );
+ 
+ /**
+  * Extract boolean value by path from current active node
+  */
+ void json_extract_bool_runtime(
+     const cfl_runtime_handle_t *runtime,
+     const char *path,
+     bool *out
+ );
+ 
+ /**
+  * Extract string value by path from current active node
+  * Returns pointer into string table (no allocation)
+  */
+ void json_extract_string_runtime(
+     const cfl_runtime_handle_t *runtime,
+     const char *path,
+     const char **out
+ );
+ 
+ /* ============================================================================
+  * Path-Based Extraction API (Lower-Level Interface)
+  * ============================================================================ */
+ 
+ /**
+  * Extract int32 value by path
+  * 
+  * @param ctx Decoder context
+  * @param root_record Starting record index (typically control->start_position)
+  * @param path Dot-separated path (e.g., "device.id" or "sensors[2].value")
+  * @param out Output value pointer
+  * Uses EXCEPTION for errors including not found and type mismatch
+  */
+ void json_extract_int32(
+     const json_decoder_ctx_t *ctx,
+     uint32_t root_record,
+     const char *path,
+     int32_t *out
+ );
+ 
+ /**
+  * Extract float32 value by path
+  */
+ void json_extract_float32(
+     const json_decoder_ctx_t *ctx,
+     uint32_t root_record,
+     const char *path,
+     float *out
+ );
+ 
+ /**
+  * Extract boolean value by path
+  */
+ void json_extract_bool(
+     const json_decoder_ctx_t *ctx,
+     uint32_t root_record,
+     const char *path,
+     bool *out
+ );
+ 
+ /**
+  * Extract string value by path
+  * Returns pointer into string table (no allocation)
+  */
+ void json_extract_string(
+     const json_decoder_ctx_t *ctx,
+     uint32_t root_record,
+     const char *path,
+     const char **out
+ );
+ 
+ /* ============================================================================
+  * Low-Level Navigation Functions
+  * ============================================================================ */
+ 
+ /**
+  * Find child in OBJECT by key name
+  * Handles jsmn-style key-value pairs
+  * 
+  * @param ctx Decoder context
+  * @param parent_record Parent OBJECT record index
+  * @param key Key to search for
+  * @param out_record Output record index if found (points to VALUE, not key)
+  * Uses EXCEPTION if not found or on errors
+  */
+ void json_find_object_child(
+     const json_decoder_ctx_t *ctx,
+     uint32_t parent_record,
+     const char *key,
+     uint32_t *out_record
+ );
+ 
+ /**
+  * Get child from ARRAY by index
+  * 
+  * @param ctx Decoder context
+  * @param parent_record Parent ARRAY record index
+  * @param index Array index (0-based)
+  * @param out_record Output record index
+  * Uses EXCEPTION on errors
+  */
+ void json_get_array_child(
+     const json_decoder_ctx_t *ctx,
+     uint32_t parent_record,
+     uint32_t index,
+     uint32_t *out_record
+ );
+ 
+ /**
+  * Navigate path to find target record
+  * Supports both object keys and array indices
+  * 
+  * @param ctx Decoder context
+  * @param root_record Starting record
+  * @param path Path string (e.g., "device.sensors[2].temp")
+  * @param out_record Output record index
+  * Uses EXCEPTION on errors
+  */
+ void json_navigate_path(
+     const json_decoder_ctx_t *ctx,
+     uint32_t root_record,
+     const char *path,
+     uint32_t *out_record
+ );
+ 
+ /* ============================================================================
+  * Type-Safe Value Getters (from record index)
+  * ============================================================================ */
+ 
+ /**
+  * Get int32 value from record
+  * Uses EXCEPTION for type mismatch
+  */
+ void json_get_int32(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     int32_t *out
+ );
+ 
+ /**
+  * Get float32 value from record
+  */
+ void json_get_float32(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     float *out
+ );
+ 
+ /**
+  * Get bool value from record
+  */
+ void json_get_bool(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     bool *out
+ );
+ 
+ /**
+  * Get string value from record
+  */
+ void json_get_string_value(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     const char **out
+ );
+ 
+ /**
+  * Check if record is null
+  */
+ bool json_is_null(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx
+ );
+ 
+ /* ============================================================================
+  * Utility Functions
+  * ============================================================================ */
+ 
+ /**
+  * Get number of children in container (OBJECT or ARRAY)
+  */
+ void json_get_child_count(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     uint32_t *out_count
+ );
+ 
+ /**
+  * Get type of record
+  */
+ static inline json_type_t json_get_type(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx)
+ {
+     const json_record_t *record = json_get_record(ctx, record_idx);
+     return record ? record->object_type : JSON_TYPE_NULL;
+ }
+ 
+ /**
+  * Validate record structure (for debugging)
+  */
+ void json_validate_records(
+     const json_decoder_ctx_t *ctx,
+     uint32_t control_idx
+ );
+ 
+ /* ============================================================================
+  * Debug Functions
+  * ============================================================================ */
+ 
+ #ifdef JSON_DEBUG
+ const char *json_type_to_string(json_type_t type);
+ 
+ void json_print_record(
+     const json_decoder_ctx_t *ctx,
+     uint32_t record_idx,
+     int indent_level
+ );
+ 
+ void json_print_control_region(
+     const json_decoder_ctx_t *ctx,
+     uint32_t control_idx
+ );
+ #endif
+ 
+ #ifdef __cplusplus
+ }
+ #endif
+ 
+ #endif /* JSON_NODE_DECODER_H */

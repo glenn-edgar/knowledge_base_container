@@ -260,22 +260,31 @@ class NodeDataEncoder:
     for efficient storage and access in embedded systems.
     """
     
-    def __init__(self, handle, node_builder):
+    def __init__(self, handle, node_builder, function_builder):
         """
         Initialize NodeDataEncoder.
         
         Args:
             handle: ChainTreeYamlHandle instance
             node_builder: NodeIndexBuilder instance
+            function_builder: FunctionIndexBuilder instance (for function resolution)
         """
         self.handle = handle
         self.node_builder = node_builder
+        self.function_builder = function_builder
         
         # JSON record encoder
         self.encoder = JsonRecordEncoder()
         
         # Mapping from ltree_name to data_id
         self.node_data_ids: Dict[str, int] = {}
+        
+        # Configure which fields should be resolved to function IDs
+        # Format: {field_name: function_type}
+        # function_type can be: 'one_shot', 'main', 'boolean'
+        self.function_fields = {
+            'error_function': 'one_shot',  # Default: treat as one-shot function
+        }
         
     def generate_c_arrays(self, lines: List[str], unique_id: str) -> None:
         """
@@ -361,46 +370,180 @@ class NodeDataEncoder:
             lines.append("};")
             lines.append("")
     
-    def encode_node_data(self) -> None:
-        """Encode data for all nodes."""
+    def _has_meaningful_data(self, data: Any) -> bool:
+        """
+        Check if data contains meaningful (non-null) values.
         
-        for ltree_name in self.node_builder.final_index_to_ltree:
-            # Get node data from handle
-            node_data = self.handle.get_node_data(ltree_name)
-            
-            if not node_data:
-                # No data for this node, assign invalid data ID
-                self.node_data_ids[ltree_name] = 0xFFFF
-                continue
-            
-            # Extract relevant fields for encoding (exclude internal fields)
-            # You can customize this based on what data you want in the embedded system
-            encode_data = {}
-            
-            # Include node metadata
-            if 'node_name' in node_data:
-                encode_data['node_name'] = node_data['node_name']
-            
-            if 'node_type' in node_data:
-                encode_data['node_type'] = node_data['node_type']
-            
-            # Include any custom data fields
-            if 'data' in node_data:
-                encode_data['data'] = node_data['data']
-            
-            # Include any other relevant fields from your YAML
-            for key in ['timeout', 'priority', 'config', 'parameters']:
-                if key in node_data:
-                    encode_data[key] = node_data[key]
-            
-            # Encode the data and get the record control index
-            if encode_data:
-                data_id = self.encoder.load_dict(encode_data)
-                self.node_data_ids[ltree_name] = data_id
-            else:
-                # Empty data, use invalid ID
-                self.node_data_ids[ltree_name] = 0xFFFF
+        Returns False if data is:
+        - None
+        - Empty dict/list
+        - Dict with only null values
+        - List with only null values
+        """
+        if data is None:
+            return False
+        if isinstance(data, dict):
+            # Check if all values are null/None or if dict is empty
+            if not data:
+                return False
+            return any(self._has_meaningful_data(v) for v in data.values())
+        if isinstance(data, (list, tuple)):
+            # Check if list is empty or all elements are null
+            if not data:
+                return False
+            return any(self._has_meaningful_data(v) for v in data)
+        # String, number, bool - these are meaningful
+        return True
     
+    def _resolve_function_field(self, func_name: str, func_type: str) -> Optional[int]:
+        """
+        Resolve a function name to its index, adding it if not present.
+        
+        Args:
+            func_name: Function name (e.g., "Handle_Error")
+            func_type: Function type: 'main', 'one_shot', or 'boolean'
+            
+        Returns:
+            Function index, or None if invalid type
+        """
+        if func_type == 'one_shot':
+            indexer = self.function_builder.one_shot_indexer
+            # Try to get existing index, add if not found
+            try:
+                return indexer.get_index(func_name)
+            except KeyError:
+                indexer.add_function(func_name)
+                return indexer.get_index(func_name)
+                
+        elif func_type == 'main':
+            indexer = self.function_builder.main_indexer
+            try:
+                return indexer.get_index(func_name)
+            except KeyError:
+                indexer.add_function(func_name)
+                return indexer.get_index(func_name)
+                
+        elif func_type == 'boolean':
+            indexer = self.function_builder.boolean_indexer
+            try:
+                return indexer.get_index(func_name)
+            except KeyError:
+                indexer.add_function(func_name)
+                return indexer.get_index(func_name)
+        else:
+            print(f"  Warning: Unknown function type '{func_type}' for field resolution")
+            return None
+    
+    def _process_function_fields(self, data_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process a dictionary to resolve function name fields to function IDs.
+        
+        Args:
+            data_dict: Dictionary that may contain function name fields
+            
+        Returns:
+            Modified dictionary with function names replaced by IDs
+        """
+        result = {}
+        
+        for key, value in data_dict.items():
+            # Check if this field should be resolved to a function ID
+            if key in self.function_fields and isinstance(value, str):
+                func_type = self.function_fields[key]
+                func_id = self._resolve_function_field(value, func_type)
+                
+                if func_id is not None:
+                    # Store as "{field_name}_id" with integer value
+                    result[f"{key}_id"] = func_id
+                    print(f"    Resolved {key} '{value}' -> ID {func_id}")
+                else:
+                    # Failed to resolve, keep original
+                    result[key] = value
+            else:
+                # Not a function field, keep as-is
+                result[key] = value
+        
+        return result
+    
+    def encode_node_data(self) -> None:
+            """
+            Encode data for all nodes.
+            
+            Only encodes operational runtime data, NOT metadata:
+            - Metadata (node_name, node_type) is excluded - not used at runtime
+            - auto_start is excluded (already encoded in link_count bit 15)
+            - Function name fields are resolved to function IDs
+            - Only encode node_dict if it has meaningful data after filtering
+            - Only encode other operational fields (timeout, priority, config, etc.) if present
+            """
+            
+            nodes_with_data = 0
+            nodes_skipped = 0
+            
+            for ltree_name in self.node_builder.final_index_to_ltree:
+                # Skip filtered metadata nodes (defensive check - shouldn't be in final list)
+                if ltree_name in self.node_builder.filtered_nodes:
+                    continue
+                
+                # Get node data from handle
+                node_data = self.handle.get_node_data(ltree_name)
+                
+                if not node_data:
+                    # No data for this node, assign invalid data ID
+                    self.node_data_ids[ltree_name] = 0xFFFF
+                    nodes_skipped += 1
+                    continue
+                
+                # Extract ONLY operational runtime fields (exclude metadata)
+                encode_data = {}
+                
+                # Include custom data fields (if operationally used)
+                if 'data' in node_data and self._has_meaningful_data(node_data['data']):
+                    encode_data['data'] = node_data['data']
+                
+                # Handle node_dict specially - exclude auto_start (already in link_count)
+                # and resolve function name fields to IDs
+                if 'node_dict' in node_data:
+                    node_dict = node_data['node_dict']
+                    if node_dict and isinstance(node_dict, dict):
+                        # Create a copy without auto_start
+                        filtered_dict = {k: v for k, v in node_dict.items() if k != 'auto_start'}
+                        
+                        # Resolve function name fields to IDs
+                        if filtered_dict:
+                            filtered_dict = self._process_function_fields(filtered_dict)
+                        
+                        # Only include if there's meaningful data remaining
+                        if self._has_meaningful_data(filtered_dict):
+                            encode_data['node_dict'] = filtered_dict
+                
+                # Include other operational fields (if present and meaningful)
+                for key in ['timeout', 'priority', 'config', 'parameters']:
+                    if key in node_data and self._has_meaningful_data(node_data[key]):
+                        encode_data[key] = node_data[key]
+                
+                # Encode the data and get the record control index
+                if encode_data:
+                    data_id = self.encoder.load_dict(encode_data)
+                    self.node_data_ids[ltree_name] = data_id
+                    nodes_with_data += 1
+                    # Debug: show first few nodes with data
+                    if nodes_with_data <= 5:
+                        node_name = node_data.get('node_name', ltree_name)
+                        print(f"  Encoding node [{nodes_with_data}] '{node_name}': {list(encode_data.keys())}")
+                        for key, val in encode_data.items():
+                            print(f"    {key}: {val}")
+                else:
+                    # No operational data, use invalid ID
+                    self.node_data_ids[ltree_name] = 0xFFFF
+                    nodes_skipped += 1
+                    # Debug: show first few skipped nodes
+                    if nodes_skipped <= 5:
+                        node_name = node_data.get('node_name', ltree_name)
+                        print(f"  Skipped node '{node_name}': no operational data")
+            
+            print(f"\n  Summary: {nodes_with_data} nodes with data, {nodes_skipped} nodes skipped")
+            
     def get_node_data_id(self, ltree_name: str) -> int:
         """Get the data ID for a node."""
         return self.node_data_ids.get(ltree_name, 0xFFFF)

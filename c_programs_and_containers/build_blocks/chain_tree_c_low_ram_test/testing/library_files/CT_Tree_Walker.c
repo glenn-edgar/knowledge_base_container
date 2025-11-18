@@ -1,10 +1,12 @@
 /**
  * CT_Tree_Walker.c
  * 
- * Implementation of the C tree walker
+ * Implementation of the C tree walker with exception handling
+ * Uses iterative DFS for memory-efficient traversal in embedded environments
  */
 
  #include "CT_Tree_Walker.h"
+ #include "cfl_exception.h"
  #include <string.h>
  #include <stdio.h>
  
@@ -26,6 +28,8 @@
  
  /**
   * Iterative DFS implementation using explicit stack
+  * Memory usage: O(max_tree_depth) - optimal for embedded systems
+  * Iteration count bounded by max_node_id for runaway protection
   */
  static CT_ReturnCode walk_iterative(
      CT_TreeWalker* walker,
@@ -34,12 +38,17 @@
      unsigned int stack_capacity
  ) {
      if (stack_capacity == 0) {
-         return CT_STOP_ALL;  /* Need stack for iterative */
+         EXCEPTION("walk_iterative: stack_capacity is 0");
      }
      
-     /* Check root bounds */
+     /* Check root bounds against walker limits */
      if (root_id >= walker->max_nodes) {
-         return CT_CONTINUE;
+         EXCEPTION("walk_iterative: root_id exceeds max_nodes");
+     }
+     
+     /* Check root bounds against walk-specific limits */
+     if (root_id > walker->max_node_id) {
+         EXCEPTION("walk_iterative: root_id exceeds max_node_id");
      }
      
      /* Initialize stack with root */
@@ -48,7 +57,17 @@
      stack[0].level = 0;
      stack[0].child_index = 0;
      
+     /* Iteration counter for runaway protection */
+     unsigned int iteration_count = 0;
+     
      while (stack_top >= 0) {
+         /* Check iteration count against max_node_id */
+         /* Cannot possibly visit more nodes than max_node_id + 1 */
+         iteration_count++;
+         if (iteration_count > walker->max_node_id + 1) {
+             EXCEPTION("walk_iterative: iteration count exceeded max_node_id - possible infinite loop");
+         }
+         
          if (walker->stop_all) {
              return CT_STOP_ALL;
          }
@@ -56,10 +75,14 @@
          /* Pop current entry */
          CT_StackEntry current = stack[stack_top];
          
-         /* Check bounds */
+         /* Check bounds against walker limits */
          if (current.node_id >= walker->max_nodes) {
-             stack_top--;
-             continue;
+             EXCEPTION("walk_iterative: node_id exceeds max_nodes during traversal");
+         }
+         
+         /* Check bounds against walk-specific limits */
+         if (current.node_id > walker->max_node_id) {
+             EXCEPTION("walk_iterative: node_id exceeds max_node_id during traversal");
          }
          
          /* Check if already visited */
@@ -80,33 +103,33 @@
              }
              
              /* Apply function */
-            CT_ReturnCode ret = walker->apply_func(
-                walker->user_handle,
-                current.node_id,
-                current.level,
-                walker->flags
-            );
-
-            if (ret == CT_STOP_ALL) {
-                walker->stop_all = true;
-                return ret;
-            }
-
-            if (ret == CT_STOP_BRANCH || ret == CT_STOP_SIBLINGS) {
-                stack_top--;
-                continue;
-            }
-
-            if (ret == CT_STOP_LEVEL) {
-                walker->max_level = current.level;  // ← ADD THIS LINE
-                stack_top--;
-                continue;
-            }
-
-            if (ret == CT_SKIP_CHILDREN) {
-                stack_top--;
-                continue;
-            }
+             CT_ReturnCode ret = walker->apply_func(
+                 walker->user_handle,
+                 current.node_id,
+                 current.level,
+                 walker->flags
+             );
+ 
+             if (ret == CT_STOP_ALL) {
+                 walker->stop_all = true;
+                 return ret;
+             }
+ 
+             if (ret == CT_STOP_BRANCH || ret == CT_STOP_SIBLINGS) {
+                 stack_top--;
+                 continue;
+             }
+ 
+             if (ret == CT_STOP_LEVEL) {
+                 walker->max_level = current.level;
+                 stack_top--;
+                 continue;
+             }
+ 
+             if (ret == CT_SKIP_CHILDREN) {
+                 stack_top--;
+                 continue;
+             }
          }
          
          /* Get children */
@@ -118,9 +141,9 @@
              MAX_CHILDREN_BUFFER
          );
          
-         /* Defensive: cap at buffer size */
+         /* Check for buffer overflow */
          if (num_children > MAX_CHILDREN_BUFFER) {
-             num_children = MAX_CHILDREN_BUFFER;
+             EXCEPTION("walk_iterative: get_children returned too many children");
          }
          
          /* Check if we have more children to process */
@@ -135,142 +158,31 @@
          /* Update current entry to process next child later */
          stack[stack_top].child_index++;
          
-         /* Skip if child is out of bounds or already visited */
-         if (child_id >= walker->max_nodes || 
-             (walker->flags[child_id] & CT_FLAG_VISITED)) {
+         /* Validate child ID against walker limits */
+         if (child_id >= walker->max_nodes) {
+             EXCEPTION("walk_iterative: child_id exceeds max_nodes from get_children");
+         }
+         
+         /* Validate child ID against walk-specific limits */
+         if (child_id > walker->max_node_id) {
+             EXCEPTION("walk_iterative: child_id exceeds max_node_id from get_children");
+         }
+         
+         /* Skip if already visited */
+         if (walker->flags[child_id] & CT_FLAG_VISITED) {
              continue;  /* Stay at same stack level, process next child */
          }
          
          /* Push next child onto stack */
          if (stack_top + 1 >= (int)stack_capacity) {
-             /* Stack overflow */
-             return CT_STOP_ALL;
+             /* Stack overflow - fail hard */
+             EXCEPTION("walk_iterative: stack overflow - increase stack_capacity");
          }
          
          stack_top++;
          stack[stack_top].node_id = child_id;
          stack[stack_top].level = current.level + 1;
          stack[stack_top].child_index = 0;
-     }
-     
-     return CT_CONTINUE;
- }
- 
- /**
-  * BFS implementation using queue (simulated with stack array)
-  */
- static CT_ReturnCode walk_bfs(
-     CT_TreeWalker* walker,
-     unsigned int root_id,
-     CT_StackEntry* queue,
-     unsigned int queue_capacity
- ) {
-     if (queue_capacity == 0) {
-         return CT_STOP_ALL;
-     }
-     
-     /* Check root bounds */
-     if (root_id >= walker->max_nodes) {
-         return CT_CONTINUE;
-     }
-     
-     /* Initialize queue with root */
-     unsigned int head = 0;
-     unsigned int tail = 0;
-     
-     queue[tail].node_id = root_id;
-     queue[tail].level = 0;
-     tail = (tail + 1) % queue_capacity;
-     
-     while (head != tail) {
-         if (walker->stop_all) {
-             return CT_STOP_ALL;
-         }
-         
-         /* Dequeue */
-         CT_StackEntry current = queue[head];
-         head = (head + 1) % queue_capacity;
-         
-         /* Check bounds */
-         if (current.node_id >= walker->max_nodes) {
-             continue;
-         }
-         
-         /* Check if already visited */
-         if (walker->flags[current.node_id] & CT_FLAG_VISITED) {
-             continue;
-         }
-         
-         /* Mark as visited */
-         walker->flags[current.node_id] |= CT_FLAG_VISITED;
-         
-         /* Check max level */
-         if (current.level > walker->max_level) {
-             continue;
-         }
-         
-         
-        /* Apply function */
-        CT_ReturnCode ret = walker->apply_func(
-            walker->user_handle,
-            current.node_id,
-            current.level,
-            walker->flags
-        );
-
-        if (ret == CT_STOP_ALL) {
-            walker->stop_all = true;
-            return ret;
-        }
-
-        if (ret == CT_STOP_BRANCH || ret == CT_STOP_SIBLINGS) {
-            continue;
-        }
-
-        if (ret == CT_STOP_LEVEL) {
-            walker->max_level = current.level;  // ← ADD THIS LINE
-            continue;
-        }
-
-        if (ret == CT_SKIP_CHILDREN) {
-            continue;
-        }
-         
-         /* Get children */
-         unsigned int children[MAX_CHILDREN_BUFFER];
-         unsigned int num_children = walker->get_children(
-             walker->user_handle,
-             current.node_id,
-             children,
-             MAX_CHILDREN_BUFFER
-         );
-         
-         /* Defensive: cap at buffer size */
-         if (num_children > MAX_CHILDREN_BUFFER) {
-             num_children = MAX_CHILDREN_BUFFER;
-         }
-         
-         /* Enqueue children */
-         for (unsigned int i = 0; i < num_children; i++) {
-             unsigned int child_id = children[i];
-             
-             /* Skip if child is out of bounds or already visited */
-             if (child_id >= walker->max_nodes || 
-                 (walker->flags[child_id] & CT_FLAG_VISITED)) {
-                 continue;
-             }
-             
-             unsigned int next_tail = (tail + 1) % queue_capacity;
-             
-             if (next_tail == head) {
-                 /* Queue full */
-                 return CT_STOP_ALL;
-             }
-             
-             queue[tail].node_id = child_id;
-             queue[tail].level = current.level + 1;
-             tail = next_tail;
-         }
      }
      
      return CT_CONTINUE;
@@ -287,12 +199,24 @@
      CT_GetChildrenFunc get_children,
      CT_ApplyFunc apply_func
  ) {
-     if (!walker || !flags || !get_children || !apply_func) {
-         return false;
+     if (!walker) {
+         EXCEPTION("ct_walker_init: walker is NULL");
+     }
+     
+     if (!flags) {
+         EXCEPTION("ct_walker_init: flags is NULL");
+     }
+     
+     if (!get_children) {
+         EXCEPTION("ct_walker_init: get_children is NULL");
+     }
+     
+     if (!apply_func) {
+         EXCEPTION("ct_walker_init: apply_func is NULL");
      }
      
      if (max_nodes == 0) {
-         return false;
+         EXCEPTION("ct_walker_init: max_nodes is 0");
      }
      
      walker->user_handle = NULL;
@@ -301,6 +225,7 @@
      walker->get_children = get_children;
      walker->apply_func = apply_func;
      walker->max_level = 0xFFFF;
+     walker->max_node_id = max_nodes - 1;  /* Initialize to max possible */
      walker->stop_all = false;
      
      /* Clear engine flags */
@@ -313,71 +238,87 @@
      CT_TreeWalker* walker,
      void* user_handle,
      unsigned int root_id,
-     CT_TraversalMethod method,
      CT_StackEntry* stack,
      unsigned int stack_capacity,
-     unsigned int max_level
+     unsigned int max_level,
+     unsigned int max_node_id
  ) {
-     if (!walker || !stack || stack_capacity == 0) {
-         return CT_STOP_ALL;
+     if (!walker) {
+         EXCEPTION("ct_walker_walk: walker is NULL");
+     }
+     
+     if (!stack) {
+         EXCEPTION("ct_walker_walk: stack is NULL");
+     }
+     
+     if (stack_capacity == 0) {
+         EXCEPTION("ct_walker_walk: stack_capacity is 0");
      }
      
      if (root_id >= walker->max_nodes) {
-         return CT_STOP_ALL;
+         EXCEPTION("ct_walker_walk: root_id exceeds max_nodes");
      }
      
-     /* Set user handle and max level */
+     /* Validate max_node_id parameter */
+     if (max_node_id > walker->max_nodes) {
+         EXCEPTION("ct_walker_walk: max_node_id exceeds walker max_nodes");
+     }
+     
+     /* Set user handle, max level, and max node ID */
      walker->user_handle = user_handle;
      walker->max_level = max_level;
+     walker->max_node_id = max_node_id;
      walker->stop_all = false;
      
      /* Clear engine flags before walk */
      clear_engine_flags(walker);
      
-     /* Execute appropriate traversal method */
-     CT_ReturnCode ret;
-     
-     switch (method) {
-         case CT_ITERATIVE:
-             ret = walk_iterative(walker, root_id, stack, stack_capacity);
-             break;
-             
-         case CT_BFS:
-             ret = walk_bfs(walker, root_id, stack, stack_capacity);
-             break;
-             
-         default:
-             ret = CT_STOP_ALL;
-             break;
-     }
-     
-     return ret;
+     /* Execute iterative DFS traversal */
+     return walk_iterative(walker, root_id, stack, stack_capacity);
  }
  
  void ct_walker_reset(CT_TreeWalker* walker) {
-     if (walker) {
-         clear_engine_flags(walker);
-         walker->stop_all = false;
+     if (!walker) {
+         EXCEPTION("ct_walker_reset: walker is NULL");
      }
+     
+     clear_engine_flags(walker);
+     walker->stop_all = false;
  }
  
  bool ct_walker_is_visited(const CT_TreeWalker* walker, unsigned int node_id) {
-     if (!walker || node_id >= walker->max_nodes) {
-         return false;
+     if (!walker) {
+         EXCEPTION("ct_walker_is_visited: walker is NULL");
      }
+     
+     if (node_id >= walker->max_nodes) {
+         EXCEPTION("ct_walker_is_visited: node_id out of bounds");
+     }
+     
      return (walker->flags[node_id] & CT_FLAG_VISITED) != 0;
  }
  
  void ct_walker_set_user_flags(CT_TreeWalker* walker, unsigned int node_id, uint8_t flags) {
-     if (walker && node_id < walker->max_nodes) {
-         walker->flags[node_id] &= ~CT_FLAG_USER_MASK;  /* Clear old user flags */
-         walker->flags[node_id] |= (flags & CT_FLAG_USER_MASK);  /* Set new user flags */
+     if (!walker) {
+         EXCEPTION("ct_walker_set_user_flags: walker is NULL");
      }
+     
+     if (node_id >= walker->max_nodes) {
+         EXCEPTION("ct_walker_set_user_flags: node_id out of bounds");
+     }
+     
+     walker->flags[node_id] &= ~CT_FLAG_USER_MASK;  /* Clear old user flags */
+     walker->flags[node_id] |= (flags & CT_FLAG_USER_MASK);  /* Set new user flags */
  }
  
  uint8_t ct_walker_get_user_flags(const CT_TreeWalker* walker, unsigned int node_id) {
-     if (!walker || node_id >= walker->max_nodes) {
-         return 0;
+     if (!walker) {
+         EXCEPTION("ct_walker_get_user_flags: walker is NULL");
      }
+     
+     if (node_id >= walker->max_nodes) {
+         EXCEPTION("ct_walker_get_user_flags: node_id out of bounds");
+     }
+     
      return walker->flags[node_id] & CT_FLAG_USER_MASK;
  }

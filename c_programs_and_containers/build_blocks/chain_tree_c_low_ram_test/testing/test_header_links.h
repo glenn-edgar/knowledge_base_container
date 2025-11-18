@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_7MWY459R_LINK_TABLE_SIZE 39
+#define CT_AQMXQ7UC_LINK_TABLE_SIZE 31
 
-extern const uint16_t ct_7mwy459r_link_table[CT_7MWY459R_LINK_TABLE_SIZE];
+extern const uint16_t ct_aqmxq7uc_link_table[CT_AQMXQ7UC_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

@@ -2,7 +2,7 @@
  * CT_Tree_Walker.h
  * 
  * A reentrant C implementation for traversing tree/graph structures.
- * Supports DFS (recursive and iterative) and BFS traversal methods.
+ * Uses iterative DFS traversal optimized for embedded environments.
  */
 
  #ifndef CT_TREE_WALKER_H
@@ -30,14 +30,6 @@
      CT_STOP_SIBLINGS = 4,     /* Stop processing siblings, return to parent */
      CT_STOP_ALL = 5           /* Stop entire traversal immediately */
  } CT_ReturnCode;
- 
- /**
-  * Traversal methods
-  */
- typedef enum {
-     CT_ITERATIVE = 0,
-     CT_BFS = 1
- } CT_TraversalMethod;
  
  /**
   * Flag bits (lower 4 bits reserved for engine, upper 4 bits for user)
@@ -94,7 +86,7 @@
  );
  
  /**
-  * Stack entry for iterative/BFS traversal
+  * Stack entry for iterative DFS traversal
   */
  typedef struct {
      unsigned int node_id;
@@ -117,6 +109,7 @@
      
      /* Internal state */
      unsigned int max_level;
+     unsigned int max_node_id;  /* Maximum allowed node ID for current walk */
      bool stop_all;
  } CT_TreeWalker, ct_walker_t;
  
@@ -143,25 +136,27 @@
  );
  
  /**
-  * Walk the tree starting from root_id
+  * Walk the tree starting from root_id using iterative DFS
+  * 
+  * Stack sizing: stack_capacity should be at least (max_tree_depth + 2)
   * 
   * @param walker Pointer to initialized walker
   * @param user_handle User handle to pass to callbacks
   * @param root_id Starting node ID
-  * @param method Traversal method (RECURSIVE, ITERATIVE, or BFS)
-  * @param stack Stack array for iterative/BFS methods (NULL for recursive)
-  * @param stack_capacity Size of stack array (0 for recursive)
+  * @param stack Stack array for iterative traversal
+  * @param stack_capacity Size of stack array
   * @param max_level Maximum depth to traverse (0xFFFF for unlimited)
+  * @param max_node_id Maximum allowed node ID (use walker->max_nodes-1 for no restriction)
   * @return CT_ReturnCode from traversal
   */
  CT_ReturnCode ct_walker_walk(
      CT_TreeWalker* walker,
      void* user_handle,
      unsigned int root_id,
-     CT_TraversalMethod method,
      CT_StackEntry* stack,
      unsigned int stack_capacity,
-     unsigned int max_level
+     unsigned int max_level,
+     unsigned int max_node_id
  );
  
  /**
