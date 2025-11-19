@@ -1,6 +1,6 @@
 /**
  * @file cfl_event_queue.c
- * @brief Implementation of priority event queue system
+ * @brief Implementation of priority event queue system with volatile support
  */
 
  #include "cfl_event_queue.h"
@@ -51,7 +51,7 @@
   * @param capacity Capacity (must be power of 2)
   * @param events Pointer to event array
   */
- static void init_ring(CFL_EVENT_RING_T* ring, uint16_t capacity, CFL_EVENT_DATA_T* events)
+ static void init_ring(volatile CFL_EVENT_RING_T* ring, uint16_t capacity, CFL_EVENT_DATA_T* events)
  {
      ring->head = 0;
      ring->tail = 0;
@@ -66,9 +66,14 @@
   * @param ring Ring buffer to check
   * @return true if full, false otherwise
   */
- static inline bool ring_is_full(const CFL_EVENT_RING_T* ring)
+ static inline bool ring_is_full(volatile const CFL_EVENT_RING_T* ring)
  {
-     return ((ring->head + 1) & ring->mask) == ring->tail;
+     // Read volatile values once to avoid race conditions
+     uint16_t head = ring->head;
+     uint16_t tail = ring->tail;
+     uint16_t mask = ring->mask;
+     
+     return ((head + 1) & mask) == tail;
  }
  
  /**
@@ -77,9 +82,13 @@
   * @param ring Ring buffer to check
   * @return true if empty, false otherwise
   */
- static inline bool ring_is_empty(const CFL_EVENT_RING_T* ring)
+ static inline bool ring_is_empty(volatile const CFL_EVENT_RING_T* ring)
  {
-     return ring->head == ring->tail;
+     // Read volatile values once
+     uint16_t head = ring->head;
+     uint16_t tail = ring->tail;
+     
+     return head == tail;
  }
  
  /**
@@ -88,9 +97,14 @@
   * @param ring Ring buffer to query
   * @return Number of events currently in ring
   */
- static inline uint16_t ring_count(const CFL_EVENT_RING_T* ring)
+ static inline uint16_t ring_count(volatile const CFL_EVENT_RING_T* ring)
  {
-     return (ring->head - ring->tail) & ring->mask;
+     // Read volatile values once
+     uint16_t head = ring->head;
+     uint16_t tail = ring->tail;
+     uint16_t mask = ring->mask;
+     
+     return (head - tail) & mask;
  }
  
  /**
@@ -99,10 +113,18 @@
   * @param ring Ring buffer
   * @param event Event to insert
   */
- static inline void ring_push(CFL_EVENT_RING_T* ring, const CFL_EVENT_DATA_T* event)
+ static inline void ring_push(volatile CFL_EVENT_RING_T* ring, const CFL_EVENT_DATA_T* event)
  {
-     ring->events[ring->head] = *event;
-     ring->head = (ring->head + 1) & ring->mask;
+     // Read head once
+     uint16_t head = ring->head;
+     uint16_t mask = ring->mask;
+     CFL_EVENT_DATA_T* events = (CFL_EVENT_DATA_T*)ring->events;  // Cast away volatile for array access
+     
+     // Copy event data
+     events[head] = *event;
+     
+     // Update head - this write is atomic for uint16_t
+     ring->head = (head + 1) & mask;
  }
  
  /**
@@ -111,10 +133,26 @@
   * @param ring Ring buffer
   * @param event Pointer to receive event data
   */
- static inline void ring_pop(CFL_EVENT_RING_T* ring, CFL_EVENT_DATA_T* event)
+ static inline void ring_pop(volatile CFL_EVENT_RING_T* ring, volatile CFL_EVENT_DATA_T* event)
  {
-     *event = ring->events[ring->tail];
-     ring->tail = (ring->tail + 1) & ring->mask;
+     // Read tail once
+     uint16_t tail = ring->tail;
+     uint16_t mask = ring->mask;
+     CFL_EVENT_DATA_T* events = (CFL_EVENT_DATA_T*)ring->events;  // Cast away volatile for array access
+     
+     // Copy event data - copy through local to handle volatile destination
+     CFL_EVENT_DATA_T local_event = events[tail];
+     
+     // Copy to potentially volatile destination
+     ((CFL_EVENT_DATA_T*)event)->node_id = local_event.node_id;
+     ((CFL_EVENT_DATA_T*)event)->event_type = local_event.event_type;
+     ((CFL_EVENT_DATA_T*)event)->flags = local_event.flags;
+     ((CFL_EVENT_DATA_T*)event)->event_id = local_event.event_id;
+     ((CFL_EVENT_DATA_T*)event)->queue_number = local_event.queue_number;
+     ((CFL_EVENT_DATA_T*)event)->data = local_event.data;
+     
+     // Update tail - this write is atomic for uint16_t
+     ring->tail = (tail + 1) & mask;
  }
  
  /**
@@ -123,9 +161,22 @@
   * @param ring Ring buffer
   * @param event Pointer to receive event data
   */
- static inline void ring_peek(const CFL_EVENT_RING_T* ring, CFL_EVENT_DATA_T* event)
+ static inline void ring_peek(volatile const CFL_EVENT_RING_T* ring, volatile CFL_EVENT_DATA_T* event)
  {
-     *event = ring->events[ring->tail];
+     // Read tail once
+     uint16_t tail = ring->tail;
+     CFL_EVENT_DATA_T* events = (CFL_EVENT_DATA_T*)ring->events;  // Cast away volatile for array access
+     
+     // Copy event data through local
+     CFL_EVENT_DATA_T local_event = events[tail];
+     
+     // Copy to potentially volatile destination
+     ((CFL_EVENT_DATA_T*)event)->node_id = local_event.node_id;
+     ((CFL_EVENT_DATA_T*)event)->event_type = local_event.event_type;
+     ((CFL_EVENT_DATA_T*)event)->flags = local_event.flags;
+     ((CFL_EVENT_DATA_T*)event)->event_id = local_event.event_id;
+     ((CFL_EVENT_DATA_T*)event)->queue_number = local_event.queue_number;
+     ((CFL_EVENT_DATA_T*)event)->data = local_event.data;
  }
  
 /**
@@ -133,12 +184,13 @@
  * 
  * @param ring Ring buffer to clear
  */
- static void ring_clear(CFL_EVENT_RING_T* ring)
+ static void ring_clear(volatile CFL_EVENT_RING_T* ring)
  {
      // Process and free any malloc'd events before clearing
+     CFL_EVENT_DATA_T event;  // Local non-volatile for processing
+     
      while (!ring_is_empty(ring)) {
-         CFL_EVENT_DATA_T event;
-         ring_pop(ring, &event);
+         ring_pop(ring, (volatile CFL_EVENT_DATA_T*)&event);
          
          // Check if event has malloc flag set
          if (event.flags & CFL_EVENT_MALLOC_FLAG) {
@@ -156,22 +208,25 @@
          }
      }
  }
+
  /**
   * @brief Update queue depth statistics
   * 
   * @param queue Queue control structure
   */
- static inline void update_queue_stats(CFL_EVENT_QUEUE_T* queue)
+ static inline void update_queue_stats(volatile CFL_EVENT_QUEUE_T* queue)
  {
      // Update high priority depth
      uint16_t high_depth = ring_count(&queue->high_priority);
-     if (high_depth > queue->max_high_depth) {
+     uint16_t max_high = queue->max_high_depth;
+     if (high_depth > max_high) {
          queue->max_high_depth = high_depth;
      }
      
      // Update total depth
      uint16_t total_depth = high_depth + ring_count(&queue->low_priority);
-     if (total_depth > queue->max_total_depth) {
+     uint16_t max_total = queue->max_total_depth;
+     if (total_depth > max_total) {
          queue->max_total_depth = total_depth;
      }
  }
@@ -180,7 +235,7 @@
   * Public Function Implementations
   *============================================================================*/
  
- CFL_EVENT_QUEUE_T* cfl_create_event_queue(
+ volatile CFL_EVENT_QUEUE_T* cfl_create_event_queue(
      unsigned high_priority_size,
      unsigned low_priority_size,
      CflPerm* perm)
@@ -230,9 +285,10 @@
      // Initialize control structure
      memset(queue, 0, sizeof(CFL_EVENT_QUEUE_T));
      
-     // Initialize ring buffers
-     init_ring(&queue->high_priority, high_capacity, high_events);
-     init_ring(&queue->low_priority, low_capacity, low_events);
+     // Initialize ring buffers - cast to volatile for init_ring
+     volatile CFL_EVENT_QUEUE_T* vqueue = (volatile CFL_EVENT_QUEUE_T*)queue;
+     init_ring(&vqueue->high_priority, high_capacity, high_events);
+     init_ring(&vqueue->low_priority, low_capacity, low_events);
      
      // Assign unique queue ID
      queue->queue_id = g_next_queue_id++;
@@ -242,24 +298,25 @@
      queue->max_high_depth = 0;
      queue->reserved = 0;
      
-     return queue;
+     // Return as volatile pointer for runtime handle
+     return vqueue;
  }
  
- void cfl_clear_queue(CFL_EVENT_QUEUE_T *queue_control)
+ void cfl_clear_queue(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_clear_queue: NULL queue_control pointer");
      }
      
-     ring_clear(&queue_control->high_priority);
-     ring_clear(&queue_control->low_priority);
+     ring_clear((volatile CFL_EVENT_RING_T*)&queue_control->high_priority);
+     ring_clear((volatile CFL_EVENT_RING_T*)&queue_control->low_priority);
      
      // Note: Statistics are preserved across clear operations
      // Use cfl_reset_queue_stats() to clear statistics
  }
  
  bool cfl_send_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_type,
@@ -283,11 +340,11 @@
      }
      
      // Select ring based on priority
-     CFL_EVENT_RING_T* ring;
+     volatile CFL_EVENT_RING_T* ring;
      if (priority == CFL_EVENT_PRIORITY_HIGH) {
-         ring = &queue_control->high_priority;
+         ring = (volatile CFL_EVENT_RING_T*)&queue_control->high_priority;
      } else {
-         ring = &queue_control->low_priority;
+         ring = (volatile CFL_EVENT_RING_T*)&queue_control->low_priority;
      }
      
      // Check if ring is full
@@ -295,27 +352,27 @@
          return false;  // Not an error - caller should handle full queue
      }
      
-     // Build event structure
+     // Build event structure (local non-volatile)
      CFL_EVENT_DATA_T event;
      event.node_id = (uint16_t)node_id;
      event.event_type = (uint8_t)event_type;
      event.flags = malloc_flag ? CFL_EVENT_MALLOC_FLAG : 0;
      event.event_id = (uint16_t)event_id;
-     event.queue_number = queue_control->queue_id;
+     event.queue_number = queue_control->queue_id;  // Read from volatile
      event.data.ptr = data;  // Union assignment - works for all types
      
      // Insert into ring
      ring_push(ring, &event);
      
      // Update statistics
-     update_queue_stats(queue_control);
+     update_queue_stats((volatile CFL_EVENT_QUEUE_T*)queue_control);
      
      return true;
  }
  
  bool cfl_pop_event(
-     CFL_EVENT_QUEUE_T *queue_control,
-     CFL_EVENT_DATA_T *event_data)
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_DATA_T *event_data)
  {
      // Validate pointers
      if (queue_control == NULL) {
@@ -328,13 +385,13 @@
      
      // Check high priority first
      if (!ring_is_empty(&queue_control->high_priority)) {
-         ring_pop(&queue_control->high_priority, event_data);
+         ring_pop((volatile CFL_EVENT_RING_T*)&queue_control->high_priority, event_data);
          return true;
      }
      
      // Check low priority
      if (!ring_is_empty(&queue_control->low_priority)) {
-         ring_pop(&queue_control->low_priority, event_data);
+         ring_pop((volatile CFL_EVENT_RING_T*)&queue_control->low_priority, event_data);
          return true;
      }
      
@@ -343,8 +400,8 @@
  }
  
  bool cfl_peek_event(
-     CFL_EVENT_QUEUE_T *queue_control,
-     CFL_EVENT_DATA_T *event_data)
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_DATA_T *event_data)
  {
      // Validate pointers
      if (queue_control == NULL) {
@@ -371,7 +428,7 @@
      return false;
  }
  
- unsigned cfl_queue_number(CFL_EVENT_DATA_T *event_data)
+ unsigned cfl_queue_number(volatile CFL_EVENT_DATA_T *event_data)
  {
      if (event_data == NULL) {
          EXCEPTION("cfl_queue_number: NULL event_data pointer");
@@ -380,7 +437,7 @@
      return event_data->queue_number;
  }
  
- unsigned cfl_high_priority_count(CFL_EVENT_QUEUE_T *queue_control)
+ unsigned cfl_high_priority_count(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_high_priority_count: NULL queue_control pointer");
@@ -389,7 +446,7 @@
      return ring_count(&queue_control->high_priority);
  }
  
- unsigned cfl_low_priority_count(CFL_EVENT_QUEUE_T *queue_control)
+ unsigned cfl_low_priority_count(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_low_priority_count: NULL queue_control pointer");
@@ -398,7 +455,7 @@
      return ring_count(&queue_control->low_priority);
  }
  
- unsigned cfl_total_event_count(CFL_EVENT_QUEUE_T *queue_control)
+ unsigned cfl_total_event_count(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_total_event_count: NULL queue_control pointer");
@@ -408,7 +465,7 @@
             ring_count(&queue_control->low_priority);
  }
  
- unsigned cfl_get_max_total_depth(CFL_EVENT_QUEUE_T *queue_control)
+ unsigned cfl_get_max_total_depth(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_get_max_total_depth: NULL queue_control pointer");
@@ -417,7 +474,7 @@
      return queue_control->max_total_depth;
  }
  
- unsigned cfl_get_max_high_depth(CFL_EVENT_QUEUE_T *queue_control)
+ unsigned cfl_get_max_high_depth(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_get_max_high_depth: NULL queue_control pointer");
@@ -426,7 +483,7 @@
      return queue_control->max_high_depth;
  }
  
- void cfl_reset_queue_stats(CFL_EVENT_QUEUE_T *queue_control)
+ void cfl_reset_queue_stats(volatile CFL_EVENT_QUEUE_T *queue_control)
  {
      if (queue_control == NULL) {
          EXCEPTION("cfl_reset_queue_stats: NULL queue_control pointer");
@@ -441,7 +498,7 @@
   *============================================================================*/
  
  bool cfl_send_unsigned_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -465,7 +522,7 @@
  }
  
  bool cfl_send_integer_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -488,7 +545,7 @@
  }
  
  bool cfl_send_float_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -511,7 +568,7 @@
  }
  
  bool cfl_send_data_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      bool malloc_flag,

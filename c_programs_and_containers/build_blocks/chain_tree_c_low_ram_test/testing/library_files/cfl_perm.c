@@ -36,14 +36,14 @@ static inline bool is_power_of_2(uint16_t value) {
     return value != 0 && (value & (value - 1)) == 0;
 }
 
-static inline uint16_t ptr_to_idx(CflPerm* perm, void* ptr) {
+static inline uint16_t ptr_to_idx(volatile CflPerm* perm, void* ptr) {
     if (!ptr) {
         EXCEPTION("ptr_to_idx: NULL pointer");
     }
     return (uint16_t)((uint8_t*)ptr - perm->pool);
 }
 
-static inline void* idx_to_ptr(CflPerm* perm, uint16_t idx) {
+static inline void* idx_to_ptr(volatile CflPerm* perm, uint16_t idx) {
     if (idx >= perm->pool_size) {
         EXCEPTION("idx_to_ptr: Index out of bounds");
     }
@@ -51,7 +51,7 @@ static inline void* idx_to_ptr(CflPerm* perm, uint16_t idx) {
 }
 
 /* Update statistics */
-static void update_stats(CflPerm* perm, uint16_t allocated_size) {
+static void update_stats(volatile CflPerm* perm, uint16_t allocated_size) {
     perm->stats.total_allocations++;
     perm->stats.current_used_bytes = perm->used;
     
@@ -70,8 +70,8 @@ static void update_stats(CflPerm* perm, uint16_t allocated_size) {
 
 /* ============= PUBLIC API ============= */
 
-void cfl_perm_set_instance(cfl_perm_t* perm) {
-    memset(perm, 0, sizeof(CflPerm));
+void cfl_perm_set_instance(volatile cfl_perm_t* perm) {
+    memset((void*)perm, 0, sizeof(CflPerm));
     perm->initialized = false;
     perm->owns_pool = false;
 }
@@ -90,7 +90,7 @@ CflPerm* cfl_perm_create(void) {
     return perm;
 }
 
-void cfl_perm_destroy(CflPerm* perm) {
+void cfl_perm_destroy(volatile CflPerm* perm) {
     if (!perm) {
         EXCEPTION("cfl_perm_destroy: NULL perm pointer");
     }
@@ -100,7 +100,7 @@ void cfl_perm_destroy(CflPerm* perm) {
         free(perm->pool);
     }
     
-    free(perm);
+    free((void*)perm);
 }
 
 cfl_perm_t* cfl_perm_malloc_create(uint16_t size) {
@@ -121,7 +121,7 @@ cfl_perm_t* cfl_perm_malloc_create(uint16_t size) {
     return perm;
 }
 
-void cfl_perm_malloc_destroy(cfl_perm_t* perm) {
+void cfl_perm_malloc_destroy(volatile cfl_perm_t* perm) {
     if (!perm) {
         EXCEPTION("cfl_perm_malloc_destroy: NULL perm pointer");
     }
@@ -129,10 +129,10 @@ void cfl_perm_malloc_destroy(cfl_perm_t* perm) {
     if (perm->pool) {
         free(perm->pool);
     }
-    free(perm);
+    free((void*)perm);
 }
 
-void cfl_perm_init(CflPerm* perm, void* buffer, uint16_t buffer_size) {
+void cfl_perm_init(volatile CflPerm* perm, void* buffer, uint16_t buffer_size) {
     if (!perm) {
         EXCEPTION("cfl_perm_init: NULL perm pointer");
     }
@@ -149,7 +149,7 @@ void cfl_perm_init(CflPerm* perm, void* buffer, uint16_t buffer_size) {
     perm->owns_pool = false;
     
     /* Clear statistics */
-    memset(&perm->stats, 0, sizeof(CflPermStats));
+    memset((void*)&perm->stats, 0, sizeof(CflPermStats));
     
     /* Zero the pool for safety */
     memset(perm->pool, 0, perm->pool_size);
@@ -157,7 +157,7 @@ void cfl_perm_init(CflPerm* perm, void* buffer, uint16_t buffer_size) {
     perm->initialized = true;
 }
 
-void cfl_perm_reset(CflPerm* perm) {
+void cfl_perm_reset(volatile CflPerm* perm) {
     if (!perm) {
         EXCEPTION("cfl_perm_reset: NULL perm pointer");
     }
@@ -167,7 +167,7 @@ void cfl_perm_reset(CflPerm* perm) {
     }
     
     /* Clear statistics */
-    memset(&perm->stats, 0, sizeof(CflPermStats));
+    memset((void*)&perm->stats, 0, sizeof(CflPermStats));
     
     /* Reset bump pointer */
     perm->used = 0;
@@ -178,11 +178,11 @@ void cfl_perm_reset(CflPerm* perm) {
     perm->initialized = true;
 }
 
-uint16_t cfl_perm_alloc(CflPerm* perm, uint16_t size_bytes) {
+uint16_t cfl_perm_alloc(volatile CflPerm* perm, uint16_t size_bytes) {
     return cfl_perm_alloc_aligned(perm, size_bytes, PERM_ALIGNMENT);
 }
 
-uint16_t cfl_perm_alloc_aligned(CflPerm* perm, uint16_t size_bytes, uint16_t alignment) {
+uint16_t cfl_perm_alloc_aligned(volatile CflPerm* perm, uint16_t size_bytes, uint16_t alignment) {
     if (!perm) {
         EXCEPTION("cfl_perm_alloc_aligned: NULL perm pointer");
     }
@@ -227,17 +227,17 @@ uint16_t cfl_perm_alloc_aligned(CflPerm* perm, uint16_t size_bytes, uint16_t ali
     return ret_idx;
 }
 
-void* cfl_perm_alloc_pointer(CflPerm* perm, uint16_t size_bytes) {
+void* cfl_perm_alloc_pointer(volatile CflPerm* perm, uint16_t size_bytes) {
     uint16_t idx = cfl_perm_alloc(perm, size_bytes);
     return idx_to_ptr(perm, idx);
 }
 
-void* cfl_perm_alloc_pointer_aligned(CflPerm* perm, uint16_t size_bytes, uint16_t alignment) {
+void* cfl_perm_alloc_pointer_aligned(volatile CflPerm* perm, uint16_t size_bytes, uint16_t alignment) {
     uint16_t idx = cfl_perm_alloc_aligned(perm, size_bytes, alignment);
     return idx_to_ptr(perm, idx);
 }
 
-void* cfl_perm_ptr(CflPerm* perm, uint16_t idx) {
+void* cfl_perm_ptr(volatile CflPerm* perm, uint16_t idx) {
     if (!perm) {
         EXCEPTION("cfl_perm_ptr: NULL perm pointer");
     }
@@ -247,7 +247,7 @@ void* cfl_perm_ptr(CflPerm* perm, uint16_t idx) {
     return idx_to_ptr(perm, idx);
 }
 
-uint16_t cfl_perm_ptr_to_idx(CflPerm* perm, void* ptr) {
+uint16_t cfl_perm_ptr_to_idx(volatile CflPerm* perm, void* ptr) {
     if (!perm) {
         EXCEPTION("cfl_perm_ptr_to_idx: NULL perm pointer");
     }
@@ -266,25 +266,25 @@ uint16_t cfl_perm_ptr_to_idx(CflPerm* perm, void* ptr) {
     return (uint16_t)((uint8_t*)ptr - perm->pool);
 }
 
-uint16_t cfl_perm_used_bytes(CflPerm* perm) {
+uint16_t cfl_perm_used_bytes(volatile CflPerm* perm) {
     if (!perm || !perm->initialized) return 0;
     return perm->used;
 }
 
-uint16_t cfl_perm_free_bytes(CflPerm* perm) {
+uint16_t cfl_perm_free_bytes(volatile CflPerm* perm) {
     if (!perm || !perm->initialized) return 0;
     return perm->pool_size - perm->used;
 }
 
-void cfl_perm_get_stats(CflPerm* perm, CflPermStats* stats) {
+void cfl_perm_get_stats(volatile CflPerm* perm, CflPermStats* stats) {
     if (!perm || !perm->initialized || !stats) {
         EXCEPTION("cfl_perm_get_stats: Invalid parameters");
     }
     
-    memcpy(stats, &perm->stats, sizeof(CflPermStats));
+    memcpy(stats, (void*)&perm->stats, sizeof(CflPermStats));
 }
 
-bool cfl_perm_validate(CflPerm* perm) {
+bool cfl_perm_validate(volatile CflPerm* perm) {
     if (!perm || !perm->initialized) {
         return false;
     }

@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
-
+#include "json_node_decoder.h"
 static unsigned int cfl_calculate_max_level( const chaintree_handle_t* flash_handle);
 static bool cfl_check_for_active_nodes(cfl_runtime_handle_t* handle);
 static void cfl_set_timer_reference(cfl_runtime_handle_t* handle);
@@ -47,44 +47,28 @@ cfl_runtime_handle_t* cfl_runtime_create( cfl_perm_t* perm, cfl_runtime_create_p
     handle->flash_handle = flash_handle;
     handle->perm = perm;
     handle->heap = cfl_heap_init(perm, params->heap_size);
-    uint16_t perm_used_bytes = cfl_perm_used_bytes(perm);
-    uint16_t perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after heap init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     handle->arena_system = cfl_heap_arena_system_create(perm, handle->heap, params->max_allocator_count, params->total_node_count, params->allocator_0_size);
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after arena system init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     handle->event_queue = cfl_create_event_queue(params->event_queue_high_priority_size, params->event_queue_low_priority_size, perm);
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after event queue init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     handle->flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(uint8_t) * params->total_node_count));
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after flags init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     handle->timer_handle = cfl_timer_create(params->delta_time, perm);
     handle->delta_time = params->delta_time;
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after timer handle init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     handle->max_level = cfl_calculate_max_level(flash_handle);
     handle->flash_handle = flash_handle;
     handle->stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(CT_StackEntry) * handle->max_level));
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after stack init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
+    handle->nested_stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(CT_StackEntry) * handle->max_level));
+    
+    handle->walker = (CT_TreeWalker*)cfl_perm_alloc_pointer(handle->perm, sizeof(CT_TreeWalker));
+    handle->backup_flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(uint8_t) * handle->flash_handle->node_count));
+    handle->walker_context_ptr = (CT_WalkerContext*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(CT_WalkerContext)));
     handle->json_decoder_ctx = (json_decoder_ctx_t*)cfl_perm_alloc_pointer(perm, (uint16_t) (sizeof(json_decoder_ctx_t)));
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after json decoder ctx init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
+       
     cfl_engine_create(handle);
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after engine  init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
     cfl_init_test_system(handle);
-    perm_used_bytes = cfl_perm_used_bytes(perm);
-    perm_free_bytes = cfl_perm_free_bytes(perm);
-    printf("perm_used_bytes after test system init: %d, perm_free_bytes: %d\n", perm_used_bytes, perm_free_bytes);
+    unsigned bytes_used = cfl_perm_used_bytes(perm);
+    printf("bytes used: %d\n", bytes_used);
+    unsigned bytes_free = cfl_perm_free_bytes(perm);
+    printf("bytes free: %d\n", bytes_free);
+    
     return handle;
 }
 
@@ -203,7 +187,7 @@ static void cfl_init_test_system(cfl_runtime_handle_t* handle) {
     unsigned bitmap_size = (handle->flash_handle->kb_count + 31) / 32;
     handle->active_test_bitmap = cfl_perm_alloc_pointer(handle->perm, 
                                              bitmap_size * sizeof(uint32_t));
-    memset(handle->active_test_bitmap, 0, bitmap_size * sizeof(uint32_t));
+    memset((void*)handle->active_test_bitmap, 0, bitmap_size * sizeof(uint32_t));
     handle->active_test_count = 0;
 }
 
@@ -246,7 +230,7 @@ bool cfl_delete_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
 static void cfl_queue_internal_system_event(cfl_runtime_handle_t* handle, 
     unsigned event_id, unsigned event_type, bool malloc_flag, void *data) {
     
-    const chaintree_handle_t* flash = handle->flash_handle;
+    volatile const chaintree_handle_t* flash = handle->flash_handle;
     
     for(uint16_t kb_idx = 0; kb_idx < flash->kb_count; kb_idx++) {
         if (!TEST_IS_ACTIVE(handle, kb_idx)) continue;

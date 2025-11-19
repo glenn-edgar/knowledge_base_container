@@ -68,25 +68,28 @@ typedef struct cfl_test_control_t {
 
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
-    cfl_perm_t *perm;      /* Pointer to perm */
-    cfl_heap_t *heap;      /* Pointer to heap */
-    cfl_heap_arena_system_t* arena_system; /* Pointer to arena system */
-    cfl_event_queue_t *event_queue; /* Pointer to event queue */
-    uint8_t* flags; /* Pointer to flags */
-    cfl_timer_handle_t timer_handle; /* Pointer to timer handle */
-    double delta_time; /* Delta time */
-    unsigned test_count; /* Test count */
-    uint32_t *active_test_bitmap;    // One bit per kb_table entry
-    unsigned active_test_count;   
-    cfl_test_control_t *test_controls;
-    CT_TreeWalker* walker; /* Pointer to walker */
-    CFL_EVENT_DATA_T *event_data_ptr; /* Pointer to event data */
+    volatile cfl_perm_t *perm;      /* Pointer to perm */
+    volatile cfl_heap_t *heap;      /* Pointer to heap */
+    volatile cfl_heap_arena_system_t* arena_system; /* Pointer to arena system */
+    volatile cfl_event_queue_t *event_queue; /* Pointer to event queue */
+    volatile uint8_t* flags; /* Pointer to flags */
+    volatile cfl_timer_handle_t timer_handle; /* Pointer to timer handle */
+    volatile double delta_time; /* Delta time */
+    volatile unsigned test_count; /* Test count */
+    volatile uint32_t *active_test_bitmap;    // One bit per kb_table entry
+    volatile unsigned active_test_count;   
+    volatile cfl_test_control_t *test_controls;
+    volatile CT_TreeWalker* walker; /* Pointer to walker */
+    volatile CFL_EVENT_DATA_T *event_data_ptr; /* Pointer to event data */
     bool cfl_engine_flag;
     unsigned cfl_node_execution_count;
     unsigned max_level;
-    CT_StackEntry*  stack;
-    json_decoder_ctx_t *json_decoder_ctx; /* Pointer to json decoder context */
-    const chaintree_handle_t* flash_handle; /* Pointer to flash hanle */
+    volatile CT_StackEntry*  stack;
+    volatile CT_StackEntry*  nested_stack;
+    volatile json_decoder_ctx_t *json_decoder_ctx; /* Pointer to json decoder context */
+    volatile uint8_t* backup_flags; /* Pointer to backup flags */
+    volatile CT_WalkerContext* walker_context_ptr; /* Pointer to walker context */
+    volatile const chaintree_handle_t* flash_handle; /* Pointer to flash hanle */
 /* Pointer to engine handle */
 };
 

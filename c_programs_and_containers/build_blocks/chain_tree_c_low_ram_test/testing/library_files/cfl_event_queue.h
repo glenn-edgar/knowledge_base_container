@@ -6,6 +6,9 @@
  * Designed for memory-constrained embedded systems (32KB RAM) through large servers.
  * Lock-free single-accessor per queue instance.
  * 
+ * NOTE: All functions accept volatile pointers to support use with volatile
+ *       runtime handles in memory-corruption-sensitive environments.
+ * 
  * @author Glenn - Onyx Engineering
  * @date 2025
  */
@@ -63,6 +66,8 @@
  #define CFL_EVENT_TYPE_INT          1       /**< Data is signed integer */
  #define CFL_EVENT_TYPE_UINT         2       /**< Data is unsigned integer */
  #define CFL_EVENT_TYPE_FLOAT        3       /**< Data is float/double */
+ #define CFL_EVENT_TYPE_JSON_RECORD  4       /**< Data is JSON record */
+ #define CFL_EVENT_TYPE_NULL         5       /**< Data is null */
  
  /** Minimum queue size (power of 2) */
  #define CFL_EVENT_QUEUE_MIN_SIZE    2
@@ -147,15 +152,16 @@
   * @note Actual capacity is rounded_size - 1 due to full/empty detection
   * @note Memory is never freed - suitable for permanent queue structures
   * @note Throws exception if perm is NULL, not initialized, or out of memory
+  * @note Returns volatile pointer for use with volatile runtime handles
   * 
   * Example:
   * @code
   *   // Create queue: 8 high priority, 32 low priority
   *   // Allocates: 8 + 64 = 72 event slots (rounds 32→64)
-  *   CFL_EVENT_QUEUE_T* q = cfl_create_event_queue(8, 32, my_perm);
+  *   volatile CFL_EVENT_QUEUE_T* q = cfl_create_event_queue(8, 32, my_perm);
   * @endcode
   */
- CFL_EVENT_QUEUE_T* cfl_create_event_queue(
+ volatile CFL_EVENT_QUEUE_T* cfl_create_event_queue(
      unsigned high_priority_size,
      unsigned low_priority_size,
      CflPerm* perm);
@@ -167,14 +173,14 @@
   * Does NOT free any malloc'd event data - caller responsible.
   * Statistics counters are preserved - use cfl_reset_queue_stats() to clear them.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * 
   * @warning Any events with malloc_flag set will leak memory unless
   *          manually freed before calling this function
   * @note Throws exception if queue_control is NULL
   */
  void cfl_clear_queue(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Send an event to the queue
@@ -183,7 +189,7 @@
   * Returns false if the target priority queue is full.
   * Updates queue depth statistics automatically.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @param priority      Priority level (0=low, 1=high)
   * @param node_id       Target node (0xFFFF for broadcast)
   * @param event_type    Data type (0-3: ptr/int/uint/float)
@@ -207,7 +213,7 @@
   * @endcode
   */
  bool cfl_send_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_type,
@@ -221,8 +227,8 @@
   * Checks high priority queue first, then low priority.
   * Returns false if both queues are empty.
   * 
-  * @param queue_control Pointer to queue control structure
-  * @param event_data    Pointer to structure to receive event data
+  * @param queue_control Pointer to queue control structure (accepts volatile)
+  * @param event_data    Pointer to structure to receive event data (accepts volatile)
   * @return true if event retrieved, false if both queues empty
   * 
   * @note Throws exception if queue_control or event_data is NULL
@@ -247,8 +253,8 @@
   * @endcode
   */
  bool cfl_pop_event(
-     CFL_EVENT_QUEUE_T *queue_control,
-     CFL_EVENT_DATA_T *event_data);
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_DATA_T *event_data);
  
  /**
   * @brief Peek at highest priority event without removing it
@@ -257,8 +263,8 @@
   * without actually removing it from the queue. Checks high priority
   * queue first, then low priority.
   * 
-  * @param queue_control Pointer to queue control structure
-  * @param event_data    Pointer to structure to receive event data
+  * @param queue_control Pointer to queue control structure (accepts volatile)
+  * @param event_data    Pointer to structure to receive event data (accepts volatile)
   * @return true if event retrieved, false if both queues empty
   * 
   * @note The event remains in the queue after this call
@@ -279,8 +285,8 @@
   * @endcode
   */
  bool cfl_peek_event(
-     CFL_EVENT_QUEUE_T *queue_control,
-     CFL_EVENT_DATA_T *event_data);
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_DATA_T *event_data);
  
  /**
   * @brief Get queue number from event data
@@ -288,46 +294,46 @@
   * Returns the queue_number field which identifies which queue
   * the event originated from (useful in multi-queue systems).
   * 
-  * @param event_data Pointer to event data structure
+  * @param event_data Pointer to event data structure (accepts volatile)
   * @return Queue identifier number
   * 
   * @note Throws exception if event_data is NULL
   */
  unsigned cfl_queue_number(
-     CFL_EVENT_DATA_T *event_data);
+     volatile CFL_EVENT_DATA_T *event_data);
  
  /**
   * @brief Get count of events in high priority queue
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @return Number of events in high priority queue
   * 
   * @note Throws exception if queue_control is NULL
   */
  unsigned cfl_high_priority_count(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Get count of events in low priority queue
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @return Number of events in low priority queue
   * 
   * @note Throws exception if queue_control is NULL
   */
  unsigned cfl_low_priority_count(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Get total count of events in both queues
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @return Total number of events across both priorities
   * 
   * @note Throws exception if queue_control is NULL
   */
  unsigned cfl_total_event_count(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Get maximum total queue depth reached
@@ -335,13 +341,13 @@
   * Returns the peak number of events across both priority queues
   * since queue creation or last statistics reset.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @return Peak total event count
   * 
   * @note Throws exception if queue_control is NULL
   */
  unsigned cfl_get_max_total_depth(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Get maximum high priority queue depth reached
@@ -349,13 +355,13 @@
   * Returns the peak number of events in the high priority queue
   * since queue creation or last statistics reset.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @return Peak high priority event count
   * 
   * @note Throws exception if queue_control is NULL
   */
  unsigned cfl_get_max_high_depth(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /**
   * @brief Reset queue depth statistics
@@ -363,12 +369,12 @@
   * Clears max_total_depth and max_high_depth counters without
   * affecting the actual queue contents.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * 
   * @note Throws exception if queue_control is NULL
   */
  void cfl_reset_queue_stats(
-     CFL_EVENT_QUEUE_T *queue_control);
+     volatile CFL_EVENT_QUEUE_T *queue_control);
  
  /*==============================================================================
   * Helper Functions for Type-Specific Events
@@ -380,7 +386,7 @@
   * Convenience wrapper for sending unsigned integer events.
   * Automatically sets event_type to CFL_EVENT_TYPE_UINT and malloc_flag to false.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @param priority      Priority level (0=low, 1=high)
   * @param node_id       Target node (0xFFFF for broadcast)
   * @param event_id      Application-defined event identifier
@@ -394,7 +400,7 @@
   * @endcode
   */
  bool cfl_send_unsigned_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -406,7 +412,7 @@
   * Convenience wrapper for sending signed integer events.
   * Automatically sets event_type to CFL_EVENT_TYPE_INT and malloc_flag to false.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @param priority      Priority level (0=low, 1=high)
   * @param node_id       Target node (0xFFFF for broadcast)
   * @param event_id      Application-defined event identifier
@@ -420,7 +426,7 @@
   * @endcode
   */
  bool cfl_send_integer_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -432,7 +438,7 @@
   * Convenience wrapper for sending float/double events.
   * Automatically sets event_type to CFL_EVENT_TYPE_FLOAT and malloc_flag to false.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @param priority      Priority level (0=low, 1=high)
   * @param node_id       Target node (0xFFFF for broadcast)
   * @param event_id      Application-defined event identifier
@@ -446,7 +452,7 @@
   * @endcode
   */
  bool cfl_send_float_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      unsigned event_id,
@@ -458,7 +464,7 @@
   * Convenience wrapper for sending pointer events with explicit memory management.
   * Automatically sets event_type to CFL_EVENT_TYPE_PTR.
   * 
-  * @param queue_control Pointer to queue control structure
+  * @param queue_control Pointer to queue control structure (accepts volatile)
   * @param priority      Priority level (0=low, 1=high)
   * @param node_id       Target node (0xFFFF for broadcast)
   * @param malloc_flag   True if executive should free data pointer after processing
@@ -478,7 +484,7 @@
   * @endcode
   */
  bool cfl_send_data_event(
-     CFL_EVENT_QUEUE_T *queue_control,
+     volatile CFL_EVENT_QUEUE_T *queue_control,
      unsigned priority,
      unsigned node_id,
      bool malloc_flag,

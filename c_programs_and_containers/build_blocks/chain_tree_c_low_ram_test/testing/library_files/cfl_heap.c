@@ -122,7 +122,7 @@ static inline BlockHeader* data_ptr_to_block(void* ptr, uint16_t padding) {
     return (BlockHeader*)((uint8_t*)ptr - HEADER_SIZE - padding);
 }
 
-/* Update statistics */
+/* Update statistics - works with non-volatile heap pointer */
 static void update_stats(CflHeap* heap) {
     uint16_t used = 0;
     uint16_t free_blocks = 0;
@@ -159,7 +159,7 @@ static void update_stats(CflHeap* heap) {
     }
 }
 
-/* Coalesce adjacent free blocks */
+/* Coalesce adjacent free blocks - works with non-volatile heap pointer */
 static void coalesce_free_blocks(CflHeap* heap) {
     BlockHeader* block = (BlockHeader*)heap->pool;
     
@@ -180,7 +180,7 @@ static void coalesce_free_blocks(CflHeap* heap) {
 
 /* ============= PUBLIC API ============= */
 
-CflHeap* cfl_heap_init(CflPerm* perm, uint16_t buffer_size) {
+volatile CflHeap* cfl_heap_init(struct CflPerm* perm, uint16_t buffer_size) {
     if (!perm) {
         EXCEPTION("cfl_heap_init: NULL perm pointer");
     }
@@ -218,38 +218,47 @@ CflHeap* cfl_heap_init(CflPerm* perm, uint16_t buffer_size) {
     
     update_stats(heap);
     
-    return heap;
+    /* Return as volatile pointer for runtime handle compatibility */
+    return (volatile CflHeap*)heap;
 }
 
-void cfl_heap_reset(CflHeap* heap) {
+void cfl_heap_reset(volatile CflHeap* heap) {
     if (!heap) {
         EXCEPTION("cfl_heap_reset: NULL heap pointer");
     }
     
-    if (!heap->pool) {
+    /* Read volatile fields once */
+    uint8_t* pool = heap->pool;
+    uint16_t pool_size = heap->pool_size;
+    
+    if (!pool) {
         EXCEPTION("cfl_heap_reset: NULL pool pointer");
     }
     
+    /* Work with local non-volatile pointer for efficiency */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
     /* Clear statistics */
-    memset(&heap->stats, 0, sizeof(CflHeapStats));
+    memset(&local_heap->stats, 0, sizeof(CflHeapStats));
     
     /* Reinitialize pool */
-    memset(heap->pool, 0, heap->pool_size);
+    memset(pool, 0, pool_size);
     
-    BlockHeader* initial = (BlockHeader*)heap->pool;
+    BlockHeader* initial = (BlockHeader*)pool;
     initial->magic = BLOCK_MAGIC_FREE;
-    initial->size = heap->pool_size - HEADER_SIZE - FOOTER_SIZE;
+    initial->size = pool_size - HEADER_SIZE - FOOTER_SIZE;
     initial->flags = 0;
     initial->node_id = NODE_ID_NONE;
     initial->padding = 0;
     set_footer(initial);
     
-    heap->initialized = true;
+    /* Write back to volatile */
+    ((CflHeap*)heap)->initialized = true;
     
-    update_stats(heap);
+    update_stats(local_heap);
 }
 
-uint16_t cfl_heap_malloc(CflHeap* heap, uint16_t size_bytes) {
+uint16_t cfl_heap_malloc(volatile CflHeap* heap, uint16_t size_bytes) {
     if (!heap) {
         EXCEPTION("cfl_heap_malloc: NULL heap pointer");
     }
@@ -260,13 +269,16 @@ uint16_t cfl_heap_malloc(CflHeap* heap, uint16_t size_bytes) {
         EXCEPTION("cfl_heap_malloc: Zero size allocation");
     }
     
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
     size_bytes = align_up(size_bytes, BLOCK_ALIGNMENT);
     
     if (size_bytes < MIN_BLOCK_SIZE) {
         size_bytes = MIN_BLOCK_SIZE;
     }
     
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     
     while (block != NULL) {
         /* Validate block integrity */
@@ -294,20 +306,20 @@ uint16_t cfl_heap_malloc(CflHeap* heap, uint16_t size_bytes) {
             mark_allocated(block, NODE_ID_NONE);
             set_footer(block);
             
-            heap->stats.total_allocations++;
-            update_stats(heap);
+            local_heap->stats.total_allocations++;
+            update_stats(local_heap);
             
-            return ptr_to_idx(heap, block_to_data_ptr(block));
+            return ptr_to_idx(local_heap, block_to_data_ptr(block));
         }
         
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
     
     EXCEPTION("cfl_heap_malloc: Out of memory");
     return INVALID_HEAP_IDX;
 }
 
-uint16_t cfl_heap_arena_alloc_aligned(CflHeap* heap, uint16_t requesting_node_id, 
+uint16_t cfl_heap_arena_alloc_aligned(volatile CflHeap* heap, uint16_t requesting_node_id, 
                                        uint16_t size_bytes, uint16_t alignment) {
     if (!heap) {
         EXCEPTION("cfl_heap_arena_alloc_aligned: NULL heap pointer");
@@ -322,6 +334,9 @@ uint16_t cfl_heap_arena_alloc_aligned(CflHeap* heap, uint16_t requesting_node_id
         EXCEPTION("cfl_heap_arena_alloc_aligned: Alignment must be power of 2");
     }
     
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
     /* Align size */
     size_bytes = align_up(size_bytes, BLOCK_ALIGNMENT);
     
@@ -329,7 +344,7 @@ uint16_t cfl_heap_arena_alloc_aligned(CflHeap* heap, uint16_t requesting_node_id
         size_bytes = MIN_BLOCK_SIZE;
     }
     
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     
     while (block != NULL) {
         /* Validate block integrity */
@@ -367,37 +382,41 @@ uint16_t cfl_heap_arena_alloc_aligned(CflHeap* heap, uint16_t requesting_node_id
                 mark_allocated(block, requesting_node_id);
                 set_footer(block);
                 
-                heap->stats.total_allocations++;
-                update_stats(heap);
+                local_heap->stats.total_allocations++;
+                update_stats(local_heap);
                 
                 /* Return index to the ALIGNED data pointer */
                 void* aligned_ptr = (void*)aligned_addr;
-                return ptr_to_idx(heap, aligned_ptr);
+                return ptr_to_idx(local_heap, aligned_ptr);
             }
         }
         
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
     
     EXCEPTION("cfl_heap_arena_alloc_aligned: Out of memory");
     return INVALID_HEAP_IDX;
 }
 
-void cfl_heap_free(CflHeap* heap, uint16_t idx) {
+void cfl_heap_free(volatile CflHeap* heap, uint16_t idx) {
     if (!heap) {
         EXCEPTION("cfl_heap_free: NULL heap pointer");
     }
     if (!heap->initialized) {
         EXCEPTION("cfl_heap_free: Heap not initialized");
     }
-    if (idx >= heap->pool_size) {
+    
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    if (idx >= local_heap->pool_size) {
         EXCEPTION("cfl_heap_free: Invalid heap index");
     }
     
-    void* ptr = idx_to_ptr(heap, idx);
+    void* ptr = idx_to_ptr(local_heap, idx);
     
     /* Walk blocks to find which one contains this pointer */
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     BlockHeader* target_block = NULL;
     
     while (block != NULL) {
@@ -410,7 +429,7 @@ void cfl_heap_free(CflHeap* heap, uint16_t idx) {
             break;
         }
         
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
     
     if (!target_block) {
@@ -418,8 +437,8 @@ void cfl_heap_free(CflHeap* heap, uint16_t idx) {
     }
     
     /* Validate block is within heap bounds */
-    if ((uint8_t*)target_block < heap->pool || 
-        (uint8_t*)target_block >= heap->pool + heap->pool_size) {
+    if ((uint8_t*)target_block < local_heap->pool || 
+        (uint8_t*)target_block >= local_heap->pool + local_heap->pool_size) {
         EXCEPTION("cfl_heap_free: Block pointer out of bounds");
     }
     
@@ -437,23 +456,26 @@ void cfl_heap_free(CflHeap* heap, uint16_t idx) {
     target_block->padding = 0;  /* Clear padding on free */
     set_footer(target_block);
     
-    heap->stats.total_frees++;
+    local_heap->stats.total_frees++;
     
-    coalesce_free_blocks(heap);
-    update_stats(heap);
+    coalesce_free_blocks(local_heap);
+    update_stats(local_heap);
 }
 
-void* cfl_heap_ptr(CflHeap* heap, uint16_t idx) {
+void* cfl_heap_ptr(volatile CflHeap* heap, uint16_t idx) {
     if (!heap) {
         EXCEPTION("cfl_heap_ptr: NULL heap pointer");
     }
     if (!heap->initialized) {
         EXCEPTION("cfl_heap_ptr: Heap not initialized");
     }
-    return idx_to_ptr(heap, idx);
+    
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    return idx_to_ptr(local_heap, idx);
 }
 
-uint16_t cfl_heap_ptr_to_idx(CflHeap* heap, void* ptr) {
+uint16_t cfl_heap_ptr_to_idx(volatile CflHeap* heap, void* ptr) {
     if (!heap) {
         EXCEPTION("cfl_heap_ptr_to_idx: NULL heap pointer");
     }
@@ -464,15 +486,19 @@ uint16_t cfl_heap_ptr_to_idx(CflHeap* heap, void* ptr) {
         EXCEPTION("cfl_heap_ptr_to_idx: NULL pointer");
     }
     
+    /* Read volatile fields once */
+    uint8_t* pool = heap->pool;
+    uint16_t pool_size = heap->pool_size;
+    
     /* Validate pointer is within heap bounds */
-    if ((uint8_t*)ptr < heap->pool || (uint8_t*)ptr >= heap->pool + heap->pool_size) {
+    if ((uint8_t*)ptr < pool || (uint8_t*)ptr >= pool + pool_size) {
         EXCEPTION("cfl_heap_ptr_to_idx: Pointer out of bounds");
     }
     
-    return (uint16_t)((uint8_t*)ptr - heap->pool);
+    return (uint16_t)((uint8_t*)ptr - pool);
 }
 
-void* cfl_heap_malloc_pointer(CflHeap* heap, uint16_t size_bytes) {
+void* cfl_heap_malloc_pointer(volatile CflHeap* heap, uint16_t size_bytes) {
     if (!heap) {
         EXCEPTION("cfl_heap_malloc_pointer: NULL heap pointer");
     }
@@ -484,10 +510,10 @@ void* cfl_heap_malloc_pointer(CflHeap* heap, uint16_t size_bytes) {
     if (idx == INVALID_HEAP_IDX) {
         return NULL;
     }
-    return idx_to_ptr(heap, idx);
+    return cfl_heap_ptr(heap, idx);
 }
 
-void cfl_heap_free_pointer(CflHeap* heap, void* ptr) {
+void cfl_heap_free_pointer(volatile CflHeap* heap, void* ptr) {
     if (!heap) {
         EXCEPTION("cfl_heap_free_pointer: NULL heap pointer");
     }
@@ -498,43 +524,68 @@ void cfl_heap_free_pointer(CflHeap* heap, void* ptr) {
         EXCEPTION("cfl_heap_free_pointer: NULL pointer");
     }
     
-    cfl_heap_free(heap, ptr_to_idx(heap, ptr));
+    cfl_heap_free(heap, cfl_heap_ptr_to_idx(heap, ptr));
 }
 
-uint16_t cfl_heap_used_bytes(CflHeap* heap) {
+uint16_t cfl_heap_used_bytes(volatile CflHeap* heap) {
     if (!heap || !heap->initialized) return 0;
     return heap->stats.current_used_bytes;
 }
 
-uint16_t cfl_heap_free_bytes(CflHeap* heap) {
+uint16_t cfl_heap_free_bytes(volatile CflHeap* heap) {
     if (!heap || !heap->initialized) return 0;
-    return heap->pool_size - heap->stats.current_used_bytes;
+    
+    /* Read volatile fields once */
+    uint16_t pool_size = heap->pool_size;
+    uint16_t used = heap->stats.current_used_bytes;
+    
+    return pool_size - used;
 }
 
-void cfl_heap_get_stats(CflHeap* heap, CflHeapStats* stats) {
+void cfl_heap_get_stats(volatile CflHeap* heap, volatile CflHeapStats* stats) {
     if (!heap || !heap->initialized || !stats) {
         EXCEPTION("cfl_heap_get_stats: Invalid parameters");
     }
     
-    update_stats(heap);
-    memcpy(stats, &heap->stats, sizeof(CflHeapStats));
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    update_stats(local_heap);
+    
+    /* Copy stats field by field to handle volatile destination */
+    CflHeapStats local_stats = local_heap->stats;
+    
+    ((CflHeapStats*)stats)->total_allocations = local_stats.total_allocations;
+    ((CflHeapStats*)stats)->total_frees = local_stats.total_frees;
+    ((CflHeapStats*)stats)->current_blocks = local_stats.current_blocks;
+    ((CflHeapStats*)stats)->current_used_bytes = local_stats.current_used_bytes;
+    ((CflHeapStats*)stats)->peak_used_bytes = local_stats.peak_used_bytes;
+    ((CflHeapStats*)stats)->largest_free_block = local_stats.largest_free_block;
+    ((CflHeapStats*)stats)->free_blocks = local_stats.free_blocks;
+    ((CflHeapStats*)stats)->allocated_blocks = local_stats.allocated_blocks;
 }
 
-void cfl_heap_dump_stats(CflHeap* heap) {
+void cfl_heap_dump_stats(volatile CflHeap* heap) {
     if (!heap || !heap->initialized) return;
     
-    update_stats(heap);
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    update_stats(local_heap);
     
     /* Stats are calculated and stored in heap->stats */
     /* Caller can access them via cfl_heap_get_stats() */
 }
 
-bool cfl_heap_validate(CflHeap* heap) {
+bool cfl_heap_validate(volatile CflHeap* heap) {
     if (!heap || !heap->initialized) {
         return false;
     }
     
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     uint16_t total_size = 0;
     
     while (block != NULL) {
@@ -548,24 +599,27 @@ bool cfl_heap_validate(CflHeap* heap) {
         uint16_t block_total = HEADER_SIZE + block->size + FOOTER_SIZE;
         total_size += block_total;
         
-        if (total_size > heap->pool_size) {
+        if (total_size > local_heap->pool_size) {
             DEBUG_PRINT("Heap validation failed: Size overflow\n");
             return false;
         }
         
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
     
     return true;
 }
 
-void cfl_heap_walk(CflHeap* heap, void (*callback)(void* block_ptr, uint16_t size, 
-                                                     bool allocated, uint16_t node_id)) {
+void cfl_heap_walk(volatile CflHeap* heap, 
+                   void (*callback)(void* block_ptr, uint16_t size, bool allocated, uint16_t node_id)) {
     if (!heap || !heap->initialized || !callback) {
         return;
     }
     
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     
     while (block != NULL) {
         if (validate_block(block)) {
@@ -574,25 +628,29 @@ void cfl_heap_walk(CflHeap* heap, void (*callback)(void* block_ptr, uint16_t siz
                     is_allocated(block), 
                     block->node_id);
         }
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
 }
 
-uint16_t cfl_heap_get_node_id(CflHeap* heap, uint16_t idx) {
+uint16_t cfl_heap_get_node_id(volatile CflHeap* heap, uint16_t idx) {
     if (!heap) {
         EXCEPTION("cfl_heap_get_node_id: NULL heap pointer");
     }
     if (!heap->initialized) {
         EXCEPTION("cfl_heap_get_node_id: Heap not initialized");
     }
-    if (idx >= heap->pool_size) {
+    
+    /* Work with local non-volatile pointer */
+    CflHeap* local_heap = (CflHeap*)heap;
+    
+    if (idx >= local_heap->pool_size) {
         EXCEPTION("cfl_heap_get_node_id: Invalid heap index");
     }
     
-    void* ptr = idx_to_ptr(heap, idx);
+    void* ptr = idx_to_ptr(local_heap, idx);
     
     /* Find the block containing this pointer */
-    BlockHeader* block = (BlockHeader*)heap->pool;
+    BlockHeader* block = (BlockHeader*)local_heap->pool;
     
     while (block != NULL) {
         void* block_data = block_to_data_ptr(block);
@@ -603,7 +661,7 @@ uint16_t cfl_heap_get_node_id(CflHeap* heap, uint16_t idx) {
             return block->node_id;
         }
         
-        block = get_next_block(heap, block);
+        block = get_next_block(local_heap, block);
     }
     
     EXCEPTION("cfl_heap_get_node_id: Pointer not found in any block");

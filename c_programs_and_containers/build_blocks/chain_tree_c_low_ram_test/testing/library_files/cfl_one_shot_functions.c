@@ -15,10 +15,11 @@ static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t n
     uint16_t link_start = node->link_start;
     uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
     const uint16_t *link_table = runtime_handle->flash_handle->link_table;
-    for (unsigned i = 0; i < link_count; i++) {
+    for (unsigned i = 0; i < (link_count&LINK_COUNT_MASK); i++) {
         unsigned int link_id = link_table[link_start + i];
         const chaintree_node_t *link_node = &runtime_handle->flash_handle->nodes[link_id];
         if ((link_node->link_count & AUTO_START_BIT) != 0) {
+    
             cfl_enable_node(runtime_handle, link_id);
         }
     }
@@ -56,13 +57,12 @@ void cfl_column_term_one_shot_fn(void *handle, uint16_t node_index){
     (void)handle;
     (void)node_index;
    
-    printf("cfl_column_term_one_shot_fn\n");
-    exit(0);
+    ; //do nothing
     }
 
 
 void cfl_gate_node_init_one_shot_fn(void *handle, uint16_t node_index){
-    
+    printf("cfl_gate_node_init_one_shot_fn\n");
     cfl_enable_auto_start_nodes(handle, node_index);
 }
 
@@ -72,8 +72,7 @@ void cfl_gate_node_term_one_shot_fn(void *handle, uint16_t node_index){
     (void)handle;
     (void)node_index;
    
-    printf("cfl_gate_node_term_one_shot_fn\n");
-    exit(0);
+    
     }
 
 void cfl_log_message_one_shot_fn(void *handle, uint16_t node_index){
@@ -94,7 +93,7 @@ void cfl_log_message_one_shot_fn(void *handle, uint16_t node_index){
     // No need to free - string points into flash memory
     
     printf("Timestamp: %f, Node Index: %d, Message: %s  \n", timestamp, node_index, message );
-    exit(0);
+    
 }
 
 void cfl_send_named_event_one_shot_fn(void *handle, uint16_t node_index){

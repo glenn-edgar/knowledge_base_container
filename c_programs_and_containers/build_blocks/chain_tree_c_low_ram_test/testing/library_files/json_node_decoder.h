@@ -69,16 +69,16 @@
   * Uses EXCEPTION for all errors
   */
  void json_decoder_init(
-     json_decoder_ctx_t *ctx,
-     const chaintree_handle_t *flash_handle,
-     uint32_t node_data_control_index
+     volatile json_decoder_ctx_t *ctx,
+     volatile const chaintree_handle_t *flash_handle,
+     uint32_t node_index
  );
  
  /**
   * Get record by index with bounds checking
   */
  static inline const json_record_t *json_get_record(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx)
  {
      if (!ctx || !ctx->records || record_idx >= ctx->records_count) {
@@ -91,7 +91,7 @@
   * Get string from string table by offset
   */
  static inline const char *json_get_string(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t offset)
  {
      if (!ctx || !ctx->strings || offset >= ctx->strings_size) {
@@ -172,7 +172,7 @@
   * Uses EXCEPTION for errors including not found and type mismatch
   */
  void json_extract_int32(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      int32_t *out
@@ -182,7 +182,7 @@
   * Extract float32 value by path
   */
  void json_extract_float32(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      float *out
@@ -192,7 +192,7 @@
   * Extract boolean value by path
   */
  void json_extract_bool(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      bool *out
@@ -203,7 +203,7 @@
   * Returns pointer into string table (no allocation)
   */
  void json_extract_string(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      const char **out
@@ -224,7 +224,7 @@
   * Uses EXCEPTION if not found or on errors
   */
  void json_find_object_child(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t parent_record,
      const char *key,
      uint32_t *out_record
@@ -240,7 +240,7 @@
   * Uses EXCEPTION on errors
   */
  void json_get_array_child(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t parent_record,
      uint32_t index,
      uint32_t *out_record
@@ -257,7 +257,7 @@
   * Uses EXCEPTION on errors
   */
  void json_navigate_path(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      uint32_t *out_record
@@ -272,7 +272,7 @@
   * Uses EXCEPTION for type mismatch
   */
  void json_get_int32(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      int32_t *out
  );
@@ -281,7 +281,7 @@
   * Get float32 value from record
   */
  void json_get_float32(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      float *out
  );
@@ -290,7 +290,7 @@
   * Get bool value from record
   */
  void json_get_bool(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      bool *out
  );
@@ -299,7 +299,7 @@
   * Get string value from record
   */
  void json_get_string_value(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      const char **out
  );
@@ -308,7 +308,7 @@
   * Check if record is null
   */
  bool json_is_null(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx
  );
  
@@ -320,7 +320,7 @@
   * Get number of children in container (OBJECT or ARRAY)
   */
  void json_get_child_count(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      uint32_t *out_count
  );
@@ -329,7 +329,7 @@
   * Get type of record
   */
  static inline json_type_t json_get_type(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx)
  {
      const json_record_t *record = json_get_record(ctx, record_idx);
@@ -340,7 +340,7 @@
   * Validate record structure (for debugging)
   */
  void json_validate_records(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t control_idx
  );
  
@@ -352,13 +352,13 @@
  const char *json_type_to_string(json_type_t type);
  
  void json_print_record(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      int indent_level
  );
  
  void json_print_control_region(
-     const json_decoder_ctx_t *ctx,
+     const volatile json_decoder_ctx_t *ctx,
      uint32_t control_idx
  );
  #endif

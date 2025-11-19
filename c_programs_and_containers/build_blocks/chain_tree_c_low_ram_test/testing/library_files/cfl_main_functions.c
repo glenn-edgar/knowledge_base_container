@@ -12,8 +12,7 @@ unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned n
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("cfl_null_main_fn\n");
-    exit(0);
+    
 
     return 0;
 }
@@ -43,25 +42,24 @@ unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, uns
     const boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
     bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
     if (result == true) {
+
         return CFL_DISABLE;
     }
-    printf("result: %d\n", result);
-    printf("node index: %d\n", node_index);
+
     uint16_t link_start = node->link_start;
     uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
-    printf("link count: %d\n", link_count);
-    printf("link start: %d\n", link_start);
+
     const uint16_t *link_table = runtime_handle->flash_handle->link_table;
     link_table = runtime_handle->flash_handle->link_table;
+    
     for (unsigned i = 0; i < link_count; i++) {
         unsigned int link_id = link_table[link_start + i];
-        printf("checking link %d\n", link_id);
+    
         if (cfl_engine_node_is_enabled(runtime_handle, link_id) == true) {
-            printf("node %d is enabled, returning CFL_CONTINUE\n", link_id);
+        
             return CFL_CONTINUE;
         }
     }
-    printf("no enabled nodes found, returning CFL_DISABLE\n");
     return CFL_DISABLE;
 }
   
@@ -101,9 +99,7 @@ unsigned cfl_terminate_main_fn(void *handle, unsigned bool_function_index, unsig
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("cfl_terminate_main_fn\n");
-    exit(0);
-    return 0;
+    return CFL_TERMINATE;
     
 }
 unsigned cfl_terminate_system_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){

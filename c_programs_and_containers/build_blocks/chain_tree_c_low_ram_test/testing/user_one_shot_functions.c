@@ -7,10 +7,13 @@
 
 void activate_valve_one_shot_fn(void *handle, unsigned node_index){
     
+    
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     const char *state;
+   
     
-    // Step 1: Initialize decoder for this node's data
+    
+    
     json_decoder_init_from_runtime(runtime, node_index);
     
     // Step 2: Extract the value using path notation

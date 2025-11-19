@@ -37,7 +37,7 @@ static inline uint16_t align_up(uint16_t value, uint8_t alignment) {
 }
 
 
-static inline cfl_heap_allocator_id_t alloc_id(CflHeapArenaSystem* sys) {
+static inline cfl_heap_allocator_id_t alloc_id(volatile CflHeapArenaSystem* sys) {
     for (uint16_t i = 0; i < MAX_ALLOCATORS; ++i) {
         cfl_heap_allocator_id_t id = (sys->next_allocator_id + i) % MAX_ALLOCATORS;
         if (sys->arenas[id] == NULL) {
@@ -50,13 +50,13 @@ static inline cfl_heap_allocator_id_t alloc_id(CflHeapArenaSystem* sys) {
 }
 
 
-static inline void free_id(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+static inline void free_id(volatile CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (id < MAX_ALLOCATORS) {
         sys->arenas[id] = NULL;
     }
 }
 
-static inline cfl_heap_arena_t get_arena_by_id(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+static inline cfl_heap_arena_t get_arena_by_id(volatile CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (id >= MAX_ALLOCATORS) {
         EXCEPTION("get_arena_by_id: Invalid allocator ID");
     }
@@ -65,7 +65,7 @@ static inline cfl_heap_arena_t get_arena_by_id(CflHeapArenaSystem* sys, cfl_heap
 
 /* ============= PUBLIC API ============= */
 
-CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm, cfl_heap_t* heap, 
+CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm, volatile cfl_heap_t* heap, 
                                                    uint16_t max_allocator_count, uint16_t total_node_count,
                                                    uint16_t allocator_0_size) {
     if (!perm) {
@@ -150,7 +150,7 @@ CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm, cfl_heap_t* heap
     return sys;
 }
 
-void cfl_heap_arena_system_reset(CflHeapArenaSystem* sys) {
+void cfl_heap_arena_system_reset(volatile CflHeapArenaSystem* sys) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_system_reset: NULL system pointer");
     }
@@ -181,7 +181,7 @@ void cfl_heap_arena_system_reset(CflHeapArenaSystem* sys) {
     }
     
     // Reinitialize node arrays
-    memset(sys->node_allocator_ids, 0, sys->total_node_count * sizeof(uint8_t));
+    memset((void*)sys->node_allocator_ids, 0, sys->total_node_count * sizeof(uint8_t));
     for (uint16_t i = 0; i < sys->total_node_count; ++i) {
         sys->node_memory_index[i] = 0xFFFF;
     }
@@ -191,7 +191,7 @@ void cfl_heap_arena_system_reset(CflHeapArenaSystem* sys) {
     sys->active_allocator_context = NO_ALLOCATOR;
 }
 
-cfl_heap_arena_t cfl_heap_arena_create(CflPerm* perm, CflHeapArenaSystem* sys, uint16_t owner_node_id, uint16_t size_bytes) {
+cfl_heap_arena_t cfl_heap_arena_create(CflPerm* perm, volatile CflHeapArenaSystem* sys, uint16_t owner_node_id, uint16_t size_bytes) {
     if (!perm) {
         EXCEPTION("cfl_heap_arena_create: NULL perm pointer");
     }
@@ -243,7 +243,7 @@ cfl_heap_arena_t cfl_heap_arena_create(CflPerm* perm, CflHeapArenaSystem* sys, u
     return arena;
 }
 
-void cfl_heap_arena_destroy(CflHeapArenaSystem* sys, cfl_heap_arena_t arena, uint16_t owner_node_id) {
+void cfl_heap_arena_destroy(volatile CflHeapArenaSystem* sys, cfl_heap_arena_t arena, uint16_t owner_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_destroy: NULL system pointer");
     }
@@ -299,7 +299,7 @@ cfl_heap_allocator_id_t cfl_heap_arena_get_id(cfl_heap_arena_t arena) {
     return arena->id;
 }
 
-void cfl_heap_arena_set_active_allocator(CflHeapArenaSystem* sys, uint16_t owner_node_id) {
+void cfl_heap_arena_set_active_allocator(volatile CflHeapArenaSystem* sys, uint16_t owner_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_active_allocator: NULL system pointer");
     }
@@ -316,7 +316,7 @@ void cfl_heap_arena_set_active_allocator(CflHeapArenaSystem* sys, uint16_t owner
     sys->active_allocator_context = sys->node_allocator_ids[owner_node_id];
 }
 
-void cfl_heap_arena_set_node_allocator(CflHeapArenaSystem* sys, uint16_t requesting_node_id) {
+void cfl_heap_arena_set_node_allocator(volatile CflHeapArenaSystem* sys, uint16_t requesting_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_allocator: NULL system pointer");
     }
@@ -333,11 +333,11 @@ void cfl_heap_arena_set_node_allocator(CflHeapArenaSystem* sys, uint16_t request
     sys->node_allocator_ids[requesting_node_id] = sys->active_allocator_context;
 }
 
-void* cfl_arena_system_alloc(CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes) {
+void* cfl_arena_system_alloc(volatile CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes) {
     return cfl_arena_system_alloc_aligned(sys, requesting_node_id, size_bytes, ARENA_ALIGNMENT);
 }
 
-void* cfl_arena_system_alloc_aligned(CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes, uint8_t alignment) {
+void* cfl_arena_system_alloc_aligned(volatile CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes, uint8_t alignment) {
     if (!sys) {
         EXCEPTION("cfl_arena_system_alloc_aligned: NULL system pointer");
     }
@@ -399,7 +399,7 @@ void* cfl_arena_system_alloc_aligned(CflHeapArenaSystem* sys, uint16_t requestin
 
 /* ============= NODE ARRAY ACCESSORS ============= */
 
-cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id(CflHeapArenaSystem* sys, uint16_t node_id) {
+cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id(volatile CflHeapArenaSystem* sys, uint16_t node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_get_node_allocator_id: NULL system pointer");
     }
@@ -415,7 +415,7 @@ cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id(CflHeapArenaSystem*
     return sys->node_allocator_ids[node_id];
 }
 
-void cfl_heap_arena_set_node_allocator_id(CflHeapArenaSystem* sys, uint16_t node_id, cfl_heap_allocator_id_t allocator_id) {
+void cfl_heap_arena_set_node_allocator_id(volatile CflHeapArenaSystem* sys, uint16_t node_id, cfl_heap_allocator_id_t allocator_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_allocator_id: NULL system pointer");
     }
@@ -431,7 +431,7 @@ void cfl_heap_arena_set_node_allocator_id(CflHeapArenaSystem* sys, uint16_t node
     sys->node_allocator_ids[node_id] = allocator_id;
 }
 
-uint16_t cfl_heap_arena_get_node_memory_index(CflHeapArenaSystem* sys, uint16_t node_id) {
+uint16_t cfl_heap_arena_get_node_memory_index(volatile CflHeapArenaSystem* sys, uint16_t node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_get_node_memory_index: NULL system pointer");
     }
@@ -447,7 +447,7 @@ uint16_t cfl_heap_arena_get_node_memory_index(CflHeapArenaSystem* sys, uint16_t 
     return sys->node_memory_index[node_id];
 }
 
-void cfl_heap_arena_set_node_memory_index(CflHeapArenaSystem* sys, uint16_t node_id, uint16_t memory_idx) {
+void cfl_heap_arena_set_node_memory_index(volatile CflHeapArenaSystem* sys, uint16_t node_id, uint16_t memory_idx) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_memory_index: NULL system pointer");
     }
@@ -479,7 +479,7 @@ uint16_t cfl_heap_arena_free_bytes(cfl_heap_arena_t arena) {
     return arena->size - arena->used;
 }
 
-void cfl_heap_arena_dump_stats(CflHeapArenaSystem* sys) {
+void cfl_heap_arena_dump_stats(volatile CflHeapArenaSystem* sys) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_dump_stats: NULL system pointer");
     }

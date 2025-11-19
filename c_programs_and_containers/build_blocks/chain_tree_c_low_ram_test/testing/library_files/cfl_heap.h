@@ -36,38 +36,144 @@ typedef struct CflHeap {
 /* Forward declaration */
 struct CflPerm;
 
-/* Initialize heap - allocates from cfl_perm and returns initialized heap */
-CflHeap* cfl_heap_init(struct CflPerm* perm, uint16_t buffer_size);
+/**
+ * @brief Initialize heap - allocates from cfl_perm and returns initialized heap
+ * 
+ * @param perm Permanent allocator to use for heap structure and pool
+ * @param buffer_size Size of heap pool in bytes
+ * @return Pointer to initialized heap (volatile for runtime handle compatibility)
+ * 
+ * @note Returns volatile pointer for use with volatile runtime handles
+ */
+volatile CflHeap* cfl_heap_init(struct CflPerm* perm, uint16_t buffer_size);
 
-/* Reset heap to initial state */
-void cfl_heap_reset(CflHeap* heap);
+/**
+ * @brief Reset heap to initial state
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ */
+void cfl_heap_reset(volatile CflHeap* heap);
 
-/* Allocation - returns index */
-uint16_t cfl_heap_malloc(CflHeap* heap, uint16_t size_bytes);
-void     cfl_heap_free(CflHeap* heap, uint16_t idx);
-void*    cfl_heap_ptr(CflHeap* heap, uint16_t idx);
-uint16_t cfl_heap_ptr_to_idx(CflHeap* heap, void* ptr);
+/**
+ * @brief Allocate memory block - returns index
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param size_bytes Size to allocate in bytes
+ * @return Index to allocated memory, or INVALID_HEAP_IDX on failure
+ */
+uint16_t cfl_heap_malloc(volatile CflHeap* heap, uint16_t size_bytes);
 
-/* Allocation - returns pointer */
-void*    cfl_heap_malloc_pointer(CflHeap* heap, uint16_t size_bytes);
-void     cfl_heap_free_pointer(CflHeap* heap, void* ptr);
+/**
+ * @brief Free memory block by index
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param idx Index to memory block
+ */
+void cfl_heap_free(volatile CflHeap* heap, uint16_t idx);
 
-/* Arena allocation with node tracking and custom alignment */
-uint16_t cfl_heap_arena_alloc_aligned(CflHeap* heap, uint16_t requesting_node_id, 
+/**
+ * @brief Convert index to pointer
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param idx Index to convert
+ * @return Pointer to memory at index
+ */
+void* cfl_heap_ptr(volatile CflHeap* heap, uint16_t idx);
+
+/**
+ * @brief Convert pointer to index
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param ptr Pointer to convert
+ * @return Index of pointer in heap
+ */
+uint16_t cfl_heap_ptr_to_idx(volatile CflHeap* heap, void* ptr);
+
+/**
+ * @brief Allocate memory block - returns pointer
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param size_bytes Size to allocate in bytes
+ * @return Pointer to allocated memory, or NULL on failure
+ */
+void* cfl_heap_malloc_pointer(volatile CflHeap* heap, uint16_t size_bytes);
+
+/**
+ * @brief Free memory block by pointer
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param ptr Pointer to memory block
+ */
+void cfl_heap_free_pointer(volatile CflHeap* heap, void* ptr);
+
+/**
+ * @brief Arena allocation with node tracking and custom alignment
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param requesting_node_id ID of requesting node/component
+ * @param size_bytes Size to allocate in bytes
+ * @param alignment Alignment requirement (must be power of 2)
+ * @return Index to aligned allocated memory, or INVALID_HEAP_IDX on failure
+ */
+uint16_t cfl_heap_arena_alloc_aligned(volatile CflHeap* heap, uint16_t requesting_node_id, 
                                        uint16_t size_bytes, uint16_t alignment);
 
-/* Diagnostics */
-uint16_t cfl_heap_used_bytes(CflHeap* heap);
-uint16_t cfl_heap_free_bytes(CflHeap* heap);
-void     cfl_heap_get_stats(CflHeap* heap, CflHeapStats* stats);
-void     cfl_heap_dump_stats(CflHeap* heap);
+/**
+ * @brief Get currently used bytes
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @return Number of bytes currently allocated
+ */
+uint16_t cfl_heap_used_bytes(volatile CflHeap* heap);
 
-/* Validation */
-bool     cfl_heap_validate(CflHeap* heap);
-void     cfl_heap_walk(CflHeap* heap, void (*callback)(void* block_ptr, uint16_t size, bool allocated, uint16_t node_id));
+/**
+ * @brief Get available free bytes
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @return Number of bytes currently free
+ */
+uint16_t cfl_heap_free_bytes(volatile CflHeap* heap);
 
-/* Get node ID of allocated block */
-uint16_t cfl_heap_get_node_id(CflHeap* heap, uint16_t idx);
+/**
+ * @brief Get heap statistics
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param stats Pointer to stats structure to fill (accepts volatile)
+ */
+void cfl_heap_get_stats(volatile CflHeap* heap, volatile CflHeapStats* stats);
+
+/**
+ * @brief Update and store heap statistics
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ */
+void cfl_heap_dump_stats(volatile CflHeap* heap);
+
+/**
+ * @brief Validate heap integrity
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @return true if heap is valid, false if corrupted
+ */
+bool cfl_heap_validate(volatile CflHeap* heap);
+
+/**
+ * @brief Walk through all heap blocks
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param callback Function to call for each block
+ */
+void cfl_heap_walk(volatile CflHeap* heap, 
+                   void (*callback)(void* block_ptr, uint16_t size, bool allocated, uint16_t node_id));
+
+/**
+ * @brief Get node ID of allocated block
+ * 
+ * @param heap Pointer to heap (accepts volatile)
+ * @param idx Index to memory block
+ * @return Node ID that allocated the block, or NODE_ID_NONE
+ */
+uint16_t cfl_heap_get_node_id(volatile CflHeap* heap, uint16_t idx);
 
 /* Helper macros */
 #define CFL_HEAP_TOTAL_SIZE(buffer_size) \
