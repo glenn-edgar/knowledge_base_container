@@ -17,7 +17,7 @@ def first_test(ct,kb_name):
     
     terminate_engine_column = ct.define_column(column_name="terminate_engine", column_data=None, auto_start=True)
     ct.asm_log_message("waiting time 12 seconds to terminate engine")
-    ct.asm_wait_time(time_delay=12)
+    ct.asm_wait_time(time_delay=12.)
     ct.asm_log_message("terminating engine")
     ct.asm_terminate_system()
     ct.end_column(column_name=terminate_engine_column)
@@ -33,7 +33,7 @@ def first_test(ct,kb_name):
     
     reset_node_column = ct.define_column(column_name="reset_node", column_data=None, auto_start=True)
     ct.asm_log_message("waiting 2 seconds to reset node")
-    ct.asm_wait_time(time_delay=2)
+    ct.asm_wait_time(time_delay=2.)
     ct.asm_log_message("sending system event")
     #ct.asm_send_system_event("WAIT_FOR_EVENT",event_data={})
     #sending an event to a column link or leaf node
@@ -53,7 +53,7 @@ def first_test(ct,kb_name):
     
     verify_timeout_column = ct.define_column(column_name="verify_timeout", column_data=None, auto_start=True)
     ct.asm_log_message("verifying timeout")
-    ct.asm_verify_timeout(time_out=5,reset_flag=False,error_fn="VERIFY_ERROR",error_data={"failure_data":"failure_data"})
+    ct.asm_verify_timeout(time_out=5.,reset_flag=False,error_fn="VERIFY_ERROR",error_data={"failure_data":"failure_data"})
     ct.asm_log_message("waiting for verify timeout to fail which will result in a terminate column")
     ct.asm_halt()
     ct.end_column(column_name=verify_timeout_column)

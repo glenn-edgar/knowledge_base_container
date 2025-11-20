@@ -58,7 +58,7 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle){
      if(cfl_engine_node_is_enabled(handle, node_index) == false) {
         return false;
      }
-     printf("cfl_execute_event node count: %d\n", handle->flash_handle->node_count);
+     
      handle->cfl_engine_flag = true;
      handle->cfl_node_execution_count = 0;
      ct_walker_walk(
@@ -70,7 +70,7 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle){
         handle->walker->max_level,
         handle->flash_handle->node_count
     );
-    return false;
+    return handle->cfl_engine_flag;
 }
 
 
@@ -85,15 +85,18 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
     const one_shot_function_t one_shot_function = handle->flash_handle->one_shot_functions[node->init_function_index];
     const boolean_function_t boolean_function = handle->flash_handle->boolean_functions[node->aux_function_index];
  
-   
-    printf("cfl_execute_node node index: %d\n", node_id);
+   printf("cfl_execute_node: node_id: %d\n", node_id);
+   if(cfl_engine_node_is_enabled(handle, node_id) == false) {
+    return CT_CONTINUE;
+   }
+
     
     if (cfl_engine_node_is_initialized(handle, node_id) == false) {
     
         if (node->init_function_index != 0) {
             one_shot_function(handle, node_id);
         }
-        printf("aux_function_index: %d\n", node->aux_function_index);
+
         if (node->aux_function_index != 0) {
             boolean_function(handle, node_id, handle->event_data_ptr->event_type,
                                             handle->event_data_ptr->event_id, (void*)handle->event_data_ptr->data.ptr);
@@ -114,12 +117,13 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
             return CT_CONTINUE;
 
         case CFL_HALT:
+        
             return CT_STOP_SIBLINGS;
         
         case CFL_RESET:
             cfl_terminate_node_tree(handle, node->parent_index);
             cfl_reset_node_id(handle, node->parent_index);
-            return CT_STOP_SIBLINGS;
+            return CT_STOP_LEVEL;
 
         case CFL_DISABLE:
             cfl_terminate_node_tree(handle, node_id);
@@ -132,12 +136,14 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
             if (node->parent_index != 0xffff){
                 cfl_terminate_node_tree(handle, node->parent_index);
                 handle->cfl_engine_flag = true;
-                handle->cfl_node_execution_count = 0;
-                printf("cfl_execute_node: terminate node tree parent index: %d\n", node->parent_index);
+                
+                
             
                 return CT_STOP_LEVEL;
             }
+            // terminating root node  
             cfl_disable_node(handle, node_id);
+        
             return CT_STOP_ALL;
         
         case CFL_TERMINATE_SYSTEM:
@@ -218,8 +224,13 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index)
     }
     const chaintree_node_t *node = &handle->flash_handle->nodes[node_index];
     unsigned int termination_function_index = node->term_function_index;
+    unsigned int aux_function_index = node->aux_function_index;
     if (termination_function_index != 0) {
        handle->flash_handle->one_shot_functions[termination_function_index](handle, node_index);
+    }
+    if (aux_function_index != 0) {
+        handle->flash_handle->boolean_functions[aux_function_index](handle, node_index, CFL_EVENT_TYPE_NULL,CFL_TERMINATE,NULL);
+                                        
     }
     cfl_disable_node_flag(handle, node_index);
 }

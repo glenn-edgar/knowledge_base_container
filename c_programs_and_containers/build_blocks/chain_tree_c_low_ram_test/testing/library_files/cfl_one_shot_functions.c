@@ -5,7 +5,8 @@
 #include <string.h>
 #include "cfl_runtime.h"
 #include "json_node_decoder.h"
-
+#include "cfl_common_functions.h"
+#include "cfl_common_function_headers.h"
 
 
 static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
@@ -62,7 +63,7 @@ void cfl_column_term_one_shot_fn(void *handle, uint16_t node_index){
 
 
 void cfl_gate_node_init_one_shot_fn(void *handle, uint16_t node_index){
-    printf("cfl_gate_node_init_one_shot_fn\n");
+    
     cfl_enable_auto_start_nodes(handle, node_index);
 }
 
@@ -105,48 +106,64 @@ void cfl_send_named_event_one_shot_fn(void *handle, uint16_t node_index){
     printf("cfl_send_named_event_one_shot_fn\n");
     exit(0);
     }
+
+
+
+
+
 void cfl_verify_init_one_shot_fn(void *handle, uint16_t node_index){
 
- 
-    (void)handle;
-    (void)node_index;
-   
-    printf("cfl_verify_init_one_shot_fn\n");
-    exit(0);
-    }
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_verify_fn_data_t *ptr = (cfl_verify_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_verify_fn_data_t));
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_bool_runtime(runtime_handle, "node_dict.reset_flag", &ptr->reset_flag);
+    json_extract_int32_runtime(runtime_handle, "node_dict.error_function_id", (int32_t*)&ptr->error_function);
+    json_extract_string_runtime(runtime_handle, "node_dict.error_data.failure_data",(const char**) &ptr->failure_data);
+    ptr->auxiliary_data = NULL;
+
+}
 
 
 
 void cfl_verify_term_one_shot_fn(void *handle, uint16_t node_index){
-
- 
-    (void)handle;
-    (void)node_index;
+   (void)handle;
+   (void)node_index;
     
-    printf("cfl_verify_term_one_shot_fn\n");
-    exit(0);
-    }
-void cfl_wait_init_one_shot_fn(void *handle, uint16_t node_index){
+}
 
-  
-    (void)handle;
-    (void)node_index;
-   
-    printf("cfl_wait_init_one_shot_fn\n");
-    exit(0);
-    }
+void cfl_wait_init_one_shot_fn(void *handle, uint16_t node_index){
+    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_wait_fn_data_t *ptr = (cfl_wait_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index,
+         sizeof(cfl_wait_fn_data_t));
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_bool_runtime(runtime_handle, "node_dict.reset_flag", &ptr->reset_flag);
+    json_extract_int32_runtime(runtime_handle, "node_dict.timeout", (int32_t*)&ptr->timeout);
+    json_extract_int32_runtime(runtime_handle, "node_dict.time_out_event", (int32_t*)&ptr->time_out_event);
+    json_extract_string_runtime(runtime_handle, "node_dict.error_data.error_message",(const char**) &ptr->error_message);
+    json_extract_int32_runtime(runtime_handle, "node_dict.error_function_id", (int32_t*)&ptr->error_function);
+    ptr->event_count = 0;
+    ptr->auxiliary_data = NULL;
+}
+
+
 void cfl_wait_term_one_shot_fn(void *handle, uint16_t node_index){
 
+
     (void)handle;
     (void)node_index;
 
-    printf("cfl_wait_term_one_shot_fn\n");
-    exit(0);
+
 }
 
 void cfl_wait_time_init_one_shot_fn(void *handle, uint16_t node_index){
-    (void)handle;
-    (void)node_index;
-    printf("cfl_wait_time_init_one_shot_fn\n");
-    exit(0);
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    float time_delay;
+
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_float32_runtime(runtime_handle, "node_dict.time_delay", &time_delay);
+    cfl_wait_time_out_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_wait_time_out_data_t));
+    ptr->wait_time_out = (double)time_delay+cfl_timer_get_timestamp(runtime_handle->timer_handle);
+   
 }

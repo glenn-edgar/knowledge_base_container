@@ -16,7 +16,6 @@ class VerifyCfLinks(ColumnFlow):
         element_data = {}
         element_data["fn_data"] = fn_data
         element_data["reset_flag"] = reset_flag    
-        element_data["fn"] = verify_fn
         element_data["error_function"] = error_fn
         if error_fn != None:
             self.ctb.add_one_shot_function(error_fn)

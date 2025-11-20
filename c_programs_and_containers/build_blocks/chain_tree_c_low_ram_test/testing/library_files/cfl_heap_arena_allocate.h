@@ -57,7 +57,7 @@ void cfl_heap_arena_set_node_allocator(volatile CflHeapArenaSystem* sys, uint16_
 /* Allocation from arena system */
 void* cfl_arena_system_alloc(volatile CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes);
 void* cfl_arena_system_alloc_aligned(volatile CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes, uint8_t alignment);
-
+void* cfl_heap_arena_get_node_ptr(volatile CflHeapArenaSystem* sys, uint16_t node_id);
 /* Node array accessors */
 cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id(volatile CflHeapArenaSystem* sys, uint16_t node_id);
 void cfl_heap_arena_set_node_allocator_id(volatile CflHeapArenaSystem* sys, uint16_t node_id, cfl_heap_allocator_id_t allocator_id);

@@ -2,4 +2,4 @@
 #include "test_header_bitmasks.h"
 
 /* No bitmasks defined - empty array */
-const char *ct_aqmxq7uc_bitmask_names[1] = { NULL };
+const char *ct_41pf6syq_bitmask_names[1] = { NULL };

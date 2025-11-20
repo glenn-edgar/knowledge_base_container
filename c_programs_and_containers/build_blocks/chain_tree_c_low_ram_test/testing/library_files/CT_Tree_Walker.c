@@ -142,10 +142,18 @@
                  return ret;
              }
  
-             if (ret == CT_STOP_BRANCH || ret == CT_STOP_SIBLINGS) {
-                 stack_top--;
-                 continue;
-             }
+             if (ret == CT_STOP_BRANCH) {
+                stack_top--;
+                continue;
+            }
+            
+            if (ret == CT_STOP_SIBLINGS) {
+                stack_top--;  /* Pop current node */
+                if (stack_top >= 0) {
+                    stack_top--;  /* Pop parent too - this stops siblings */
+                }
+                continue;
+            }
  
              if (ret == CT_STOP_LEVEL) {
                  walker->max_level = current.level;

@@ -19,18 +19,19 @@ extern "C" {
 typedef enum {
     CFL_INIT_EVENT = 0,
     CFL_TERMINATE_EVENT = 1,
-    CFL_TERMINATE_SYSTEM = 2,
-    CFL_START_TESTS = 3,
-    CFL_TERMINATE_TESTS = 4,
-    CFL_TIMER_EVENT = 5,
-    CFL_SECOND_EVENT = 6,
-    CFL_MINUTE_EVENT = 7,
-    CFL_HOUR_EVENT = 8,
-    CFL_DAY_EVENT = 9,
-    CFL_WEEK_EVENT = 10,
-    CFL_MONTH_EVENT = 11,
-    CFL_YEAR_EVENT = 12
+    CFL_START_TESTS = 2,
+    CFL_TERMINATE_TESTS = 3,
+    CFL_TIMER_EVENT = 4,
+    CFL_SECOND_EVENT = 5,
+    CFL_MINUTE_EVENT = 6,
+    CFL_HOUR_EVENT = 7,
+    CFL_DAY_EVENT = 8,
+    CFL_WEEK_EVENT = 9,
+    CFL_MONTH_EVENT = 10,
+    CFL_YEAR_EVENT = 11,
 } cfl_engine_event_t;
+
+
 
 /*
   Chain Tree Main Function Return Codes

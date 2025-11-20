@@ -5,13 +5,9 @@
 #include "cfl_global_definitions.h"
 #include <stdlib.h>
 
-#ifndef PERM_ALIGNMENT 
-#define PERM_ALIGNMENT     4
-#endif
-
-#ifndef MIN_ALLOC_SIZE
-#define MIN_ALLOC_SIZE     4
-#endif
+/* Use global definitions for alignment - 8 bytes on 64-bit systems */
+#define PERM_ALIGNMENT     BLOCK_ALIGNMENT
+#define MIN_ALLOC_SIZE     MIN_BLOCK_SIZE
 
 #if defined(CFL_PERM_DEBUG)
 #include <stdio.h>
@@ -29,7 +25,7 @@ static inline uint16_t align_up(uint16_t value, uint16_t alignment) {
     if (alignment == 0 || (alignment & (alignment - 1)) != 0) {
         EXCEPTION("align_up: Alignment must be power of 2");
     }
-    return (value + alignment - 1) & ~(alignment - 1);
+    return (value + alignment - 1) & ~(uint16_t)(alignment - 1);
 }
 
 static inline bool is_power_of_2(uint16_t value) {
@@ -196,16 +192,16 @@ uint16_t cfl_perm_alloc_aligned(volatile CflPerm* perm, uint16_t size_bytes, uin
         EXCEPTION("cfl_perm_alloc_aligned: Alignment must be power of 2");
     }
     
-    /* Align size */
+    /* Align size to PERM_ALIGNMENT (8 bytes on 64-bit) */
     size_bytes = align_up(size_bytes, PERM_ALIGNMENT);
     
     if (size_bytes < MIN_ALLOC_SIZE) {
         size_bytes = MIN_ALLOC_SIZE;
     }
     
-    /* Calculate aligned position */
+    /* Calculate aligned position - align the absolute address */
     uintptr_t current_addr = (uintptr_t)(perm->pool + perm->used);
-    uintptr_t aligned_addr = (current_addr + alignment - 1) & ~(uintptr_t)(alignment - 1);
+    uintptr_t aligned_addr = (current_addr + (uintptr_t)(alignment - 1)) & ~(uintptr_t)(alignment - 1);
     uint16_t padding = (uint16_t)(aligned_addr - current_addr);
     
     uint16_t total_needed = padding + size_bytes;

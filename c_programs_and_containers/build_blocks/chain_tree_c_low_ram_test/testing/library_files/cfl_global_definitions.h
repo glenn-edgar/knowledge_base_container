@@ -5,6 +5,6 @@
 #define BLOCK_ALIGNMENT 8
 #define MIN_BLOCK_SIZE 8
 #define ARENA_ALIGNMENT 8
-
+#define JSON_DEBUG 1
 
 #endif

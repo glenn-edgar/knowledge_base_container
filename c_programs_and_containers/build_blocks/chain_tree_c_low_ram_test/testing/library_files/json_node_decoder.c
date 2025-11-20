@@ -1,7 +1,7 @@
 /* ============================================================================
  * json_node_decoder.c - Implementation
  * ============================================================================ */
-
+ #include "cfl_global_definitions.h"
  #include "json_node_decoder.h"
  #include <string.h>
  #include <stdio.h>
@@ -214,60 +214,112 @@
   * Low-Level Navigation Functions Implementation
   * ============================================================================ */
  
- void json_find_object_child(
-     const volatile json_decoder_ctx_t *ctx,
-     uint32_t parent_record,
-     const char *key,
-     uint32_t *out_record)
- {
-     if (!ctx) {
-         EXCEPTION("json_find_object_child: NULL context");
-     }
-     
-     if (!key) {
-         EXCEPTION("json_find_object_child: NULL key");
-     }
-     
-     if (!out_record) {
-         EXCEPTION("json_find_object_child: NULL output pointer");
-     }
-     
-     const json_record_t *parent = json_get_record(ctx, parent_record);
-     if (!parent) {
-         EXCEPTION("json_find_object_child: Invalid parent record");
-     }
-     
-     if (parent->object_type != JSON_TYPE_OBJECT) {
-         EXCEPTION("json_find_object_child: Parent is not an object");
-     }
-     
-     uint32_t child_count = parent->value.container_count;
-     uint32_t first_child = parent_record + 1;
-     
-     // In jsmn format: children alternate key (STRING), value, key, value
-     // So we iterate by pairs (i += 2)
-     for (uint32_t i = 0; i < child_count; i += 2) {
-         uint32_t key_idx = first_child + i;
-         uint32_t value_idx = first_child + i + 1;
-         
-         if (value_idx >= ctx->records_count) {
-             break;
-         }
-         
-         const json_record_t *key_record = json_get_record(ctx, key_idx);
-         if (!key_record || key_record->object_type != JSON_TYPE_STRING) {
-             continue;
-         }
-         
-         const char *key_str = json_get_string(ctx, key_record->value.string_offset);
-         if (key_str && strcmp(key_str, key) == 0) {
-             *out_record = value_idx;
-             return;
-         }
-     }
-     
-     EXCEPTION("json_find_object_child: Key not found");
- }
+/**
+ * Calculate subtree size (needed for navigation)
+ */
+ static uint32_t json_calc_subtree_size(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t record_idx)
+{
+    const json_record_t *record = json_get_record(ctx, record_idx);
+    if (!record) {
+        return 1;
+    }
+    
+    uint32_t size = 1; // Count this record
+    
+    if (record->object_type == JSON_TYPE_OBJECT || record->object_type == JSON_TYPE_ARRAY) {
+        uint32_t child_idx = record_idx + 1;
+        
+        if (record->object_type == JSON_TYPE_OBJECT) {
+            // For objects: iterate through key-value pairs
+            // container_count is total children (keys + values)
+            for (uint32_t i = 0; i < record->value.container_count; i += 2) {
+                // Key (always 1 record)
+                size += 1;
+                child_idx += 1;
+                
+                // Value (recursive)
+                uint32_t value_size = json_calc_subtree_size(ctx, child_idx);
+                size += value_size;
+                child_idx += value_size;
+            }
+        } else {
+            // For arrays: iterate through elements
+            for (uint32_t i = 0; i < record->value.container_count; i++) {
+                uint32_t elem_size = json_calc_subtree_size(ctx, child_idx);
+                size += elem_size;
+                child_idx += elem_size;
+            }
+        }
+    }
+    
+    return size;
+}
+
+void json_find_object_child(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t parent_record,
+    const char *key,
+    uint32_t *out_record)
+{
+    if (!ctx) {
+        EXCEPTION("json_find_object_child: NULL context");
+    }
+    
+    if (!key) {
+        EXCEPTION("json_find_object_child: NULL key");
+    }
+    
+    if (!out_record) {
+        EXCEPTION("json_find_object_child: NULL output pointer");
+    }
+    
+    const json_record_t *parent = json_get_record(ctx, parent_record);
+    if (!parent) {
+        EXCEPTION("json_find_object_child: Invalid parent record");
+    }
+    
+    if (parent->object_type != JSON_TYPE_OBJECT) {
+        EXCEPTION("json_find_object_child: Parent is not an object");
+    }
+    
+    uint32_t container_count = parent->value.container_count;
+    uint32_t child_idx = parent_record + 1;
+    
+    // container_count is total children (keys + values)
+    // Iterate through key-value pairs (i += 2)
+    for (uint32_t i = 0; i < container_count; i += 2) {
+        // Get key record
+        const json_record_t *key_record = json_get_record(ctx, child_idx);
+        if (!key_record || key_record->object_type != JSON_TYPE_STRING) {
+            // Skip malformed pair
+            child_idx += 1; // Skip key
+            if (i + 1 < container_count) {
+                uint32_t val_size = json_calc_subtree_size(ctx, child_idx);
+                child_idx += val_size; // Skip value
+            }
+            continue;
+        }
+        
+        // Check if this is the key we're looking for
+        const char *key_str = json_get_string(ctx, key_record->value.string_offset);
+        if (key_str && strcmp(key_str, key) == 0) {
+            // Found it! Return the value record index
+            *out_record = child_idx + 1;
+            return;
+        }
+        
+        // Not the right key, skip to next pair
+        child_idx += 1; // Skip key (always 1 record)
+        
+        // Skip value (may be multiple records if nested)
+        uint32_t value_size = json_calc_subtree_size(ctx, child_idx);
+        child_idx += value_size;
+    }
+    
+    EXCEPTION("json_find_object_child: Key not found");
+}
  
  void json_get_array_child(
      const volatile json_decoder_ctx_t *ctx,
@@ -423,11 +475,15 @@
          EXCEPTION("json_get_int32: Invalid record index");
      }
      
-     if (record->object_type != JSON_TYPE_INT32) {
-         EXCEPTION("json_get_int32: Type mismatch - expected INT32");
+     // Accept both INT32 and FLOAT32, converting as needed
+     if (record->object_type == JSON_TYPE_INT32) {
+         *out = record->value.i32_value;
+     } else if (record->object_type == JSON_TYPE_FLOAT32) {
+         // Convert float to int32 using truncation (toward zero)
+         *out = (int32_t)record->value.f32_value;
+     } else {
+         EXCEPTION("json_get_int32: Type mismatch - expected INT32 or FLOAT32");
      }
-     
-     *out = record->value.i32_value;
  }
  
  void json_get_float32(
@@ -448,11 +504,15 @@
          EXCEPTION("json_get_float32: Invalid record index");
      }
      
-     if (record->object_type != JSON_TYPE_FLOAT32) {
-         EXCEPTION("json_get_float32: Type mismatch - expected FLOAT32");
+     // Accept both FLOAT32 and INT32, converting as needed
+     if (record->object_type == JSON_TYPE_FLOAT32) {
+         *out = record->value.f32_value;
+     } else if (record->object_type == JSON_TYPE_INT32) {
+         // Convert int32 to float
+         *out = (float)record->value.i32_value;
+     } else {
+         EXCEPTION("json_get_float32: Type mismatch - expected FLOAT32 or INT32");
      }
-     
-     *out = record->value.f32_value;
  }
  
  void json_get_bool(
@@ -649,108 +709,311 @@
   * Debug Functions Implementation
   * ============================================================================ */
  
- #ifdef JSON_DEBUG
- 
- const char *json_type_to_string(json_type_t type) {
-     switch (type) {
-         case JSON_TYPE_STRING:  return "string";
-         case JSON_TYPE_INT32:   return "int32";
-         case JSON_TYPE_FLOAT32: return "float32";
-         case JSON_TYPE_NULL:    return "null";
-         case JSON_TYPE_BOOL:    return "bool";
-         case JSON_TYPE_ARRAY:   return "array";
-         case JSON_TYPE_OBJECT:  return "object";
-         default:                return "invalid";
-     }
- }
- 
- void json_print_record(
-     const volatile json_decoder_ctx_t *ctx,
-     uint32_t record_idx,
-     int indent_level)
- {
-     const json_record_t *record = json_get_record(ctx, record_idx);
-     if (!record) {
-         printf("Invalid record %u\n", record_idx);
-         return;
-     }
-     
-     for (int i = 0; i < indent_level; i++) {
-         printf("  ");
-     }
-     
-     printf("[%u] %s: ", record_idx, json_type_to_string(record->object_type));
-     
-     switch (record->object_type) {
-         case JSON_TYPE_NULL:
-             printf("null\n");
-             break;
-             
-         case JSON_TYPE_BOOL:
-             printf("%s\n", record->value.bool_value ? "true" : "false");
-             break;
-             
-         case JSON_TYPE_INT32:
-             printf("%d\n", record->value.i32_value);
-             break;
-             
-         case JSON_TYPE_FLOAT32:
-             printf("%f\n", record->value.f32_value);
-             break;
-             
-         case JSON_TYPE_STRING:
-             printf("\"%s\"\n", json_get_string(ctx, record->value.string_offset));
-             break;
-             
-         case JSON_TYPE_OBJECT:
-             printf("{ count=%u\n", record->value.container_count);
-             // Print key-value pairs
-             for (uint32_t i = 0; i < record->value.container_count; i += 2) {
-                 uint32_t key_idx = record_idx + 1 + i;
-                 uint32_t val_idx = record_idx + 1 + i + 1;
-                 
-                 for (int j = 0; j < indent_level + 1; j++) printf("  ");
-                 
-                 const json_record_t *key_rec = json_get_record(ctx, key_idx);
-                 if (key_rec && key_rec->object_type == JSON_TYPE_STRING) {
-                     printf("\"%s\": ", json_get_string(ctx, key_rec->value.string_offset));
-                 }
-                 
-                 json_print_record(ctx, val_idx, 0);
-             }
-             for (int i = 0; i < indent_level; i++) printf("  ");
-             printf("}\n");
-             break;
-             
-         case JSON_TYPE_ARRAY:
-             printf("[ count=%u\n", record->value.container_count);
-             for (uint32_t i = 0; i < record->value.container_count; i++) {
-                 json_print_record(ctx, record_idx + 1 + i, indent_level + 1);
-             }
-             for (int i = 0; i < indent_level; i++) printf("  ");
-             printf("]\n");
-             break;
-     }
- }
- 
- void json_print_control_region(
-     const volatile json_decoder_ctx_t *ctx,
-     uint32_t control_idx)
- {
-     if (!ctx) return;
-     
-     if (control_idx >= ctx->controls_count) {
-         printf("Invalid control index %u\n", control_idx);
-         return;
-     }
-     
-     const record_control_t *control = &ctx->controls[control_idx];
-     
-     printf("=== Control Region %u ===\n", control_idx);
-     printf("Start position: %u\n", control->start_position);
-     printf("Num records: %u\n\n", control->num_records);
-     
-     json_print_record(ctx, control->start_position, 0);
- }
- 
- #endif /* JSON_DEBUG */
+ /* ============================================================================
+ * Enhanced Debug Functions for Node Data Printing
+ * ============================================================================ */
+
+/* ============================================================================
+ * Debug Functions Implementation
+ * ============================================================================ */
+
+ /* ============================================================================
+ * Debug Functions Implementation
+ * ============================================================================ */
+
+/* ============================================================================
+ * Debug Functions Implementation
+ * ============================================================================ */
+
+ /* ============================================================================
+ * Debug Functions Implementation
+ * ============================================================================ */
+
+#ifdef JSON_DEBUG
+
+/**
+ * Calculate the total size (number of records) in a subtree
+ * This is needed to properly skip over nested structures
+ */
+static uint32_t json_get_subtree_size(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t record_idx)
+{
+    const json_record_t *record = json_get_record(ctx, record_idx);
+    if (!record) {
+        return 1;
+    }
+    
+    uint32_t size = 1; // Count this record
+    
+    if (record->object_type == JSON_TYPE_OBJECT || record->object_type == JSON_TYPE_ARRAY) {
+        // For containers, all children follow sequentially
+        uint32_t child_idx = record_idx + 1;
+        
+        if (record->object_type == JSON_TYPE_OBJECT) {
+            // For objects: count is number of children (keys + values)
+            // Iterate through pairs
+            for (uint32_t i = 0; i < record->value.container_count; i += 2) {
+                // Key (always 1 record)
+                size += 1;
+                child_idx += 1;
+                
+                // Value (recursive)
+                uint32_t value_size = json_get_subtree_size(ctx, child_idx);
+                size += value_size;
+                child_idx += value_size;
+            }
+        } else {
+            // For arrays: iterate through elements
+            for (uint32_t i = 0; i < record->value.container_count; i++) {
+                uint32_t elem_size = json_get_subtree_size(ctx, child_idx);
+                size += elem_size;
+                child_idx += elem_size;
+            }
+        }
+    }
+    
+    return size;
+}
+
+const char *json_type_to_string(json_type_t type) {
+    switch (type) {
+        case JSON_TYPE_STRING:  return "string";
+        case JSON_TYPE_INT32:   return "int32";
+        case JSON_TYPE_FLOAT32: return "float32";
+        case JSON_TYPE_NULL:    return "null";
+        case JSON_TYPE_BOOL:    return "bool";
+        case JSON_TYPE_ARRAY:   return "array";
+        case JSON_TYPE_OBJECT:  return "object";
+        default:                return "invalid";
+    }
+}
+
+void json_print_record(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t record_idx,
+    int indent_level)
+{
+    const json_record_t *record = json_get_record(ctx, record_idx);
+    if (!record) {
+        printf("Invalid record %u\n", record_idx);
+        return;
+    }
+    
+    for (int i = 0; i < indent_level; i++) {
+        printf("  ");
+    }
+    
+    printf("[%u] %s: ", record_idx, json_type_to_string(record->object_type));
+    
+    switch (record->object_type) {
+        case JSON_TYPE_NULL:
+            printf("null\n");
+            break;
+            
+        case JSON_TYPE_BOOL:
+            printf("%s\n", record->value.bool_value ? "true" : "false");
+            break;
+            
+        case JSON_TYPE_INT32:
+            printf("%d\n", record->value.i32_value);
+            break;
+            
+        case JSON_TYPE_FLOAT32:
+            printf("%f\n", record->value.f32_value);
+            break;
+            
+        case JSON_TYPE_STRING:
+            printf("\"%s\"\n", json_get_string(ctx, record->value.string_offset));
+            break;
+            
+        case JSON_TYPE_OBJECT: {
+            printf("{ count=%u\n", record->value.container_count);
+            
+            // Track actual record position, don't rely on loop counter
+            uint32_t child_idx = record_idx + 1;
+            
+            // container_count is total number of children (keys + values)
+            // Iterate in pairs: key, value, key, value...
+            for (uint32_t i = 0; i < record->value.container_count; i += 2) {
+                // Print indentation
+                for (int j = 0; j < indent_level + 1; j++) printf("  ");
+                
+                // Print key
+                const json_record_t *key_rec = json_get_record(ctx, child_idx);
+                if (key_rec && key_rec->object_type == JSON_TYPE_STRING) {
+                    printf("\"%s\": ", json_get_string(ctx, key_rec->value.string_offset));
+                } else {
+                    printf("???: ");
+                }
+                child_idx += 1; // Keys are always single string records
+                
+                // Print value
+                const json_record_t *val_rec = json_get_record(ctx, child_idx);
+                if (val_rec) {
+                    // For complex types, print on new line with indentation
+                    if (val_rec->object_type == JSON_TYPE_OBJECT || 
+                        val_rec->object_type == JSON_TYPE_ARRAY) {
+                        printf("\n");
+                        json_print_record(ctx, child_idx, indent_level + 1);
+                    } else {
+                        // For simple types, print inline
+                        switch (val_rec->object_type) {
+                            case JSON_TYPE_NULL:
+                                printf("null\n");
+                                break;
+                            case JSON_TYPE_BOOL:
+                                printf("%s\n", val_rec->value.bool_value ? "true" : "false");
+                                break;
+                            case JSON_TYPE_INT32:
+                                printf("%d\n", val_rec->value.i32_value);
+                                break;
+                            case JSON_TYPE_FLOAT32:
+                                printf("%f\n", val_rec->value.f32_value);
+                                break;
+                            case JSON_TYPE_STRING:
+                                printf("\"%s\"\n", json_get_string(ctx, val_rec->value.string_offset));
+                                break;
+                            default:
+                                printf("???\n");
+                                break;
+                        }
+                    }
+                    
+                    // Advance past the entire value subtree
+                    uint32_t value_size = json_get_subtree_size(ctx, child_idx);
+                    child_idx += value_size;
+                } else {
+                    printf("(invalid)\n");
+                    child_idx += 1;
+                }
+            }
+            
+            // Closing brace
+            for (int i = 0; i < indent_level; i++) printf("  ");
+            printf("}\n");
+            break;
+        }
+            
+        case JSON_TYPE_ARRAY: {
+            printf("[ count=%u\n", record->value.container_count);
+            
+            uint32_t elem_idx = record_idx + 1;
+            for (uint32_t i = 0; i < record->value.container_count; i++) {
+                json_print_record(ctx, elem_idx, indent_level + 1);
+                uint32_t elem_size = json_get_subtree_size(ctx, elem_idx);
+                elem_idx += elem_size;
+            }
+            
+            // Closing bracket
+            for (int i = 0; i < indent_level; i++) printf("  ");
+            printf("]\n");
+            break;
+        }
+    }
+}
+
+void json_print_control_region(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t control_idx)
+{
+    if (!ctx) return;
+    
+    if (control_idx >= ctx->controls_count) {
+        printf("Invalid control index %u\n", control_idx);
+        return;
+    }
+    
+    const record_control_t *control = &ctx->controls[control_idx];
+    
+    printf("=== Control Region %u ===\n", control_idx);
+    printf("Start position: %u\n", control->start_position);
+    printf("Num records: %u\n\n", control->num_records);
+    
+    json_print_record(ctx, control->start_position, 0);
+}
+
+void json_print_node_data(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t node_data_id)
+{
+    if (!ctx) {
+        printf("json_print_node_data: NULL context\n");
+        return;
+    }
+    
+    if (node_data_id >= ctx->controls_count) {
+        printf("json_print_node_data: Invalid node_data_id %u (max %u)\n", 
+               node_data_id, ctx->controls_count);
+        return;
+    }
+    
+    const record_control_t *control = &ctx->controls[node_data_id];
+    
+    printf("=== Node Data ID: %u ===\n", node_data_id);
+    printf("Start position: %u\n", control->start_position);
+    printf("Num records: %u\n", control->num_records);
+    printf("\nJSON Structure:\n");
+    
+    json_print_record(ctx, control->start_position, 0);
+}
+
+void json_print_node_data_runtime(
+    const cfl_runtime_handle_t *runtime,
+    uint32_t node_index)
+{
+    if (!runtime) {
+        printf("json_print_node_data_runtime: NULL runtime\n");
+        return;
+    }
+    
+    if (!runtime->json_decoder_ctx) {
+        printf("json_print_node_data_runtime: NULL json_decoder_ctx\n");
+        return;
+    }
+    
+    if (!runtime->flash_handle) {
+        printf("json_print_node_data_runtime: NULL flash_handle\n");
+        return;
+    }
+    
+    if (node_index >= runtime->flash_handle->node_count) {
+        printf("json_print_node_data_runtime: Invalid node_index %u (max %u)\n",
+               node_index, runtime->flash_handle->node_count);
+        return;
+    }
+    
+    const chaintree_node_t *node = &runtime->flash_handle->nodes[node_index];
+    uint32_t node_data_id = node->node_data_id;
+    
+    printf("=== Node Index: %u, Node Data ID: %u ===\n", node_index, node_data_id);
+    
+    json_print_node_data(runtime->json_decoder_ctx, node_data_id);
+}
+
+void json_print_current_node_data(
+    const cfl_runtime_handle_t *runtime)
+{
+    if (!runtime) {
+        printf("json_print_current_node_data: NULL runtime\n");
+        return;
+    }
+    
+    if (!runtime->json_decoder_ctx) {
+        printf("json_print_current_node_data: NULL json_decoder_ctx\n");
+        return;
+    }
+    
+    const volatile json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    
+    if (ctx->current_control_idx >= ctx->controls_count) {
+        printf("json_print_current_node_data: Invalid current_control_idx %u\n",
+               ctx->current_control_idx);
+        return;
+    }
+    
+    printf("=== Current Active Node Data ===\n");
+    json_print_node_data(ctx, ctx->current_control_idx);
+}
+
+#endif /* JSON_DEBUG */

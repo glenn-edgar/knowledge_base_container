@@ -286,30 +286,43 @@ uint16_t cfl_heap_malloc(volatile CflHeap* heap, uint16_t size_bytes) {
             EXCEPTION("cfl_heap_malloc: Heap corruption detected");
         }
         
-        if (!is_allocated(block) && block->size >= size_bytes) {
-            /* Check if we should split this block */
-            uint16_t remainder = block->size - size_bytes;
-            if (remainder >= HEADER_SIZE + MIN_BLOCK_SIZE + FOOTER_SIZE) {
-                /* Split block */
-                BlockHeader* new_block = (BlockHeader*)((uint8_t*)block + HEADER_SIZE + size_bytes + FOOTER_SIZE);
-                new_block->magic = BLOCK_MAGIC_FREE;
-                new_block->size = remainder - HEADER_SIZE - FOOTER_SIZE;
-                new_block->flags = 0;
-                new_block->node_id = NODE_ID_NONE;
-                new_block->padding = 0;
-                set_footer(new_block);
+        if (!is_allocated(block)) {
+            /* Calculate where aligned data would start */
+            uint8_t* block_data_start = (uint8_t*)block + HEADER_SIZE;
+            uintptr_t data_addr = (uintptr_t)block_data_start;
+            uintptr_t aligned_addr = (data_addr + BLOCK_ALIGNMENT - 1) & ~(uintptr_t)(BLOCK_ALIGNMENT - 1);
+            uint16_t padding = (uint16_t)(aligned_addr - data_addr);
+            
+            /* Total size needed includes padding and the requested size */
+            uint16_t total_needed = padding + size_bytes;
+            
+            if (block->size >= total_needed) {
+                /* Check if we should split this block */
+                uint16_t remainder = block->size - total_needed;
+                if (remainder >= HEADER_SIZE + MIN_BLOCK_SIZE + FOOTER_SIZE) {
+                    /* Split block */
+                    BlockHeader* new_block = (BlockHeader*)((uint8_t*)block + HEADER_SIZE + total_needed + FOOTER_SIZE);
+                    new_block->magic = BLOCK_MAGIC_FREE;
+                    new_block->size = remainder - HEADER_SIZE - FOOTER_SIZE;
+                    new_block->flags = 0;
+                    new_block->node_id = NODE_ID_NONE;
+                    new_block->padding = 0;
+                    set_footer(new_block);
+                    
+                    block->size = total_needed;
+                }
                 
-                block->size = size_bytes;
+                block->padding = padding;
+                mark_allocated(block, NODE_ID_NONE);
+                set_footer(block);
+                
+                local_heap->stats.total_allocations++;
+                update_stats(local_heap);
+                
+                /* Return index to the ALIGNED data pointer */
+                void* aligned_ptr = (void*)aligned_addr;
+                return ptr_to_idx(local_heap, aligned_ptr);
             }
-            
-            block->padding = 0;  /* No padding for standard malloc */
-            mark_allocated(block, NODE_ID_NONE);
-            set_footer(block);
-            
-            local_heap->stats.total_allocations++;
-            update_stats(local_heap);
-            
-            return ptr_to_idx(local_heap, block_to_data_ptr(block));
         }
         
         block = get_next_block(local_heap, block);

@@ -118,6 +118,7 @@
  
  /**
   * Extract int32 value by path from current active node
+  * Accepts both INT32 and FLOAT32 types (float converted via truncation)
   * 
   * @param runtime Runtime handle
   * @param path Dot-separated path (e.g., "node_dict.timeout")
@@ -132,6 +133,7 @@
  
  /**
   * Extract float32 value by path from current active node
+  * Accepts both FLOAT32 and INT32 types (int converted to float)
   */
  void json_extract_float32_runtime(
      const cfl_runtime_handle_t *runtime,
@@ -157,6 +159,12 @@
      const char *path,
      const char **out
  );
+
+ void json_extract_type_runtime(
+     const cfl_runtime_handle_t *runtime,
+     const char *path,
+     json_type_t *out
+ );
  
  /* ============================================================================
   * Path-Based Extraction API (Lower-Level Interface)
@@ -164,6 +172,7 @@
  
  /**
   * Extract int32 value by path
+  * Accepts both INT32 and FLOAT32 types (float converted via truncation)
   * 
   * @param ctx Decoder context
   * @param root_record Starting record index (typically control->start_position)
@@ -180,6 +189,7 @@
  
  /**
   * Extract float32 value by path
+  * Accepts both FLOAT32 and INT32 types (int converted to float)
   */
  void json_extract_float32(
      const volatile json_decoder_ctx_t *ctx,
@@ -269,6 +279,7 @@
  
  /**
   * Get int32 value from record
+  * Accepts both INT32 and FLOAT32 types (float converted via truncation)
   * Uses EXCEPTION for type mismatch
   */
  void json_get_int32(
@@ -279,6 +290,7 @@
  
  /**
   * Get float32 value from record
+  * Accepts both FLOAT32 and INT32 types (int converted to float)
   */
  void json_get_float32(
      const volatile json_decoder_ctx_t *ctx,
@@ -348,20 +360,47 @@
   * Debug Functions
   * ============================================================================ */
  
- #ifdef JSON_DEBUG
- const char *json_type_to_string(json_type_t type);
- 
- void json_print_record(
-     const volatile json_decoder_ctx_t *ctx,
-     uint32_t record_idx,
-     int indent_level
- );
- 
- void json_print_control_region(
-     const volatile json_decoder_ctx_t *ctx,
-     uint32_t control_idx
- );
- #endif
+ /* ============================================================================
+ * Debug Functions
+ * ============================================================================ */
+
+#ifdef JSON_DEBUG
+const char *json_type_to_string(json_type_t type);
+
+void json_print_record(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t record_idx,
+    int indent_level
+);
+
+void json_print_control_region(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t control_idx
+);
+
+/**
+ * Print JSON structure starting from node_data_id
+ */
+void json_print_node_data(
+    const volatile json_decoder_ctx_t *ctx,
+    uint32_t node_data_id
+);
+
+/**
+ * Print JSON structure for a specific node using runtime handle
+ */
+void json_print_node_data_runtime(
+    const cfl_runtime_handle_t *runtime,
+    uint32_t node_index
+);
+
+/**
+ * Print JSON structure for currently active node
+ */
+void json_print_current_node_data(
+    const cfl_runtime_handle_t *runtime
+);
+#endif
  
  #ifdef __cplusplus
  }

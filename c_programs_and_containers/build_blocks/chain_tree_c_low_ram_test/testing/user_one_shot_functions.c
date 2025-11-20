@@ -3,7 +3,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "cfl_runtime.h"
 #include "json_node_decoder.h"
+#include "cfl_common_functions.h"
+#include "cfl_common_function_headers.h"
+
 
 void activate_valve_one_shot_fn(void *handle, unsigned node_index){
     
@@ -38,8 +42,8 @@ void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index){
 }
 
 void verify_error_one_shot_fn(void *handle, unsigned node_index){
-    (void)node_index;
-    (void)handle;
-    printf("verify_error_one_shot_fn node index: %d\n", node_index);
-    exit(0);
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    cfl_verify_fn_data_t *ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr( runtime->arena_system, node_index);
+    printf("verify_error_one_shot_fn failure_data: %s\n", ptr->failure_data);
+    
 }

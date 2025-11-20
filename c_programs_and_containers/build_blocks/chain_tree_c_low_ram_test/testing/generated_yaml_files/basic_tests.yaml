@@ -123,7 +123,7 @@ kb.first_test.GATE_root._0.COL_term._1.LEAF._1:
     ltree_name: kb.first_test.GATE_root._0.COL_term._1.LEAF._1
     array_index: 7
   node_dict:
-    time_delay: 12
+    time_delay: 12.0
 kb.first_test.GATE_root._0.COL_term._1.LEAF._2:
   label: LEAF
   node_name: _2
@@ -281,7 +281,7 @@ kb.first_test.GATE_root._0.COL_rese._3.LEAF._1:
     ltree_name: kb.first_test.GATE_root._0.COL_rese._3.LEAF._1
     array_index: 17
   node_dict:
-    time_delay: 2
+    time_delay: 2.0
 kb.first_test.GATE_root._0.COL_rese._3.LEAF._2:
   label: LEAF
   node_name: _2
@@ -387,7 +387,6 @@ kb.first_test.GATE_root._0.COL_veri._4.LEAF._1:
   node_dict:
     fn_data: {}
     reset_flag: false
-    fn: CFL_BOOL_FALSE
     error_function: VERIFY_ERROR
     error_data:
       failure_data: failure_data
@@ -465,10 +464,9 @@ kb.first_test.GATE_root._0.COL_veri._5.LEAF._1:
     array_index: 29
   node_dict:
     fn_data:
-      time_out: 5
+      time_out: 5.0
       current_time: 0
     reset_flag: false
-    fn: CFL_VERIFY_TIME_OUT
     error_function: VERIFY_ERROR
     error_data:
       failure_data: failure_data

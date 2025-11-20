@@ -45,6 +45,7 @@ class JsonRecordEncoder:
             self.records.append((3, 0))  # JSON_TYPE_NULL
         
         elif isinstance(value, bool):
+            # MUST check bool before int (bool is subclass of int in Python)
             self.records.append((4, 1 if value else 0))  # JSON_TYPE_BOOL
         
         elif isinstance(value, str):
@@ -66,15 +67,17 @@ class JsonRecordEncoder:
                 self.encode_value(item)
         
         elif isinstance(value, dict):
-            self.records.append((6, len(value)))  # JSON_TYPE_OBJECT
+            # CRITICAL FIX: container_count must be total children (keys + values)
+            # For N key-value pairs, we have N keys + N values = 2*N children
+            self.records.append((6, len(value) * 2))  # JSON_TYPE_OBJECT
             for key, val in value.items():
                 key_offset = self.add_string(str(key))
                 self.records.append((0, key_offset))
                 self.encode_value(val)
         
         else:
-            raise ValueError(f"Unsupported JSON type: {type(value)}")
-    
+            raise ValueError(f"Unsupported JSON type: {type(value)} with value: {repr(value)}")
+        
     def load(self, json_string: str) -> int:
         """
         Load a JSON string and encode it. Returns record control index.
@@ -283,8 +286,10 @@ class NodeDataEncoder:
         # Format: {field_name: function_type}
         # function_type can be: 'one_shot', 'main', 'boolean'
         self.function_fields = {
-            'error_function': 'one_shot',  # Default: treat as one-shot function
-        }
+            'error_function': 'one_shot',
+            'boolean_function': 'boolean',
+           
+    }
         
     def generate_c_arrays(self, lines: List[str], unique_id: str) -> None:
         """

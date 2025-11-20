@@ -116,6 +116,7 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
             }
             cfl_pop_event(handle->event_queue, &event_data);
         }
+        printf("cfl_check_for_active_nodes: %d\n", cfl_check_for_active_nodes(handle));
         if(cfl_check_for_active_nodes(handle) == false) {
             printf("no active nodes\n");
             return false;
@@ -126,8 +127,12 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
 }
 
 static bool cfl_check_for_active_nodes(cfl_runtime_handle_t* handle){
+    printf("cfl_check_for_active_nodes: test_count: %d\n", handle->test_count);
     for(unsigned i = 0; i < handle->test_count; i++) {
+        printf("cfl_check_for_active_nodes: test_controls[i].start_index: %d\n", handle->test_controls[i].start_index);
+        printf("cfl_check_for_active_nodes: flags[0]: %d\n", handle->flags[0]);
         if(cfl_engine_node_is_enabled(handle, handle->test_controls[i].start_index)) {
+            printf("cfl_check_for_active_nodes: true\n");
             return true;
         }
     }
