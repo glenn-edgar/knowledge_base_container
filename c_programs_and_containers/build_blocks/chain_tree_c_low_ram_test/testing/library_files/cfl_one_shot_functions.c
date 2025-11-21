@@ -98,14 +98,16 @@ void cfl_log_message_one_shot_fn(void *handle, uint16_t node_index){
 }
 
 void cfl_send_named_event_one_shot_fn(void *handle, uint16_t node_index){
-
- 
-    (void)handle;
-    (void)node_index;
-   
-    printf("cfl_send_named_event_one_shot_fn\n");
-    exit(0);
-    }
+    int32_t event_id;
+    int32_t event_node_index;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_int32_runtime(runtime_handle, "node_dict.event_id", &event_id);
+    json_extract_int32_runtime(runtime_handle, "node_dict.node_id", &event_node_index);
+    cfl_send_json_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_LOW, (unsigned)event_node_index, (unsigned)event_id, node->node_data_id);
+    
+}
 
 
 

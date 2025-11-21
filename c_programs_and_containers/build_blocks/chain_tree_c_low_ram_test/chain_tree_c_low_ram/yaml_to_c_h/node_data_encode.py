@@ -471,83 +471,84 @@ class NodeDataEncoder:
         return result
     
     def encode_node_data(self) -> None:
-            """
-            Encode data for all nodes.
+        """
+        Encode data for all nodes.
+        
+        Only encodes operational runtime data, NOT metadata:
+        - Metadata (node_name, node_type) is excluded - not used at runtime
+        - auto_start is excluded (already encoded in link_count bit 15)
+        - Function name fields are resolved to function IDs
+        - Only encode node_dict if it has meaningful data after filtering
+        - Only encode other operational fields (timeout, priority, config, etc.) if present
+        """
+        
+        nodes_with_data = 0
+        nodes_skipped = 0
+        
+        # FIX: Iterate over ltree names, not indices
+        for ltree_name in self.node_builder.ltree_to_final_index.keys():
+            # Skip filtered metadata nodes (defensive check - shouldn't be in final list)
+            if ltree_name in self.node_builder.filtered_nodes:
+                continue
             
-            Only encodes operational runtime data, NOT metadata:
-            - Metadata (node_name, node_type) is excluded - not used at runtime
-            - auto_start is excluded (already encoded in link_count bit 15)
-            - Function name fields are resolved to function IDs
-            - Only encode node_dict if it has meaningful data after filtering
-            - Only encode other operational fields (timeout, priority, config, etc.) if present
-            """
+            # Get node data from handle
+            node_data = self.handle.get_node_data(ltree_name)
             
-            nodes_with_data = 0
-            nodes_skipped = 0
+            if not node_data:
+                # No data for this node, assign invalid data ID
+                self.node_data_ids[ltree_name] = 0xFFFF
+                nodes_skipped += 1
+                continue
             
-            for ltree_name in self.node_builder.final_index_to_ltree:
-                # Skip filtered metadata nodes (defensive check - shouldn't be in final list)
-                if ltree_name in self.node_builder.filtered_nodes:
-                    continue
-                
-                # Get node data from handle
-                node_data = self.handle.get_node_data(ltree_name)
-                
-                if not node_data:
-                    # No data for this node, assign invalid data ID
-                    self.node_data_ids[ltree_name] = 0xFFFF
-                    nodes_skipped += 1
-                    continue
-                
-                # Extract ONLY operational runtime fields (exclude metadata)
-                encode_data = {}
-                
-                # Include custom data fields (if operationally used)
-                if 'data' in node_data and self._has_meaningful_data(node_data['data']):
-                    encode_data['data'] = node_data['data']
-                
-                # Handle node_dict specially - exclude auto_start (already in link_count)
-                # and resolve function name fields to IDs
-                if 'node_dict' in node_data:
-                    node_dict = node_data['node_dict']
-                    if node_dict and isinstance(node_dict, dict):
-                        # Create a copy without auto_start
-                        filtered_dict = {k: v for k, v in node_dict.items() if k != 'auto_start'}
-                        
-                        # Resolve function name fields to IDs
-                        if filtered_dict:
-                            filtered_dict = self._process_function_fields(filtered_dict)
-                        
-                        # Only include if there's meaningful data remaining
-                        if self._has_meaningful_data(filtered_dict):
-                            encode_data['node_dict'] = filtered_dict
-                
-                # Include other operational fields (if present and meaningful)
-                for key in ['timeout', 'priority', 'config', 'parameters']:
-                    if key in node_data and self._has_meaningful_data(node_data[key]):
-                        encode_data[key] = node_data[key]
-                
-                # Encode the data and get the record control index
-                if encode_data:
-                    data_id = self.encoder.load_dict(encode_data)
-                    self.node_data_ids[ltree_name] = data_id
-                    nodes_with_data += 1
-                    # Debug: show first few nodes with data
-                    if nodes_with_data <= 5:
-                        node_name = node_data.get('node_name', ltree_name)
-                        print(f"  Encoding node [{nodes_with_data}] '{node_name}': {list(encode_data.keys())}")
-                        for key, val in encode_data.items():
-                            print(f"    {key}: {val}")
-                else:
-                    # No operational data, use invalid ID
-                    self.node_data_ids[ltree_name] = 0xFFFF
-                    nodes_skipped += 1
-                    # Debug: show first few skipped nodes
-                    if nodes_skipped <= 5:
-                        node_name = node_data.get('node_name', ltree_name)
-                        print(f"  Skipped node '{node_name}': no operational data")
+            # Extract ONLY operational runtime fields (exclude metadata)
+            encode_data = {}
             
-            print(f"\n  Summary: {nodes_with_data} nodes with data, {nodes_skipped} nodes skipped")
+            # Include custom data fields (if operationally used)
+            if 'data' in node_data and self._has_meaningful_data(node_data['data']):
+                encode_data['data'] = node_data['data']
+            
+            # Handle node_dict specially - exclude auto_start (already in link_count)
+            # and resolve function name fields to IDs
+            if 'node_dict' in node_data:
+                node_dict = node_data['node_dict']
+                if node_dict and isinstance(node_dict, dict):
+                    # Create a copy without auto_start
+                    filtered_dict = {k: v for k, v in node_dict.items() if k != 'auto_start'}
+                    
+                    # Resolve function name fields to IDs
+                    if filtered_dict:
+                        filtered_dict = self._process_function_fields(filtered_dict)
+                    
+                    # Only include if there's meaningful data remaining
+                    if self._has_meaningful_data(filtered_dict):
+                        encode_data['node_dict'] = filtered_dict
+            
+            # Include other operational fields (if present and meaningful)
+            for key in ['timeout', 'priority', 'config', 'parameters']:
+                if key in node_data and self._has_meaningful_data(node_data[key]):
+                    encode_data[key] = node_data[key]
+            
+            # Encode the data and get the record control index
+            if encode_data:
+                data_id = self.encoder.load_dict(encode_data)
+                self.node_data_ids[ltree_name] = data_id
+                nodes_with_data += 1
+                # Debug: show first few nodes with data
+                if nodes_with_data <= 5:
+                    node_name = node_data.get('node_name', ltree_name)
+                    print(f"  Encoding node [{nodes_with_data}] '{node_name}': {list(encode_data.keys())}")
+                    for key, val in encode_data.items():
+                        print(f"    {key}: {val}")
+            else:
+                # No operational data, use invalid ID
+                self.node_data_ids[ltree_name] = 0xFFFF
+                nodes_skipped += 1
+                # Debug: show first few skipped nodes
+                if nodes_skipped <= 5:
+                    node_name = node_data.get('node_name', ltree_name)
+                    print(f"  Skipped node '{node_name}': no operational data")
+        
+        print(f"\n  Summary: {nodes_with_data} nodes with data, {nodes_skipped} nodes skipped")
             
     def get_node_data_id(self, ltree_name: str) -> int:
         """Get the data ID for a node."""

@@ -491,6 +491,19 @@
      unsigned event_id,
      void *data);
  
+ bool cfl_send_null_event(
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     unsigned priority,
+     unsigned node_id,
+     unsigned event_id);
+ 
+ bool cfl_send_json_event(
+     volatile CFL_EVENT_QUEUE_T *queue_control,
+     unsigned priority,
+     unsigned node_id,
+     unsigned event_id,
+     uint32_t record_index);
+ 
  #ifdef __cplusplus
  }
  #endif

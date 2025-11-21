@@ -823,9 +823,11 @@ void json_print_record(
             printf("%f\n", record->value.f32_value);
             break;
             
-        case JSON_TYPE_STRING:
-            printf("\"%s\"\n", json_get_string(ctx, record->value.string_offset));
+        case JSON_TYPE_STRING: {
+            const char *str = json_get_string(ctx, record->value.string_offset);
+            printf("\"%s\"\n", str ? str : "(null)");
             break;
+        }
             
         case JSON_TYPE_OBJECT: {
             printf("{ count=%u\n", record->value.container_count);
@@ -842,7 +844,12 @@ void json_print_record(
                 // Print key
                 const json_record_t *key_rec = json_get_record(ctx, child_idx);
                 if (key_rec && key_rec->object_type == JSON_TYPE_STRING) {
-                    printf("\"%s\": ", json_get_string(ctx, key_rec->value.string_offset));
+                    const char *key_str = json_get_string(ctx, key_rec->value.string_offset);
+                    if (key_str) {
+                        printf("\"%s\": ", key_str);
+                    } else {
+                        printf("\"(null)\": ");
+                    }
                 } else {
                     printf("???: ");
                 }
@@ -871,9 +878,11 @@ void json_print_record(
                             case JSON_TYPE_FLOAT32:
                                 printf("%f\n", val_rec->value.f32_value);
                                 break;
-                            case JSON_TYPE_STRING:
-                                printf("\"%s\"\n", json_get_string(ctx, val_rec->value.string_offset));
+                            case JSON_TYPE_STRING: {
+                                const char *str = json_get_string(ctx, val_rec->value.string_offset);
+                                printf("\"%s\"\n", str ? str : "(null)");
                                 break;
+                            }
                             default:
                                 printf("???\n");
                                 break;

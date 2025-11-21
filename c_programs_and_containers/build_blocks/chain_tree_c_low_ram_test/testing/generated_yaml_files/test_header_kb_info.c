@@ -2,12 +2,12 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_41pf6syq_kb_table[1] = {
+const chaintree_kb_info_t ct_rit1zo87_kb_table[1] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
         .start_index = 0,
         .node_count = 32,
-        .max_depth = 4
+        .max_depth = 2
     },
 };

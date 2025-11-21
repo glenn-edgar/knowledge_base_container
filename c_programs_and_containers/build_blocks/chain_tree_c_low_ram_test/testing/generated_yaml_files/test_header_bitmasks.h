@@ -7,9 +7,9 @@
 #include <string.h>
 
 /* No bitmasks defined */
-#define CT_41PF6SYQ_BITMASK_COUNT 0
+#define CT_RIT1ZO87_BITMASK_COUNT 0
 
 /* Empty array */
-extern const char *ct_41pf6syq_bitmask_names[1];
+extern const char *ct_rit1zo87_bitmask_names[1];
 
 #endif /* TEST_HEADER_BITMASKS_H */

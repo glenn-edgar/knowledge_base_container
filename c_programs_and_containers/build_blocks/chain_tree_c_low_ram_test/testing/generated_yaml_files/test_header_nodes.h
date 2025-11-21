@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_41PF6SYQ_NODE_COUNT 33
+#define CT_RIT1ZO87_NODE_COUNT 33
 
-extern const chaintree_node_t ct_41pf6syq_nodes[CT_41PF6SYQ_NODE_COUNT];
+extern const chaintree_node_t ct_rit1zo87_nodes[CT_RIT1ZO87_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

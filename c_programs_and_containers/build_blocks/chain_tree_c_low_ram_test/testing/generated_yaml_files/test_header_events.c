@@ -2,7 +2,7 @@
 #include "test_header_events.h"
 
 /* Event names indexed by event index */
-const char *ct_41pf6syq_event_strings[13] = {
+const char *ct_rit1zo87_event_strings[13] = {
     "CFL_INIT_EVENT",
     "CFL_TERMINATE_EVENT",
     "CFL_START_TESTS",

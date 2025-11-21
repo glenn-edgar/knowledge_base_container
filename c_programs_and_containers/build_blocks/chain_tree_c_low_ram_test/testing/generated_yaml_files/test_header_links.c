@@ -2,9 +2,9 @@
 #include "test_header_links.h"
 
 /* Link table - flat array of child node indices */
-const uint16_t ct_41pf6syq_link_table[31] = {
-    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-    11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-    21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+const uint16_t ct_rit1zo87_link_table[31] = {
+    1, 5, 10, 15, 22, 27, 2, 3, 4, 6,
+    7, 8, 9, 11, 12, 13, 14, 16, 17, 18,
+    19, 20, 21, 23, 24, 25, 26, 28, 29, 30,
     31
 };

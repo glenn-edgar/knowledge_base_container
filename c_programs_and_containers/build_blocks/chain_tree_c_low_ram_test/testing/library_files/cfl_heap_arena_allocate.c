@@ -3,6 +3,7 @@
 #include "cfl_heap.h"
 #include "cfl_perm.h"
 #include "cfl_exception.h"
+#include "stdio.h"
 #include <string.h>
 
 #include "cfl_global_definitions.h"
@@ -523,9 +524,9 @@ void cfl_heap_arena_dump_stats(volatile CflHeapArenaSystem* sys) {
         EXCEPTION("cfl_heap_arena_dump_stats: NULL system pointer");
     }
     
-    uint16_t active_count = 0;
-    uint16_t total_data_allocated = 0;
-    uint16_t total_data_used = 0;
+    uint32_t active_count = 0;
+    uint32_t total_data_allocated = 0;
+    uint32_t total_data_used = 0;
     
     for (uint16_t i = 0; i < MAX_ALLOCATORS; ++i) {
         if (sys->arenas[i]) {
@@ -534,7 +535,7 @@ void cfl_heap_arena_dump_stats(volatile CflHeapArenaSystem* sys) {
             total_data_used += sys->arenas[i]->used;
         }
     }
-    
+    printf("cfl_heap_arena_dump_stats: active_count %d total_data_allocated %d total_data_used %d\n", active_count, total_data_allocated, total_data_used);
     // Stats are now available in local variables
     // Can be used by caller or printed if needed
 }

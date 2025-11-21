@@ -333,9 +333,9 @@
      if (priority != CFL_EVENT_PRIORITY_LOW && priority != CFL_EVENT_PRIORITY_HIGH) {
          EXCEPTION("cfl_send_event: Invalid priority level");
      }
-     
+
      // Validate event type
-     if (event_type > CFL_EVENT_TYPE_FLOAT) {
+     if (event_type > CFL_EVENT_TYPE_NULL) {
          EXCEPTION("cfl_send_event: Invalid event_type");
      }
      
@@ -583,4 +583,41 @@
          malloc_flag,
          event_id,
          data);
+ }
+
+bool cfl_send_null_event(
+    volatile CFL_EVENT_QUEUE_T *queue_control,
+    unsigned priority,
+    unsigned node_id,
+    unsigned event_id)
+ {
+     return cfl_send_event(
+         queue_control,
+         priority,
+         node_id,
+         CFL_EVENT_TYPE_NULL,
+         false,
+         event_id,
+         NULL);
+ }
+
+ bool cfl_send_json_event(
+    volatile CFL_EVENT_QUEUE_T *queue_control,
+    unsigned priority,
+    unsigned node_id,
+    unsigned event_id,
+    uint32_t record_index)
+ {
+    void* data_ptr;
+     CFL_EVENT_VALUE_T temp;
+     temp.unsigned_val = record_index;
+     data_ptr = temp.ptr;  
+     return cfl_send_event(
+         queue_control,
+         priority,
+         node_id,
+         CFL_EVENT_TYPE_JSON_RECORD,
+         false,
+         event_id,
+         data_ptr);
  }

@@ -2,11 +2,13 @@
 #include "test_header_nodes.h"
 
 /* Node array with complete initialization */
-const chaintree_node_t ct_41pf6syq_nodes[33] = {
+/* NOTE: Array preserves original YAML indices - filtered nodes leave gaps */
+const chaintree_node_t ct_rit1zo87_nodes[33] = {
     /* [0] _0 */
     {
         .node_index = 0,
         .parent_index = 65535,
+        .depth = 0,
         .link_start = 0,
         .link_count = 0x0006,  /* count=6, auto_start=False */
         .main_function_index = 3,
@@ -19,6 +21,7 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
     {
         .node_index = 1,
         .parent_index = 0,
+        .depth = 1,
         .link_start = 6,
         .link_count = 0x8003,  /* count=3, auto_start=True */
         .main_function_index = 1,
@@ -27,70 +30,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 3,
         .node_data_id = 65535
     },
-    /* [2] _1 [AUTO_START] */
+    /* [2] _0 */
     {
         .node_index = 2,
-        .parent_index = 0,
-        .link_start = 9,
-        .link_count = 0x8004,  /* count=4, auto_start=True */
-        .main_function_index = 1,
-        .init_function_index = 2,
-        .aux_function_index = 2,
-        .term_function_index = 3,
-        .node_data_id = 65535
-    },
-    /* [3] _2 [AUTO_START] */
-    {
-        .node_index = 3,
-        .parent_index = 0,
-        .link_start = 13,
-        .link_count = 0x8004,  /* count=4, auto_start=True */
-        .main_function_index = 1,
-        .init_function_index = 2,
-        .aux_function_index = 2,
-        .term_function_index = 3,
-        .node_data_id = 65535
-    },
-    /* [4] _3 [AUTO_START] */
-    {
-        .node_index = 4,
-        .parent_index = 0,
-        .link_start = 17,
-        .link_count = 0x8006,  /* count=6, auto_start=True */
-        .main_function_index = 1,
-        .init_function_index = 2,
-        .aux_function_index = 2,
-        .term_function_index = 3,
-        .node_data_id = 65535
-    },
-    /* [5] _4 [AUTO_START] */
-    {
-        .node_index = 5,
-        .parent_index = 0,
-        .link_start = 23,
-        .link_count = 0x8004,  /* count=4, auto_start=True */
-        .main_function_index = 1,
-        .init_function_index = 2,
-        .aux_function_index = 2,
-        .term_function_index = 3,
-        .node_data_id = 65535
-    },
-    /* [6] _5 [AUTO_START] */
-    {
-        .node_index = 6,
-        .parent_index = 0,
-        .link_start = 27,
-        .link_count = 0x8004,  /* count=4, auto_start=True */
-        .main_function_index = 1,
-        .init_function_index = 2,
-        .aux_function_index = 2,
-        .term_function_index = 3,
-        .node_data_id = 65535
-    },
-    /* [7] _0 */
-    {
-        .node_index = 7,
         .parent_index = 1,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -99,10 +43,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 1
     },
-    /* [8] _1 */
+    /* [3] _1 */
     {
-        .node_index = 8,
+        .node_index = 3,
         .parent_index = 1,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -111,10 +56,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 2
     },
-    /* [9] _2 */
+    /* [4] _2 */
     {
-        .node_index = 9,
+        .node_index = 4,
         .parent_index = 1,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 6,
@@ -123,10 +69,24 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [10] _0 */
+    /* [5] _1 [AUTO_START] */
     {
-        .node_index = 10,
-        .parent_index = 2,
+        .node_index = 5,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 9,
+        .link_count = 0x8004,  /* count=4, auto_start=True */
+        .main_function_index = 1,
+        .init_function_index = 2,
+        .aux_function_index = 2,
+        .term_function_index = 3,
+        .node_data_id = 65535
+    },
+    /* [6] _0 */
+    {
+        .node_index = 6,
+        .parent_index = 5,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -135,10 +95,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 3
     },
-    /* [11] _1 */
+    /* [7] _1 */
     {
-        .node_index = 11,
-        .parent_index = 2,
+        .node_index = 7,
+        .parent_index = 5,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 10,
@@ -147,10 +108,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 4
     },
-    /* [12] _2 */
+    /* [8] _2 */
     {
-        .node_index = 12,
-        .parent_index = 2,
+        .node_index = 8,
+        .parent_index = 5,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -159,10 +121,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 5
     },
-    /* [13] _3 */
+    /* [9] _3 */
     {
-        .node_index = 13,
-        .parent_index = 2,
+        .node_index = 9,
+        .parent_index = 5,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 7,
@@ -171,10 +134,24 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [14] _0 */
+    /* [10] _2 [AUTO_START] */
     {
-        .node_index = 14,
-        .parent_index = 3,
+        .node_index = 10,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 13,
+        .link_count = 0x8004,  /* count=4, auto_start=True */
+        .main_function_index = 1,
+        .init_function_index = 2,
+        .aux_function_index = 2,
+        .term_function_index = 3,
+        .node_data_id = 65535
+    },
+    /* [11] _0 */
+    {
+        .node_index = 11,
+        .parent_index = 10,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -183,10 +160,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 6
     },
-    /* [15] _1 */
+    /* [12] _1 */
     {
-        .node_index = 15,
-        .parent_index = 3,
+        .node_index = 12,
+        .parent_index = 10,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 9,
@@ -195,10 +173,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 11,
         .node_data_id = 7
     },
-    /* [16] _2 */
+    /* [13] _2 */
     {
-        .node_index = 16,
-        .parent_index = 3,
+        .node_index = 13,
+        .parent_index = 10,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -207,10 +186,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 8
     },
-    /* [17] _3 */
+    /* [14] _3 */
     {
-        .node_index = 17,
-        .parent_index = 3,
+        .node_index = 14,
+        .parent_index = 10,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 5,
@@ -219,10 +199,24 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [18] _0 */
+    /* [15] _3 [AUTO_START] */
     {
-        .node_index = 18,
-        .parent_index = 4,
+        .node_index = 15,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 17,
+        .link_count = 0x8006,  /* count=6, auto_start=True */
+        .main_function_index = 1,
+        .init_function_index = 2,
+        .aux_function_index = 2,
+        .term_function_index = 3,
+        .node_data_id = 65535
+    },
+    /* [16] _0 */
+    {
+        .node_index = 16,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -231,10 +225,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 9
     },
-    /* [19] _1 */
+    /* [17] _1 */
     {
-        .node_index = 19,
-        .parent_index = 4,
+        .node_index = 17,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 10,
@@ -243,10 +238,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 10
     },
-    /* [20] _2 */
+    /* [18] _2 */
     {
-        .node_index = 20,
-        .parent_index = 4,
+        .node_index = 18,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -255,10 +251,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 11
     },
-    /* [21] _3 */
+    /* [19] _3 */
     {
-        .node_index = 21,
-        .parent_index = 4,
+        .node_index = 19,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -267,10 +264,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 12
     },
-    /* [22] _4 */
+    /* [20] _4 */
     {
-        .node_index = 22,
-        .parent_index = 4,
+        .node_index = 20,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -279,10 +277,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 13
     },
-    /* [23] _5 */
+    /* [21] _5 */
     {
-        .node_index = 23,
-        .parent_index = 4,
+        .node_index = 21,
+        .parent_index = 15,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 5,
@@ -291,10 +290,24 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [24] _0 */
+    /* [22] _4 [AUTO_START] */
     {
-        .node_index = 24,
-        .parent_index = 5,
+        .node_index = 22,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 23,
+        .link_count = 0x8004,  /* count=4, auto_start=True */
+        .main_function_index = 1,
+        .init_function_index = 2,
+        .aux_function_index = 2,
+        .term_function_index = 3,
+        .node_data_id = 65535
+    },
+    /* [23] _0 */
+    {
+        .node_index = 23,
+        .parent_index = 22,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -303,10 +316,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 14
     },
-    /* [25] _1 */
+    /* [24] _1 */
     {
-        .node_index = 25,
-        .parent_index = 5,
+        .node_index = 24,
+        .parent_index = 22,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 8,
@@ -315,10 +329,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 9,
         .node_data_id = 15
     },
-    /* [26] _2 */
+    /* [25] _2 */
     {
-        .node_index = 26,
-        .parent_index = 5,
+        .node_index = 25,
+        .parent_index = 22,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -327,10 +342,11 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 16
     },
-    /* [27] _3 */
+    /* [26] _3 */
     {
-        .node_index = 27,
-        .parent_index = 5,
+        .node_index = 26,
+        .parent_index = 22,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 4,
@@ -339,10 +355,24 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
+    /* [27] _5 [AUTO_START] */
+    {
+        .node_index = 27,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 27,
+        .link_count = 0x8004,  /* count=4, auto_start=True */
+        .main_function_index = 1,
+        .init_function_index = 2,
+        .aux_function_index = 2,
+        .term_function_index = 3,
+        .node_data_id = 65535
+    },
     /* [28] _0 */
     {
         .node_index = 28,
-        .parent_index = 6,
+        .parent_index = 27,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -354,7 +384,8 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
     /* [29] _1 */
     {
         .node_index = 29,
-        .parent_index = 6,
+        .parent_index = 27,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 8,
@@ -366,7 +397,8 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
     /* [30] _2 */
     {
         .node_index = 30,
-        .parent_index = 6,
+        .parent_index = 27,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 2,
@@ -378,7 +410,8 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
     /* [31] _3 */
     {
         .node_index = 31,
-        .parent_index = 6,
+        .parent_index = 27,
+        .depth = 2,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 4,
@@ -391,6 +424,7 @@ const chaintree_node_t ct_41pf6syq_nodes[33] = {
     {
         .node_index = 32,
         .parent_index = 65535,
+        .depth = 0,
         .link_start = 31,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 0,
