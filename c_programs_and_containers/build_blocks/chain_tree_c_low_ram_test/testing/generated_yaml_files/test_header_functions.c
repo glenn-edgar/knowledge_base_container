@@ -12,9 +12,11 @@
 extern unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_disable_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_event_logger_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_gate_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_halt_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_reset_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_state_machine_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_terminate_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_terminate_system_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_verify_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -23,12 +25,20 @@ extern unsigned cfl_wait_time_main_fn(void *handle, unsigned bool_function_index
 
 extern void cfl_null_one_shot_fn(void *handle, unsigned node_index);
 extern void activate_valve_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_change_state_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_disable_nodes_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_enable_nodes_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_event_logger_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_event_logger_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_log_message_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_send_named_event_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_state_machine_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_state_machine_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_terminate_state_machine_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_init_one_shot_fn(void *handle, unsigned node_index);
@@ -41,16 +51,20 @@ extern bool cfl_null_boolean_fn(void *handle, unsigned node_index, unsigned even
 extern bool cfl_bool_false_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_column_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_gate_node_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_state_machine_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_time_out_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_rit1zo87_main_functions[] = {
+const main_function_t ct_axqwbasz_main_functions[] = {
     cfl_null_main_fn,
     cfl_column_main_main_fn,
     cfl_disable_main_fn,
+    cfl_event_logger_main_fn,
     cfl_gate_node_main_main_fn,
     cfl_halt_main_fn,
     cfl_reset_main_fn,
+    cfl_state_machine_main_main_fn,
     cfl_terminate_main_fn,
     cfl_terminate_system_main_fn,
     cfl_verify_main_fn,
@@ -58,15 +72,23 @@ const main_function_t ct_rit1zo87_main_functions[] = {
     cfl_wait_time_main_fn,
 };
 
-const one_shot_function_t ct_rit1zo87_one_shot_functions[] = {
+const one_shot_function_t ct_axqwbasz_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
+    cfl_change_state_one_shot_fn,
     cfl_column_init_one_shot_fn,
     cfl_column_term_one_shot_fn,
+    cfl_disable_nodes_one_shot_fn,
+    cfl_enable_nodes_one_shot_fn,
+    cfl_event_logger_init_one_shot_fn,
+    cfl_event_logger_term_one_shot_fn,
     cfl_gate_node_init_one_shot_fn,
     cfl_gate_node_term_one_shot_fn,
     cfl_log_message_one_shot_fn,
     cfl_send_named_event_one_shot_fn,
+    cfl_state_machine_init_one_shot_fn,
+    cfl_state_machine_term_one_shot_fn,
+    cfl_terminate_state_machine_one_shot_fn,
     cfl_verify_init_one_shot_fn,
     cfl_verify_term_one_shot_fn,
     cfl_wait_init_one_shot_fn,
@@ -76,37 +98,43 @@ const one_shot_function_t ct_rit1zo87_one_shot_functions[] = {
     verify_error_one_shot_fn,
 };
 
-const boolean_function_t ct_rit1zo87_boolean_functions[] = {
+const boolean_function_t ct_axqwbasz_boolean_functions[] = {
     cfl_null_boolean_fn,
     cfl_bool_false_boolean_fn,
     cfl_column_null_boolean_fn,
     cfl_gate_node_null_boolean_fn,
+    cfl_sm_event_sync_boolean_fn,
+    cfl_state_machine_null_boolean_fn,
     cfl_verify_time_out_boolean_fn,
     cfl_wait_for_event_boolean_fn,
 };
 
 /* Main function usage count */
-const uint16_t ct_rit1zo87_main_function_usage_count[11] = {
+const uint16_t ct_axqwbasz_main_function_usage_count[13] = {
     0,  /* CFL_NULL */
-    6,  /* CFL_COLUMN_MAIN */
-    14,  /* CFL_DISABLE */
-    1,  /* CFL_GATE_NODE_MAIN */
-    2,  /* CFL_HALT */
-    2,  /* CFL_RESET */
-    1,  /* CFL_TERMINATE */
-    1,  /* CFL_TERMINATE_SYSTEM */
+    21,  /* CFL_COLUMN_MAIN */
+    70,  /* CFL_DISABLE */
+    4,  /* CFL_EVENT_LOGGER */
+    4,  /* CFL_GATE_NODE_MAIN */
+    9,  /* CFL_HALT */
+    5,  /* CFL_RESET */
+    2,  /* CFL_STATE_MACHINE_MAIN */
+    2,  /* CFL_TERMINATE */
+    4,  /* CFL_TERMINATE_SYSTEM */
     2,  /* CFL_VERIFY */
-    1,  /* CFL_WAIT */
-    2,  /* CFL_WAIT_TIME */
+    2,  /* CFL_WAIT */
+    17,  /* CFL_WAIT_TIME */
 };
 
-const char *ct_rit1zo87_main_function_names[11] = {
+const char *ct_axqwbasz_main_function_names[13] = {
     "CFL_NULL",
     "CFL_COLUMN_MAIN",
     "CFL_DISABLE",
+    "CFL_EVENT_LOGGER",
     "CFL_GATE_NODE_MAIN",
     "CFL_HALT",
     "CFL_RESET",
+    "CFL_STATE_MACHINE_MAIN",
     "CFL_TERMINATE",
     "CFL_TERMINATE_SYSTEM",
     "CFL_VERIFY",
@@ -114,15 +142,23 @@ const char *ct_rit1zo87_main_function_names[11] = {
     "CFL_WAIT_TIME",
 };
 
-const char *ct_rit1zo87_one_shot_function_names[15] = {
+const char *ct_axqwbasz_one_shot_function_names[23] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
+    "CFL_CHANGE_STATE",
     "CFL_COLUMN_INIT",
     "CFL_COLUMN_TERM",
+    "CFL_DISABLE_NODES",
+    "CFL_ENABLE_NODES",
+    "CFL_EVENT_LOGGER_INIT",
+    "CFL_EVENT_LOGGER_TERM",
     "CFL_GATE_NODE_INIT",
     "CFL_GATE_NODE_TERM",
     "CFL_LOG_MESSAGE",
     "CFL_SEND_NAMED_EVENT",
+    "CFL_STATE_MACHINE_INIT",
+    "CFL_STATE_MACHINE_TERM",
+    "CFL_TERMINATE_STATE_MACHINE",
     "CFL_VERIFY_INIT",
     "CFL_VERIFY_TERM",
     "CFL_WAIT_INIT",
@@ -132,11 +168,13 @@ const char *ct_rit1zo87_one_shot_function_names[15] = {
     "VERIFY_ERROR",
 };
 
-const char *ct_rit1zo87_boolean_function_names[6] = {
+const char *ct_axqwbasz_boolean_function_names[8] = {
     "CFL_NULL",
     "CFL_BOOL_FALSE",
     "CFL_COLUMN_NULL",
     "CFL_GATE_NODE_NULL",
+    "CFL_SM_EVENT_SYNC",
+    "CFL_STATE_MACHINE_NULL",
     "CFL_VERIFY_TIME_OUT",
     "CFL_WAIT_FOR_EVENT",
 };

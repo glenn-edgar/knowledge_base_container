@@ -11,12 +11,28 @@ static char perm_buffer[0xffff];
 extern const chaintree_handle_t g_test_header;
 
 int main(void) {
-    cfl_runtime_create_params_t* params = (cfl_runtime_create_params_t*)malloc(sizeof(cfl_runtime_create_params_t));
+    const chaintree_handle_t *test_handle = &g_test_header;
+    
+    /* Validate test_handle */
+    if (!test_handle) {
+        printf("Error: test_handle is NULL\n");
+        return -1;
+    }
+    
+    /* Validate test index is within bounds */
+    const uint16_t test_index = 3;
+    if (test_index >= test_handle->kb_count) {
+        printf("Error: test_index %d >= kb_count %d\n", test_index, test_handle->kb_count);
+        return -1;
+    }
+    
+    /* Use the provided API function instead of malloc */
+    cfl_runtime_create_params_t* params = cfl_runtime_create_params_create();
     if (!params) {
         printf("Failed to allocate memory for params\n");
         return -1;
     }
-    const chaintree_handle_t *test_handle = &g_test_header;
+    
     params->perm = &perm;
     params->perm_buffer = perm_buffer;
     params->perm_buffer_size = (uint16_t) sizeof(perm_buffer);
@@ -24,20 +40,43 @@ int main(void) {
     params->max_allocator_count = (uint16_t) 2;
     params->total_node_count = test_handle->node_count;
     printf("total_node_count: %d\n", params->total_node_count);
-    params->allocator_0_size = (uint16_t)  test_handle->node_count * 20;
+    
+    /* Check for overflow in allocator_0_size calculation */
+    size_t allocator_size = (size_t)test_handle->node_count * 20;
+    if (allocator_size > 65535) {
+        printf("Error: allocator_0_size calculation overflow: %zu > 65535\n", allocator_size);
+        cfl_runtime_create_params_destroy(params);
+        return -1;
+    }
+    params->allocator_0_size = (uint16_t)allocator_size;
+    
     params->event_queue_high_priority_size = (uint16_t) 8;
     params->event_queue_low_priority_size = (uint16_t) 64;
     params->delta_time = (double) 0.1;
+    
     cfl_runtime_handle_t *handle = cfl_runtime_create(&perm, params, test_handle);
     cfl_runtime_create_params_destroy(params);
+    
     if (!handle) {
         printf("Failed to create runtime handle\n");
         return -1;
     }
    
     cfl_runtime_reset(handle);
-    cfl_add_test_by_index(handle, 0);
+    
+    /* Add test with validation */
+    if (!cfl_add_test_by_index(handle, test_index)) {
+        printf("Failed to add test at index %d\n", test_index);
+        /* Note: Should have a cfl_runtime_destroy(handle) here if it exists */
+        return -1;
+    }
+    
     bool result = cfl_runtime_run(handle);
     printf("Runtime run result: %d\n", result);
-    return 0;
+    
+    /* Note: If there's a cfl_runtime_destroy() function, call it here:
+     * cfl_runtime_destroy(handle);
+     */
+    
+    return result ? 0 : -1;
 }

@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_RIT1ZO87_NODE_COUNT 33
+#define CT_AXQWBASZ_NODE_COUNT 161
 
-extern const chaintree_node_t ct_rit1zo87_nodes[CT_RIT1ZO87_NODE_COUNT];
+extern const chaintree_node_t ct_axqwbasz_nodes[CT_AXQWBASZ_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

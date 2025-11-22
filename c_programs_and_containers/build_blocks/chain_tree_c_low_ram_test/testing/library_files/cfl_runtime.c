@@ -32,6 +32,11 @@ void cfl_runtime_create_params_destroy(cfl_runtime_create_params_t* params) {
 cfl_runtime_handle_t* cfl_runtime_create(cfl_perm_t* perm, cfl_runtime_create_params_t* params, 
                                          const chaintree_handle_t* flash_handle) {
     
+    // Validate that parameter node count matches flash handle
+    if (params->total_node_count != flash_handle->node_count) {
+        EXCEPTION("cfl_runtime_create: params->total_node_count doesn't match flash_handle->node_count");
+    }
+    
     cfl_perm_set_instance(perm);
     cfl_perm_init(perm, params->perm_buffer, params->perm_buffer_size);
     cfl_runtime_handle_t *handle = (cfl_runtime_handle_t*)cfl_perm_alloc_pointer(perm, (uint16_t)sizeof(cfl_runtime_handle_t));
@@ -46,18 +51,32 @@ cfl_runtime_handle_t* cfl_runtime_create(cfl_perm_t* perm, cfl_runtime_create_pa
                                                         params->total_node_count, params->allocator_0_size);
     handle->event_queue = cfl_create_event_queue(params->event_queue_high_priority_size, 
                                                  params->event_queue_low_priority_size, perm);
-    handle->flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(uint8_t) * params->total_node_count));
+    
+    // Validate flags array size before allocating (prevent uint16_t overflow)
+    size_t flags_size = sizeof(uint8_t) * params->total_node_count;
+    if (flags_size > 65535) {
+        EXCEPTION("cfl_runtime_create: Flags array size exceeds uint16_t limit");
+    }
+    
+    handle->flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t)flags_size);
     handle->timer_handle = cfl_timer_create(params->delta_time, perm);
     handle->delta_time = params->delta_time;
     handle->max_level = cfl_calculate_max_level(handle);
-    handle->stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(CT_StackEntry) * handle->max_level));
-    handle->nested_stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(CT_StackEntry) * handle->max_level));
+    
+    // Validate stack sizes before allocating (prevent uint16_t overflow)
+    size_t stack_size = sizeof(CT_StackEntry) * handle->max_level;
+    if (stack_size > 65535) {
+        EXCEPTION("cfl_runtime_create: Stack size exceeds uint16_t limit");
+    }
+    
+    handle->stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t)stack_size);
+    handle->nested_stack = (CT_StackEntry*)cfl_perm_alloc_pointer(perm, (uint16_t)stack_size);
     handle->walker = (CT_TreeWalker*)cfl_perm_alloc_pointer(handle->perm, sizeof(CT_TreeWalker));
-    handle->backup_flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(uint8_t) * handle->flash_handle->node_count));
+    handle->backup_flags = (uint8_t*)cfl_perm_alloc_pointer(perm, (uint16_t)flags_size);
     handle->walker_context_ptr = (CT_WalkerContext*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(CT_WalkerContext)));
     handle->json_decoder_ctx = (json_decoder_ctx_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(json_decoder_ctx_t)));
     
-    memset((void*)handle->flags, 0, sizeof(uint8_t) * handle->flash_handle->node_count);
+    memset((void*)handle->flags, 0, params->total_node_count);
     
     cfl_init_test_system(handle);
     cfl_engine_create(handle);
@@ -79,7 +98,7 @@ void cfl_runtime_reset(cfl_runtime_handle_t* handle) {
     cfl_heap_arena_system_reset(handle->arena_system);
     cfl_clear_queue(handle->event_queue);
     cfl_engine_init(handle);
-    memset((void*)handle->flags, 0, sizeof(uint8_t) * handle->flash_handle->node_count);
+    memset((void*)handle->flags, 0, handle->flash_handle->node_count);
     
     // Reinitialize all active tests using bitmap system
     for(uint16_t kb_idx = 0; kb_idx < handle->flash_handle->kb_count; kb_idx++) {
@@ -114,11 +133,11 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
     while(loop_flag) {
         // Wait for timer once per cycle - OUTSIDE the test loop
         double delta_time = handle->future_time_stamp - cfl_timer_get_timestamp(handle->timer_handle);
+    
         cfl_timer_wait(handle->timer_handle, delta_time, &tick_result);
-        
         loop_flag = false;
         for(uint16_t kb_idx = 0; kb_idx < handle->flash_handle->kb_count; kb_idx++) {
-
+    
             if (!TEST_IS_ACTIVE(handle, kb_idx)) continue;
             loop_flag = true;
             handle->current_kb_idx = kb_idx;
@@ -127,7 +146,7 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
             handle->kb_max_level = handle->flash_handle->kb_table[kb_idx].max_depth+1;
             
             cfl_generate_timer_events(handle, kb_idx, &tick_result);
-
+        
             while(cfl_total_event_count(handle->event_queue) > 0) {
                 cfl_peek_event(handle->event_queue, &event_data);
                 
@@ -135,18 +154,32 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
                     printf("terminate system\n");
                     goto exit;
                 }
-
+        
                 handle->event_data_ptr = &event_data;
+                
                 if(cfl_execute_event(handle) == false) {
+                    printf("terminate test\n");
                     cfl_delete_test_by_index(handle, handle->current_kb_idx);
                 }
+                
                 cfl_pop_event(handle->event_queue, &event_data);
+            }
+            
+            // ADD THIS: Check if start node is still enabled after processing all events
+            if (!cfl_engine_node_is_enabled(handle, handle->kb_start_index)) {
+                printf("Test %d start node disabled, deleting test\n", kb_idx);
+                cfl_delete_test_by_index(handle, kb_idx);
             }
         }
         
+        
+        
         // Update timestamp once per cycle - AFTER all tests processed
         handle->future_time_stamp = handle->future_time_stamp + handle->delta_time;
-    }
+        if (loop_flag == false) {
+            goto exit;
+        }
+    }  
     
 exit:
     printf("---------------------------------end of runtime run---------------------------------\n");

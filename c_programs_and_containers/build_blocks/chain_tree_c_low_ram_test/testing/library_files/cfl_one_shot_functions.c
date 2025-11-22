@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "cfl_runtime.h"
+#include "cfl_engine.h"
 #include "json_node_decoder.h"
 #include "cfl_common_functions.h"
 #include "cfl_common_function_headers.h"
@@ -12,15 +13,41 @@
 static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
 
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_enable_auto_start_nodes: node_index out of bounds");
+        return;
+    }
+    
     const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
     uint16_t link_start = node->link_start;
     uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    /* Validate link_start and link_count */
+    if (link_count > 0) {
+        if (link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_auto_start_nodes: link_start out of bounds");
+            return;
+        }
+        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_auto_start_nodes: link range exceeds table size");
+            return;
+        }
+    }
+    
     const uint16_t *link_table = runtime_handle->flash_handle->link_table;
-    for (unsigned i = 0; i < (link_count&LINK_COUNT_MASK); i++) {
+    for (unsigned i = 0; i < link_count; i++) {
         unsigned int link_id = link_table[link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_enable_auto_start_nodes: link_id out of bounds");
+            return;
+        }
+        
         const chaintree_node_t *link_node = &runtime_handle->flash_handle->nodes[link_id];
         if ((link_node->link_count & AUTO_START_BIT) != 0) {
-    
             cfl_enable_node(runtime_handle, link_id);
         }
     }
@@ -30,14 +57,40 @@ static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t n
 static void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
 
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_enable_all_nodes: node_index out of bounds");
+        return;
+    }
+    
     const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
     uint16_t link_start = node->link_start;
     uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    /* Validate link_start and link_count */
+    if (link_count > 0) {
+        if (link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_all_nodes: link_start out of bounds");
+            return;
+        }
+        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_all_nodes: link range exceeds table size");
+            return;
+        }
+    }
+    
     const uint16_t *link_table = runtime_handle->flash_handle->link_table;
     for (unsigned i = 0; i < link_count; i++) {
-            unsigned int link_id = link_table[link_start + i];
-            cfl_enable_node(runtime_handle, link_id);
-
+        unsigned int link_id = link_table[link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_enable_all_nodes: link_id out of bounds");
+            return;
+        }
+        
+        cfl_enable_node(runtime_handle, link_id);
     }
    
 }
@@ -168,4 +221,378 @@ void cfl_wait_time_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_wait_time_out_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_wait_time_out_data_t));
     ptr->wait_time_out = (double)time_delay+cfl_timer_get_timestamp(runtime_handle->timer_handle);
    
+}
+
+void cfl_disable_nodes_one_shot_fn(void *handle, uint16_t node_index){
+    uint32_t count;
+    int32_t node_id;
+    uint32_t array_nodes_record;
+
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    const record_control_t *region = &runtime_handle->json_decoder_ctx->controls[runtime_handle->json_decoder_ctx->current_control_idx];
+    
+    
+    // Navigate to the array
+    json_navigate_path(runtime_handle->json_decoder_ctx, region->start_position, "node_dict.nodes", &array_nodes_record);
+    
+    // Get child count
+    json_get_child_count(runtime_handle->json_decoder_ctx, array_nodes_record, &count);
+    
+    // Loop through array elements
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t element_record;
+        json_get_array_child(runtime_handle->json_decoder_ctx, array_nodes_record, i, &element_record);
+        
+        json_get_int32(runtime_handle->json_decoder_ctx, element_record, &node_id);
+        
+        /* Validate node_id before terminating */
+        if (node_id < 0 || (unsigned)node_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_disable_nodes_one_shot_fn: node_id out of bounds");
+            continue;
+        }
+        
+        cfl_terminate_node_tree(runtime_handle, (unsigned)node_id);
+    }
+    
+
+}
+
+void cfl_enable_nodes_one_shot_fn(void *handle, uint16_t node_index){
+    uint32_t count;
+    int32_t node_id;
+    uint32_t array_nodes_record;
+
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    const record_control_t *region = &runtime_handle->json_decoder_ctx->controls[runtime_handle->json_decoder_ctx->current_control_idx];
+    
+    
+    // Navigate to the array
+    json_navigate_path(runtime_handle->json_decoder_ctx, region->start_position, "node_dict.nodes", &array_nodes_record);
+    
+    // Get child count
+    json_get_child_count(runtime_handle->json_decoder_ctx, array_nodes_record, &count);
+    
+    // Loop through array elements
+    for (uint32_t i = 0; i < count; i++) {
+        uint32_t element_record;
+        json_get_array_child(runtime_handle->json_decoder_ctx, array_nodes_record, i, &element_record);
+        
+        json_get_int32(runtime_handle->json_decoder_ctx, element_record, &node_id);
+        
+        /* Validate node_id before enabling */
+        if (node_id < 0 || (unsigned)node_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_enable_nodes_one_shot_fn: node_id out of bounds");
+            continue;
+        }
+        
+        cfl_enable_node(runtime_handle, (unsigned)node_id);
+    }
+    
+
+}
+
+
+void cfl_event_logger_init_one_shot_fn(void *handle, uint16_t node_index){
+    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+   
+    cfl_event_logger_fn_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_event_logger_fn_data_t));
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    
+    const volatile json_decoder_ctx_t *ctx = runtime_handle->json_decoder_ctx;
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    uint32_t root_record = region->start_position;
+    
+    // Extract the message string
+    
+    json_extract_string(ctx, root_record, "node_dict.message", (const char**) &ptr->event_logger_message);
+    
+    
+    // Navigate to the events array
+    uint32_t node_dict_record;
+    json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
+    
+    uint32_t events_array_record;
+    json_find_object_child(ctx, node_dict_record, "events", &events_array_record);
+    
+    // Get array count
+    json_get_child_count(ctx, events_array_record, &ptr->event_count);
+    
+    /* Check for overflow in allocation size */
+    size_t alloc_size = ptr->event_count * sizeof(int32_t);
+    if (alloc_size > 65535) {
+        EXCEPTION("cfl_event_logger_init_one_shot_fn: event_ids allocation size exceeds uint16_t limit");
+        ptr->event_count = 0;
+        ptr->event_ids = NULL;
+        return;
+    }
+    
+    ptr->event_ids = (int32_t *)cfl_heap_malloc_pointer(runtime_handle->heap, (uint16_t)alloc_size);
+    if (!ptr->event_ids) {
+        EXCEPTION("cfl_event_logger_init_one_shot_fn: failed to allocate event_ids");
+        ptr->event_count = 0;
+        return;
+    }
+    
+    for (uint32_t i = 0; i < ptr->event_count; i++) {
+        uint32_t element_record;
+        json_get_array_child(ctx, events_array_record, i, &element_record);
+        
+        json_get_int32(ctx, element_record, &ptr->event_ids[i]);
+    }
+    
+}
+
+
+void cfl_event_logger_term_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_event_logger_fn_data_t *ptr = (cfl_event_logger_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (ptr && ptr->event_ids) {
+        cfl_heap_free_pointer(runtime_handle->heap, (void*)ptr->event_ids);
+    }
+    
+}
+
+
+/*
+
+JSON Structure:
+[452] object: { count=2
+  "node_dict":
+  [454] object: { count=6
+    "node_id": 85
+    "new_state": "state3"
+    "sync_event_id": null
+  }
+*/
+
+/* Extract node_id, new_state, and sync_event_id (which can be null or integer) */
+void json_extract_new_state_data(
+    cfl_runtime_handle_t *runtime,
+    uint16_t node_index,
+    int32_t *out_node_id,
+    const char **out_new_state,
+    bool *out_sync_flag,
+    int32_t *out_sync_event_id)
+{
+    if (!runtime || !out_node_id || !out_new_state || !out_sync_flag || !out_sync_event_id) {
+        EXCEPTION("json_extract_node_transition_data: NULL parameter");
+    }
+    
+    json_decoder_init_from_runtime(runtime, node_index);
+    
+    const volatile json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    uint32_t root_record = region->start_position;
+    
+    // Navigate to node_dict
+    uint32_t node_dict_record;
+    json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
+    
+    // Extract node_id
+    json_extract_int32(ctx, node_dict_record, "node_id", out_node_id);
+    
+    // Extract new_state (pointer to string table)
+    json_extract_string(ctx, node_dict_record, "new_state", out_new_state);
+    
+    // Extract sync_event_id - check if it's null or integer
+    uint32_t sync_event_id_record;
+    json_find_object_child(ctx, node_dict_record, "sync_event_id", &sync_event_id_record);
+    
+    if (json_is_null(ctx, sync_event_id_record)) {
+        *out_sync_flag = false;
+        *out_sync_event_id = 0;  // Default value when null
+        
+    } else {
+        *out_sync_flag = true;
+        json_get_int32(ctx, sync_event_id_record, out_sync_event_id);
+        
+    }
+}
+
+
+void cfl_change_state_one_shot_fn(void *handle, uint16_t node_index){
+    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    int32_t sm_node_id;
+    const char *new_state;
+    bool sync_flag;
+    int32_t sync_event_id;
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_new_state_data(runtime_handle, node_index, &sm_node_id, &new_state, &sync_flag, &sync_event_id);
+    
+    cfl_change_state(runtime_handle, node_index, sm_node_id, new_state, sync_flag, sync_event_id);
+}
+
+
+
+
+
+void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
+    uint32_t node_count;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: node_index out of bounds");
+        return;
+    }
+    
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    node_count = node->link_count & LINK_COUNT_MASK;
+    
+    /* Validate link_start and node_count */
+    if (node_count > 0) {
+        if (node->link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link_start out of bounds");
+            return;
+        }
+        if (node->link_start + node_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link range exceeds table size");
+            return;
+        }
+    }
+    
+    cfl_state_machine_column_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_state_machine_column_data_t));
+    
+    ptr->sync_event_id_valid = false;
+    ptr->sync_event_id = 0;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    
+    const volatile json_decoder_ctx_t *ctx = runtime_handle->json_decoder_ctx;
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    uint32_t root_record = region->start_position;
+    
+    // Extract initial_state_number
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.initial_state_number", &ptr->current_state);
+    ptr->new_state = ptr->current_state;
+    
+    /* Validate initial_state_number */
+    if (ptr->current_state < 0 || (unsigned)ptr->current_state >= node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: initial_state_number out of range");
+        return;
+    }
+    
+    /* Check for overflow in state_names allocation */
+    size_t alloc_size = node_count * sizeof(const char *);
+    if (alloc_size > 65535) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: state_names allocation size exceeds uint16_t limit");
+        return;
+    }
+    
+    ptr->state_names = (const char **)cfl_heap_malloc_pointer(runtime_handle->heap, (uint16_t)alloc_size);
+    if (!ptr->state_names) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: failed to allocate state_names");
+        return;
+    }
+    
+    // Navigate to node_dict.column_data
+    uint32_t node_dict_record;
+    json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
+    
+    uint32_t column_data_record;
+    json_find_object_child(ctx, node_dict_record, "column_data", &column_data_record);
+    
+    // Navigate to state_names array
+    uint32_t state_names_array;
+    json_find_object_child(ctx, column_data_record, "state_names", &state_names_array);
+    
+    // Extract each state name pointer from the string table
+    for (uint32_t i = 0; i < node_count; i++) {
+        uint32_t element_record;
+        json_get_array_child(ctx, state_names_array, i, &element_record);
+        json_get_string_value(ctx, element_record, &ptr->state_names[i]);
+    }
+    
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    
+    // Terminate all state nodes first
+    for (uint32_t i = 0; i < node_count; i++) {
+        uint16_t link_id = link_table[node->link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link_id out of bounds");
+            continue;
+        }
+        
+        cfl_terminate_node_tree(runtime_handle, link_id);
+    }
+    
+    /* Validate link_id for initial state before enabling */
+    uint16_t initial_link_id = link_table[node->link_start + ptr->current_state];
+    if (initial_link_id >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: initial state link_id out of bounds");
+        return;
+    }
+    
+    cfl_enable_node(runtime_handle, initial_link_id);
+}
+
+
+
+void cfl_state_machine_term_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_state_machine_term_one_shot_fn: node_index out of bounds");
+        return;
+    }
+    
+    cfl_state_machine_column_data_t *ptr = (cfl_state_machine_column_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (ptr && ptr->state_names) {
+        cfl_heap_free_pointer(runtime_handle->heap, (void*)ptr->state_names);
+    }
+    
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
+    uint16_t link_start = node->link_start;
+    
+    /* Validate link_start and link_count */
+    if (link_count > 0) {
+        if (link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_term_one_shot_fn: link_start out of bounds");
+            return;
+        }
+        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_term_one_shot_fn: link range exceeds table size");
+            return;
+        }
+    }
+    
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    
+    /* BUG FIX: Terminate link_table[link_start + i], not link_start + i */
+    for (uint32_t i = 0; i < link_count; i++) {
+        uint16_t link_id = link_table[link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_state_machine_term_one_shot_fn: link_id out of bounds");
+            continue;
+        }
+        
+        cfl_terminate_node_tree(runtime_handle, link_id);
+    }    
+}
+
+void cfl_terminate_state_machine_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t sm_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.sm_node_id", &sm_node_id);
+
+    cfl_terminate_state_machine(runtime_handle, node_index, sm_node_id);
+
+
 }

@@ -84,7 +84,7 @@ struct CFL_RUNTIME_HANDLE {
     volatile uint8_t* backup_flags;
     volatile CT_WalkerContext* walker_context_ptr;
     double future_time_stamp;
-    volatile const chaintree_handle_t* flash_handle;
+    const chaintree_handle_t* flash_handle;
 };
 
 void cfl_engine_create(cfl_runtime_handle_t *handle);
@@ -94,6 +94,7 @@ bool cfl_engine_node_is_enabled(cfl_runtime_handle_t *handle, unsigned node_inde
 bool cfl_engine_node_is_initialized(cfl_runtime_handle_t *handle, unsigned node_index);
 bool cfl_execute_event(cfl_runtime_handle_t *handle);
 void cfl_enable_node(cfl_runtime_handle_t *handle, unsigned node_index);
+void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id);
 
 #ifdef __cplusplus
 }

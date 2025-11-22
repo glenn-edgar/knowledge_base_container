@@ -1041,7 +1041,7 @@ class HeaderFileGenerator:
             "",
             '#include "chaintree_support.h"',
             "",
-            f"#define {self.unique_id.upper()}_NODE_COUNT {self.node_builder.get_total_nodes()}",
+           f"#define {self.unique_id.upper()}_NODE_COUNT {self.node_builder.get_array_size()}",  # Was: get_total_nodes(),
             "",
             f"extern const chaintree_node_t {self.unique_id}_nodes[{self.unique_id.upper()}_NODE_COUNT];",
             "",

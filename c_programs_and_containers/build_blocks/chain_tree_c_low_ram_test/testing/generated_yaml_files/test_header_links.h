@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_RIT1ZO87_LINK_TABLE_SIZE 31
+#define CT_AXQWBASZ_LINK_TABLE_SIZE 138
 
-extern const uint16_t ct_rit1zo87_link_table[CT_RIT1ZO87_LINK_TABLE_SIZE];
+extern const uint16_t ct_axqwbasz_link_table[CT_AXQWBASZ_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

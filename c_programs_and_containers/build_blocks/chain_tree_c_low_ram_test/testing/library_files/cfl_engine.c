@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <limits.h>
 #include "cfl_engine.h"
 #include "CT_Tree_Walker.h"
 
@@ -18,7 +18,7 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index);
 static void cfl_disable_all_node_flags(cfl_runtime_handle_t *handle);
 static void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index);
 static void cfl_set_node_initialization_flag(cfl_runtime_handle_t *handle, unsigned node_index);
-static void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned parent_id);
+
 static void cfl_reset_node_id(cfl_runtime_handle_t *handle, unsigned parent_id);
 
 static unsigned int cfl_get_forward_enabled_links(void* user_handle, unsigned int node_id, 
@@ -82,6 +82,7 @@ void cfl_engine_init_test(cfl_runtime_handle_t *handle, unsigned start_node, uns
 }
 
 bool cfl_execute_event(cfl_runtime_handle_t *handle) {
+    
     if (!handle) {
         EXCEPTION("cfl_execute_event: handle is NULL");
     }
@@ -102,6 +103,13 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle) {
     if (node_index < handle->kb_start_index) {
         EXCEPTION("cfl_execute_event: node_id out of bounds too low");
     }
+    
+    /* Check for overflow in range calculation */
+    if (handle->kb_node_count > 0 && 
+        handle->kb_start_index > UINT_MAX - handle->kb_node_count) {
+        EXCEPTION("cfl_execute_event: kb range calculation overflow");
+    }
+    
     if (node_index >= handle->kb_start_index + handle->kb_node_count) {
         EXCEPTION("cfl_execute_event: node_id out of bounds too high");
     }
@@ -111,7 +119,7 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle) {
     }
     
     if (cfl_engine_node_is_enabled(handle, node_index) == false) {
-        //EXCEPTION("cfl_execute_event: node is not enabled");
+    
         return false;
     }
     
@@ -128,10 +136,10 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle) {
         handle->walker->max_level,
         handle->flash_handle->node_count
     );
-    
+   
     /* If no nodes were executed but the engine flag is still true,
      * something went wrong - clear the flag and return false */
-    if ((handle->cfl_node_execution_count == 0) && (handle->cfl_engine_flag == true)) {
+    if ((handle->cfl_node_execution_count == 0) || (handle->cfl_engine_flag == false)) {
         handle->cfl_engine_flag = false;
     }
     
@@ -180,8 +188,10 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
     const one_shot_function_t one_shot_function = handle->flash_handle->one_shot_functions[node->init_function_index];
     const boolean_function_t boolean_function = handle->flash_handle->boolean_functions[node->aux_function_index];
     
+    
     /* Check if node is enabled */
     if (cfl_engine_node_is_enabled(handle, node_id) == false) {
+        
         return CT_SKIP_CHILDREN;
     }
     
@@ -239,7 +249,7 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
                 cfl_terminate_node_tree(handle, node->parent_index);
                 return CT_SKIP_CHILDREN;
             }
-            /* Terminating root node */
+            
             cfl_disable_node(handle, node_id);
             return CT_STOP_ALL;
         
@@ -372,6 +382,17 @@ static CT_ReturnCode cfl_mark_node_for_termination(void *handle, unsigned node_i
         return CT_STOP_ALL;
     }
     
+    if (!runtime_handle->flash_handle) {
+        EXCEPTION("cfl_mark_node_for_termination: flash_handle is NULL");
+        return CT_STOP_ALL;
+    }
+    
+    /* Validate node_index before accessing arrays */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_mark_node_for_termination: node_index out of bounds");
+        return CT_STOP_ALL;
+    }
+    
     if ((flags[node_index] & (CT_FLAG_USER2 | CT_FLAG_USER3)) == (CT_FLAG_USER2 | CT_FLAG_USER3)) {
         runtime_handle->backup_flags[node_index] |= CT_FLAG_USER1;
     }
@@ -422,7 +443,7 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
     cfl_disable_node_flag(handle, node_index);
 }
 
-static void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id) {
+void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id) {
     if (!handle || !handle->flash_handle) {
         EXCEPTION("cfl_terminate_node_tree: invalid handle");
         return;
@@ -465,8 +486,33 @@ static void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_
     
     ct_walker_restore_context(handle->walker, handle->walker_context_ptr);
     
+    /* Validate loop bounds to prevent underflow/overflow */
+    if (handle->kb_node_count == 0) {
+        return;  /* Nothing to terminate */
+    }
+    
+    /* Check for overflow in range calculation */
+    if (handle->kb_start_index > UINT_MAX - handle->kb_node_count) {
+        EXCEPTION("cfl_terminate_node_tree: kb range calculation overflow");
+        return;
+    }
+    
+    unsigned int end_index = handle->kb_start_index + handle->kb_node_count - 1;
+    
+    /* Validate end_index is within bounds */
+    if (end_index >= handle->flash_handle->node_count) {
+        EXCEPTION("cfl_terminate_node_tree: end_index out of bounds");
+        return;
+    }
+    
+    /* Ensure node_id is within the KB range */
+    if (node_id < handle->kb_start_index) {
+        EXCEPTION("cfl_terminate_node_tree: node_id below kb_start_index");
+        return;
+    }
+    
     /* Terminate marked nodes in reverse order */
-    for (int i = handle->kb_start_index + handle->kb_node_count - 1; i >= (int)node_id; i--) {
+    for (int i = (int)end_index; i >= (int)node_id; i--) {
         if (handle->flags[i] & CT_FLAG_USER1) {
             handle->flags[i] &= ~CT_FLAG_USER1;
             cfl_disable_node(handle, i);
@@ -474,13 +520,13 @@ static void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_
     }
 }
 
-static void cfl_reset_node_id(cfl_runtime_handle_t *handle, unsigned parent_id) {
+void cfl_reset_node_id(cfl_runtime_handle_t *handle, unsigned node_id) {
     if (!handle) {
         EXCEPTION("cfl_reset_node_id: handle is NULL");
         return;
     }
     
-    cfl_enable_node(handle, parent_id);
+    cfl_enable_node(handle, node_id);
 }
 
 /*==============================================================================

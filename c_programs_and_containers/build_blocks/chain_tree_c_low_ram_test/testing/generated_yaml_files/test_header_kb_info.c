@@ -2,12 +2,33 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_rit1zo87_kb_table[1] = {
+const chaintree_kb_info_t ct_axqwbasz_kb_table[4] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
         .start_index = 0,
         .node_count = 32,
         .max_depth = 2
+    },
+    {
+        .kb_name = "second_test",
+        .root_node_index = 32,
+        .start_index = 32,
+        .node_count = 34,
+        .max_depth = 2
+    },
+    {
+        .kb_name = "fourth_test",
+        .root_node_index = 66,
+        .start_index = 66,
+        .node_count = 15,
+        .max_depth = 3
+    },
+    {
+        .kb_name = "fifth_test",
+        .root_node_index = 81,
+        .start_index = 81,
+        .node_count = 61,
+        .max_depth = 4
     },
 };

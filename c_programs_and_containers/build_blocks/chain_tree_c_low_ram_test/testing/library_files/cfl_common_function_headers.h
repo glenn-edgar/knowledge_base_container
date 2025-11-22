@@ -30,6 +30,26 @@ typedef struct{
   void *auxiliary_data;
 }cfl_verify_fn_data_t;
 
+
+typedef struct{
+  char *event_logger_message;
+  uint32_t event_count;
+  int32_t *event_ids;
+}cfl_event_logger_fn_data_t;
+
+
+typedef struct {
+
+  const char **state_names;               // Array of pointers to strings                 // Array of state link node IDs
+  int32_t current_state;
+  int32_t new_state;
+  int32_t sync_event_id;
+  bool sync_event_id_valid;
+  bool sync_occured;
+} cfl_state_machine_column_data_t;
+
+
+
 #ifdef __cplusplus
 }
 #endif

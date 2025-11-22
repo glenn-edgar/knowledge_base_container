@@ -90,6 +90,9 @@ class StateMachine(ColumnFlow):
         for state_name in ref_data["label_dict"]["state_names"]:
             if state_name not in ref_data["label_dict"]["defined_states"]:
                 raise ValueError(f"State link not found for {state_name}")
+        ref_data["node_dict"]["column_data"]["initial_state_number"] =  ref_data["label_dict"]["state_names"].index(ref_data["label_dict"]["initial_state"])
+       
+        ref_data["node_dict"]["column_data"]["state_names"] = ref_data["label_dict"]["state_names"].copy()
         self.end_column(state_node)    
         
     def __initialize_state_links(self, state_node :str, sm_name :str, state_names :list[str],initial_state:str):
@@ -104,7 +107,7 @@ class StateMachine(ColumnFlow):
         
         if initial_state not in state_names:
             raise ValueError(f"Initial state {initial_state} not found in state names {state_names}")
-        ref_data["node_dict"]["current_state"] = initial_state
+
         ref_data["label_dict"]["initial_state"] = initial_state
         ref_data["label_dict"]["sm_name"] = sm_name
         ref_data["label_dict"]["state_links"] = []

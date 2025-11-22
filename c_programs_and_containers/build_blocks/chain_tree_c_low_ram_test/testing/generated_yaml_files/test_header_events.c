@@ -2,7 +2,7 @@
 #include "test_header_events.h"
 
 /* Event names indexed by event index */
-const char *ct_rit1zo87_event_strings[13] = {
+const char *ct_axqwbasz_event_strings[18] = {
     "CFL_INIT_EVENT",
     "CFL_TERMINATE_EVENT",
     "CFL_START_TESTS",
@@ -16,4 +16,9 @@ const char *ct_rit1zo87_event_strings[13] = {
     "CFL_MONTH_EVENT",
     "CFL_YEAR_EVENT",
     "WAIT_FOR_EVENT",
+    "PUBLISH_EVENT",
+    "TEST_EVENT_1",
+    "TEST_EVENT_2",
+    "TEST_EVENT_3",
+    "SYNC_EVENT",
 };

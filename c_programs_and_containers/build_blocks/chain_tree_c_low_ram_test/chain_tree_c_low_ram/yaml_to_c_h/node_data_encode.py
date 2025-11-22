@@ -291,6 +291,60 @@ class NodeDataEncoder:
            
     }
         
+    def _process_node_reference_fields(self, data_dict: Dict) -> Dict:
+        """
+        Process fields that contain node references (ltree paths) and convert them to indices.
+        
+        Fields that should be converted:
+        - sm_node_id: State machine node reference
+        - target_node_id: Target node for transitions
+        - Any field ending in '_node_id' or '_node_ref'
+        
+        Args:
+            data_dict: Dictionary that may contain node reference fields
+            
+        Returns:
+            Modified dictionary with ltree paths converted to node indices
+        """
+        result = data_dict.copy()
+        
+        # List of field name patterns that contain node references
+        node_ref_patterns = [
+            'sm_node_id',
+            'target_node_id',
+            'parent_node_id',
+            'next_node_id',
+            'prev_node_id',
+        ]
+        
+        for key, value in data_dict.items():
+            # Check if this field contains a node reference
+            if key in node_ref_patterns or key.endswith('_node_id') or key.endswith('_node_ref'):
+                # Value should be an ltree path string
+                if isinstance(value, str) and value.startswith('kb.'):
+                    # Look up the node index
+                    if value in self.node_builder.ltree_to_final_index:
+                        node_index = self.node_builder.get_node_final_index(value)
+                        result[key] = node_index
+                        print(f"    Resolved {key}: '{value}' -> node_index={node_index}")
+                    else:
+                        # Node not found or was filtered
+                        print(f"    WARNING: {key} references unknown/filtered node: '{value}'")
+                        result[key] = 0xFFFF  # Invalid node reference
+            
+            # Recursively process nested dictionaries
+            elif isinstance(value, dict):
+                result[key] = self._process_node_reference_fields(value)
+            
+            # Process lists that might contain dicts
+            elif isinstance(value, list):
+                result[key] = [
+                    self._process_node_reference_fields(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
+        
+        return result
+        
     def generate_c_arrays(self, lines: List[str], unique_id: str) -> None:
         """
         Generate C array definitions with unique_id prefix.
@@ -478,6 +532,7 @@ class NodeDataEncoder:
         - Metadata (node_name, node_type) is excluded - not used at runtime
         - auto_start is excluded (already encoded in link_count bit 15)
         - Function name fields are resolved to function IDs
+        - Node reference fields (sm_node_id, etc.) are resolved to node indices
         - Only encode node_dict if it has meaningful data after filtering
         - Only encode other operational fields (timeout, priority, config, etc.) if present
         """
@@ -485,7 +540,6 @@ class NodeDataEncoder:
         nodes_with_data = 0
         nodes_skipped = 0
         
-        # FIX: Iterate over ltree names, not indices
         for ltree_name in self.node_builder.ltree_to_final_index.keys():
             # Skip filtered metadata nodes (defensive check - shouldn't be in final list)
             if ltree_name in self.node_builder.filtered_nodes:
@@ -508,7 +562,7 @@ class NodeDataEncoder:
                 encode_data['data'] = node_data['data']
             
             # Handle node_dict specially - exclude auto_start (already in link_count)
-            # and resolve function name fields to IDs
+            # and resolve function name fields to IDs and node references to indices
             if 'node_dict' in node_data:
                 node_dict = node_data['node_dict']
                 if node_dict and isinstance(node_dict, dict):
@@ -519,6 +573,10 @@ class NodeDataEncoder:
                     if filtered_dict:
                         filtered_dict = self._process_function_fields(filtered_dict)
                     
+                    # Resolve node reference fields to indices
+                    if filtered_dict:
+                        filtered_dict = self._process_node_reference_fields(filtered_dict)
+                    
                     # Only include if there's meaningful data remaining
                     if self._has_meaningful_data(filtered_dict):
                         encode_data['node_dict'] = filtered_dict
@@ -526,7 +584,11 @@ class NodeDataEncoder:
             # Include other operational fields (if present and meaningful)
             for key in ['timeout', 'priority', 'config', 'parameters']:
                 if key in node_data and self._has_meaningful_data(node_data[key]):
-                    encode_data[key] = node_data[key]
+                    # Also process node references in these fields
+                    field_data = node_data[key]
+                    if isinstance(field_data, dict):
+                        field_data = self._process_node_reference_fields(field_data)
+                    encode_data[key] = field_data
             
             # Encode the data and get the record control index
             if encode_data:
@@ -549,6 +611,7 @@ class NodeDataEncoder:
                     print(f"  Skipped node '{node_name}': no operational data")
         
         print(f"\n  Summary: {nodes_with_data} nodes with data, {nodes_skipped} nodes skipped")
+
             
     def get_node_data_id(self, ltree_name: str) -> int:
         """Get the data ID for a node."""

@@ -125,7 +125,7 @@ class BasicCfLinks(ColumnFlow):
         for event in events:
             event_id = self.ctb.register_event(event)
             temp_events.append(event_id)
-        return self.define_column_link("CFL_EVENT_LOGGER","CFL_NULL","CFL_NULL","CFL_NULL", 
+        return self.define_column_link("CFL_EVENT_LOGGER","CFL_EVENT_LOGGER_INIT","CFL_NULL","CFL_EVENT_LOGGER_TERM",
                             node_data={"message": message, "events": temp_events})
 
 
