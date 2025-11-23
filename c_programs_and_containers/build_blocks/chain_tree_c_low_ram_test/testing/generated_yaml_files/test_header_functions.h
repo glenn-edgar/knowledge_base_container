@@ -13,16 +13,22 @@ typedef enum {
     MAIN_FUNC_CFL_COLUMN_MAIN = 1,
     MAIN_FUNC_CFL_DISABLE = 2,
     MAIN_FUNC_CFL_EVENT_LOGGER = 3,
-    MAIN_FUNC_CFL_GATE_NODE_MAIN = 4,
-    MAIN_FUNC_CFL_HALT = 5,
-    MAIN_FUNC_CFL_RESET = 6,
-    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 7,
-    MAIN_FUNC_CFL_TERMINATE = 8,
-    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 9,
-    MAIN_FUNC_CFL_VERIFY = 10,
-    MAIN_FUNC_CFL_WAIT = 11,
-    MAIN_FUNC_CFL_WAIT_TIME = 12,
-    MAIN_FUNC_COUNT = 13
+    MAIN_FUNC_CFL_FORK_MAIN = 4,
+    MAIN_FUNC_CFL_GATE_NODE_MAIN = 5,
+    MAIN_FUNC_CFL_HALT = 6,
+    MAIN_FUNC_CFL_JOIN_MAIN = 7,
+    MAIN_FUNC_CFL_JOIN_SEQUENCE_ELEMENT = 8,
+    MAIN_FUNC_CFL_RESET = 9,
+    MAIN_FUNC_CFL_SEQUENCE_FAIL_MAIN = 10,
+    MAIN_FUNC_CFL_SEQUENCE_PASS_MAIN = 11,
+    MAIN_FUNC_CFL_SEQUENCE_START_MAIN = 12,
+    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 13,
+    MAIN_FUNC_CFL_TERMINATE = 14,
+    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 15,
+    MAIN_FUNC_CFL_VERIFY = 16,
+    MAIN_FUNC_CFL_WAIT = 17,
+    MAIN_FUNC_CFL_WAIT_TIME = 18,
+    MAIN_FUNC_COUNT = 19
 } MAIN_FUNC_t;
 
 /* One-shot function enum */
@@ -36,21 +42,35 @@ typedef enum {
     ONE_SHOT_FUNC_CFL_ENABLE_NODES = 6,
     ONE_SHOT_FUNC_CFL_EVENT_LOGGER_INIT = 7,
     ONE_SHOT_FUNC_CFL_EVENT_LOGGER_TERM = 8,
-    ONE_SHOT_FUNC_CFL_GATE_NODE_INIT = 9,
-    ONE_SHOT_FUNC_CFL_GATE_NODE_TERM = 10,
-    ONE_SHOT_FUNC_CFL_LOG_MESSAGE = 11,
-    ONE_SHOT_FUNC_CFL_SEND_NAMED_EVENT = 12,
-    ONE_SHOT_FUNC_CFL_STATE_MACHINE_INIT = 13,
-    ONE_SHOT_FUNC_CFL_STATE_MACHINE_TERM = 14,
-    ONE_SHOT_FUNC_CFL_TERMINATE_STATE_MACHINE = 15,
-    ONE_SHOT_FUNC_CFL_VERIFY_INIT = 16,
-    ONE_SHOT_FUNC_CFL_VERIFY_TERM = 17,
-    ONE_SHOT_FUNC_CFL_WAIT_INIT = 18,
-    ONE_SHOT_FUNC_CFL_WAIT_TERM = 19,
-    ONE_SHOT_FUNC_CFL_WAIT_TIME_INIT = 20,
-    ONE_SHOT_FUNC_WAIT_FOR_EVENT_ERROR = 21,
-    ONE_SHOT_FUNC_VERIFY_ERROR = 22,
-    ONE_SHOT_FUNC_COUNT = 23
+    ONE_SHOT_FUNC_CFL_FORK_INIT = 9,
+    ONE_SHOT_FUNC_CFL_FORK_TERM = 10,
+    ONE_SHOT_FUNC_CFL_GATE_NODE_INIT = 11,
+    ONE_SHOT_FUNC_CFL_GATE_NODE_TERM = 12,
+    ONE_SHOT_FUNC_CFL_JOIN_INIT = 13,
+    ONE_SHOT_FUNC_CFL_JOIN_SEQUENCE_ELEMENT_INIT = 14,
+    ONE_SHOT_FUNC_CFL_JOIN_SEQUENCE_ELEMENT_TERM = 15,
+    ONE_SHOT_FUNC_CFL_JOIN_TERM = 16,
+    ONE_SHOT_FUNC_CFL_LOG_MESSAGE = 17,
+    ONE_SHOT_FUNC_CFL_MARK_SEQUENCE = 18,
+    ONE_SHOT_FUNC_CFL_SEND_NAMED_EVENT = 19,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_FAIL_INIT = 20,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_FAIL_TERM = 21,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_PASS_INIT = 22,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_PASS_TERM = 23,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_START_INIT = 24,
+    ONE_SHOT_FUNC_CFL_SEQUENCE_START_TERM = 25,
+    ONE_SHOT_FUNC_CFL_STATE_MACHINE_INIT = 26,
+    ONE_SHOT_FUNC_CFL_STATE_MACHINE_TERM = 27,
+    ONE_SHOT_FUNC_CFL_TERMINATE_STATE_MACHINE = 28,
+    ONE_SHOT_FUNC_CFL_VERIFY_INIT = 29,
+    ONE_SHOT_FUNC_CFL_VERIFY_TERM = 30,
+    ONE_SHOT_FUNC_CFL_WAIT_INIT = 31,
+    ONE_SHOT_FUNC_CFL_WAIT_TERM = 32,
+    ONE_SHOT_FUNC_CFL_WAIT_TIME_INIT = 33,
+    ONE_SHOT_FUNC_WAIT_FOR_EVENT_ERROR = 34,
+    ONE_SHOT_FUNC_VERIFY_ERROR = 35,
+    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_RESULT = 36,
+    ONE_SHOT_FUNC_COUNT = 37
 } ONE_SHOT_FUNC_t;
 
 /* Boolean function enum */
@@ -67,16 +87,16 @@ typedef enum {
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_axqwbasz_main_functions[13];
-extern const one_shot_function_t ct_axqwbasz_one_shot_functions[23];
-extern const boolean_function_t ct_axqwbasz_boolean_functions[8];
+extern const main_function_t ct_4vn9ga8l_main_functions[19];
+extern const one_shot_function_t ct_4vn9ga8l_one_shot_functions[37];
+extern const boolean_function_t ct_4vn9ga8l_boolean_functions[8];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_axqwbasz_main_function_usage_count[13];
+extern const uint16_t ct_4vn9ga8l_main_function_usage_count[19];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_axqwbasz_main_function_names[13];
-extern const char *ct_axqwbasz_one_shot_function_names[23];
-extern const char *ct_axqwbasz_boolean_function_names[8];
+extern const char *ct_4vn9ga8l_main_function_names[19];
+extern const char *ct_4vn9ga8l_one_shot_function_names[37];
+extern const char *ct_4vn9ga8l_boolean_function_names[8];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */

@@ -47,3 +47,11 @@ void verify_error_one_shot_fn(void *handle, unsigned node_index){
     printf("verify_error_one_shot_fn failure_data: %s\n", ptr->failure_data);
     
 }
+
+void display_sequence_result_one_shot_fn(void *handle, unsigned node_index){
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime, node_index);
+    json_print_node_data_runtime(runtime, node_index);
+    printf("display_sequence_result_one_shot_fn\n");
+    exit(0);
+}

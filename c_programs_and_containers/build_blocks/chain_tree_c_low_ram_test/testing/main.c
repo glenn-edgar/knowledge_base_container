@@ -36,13 +36,13 @@ int main(void) {
     params->perm = &perm;
     params->perm_buffer = perm_buffer;
     params->perm_buffer_size = (uint16_t) sizeof(perm_buffer);
-    params->heap_size = (uint16_t) 0x1000;   
-    params->max_allocator_count = (uint16_t) 2;
+    params->heap_size = (uint16_t)  4096;
+    params->max_allocator_count = cfl_calculate_arrena_number(test_handle);
     params->total_node_count = test_handle->node_count;
     printf("total_node_count: %d\n", params->total_node_count);
     
     /* Check for overflow in allocator_0_size calculation */
-    size_t allocator_size = (size_t)test_handle->node_count * 20;
+    size_t allocator_size = (size_t)50;
     if (allocator_size > 65535) {
         printf("Error: allocator_0_size calculation overflow: %zu > 65535\n", allocator_size);
         cfl_runtime_create_params_destroy(params);
@@ -64,13 +64,25 @@ int main(void) {
    
     cfl_runtime_reset(handle);
     
-    /* Add test with validation */
+    #if 0
     if (!cfl_add_test_by_index(handle, test_index)) {
         printf("Failed to add test at index %d\n", test_index);
         /* Note: Should have a cfl_runtime_destroy(handle) here if it exists */
         return -1;
     }
+    #endif
+
+    //cfl_add_test_by_index(handle, 0); //first test
+    //cfl_add_test_by_index(handle, 1); //second test
+    //cfl_add_test_by_index(handle, 2);//fourth test
+    //cfl_add_test_by_index(handle, 3); //fifth test
+    //cfl_add_test_by_index(handle, 4); //sixth test
+    //cfl_add_test_by_index(handle, 5); //seventh test
+    cfl_add_test_by_index(handle, 6); //eighth test
+    //cfl_add_test_by_index(handle, 7); //ninth test
     
+    printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
+    printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));
     bool result = cfl_runtime_run(handle);
     printf("Runtime run result: %d\n", result);
     

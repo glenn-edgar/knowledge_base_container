@@ -16,7 +16,7 @@
 
 static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index);
 static void cfl_disable_all_node_flags(cfl_runtime_handle_t *handle);
-static void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index);
+
 static void cfl_set_node_initialization_flag(cfl_runtime_handle_t *handle, unsigned node_index);
 
 static void cfl_reset_node_id(cfl_runtime_handle_t *handle, unsigned parent_id);
@@ -339,7 +339,7 @@ bool cfl_engine_node_is_enabled(cfl_runtime_handle_t *handle, unsigned node_inde
         return false;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     if ((flags[node_index] & CT_FLAG_USER3) == 0) {
         return false;
     }
@@ -360,7 +360,7 @@ bool cfl_engine_node_is_initialized(cfl_runtime_handle_t *handle, unsigned node_
         return false;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     bool return_value = (flags[node_index] & CT_FLAG_USER2) && (flags[node_index] & CT_FLAG_USER3);
     
     return return_value;
@@ -539,7 +539,7 @@ static void cfl_disable_all_node_flags(cfl_runtime_handle_t *handle) {
         return;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     for (unsigned i = 0; i < handle->flash_handle->node_count; i++) {
         flags[i] &= ~CT_FLAG_USER_MASK;
     }
@@ -559,12 +559,14 @@ void cfl_enable_node(cfl_runtime_handle_t *handle, unsigned node_index) {
         return;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     flags[node_index] &= ~CT_FLAG_USER_MASK;
     flags[node_index] |= CT_FLAG_USER3;
 }
 
-static void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index) {
+
+
+void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index) {
     if (!handle || !handle->flags) {
         EXCEPTION("cfl_disable_node_flag: invalid handle");
         return;
@@ -578,7 +580,7 @@ static void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_in
         return;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     flags[node_index] &= ~CT_FLAG_USER_MASK;
 }
 
@@ -596,6 +598,24 @@ static void cfl_set_node_initialization_flag(cfl_runtime_handle_t *handle, unsig
         return;
     }
     
-    volatile uint8_t *flags = handle->flags;
+     uint8_t *flags = handle->flags;
     flags[node_index] |= CT_FLAG_USER2;
 }
+
+/*==============================================================================
+ * ALLOCATOR ID ASSIGNMENT
+ *============================================================================*/
+ /*
+const chaintree_handle_t* flash_handle
+uint16_t cfl_assign_kb_allocator_id(cfl_runtime_handle_t *handle, uint16_t kb_index, uint16_t allocator_size) {
+    uint16_t kb_node_count = handle->flash_handle->kb_table[kb_index].node_count;
+    if(kb_index >= handle->flash_handle->kb_count) {
+        EXCEPTION("cfl_assign_kb_allocator_id: kb_index out of bounds");
+        return 0;
+    }
+
+    uint16_t kb_start_index = handle->flash_handle->kb_table[kb_index].start_index;
+    uint16_t kb_node_count = handle->flash_handle->kb_table[kb_index].node_count;
+    // later we will scan for number of node defined allegators
+}
+*/

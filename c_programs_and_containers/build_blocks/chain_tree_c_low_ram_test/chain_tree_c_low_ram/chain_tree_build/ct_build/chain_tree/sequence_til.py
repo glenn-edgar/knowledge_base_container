@@ -147,8 +147,8 @@ class SequenceTil(ColumnFlow):
     def join_sequence_element(self,parent_node_name:str):
         return self.define_column_link(main_function_name="CFL_JOIN_SEQUENCE_ELEMENT",
                                        aux_function_name="CFL_NULL",
-                                       initialization_function_name="CFL_NULL",
-                                       termination_function_name="CFL_NULL",
+                                       initialization_function_name="CFL_JOIN_SEQUENCE_ELEMENT_INIT",
+                                       termination_function_name="CFL_JOIN_SEQUENCE_ELEMENT_TERM",
                                        node_data={"parent_node_name":parent_node_name})
 
     

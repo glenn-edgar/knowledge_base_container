@@ -34,7 +34,7 @@ void cfl_uint16_to_str(uint16_t value, char* buffer) {
 
 void *cfl_smart_arena_alloc(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t size){
     
-    uint16_t memory_index = cfl_heap_arena_get_node_memory_index((volatile cfl_heap_arena_system_t *)handle->arena_system, node_index);
+    uint16_t memory_index = cfl_heap_arena_get_node_memory_index(( cfl_heap_arena_system_t *)handle->arena_system, node_index);
     if (memory_index == 0xFFFF){
         return  cfl_arena_system_alloc(handle->arena_system, node_index, size);
     }
@@ -94,6 +94,12 @@ void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t
     if (sync_flag){
         ptr->sync_event_id_valid = true;
         ptr->sync_event_id = sync_event_id;
+        cfl_send_null_event(
+            handle->event_queue,
+            CFL_EVENT_PRIORITY_LOW,
+            sm_node_id,
+            sync_event_id);
+       
     }
     else{
         ptr->sync_event_id_valid = false;

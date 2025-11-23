@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_AXQWBASZ_KB_COUNT 4
+#define CT_4VN9GA8L_KB_COUNT 8
 
-extern const chaintree_kb_info_t ct_axqwbasz_kb_table[4];
+extern const chaintree_kb_info_t ct_4vn9ga8l_kb_table[8];
 
 #endif /* TEST_HEADER_KB_INFO_H */

@@ -186,11 +186,6 @@ bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned ev
     }
     
     if (event_id == CFL_INIT_EVENT){
-        if (ptr->sync_event_id_valid == true){
-            ptr->sync_occured = false;
-        }else{
-            ptr->sync_occured = true;
-        }
         return false;
     }
     if (event_id == CFL_TERMINATE_EVENT){
@@ -199,12 +194,10 @@ bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned ev
     if ( ptr->sync_event_id_valid == false){
         return false;
     }
-    if ( ptr->sync_occured == true){
-        return false;
-    }
-    if ( event_id == (unsigned)ptr->sync_event_id){
-        ptr->sync_occured = true;
+    if(event_id == (unsigned)ptr->sync_event_id){
     
+        ptr->sync_event_id_valid = false;
     }
+
     return true;
 }

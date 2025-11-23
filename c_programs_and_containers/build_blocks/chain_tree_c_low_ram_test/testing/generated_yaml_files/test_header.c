@@ -4,49 +4,49 @@
 
 /* Const handle instance in flash memory */
 const chaintree_handle_t g_test_header = {
-    .unique_id = "ct_axqwbasz",
+    .unique_id = "ct_4vn9ga8l",
     
     /* Node data */
-    .nodes = ct_axqwbasz_nodes,
-    .node_count = 146,
+    .nodes = ct_4vn9ga8l_nodes,
+    .node_count = 285,
     
     /* Function arrays */
-    .main_functions = ct_axqwbasz_main_functions,
-    .main_function_count = 13,
-    .one_shot_functions = ct_axqwbasz_one_shot_functions,
-    .one_shot_function_count = 23,
-    .boolean_functions = ct_axqwbasz_boolean_functions,
+    .main_functions = ct_4vn9ga8l_main_functions,
+    .main_function_count = 19,
+    .one_shot_functions = ct_4vn9ga8l_one_shot_functions,
+    .one_shot_function_count = 37,
+    .boolean_functions = ct_4vn9ga8l_boolean_functions,
     .boolean_function_count = 8,
     
     /* Function names */
-    .main_function_names = ct_axqwbasz_main_function_names,
-    .one_shot_function_names = ct_axqwbasz_one_shot_function_names,
-    .boolean_function_names = ct_axqwbasz_boolean_function_names,
+    .main_function_names = ct_4vn9ga8l_main_function_names,
+    .one_shot_function_names = ct_4vn9ga8l_one_shot_function_names,
+    .boolean_function_names = ct_4vn9ga8l_boolean_function_names,
     
     /* Main function usage counts */
-    .main_function_usage_count = ct_axqwbasz_main_function_usage_count,
+    .main_function_usage_count = ct_4vn9ga8l_main_function_usage_count,
     
     /* Link table */
-    .link_table = ct_axqwbasz_link_table,
-    .link_table_size = 138,
+    .link_table = ct_4vn9ga8l_link_table,
+    .link_table_size = 269,
     
     /* Event strings */
-    .event_strings = (const char **)ct_axqwbasz_event_strings,
-    .event_count = 18,
+    .event_strings = (const char **)ct_4vn9ga8l_event_strings,
+    .event_count = 19,
     
     /* Bitmask names */
-    .bitmask_names = (const char **)ct_axqwbasz_bitmask_names,
+    .bitmask_names = (const char **)ct_4vn9ga8l_bitmask_names,
     .bitmask_count = 0,
     
     /* Knowledge base info */
-    .kb_table = ct_axqwbasz_kb_table,
-    .kb_count = 4,
+    .kb_table = ct_4vn9ga8l_kb_table,
+    .kb_count = 8,
     
     /* Node data (JSON records) */
-    .node_data_records = ct_axqwbasz_node_data_records,
-    .node_data_records_count = 668,
-    .node_data_strings = ct_axqwbasz_node_data_strings,
-    .node_data_strings_size = 1237,
-    .node_data_controls = ct_axqwbasz_node_data_controls,
-    .node_data_controls_count = 101
+    .node_data_records = ct_4vn9ga8l_node_data_records,
+    .node_data_records_count = 1251,
+    .node_data_strings = ct_4vn9ga8l_node_data_strings,
+    .node_data_strings_size = 1979,
+    .node_data_controls = ct_4vn9ga8l_node_data_controls,
+    .node_data_controls_count = 194
 };

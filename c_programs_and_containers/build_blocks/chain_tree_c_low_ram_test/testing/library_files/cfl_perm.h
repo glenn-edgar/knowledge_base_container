@@ -32,35 +32,35 @@ typedef struct CflPerm {
 
 /* Allocator management */
 CflPerm* cfl_perm_create(void);
-void cfl_perm_destroy(volatile CflPerm* perm);
+void cfl_perm_destroy( CflPerm* perm);
 
-void cfl_perm_set_instance(volatile cfl_perm_t* perm);
+void cfl_perm_set_instance( cfl_perm_t* perm);
 cfl_perm_t* cfl_perm_malloc_create(uint16_t size);
-void cfl_perm_malloc_destroy(volatile cfl_perm_t* perm);
+void cfl_perm_malloc_destroy( cfl_perm_t* perm);
 
 /* Initialize with external buffer */
-void cfl_perm_init(volatile CflPerm* perm, void* buffer, uint16_t buffer_size);
+void cfl_perm_init( CflPerm* perm, void* buffer, uint16_t buffer_size);
 
 /* Reset to initial state (all allocations lost) */
-void cfl_perm_reset(volatile CflPerm* perm);
+void cfl_perm_reset( CflPerm* perm);
 
 /* Allocation - returns index (NO FREE - permanent allocations) */
-uint16_t cfl_perm_alloc(volatile CflPerm* perm, uint16_t size_bytes);
-uint16_t cfl_perm_alloc_aligned(volatile CflPerm* perm, uint16_t size_bytes, uint16_t alignment);
+uint16_t cfl_perm_alloc( CflPerm* perm, uint16_t size_bytes);
+uint16_t cfl_perm_alloc_aligned( CflPerm* perm, uint16_t size_bytes, uint16_t alignment);
 
 /* Allocation - returns pointer (NO FREE - permanent allocations) */
-void* cfl_perm_alloc_pointer(volatile CflPerm* perm, uint16_t size_bytes);
-void* cfl_perm_alloc_pointer_aligned(volatile CflPerm* perm, uint16_t size_bytes, uint16_t alignment);
+void* cfl_perm_alloc_pointer( CflPerm* perm, uint16_t size_bytes);
+void* cfl_perm_alloc_pointer_aligned( CflPerm* perm, uint16_t size_bytes, uint16_t alignment);
 
 /* Index/pointer conversion */
-void* cfl_perm_ptr(volatile CflPerm* perm, uint16_t idx);
-uint16_t cfl_perm_ptr_to_idx(volatile CflPerm* perm, void* ptr);
+void* cfl_perm_ptr( CflPerm* perm, uint16_t idx);
+uint16_t cfl_perm_ptr_to_idx( CflPerm* perm, void* ptr);
 
 /* Diagnostics */
-uint16_t cfl_perm_used_bytes(volatile CflPerm* perm);
-uint16_t cfl_perm_free_bytes(volatile CflPerm* perm);
-void cfl_perm_get_stats(volatile CflPerm* perm, CflPermStats* stats);
-bool cfl_perm_validate(volatile CflPerm* perm);
+uint16_t cfl_perm_used_bytes( CflPerm* perm);
+uint16_t cfl_perm_free_bytes( CflPerm* perm);
+void cfl_perm_get_stats( CflPerm* perm, CflPermStats* stats);
+bool cfl_perm_validate( CflPerm* perm);
 
 /* Helper macros */
 #define CFL_PERM_TOTAL_SIZE(buffer_size) \

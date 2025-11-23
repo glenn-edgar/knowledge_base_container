@@ -229,8 +229,9 @@ def fifth_test(ct,kb_name): # state machine
     ct.end_column(column_name = state3_2)
     
     ct.end_state_machine(state_node=state_machine_2,sm_name="state_machine_2")
-    ct.asm_log_message("terminating state machine 2")
+    
     ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("terminating state machine 2")
     ct.terminate_state_machine(state_machine_2)
     
     ct.asm_log_message("launch column is terminating")
@@ -238,6 +239,247 @@ def fifth_test(ct,kb_name): # state machine
     ct.end_column(column_name=launch_column)
     
     ct.end_test()
+
+def insert_fork_column(ct):
+    
+    fork_column = ct.define_fork_column(column_name="fork_column")
+    fork_child_1 = ct.define_column("fork_child_1")
+    ct.asm_log_message("fork child 1 starting")
+    ct.asm_event_logger("displaying fork child 1 events",["TEST_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=fork_child_1)
+    
+    
+    fork_child_2 = ct.define_column("fork_child_2")
+    ct.asm_log_message("fork child 2 starting")
+    ct.asm_event_logger("displaying fork child 2 events",["TEST_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=fork_child_2)
+    
+    fork_child_3 = ct.define_column("fork_child_3")
+    ct.asm_log_message("fork child 3 starting")
+    ct.asm_event_logger("displaying fork child 3 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("child 3 executed a time delay of 2 seconds")
+    ct.asm_wait_time(time_delay=15)
+    ct.asm_halt()
+    ct.end_column(column_name=fork_child_3)
+    ct.end_column(column_name=fork_column)
+    
+    
+    
+    
+    
+def sixth_test(ct,kb_name):
+
+    ct.start_test(test_name=kb_name)
+    
+    
+    
+    launch_column = ct.define_column(column_name="launch_column", column_data=None,auto_start=True)
+    ct.asm_log_message("launch column")
+
+    ct.asm_wait_time(time_delay=1.5)
+    ct.asm_log_message("launching fork column")
+   
+    insert_fork_column(ct)
+
+    ct.asm_log_message("fork column launched")
+    ct.asm_event_logger("displaying fork column events",["TEST_EVENT"])
+
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("resetting launch column")
+    ct.asm_reset()
+    ct.end_column(column_name=launch_column)
+    
+    
+    
+    
+    event_generator_column = ct.define_column(column_name="event_generator_column", column_data=None,auto_start=True)
+    ct.asm_log_message("sending event to launch column")
+    ct.asm_send_named_event(node_id=launch_column,event_id="TEST_EVENT",event_data={"event_data":"event_data"})
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_reset()
+    ct.end_column(column_name=event_generator_column)
+    
+    end_column =ct.define_column(column_name="end_column", column_data=None,auto_start=True)
+    
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("ending test")
+    ct.asm_terminate_system()
+    ct.end_column(column_name=end_column)
+    
+    ct.end_test()
+    
+def insert_fork_join_column(ct):
+    fork_join_column = ct.define_fork_column(column_name="fork_column")
+    fork_child_1 = ct.define_column("fork_child_1")
+    ct.asm_log_message("fork child 1 starting")
+    ct.asm_event_logger("displaying fork child 1 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("fork 1 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_1)
+    
+    
+    fork_child_2 = ct.define_column("fork_child_2")
+    ct.asm_log_message("fork child 2 starting")
+    ct.asm_event_logger("displaying fork child 2 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("fork 2 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_2)
+    
+    fork_child_3 = ct.define_column("fork_child_3")
+    ct.asm_log_message("fork child 3 starting")
+    ct.asm_event_logger("displaying fork child 3 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=4)
+    ct.asm_log_message("fork 3 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_3)
+    
+    ct.end_column(column_name=fork_join_column)
+    ct.define_join_link(parent_node_name=fork_join_column)
+    
+    
+def seventh_test(ct,kb_name): # fork column
+    ct.start_test(test_name=kb_name)
+    
+    
+    
+    launch_column = ct.define_column(column_name="launch_column", column_data=None,auto_start=True)
+    ct.asm_log_message("launch column")
+
+    ct.asm_wait_time(time_delay=1.5)
+    ct.asm_log_message("launching fork column")
+   
+    insert_fork_join_column(ct)
+    ct.asm_log_message("fork column joined")
+    ct.asm_event_logger("displaying fork column events",["TEST_EVENT"])
+    ct.asm_log_message("waiting 5 seconds to reset launch column")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("resetting launch column")
+    ct.asm_reset()
+    ct.end_column(column_name=launch_column)
+    
+    
+    
+    
+    event_generator_column = ct.define_column(column_name="event_generator_column", column_data=None,auto_start=True)
+    ct.asm_log_message("sending event to launch column")
+    ct.asm_send_named_event(node_id=launch_column,event_id="TEST_EVENT",event_data={"event_data":"event_data"})
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_reset()
+    ct.end_column(column_name=event_generator_column)
+    
+    end_column =ct.define_column(column_name="end_column", column_data=None,auto_start=True)
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("ending test")
+    ct.asm_terminate_system()
+    ct.end_column(column_name=end_column)
+    
+    
+    
+    ct.end_test()
+    
+     
+def insert_fork_join_column_a(ct):
+    
+    sequence_til_pass_node = ct.define_sequence_til_pass_node (column_name="sequence_til_pass_node")
+
+    fork_child_1 = ct.define_column("fork_child_1")
+    ct.asm_log_message("fork child 1 starting")
+    ct.asm_event_logger("displaying fork child 1 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=2)
+    ct.mark_sequence_false_link(parent_node_name=sequence_til_pass_node,data={"message":"first sequence failed"})
+    ct.asm_log_message("fork 1 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_1)
+    
+    
+    fork_child_2 = ct.define_column("fork_child_2")
+    ct.asm_log_message("fork child 2 starting")
+    ct.asm_event_logger("displaying fork child 2 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=3)
+    ct.mark_sequence_false_link(parent_node_name=sequence_til_pass_node,data={"message":"second sequence failed"})
+    ct.asm_log_message("fork 2 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_2)
+    
+    fork_child_3 = ct.define_column("fork_child_3")
+    ct.asm_log_message("fork child 3 starting")
+    ct.asm_event_logger("displaying fork child 3 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=5)
+    ct.mark_sequence_false_link(parent_node_name=sequence_til_pass_node,data={"message":"third sequence failed"})
+    ct.asm_log_message("fork 3 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_3)
+
+    ct.mark_sequence_false_link(parent_node_name=sequence_til_pass_node,data={"message":"fourth sequence failed"})
+    ct.asm_terminate()
+    ct.end_sequence_node(column_name=sequence_til_pass_node)
+    
+        
+def eighth_test(ct,kb_name): # sequence til
+    ct.start_test(test_name=kb_name)
+    
+    main_node = ct.define_sequence_start_node(column_name="main_node",finalize_function="DISPLAY_SEQUENCE_RESULT",auto_start=True)
+    ct.asm_log_message("main node")
+    insert_fork_join_column_a(ct)
+    ct.asm_log_message("main node is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=main_node)
+    
+    ct.end_test()
+    
+def insert_sequence_til_fail_column(ct):
+    
+    sequence_til_fail_node = ct.define_sequence_til_fail_node (column_name="sequence_til_fail_node")
+
+    fork_child_1 = ct.define_column("fork_child_1")
+    ct.asm_log_message("fork child 1 starting")
+    ct.asm_event_logger("displaying fork child 1 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=2)
+    ct.mark_sequence_true_link(parent_node_name=sequence_til_fail_node,data={"message":"first sequence passed"})
+    ct.asm_log_message("fork 1 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_1)
+    
+    
+    fork_child_2 = ct.define_column("fork_child_2")
+    ct.asm_log_message("fork child 2 starting")
+    ct.asm_event_logger("displaying fork child 2 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=3)
+    ct.mark_sequence_true_link(parent_node_name=sequence_til_fail_node,data={"message":"second sequence passed"})
+    ct.asm_log_message("fork 2 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_2)
+    
+    fork_child_3 = ct.define_column("fork_child_3")
+    ct.asm_log_message("fork child 3 starting")
+    ct.asm_event_logger("displaying fork child 3 events",["TEST_EVENT"])
+    ct.asm_wait_time(time_delay=5)
+    ct.mark_sequence_true_link(parent_node_name=sequence_til_fail_node,data={"message":"third sequence passed"})
+    ct.asm_log_message("fork 3 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fork_child_3)
+
+    ct.mark_sequence_true_link(parent_node_name=sequence_til_fail_node,data={"message":"fourth sequence passed"})
+    ct.asm_terminate()
+    ct.end_sequence_node(column_name=sequence_til_fail_node)
+    
+def ninth_test(ct,kb_name): # sequence til
+    ct.start_test(test_name=kb_name)
+    
+    main_node = ct.define_sequence_start_node(column_name="main_node",finalize_function="DISPLAY_SEQUENCE_RESULT",auto_start=True)
+    ct.asm_log_message("main node")
+    insert_sequence_til_fail_column(ct)
+    ct.asm_log_message("main node is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=main_node)
+    
+    ct.end_test()
+
 
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -251,13 +493,17 @@ def add_header(yaml_file):
 
 
 if __name__ == "__main__":
-    test_list = ["first_test","second_test","fourth_test","fifth_test"]
+    test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
                  "second_test": second_test,
                  "fourth_test": fourth_test,
-                 "fifth_test": fifth_test}
+                 "fifth_test": fifth_test,
+                 "sixth_test": sixth_test,
+                 "seventh_test": seventh_test,
+                 "eighth_test": eighth_test,
+                 "ninth_test": ninth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

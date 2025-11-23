@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_AXQWBASZ_LINK_TABLE_SIZE 138
+#define CT_4VN9GA8L_LINK_TABLE_SIZE 269
 
-extern const uint16_t ct_axqwbasz_link_table[CT_AXQWBASZ_LINK_TABLE_SIZE];
+extern const uint16_t ct_4vn9ga8l_link_table[CT_4VN9GA8L_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

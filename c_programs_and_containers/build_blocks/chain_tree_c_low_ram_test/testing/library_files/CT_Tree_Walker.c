@@ -3,7 +3,7 @@
  * 
  * Implementation of the C tree walker with exception handling
  * Uses iterative DFS for memory-efficient traversal in embedded environments
- * Properly handles volatile parameters for O2 optimization safety
+ * Properly handles  parameters for O2 optimization safety
  */
 
  #include "CT_Tree_Walker.h"
@@ -20,15 +20,15 @@
  
  /**
   * Clear all engine flags for all nodes
-  * Properly handles volatile flags array
+  * Properly handles  flags array
   */
- static void clear_engine_flags(volatile CT_TreeWalker* walker) {
-     /* Read volatile members once */
+ static void clear_engine_flags( CT_TreeWalker* walker) {
+     /* Read  members once */
      unsigned int max_nodes = walker->max_nodes;
-     volatile uint8_t* flags = walker->flags;
+      uint8_t* flags = walker->flags;
      
      for (unsigned int i = 0; i < max_nodes; i++) {
-         /* Volatile read, modify, volatile write */
+         /* Volatile read, modify,  write */
          uint8_t current_flags = flags[i];
          flags[i] = current_flags & CT_FLAG_USER_MASK;  /* Keep user flags, clear engine flags */
      }
@@ -39,22 +39,22 @@
   * Memory usage: O(max_tree_depth) - optimal for embedded systems
   * Iteration count bounded appropriately for current algorithm
   * 
-  * Properly handles volatile parameters for interrupt-driven systems
+  * Properly handles  parameters for interrupt-driven systems
   */
  static CT_ReturnCode walk_iterative(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      unsigned int root_id,
-     volatile CT_StackEntry* stack,
+      CT_StackEntry* stack,
      unsigned int stack_capacity
  ) {
      if (stack_capacity == 0) {
          EXCEPTION("walk_iterative: stack_capacity is 0");
      }
      
-     /* Read volatile walker members once at start for bounds checking */
+     /* Read  walker members once at start for bounds checking */
      unsigned int max_nodes = walker->max_nodes;
      unsigned int max_node_id = walker->max_node_id;
-     volatile uint8_t* flags = walker->flags;
+      uint8_t* flags = walker->flags;
      
      /* Check root bounds against walker limits */
      if (root_id >= max_nodes) {
@@ -66,7 +66,7 @@
          EXCEPTION("walk_iterative: root_id exceeds max_node_id");
      }
      
-     /* Initialize stack with root - volatile writes */
+     /* Initialize stack with root -  writes */
      int stack_top = 0;
      stack[0].node_id = root_id;
      stack[0].level = 0;
@@ -85,12 +85,12 @@
              EXCEPTION("walk_iterative: iteration count exceeded limit - possible infinite loop");
          }
          
-         /* Check stop flag - volatile read */
+         /* Check stop flag -  read */
          if (walker->stop_all) {
              return CT_STOP_ALL;
          }
          
-         /* Pop current entry from volatile stack */
+         /* Pop current entry from  stack */
          CT_StackEntry current;
          current.node_id = stack[stack_top].node_id;
          current.level = stack[stack_top].level;
@@ -106,7 +106,7 @@
              EXCEPTION("walk_iterative: node_id exceeds max_node_id during traversal");
          }
          
-         /* Check if already visited - volatile read */
+         /* Check if already visited -  read */
          uint8_t node_flags = flags[current.node_id];
          
          if (node_flags & CT_FLAG_VISITED) {
@@ -116,10 +116,10 @@
                  continue;
              }
          } else {
-             /* First visit - mark as visited with volatile write */
+             /* First visit - mark as visited with  write */
              flags[current.node_id] = node_flags | CT_FLAG_VISITED;
              
-             /* Read max_level (volatile read) */
+             /* Read max_level ( read) */
              unsigned int current_max_level = walker->max_level;
              
              /* Check max level */
@@ -128,8 +128,8 @@
                  continue;
              }
              
-             /* Apply function - cast away volatile for callback since callbacks
-              * typically don't expect volatile parameters */
+             /* Apply function - cast away  for callback since callbacks
+              * typically don't expect  parameters */
              CT_ReturnCode ret = walker->apply_func(
                  walker->user_handle,
                  current.node_id,
@@ -190,7 +190,7 @@
          /* Get the child to process */
          unsigned int child_id = children[current.child_index];
          
-         /* Update current entry to process next child later - volatile write */
+         /* Update current entry to process next child later -  write */
          stack[stack_top].child_index = current.child_index + 1;
          
          /* Validate child ID against walker limits */
@@ -203,7 +203,7 @@
              EXCEPTION("walk_iterative: child_id exceeds max_node_id from get_children");
          }
          
-         /* Skip if already visited - volatile read */
+         /* Skip if already visited -  read */
          if (flags[child_id] & CT_FLAG_VISITED) {
              continue;  /* Stay at same stack level, process next child */
          }
@@ -229,9 +229,9 @@
   * ============================================================================ */
  
  bool ct_walker_init(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      unsigned int max_nodes,
-     volatile uint8_t* flags,
+      uint8_t* flags,
      CT_GetChildrenFunc get_children,
      CT_ApplyFunc apply_func
  ) {
@@ -255,7 +255,7 @@
          EXCEPTION("ct_walker_init: max_nodes is 0");
      }
      
-     /* Initialize walker - volatile writes */
+     /* Initialize walker -  writes */
      walker->user_handle = NULL;
      walker->max_nodes = max_nodes;
      walker->flags = flags;
@@ -272,10 +272,10 @@
  }
  
  CT_ReturnCode ct_walker_walk(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      void* user_handle,
      unsigned int root_id,
-     volatile CT_StackEntry* stack,
+      CT_StackEntry* stack,
      unsigned int stack_capacity,
      unsigned int max_level,
      unsigned int max_node_id
@@ -292,7 +292,7 @@
          EXCEPTION("ct_walker_walk: stack_capacity is 0");
      }
      
-     /* Read max_nodes for validation - volatile read */
+     /* Read max_nodes for validation -  read */
      unsigned int walker_max_nodes = walker->max_nodes;
      
      if (root_id >= walker_max_nodes) {
@@ -304,7 +304,7 @@
          EXCEPTION("ct_walker_walk: max_node_id exceeds walker max_nodes");
      }
      
-     /* Set user handle, max level, and max node ID - volatile writes */
+     /* Set user handle, max level, and max node ID -  writes */
      walker->user_handle = user_handle;
      walker->max_level = max_level;
      walker->max_node_id = max_node_id;
@@ -317,7 +317,7 @@
      return walk_iterative(walker, root_id, stack, stack_capacity);
  }
  
- void ct_walker_reset(volatile CT_TreeWalker* walker) {
+ void ct_walker_reset( CT_TreeWalker* walker) {
      if (!walker) {
          EXCEPTION("ct_walker_reset: walker is NULL");
      }
@@ -326,14 +326,14 @@
      walker->stop_all = false;
  }
  
- bool ct_walker_is_visited(volatile const CT_TreeWalker* walker, unsigned int node_id) {
+ bool ct_walker_is_visited( const CT_TreeWalker* walker, unsigned int node_id) {
      if (!walker) {
          EXCEPTION("ct_walker_is_visited: walker is NULL");
      }
      
-     /* Read volatile members */
+     /* Read  members */
      unsigned int max_nodes = walker->max_nodes;
-     volatile const uint8_t* flags = walker->flags;
+      const uint8_t* flags = walker->flags;
      
      if (node_id >= max_nodes) {
          EXCEPTION("ct_walker_is_visited: node_id out of bounds");
@@ -343,34 +343,34 @@
      return (flags[node_id] & CT_FLAG_VISITED) != 0;
  }
  
- void ct_walker_set_user_flags(volatile CT_TreeWalker* walker, unsigned int node_id, uint8_t flags_to_set) {
+ void ct_walker_set_user_flags( CT_TreeWalker* walker, unsigned int node_id, uint8_t flags_to_set) {
      if (!walker) {
          EXCEPTION("ct_walker_set_user_flags: walker is NULL");
      }
      
-     /* Read volatile members */
+     /* Read  members */
      unsigned int max_nodes = walker->max_nodes;
-     volatile uint8_t* flags = walker->flags;
+      uint8_t* flags = walker->flags;
      
      if (node_id >= max_nodes) {
          EXCEPTION("ct_walker_set_user_flags: node_id out of bounds");
      }
      
-     /* Volatile read, modify, volatile write */
+     /* Volatile read, modify,  write */
      uint8_t current_flags = flags[node_id];
      current_flags &= ~CT_FLAG_USER_MASK;  /* Clear old user flags */
      current_flags |= (flags_to_set & CT_FLAG_USER_MASK);  /* Set new user flags */
      flags[node_id] = current_flags;
  }
  
- uint8_t ct_walker_get_user_flags(volatile const CT_TreeWalker* walker, unsigned int node_id) {
+ uint8_t ct_walker_get_user_flags( const CT_TreeWalker* walker, unsigned int node_id) {
      if (!walker) {
          EXCEPTION("ct_walker_get_user_flags: walker is NULL");
      }
      
-     /* Read volatile members */
+     /* Read  members */
      unsigned int max_nodes = walker->max_nodes;
-     volatile const uint8_t* flags = walker->flags;
+      const uint8_t* flags = walker->flags;
      
      if (node_id >= max_nodes) {
          EXCEPTION("ct_walker_get_user_flags: node_id out of bounds");
@@ -381,7 +381,7 @@
  }
  
  void ct_walker_update_functions(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      CT_ApplyFunc apply_func,
      CT_GetChildrenFunc get_children
  ) {
@@ -400,9 +400,9 @@
  }
  
  bool ct_walker_save_context(
-     volatile CT_TreeWalker* walker,
-     volatile CT_WalkerContext* context,
-     volatile uint8_t* backup_flags_buffer
+      CT_TreeWalker* walker,
+      CT_WalkerContext* context,
+      uint8_t* backup_flags_buffer
  ) {
      if (!walker) {
          EXCEPTION("ct_walker_save_context: walker is NULL");
@@ -416,16 +416,16 @@
          EXCEPTION("ct_walker_save_context: backup_flags_buffer is NULL");
      }
      
-     /* Read volatile members */
+     /* Read  members */
      unsigned int max_nodes = walker->max_nodes;
-     volatile uint8_t* flags = walker->flags;
+      uint8_t* flags = walker->flags;
      
-     /* Copy current flags to backup buffer - volatile reads and writes */
+     /* Copy current flags to backup buffer -  reads and writes */
      for (unsigned int i = 0; i < max_nodes; i++) {
          backup_flags_buffer[i] = flags[i];
      }
      
-     /* Save walker state - volatile reads and writes */
+     /* Save walker state -  reads and writes */
      context->saved_flags = backup_flags_buffer;
      context->saved_stop_all = walker->stop_all;
      context->saved_max_level = walker->max_level;
@@ -436,8 +436,8 @@
  }
  
  void ct_walker_restore_context(
-     volatile CT_TreeWalker* walker,
-     volatile const CT_WalkerContext* context
+      CT_TreeWalker* walker,
+      const CT_WalkerContext* context
  ) {
      if (!walker) {
          EXCEPTION("ct_walker_restore_context: walker is NULL");
@@ -447,23 +447,23 @@
          EXCEPTION("ct_walker_restore_context: context is NULL");
      }
      
-     /* Read saved flags pointer - volatile read */
-     volatile const uint8_t* saved_flags = context->saved_flags;
+     /* Read saved flags pointer -  read */
+      const uint8_t* saved_flags = context->saved_flags;
      
      if (!saved_flags) {
          EXCEPTION("ct_walker_restore_context: saved_flags is NULL");
      }
      
-     /* Read volatile members */
+     /* Read  members */
      unsigned int max_nodes = walker->max_nodes;
-     volatile uint8_t* flags = walker->flags;
+      uint8_t* flags = walker->flags;
      
-     /* Restore flags - volatile reads and writes */
+     /* Restore flags -  reads and writes */
      for (unsigned int i = 0; i < max_nodes; i++) {
          flags[i] = saved_flags[i];
      }
      
-     /* Restore walker state - volatile reads and writes */
+     /* Restore walker state -  reads and writes */
      walker->stop_all = context->saved_stop_all;
      walker->max_level = context->saved_max_level;
      walker->max_node_id = context->saved_max_node_id;

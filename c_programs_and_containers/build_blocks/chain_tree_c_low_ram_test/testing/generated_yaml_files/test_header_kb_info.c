@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_axqwbasz_kb_table[4] = {
+const chaintree_kb_info_t ct_4vn9ga8l_kb_table[8] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -29,6 +29,34 @@ const chaintree_kb_info_t ct_axqwbasz_kb_table[4] = {
         .root_node_index = 81,
         .start_index = 81,
         .node_count = 61,
+        .max_depth = 4
+    },
+    {
+        .kb_name = "sixth_test",
+        .root_node_index = 142,
+        .start_index = 142,
+        .node_count = 35,
+        .max_depth = 4
+    },
+    {
+        .kb_name = "seventh_test",
+        .root_node_index = 177,
+        .start_index = 177,
+        .node_count = 40,
+        .max_depth = 4
+    },
+    {
+        .kb_name = "eighth_test",
+        .root_node_index = 217,
+        .start_index = 217,
+        .node_count = 30,
+        .max_depth = 4
+    },
+    {
+        .kb_name = "ninth_test",
+        .root_node_index = 247,
+        .start_index = 247,
+        .node_count = 30,
         .max_depth = 4
     },
 };

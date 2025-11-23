@@ -12,8 +12,8 @@
   * ============================================================================ */
  
  void json_decoder_init(
-     volatile json_decoder_ctx_t *ctx,
-     volatile const chaintree_handle_t *flash_handle,
+      json_decoder_ctx_t *ctx,
+      const chaintree_handle_t *flash_handle,
      uint32_t node_index)
  {
      if (!ctx) {
@@ -91,7 +91,7 @@
          EXCEPTION("json_extract_int32_runtime: NULL output pointer");
      }
      
-     volatile const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+      const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
      
      if (ctx->current_control_idx >= ctx->controls_count) {
          EXCEPTION("json_extract_int32_runtime: Invalid control index");
@@ -127,7 +127,7 @@
          EXCEPTION("json_extract_float32_runtime: NULL output pointer");
      }
      
-     volatile const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+      const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
      
      if (ctx->current_control_idx >= ctx->controls_count) {
          EXCEPTION("json_extract_float32_runtime: Invalid control index");
@@ -163,7 +163,7 @@
          EXCEPTION("json_extract_bool_runtime: NULL output pointer");
      }
      
-     volatile const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+      const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
      
      if (ctx->current_control_idx >= ctx->controls_count) {
          EXCEPTION("json_extract_bool_runtime: Invalid control index");
@@ -199,7 +199,7 @@
          EXCEPTION("json_extract_string_runtime: NULL output pointer");
      }
      
-     volatile const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+      const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
      
      if (ctx->current_control_idx >= ctx->controls_count) {
          EXCEPTION("json_extract_string_runtime: Invalid control index");
@@ -218,7 +218,7 @@
  * Calculate subtree size (needed for navigation)
  */
  static uint32_t json_calc_subtree_size(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t record_idx)
 {
     const json_record_t *record = json_get_record(ctx, record_idx);
@@ -258,7 +258,7 @@
 }
 
 void json_find_object_child(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t parent_record,
     const char *key,
     uint32_t *out_record)
@@ -322,7 +322,7 @@ void json_find_object_child(
 }
  
  void json_get_array_child(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t parent_record,
      uint32_t index,
      uint32_t *out_record)
@@ -408,7 +408,7 @@ void json_find_object_child(
  }
  
  void json_navigate_path(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      uint32_t *out_record)
@@ -458,7 +458,7 @@ void json_find_object_child(
   * ============================================================================ */
  
  void json_get_int32(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      int32_t *out)
  {
@@ -487,7 +487,7 @@ void json_find_object_child(
  }
  
  void json_get_float32(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      float *out)
  {
@@ -516,7 +516,7 @@ void json_find_object_child(
  }
  
  void json_get_bool(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      bool *out)
  {
@@ -541,7 +541,7 @@ void json_find_object_child(
  }
  
  void json_get_string_value(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      const char **out)
  {
@@ -569,7 +569,7 @@ void json_find_object_child(
  }
  
  bool json_is_null(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx)
  {
      if (!ctx) {
@@ -585,7 +585,7 @@ void json_find_object_child(
   * ============================================================================ */
  
  void json_extract_int32(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      int32_t *out)
@@ -596,7 +596,7 @@ void json_find_object_child(
  }
  
  void json_extract_float32(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      float *out)
@@ -607,7 +607,7 @@ void json_find_object_child(
  }
  
  void json_extract_bool(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      bool *out)
@@ -618,7 +618,7 @@ void json_find_object_child(
  }
  
  void json_extract_string(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t root_record,
      const char *path,
      const char **out)
@@ -633,7 +633,7 @@ void json_find_object_child(
   * ============================================================================ */
  
  void json_get_child_count(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t record_idx,
      uint32_t *out_count)
  {
@@ -659,7 +659,7 @@ void json_find_object_child(
  }
  
  void json_validate_records(
-     const volatile json_decoder_ctx_t *ctx,
+     const  json_decoder_ctx_t *ctx,
      uint32_t control_idx)
  {
      if (!ctx || !ctx->records || !ctx->controls) {
@@ -736,7 +736,7 @@ void json_find_object_child(
  * This is needed to properly skip over nested structures
  */
 static uint32_t json_get_subtree_size(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t record_idx)
 {
     const json_record_t *record = json_get_record(ctx, record_idx);
@@ -790,7 +790,7 @@ const char *json_type_to_string(json_type_t type) {
 }
 
 void json_print_record(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t record_idx,
     int indent_level)
 {
@@ -923,7 +923,7 @@ void json_print_record(
 }
 
 void json_print_control_region(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t control_idx)
 {
     if (!ctx) return;
@@ -943,7 +943,7 @@ void json_print_control_region(
 }
 
 void json_print_node_data(
-    const volatile json_decoder_ctx_t *ctx,
+    const  json_decoder_ctx_t *ctx,
     uint32_t node_data_id)
 {
     if (!ctx) {
@@ -1013,7 +1013,7 @@ void json_print_current_node_data(
         return;
     }
     
-    const volatile json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    const  json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
     
     if (ctx->current_control_idx >= ctx->controls_count) {
         printf("json_print_current_node_data: Invalid current_control_idx %u\n",

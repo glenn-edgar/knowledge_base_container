@@ -124,8 +124,8 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
     printf("cfl_perm_used_bytes: %d\n", cfl_perm_used_bytes(handle->perm));
     printf("cfl_perm_free_bytes: %d\n", cfl_perm_free_bytes(handle->perm));
     printf("arena 0 : used bytes: %d free bytes: %d\n", 
-           cfl_heap_arena_used_bytes(handle->arena_system->arenas[0]), 
-           cfl_heap_arena_free_bytes(handle->arena_system->arenas[0]));
+           cfl_heap_arena_used_bytes(handle->arena_system, 0), 
+           cfl_heap_arena_free_bytes(handle->arena_system,0 ));
     
     cfl_set_timer_reference(handle);
     
@@ -190,8 +190,8 @@ exit:
     printf("high priority count: %d low priority count: %d\n", 
            cfl_high_priority_count(handle->event_queue), cfl_low_priority_count(handle->event_queue));
     printf("arena 0 : used bytes: %d free bytes: %d\n", 
-           cfl_heap_arena_used_bytes(handle->arena_system->arenas[0]),
-           cfl_heap_arena_free_bytes(handle->arena_system->arenas[0]));
+           cfl_heap_arena_used_bytes(handle->arena_system,0),
+           cfl_heap_arena_free_bytes(handle->arena_system,0));
     printf("runtime run completed\n");
     
     return true;
@@ -262,6 +262,17 @@ static void cfl_init_test_system(cfl_runtime_handle_t* handle) {
     handle->active_test_bitmap = cfl_perm_alloc_pointer(handle->perm, 
                                                         bitmap_size * sizeof(uint32_t));
     memset((void*)handle->active_test_bitmap, 0, bitmap_size * sizeof(uint32_t));
+    // Allocate test arena tracking arrays
+    handle->kb_allocator_ids = (cfl_heap_allocator_id_t*)cfl_perm_alloc_pointer(handle->perm,
+        handle->flash_handle->kb_count * sizeof(cfl_heap_allocator_id_t));
+    handle->test_has_arena = (uint8_t*)cfl_perm_alloc_pointer(handle->perm,
+        handle->flash_handle->kb_count * sizeof(uint8_t));
+
+    // Initialize to invalid/unallocated state
+    for (uint16_t i = 0; i < handle->flash_handle->kb_count; i++) {
+        handle->kb_allocator_ids[i] = 0xff;  // -1 indicates no arena
+        handle->test_has_arena[i] = 0;   // false
+    }
     handle->active_test_count = 0;
 }
 
@@ -270,7 +281,17 @@ bool cfl_add_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
     if (TEST_IS_ACTIVE(handle, kb_index)) return false;  // Already active
     
     const chaintree_kb_info_t* kb = &handle->flash_handle->kb_table[kb_index];
+    cfl_heap_allocator_id_t arena_id = cfl_heap_arena_create(handle->arena_system, kb->start_index, kb->node_count * 10);
+    if (arena_id == 0xff) {
+        // Arena allocation failed
+        EXCEPTION("cfl_add_test_by_index: Arena allocation failed");
+    }
     
+    for(uint16_t i = kb->start_index; i < kb->start_index + kb->node_count; i++) {
+        cfl_heap_arena_set_node_allocator_id(handle->arena_system, i, arena_id);
+    }
+    handle->kb_allocator_ids[kb_index] = arena_id;
+    handle->test_has_arena[kb_index] = true;
     cfl_engine_init_test(handle, kb->start_index, kb->node_count);
     
     TEST_ACTIVE_SET(handle, kb_index);
@@ -282,7 +303,19 @@ bool cfl_add_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
 bool cfl_delete_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
     if (kb_index >= handle->flash_handle->kb_count) return false;
     if (!TEST_IS_ACTIVE(handle, kb_index)) return false;
-    
+    if (handle->test_has_arena[kb_index] == true) {
+        unsigned used_bytes = cfl_heap_arena_used_bytes(handle->arena_system, handle->kb_allocator_ids[kb_index]);
+        printf("used bytes: %d\n", used_bytes);
+        unsigned free_bytes = cfl_heap_arena_free_bytes(handle->arena_system, handle->kb_allocator_ids[kb_index]);
+        printf("free bytes: %d\n", free_bytes);
+        cfl_heap_arena_destroy(handle->arena_system, handle->kb_allocator_ids[kb_index], handle->flash_handle->kb_table[kb_index].start_index);
+        for(uint16_t i = handle->flash_handle->kb_table[kb_index].start_index;
+             i < handle->flash_handle->kb_table[kb_index].start_index + handle->flash_handle->kb_table[kb_index].node_count; i++) {
+            cfl_heap_arena_set_node_allocator_id(handle->arena_system, i, 0xff);
+        }
+        handle->test_has_arena[kb_index] = false;
+        handle->kb_allocator_ids[kb_index] = 0xff;
+    }
     TEST_ACTIVE_CLR(handle, kb_index);
     handle->active_test_count--;
     
@@ -302,3 +335,9 @@ static unsigned int cfl_calculate_max_level(cfl_runtime_handle_t* runtime_handle
     
     return max_depth + 1; // for safety margin
 }
+
+uint16_t cfl_calculate_arrena_number(const chaintree_handle_t* flash_handle) {
+    return flash_handle->kb_count + 1;
+    // later we will scan for number of node defined allegators
+}
+

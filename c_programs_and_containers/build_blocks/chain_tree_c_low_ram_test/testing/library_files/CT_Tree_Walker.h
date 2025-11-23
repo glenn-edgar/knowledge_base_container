@@ -3,7 +3,7 @@
  * 
  * Memory-efficient tree walker for embedded systems
  * Uses iterative DFS with explicit stack to avoid recursion
- * All volatile-qualified for O2 optimization safety with interrupt-driven systems
+ * All -qualified for O2 optimization safety with interrupt-driven systems
  */
 
  #ifndef CT_TREE_WALKER_H
@@ -94,7 +94,7 @@
  typedef struct CT_TreeWalker {
      void* user_handle;              /* User-provided context */
      unsigned int max_nodes;         /* Maximum number of nodes in tree */
-     volatile uint8_t* flags;        /* Flags array (volatile for interrupt safety) */
+      uint8_t* flags;        /* Flags array ( for interrupt safety) */
      CT_GetChildrenFunc get_children;/* Function to get children */
      CT_ApplyFunc apply_func;        /* Function to apply to each node */
      unsigned int max_level;         /* Maximum level to traverse */
@@ -107,7 +107,7 @@
   * ============================================================================ */
  
  typedef struct {
-     volatile uint8_t* saved_flags;
+      uint8_t* saved_flags;
      bool saved_stop_all;
      unsigned int saved_max_level;
      unsigned int saved_max_node_id;
@@ -121,17 +121,17 @@
  /**
   * Initialize tree walker
   * 
-  * @param walker Pointer to walker structure (volatile for interrupt safety)
+  * @param walker Pointer to walker structure ( for interrupt safety)
   * @param max_nodes Maximum number of nodes in tree
-  * @param flags Pointer to flags array (volatile, must be max_nodes in size)
+  * @param flags Pointer to flags array (, must be max_nodes in size)
   * @param get_children Function to get children of a node
   * @param apply_func Function to apply to each visited node
   * @return true on success, exception on failure
   */
  bool ct_walker_init(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      unsigned int max_nodes,
-     volatile uint8_t* flags,
+      uint8_t* flags,
      CT_GetChildrenFunc get_children,
      CT_ApplyFunc apply_func
  );
@@ -139,20 +139,20 @@
  /**
   * Execute tree walk starting from root_id
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   * @param user_handle User context to pass to callbacks
   * @param root_id Starting node ID
-  * @param stack Pointer to stack array (volatile for interrupt safety)
+  * @param stack Pointer to stack array ( for interrupt safety)
   * @param stack_capacity Size of stack array
   * @param max_level Maximum level to traverse (0xFFFF for unlimited)
   * @param max_node_id Maximum valid node ID for this walk
   * @return CT_ReturnCode indicating how walk terminated
   */
  CT_ReturnCode ct_walker_walk(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      void* user_handle,
      unsigned int root_id,
-     volatile CT_StackEntry* stack,
+      CT_StackEntry* stack,
      unsigned int stack_capacity,
      unsigned int max_level,
      unsigned int max_node_id
@@ -161,46 +161,46 @@
  /**
   * Reset walker state (clears visited flags and stop_all)
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   */
- void ct_walker_reset(volatile CT_TreeWalker* walker);
+ void ct_walker_reset( CT_TreeWalker* walker);
  
  /**
   * Check if a node has been visited
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   * @param node_id Node ID to check
   * @return true if visited, false otherwise
   */
- bool ct_walker_is_visited(volatile const CT_TreeWalker* walker, unsigned int node_id);
+ bool ct_walker_is_visited( const CT_TreeWalker* walker, unsigned int node_id);
  
  /**
   * Set user flags for a node (preserves engine flags)
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   * @param node_id Node ID
   * @param flags User flags to set (only upper 4 bits used)
   */
- void ct_walker_set_user_flags(volatile CT_TreeWalker* walker, unsigned int node_id, uint8_t flags);
+ void ct_walker_set_user_flags( CT_TreeWalker* walker, unsigned int node_id, uint8_t flags);
  
  /**
   * Get user flags for a node
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   * @param node_id Node ID
   * @return User flags (upper 4 bits only)
   */
- uint8_t ct_walker_get_user_flags(volatile const CT_TreeWalker* walker, unsigned int node_id);
+ uint8_t ct_walker_get_user_flags( const CT_TreeWalker* walker, unsigned int node_id);
  
  /**
   * Update walker functions (allows changing callbacks between walks)
   * 
-  * @param walker Pointer to walker structure (volatile)
+  * @param walker Pointer to walker structure ()
   * @param apply_func New apply function (NULL to keep current)
   * @param get_children New get_children function (NULL to keep current)
   */
  void ct_walker_update_functions(
-     volatile CT_TreeWalker* walker,
+      CT_TreeWalker* walker,
      CT_ApplyFunc apply_func,
      CT_GetChildrenFunc get_children
  );
@@ -208,26 +208,26 @@
  /**
   * Save walker context for nested walks
   * 
-  * @param walker Pointer to walker structure (volatile)
-  * @param context Pointer to context structure to save to (volatile)
-  * @param backup_flags_buffer Buffer for backing up flags (volatile, must be max_nodes in size)
+  * @param walker Pointer to walker structure ()
+  * @param context Pointer to context structure to save to ()
+  * @param backup_flags_buffer Buffer for backing up flags (, must be max_nodes in size)
   * @return true on success
   */
  bool ct_walker_save_context(
-     volatile CT_TreeWalker* walker,
-     volatile CT_WalkerContext* context,
-     volatile uint8_t* backup_flags_buffer
+      CT_TreeWalker* walker,
+      CT_WalkerContext* context,
+      uint8_t* backup_flags_buffer
  );
  
  /**
   * Restore walker context after nested walk
   * 
-  * @param walker Pointer to walker structure (volatile)
-  * @param context Pointer to context structure to restore from (volatile)
+  * @param walker Pointer to walker structure ()
+  * @param context Pointer to context structure to restore from ()
   */
  void ct_walker_restore_context(
-     volatile CT_TreeWalker* walker,
-     volatile const CT_WalkerContext* context
+      CT_TreeWalker* walker,
+      const CT_WalkerContext* context
  );
  
  #ifdef __cplusplus

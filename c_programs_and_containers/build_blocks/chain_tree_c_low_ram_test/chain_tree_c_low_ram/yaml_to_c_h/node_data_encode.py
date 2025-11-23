@@ -288,6 +288,7 @@ class NodeDataEncoder:
         self.function_fields = {
             'error_function': 'one_shot',
             'boolean_function': 'boolean',
+            'finalize_function': 'one_shot',
            
     }
         
@@ -298,7 +299,7 @@ class NodeDataEncoder:
         Fields that should be converted:
         - sm_node_id: State machine node reference
         - target_node_id: Target node for transitions
-        - Any field ending in '_node_id' or '_node_ref'
+        - Any field ending in '_node_id', '_node_ref', or '_node_name'
         
         Args:
             data_dict: Dictionary that may contain node reference fields
@@ -313,13 +314,19 @@ class NodeDataEncoder:
             'sm_node_id',
             'target_node_id',
             'parent_node_id',
+            'parent_node_name',  # Add this explicitly
             'next_node_id',
             'prev_node_id',
         ]
         
         for key, value in data_dict.items():
             # Check if this field contains a node reference
-            if key in node_ref_patterns or key.endswith('_node_id') or key.endswith('_node_ref'):
+            # Added '_node_name' to the suffix checks
+            if (key in node_ref_patterns or 
+                key.endswith('_node_id') or 
+                key.endswith('_node_ref') or
+                key.endswith('_node_name')):
+                
                 # Value should be an ltree path string
                 if isinstance(value, str) and value.startswith('kb.'):
                     # Look up the node index
@@ -344,7 +351,7 @@ class NodeDataEncoder:
                 ]
         
         return result
-        
+            
     def generate_c_arrays(self, lines: List[str], unique_id: str) -> None:
         """
         Generate C array definitions with unique_id prefix.
@@ -428,7 +435,7 @@ class NodeDataEncoder:
             
             lines.append("};")
             lines.append("")
-    
+        
     def _has_meaningful_data(self, data: Any) -> bool:
         """
         Check if data contains meaningful (non-null) values.
@@ -518,6 +525,15 @@ class NodeDataEncoder:
                 else:
                     # Failed to resolve, keep original
                     result[key] = value
+            # Recursively process nested dictionaries
+            elif isinstance(value, dict):
+                result[key] = self._process_function_fields(value)
+            # Process lists that might contain dicts
+            elif isinstance(value, list):
+                result[key] = [
+                    self._process_function_fields(item) if isinstance(item, dict) else item
+                    for item in value
+                ]
             else:
                 # Not a function field, keep as-is
                 result[key] = value

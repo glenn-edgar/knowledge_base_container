@@ -39,10 +39,7 @@ typedef enum {
 #define CFL_SKIP_CONTINUE 5
 #define CFL_TERMINATE_SYSTEM 6
 
-typedef struct cfl_test_control_t {
-    unsigned start_index;
-    unsigned node_count;
-} cfl_test_control_t;
+
 
 typedef struct {
     const json_record_t *records;
@@ -57,19 +54,20 @@ typedef struct {
 
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
-    volatile cfl_perm_t *perm;
-    volatile cfl_heap_t *heap;
-    volatile cfl_heap_arena_system_t* arena_system;
-    volatile cfl_event_queue_t *event_queue;
-    volatile uint8_t* flags;
-    volatile cfl_timer_handle_t timer_handle;  /* Verify: should this be a pointer? */
-    volatile double delta_time;
-    volatile unsigned test_count;
-    volatile uint32_t *active_test_bitmap;
-    volatile unsigned active_test_count;   
-    volatile cfl_test_control_t *test_controls;
-    volatile CT_TreeWalker* walker;
-    volatile CFL_EVENT_DATA_T *event_data_ptr;
+     cfl_perm_t *perm;
+     cfl_heap_t *heap;
+     cfl_heap_arena_system_t* arena_system;
+     cfl_event_queue_t *event_queue;
+     uint8_t* flags;
+     cfl_timer_handle_t timer_handle;  /* Verify: should this be a pointer? */
+     double delta_time;
+     unsigned test_count;
+     uint32_t *active_test_bitmap;
+     unsigned active_test_count;   
+     cfl_heap_allocator_id_t *kb_allocator_ids;      // Arena ID for each test (indexed by kb_idx)
+     uint8_t *test_has_arena;  
+     CT_TreeWalker* walker;
+     CFL_EVENT_DATA_T *event_data_ptr;
     bool cfl_engine_flag;
     unsigned cfl_node_execution_count;
     unsigned node_start_index;
@@ -78,11 +76,11 @@ struct CFL_RUNTIME_HANDLE {
     unsigned kb_max_level;
     unsigned current_kb_idx;
     unsigned max_level;
-    volatile CT_StackEntry* stack;
-    volatile CT_StackEntry* nested_stack;
-    volatile json_decoder_ctx_t *json_decoder_ctx;
-    volatile uint8_t* backup_flags;
-    volatile CT_WalkerContext* walker_context_ptr;
+     CT_StackEntry* stack;
+     CT_StackEntry* nested_stack;
+     json_decoder_ctx_t *json_decoder_ctx;
+     uint8_t* backup_flags;
+     CT_WalkerContext* walker_context_ptr;
     double future_time_stamp;
     const chaintree_handle_t* flash_handle;
 };
@@ -94,6 +92,8 @@ bool cfl_engine_node_is_enabled(cfl_runtime_handle_t *handle, unsigned node_inde
 bool cfl_engine_node_is_initialized(cfl_runtime_handle_t *handle, unsigned node_index);
 bool cfl_execute_event(cfl_runtime_handle_t *handle);
 void cfl_enable_node(cfl_runtime_handle_t *handle, unsigned node_index);
+
+void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index);
 void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id);
 
 #ifdef __cplusplus

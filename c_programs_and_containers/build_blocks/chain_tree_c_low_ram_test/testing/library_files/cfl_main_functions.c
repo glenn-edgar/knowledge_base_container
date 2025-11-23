@@ -350,3 +350,49 @@ unsigned cfl_state_machine_main_main_fn(void *handle, unsigned bool_function_ind
     
     return CFL_DISABLE;
 }
+
+unsigned cfl_fork_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
+    
+}
+
+unsigned cfl_join_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == true) {
+        return CFL_DISABLE;
+    }
+    
+    int32_t *ptr = (int32_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(int32_t));
+    if ( cfl_engine_node_is_enabled(runtime_handle, *ptr) == true) {
+        return CFL_HALT;
+    }
+    return CFL_DISABLE;
+}
+
+unsigned cfl_join_sequence_element_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    return cfl_join_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
+}
+
+unsigned cfl_sequence_pass_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)handle;
+    (void)bool_function_index;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    (void)node_index;
+    printf("sequence_pass_main_main_fn\n");
+    exit(0);
+}
+
+unsigned cfl_sequence_start_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)handle;
+    (void)bool_function_index;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    (void)node_index;
+    printf("sequence_start_main_main_fn\n");
+    exit(0);
+}

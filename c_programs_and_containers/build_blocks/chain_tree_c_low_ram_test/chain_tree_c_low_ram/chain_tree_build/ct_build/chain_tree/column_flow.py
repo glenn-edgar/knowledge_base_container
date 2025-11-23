@@ -156,8 +156,8 @@ class ColumnFlow():
     
     def define_join_link(self, parent_node_name:str):
         node_data = {"parent_node_name": parent_node_name}      
-        return self.define_column_link(main_function_name="CFL_JOIN_MAIN", initialization_function_name="CFL_NULL", 
-                                       aux_function_name="CFL_NULL", termination_function_name="CFL_NULL", node_data=node_data)
+        return self.define_column_link(main_function_name="CFL_JOIN_MAIN", initialization_function_name="CFL_JOIN_INIT", 
+                                       aux_function_name="CFL_NULL", termination_function_name="CFL_JOIN_TERM", node_data=node_data)
   
     
     def define_column_link(self, main_function_name:str, initialization_function_name:str, aux_function_name:str,
