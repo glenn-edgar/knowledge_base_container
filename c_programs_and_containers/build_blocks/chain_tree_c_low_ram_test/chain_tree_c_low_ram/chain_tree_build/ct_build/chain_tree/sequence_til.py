@@ -10,12 +10,16 @@ class SequenceTil(ColumnFlow):
     def define_sequence_start_node(self,column_name:str,main_function ="CFL_SEQUENCE_START_MAIN",
                                    initialization_function ="CFL_SEQUENCE_START_INIT",
                                    termination_function ="CFL_SEQUENCE_START_TERM",
-                                   aux_function ="CFL_NULL",finalize_function="CFL_NULL",
+                                   aux_function ="CFL_NULL",initialize_function="CFL_NULL",finalize_function="CFL_NULL",
                                    user_data:dict = {},auto_start = False):
+        if not isinstance(initialize_function, str):
+            raise TypeError("initialize_function must be a string")
         if not isinstance(finalize_function, str):
             raise TypeError("finalize_function must be a string")
+        self.ctb.add_one_shot_function(initialize_function)
         self.ctb.add_one_shot_function(finalize_function)
         column_data = {}
+        column_data["initialize_function"] = initialize_function
         column_data["finalize_function"] = finalize_function
         column_data["user_data"] = user_data
         self.sequence_active = True
@@ -135,13 +139,13 @@ class SequenceTil(ColumnFlow):
     
     def mark_sequence_true_link(self,parent_node_name:str,data:dict = {}):
         result = True
-        node_data = {"parent_node_name":parent_node_name,"result":"true","data":data}
+        node_data = {"parent_node_name":parent_node_name,"result":1,"data":data}
         self.asm_one_shot_handler("CFL_MARK_SEQUENCE",node_data)
 
     
     def mark_sequence_false_link(self,parent_node_name:str,data:dict = {}):
         result = False
-        node_data = {"parent_node_name":parent_node_name,"result":"false","data":data}
+        node_data = {"parent_node_name":parent_node_name,"result":0,"data":data}
         self.asm_one_shot_handler("CFL_MARK_SEQUENCE",node_data)
         
     def join_sequence_element(self,parent_node_name:str):

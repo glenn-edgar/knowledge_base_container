@@ -385,7 +385,8 @@ def seventh_test(ct,kb_name): # fork column
      
 def insert_fork_join_column_a(ct):
     
-    sequence_til_pass_node = ct.define_sequence_til_pass_node (column_name="sequence_til_pass_node")
+    sequence_til_pass_node = ct.define_sequence_til_pass_node (column_name="sequence_til_pass_node",finalize_function="DISPLAY_SEQUENCE_TILL_RESULT",
+                                                               user_data={"message":"sequence till pass"})
 
     fork_child_1 = ct.define_column("fork_child_1")
     ct.asm_log_message("fork child 1 starting")
@@ -415,15 +416,13 @@ def insert_fork_join_column_a(ct):
     ct.asm_terminate()
     ct.end_column(column_name=fork_child_3)
 
-    ct.mark_sequence_false_link(parent_node_name=sequence_til_pass_node,data={"message":"fourth sequence failed"})
-    ct.asm_terminate()
     ct.end_sequence_node(column_name=sequence_til_pass_node)
     
         
 def eighth_test(ct,kb_name): # sequence til
     ct.start_test(test_name=kb_name)
     
-    main_node = ct.define_sequence_start_node(column_name="main_node",finalize_function="DISPLAY_SEQUENCE_RESULT",auto_start=True)
+    main_node = ct.define_sequence_start_node(column_name="main_node",initialize_function="INITIALIZE_SEQUENCE",finalize_function="DISPLAY_SEQUENCE_RESULT",auto_start=True)
     ct.asm_log_message("main node")
     insert_fork_join_column_a(ct)
     ct.asm_log_message("main node is terminating")
@@ -434,7 +433,8 @@ def eighth_test(ct,kb_name): # sequence til
     
 def insert_sequence_til_fail_column(ct):
     
-    sequence_til_fail_node = ct.define_sequence_til_fail_node (column_name="sequence_til_fail_node")
+    sequence_til_fail_node = ct.define_sequence_til_fail_node (column_name="sequence_til_fail_node",finalize_function="DISPLAY_SEQUENCE_TILL_RESULT"
+                                                               ,user_data={"message":"sequence till fail"})
 
     fork_child_1 = ct.define_column("fork_child_1")
     ct.asm_log_message("fork child 1 starting")

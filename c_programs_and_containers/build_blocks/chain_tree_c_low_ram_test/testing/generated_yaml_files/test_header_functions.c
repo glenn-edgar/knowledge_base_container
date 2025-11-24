@@ -65,7 +65,9 @@ extern void cfl_wait_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_time_init_one_shot_fn(void *handle, unsigned node_index);
 extern void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index);
 extern void verify_error_one_shot_fn(void *handle, unsigned node_index);
+extern void initialize_sequence_one_shot_fn(void *handle, unsigned node_index);
 extern void display_sequence_result_one_shot_fn(void *handle, unsigned node_index);
+extern void display_sequence_till_result_one_shot_fn(void *handle, unsigned node_index);
 
 extern bool cfl_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_bool_false_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -76,7 +78,7 @@ extern bool cfl_state_machine_null_boolean_fn(void *handle, unsigned node_index,
 extern bool cfl_verify_time_out_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_4vn9ga8l_main_functions[] = {
+const main_function_t ct_elzr3fif_main_functions[] = {
     cfl_null_main_fn,
     cfl_column_main_main_fn,
     cfl_disable_main_fn,
@@ -98,7 +100,7 @@ const main_function_t ct_4vn9ga8l_main_functions[] = {
     cfl_wait_time_main_fn,
 };
 
-const one_shot_function_t ct_4vn9ga8l_one_shot_functions[] = {
+const one_shot_function_t ct_elzr3fif_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     cfl_change_state_one_shot_fn,
@@ -135,10 +137,12 @@ const one_shot_function_t ct_4vn9ga8l_one_shot_functions[] = {
     cfl_wait_time_init_one_shot_fn,
     wait_for_event_error_one_shot_fn,
     verify_error_one_shot_fn,
+    initialize_sequence_one_shot_fn,
     display_sequence_result_one_shot_fn,
+    display_sequence_till_result_one_shot_fn,
 };
 
-const boolean_function_t ct_4vn9ga8l_boolean_functions[] = {
+const boolean_function_t ct_elzr3fif_boolean_functions[] = {
     cfl_null_boolean_fn,
     cfl_bool_false_boolean_fn,
     cfl_column_null_boolean_fn,
@@ -150,10 +154,10 @@ const boolean_function_t ct_4vn9ga8l_boolean_functions[] = {
 };
 
 /* Main function usage count */
-const uint16_t ct_4vn9ga8l_main_function_usage_count[19] = {
+const uint16_t ct_elzr3fif_main_function_usage_count[19] = {
     0,  /* CFL_NULL */
     39,  /* CFL_COLUMN_MAIN */
-    119,  /* CFL_DISABLE */
+    118,  /* CFL_DISABLE */
     18,  /* CFL_EVENT_LOGGER */
     2,  /* CFL_FORK_MAIN */
     8,  /* CFL_GATE_NODE_MAIN */
@@ -165,14 +169,14 @@ const uint16_t ct_4vn9ga8l_main_function_usage_count[19] = {
     1,  /* CFL_SEQUENCE_PASS_MAIN */
     2,  /* CFL_SEQUENCE_START_MAIN */
     2,  /* CFL_STATE_MACHINE_MAIN */
-    15,  /* CFL_TERMINATE */
+    14,  /* CFL_TERMINATE */
     6,  /* CFL_TERMINATE_SYSTEM */
     2,  /* CFL_VERIFY */
     2,  /* CFL_WAIT */
     36,  /* CFL_WAIT_TIME */
 };
 
-const char *ct_4vn9ga8l_main_function_names[19] = {
+const char *ct_elzr3fif_main_function_names[19] = {
     "CFL_NULL",
     "CFL_COLUMN_MAIN",
     "CFL_DISABLE",
@@ -194,7 +198,7 @@ const char *ct_4vn9ga8l_main_function_names[19] = {
     "CFL_WAIT_TIME",
 };
 
-const char *ct_4vn9ga8l_one_shot_function_names[37] = {
+const char *ct_elzr3fif_one_shot_function_names[39] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "CFL_CHANGE_STATE",
@@ -231,10 +235,12 @@ const char *ct_4vn9ga8l_one_shot_function_names[37] = {
     "CFL_WAIT_TIME_INIT",
     "WAIT_FOR_EVENT_ERROR",
     "VERIFY_ERROR",
+    "INITIALIZE_SEQUENCE",
     "DISPLAY_SEQUENCE_RESULT",
+    "DISPLAY_SEQUENCE_TILL_RESULT",
 };
 
-const char *ct_4vn9ga8l_boolean_function_names[8] = {
+const char *ct_elzr3fif_boolean_function_names[8] = {
     "CFL_NULL",
     "CFL_BOOL_FALSE",
     "CFL_COLUMN_NULL",

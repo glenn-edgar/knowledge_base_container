@@ -199,14 +199,18 @@ unsigned cfl_wait_main_fn(void *handle, unsigned bool_function_index, unsigned n
 
 unsigned cfl_wait_time_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, 
     unsigned event_type, unsigned event_id, void *event_data){
-    (void)bool_function_index;
-    (void)event_type;
-    (void)event_data;
+    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == true) {
+        return CFL_DISABLE;
+    }
     if (event_id != CFL_TIMER_EVENT) {
         return CFL_HALT;
     }
 
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
     cfl_wait_time_out_data_t *ptr = (cfl_wait_time_out_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
     if (!ptr) {
         EXCEPTION("cfl_wait_time_main_fn: failed to get node pointer");
@@ -357,15 +361,17 @@ unsigned cfl_fork_main_main_fn(void *handle, unsigned bool_function_index, unsig
 }
 
 unsigned cfl_join_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)bool_function_index;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
-    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
-    if (result == true) {
-        return CFL_DISABLE;
+    uint32_t *ptr = (uint32_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_join_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
     }
-    
-    int32_t *ptr = (int32_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(int32_t));
-    if ( cfl_engine_node_is_enabled(runtime_handle, *ptr) == true) {
+    if(cfl_engine_node_is_enabled(runtime_handle, (uint16_t)*ptr) == true) {
         return CFL_HALT;
     }
     return CFL_DISABLE;
@@ -376,23 +382,66 @@ unsigned cfl_join_sequence_element_main_fn(void *handle, unsigned bool_function_
 }
 
 unsigned cfl_sequence_pass_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    if (bool_function_index != 0) {
+
+        boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+        bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+        if (result == true) {
+            return CFL_DISABLE;
+        }
+    }
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_sequence_pass_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    
+    if (event_id != CFL_TIMER_EVENT) {
+        return CFL_CONTINUE;;
+    }
+
+    
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    uint16_t link_start = node->link_start;
+    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+
+    
+    uint16_t active_link = link_table[link_start + ptr->current_sequence_index];
+    
+    if (cfl_engine_node_is_enabled(runtime_handle, active_link) == true) {
+        return CFL_CONTINUE;
+    }
+    
+    if(ptr->recorded_sequence_index != ptr->current_sequence_index){
+        EXCEPTION("cfl_sequence_pass_main_main_fn: recorded_sequence_index != current_sequence_index");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    if( ptr->current_sequence_index+1 >= link_count){
+        return CFL_DISABLE;
+    }
+    if (ptr->sequence_result_data_array[ptr->current_sequence_index].sequence_result == false) {
+        cfl_terminate_node_tree(runtime_handle, active_link);
+        ptr->current_sequence_index++;
+        cfl_enable_node(runtime_handle, link_table[link_start + ptr->current_sequence_index]);
+        return CFL_CONTINUE;
+
+    }
+    // test has passed
+    return CFL_DISABLE;
+}
+unsigned cfl_sequence_fail_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     (void)handle;
     (void)bool_function_index;
     (void)event_type;
     (void)event_id;
     (void)event_data;
     (void)node_index;
-    printf("sequence_pass_main_main_fn\n");
+    printf("sequence_fail_main_main_fn\n");
     exit(0);
 }
 
 unsigned cfl_sequence_start_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
-    (void)handle;
-    (void)bool_function_index;
-    (void)event_type;
-    (void)event_id;
-    (void)event_data;
-    (void)node_index;
-    printf("sequence_start_main_main_fn\n");
-    exit(0);
+    return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
 }

@@ -49,6 +49,26 @@ typedef struct {
 } cfl_state_machine_column_data_t;
 
 
+typedef struct {
+  int32_t finalize_function_id;
+  void *auxiliary_data;
+} sequence_aggregate_data_t;
+
+typedef struct {
+  uint32_t sequence_result;
+  uint32_t node_index;
+}sequence_result_data_t;
+
+
+typedef struct {
+  int32_t finalize_function_id;
+  int32_t sequence_number;
+  int32_t recorded_sequence_index;
+  int32_t current_sequence_index;
+  sequence_result_data_t *sequence_result_data_array;
+  void *auxiliary_data;
+}sequence_start_fn_data_t;
+
 
 #ifdef __cplusplus
 }

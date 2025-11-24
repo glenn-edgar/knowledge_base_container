@@ -32,6 +32,24 @@ void cfl_uint16_to_str(uint16_t value, char* buffer) {
     buffer[j] = '\0';
 }
 
+bool cfl_allocate_state(cfl_runtime_handle_t *handle, uint16_t node_index){
+    uint16_t memory_index = cfl_heap_arena_get_node_memory_index(( cfl_heap_arena_system_t *)handle->arena_system, node_index);
+    if (memory_index == 0xFFFF){
+        return false;
+    }
+    return true;
+}
+
+void *cfl_additional_arena_alloc(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t size){
+    // Use cfl_arena_additional_alloc, NOT cfl_arena_alloc_from_active
+    void *ptr = cfl_arena_additional_alloc((CflHeapArenaSystem*)handle->arena_system, node_index, size);
+    if (!ptr){
+        EXCEPTION("cfl_additional_arena_alloc: Failed to allocate memory");
+        return NULL;
+    }
+    return ptr;
+}
+
 void *cfl_smart_arena_alloc(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t size){
     
     uint16_t memory_index = cfl_heap_arena_get_node_memory_index(( cfl_heap_arena_system_t *)handle->arena_system, node_index);

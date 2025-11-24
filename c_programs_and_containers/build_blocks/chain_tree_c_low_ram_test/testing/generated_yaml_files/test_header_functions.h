@@ -69,8 +69,10 @@ typedef enum {
     ONE_SHOT_FUNC_CFL_WAIT_TIME_INIT = 33,
     ONE_SHOT_FUNC_WAIT_FOR_EVENT_ERROR = 34,
     ONE_SHOT_FUNC_VERIFY_ERROR = 35,
-    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_RESULT = 36,
-    ONE_SHOT_FUNC_COUNT = 37
+    ONE_SHOT_FUNC_INITIALIZE_SEQUENCE = 36,
+    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_RESULT = 37,
+    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_TILL_RESULT = 38,
+    ONE_SHOT_FUNC_COUNT = 39
 } ONE_SHOT_FUNC_t;
 
 /* Boolean function enum */
@@ -87,16 +89,16 @@ typedef enum {
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_4vn9ga8l_main_functions[19];
-extern const one_shot_function_t ct_4vn9ga8l_one_shot_functions[37];
-extern const boolean_function_t ct_4vn9ga8l_boolean_functions[8];
+extern const main_function_t ct_elzr3fif_main_functions[19];
+extern const one_shot_function_t ct_elzr3fif_one_shot_functions[39];
+extern const boolean_function_t ct_elzr3fif_boolean_functions[8];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_4vn9ga8l_main_function_usage_count[19];
+extern const uint16_t ct_elzr3fif_main_function_usage_count[19];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_4vn9ga8l_main_function_names[19];
-extern const char *ct_4vn9ga8l_one_shot_function_names[37];
-extern const char *ct_4vn9ga8l_boolean_function_names[8];
+extern const char *ct_elzr3fif_main_function_names[19];
+extern const char *ct_elzr3fif_one_shot_function_names[39];
+extern const char *ct_elzr3fif_boolean_function_names[8];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */

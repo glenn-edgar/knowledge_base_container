@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_4VN9GA8L_NODE_COUNT 320
+#define CT_ELZR3FIF_NODE_COUNT 318
 
-extern const chaintree_node_t ct_4vn9ga8l_nodes[CT_4VN9GA8L_NODE_COUNT];
+extern const chaintree_node_t ct_elzr3fif_nodes[CT_ELZR3FIF_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

@@ -35,7 +35,7 @@ static inline uint16_t align_up(uint16_t value, uint8_t alignment) {
     return (value + alignment - 1) & ~(uint16_t)(alignment - 1);
 }
 
-static inline cfl_heap_allocator_id_t alloc_id( CflHeapArenaSystem* sys) {
+static inline cfl_heap_allocator_id_t alloc_id(CflHeapArenaSystem* sys) {
     for (uint16_t i = 0; i < MAX_ALLOCATORS; ++i) {
         cfl_heap_allocator_id_t id = (sys->next_allocator_id + i) % MAX_ALLOCATORS;
         if (sys->arenas[id] == NULL) {
@@ -47,13 +47,13 @@ static inline cfl_heap_allocator_id_t alloc_id( CflHeapArenaSystem* sys) {
     return NO_ALLOCATOR; // Never reached
 }
 
-static inline void free_id( CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+static inline void free_id(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (id < MAX_ALLOCATORS) {
         sys->arenas[id] = NULL;
     }
 }
 
-static inline CflHeapArenaControl* get_arena_by_id( CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+static inline CflHeapArenaControl* get_arena_by_id(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (id >= MAX_ALLOCATORS) {
         EXCEPTION("get_arena_by_id: Invalid allocator ID");
     }
@@ -62,9 +62,9 @@ static inline CflHeapArenaControl* get_arena_by_id( CflHeapArenaSystem* sys, cfl
 
 /* ============= PUBLIC API ============= */
 
-CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm,  cfl_heap_t* heap, 
-                                                   uint16_t max_allocator_count, uint16_t total_node_count,
-                                                   uint16_t allocator_0_size) {
+CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm, cfl_heap_t* heap, 
+                                                  uint16_t max_allocator_count, uint16_t total_node_count,
+                                                  uint16_t allocator_0_size) {
     if (!perm) {
         EXCEPTION("cfl_heap_arena_system_create: NULL perm pointer");
     }
@@ -103,7 +103,7 @@ CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm,  cfl_heap_t* hea
     memset(sys->arenas, 0, max_allocator_count * sizeof(CflHeapArenaControl*));
     
     sys->next_allocator_id = 1;  // Start at 1, since 0 is reserved
-    sys->active_allocator_context = NO_ALLOCATOR;
+    sys->active_allocator_context = 0;  // Default to allocator 0
     
     // Allocate node arrays from permanent allocator
     sys->node_allocator_ids = (uint8_t*)cfl_perm_alloc_pointer(perm, total_node_count * sizeof(uint8_t));
@@ -152,7 +152,7 @@ CflHeapArenaSystem* cfl_heap_arena_system_create(CflPerm* perm,  cfl_heap_t* hea
     return sys;
 }
 
-void cfl_heap_arena_system_reset( CflHeapArenaSystem* sys) {
+void cfl_heap_arena_system_reset(CflHeapArenaSystem* sys) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_system_reset: NULL system pointer");
     }
@@ -193,12 +193,12 @@ void cfl_heap_arena_system_reset( CflHeapArenaSystem* sys) {
     
     // Reset ID allocation (start at 1, since 0 is reserved)
     sys->next_allocator_id = 1;
-    sys->active_allocator_context = NO_ALLOCATOR;
+    sys->active_allocator_context = 0;  // Default to allocator 0
 }
 
-cfl_heap_allocator_id_t cfl_heap_arena_create( CflHeapArenaSystem* sys, 
-                                                uint16_t owner_node_id, 
-                                                uint16_t size_bytes) {
+cfl_heap_allocator_id_t cfl_heap_arena_create(CflHeapArenaSystem* sys, 
+                                               uint16_t owner_node_id, 
+                                               uint16_t size_bytes) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_create: NULL system pointer");
     }
@@ -245,9 +245,9 @@ cfl_heap_allocator_id_t cfl_heap_arena_create( CflHeapArenaSystem* sys,
     return id;
 }
 
-void cfl_heap_arena_destroy( CflHeapArenaSystem* sys, 
-                             cfl_heap_allocator_id_t id, 
-                             uint16_t owner_node_id) {
+void cfl_heap_arena_destroy(CflHeapArenaSystem* sys, 
+                            cfl_heap_allocator_id_t id, 
+                            uint16_t owner_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_destroy: NULL system pointer");
     }
@@ -285,7 +285,7 @@ void cfl_heap_arena_destroy( CflHeapArenaSystem* sys,
     
     // Clear context if this was the active allocator
     if (sys->active_allocator_context == id) {
-        sys->active_allocator_context = NO_ALLOCATOR;
+        sys->active_allocator_context = 0;  // Fall back to allocator 0
     }
     
     // Free data block from heap
@@ -301,7 +301,7 @@ void cfl_heap_arena_destroy( CflHeapArenaSystem* sys,
     free_id(sys, id);
 }
 
-void cfl_heap_arena_set_active_allocator( CflHeapArenaSystem* sys, uint16_t owner_node_id) {
+void cfl_heap_arena_set_active_allocator(CflHeapArenaSystem* sys, uint16_t owner_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_active_allocator: NULL system pointer");
     }
@@ -318,7 +318,23 @@ void cfl_heap_arena_set_active_allocator( CflHeapArenaSystem* sys, uint16_t owne
     sys->active_allocator_context = sys->node_allocator_ids[owner_node_id];
 }
 
-void cfl_heap_arena_set_node_allocator( CflHeapArenaSystem* sys, uint16_t requesting_node_id) {
+void cfl_heap_arena_set_active_allocator_id(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t allocator_id) {
+    if (!sys) {
+        EXCEPTION("cfl_heap_arena_set_active_allocator_id: NULL system pointer");
+    }
+    
+    if (allocator_id >= sys->max_allocator_count) {
+        EXCEPTION("cfl_heap_arena_set_active_allocator_id: allocator_id out of bounds");
+    }
+    
+    if (sys->arenas[allocator_id] == NULL) {
+        EXCEPTION("cfl_heap_arena_set_active_allocator_id: allocator_id not in use");
+    }
+    
+    sys->active_allocator_context = allocator_id;
+}
+
+void cfl_heap_arena_set_node_allocator(CflHeapArenaSystem* sys, uint16_t requesting_node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_allocator: NULL system pointer");
     }
@@ -335,11 +351,11 @@ void cfl_heap_arena_set_node_allocator( CflHeapArenaSystem* sys, uint16_t reques
     sys->node_allocator_ids[requesting_node_id] = sys->active_allocator_context;
 }
 
-void* cfl_arena_system_alloc( CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes) {
+void* cfl_arena_system_alloc(CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes) {
     return cfl_arena_system_alloc_aligned(sys, requesting_node_id, size_bytes, ARENA_ALIGNMENT);
 }
 
-void* cfl_arena_system_alloc_aligned( CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes, uint8_t alignment) {
+void* cfl_arena_system_alloc_aligned(CflHeapArenaSystem* sys, uint16_t requesting_node_id, uint16_t size_bytes, uint8_t alignment) {
     if (!sys) {
         EXCEPTION("cfl_arena_system_alloc_aligned: NULL system pointer");
     }
@@ -399,9 +415,133 @@ void* cfl_arena_system_alloc_aligned( CflHeapArenaSystem* sys, uint16_t requesti
     return ptr;
 }
 
+/* ============= ADDITIONAL ALLOCATION (no node_memory_index update) ============= */
+
+void* cfl_arena_additional_alloc(CflHeapArenaSystem* sys, uint16_t node_index, uint16_t size_bytes) {
+    return cfl_arena_additional_alloc_aligned(sys, node_index, size_bytes, ARENA_ALIGNMENT);
+}
+
+void* cfl_arena_additional_alloc_aligned(CflHeapArenaSystem* sys, uint16_t node_index, uint16_t size_bytes, uint8_t alignment) {
+    if (!sys) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: NULL system pointer");
+    }
+    
+    if (size_bytes == 0) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: size_bytes is zero");
+    }
+    
+    if (!sys->node_allocator_ids) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: Arena system not initialized");
+    }
+    
+    if (node_index >= sys->total_node_count) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: node_index out of bounds");
+    }
+    
+    cfl_heap_allocator_id_t alloc_id = sys->node_allocator_ids[node_index];
+    if (alloc_id == NO_ALLOCATOR) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: Node has no allocator assigned");
+    }
+    
+    CflHeapArenaControl* arena = get_arena_by_id(sys, alloc_id);
+    if (!arena) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: Invalid arena for allocator ID");
+    }
+    
+    // Get pointer to data block base
+    uint8_t* base;
+    if (arena->id == 0) {
+        base = (uint8_t*)sys->allocator_0_buffer;
+    } else {
+        base = (uint8_t*)cfl_heap_ptr(sys->heap, arena->memory_idx);
+    }
+    
+    // Calculate aligned pointer address
+    uintptr_t current_addr = (uintptr_t)(base + arena->used);
+    uintptr_t aligned_addr = (current_addr + (uintptr_t)(alignment - 1)) & ~(uintptr_t)(alignment - 1);
+    uint16_t padding = (uint16_t)(aligned_addr - current_addr);
+    uint16_t total_needed = padding + size_bytes;
+    
+    if (arena->used + total_needed > arena->size) {
+        EXCEPTION("cfl_arena_additional_alloc_aligned: Arena exhausted - insufficient space");
+    }
+    
+    void* ptr = (void*)aligned_addr;
+    
+    // Update arena used pointer - but DO NOT update node_memory_index
+    arena->used += total_needed;
+    
+    return ptr;
+}
+
+/* ============= ALLOCATION FROM ACTIVE CONTEXT ============= */
+
+void* cfl_arena_alloc_from_active(CflHeapArenaSystem* sys, uint16_t node_index, uint16_t size_bytes) {
+    return cfl_arena_alloc_from_active_aligned(sys, node_index, size_bytes, ARENA_ALIGNMENT);
+}
+
+void* cfl_arena_alloc_from_active_aligned(CflHeapArenaSystem* sys, uint16_t node_index, uint16_t size_bytes, uint8_t alignment) {
+    if (!sys) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: NULL system pointer");
+    }
+    
+    if (size_bytes == 0) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: size_bytes is zero");
+    }
+    
+    if (!sys->node_allocator_ids) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: Arena system not initialized");
+    }
+    
+    if (node_index >= sys->total_node_count) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: node_index out of bounds");
+    }
+    
+    cfl_heap_allocator_id_t alloc_id = sys->active_allocator_context;
+    if (alloc_id == NO_ALLOCATOR) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: No active allocator context set");
+    }
+    
+    CflHeapArenaControl* arena = get_arena_by_id(sys, alloc_id);
+    if (!arena) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: Invalid arena for active allocator context");
+    }
+    
+    // Get pointer to data block base
+    uint8_t* base;
+    if (arena->id == 0) {
+        base = (uint8_t*)sys->allocator_0_buffer;
+    } else {
+        base = (uint8_t*)cfl_heap_ptr(sys->heap, arena->memory_idx);
+    }
+    
+    // Calculate aligned pointer address
+    uintptr_t current_addr = (uintptr_t)(base + arena->used);
+    uintptr_t aligned_addr = (current_addr + (uintptr_t)(alignment - 1)) & ~(uintptr_t)(alignment - 1);
+    uint16_t padding = (uint16_t)(aligned_addr - current_addr);
+    uint16_t total_needed = padding + size_bytes;
+    
+    if (arena->used + total_needed > arena->size) {
+        EXCEPTION("cfl_arena_alloc_from_active_aligned: Arena exhausted - insufficient space");
+    }
+    
+    void* ptr = (void*)aligned_addr;
+    
+    // Store the aligned offset for this node
+    sys->node_memory_index[node_index] = arena->used + padding;
+    
+    // Assign this node to the active allocator
+    sys->node_allocator_ids[node_index] = alloc_id;
+    
+    // Update arena used pointer
+    arena->used += total_needed;
+    
+    return ptr;
+}
+
 /* ============= NODE ARRAY ACCESSORS ============= */
 
-cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id( CflHeapArenaSystem* sys, uint16_t node_id) {
+cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id(CflHeapArenaSystem* sys, uint16_t node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_get_node_allocator_id: NULL system pointer");
     }
@@ -417,7 +557,7 @@ cfl_heap_allocator_id_t cfl_heap_arena_get_node_allocator_id( CflHeapArenaSystem
     return sys->node_allocator_ids[node_id];
 }
 
-void cfl_heap_arena_set_node_allocator_id( CflHeapArenaSystem* sys, uint16_t node_id, cfl_heap_allocator_id_t allocator_id) {
+void cfl_heap_arena_set_node_allocator_id(CflHeapArenaSystem* sys, uint16_t node_id, cfl_heap_allocator_id_t allocator_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_allocator_id: NULL system pointer");
     }
@@ -433,7 +573,7 @@ void cfl_heap_arena_set_node_allocator_id( CflHeapArenaSystem* sys, uint16_t nod
     sys->node_allocator_ids[node_id] = allocator_id;
 }
 
-uint16_t cfl_heap_arena_get_node_memory_index( CflHeapArenaSystem* sys, uint16_t node_id) {
+uint16_t cfl_heap_arena_get_node_memory_index(CflHeapArenaSystem* sys, uint16_t node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_get_node_memory_index: NULL system pointer");
     }
@@ -449,7 +589,7 @@ uint16_t cfl_heap_arena_get_node_memory_index( CflHeapArenaSystem* sys, uint16_t
     return sys->node_memory_index[node_id];
 }
 
-void cfl_heap_arena_set_node_memory_index( CflHeapArenaSystem* sys, uint16_t node_id, uint16_t memory_idx) {
+void cfl_heap_arena_set_node_memory_index(CflHeapArenaSystem* sys, uint16_t node_id, uint16_t memory_idx) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_set_node_memory_index: NULL system pointer");
     }
@@ -466,7 +606,7 @@ void cfl_heap_arena_set_node_memory_index( CflHeapArenaSystem* sys, uint16_t nod
 }
 
 /* Get pointer to node's allocated memory */
-void* cfl_heap_arena_get_node_ptr( CflHeapArenaSystem* sys, uint16_t node_id) {
+void* cfl_heap_arena_get_node_ptr(CflHeapArenaSystem* sys, uint16_t node_id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_get_node_ptr: NULL system pointer");
     }
@@ -507,7 +647,7 @@ void* cfl_heap_arena_get_node_ptr( CflHeapArenaSystem* sys, uint16_t node_id) {
 
 /* ============= DIAGNOSTICS ============= */
 
-uint16_t cfl_heap_arena_used_bytes( CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+uint16_t cfl_heap_arena_used_bytes(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_used_bytes: NULL system pointer");
     }
@@ -524,7 +664,7 @@ uint16_t cfl_heap_arena_used_bytes( CflHeapArenaSystem* sys, cfl_heap_allocator_
     return arena->used;
 }
 
-uint16_t cfl_heap_arena_free_bytes( CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
+uint16_t cfl_heap_arena_free_bytes(CflHeapArenaSystem* sys, cfl_heap_allocator_id_t id) {
     if (!sys) {
         EXCEPTION("cfl_heap_arena_free_bytes: NULL system pointer");
     }
@@ -541,23 +681,45 @@ uint16_t cfl_heap_arena_free_bytes( CflHeapArenaSystem* sys, cfl_heap_allocator_
     return arena->size - arena->used;
 }
 
-void cfl_heap_arena_dump_stats( CflHeapArenaSystem* sys) {
+CflHeapArenaStats cfl_heap_arena_dump_stats(CflHeapArenaSystem* sys) {
+    CflHeapArenaStats stats = {0, 0, 0};
+    
     if (!sys) {
         EXCEPTION("cfl_heap_arena_dump_stats: NULL system pointer");
     }
     
-    uint32_t active_count = 0;
-    uint32_t total_data_allocated = 0;
-    uint32_t total_data_used = 0;
+    printf("=== Arena System Statistics ===\n");
+    printf("%-4s  %-6s  %-10s  %-10s  %-10s  %-5s\n", 
+           "ID", "Owner", "Size", "Used", "Free", "Util%");
+    printf("----  ------  ----------  ----------  ----------  -----\n");
     
     for (uint16_t i = 0; i < sys->max_allocator_count; ++i) {
         if (sys->arenas[i]) {
-            active_count++;
-            total_data_allocated += sys->arenas[i]->size;
-            total_data_used += sys->arenas[i]->used;
+            CflHeapArenaControl* arena = sys->arenas[i];
+            uint16_t free_bytes = arena->size - arena->used;
+            uint8_t utilization = (arena->size > 0) ? (uint8_t)((arena->used * 100) / arena->size) : 0;
+            
+            if (arena->owner_node_id == 0xFFFF) {
+                printf("%-4u  %-6s  %-10u  %-10u  %-10u  %3u%%\n",
+                       i, "sys", arena->size, arena->used, free_bytes, utilization);
+            } else {
+                printf("%-4u  %-6u  %-10u  %-10u  %-10u  %3u%%\n",
+                       i, arena->owner_node_id, arena->size, arena->used, free_bytes, utilization);
+            }
+            
+            stats.active_count++;
+            stats.total_data_allocated += arena->size;
+            stats.total_data_used += arena->used;
         }
     }
     
-    printf("cfl_heap_arena_dump_stats: active_count %u total_data_allocated %u total_data_used %u\n", 
-           active_count, total_data_allocated, total_data_used);
+    printf("----  ------  ----------  ----------  ----------  -----\n");
+    uint8_t total_utilization = (stats.total_data_allocated > 0) 
+        ? (uint8_t)((stats.total_data_used * 100) / stats.total_data_allocated) : 0;
+    printf("%-4s  %-6u  %-10u  %-10u  %-10u  %3u%%\n",
+           "TOT", stats.active_count, stats.total_data_allocated, stats.total_data_used,
+           stats.total_data_allocated - stats.total_data_used, total_utilization);
+    printf("===============================\n");
+    
+    return stats;
 }

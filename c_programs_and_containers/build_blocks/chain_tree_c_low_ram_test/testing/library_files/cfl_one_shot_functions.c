@@ -299,7 +299,7 @@ void cfl_enable_nodes_one_shot_fn(void *handle, uint16_t node_index){
 void cfl_event_logger_init_one_shot_fn(void *handle, uint16_t node_index){
     
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-   
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
     cfl_event_logger_fn_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_event_logger_fn_data_t));
     
     json_decoder_init_from_runtime(runtime_handle, node_index);
@@ -332,13 +332,21 @@ void cfl_event_logger_init_one_shot_fn(void *handle, uint16_t node_index){
         ptr->event_ids = NULL;
         return;
     }
+    if (allocator_state == false){
     
-    ptr->event_ids = (int32_t *)cfl_heap_malloc_pointer(runtime_handle->heap, (uint16_t)alloc_size);
-    if (!ptr->event_ids) {
-        EXCEPTION("cfl_event_logger_init_one_shot_fn: failed to allocate event_ids");
-        ptr->event_count = 0;
-        return;
+        ptr->event_ids = (int32_t *)cfl_additional_arena_alloc(runtime_handle, node_index, (uint16_t)alloc_size);
+        if (!ptr->event_ids) {
+            EXCEPTION("cfl_event_logger_init_one_shot_fn: failed to allocate event_ids");
+            return;
+        }else
+        {
+            if(ptr->event_ids == NULL){
+                EXCEPTION("cfl_event_logger_init_one_shot_fn: event_ids is not NULL");
+                return;
+            }
+        }
     }
+
     
     for (uint32_t i = 0; i < ptr->event_count; i++) {
         uint32_t element_record;
@@ -351,26 +359,13 @@ void cfl_event_logger_init_one_shot_fn(void *handle, uint16_t node_index){
 
 
 void cfl_event_logger_term_one_shot_fn(void *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    cfl_event_logger_fn_data_t *ptr = (cfl_event_logger_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
-    if (ptr && ptr->event_ids) {
-        cfl_heap_free_pointer(runtime_handle->heap, (void*)ptr->event_ids);
-    }
+    (void)handle;
+    (void)node_index;
     
 }
 
 
-/*
 
-JSON Structure:
-[452] object: { count=2
-  "node_dict":
-  [454] object: { count=6
-    "node_id": 85
-    "new_state": "state3"
-    "sync_event_id": null
-  }
-*/
 
 /* Extract node_id, new_state, and sync_event_id (which can be null or integer) */
 void json_extract_new_state_data(
@@ -459,7 +454,7 @@ void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
             return;
         }
     }
-    
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
     cfl_state_machine_column_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_state_machine_column_data_t));
     
     ptr->sync_event_id_valid = false;
@@ -487,12 +482,22 @@ void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
         EXCEPTION("cfl_state_machine_init_one_shot_fn: state_names allocation size exceeds uint16_t limit");
         return;
     }
-    
-    ptr->state_names = (const char **)cfl_heap_malloc_pointer(runtime_handle->heap, (uint16_t)alloc_size);
-    if (!ptr->state_names) {
-        EXCEPTION("cfl_state_machine_init_one_shot_fn: failed to allocate state_names");
-        return;
+    if(allocator_state == false){
+        ptr->state_names = (const char **)cfl_arena_system_alloc(runtime_handle->arena_system, node_index, (uint16_t)alloc_size);
+        if (!ptr->state_names) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: failed to allocate state_names");
+            return;
+        }
+        else
+        {
+            if(ptr->state_names != NULL){
+                EXCEPTION("cfl_state_machine_init_one_shot_fn: state_names is not NULL");
+                return;
+            }
+        }
     }
+    
+
     
     // Navigate to node_dict.column_data
     uint32_t node_dict_record;
@@ -548,10 +553,7 @@ void cfl_state_machine_term_one_shot_fn(void *handle, uint16_t node_index){
         return;
     }
     
-    cfl_state_machine_column_data_t *ptr = (cfl_state_machine_column_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
-    if (ptr && ptr->state_names) {
-        cfl_heap_free_pointer(runtime_handle->heap, (void*)ptr->state_names);
-    }
+    
     
     const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
     uint16_t link_count = node->link_count & LINK_COUNT_MASK;
@@ -609,53 +611,93 @@ void cfl_fork_term_one_shot_fn(void *handle, uint16_t node_index){
     (void)node_index;
 }
 
-void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    json_decoder_init_from_runtime(runtime_handle, node_index);
-    json_print_node_data_runtime(runtime_handle, node_index);
-    printf("mark_sequence_one_shot_fn\n");
-    exit(0);
-}
+
+
+
+
 
 void cfl_sequence_pass_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
+    
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t*)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(sequence_start_fn_data_t));
+
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
+    ptr->sequence_number = link_count;
+
+    ptr->current_sequence_index = 0;
+    ptr->recorded_sequence_index = -1;
+    if (allocator_state == false){
+      
+      ptr->sequence_result_data_array = (sequence_result_data_t *)cfl_additional_arena_alloc(runtime_handle,node_index,
+            (uint16_t)(sizeof(sequence_result_data_t) * ptr->sequence_number));
+    } else{
+       if (ptr->sequence_result_data_array == NULL){
+        EXCEPTION("cfl_sequence_pass_init_one_shot_fn: failed to allocate sequence_result_data_array");
+        return;
+       }
+    }
+    
+    for (int32_t i = 0; i < link_count; i++) {
+        uint16_t link_id = link_table[node->link_start + i];
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_sequence_pass_init_one_shot_fn: link_id out of bounds");
+            continue;
+        }
+        
+        ptr->sequence_result_data_array[i].sequence_result = false;
+        ptr->sequence_result_data_array[i].node_index = link_id;
+        
+        if (i == 0) {
+            cfl_enable_node(runtime_handle, link_id);
+        }else
+        {
+            cfl_terminate_node_tree(runtime_handle, link_id);
+        }
+    }
     json_decoder_init_from_runtime(runtime_handle, node_index);
-    json_print_node_data_runtime(runtime_handle, node_index);
-    printf("sequence_pass_init_one_shot_fn\n");
-    exit(0);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.finalize_function_id", &ptr->finalize_function_id);
+   
+
 }
 
 void cfl_sequence_pass_term_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    json_decoder_init_from_runtime(runtime_handle, node_index);
-    json_print_node_data_runtime(runtime_handle, node_index);
-    printf("sequence_pass_term_one_shot_fn\n");
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_sequence_pass_term_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    printf("ptr->finalize_function_id: %d\n", ptr->finalize_function_id);
+    one_shot_function_t finalize_function = runtime_handle->flash_handle->one_shot_functions[ptr->finalize_function_id];
+    finalize_function(runtime_handle, node_index);
+    printf("finalize_function(runtime_handle, node_index) returned\n");
     exit(0);
 }
-typedef struct {
-    int32_t finalize_function_id;
-    int32_t active_index;
-    void *finalize_function_data;
-} sequence_start_fn_data_t;
+
+void cfl_sequence_fail_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_sequence_pass_init_one_shot_fn(handle, node_index);
+}
+void cfl_sequence_fail_term_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_sequence_pass_term_one_shot_fn(handle, node_index);
+}
+
+
 
 void cfl_sequence_start_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(sequence_start_fn_data_t));
+    sequence_aggregate_data_t *ptr = (sequence_aggregate_data_t*)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(sequence_aggregate_data_t));
+    ptr->auxiliary_data = NULL;
     json_decoder_init_from_runtime(runtime_handle, node_index);
     json_extract_int32_runtime(runtime_handle, "node_dict.column_data.finalize_function_id", &ptr->finalize_function_id);
-    ptr->finalize_function_data = NULL;
-    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
-    uint16_t link_start = node->link_start;
-    ptr->active_index = 0;
-    for (uint32_t i = 0; i < link_count; i++) {
-        uint16_t link_id = runtime_handle->flash_handle->link_table[link_start + i];
-        if (i == 0) {
-            cfl_enable_node(runtime_handle, link_id);
-        } else {
-            cfl_disable_node_flag(runtime_handle, link_id);
-        }
-    }
+    int32_t initialize_function_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.initialize_function_id", &initialize_function_id);
+    one_shot_function_t initialize_function = runtime_handle->flash_handle->one_shot_functions[initialize_function_id];
+    initialize_function(runtime_handle, node_index);
+    cfl_enable_all_nodes(runtime_handle, node_index);
+
 
 }
 
@@ -691,3 +733,25 @@ void cfl_join_term_one_shot_fn(void *handle, uint16_t node_index){
     (void)handle;
     (void)node_index;
 }
+
+
+void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    int32_t result;
+    int32_t parent_node_name;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_int32_runtime(runtime_handle, "node_dict.result", &result);
+    json_extract_int32_runtime(runtime_handle, "node_dict.parent_node_name", &parent_node_name);
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, parent_node_name);
+    if (!ptr) {
+        EXCEPTION("cfl_mark_sequence_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    if (result == 1) {
+        ptr->sequence_result_data_array[ptr->recorded_sequence_index].sequence_result = true;
+    } else {
+        ptr->sequence_result_data_array[ptr->recorded_sequence_index].sequence_result = false;
+    }
+    ptr->recorded_sequence_index = ptr->current_sequence_index;
+
+} 

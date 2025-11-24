@@ -52,6 +52,12 @@ typedef struct {
     int error_code;
 } json_decoder_ctx_t;
 
+
+typedef struct {
+    int32_t sequence_name_count;
+    uint32_t sequence_ids[2];
+} sequence_function_data_t;
+
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
      cfl_perm_t *perm;
@@ -82,6 +88,7 @@ struct CFL_RUNTIME_HANDLE {
      uint8_t* backup_flags;
      CT_WalkerContext* walker_context_ptr;
     double future_time_stamp;
+    void *sequence_function_data;
     const chaintree_handle_t* flash_handle;
 };
 
