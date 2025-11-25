@@ -991,7 +991,7 @@ void json_print_node_data_runtime(
                node_index, runtime->flash_handle->node_count);
         return;
     }
-    
+
     const chaintree_node_t *node = &runtime->flash_handle->nodes[node_index];
     uint32_t node_data_id = node->node_data_id;
     

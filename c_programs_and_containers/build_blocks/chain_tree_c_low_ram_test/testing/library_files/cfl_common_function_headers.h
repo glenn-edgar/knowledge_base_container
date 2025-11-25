@@ -65,6 +65,8 @@ typedef struct {
   int32_t current_sequence_index;
   sequence_result_data_t *sequence_result_data_array;
   void *auxiliary_data;
+  bool  final_status;
+  uint8_t sequence_type;
 }sequence_start_fn_data_t;
 
 

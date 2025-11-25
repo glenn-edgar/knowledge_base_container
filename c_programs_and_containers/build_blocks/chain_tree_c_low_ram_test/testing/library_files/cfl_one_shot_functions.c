@@ -622,6 +622,7 @@ void cfl_sequence_pass_init_one_shot_fn(void *handle, uint16_t node_index){
 
     ptr->current_sequence_index = 0;
     ptr->recorded_sequence_index = -1;
+    ptr->sequence_type = 0;
     if (allocator_state == false){
       
       ptr->sequence_result_data_array = (sequence_result_data_t *)cfl_additional_arena_alloc(runtime_handle,node_index,
@@ -663,15 +664,18 @@ void cfl_sequence_pass_term_one_shot_fn(void *handle, uint16_t node_index){
         EXCEPTION("cfl_sequence_pass_term_one_shot_fn: failed to get node pointer");
         return;
     }
-    printf("ptr->finalize_function_id: %d\n", ptr->finalize_function_id);
+    
     one_shot_function_t finalize_function = runtime_handle->flash_handle->one_shot_functions[ptr->finalize_function_id];
     finalize_function(runtime_handle, node_index);
-    printf("finalize_function(runtime_handle, node_index) returned\n");
-    exit(0);
+    
+    
 }
 
 void cfl_sequence_fail_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
     cfl_sequence_pass_init_one_shot_fn(handle, node_index);
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle, node_index);
+    ptr->sequence_type = 1;
 }
 void cfl_sequence_fail_term_one_shot_fn(void *handle, uint16_t node_index){
     cfl_sequence_pass_term_one_shot_fn(handle, node_index);
@@ -694,16 +698,20 @@ void cfl_sequence_start_init_one_shot_fn(void *handle, uint16_t node_index){
     one_shot_function_t initialize_function = runtime_handle->flash_handle->one_shot_functions[initialize_function_id];
     initialize_function(runtime_handle, node_index);
     cfl_enable_all_nodes(runtime_handle, node_index);
-
+    
 
 }
 
 void cfl_sequence_start_term_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    int32_t finalize_function_id;
     json_decoder_init_from_runtime(runtime_handle, node_index);
-    json_print_node_data_runtime(runtime_handle, node_index);
-    printf("sequence_start_term_one_shot_fn\n");
-    exit(0);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.finalize_function_id", &finalize_function_id);
+    one_shot_function_t finalize_function = runtime_handle->flash_handle->one_shot_functions[finalize_function_id];
+    finalize_function(runtime_handle, node_index);
+    
+    
+    
 }
 
 
@@ -736,6 +744,7 @@ void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
     int32_t result;
     int32_t parent_node_name;
+    printf("cfl_mark_sequence_one_shot_fn node_index: %d\n", node_index);
     json_decoder_init_from_runtime(runtime_handle, node_index);
     json_extract_int32_runtime(runtime_handle, "node_dict.result", &result);
     json_extract_int32_runtime(runtime_handle, "node_dict.parent_node_name", &parent_node_name);
@@ -744,10 +753,11 @@ void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
         EXCEPTION("cfl_mark_sequence_one_shot_fn: failed to get node pointer");
         return;
     }
+    ptr->sequence_result_data_array[ptr->current_sequence_index].node_index = node_index;
     if (result == 1) {
-        ptr->sequence_result_data_array[ptr->recorded_sequence_index].sequence_result = true;
+        ptr->sequence_result_data_array[ptr->current_sequence_index].sequence_result = true;
     } else {
-        ptr->sequence_result_data_array[ptr->recorded_sequence_index].sequence_result = false;
+        ptr->sequence_result_data_array[ptr->current_sequence_index].sequence_result = false;
     }
     ptr->recorded_sequence_index = ptr->current_sequence_index;
 

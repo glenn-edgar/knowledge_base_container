@@ -78,8 +78,8 @@ int main(void) {
     //cfl_add_test_by_index(handle, 3); //fifth test
     //cfl_add_test_by_index(handle, 4); //sixth test
     //cfl_add_test_by_index(handle, 5); //seventh test
-    cfl_add_test_by_index(handle, 6); //eighth test
-    //cfl_add_test_by_index(handle, 7); //ninth test
+    //cfl_add_test_by_index(handle, 6); //eighth test
+    cfl_add_test_by_index(handle, 7); //ninth test
     
     printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
     printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));

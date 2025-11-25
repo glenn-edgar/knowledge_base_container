@@ -593,6 +593,7 @@ void cfl_find_try_node_indexes(cfl_runtime_handle_t *handle, unsigned node_index
         if (handle->flags[i] & CT_FLAG_USER1) {
             handle->flags[i] &= ~CT_FLAG_USER1;
             sequence_aggregate_data->try_node_indexes[j] = i;
+            
             j++;
         }
     }
