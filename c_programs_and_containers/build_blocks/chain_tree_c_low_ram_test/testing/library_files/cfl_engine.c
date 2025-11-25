@@ -528,7 +528,76 @@ void cfl_reset_node_id(cfl_runtime_handle_t *handle, unsigned node_id) {
     
     cfl_enable_node(handle, node_id);
 }
+#if 0
+typedef struct {
+    int32_t finalize_function_id;
+    int32_t try_node_count;
+    uint16_t *try_node_indexes;
+    void *auxiliary_data;
+  } sequence_aggregate_data_t;
+#endif
 
+static CT_ReturnCode cfl_find_try_mark_node(void *handle, unsigned node_index,
+    unsigned int level, uint8_t* flags) {
+    (void)level;
+    (void)flags;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+     const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+     if (node->main_function_index == runtime_handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_SEQUENCE_TRY_PASS]) {
+        runtime_handle->backup_flags[node_index] |= CT_FLAG_USER1;
+        return CT_STOP_LEVEL;
+     }
+     if (node->main_function_index == runtime_handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_SEQUENCE_TRY_FAIL]) {
+        runtime_handle->backup_flags[node_index] |= CT_FLAG_USER1;
+        return CT_STOP_LEVEL;
+     }
+     return CT_CONTINUE;
+}
+
+void *cfl_additional_arena_alloc(cfl_runtime_handle_t *handle, unsigned node_index, uint16_t size);
+
+void cfl_find_try_node_indexes(cfl_runtime_handle_t *handle, unsigned node_index, sequence_aggregate_data_t *sequence_aggregate_data) {
+    ct_walker_save_context(handle->walker, handle->walker_context_ptr, handle->backup_flags);
+    
+    /* Switch function and walk subtree */
+    ct_walker_update_functions(handle->walker, cfl_find_try_mark_node, 
+        cfl_get_forward_enabled_links);
+    
+    ct_walker_walk(
+        handle->walker,
+        handle,
+        node_index,
+        handle->nested_stack,
+        handle->max_level,
+        handle->walker->max_level,
+        handle->flash_handle->node_count
+    );
+    
+    ct_walker_restore_context(handle->walker, handle->walker_context_ptr);
+    sequence_aggregate_data->try_node_count = 0;
+    unsigned int end_index = handle->kb_start_index + handle->kb_node_count - 1;
+    for (int i = (int)end_index; i >= (int)node_index; i--) {
+        if (handle->flags[i] & CT_FLAG_USER1) {
+            sequence_aggregate_data->try_node_count++;
+        
+        }
+    }
+    
+    sequence_aggregate_data->try_node_indexes = (uint16_t *)cfl_additional_arena_alloc(handle, node_index, sequence_aggregate_data->try_node_count * sizeof(uint16_t));
+    if (sequence_aggregate_data->try_node_indexes == NULL) {
+        EXCEPTION("cfl_find_try_node_indexes: failed to allocate try_node_indexes");
+        return;
+    }
+    int j = 0;
+    for (int i = (int)end_index; i >= (int)node_index; i--) {
+        if (handle->flags[i] & CT_FLAG_USER1) {
+            handle->flags[i] &= ~CT_FLAG_USER1;
+            sequence_aggregate_data->try_node_indexes[j] = i;
+            j++;
+        }
+    }
+    
+}
 /*==============================================================================
  * FLAG MANIPULATION
  *============================================================================*/

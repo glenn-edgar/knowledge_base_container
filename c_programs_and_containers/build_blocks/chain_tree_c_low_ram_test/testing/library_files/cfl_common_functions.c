@@ -71,7 +71,7 @@ void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t
     
     const chaintree_node_t *node = &handle->flash_handle->nodes[sm_node_id];
    
-    if (node->main_function_index != ct_get_main_function_index(handle->flash_handle, "CFL_STATE_MACHINE_MAIN")){
+    if (node->main_function_index != handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_STATE_MACHINE]){
         EXCEPTION("cfl_change_state: Node is not a state machine");
         return;
     }

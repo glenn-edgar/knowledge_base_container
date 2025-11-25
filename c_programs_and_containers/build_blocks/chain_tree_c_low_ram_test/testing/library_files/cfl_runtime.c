@@ -8,7 +8,7 @@
 
 
 
-static void cfl_find_sequence_ids(cfl_runtime_handle_t* handle, sequence_function_data_t* sequence_function_data);
+static void cfl_find_main_ids(cfl_runtime_handle_t* handle);
 
 static unsigned int cfl_calculate_max_level(cfl_runtime_handle_t* handle);
 static void cfl_set_timer_reference(cfl_runtime_handle_t* handle);
@@ -81,9 +81,9 @@ cfl_runtime_handle_t* cfl_runtime_create(cfl_perm_t* perm, cfl_runtime_create_pa
     handle->json_decoder_ctx = (json_decoder_ctx_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(json_decoder_ctx_t)));
     
     memset((void*)handle->flags, 0, params->total_node_count);
-    sequence_function_data_t *sequence_function_data = (sequence_function_data_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(sequence_function_data_t)));
-    cfl_find_sequence_ids(handle, sequence_function_data);
-    handle->sequence_function_data = sequence_function_data;
+    handle->main_function_data = (main_function_data_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(main_function_data_t)));
+    cfl_find_main_ids(handle);
+    
     cfl_init_test_system(handle);
     cfl_engine_create(handle);
     
@@ -347,18 +347,13 @@ uint16_t cfl_calculate_arrena_number(const chaintree_handle_t* flash_handle) {
     // later we will scan for number of node defined allegators
 }
 
-static void cfl_find_sequence_ids(cfl_runtime_handle_t* handle, sequence_function_data_t* sequence_function_data) {
-       sequence_function_data->sequence_name_count = 0;
-         int index = ct_get_main_function_index(handle->flash_handle, "CFL_SEQUENCE_PASS_MAIN");
-         if(index != -1) {
-            sequence_function_data->sequence_ids[0] = index;
-            sequence_function_data->sequence_name_count++;
-         }
-         index = ct_get_main_function_index(handle->flash_handle, "CFL_SEQUENCE_FAIL_MAIN");
-         if(index != -1) {
-            sequence_function_data->sequence_ids[1] = index;
-            sequence_function_data->sequence_name_count++;
-         }
-    
-    
+static void cfl_find_main_ids(cfl_runtime_handle_t *runtime_handle) {
+       
+        int index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_STATE_MACHINE_MAIN");
+        runtime_handle->main_function_data->main_function_ids[0] = index;
+        index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_SEQUENCE_PASS_MAIN");
+        runtime_handle->main_function_data->main_function_ids[1] = index;
+        index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_SEQUENCE_FAIL_MAIN");
+        runtime_handle->main_function_data->main_function_ids[2] = index;
+        
 }

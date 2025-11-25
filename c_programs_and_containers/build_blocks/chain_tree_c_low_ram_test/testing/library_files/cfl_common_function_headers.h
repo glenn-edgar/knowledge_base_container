@@ -49,14 +49,12 @@ typedef struct {
 } cfl_state_machine_column_data_t;
 
 
-typedef struct {
-  int32_t finalize_function_id;
-  void *auxiliary_data;
-} sequence_aggregate_data_t;
+
+
 
 typedef struct {
-  uint32_t sequence_result;
-  uint32_t node_index;
+  uint16_t sequence_result;
+  uint16_t node_index;
 }sequence_result_data_t;
 
 

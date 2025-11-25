@@ -39,7 +39,12 @@ typedef enum {
 #define CFL_SKIP_CONTINUE 5
 #define CFL_TERMINATE_SYSTEM 6
 
-
+typedef struct {
+    int32_t finalize_function_id;
+    int32_t try_node_count;
+    uint16_t *try_node_indexes;
+    void *auxiliary_data;
+  } sequence_aggregate_data_t;
 
 typedef struct {
     const json_record_t *records;
@@ -52,11 +57,12 @@ typedef struct {
     int error_code;
 } json_decoder_ctx_t;
 
-
+#define CFL_FUNCTION_ID_STATE_MACHINE 0
+#define CFL_FUNCTION_ID_SEQUENCE_TRY_PASS 1
+#define CFL_FUNCTION_ID_SEQUENCE_TRY_FAIL 2
 typedef struct {
-    int32_t sequence_name_count;
-    uint32_t sequence_ids[2];
-} sequence_function_data_t;
+    int32_t main_function_ids[3];
+} main_function_data_t;
 
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
@@ -88,7 +94,7 @@ struct CFL_RUNTIME_HANDLE {
      uint8_t* backup_flags;
      CT_WalkerContext* walker_context_ptr;
     double future_time_stamp;
-    void *sequence_function_data;
+    main_function_data_t *main_function_data;
     const chaintree_handle_t* flash_handle;
 };
 
@@ -102,6 +108,7 @@ void cfl_enable_node(cfl_runtime_handle_t *handle, unsigned node_index);
 
 void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index);
 void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id);
+void cfl_find_try_node_indexes(cfl_runtime_handle_t *handle, unsigned node_index, sequence_aggregate_data_t *sequence_aggregate_data);
 
 #ifdef __cplusplus
 }

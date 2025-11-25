@@ -54,6 +54,7 @@ bool cfl_add_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index);
 bool cfl_delete_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index);
 
 uint16_t cfl_calculate_arrena_number(const chaintree_handle_t* flash_handle);
+
 #ifdef __cplusplus
 }
 #endif

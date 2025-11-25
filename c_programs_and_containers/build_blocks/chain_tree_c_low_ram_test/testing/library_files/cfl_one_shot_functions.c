@@ -483,17 +483,10 @@ void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
         return;
     }
     if(allocator_state == false){
-        ptr->state_names = (const char **)cfl_arena_system_alloc(runtime_handle->arena_system, node_index, (uint16_t)alloc_size);
-        if (!ptr->state_names) {
+        ptr->state_names = (const char **)cfl_additional_arena_alloc(runtime_handle, node_index, (uint16_t)alloc_size);
+        if(ptr->state_names == NULL){
             EXCEPTION("cfl_state_machine_init_one_shot_fn: failed to allocate state_names");
             return;
-        }
-        else
-        {
-            if(ptr->state_names != NULL){
-                EXCEPTION("cfl_state_machine_init_one_shot_fn: state_names is not NULL");
-                return;
-            }
         }
     }
     
@@ -688,7 +681,11 @@ void cfl_sequence_fail_term_one_shot_fn(void *handle, uint16_t node_index){
 
 void cfl_sequence_start_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
     sequence_aggregate_data_t *ptr = (sequence_aggregate_data_t*)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(sequence_aggregate_data_t));
+    if (allocator_state == false){
+        cfl_find_try_node_indexes(runtime_handle, node_index, ptr);
+    }
     ptr->auxiliary_data = NULL;
     json_decoder_init_from_runtime(runtime_handle, node_index);
     json_extract_int32_runtime(runtime_handle, "node_dict.column_data.finalize_function_id", &ptr->finalize_function_id);
