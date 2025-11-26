@@ -7,6 +7,7 @@
 #define EXCEPTION(msg) \
     cfl_exception_handler(__FILE__, __func__, __LINE__, (msg))
 
+void setup_abort_handler(void);
 /* Exception handler - prints error and spins until watchdog fires */
 void cfl_exception_handler(const char* file, const char* func, uint16_t line, const char* msg);
 

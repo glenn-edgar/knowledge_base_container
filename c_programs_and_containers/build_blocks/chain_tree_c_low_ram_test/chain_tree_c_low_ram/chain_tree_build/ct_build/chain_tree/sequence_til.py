@@ -63,7 +63,7 @@ class SequenceTil(ColumnFlow):
     
     def define_supervisor_node(self, column_name:str,  main_function ="CFL_SUPERVISOR_MAIN",
                               initialization_function ="CFL_SUPERVISOR_INIT", termination_function ="CFL_SUPERVISOR_TERM", 
-                              aux_function ="CFL_NULL",user_data:dict = None,termination_type:str="ONE_FOR_ONE",
+                              aux_function ="CFL_NULL",user_data:dict = None, restart_enabled:bool=True,termination_type:int = 0,
                               reset_limited_enabled:bool=False,max_reset_number:int=1,reset_window:int=10,auto_start = False,
                               finalize_function:str="CFL_NULL",finalize_function_data:dict={},label:str="SUP"):
         if not isinstance(column_name, str):
@@ -76,16 +76,18 @@ class SequenceTil(ColumnFlow):
             raise TypeError("Termination function must be a string")
         if not isinstance(aux_function, str):
             raise TypeError("Aux function must be a string")
-        if not isinstance(termination_type, str):
-            raise TypeError("Termination type must be a string")
+        if not isinstance(termination_type, int):
+            raise TypeError("Termination type must be a integer")
         if not isinstance(reset_limited_enabled, bool):
             raise TypeError("Reset limited enabled must be a boolean")
         if not isinstance(max_reset_number, int):
             raise TypeError("Max reset number must be an integer")
         if not isinstance(reset_window, int):
             raise TypeError("Reset window must be an integer")
+        if not isinstance(restart_enabled, bool):
+            raise TypeError("Restart enabled must be a boolean")
         supervisor_data = {
-                        "termination_type": termination_type, 
+                        "termination_type": termination_type, "restart_enabled": restart_enabled,
                        "reset_limited_enabled": reset_limited_enabled, "max_reset_number": max_reset_number, "reset_window": reset_window,
                        "finalize_function": finalize_function, "finalize_function_data": finalize_function_data}
         column_data = {"user_data": user_data,"supervisor_data": supervisor_data}
@@ -95,40 +97,48 @@ class SequenceTil(ColumnFlow):
                                         
     
     def define_supervisor_one_for_one_node(self, column_name:str,  aux_function ="CFL_NULL",
-                                           user_data:dict = {},reset_limited_enabled:bool=False,
+                                           user_data:dict = {},restart_enabled:bool=True,reset_limited_enabled:bool=False,
                                            max_reset_number:int=1,reset_window:int=10,auto_start = False,
                                            finalize_function:str="CFL_NULL",finalize_function_data:dict={}):
         
         return self.define_supervisor_node(column_name = column_name, aux_function= aux_function, user_data =user_data,
-                                           termination_type="ONE_FOR_ONE", 
+                                           termination_type=0, restart_enabled=restart_enabled,
                                            reset_limited_enabled=reset_limited_enabled,
                                            max_reset_number=max_reset_number, reset_window=reset_window, auto_start=auto_start,
                                            finalize_function=finalize_function,
                                            finalize_function_data=finalize_function_data,label="SUP_1_1")
     
     def define_supervisor_one_for_all_node(self, column_name:str,    aux_function ="CFL_NULL", user_data:dict = {}
-                                           ,reset_limited_enabled:bool=False,max_reset_number:int=1,
+                                           ,restart_enabled:bool=True,reset_limited_enabled:bool=False,max_reset_number:int=1,
                                            reset_window:int=10, auto_start = False,
                                            finalize_function:str="CFL_NULL",
                                            finalize_function_data:dict={}): 
         
          return self.define_supervisor_node(column_name = column_name, aux_function= aux_function, user_data =user_data,
-                                            termination_type="ONE_FOR_ALL", 
+                                            termination_type=1, restart_enabled=restart_enabled,
                                            reset_limited_enabled=reset_limited_enabled,
                                            max_reset_number=max_reset_number, reset_window=reset_window, auto_start=auto_start,
                                            finalize_function=finalize_function,
                                            finalize_function_data=finalize_function_data,label="SUP_1_ALL")
- 
+    
     def define_supervisor_rest_for_all_node(self, column_name:str,  aux_function ="CFL_NULL", user_data:dict = {},
+                                            restart_enabled:bool=True,
                                             reset_limited_enabled:bool=False,max_reset_number:int=1,reset_window:int=10,auto_start = False,
                                             finalize_function:str="CFL_NULL",finalize_function_data:dict={}):
                                                 
         return self.define_supervisor_node(column_name = column_name, aux_function= aux_function, user_data =user_data,
-                                           termination_type="REST_FOR_ALL", 
+                                           termination_type=2, restart_enabled=restart_enabled,
                                            reset_limited_enabled=reset_limited_enabled,
                                            max_reset_number=max_reset_number, reset_window=reset_window, auto_start=auto_start,
                                            finalize_function=finalize_function,
                                            finalize_function_data=finalize_function_data,label="SUP_REST_ALL")
+        
+        
+    def define_mark_supervisor_node_failure(self,data:dict):
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary")
+        return self.define_column_link(main_function_name="CFL_DISABLE",initialization_function_name="CFL_MARK_SUPERVISOR_NODE_FAILURE_INIT",
+                                       aux_function_name="CFL_NULL",termination_function_name="CFL_NULL",node_data=data)
     
     def end_sequence_node(self,column_name:str):
         if column_name not in self.sequence_dict:
@@ -140,14 +150,15 @@ class SequenceTil(ColumnFlow):
     def mark_sequence_true_link(self,parent_node_name:str,data:dict = {}):
         result = True
         node_data = {"parent_node_name":parent_node_name,"result":1,"data":data}
-        self.asm_one_shot_handler("CFL_MARK_SEQUENCE",node_data)
+        self.define_column_link(main_function_name="CFL_DISABLE",initialization_function_name="CFL_MARK_SEQUENCE",
+                                aux_function_name="CFL_NULL",termination_function_name="CFL_NULL",node_data=node_data)
 
     
     def mark_sequence_false_link(self,parent_node_name:str,data:dict = {}):
         result = False
         node_data = {"parent_node_name":parent_node_name,"result":0,"data":data}
-        self.asm_one_shot_handler("CFL_MARK_SEQUENCE",node_data)
-        
+        self.define_column_link(main_function_name="CFL_DISABLE",initialization_function_name="CFL_MARK_SEQUENCE",
+                                aux_function_name="CFL_NULL",termination_function_name="CFL_NULL",node_data=node_data)
     def join_sequence_element(self,parent_node_name:str):
         return self.define_column_link(main_function_name="CFL_JOIN_SEQUENCE_ELEMENT",
                                        aux_function_name="CFL_NULL",

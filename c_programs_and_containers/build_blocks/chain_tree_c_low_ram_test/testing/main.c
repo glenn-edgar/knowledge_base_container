@@ -4,13 +4,14 @@
 #include <stdbool.h>
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
-
+#include "cfl_exception.h"
 static cfl_perm_t perm;
 static char perm_buffer[0xffff];
 
 extern const chaintree_handle_t g_test_header;
 
 int main(void) {
+    setup_abort_handler();
     const chaintree_handle_t *test_handle = &g_test_header;
     
     /* Validate test_handle */
@@ -79,7 +80,8 @@ int main(void) {
     //cfl_add_test_by_index(handle, 4); //sixth test
     //cfl_add_test_by_index(handle, 5); //seventh test
     //cfl_add_test_by_index(handle, 6); //eighth test
-    cfl_add_test_by_index(handle, 7); //ninth test
+    //cfl_add_test_by_index(handle, 7); //ninth test
+    cfl_add_test_by_index(handle, 8); //tenth test
     
     printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
     printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));

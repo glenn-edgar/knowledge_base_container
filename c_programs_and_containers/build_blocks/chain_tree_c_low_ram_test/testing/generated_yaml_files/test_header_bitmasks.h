@@ -7,9 +7,9 @@
 #include <string.h>
 
 /* No bitmasks defined */
-#define CT_ELZR3FIF_BITMASK_COUNT 0
+#define CT_HJR5GH90_BITMASK_COUNT 0
 
 /* Empty array */
-extern const char *ct_elzr3fif_bitmask_names[1];
+extern const char *ct_hjr5gh90_bitmask_names[1];
 
 #endif /* TEST_HEADER_BITMASKS_H */

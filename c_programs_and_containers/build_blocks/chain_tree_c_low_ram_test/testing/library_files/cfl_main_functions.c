@@ -491,3 +491,52 @@ unsigned cfl_sequence_fail_main_main_fn(void *handle, unsigned bool_function_ind
 unsigned cfl_sequence_start_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
 }
+
+unsigned cfl_supervisor_main_main_fn(void *handle, unsigned bool_function_index,
+                                     unsigned node_index, unsigned event_type,
+                                     unsigned event_id, void *event_data)
+{
+    
+
+    if (event_id != CFL_TIMER_EVENT) {
+        return CFL_CONTINUE;
+    }
+
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_supervisor_data_t *ptr = cfl_heap_arena_get_node_ptr(
+        runtime_handle->arena_system, node_index);
+    
+    if (!ptr) {
+        EXCEPTION("cfl_supervisor_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    uint16_t node_count = node->link_count & LINK_COUNT_MASK;
+    uint16_t link_start = node->link_start;
+
+    bool any_active = false;
+
+    for (uint32_t i = 0; i < node_count; i++) {
+        uint16_t link_id = link_table[link_start + i];
+        bool is_active = ptr->supervisor_failure_array[i].active_node;
+
+        if (is_active) {
+            any_active = true;
+            
+            if (!cfl_engine_node_is_enabled(runtime_handle, link_id)) {
+                // Active child died unexpectedly
+                ptr->failed_link_index = i;
+                return cfl_handle_supervisor_node_failure(runtime_handle, node_index,bool_function_index,event_type,event_id,event_data);
+            }
+        }
+    }
+
+    // All children inactive - supervisor complete
+    if (!any_active) {
+        return CFL_DISABLE;
+    }
+
+    return CFL_CONTINUE;
+}

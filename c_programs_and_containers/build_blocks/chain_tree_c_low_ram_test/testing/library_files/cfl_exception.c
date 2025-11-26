@@ -1,6 +1,9 @@
 #include "cfl_exception.h"
+#include <signal.h>
+#include <execinfo.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "cfl_common_functions.h"
 /* Disable interrupts - ARM Cortex-M specific */
 #if defined(__ARM_ARCH_6M__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7EM__)
@@ -10,7 +13,24 @@
 #endif
 
 /* Simple helper to convert uint16_t to string */
+void abort_handler(int sig) {
+    void *array[20];
+    size_t size;
+    
+    fprintf(stderr, "\n=== ABORT SIGNAL CAUGHT ===\n");
+    
+    size = backtrace(array, 20);
+    fprintf(stderr, "Stack trace (%zu frames):\n", size);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
+    
+    // Re-raise to actually abort
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
 
+void setup_abort_handler(void) {
+    signal(SIGABRT, abort_handler);
+}
 
 void cfl_exception_handler(const char* file, const char* func, uint16_t line, const char* msg) {
     char line_str[6];

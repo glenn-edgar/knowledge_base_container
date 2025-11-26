@@ -113,3 +113,10 @@ void display_sequence_result_one_shot_fn(void *handle, unsigned node_index){
     
 
 }
+
+void display_failure_window_result_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+    (void)node_index;
+    printf("display_failure_window_result_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}

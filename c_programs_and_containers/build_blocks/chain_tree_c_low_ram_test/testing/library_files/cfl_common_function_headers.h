@@ -70,6 +70,28 @@ typedef struct {
 }sequence_start_fn_data_t;
 
 
+
+
+typedef struct {
+  uint32_t last_tick;
+  int16_t  node_id;
+  uint8_t  bucket;           // failure "credits"
+  bool    active_node;
+} cfl_supervisor_failure_t;
+
+
+typedef struct cfl_supervisor_data_t{
+  cfl_supervisor_failure_t  *supervisor_failure_array;
+  int32_t max_reset_number;
+  int32_t reset_window;
+  int32_t finalize_function_id;
+  int32_t termination_type;
+  int32_t now_tick;
+  uint8_t failed_link_index;
+  bool reset_limited_enabled;
+  bool restart_enabled;
+} cfl_supervisor_data_t;
+
 #ifdef __cplusplus
 }
 #endif

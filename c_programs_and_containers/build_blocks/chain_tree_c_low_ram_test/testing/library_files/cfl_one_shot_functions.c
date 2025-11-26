@@ -674,7 +674,7 @@ void cfl_sequence_pass_term_one_shot_fn(void *handle, uint16_t node_index){
 void cfl_sequence_fail_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
     cfl_sequence_pass_init_one_shot_fn(handle, node_index);
-    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle, node_index);
+    sequence_start_fn_data_t *ptr = (sequence_start_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
     ptr->sequence_type = 1;
 }
 void cfl_sequence_fail_term_one_shot_fn(void *handle, uint16_t node_index){
@@ -762,3 +762,52 @@ void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
     ptr->recorded_sequence_index = ptr->current_sequence_index;
 
 } 
+
+
+
+void cfl_supervisor_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+   
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
+    //uint16_t link_start = node->link_start;
+
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
+    cfl_supervisor_data_t *ptr = (cfl_supervisor_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_supervisor_data_t));
+    if (allocator_state == false){
+        ptr->supervisor_failure_array = (cfl_supervisor_failure_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(cfl_supervisor_failure_t) * link_count);
+    }
+    for (uint32_t i = 0; i < link_count; i++) {
+        ptr->supervisor_failure_array[i].node_id = -1;
+        ptr->supervisor_failure_array[i].bucket = 0;
+        ptr->supervisor_failure_array[i].last_tick = 0;
+        ptr->supervisor_failure_array[i].active_node = true;
+    }
+
+
+    
+    printf("cfl_supervisor_init_one_shot_fn node_index: %d\n", node_index);
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.termination_type", &ptr->termination_type);
+    json_extract_bool_runtime(runtime_handle, "node_dict.column_data.supervisor_data.reset_limited_enabled", &ptr->reset_limited_enabled);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.max_reset_number", &ptr->max_reset_number);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.reset_window", &ptr->reset_window);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.finalize_function_id", &ptr->finalize_function_id);
+    json_extract_bool_runtime(runtime_handle, "node_dict.column_data.supervisor_data.restart_enabled", &ptr->restart_enabled);
+    cfl_enable_all_nodes(runtime_handle, node_index);
+    
+}
+void cfl_supervisor_term_one_shot_fn(void *handle, uint16_t node_index){
+    (void)handle;
+    (void)node_index;
+    printf("cfl_supervisor_term_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+
+}
+
+
+void cfl_mark_supervisor_node_failure_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_mark_supervisor_node_failure(runtime_handle, node_index);
+}

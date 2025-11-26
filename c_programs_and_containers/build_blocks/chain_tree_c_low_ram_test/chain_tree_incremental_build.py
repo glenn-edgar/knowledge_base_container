@@ -480,6 +480,184 @@ def ninth_test(ct,kb_name): # sequence til
     
     ct.end_test()
 
+def test_one_for_one_test(ct,top_column_name):
+    top_column = ct.define_column(column_name=top_column_name,auto_start=True)
+    
+    supervisor_node = ct.define_supervisor_one_for_one_node(column_name="supervisor_node",aux_function ="CFL_NULL",
+                                           user_data = {},reset_limited_enabled=False,auto_start = True)
+    
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("branch 1 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 1 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_1)
+
+    branch_2 = ct.define_column(column_name="branch_2",auto_start=True)
+    ct.asm_log_message("branch 2 starting")
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("branch 2 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 2 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_2)
+    
+    ct.end_column(column_name=supervisor_node)
+    
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("top column is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"top column failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=top_column)
+    return top_column
+    
+def test_one_for_all_test(ct,top_column_name):
+    top_column = ct.define_column(column_name=top_column_name,auto_start=True)
+
+    supervisor_node = ct.define_supervisor_one_for_all_node(column_name="supervisor_node",aux_function ="CFL_NULL",
+                                           user_data = {},reset_limited_enabled=False,auto_start = True)
+    
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("branch 1 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 1 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_1)
+
+    branch_2 = ct.define_column(column_name="branch_2",auto_start=True)
+    ct.asm_log_message("branch 2 starting")
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("branch 2 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 2 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_2)
+    
+    branch_3 = ct.define_column(column_name="branch_3",auto_start=True)
+    ct.asm_log_message("branch 3 starting")
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("branch 3 is resetting")
+    ct.asm_reset()
+    ct.end_column(column_name=branch_3)
+    
+    
+    ct.end_column(column_name=supervisor_node)
+    
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("top column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=top_column)
+    return top_column  
+
+    
+def test_rest_for_all_test(ct,top_column_name):
+        
+    top_column = ct.define_column(column_name=top_column_name,auto_start=True)
+    
+    supervisor_node = ct.define_supervisor_rest_for_all_node(column_name="supervisor_node",aux_function ="CFL_NULL",
+                                           user_data = {},reset_limited_enabled=False,auto_start = True)
+    
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=21)
+    ct.asm_log_message("branch 1 is resetting")
+    ct.asm_reset()
+    ct.end_column(column_name=branch_1)
+
+    branch_2 = ct.define_column(column_name="branch_2",auto_start=True)
+    ct.asm_log_message("branch 2 starting")
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("branch 2 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 2 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_2)
+    
+    
+    
+    branch_3 = ct.define_column(column_name="branch_3",auto_start=True)
+    ct.asm_log_message("branch 3 starting")
+    ct.asm_wait_time(time_delay=120)
+    ct.asm_log_message("branch 3 is resetting")
+    ct.asm_reset()
+    ct.end_column(column_name=branch_3)
+    
+    
+    ct.end_column(column_name=supervisor_node)
+    
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("top column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=top_column)
+    return top_column   
+ 
+def test_failure_window_test(ct,top_column_name):
+    top_column = ct.define_column(column_name=top_column_name,auto_start=True)
+    # should get a failure in around 3 seconds for the window test
+    supervisor_node = ct.define_supervisor_one_for_all_node(column_name="supervisor_node",aux_function ="CFL_NULL",
+                                           user_data = {},reset_limited_enabled=True,
+                                           max_reset_number=3,reset_window=100,finalize_function="DISPLAY_FAILURE_WINDOW_RESULT",finalize_function_data={},
+                                           auto_start = True)
+    
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("branch 1 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 1 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_1)
+
+    branch_2 = ct.define_column(column_name="branch_2",auto_start=True)
+    ct.asm_log_message("branch 2 starting")
+    ct.asm_wait_time(time_delay=120)
+    ct.asm_log_message("branch 2 is terminating")
+    ct.define_mark_supervisor_node_failure(data={"message":"branch 2 failed"})
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_2)
+    
+    branch_3 = ct.define_column(column_name="branch_3",auto_start=True)
+    ct.asm_log_message("branch 3 starting")
+    ct.asm_wait_time(time_delay=120)
+    ct.asm_log_message("branch 3 is resetting")
+    ct.asm_reset()
+    ct.end_column(column_name=branch_3)
+    
+    
+    ct.end_column(column_name=supervisor_node)
+    
+    ct.asm_wait_time(time_delay=20)
+    ct.asm_log_message("top column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=top_column)
+    return top_column  
+ 
+def tenth_test(ct,kb_name): # supervisor node
+    ct.start_test(test_name=kb_name)
+    test_start = ct.define_column(column_name="test_coordinator_node",column_data=None,auto_start=True)
+    
+    ct.asm_log_message("starting test one for one")
+    test_one_for_one = test_one_for_one_test(ct,"one_for_one_column")
+    ct.define_join_link(test_one_for_one)
+    
+    
+    ct.asm_log_message("starting test one for all")
+    test_one_for_all = test_one_for_all_test(ct,"one_for_all_column")
+    ct.define_join_link(test_one_for_all)
+    
+    ct.asm_log_message("starting test rest for all")
+    test_reset_for_all = test_rest_for_all_test(ct,"rest_for_all_column")
+    ct.define_join_link(test_reset_for_all)
+    
+    ct.asm_log_message("testing failure window test")
+    test_failure_window = test_failure_window_test(ct,"failure_window_column")
+    ct.define_join_link(test_failure_window)
+    
+    ct.asm_log_message("test coordinator node is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=test_start)
+    
+    ct.end_test()
+    
+
 
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -493,7 +671,7 @@ def add_header(yaml_file):
 
 
 if __name__ == "__main__":
-    test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test"]
+    test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test","tenth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -503,7 +681,8 @@ if __name__ == "__main__":
                  "sixth_test": sixth_test,
                  "seventh_test": seventh_test,
                  "eighth_test": eighth_test,
-                 "ninth_test": ninth_test}
+                 "ninth_test": ninth_test,
+                 "tenth_test": tenth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

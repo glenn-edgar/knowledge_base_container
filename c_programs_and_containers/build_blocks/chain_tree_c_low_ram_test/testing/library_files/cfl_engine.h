@@ -60,8 +60,9 @@ typedef struct {
 #define CFL_FUNCTION_ID_STATE_MACHINE 0
 #define CFL_FUNCTION_ID_SEQUENCE_TRY_PASS 1
 #define CFL_FUNCTION_ID_SEQUENCE_TRY_FAIL 2
+#define CFL_FUNCTION_ID_SUPERVISOR_MAIN 3
 typedef struct {
-    int32_t main_function_ids[3];
+    int32_t main_function_ids[4];
 } main_function_data_t;
 
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
