@@ -12,12 +12,12 @@ from .chain_tree.state_machine import StateMachine
 from .chain_tree.column_flow import ColumnFlow
 from .chain_tree.sequence_til import SequenceTil
 from .chain_tree.data_flow import DataFlow
+from .chain_tree.exception import ExceptionHandler
 
 
 
 
-
-class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow):
+class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, ExceptionHandler):
     
 
     
@@ -31,6 +31,8 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         ColumnFlow.__init__(self,self.ctb)
         SequenceTil.__init__(self,self.ctb)
         DataFlow.__init__(self,self.ctb)
+        ExceptionHandler.__init__(self,self.ctb)
+        
         self.ctb.register_event("CFL_INIT_EVENT")
         self.ctb.register_event( "CFL_TERMINATE_EVENT")
         self.ctb.register_event("CFL_START_TESTS")

@@ -780,17 +780,169 @@ def fourteenth_test(ct,kb_name): # data f
     
     ct.end_test() 
    
-def test_unhandled_exception(ct):
-    no_exception_column = ct.define_column(column_name="no_exception_column",auto_start=True)
-    ct.asm_log_message("no exception column is starting")
-    ct.asm_wait_time(time_delay=5)
-    ct.asm_raise_exception(exception_id="TEST_EXECEPTION",exception_data={"exception_data":"exception_data"})
-    ct.asm_wait_time(time_delay=4)
-    ct.asm_log_message("should not be reached")
+
+def insert_good_main_column(ct,name:str):
+    
+    main_column = ct.define_main_exception_column(name=name,auto_start=True)
+    ct.asm_log_message("main column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("main column is terminating")
     ct.asm_terminate()
-    ct.end_column(column_name=no_exception_column)
+    ct.end_main_exception_column(name=main_column)
+    return main_column
+
+def insert_bad_main_column(ct,name:str):
+    main_column = ct.define_main_exception_column(name=name,auto_start=True)
+    ct.asm_log_message("main column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("setting step 1")
+    ct.asm_set_exception_step(step=1)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("setting step 2")
+    ct.asm_set_exception_step(step=2)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("setting step 3")
+    ct.asm_set_exception_step(step=3)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("main column is terminating")
+    ct.asm_raise_exception(exception_id=1,exception_data={"exception_data":"exception_data"})
+    ct.asm_terminate()
+    ct.end_main_exception_column(name=main_column)
+    return main_column
+
+def insert_good_recovery_column(ct,name:str):
+    recover_column = ct.define_recovery_column(name=name,max_steps=5,skip_condition_function="USER_SKIP_CONDITION",skip_condition_data={})
+
+    step_5_column = ct.define_column(column_name="step_5_column",auto_start=True)
+    ct.asm_log_message("step 5 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 5 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_5_column)
+    step_4_column = ct.define_column(column_name="step_4_column",auto_start=True)
+    ct.asm_log_message("step 4 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 4 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_4_column)
+    step_3_column = ct.define_column(column_name="step_3_column",auto_start=True)
+    ct.asm_log_message("step 3 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 3 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_3_column)
+    step_2_column = ct.define_column(column_name="step_2_column",auto_start=True)
+    ct.asm_log_message("step 2 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 2 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_2_column)
+    step_1_column = ct.define_column(column_name="step_1_column",auto_start=True)
+    ct.asm_log_message("step 1 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 1 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_1_column)
+    step_0_column = ct.define_column(column_name="step_0_column",auto_start=True)
+    ct.asm_log_message("step 0 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 0 column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=step_0_column)
+    ct.define_join_link(step_0_column)
+    ct.asm_log_message("recovery column is terminating")
+    ct.asm_terminate()
+    ct.end_recovery_column(name=recover_column)
+    return recover_column
+
+def insert_bad_recovery_column(ct,name:str):
+    recover_column = ct.define_recovery_column(name=name,max_steps=1,skip_condition_function="USER_SKIP_CONDITION",skip_condition_data={})
+    step_5_column = ct.define_column(column_name="step_5_column",auto_start=True)
+    ct.asm_log_message("step 5 column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("step 5 column is generating exception")
+    ct.asm_raise_exception(exception_id=2,exception_data={"exception_data":"exception_data"})
+    ct.asm_terminate()
+    ct.end_column(column_name=step_5_column)
+    ct.define_join_link(step_5_column)
+    ct.asm_log_message("recovery column is terminating")
+    ct.asm_terminate()
+    ct.end_recovery_column(name=recover_column)
+    return recover_column
 
 
+def insert_good_finalize_column(ct,name:str):
+    finalize_column = ct.define_finalize_column(name=name)
+    ct.asm_log_message("finalize column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("finalize column is terminating")
+    ct.asm_terminate()
+    ct.end_finalize_column(name=finalize_column)
+    return finalize_column
+
+def insert_bad_finalize_column(ct,name:str):
+    finalize_column = ct.define_finalize_column(name=name)
+    ct.asm_log_message("finalize column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("finalize column is generating exception")
+    ct.asm_raise_exception(exception_id=3,exception_data={"exception_data":"exception_data"})
+    ct.asm_terminate()
+    ct.end_finalize_column(name=finalize_column)
+    return finalize_column
+    
+
+def insert_exception_catch_column(ct,name:str):
+    
+    exception_catch_column = ct.define_exception_catch(name,"EXCEPTION_FILTER",{},"EXCEPTION_LOGGING",
+                                                       {"logging_function_data":"logging_function_data"},auto_start=True)
+                    
+    return exception_catch_column
+    
+def end_exception_catch_column(ct,name:str):
+    
+    ct.exception_catch_end(name)
+    
+def seventeenth_test(ct,kb_name): # exception handler
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column is starting")
+    catch_all_exception_column = ct.catch_all_exception(column_name="catch_all_exception_column",aux_function="CATCH_ALL_EXCEPTION",
+                                                        aux_data={},auto_start=True)
+    ct.asm_log_message("exception combo 1 is starting")
+    exception_catch_column = insert_exception_catch_column(ct,"combo_1")
+    insert_good_main_column(ct,"combo_1_main")
+    insert_good_recovery_column(ct,"combo_1_recovery")
+    insert_good_finalize_column(ct,"combo_1_finalize")
+    end_exception_catch_column(ct,exception_catch_column)
+    ct.define_join_link(exception_catch_column)
+    ct.asm_log_message("exception combo 2 is starting")
+    exception_catch_column = insert_exception_catch_column(ct,"combo_2")
+    insert_bad_main_column(ct,"combo_2_main")
+    insert_good_recovery_column(ct,"combo_2_recovery")
+    insert_good_finalize_column(ct,"combo_2_finalize")
+    end_exception_catch_column(ct,exception_catch_column)
+    ct.define_join_link(exception_catch_column)
+    ct.asm_log_message("exception combo 3 is starting")
+    exception_catch_column = insert_exception_catch_column(ct,"combo_3")
+    insert_bad_main_column(ct,"combo_3_main")
+    insert_bad_recovery_column(ct,"combo_3_recovery")
+    insert_good_finalize_column(ct,"combo_3_finalize")
+    end_exception_catch_column(ct,exception_catch_column)
+    ct.define_join_link(exception_catch_column)
+    ct.asm_log_message("exception combo 4 is starting")
+    exception_catch_column = insert_exception_catch_column(ct,"combo_4")
+    insert_bad_main_column(ct,"combo_4_main")
+    insert_good_recovery_column(ct,"combo_4_recovery")
+    insert_bad_finalize_column(ct,"combo_4_finalize")
+    end_exception_catch_column(ct,exception_catch_column)
+    
+    ct.define_join_link(exception_catch_column)
+    ct.end_column(column_name=catch_all_exception_column)
+    ct.asm_log_message("launch column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
+'''
 def seventeenth_test(ct,kb_name): # exception handler
     ct.start_test(test_name=kb_name)
     
@@ -854,7 +1006,8 @@ def seventeenth_test(ct,kb_name): # exception handler
     ct.end_column(column_name=launch_column)
     
     ct.end_test() 
-    
+   '''
+''' 
 def eighteenth_test(ct,kb_name): # exception handler
     ct.start_test(test_name=kb_name )
     
@@ -938,6 +1091,10 @@ def eighteenth_test(ct,kb_name): # exception handler
     ct.asm_terminate()
     ct.end_column(column_name=launch_column)
     ct.finalize_and_check()  
+'''
+
+def eighteenth_test(ct,kb_name): # exception handler
+    pass
 
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)

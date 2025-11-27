@@ -4,49 +4,49 @@
 
 /* Const handle instance in flash memory */
 const chaintree_handle_t g_test_header = {
-    .unique_id = "ct_n0ese9w5",
+    .unique_id = "ct_59liv5hf",
     
     /* Node data */
-    .nodes = ct_n0ese9w5_nodes,
-    .node_count = 514,
+    .nodes = ct_59liv5hf_nodes,
+    .node_count = 652,
     
     /* Function arrays */
-    .main_functions = ct_n0ese9w5_main_functions,
-    .main_function_count = 25,
-    .one_shot_functions = ct_n0ese9w5_one_shot_functions,
-    .one_shot_function_count = 63,
-    .boolean_functions = ct_n0ese9w5_boolean_functions,
-    .boolean_function_count = 9,
+    .main_functions = ct_59liv5hf_main_functions,
+    .main_function_count = 27,
+    .one_shot_functions = ct_59liv5hf_one_shot_functions,
+    .one_shot_function_count = 66,
+    .boolean_functions = ct_59liv5hf_boolean_functions,
+    .boolean_function_count = 12,
     
     /* Function names */
-    .main_function_names = ct_n0ese9w5_main_function_names,
-    .one_shot_function_names = ct_n0ese9w5_one_shot_function_names,
-    .boolean_function_names = ct_n0ese9w5_boolean_function_names,
+    .main_function_names = ct_59liv5hf_main_function_names,
+    .one_shot_function_names = ct_59liv5hf_one_shot_function_names,
+    .boolean_function_names = ct_59liv5hf_boolean_function_names,
     
     /* Main function usage counts */
-    .main_function_usage_count = ct_n0ese9w5_main_function_usage_count,
+    .main_function_usage_count = ct_59liv5hf_main_function_usage_count,
     
     /* Link table */
-    .link_table = ct_n0ese9w5_link_table,
-    .link_table_size = 484,
+    .link_table = ct_59liv5hf_link_table,
+    .link_table_size = 624,
     
     /* Event strings */
-    .event_strings = (const char **)ct_n0ese9w5_event_strings,
+    .event_strings = (const char **)ct_59liv5hf_event_strings,
     .event_count = 19,
     
     /* Bitmask names */
-    .bitmask_names = (const char **)ct_n0ese9w5_bitmask_names,
+    .bitmask_names = (const char **)ct_59liv5hf_bitmask_names,
     .bitmask_count = 3,
     
     /* Knowledge base info */
-    .kb_table = ct_n0ese9w5_kb_table,
-    .kb_count = 15,
+    .kb_table = ct_59liv5hf_kb_table,
+    .kb_count = 14,
     
     /* Node data (JSON records) */
-    .node_data_records = ct_n0ese9w5_node_data_records,
-    .node_data_records_count = 2253,
-    .node_data_strings = ct_n0ese9w5_node_data_strings,
-    .node_data_strings_size = 4185,
-    .node_data_controls = ct_n0ese9w5_node_data_controls,
-    .node_data_controls_count = 355
+    .node_data_records = ct_59liv5hf_node_data_records,
+    .node_data_records_count = 2712,
+    .node_data_strings = ct_59liv5hf_node_data_strings,
+    .node_data_strings_size = 4019,
+    .node_data_controls = ct_59liv5hf_node_data_controls,
+    .node_data_controls_count = 449
 };

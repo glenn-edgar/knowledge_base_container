@@ -141,3 +141,13 @@ void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index){
     printf("watch_dog_time_out_one_shot_fn message: %s\n", message);
     
 }
+
+
+void exception_logging_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+    (void)node_index;
+    printf("exception_logging_one_shot_fn\n");
+    exit(0);
+}
+
+

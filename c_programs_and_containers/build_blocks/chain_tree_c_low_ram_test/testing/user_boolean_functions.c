@@ -40,5 +40,39 @@ bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_typ
 }
 
 
+bool catch_all_exception_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
+    (void)handle;
+    (void)node_index;
+    (void)event_id;
+    (void)event_type;
+    (void)event_data;
+    printf("catch_all_exception_boolean_fn\n");
+    exit(0);
+    return false;
+}
+
+bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
+    (void)handle;
+    (void)node_index;
+    (void)event_id;
+    (void)event_type;
+    (void)event_data;
+    printf("exception_filter_boolean_fn\n");
+    exit(0);
+    return false;
+}
+
+bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
+    (void)handle;
+    (void)node_index;
+    (void)event_id;
+    (void)event_type;
+    (void)event_data;
+    printf("user_skip_condition_boolean_fn\n");
+    exit(0);
+    return false;
+}
+
+
 
 

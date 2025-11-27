@@ -291,6 +291,7 @@ class NodeDataEncoder:
             'finalize_function': 'one_shot',
             'initialize_function': 'one_shot',
             'wd_fn': 'one_shot',
+            'logging_function': 'one_shot',
            
     }
         

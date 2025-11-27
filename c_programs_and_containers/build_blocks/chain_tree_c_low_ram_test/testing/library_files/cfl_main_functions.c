@@ -632,17 +632,6 @@ unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, un
 }
 
 
-unsigned cfl_exception_catch_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, 
-    unsigned event_type, unsigned event_id, void *event_data){
-    (void)bool_function_index;
-    (void)event_type;
-    (void)event_id;
-    (void)event_data;
-    (void)handle;
-    (void)node_index;
-    printf("cfl_exception_catch_main_main_fn node_index: %d\n", node_index);
-    exit(0);
-    return CFL_CONTINUE;
-}
+
 
 
