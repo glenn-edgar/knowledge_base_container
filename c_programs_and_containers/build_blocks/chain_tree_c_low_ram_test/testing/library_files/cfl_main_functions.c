@@ -5,6 +5,7 @@
 #include "cfl_runtime.h"
 #include "cfl_common_function_headers.h"
 #include "cfl_common_functions.h"
+#include "cfl_supervisor_support.h"
 
 
 unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
@@ -492,51 +493,156 @@ unsigned cfl_sequence_start_main_main_fn(void *handle, unsigned bool_function_in
     return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
 }
 
-unsigned cfl_supervisor_main_main_fn(void *handle, unsigned bool_function_index,
-                                     unsigned node_index, unsigned event_type,
-                                     unsigned event_id, void *event_data)
-{
-    
 
-    if (event_id != CFL_TIMER_EVENT) {
-        return CFL_CONTINUE;
-    }
+unsigned cfl_for_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)bool_function_index;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
 
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    cfl_supervisor_data_t *ptr = cfl_heap_arena_get_node_ptr(
-        runtime_handle->arena_system, node_index);
-    
-    if (!ptr) {
-        EXCEPTION("cfl_supervisor_main_main_fn: failed to get node pointer");
-        return CFL_TERMINATE_SYSTEM;
-    }
-
     const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
-    uint16_t node_count = node->link_count & LINK_COUNT_MASK;
-    uint16_t link_start = node->link_start;
-
-    bool any_active = false;
-
-    for (uint32_t i = 0; i < node_count; i++) {
-        uint16_t link_id = link_table[link_start + i];
-        bool is_active = ptr->supervisor_failure_array[i].active_node;
-
-        if (is_active) {
-            any_active = true;
-            
-            if (!cfl_engine_node_is_enabled(runtime_handle, link_id)) {
-                // Active child died unexpectedly
-                ptr->failed_link_index = i;
-                return cfl_handle_supervisor_node_failure(runtime_handle, node_index,bool_function_index,event_type,event_id,event_data);
-            }
-        }
-    }
-
-    // All children inactive - supervisor complete
-    if (!any_active) {
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == true) {
         return CFL_DISABLE;
     }
 
+    uint16_t link_start = node->link_start;
+
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    uint16_t link_id = link_table[link_start];
+    if (cfl_engine_node_is_enabled(runtime_handle, link_id) == true) {
+        return CFL_CONTINUE;
+    }
+   cfl_for_fn_data_t *ptr = (cfl_for_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_for_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    ptr->current_iteration++;
+    if (ptr->current_iteration >= ptr->number_of_iterations) {
+        
+        return CFL_DISABLE;
+    }
+    cfl_enable_node(runtime_handle, link_id);
     return CFL_CONTINUE;
 }
+
+unsigned cfl_watch_dog_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == true) {
+        return CFL_DISABLE;
+    }
+    cfl_watch_dog_fn_data_t *ptr = (cfl_watch_dog_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_watch_dog_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    if (ptr->wd_enabled == false) {
+        return CFL_CONTINUE;
+    }
+    if(event_id != CFL_TIMER_EVENT) {
+        return CFL_CONTINUE;
+    }
+    ptr->current_count++;
+    if (ptr->current_count >= ptr->wd_time_count) {
+        one_shot_function_t one_shot_function = runtime_handle->flash_handle->one_shot_functions[ptr->wd_fn_id];
+        one_shot_function(runtime_handle, node_index);
+        if (ptr->wd_reset == true) {
+            return CFL_RESET;
+        }
+        return CFL_TERMINATE;   
+    }
+    return CFL_CONTINUE;
+}
+unsigned cfl_while_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    uint16_t link_node = runtime_handle->flash_handle->link_table[node->link_start];
+    if (cfl_engine_node_is_enabled(runtime_handle, link_node) == true) {
+        return CFL_CONTINUE;
+    }
+    cfl_while_fn_data_t *ptr = (cfl_while_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_while_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    ptr->current_iteration++;
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == false) {
+        
+        return CFL_DISABLE;
+    }
+    cfl_enable_node(runtime_handle, link_node);
+    return CFL_CONTINUE;
+}
+
+unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    boolean_function_t boolean_function = runtime_handle->flash_handle->boolean_functions[bool_function_index];
+    bool result = boolean_function(runtime_handle, node_index, event_type, event_id, event_data);
+    if (result == true) {
+        return CFL_DISABLE;
+    }
+    cfl_df_mask_fn_data_t *ptr = (cfl_df_mask_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_df_mask_main_main_fn: failed to get node pointer");
+        return CFL_TERMINATE_SYSTEM;
+    }
+    
+    if (event_id == CFL_TIMER_EVENT) {
+        if (ptr->node_state == false) {
+            if ((ptr->bitmask & runtime_handle->bitmask) == ptr->bitmask) {
+                
+                const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+                uint16_t link_start = node->link_start;
+                uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+                for (unsigned i = 0; i < link_count; i++) {
+                    uint16_t link_id = runtime_handle->flash_handle->link_table[link_start + i];
+                    cfl_enable_node(runtime_handle, link_id);
+                    
+                }
+                ptr->node_state = true;
+    
+            }
+        
+        }else{
+            if ((ptr->bitmask & runtime_handle->bitmask) != ptr->bitmask) {
+
+                const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+                uint16_t link_start = node->link_start;
+                uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+                for (unsigned i = 0; i < link_count; i++) {
+                    uint16_t link_id = runtime_handle->flash_handle->link_table[link_start + i];
+                    cfl_terminate_node_tree(runtime_handle, link_id);
+                }
+                ptr->node_state = false;
+            }
+        }
+        
+    }
+    if (ptr->node_state == false) {
+        return CFL_SKIP_CONTINUE;
+    }
+    return CFL_CONTINUE;
+}
+
+
+unsigned cfl_exception_catch_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, 
+    unsigned event_type, unsigned event_id, void *event_data){
+    (void)bool_function_index;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    (void)handle;
+    (void)node_index;
+    printf("cfl_exception_catch_main_main_fn node_index: %d\n", node_index);
+    exit(0);
+    return CFL_CONTINUE;
+}
+
+

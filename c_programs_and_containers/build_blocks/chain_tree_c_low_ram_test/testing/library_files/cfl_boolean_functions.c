@@ -7,6 +7,7 @@
 #include "json_node_decoder.h"
 #include "cfl_common_function_headers.h"
 #include "cfl_common_functions.h"
+#include "cfl_supervisor_support.h"
 
 bool cfl_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     (void)handle;

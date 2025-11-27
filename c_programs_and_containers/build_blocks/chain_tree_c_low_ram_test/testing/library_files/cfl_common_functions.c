@@ -146,109 +146,43 @@ void cfl_terminate_state_machine(cfl_runtime_handle_t *handle, uint16_t node_ind
 }
 
 
-void cfl_mark_supervisor_node_failure(cfl_runtime_handle_t *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    uint16_t ref_node_index = node_index;
-    uint16_t previous_node_index = node_index;
+void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
 
-    bool loop_flag = true;
-    while(loop_flag){
-        const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-        
-        if (node->main_function_index == handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_SUPERVISOR_MAIN]){
-            loop_flag = false;
-            uint16_t link_count = node->link_count & LINK_COUNT_MASK;
-        
-            for(uint16_t i = 0; i < link_count; i++){
-                uint16_t link_id = runtime_handle->flash_handle->link_table[node->link_start + i];
-            
-                if (link_id == previous_node_index){
-                    cfl_supervisor_data_t *ptr = (cfl_supervisor_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
-                    ptr->failed_link_index = i;
-                
-                    ptr->supervisor_failure_array[i].node_id = ref_node_index;
-                    return;
-                }
-            }
-            
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_enable_all_nodes: node_index out of bounds");
+        return;
+    }
+    
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    uint16_t link_start = node->link_start;
+    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    /* Validate link_start and link_count */
+    if (link_count > 0) {
+        if (link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_all_nodes: link_start out of bounds");
+            return;
         }
-        previous_node_index = node_index;
-        node_index = node->parent_index;
-        if (node_index == 0xFFFF){
-            EXCEPTION("cfl_mark_supervisor_node_failure: no CFL_SUPERVISOR_MAIN found");
+        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_enable_all_nodes: link range exceeds table size");
             return;
         }
     }
-    EXCEPTION("cfl_mark_supervisor_node_failure: failed to mark supervisor node failure");
-    return;
-}
-
-
-
-
-
-unsigned cfl_handle_supervisor_node_failure(cfl_runtime_handle_t *handle, uint16_t node_index, unsigned bool_function_index, 
-        unsigned event_type, unsigned event_id, void *event_data){
-    (void)handle;
-    (void)node_index;
-    (void)bool_function_index;
-    (void)event_type;
-    (void)event_id;
-    (void)event_data;
-     printf("cfl_handle_supervisor_node_failure: node_index: %d bool_function_index: %d event_type: %d event_id: %d\n", node_index, bool_function_index, event_type, event_id);
-    exit(0);
-    return CFL_CONTINUE;
-}
-#if 0
-typedef struct {
-    uint8_t  subchain_id;
-    uint8_t  node_id;
-    uint8_t  error_code;
-    uint8_t  bucket;           // failure "credits"
-    uint32_t last_tick;
-} supervisor_failure_t;
-
-#define BUCKET_MAX        3
-#define LEAK_INTERVAL     1000   // lose 1 credit per second
-#define BUCKET_ESCALATE   3
-
-bool supervisor_leaky_bucket_check(supervisor_failure_t *f, uint8_t subchain, uint8_t node,
-                    uint8_t err, uint32_t now_tick) {
-    f->subchain_id = subchain;
-    f->node_id = node;
-    f->error_code = err;
     
-    // Leak: subtract credits based on elapsed time
-    uint32_t elapsed = now_tick - f->last_tick;
-    uint8_t leak = (uint8_t)(elapsed / LEAK_INTERVAL);
-    f->bucket = (leak >= f->bucket) ? 0 : (f->bucket - leak);
-    
-    // Add failure credit
-    f->bucket++;
-    f->last_tick = now_tick;
-    
-    return (f->bucket >= BUCKET_ESCALATE);
-}
-
-uint8_t find_subchain_link(uint16_t failed_node_idx, uint16_t supervisor_idx) {
-    uint16_t current = failed_node_idx;
-    uint16_t parent_idx = ct_nodes[current].parent_idx;
-    
-    // Walk up until parent is supervisor
-    while (parent_idx != supervisor_idx) {
-        current = parent_idx;
-        parent_idx = ct_nodes[current].parent_idx;
-    }
-    
-    // Now 'current' is direct child of supervisor
-    // Find which link slot it occupies
-    const ct_node_t *sup = &ct_nodes[supervisor_idx];
-    for (uint8_t i = 0; i < sup->link_count; i++) {
-        if (ct_pst2dztu_link_table[sup->link_start + i] == current) {
-            return i;
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    for (unsigned i = 0; i < link_count; i++) {
+        unsigned int link_id = link_table[link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_enable_all_nodes: link_id out of bounds");
+            return;
         }
+        
+        cfl_enable_node(runtime_handle, link_id);
     }
-    
-    return 0xFF;  // sho
+   
 }
-    #endif

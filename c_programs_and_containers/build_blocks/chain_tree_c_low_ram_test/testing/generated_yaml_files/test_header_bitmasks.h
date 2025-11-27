@@ -6,10 +6,19 @@
 #include <stdbool.h>
 #include <string.h>
 
-/* No bitmasks defined */
-#define CT_HJR5GH90_BITMASK_COUNT 0
+/* Bitmask bit positions */
+#define BIT_A                               0  /* 0x00000001 */
+#define BIT_C                               1  /* 0x00000002 */
+#define BIT_B                               2  /* 0x00000004 */
 
-/* Empty array */
-extern const char *ct_hjr5gh90_bitmask_names[1];
+/* Bitmask values */
+#define MASK_A                             (1U << BIT_A)
+#define MASK_C                             (1U << BIT_C)
+#define MASK_B                             (1U << BIT_B)
+
+#define CT_N0ESE9W5_BITMASK_COUNT 3
+
+/* Bitmask name array for debugging/lookup */
+extern const char *ct_n0ese9w5_bitmask_names[3];
 
 #endif /* TEST_HEADER_BITMASKS_H */

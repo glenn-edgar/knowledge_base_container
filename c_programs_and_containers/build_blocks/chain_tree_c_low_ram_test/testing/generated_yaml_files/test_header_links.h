@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_HJR5GH90_LINK_TABLE_SIZE 361
+#define CT_N0ESE9W5_LINK_TABLE_SIZE 484
 
-extern const uint16_t ct_hjr5gh90_link_table[CT_HJR5GH90_LINK_TABLE_SIZE];
+extern const uint16_t ct_n0ese9w5_link_table[CT_N0ESE9W5_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

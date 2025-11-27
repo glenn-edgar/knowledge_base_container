@@ -60,7 +60,7 @@ void cfl_exception_handler(const char* file, const char* func, uint16_t line, co
     puts("************************************");
     puts("*** Waiting for watchdog reset   ***");
     puts("************************************");
-    abort();
+    //abort();
     /* Spin forever - watchdog will fire */
     while (1) {
         /* Optional: Toggle GPIO/LED for visual indication */

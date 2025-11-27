@@ -8,6 +8,7 @@
 #include "json_node_decoder.h"
 #include "cfl_common_functions.h"
 #include "cfl_common_function_headers.h"
+#include "cfl_supervisor_support.h"
 
 
 static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
@@ -54,46 +55,7 @@ static void cfl_enable_auto_start_nodes(cfl_runtime_handle_t *handle, uint16_t n
    
 }
 
-static void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index){
 
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    
-    /* Validate node_index */
-    if (node_index >= runtime_handle->flash_handle->node_count) {
-        EXCEPTION("cfl_enable_all_nodes: node_index out of bounds");
-        return;
-    }
-    
-    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-    uint16_t link_start = node->link_start;
-    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
-    
-    /* Validate link_start and link_count */
-    if (link_count > 0) {
-        if (link_start >= runtime_handle->flash_handle->link_table_size) {
-            EXCEPTION("cfl_enable_all_nodes: link_start out of bounds");
-            return;
-        }
-        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
-            EXCEPTION("cfl_enable_all_nodes: link range exceeds table size");
-            return;
-        }
-    }
-    
-    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
-    for (unsigned i = 0; i < link_count; i++) {
-        unsigned int link_id = link_table[link_start + i];
-        
-        /* Validate link_id */
-        if (link_id >= runtime_handle->flash_handle->node_count) {
-            EXCEPTION("cfl_enable_all_nodes: link_id out of bounds");
-            return;
-        }
-        
-        cfl_enable_node(runtime_handle, link_id);
-    }
-   
-}
 
 void cfl_null_one_shot_fn(void *handle, uint16_t node_index){
  (void)handle;
@@ -764,50 +726,191 @@ void cfl_mark_sequence_one_shot_fn(void *handle, uint16_t node_index){
 } 
 
 
-
-void cfl_supervisor_init_one_shot_fn(void *handle, uint16_t node_index){
+void cfl_watch_dog_init_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-   
-    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
-    //uint16_t link_start = node->link_start;
-
-    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
-    cfl_supervisor_data_t *ptr = (cfl_supervisor_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_supervisor_data_t));
-    if (allocator_state == false){
-        ptr->supervisor_failure_array = (cfl_supervisor_failure_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(cfl_supervisor_failure_t) * link_count);
-    }
-    for (uint32_t i = 0; i < link_count; i++) {
-        ptr->supervisor_failure_array[i].node_id = -1;
-        ptr->supervisor_failure_array[i].bucket = 0;
-        ptr->supervisor_failure_array[i].last_tick = 0;
-        ptr->supervisor_failure_array[i].active_node = true;
-    }
-
-
-    
-    printf("cfl_supervisor_init_one_shot_fn node_index: %d\n", node_index);
+    cfl_watch_dog_fn_data_t *ptr = (cfl_watch_dog_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_watch_dog_fn_data_t));
+    ptr->current_count = 0;
+    ptr->wd_enabled = false;
     json_decoder_init_from_runtime(runtime_handle, node_index);
-
-    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.termination_type", &ptr->termination_type);
-    json_extract_bool_runtime(runtime_handle, "node_dict.column_data.supervisor_data.reset_limited_enabled", &ptr->reset_limited_enabled);
-    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.max_reset_number", &ptr->max_reset_number);
-    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.reset_window", &ptr->reset_window);
-    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.supervisor_data.finalize_function_id", &ptr->finalize_function_id);
-    json_extract_bool_runtime(runtime_handle, "node_dict.column_data.supervisor_data.restart_enabled", &ptr->restart_enabled);
-    cfl_enable_all_nodes(runtime_handle, node_index);
+    json_extract_int32_runtime(runtime_handle, "node_dict.wd_time_count", &ptr->wd_time_count);
+    json_extract_bool_runtime(runtime_handle, "node_dict.wd_reset", &ptr->wd_reset);
+    json_extract_int32_runtime(runtime_handle, "node_dict.wd_fn_id", &ptr->wd_fn_id);
     
 }
-void cfl_supervisor_term_one_shot_fn(void *handle, uint16_t node_index){
+
+void cfl_watch_dog_term_one_shot_fn(void *handle, uint16_t node_index){
     (void)handle;
     (void)node_index;
-    printf("cfl_supervisor_term_one_shot_fn node_index: %d\n", node_index);
-    exit(0);
+    
+}
 
+void cfl_while_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    cfl_while_fn_data_t *ptr = (cfl_while_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_while_fn_data_t));
+    ptr->current_iteration = 0;
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    uint16_t link_id = link_table[node->link_start];
+    cfl_enable_node(runtime_handle, link_id);
+    
+}
+
+void cfl_while_term_one_shot_fn(void *handle, uint16_t node_index){
+    (void)handle;
+    (void)node_index;
+    
+}
+
+  
+void cfl_for_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_for_fn_data_t *ptr = (cfl_for_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_for_fn_data_t));
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+
+    ptr->current_iteration = 0;
+    json_extract_int32_runtime(runtime_handle, "node_dict.number_of_iterations", &ptr->number_of_iterations);
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    uint16_t link_id = link_table[node->link_start];
+    cfl_enable_node(runtime_handle, link_id);
+ 
+}
+
+void cfl_for_term_one_shot_fn(void *handle, uint16_t node_index){
+    (void)handle;
+    (void)node_index;
+    
+}
+
+void cfl_pat_watch_dog_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t watch_dog_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.node_id", &watch_dog_node_id);
+    cfl_watch_dog_fn_data_t *ptr = (cfl_watch_dog_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, watch_dog_node_id);
+    if (!ptr) {
+        EXCEPTION("cfl_enable_watch_dog_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    
+    ptr->current_count = 0;
+    
 }
 
 
-void cfl_mark_supervisor_node_failure_init_one_shot_fn(void *handle, uint16_t node_index){
+void cfl_enable_watch_dog_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    cfl_mark_supervisor_node_failure(runtime_handle, node_index);
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t watch_dog_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.node_id", &watch_dog_node_id);
+    cfl_watch_dog_fn_data_t *ptr = (cfl_watch_dog_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, watch_dog_node_id);
+    if (!ptr) {
+        EXCEPTION("cfl_enable_watch_dog_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    ptr->wd_enabled = true;
+    ptr->current_count = 0;
+    
+}
+
+void cfl_disable_watch_dog_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t watch_dog_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.node_id", &watch_dog_node_id);
+    cfl_watch_dog_fn_data_t *ptr = (cfl_watch_dog_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, watch_dog_node_id);
+    if (!ptr) {
+        EXCEPTION("cfl_enable_watch_dog_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    ptr->wd_enabled = false;
+    ptr->current_count = 0;
+    
+}
+
+void cfl_clear_bitmask_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+     
+    int32_t bitmask;
+    json_extract_int32_runtime(runtime_handle, "node_dict.bit_mask", &bitmask);
+    runtime_handle->bitmask &= ~bitmask;
+    
+}
+
+void cfl_df_mask_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_df_mask_fn_data_t *ptr = (cfl_df_mask_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_df_mask_fn_data_t));
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.bit_mask", &ptr->bitmask);
+    ptr->node_state = false;
+    
+}
+
+void cfl_df_mask_term_one_shot_fn(void *handle, uint16_t node_index){
+    (void)handle;
+    (void)node_index;
+    
+}
+
+void cfl_set_bitmask_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t bitmask;
+    json_extract_int32_runtime(runtime_handle, "node_dict.bit_mask", &bitmask);
+    runtime_handle->bitmask |= bitmask;
+    
+    
+}
+
+
+
+void cfl_exception_catch_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_exception_catch_init_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}
+void cfl_exception_catch_term_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_exception_catch_term_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}
+void cfl_heartbeat_event_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_heartbeat_event_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}
+void cfl_raise_exception_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_raise_exception_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}
+void cfl_turn_heartbeat_off_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_turn_heartbeat_off_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
+}
+void   cfl_turn_heartbeat_on_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_print_node_data_runtime(runtime_handle, node_index);
+    printf("cfl_turn_heartbeat_on_one_shot_fn node_index: %d\n", node_index);
+    exit(0);
 }

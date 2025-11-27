@@ -503,10 +503,9 @@ def test_one_for_one_test(ct,top_column_name):
     ct.end_column(column_name=branch_2)
     
     ct.end_column(column_name=supervisor_node)
-    
+    ct.asm_log_message("waiting 20 seconds to terminate top column")
     ct.asm_wait_time(time_delay=20)
     ct.asm_log_message("top column is terminating")
-    ct.define_mark_supervisor_node_failure(data={"message":"top column failed"})
     ct.asm_terminate()
     ct.end_column(column_name=top_column)
     return top_column
@@ -543,6 +542,7 @@ def test_one_for_all_test(ct,top_column_name):
     
     ct.end_column(column_name=supervisor_node)
     
+    ct.asm_log_message("waiting 20 seconds to terminate top column")
     ct.asm_wait_time(time_delay=20)
     ct.asm_log_message("top column is terminating")
     ct.asm_terminate()
@@ -583,7 +583,7 @@ def test_rest_for_all_test(ct,top_column_name):
     
     
     ct.end_column(column_name=supervisor_node)
-    
+    ct.asm_log_message("waiting 20 seconds to terminate top column")
     ct.asm_wait_time(time_delay=20)
     ct.asm_log_message("top column is terminating")
     ct.asm_terminate()
@@ -593,8 +593,9 @@ def test_rest_for_all_test(ct,top_column_name):
 def test_failure_window_test(ct,top_column_name):
     top_column = ct.define_column(column_name=top_column_name,auto_start=True)
     # should get a failure in around 3 seconds for the window test
+    uplink_node_id = 34 # dummy will be filled in actual use
     supervisor_node = ct.define_supervisor_one_for_all_node(column_name="supervisor_node",aux_function ="CFL_NULL",
-                                           user_data = {},reset_limited_enabled=True,
+                                           user_data = {"uplink_node_id":uplink_node_id},reset_limited_enabled=True,
                                            max_reset_number=3,reset_window=100,finalize_function="DISPLAY_FAILURE_WINDOW_RESULT",finalize_function_data={},
                                            auto_start = True)
     
@@ -623,8 +624,9 @@ def test_failure_window_test(ct,top_column_name):
     
     
     ct.end_column(column_name=supervisor_node)
-    
-    ct.asm_wait_time(time_delay=20)
+    ct.define_join_link(parent_node_name=supervisor_node)
+    #ct.asm_log_message("waiting 20 seconds to terminate top column")
+    #ct.asm_wait_time(time_delay=20)
     ct.asm_log_message("top column is terminating")
     ct.asm_terminate()
     ct.end_column(column_name=top_column)
@@ -657,7 +659,285 @@ def tenth_test(ct,kb_name): # supervisor node
     
     ct.end_test()
     
+def eleventh_test(ct,kb_name): # supervisor node
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    for_column = ct.define_for_column(column_name="for_column",number_of_iterations=3,auto_start=True)
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("branch 1 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_1)
+    
+    ct.end_column(column_name=for_column)
+    
+    ct.define_join_link(for_column)
+    ct.asm_log_message("for column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
+    
+    
+def twelfth_test(ct,kb_name): # while column
+    ct.start_test(test_name=kb_name)
+    
+    while_column = ct.define_while_column(column_name="while_column",aux_function="WHILE_TEST",user_data={"count":5},auto_start=True)
+    branch_1 = ct.define_column(column_name="branch_1",auto_start=True)
+    ct.asm_log_message("branch 1 starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("branch 1 is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=branch_1)
+    ct.end_column(column_name=while_column)
+    
+    ct.end_test() 
+    
+def thirteenth_test(ct,kb_name): # watch dog
+    ct.start_test(test_name=kb_name)
+    
+    watch_dog_column = ct.define_column(column_name="watch_dog_column",auto_start=True)
+    ct.asm_log_message("starting watch dog column")
+    wd_node_id = ct.asm_watch_dog_node(wd_time_count=30,wd_reset=True,wd_fn="WATCH_DOG_TIME_OUT",
+                          wd_fn_data={"message":"************ watch dog time out  reset action"})
+    ct.asm_log_message("watch dog node enabled")
+    ct.asm_enable_watch_dog(node_id=wd_node_id)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("patting watch dog")
+    ct.asm_pat_watch_dog(node_id=wd_node_id)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("disabling watch dog")
+    ct.asm_disable_watch_dog(node_id=wd_node_id)
+    ct.asm_wait_time(time_delay=4)
+    ct.asm_log_message("enabling watch dog")
+    ct.asm_enable_watch_dog(node_id=wd_node_id)
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_log_message("this should not be reached")
+    ct.asm_terminate()
+    ct.end_column(column_name=watch_dog_column)
+    
+    end_column = ct.define_column(column_name="end_column",auto_start=True)
+    ct.asm_wait_time(time_delay=33)
+    ct.asm_log_message("ending test")
+    ct.asm_terminate_system()
+    ct.end_column(column_name=end_column)
+    
+    ct.end_test() 
+ 
+def insert_event_mask_df_a(ct):
+    
+    
+    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",event_list=["a","c"])
+                                                           
+    ct.asm_log_message("data flow expression column df_a is active")
+    ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=data_flow_mask_column)
+    return data_flow_mask_column
 
+def insert_event_mask_df_b(ct):
+    
+    
+    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",event_list=["b","c"])
+                                                           
+    ct.asm_log_message("data flow expression column df_b is active")
+    ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=data_flow_mask_column)
+    return data_flow_mask_column
+
+
+
+
+def fourteenth_test(ct,kb_name): # data f
+
+    ct.start_test(test_name=kb_name)
+
+
+    ##### register data flow events
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    insert_event_mask_df_a(ct)
+    insert_event_mask_df_b(ct)
+
+    ct.asm_log_message("data flow columns are instantiated")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_set_bitmask(["a","c"])
+    ct.asm_log_message("bitmask event a and c are set")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("bitmask event b is now set")
+    ct.asm_set_bitmask(["b"])
+    ct.asm_log_message("bitmask event a is now cleared")
+    ct.asm_clear_bitmask(["a"])
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("bitmask event b and c are now cleared")
+    ct.asm_clear_bitmask(["b","c"])
+    
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("test is terminating")
+   
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test() 
+   
+def test_unhandled_exception(ct):
+    no_exception_column = ct.define_column(column_name="no_exception_column",auto_start=True)
+    ct.asm_log_message("no exception column is starting")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_raise_exception(exception_id="TEST_EXECEPTION",exception_data={"exception_data":"exception_data"})
+    ct.asm_wait_time(time_delay=4)
+    ct.asm_log_message("should not be reached")
+    ct.asm_terminate()
+    ct.end_column(column_name=no_exception_column)
+
+
+def seventeenth_test(ct,kb_name): # exception handler
+    ct.start_test(test_name=kb_name)
+    
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column is starting")
+    
+    ct.asm_log_message("using exception handler")
+    
+    exception_handler_column = ct.exception_catch(column_name="exception_handler_column",
+                            aux_function_name="CFL_NULL",
+                            aux_function_data={},
+                            logging_function_name="MY_EXCEPTION_LOGGING",
+                            logging_function_data={"logging_function_data":"logging_function_data"},
+                            exception_id_list=["TEST_EXECEPTION"],
+                            default_exception_handler_name="MY_EXCEPTION_DISPATCHER",
+                            default_exception_handler_data={"default_exception_handler_function_data":"default_exception_handler_function_data"})
+    
+    
+    middle_column = ct.define_column(column_name="middle_column",auto_start=True)
+    ct.asm_log_message("middle column is starting")
+    
+    exception_raise_column = ct.define_column(column_name="exception_raise_column",auto_start=True)
+    ct.asm_log_message("exception handler column is starting")
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_log_message("raising exception")
+    ct.asm_raise_exception(exception_id="TEST_EXECEPTION",exception_data={"exception_data":"exception_data"})
+    ct.asm_wait_time(time_delay=4)
+    ct.asm_log_message("should not be reached")
+    ct.asm_terminate()
+    ct.end_column(column_name=exception_raise_column)
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_log_message("middle column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=middle_column)
+    
+    error_recovery_column = ct.define_column(column_name="error_recovery_column",auto_start=False)
+    ct.asm_log_message("error recovery column is starting")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("error recovery column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=error_recovery_column)
+    
+    ct.end_column(column_name= exception_handler_column)
+      
+    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
+                                   link_id=middle_column,
+                                   disable_columns=[middle_column],enable_columns=[error_recovery_column])
+    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
+                                   link_id=error_recovery_column,
+                                   disable_columns=[],enable_columns=[])
+    
+    ct.finalize_exception_recovery_links(exception_handler_column)
+    
+    unhandled_test = False
+    if unhandled_test:
+        test_unhandled_exception(ct)
+    
+    ct.define_join_link(exception_handler_column)
+    ct.asm_log_message("launch column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test() 
+    
+def eighteenth_test(ct,kb_name): # exception handler
+    ct.start_test(test_name=kb_name )
+    
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column is starting")
+    
+    ct.asm_log_message("using top exception handler")
+    top_exception_handler_column = ct.exception_catch(column_name="top_exception_handler_column",
+                            aux_function_name="CFL_NULL",
+                            aux_function_data={},
+                            logging_function_name="MY_EXCEPTION_LOGGING",
+                            logging_function_data={"logging_function_data":"logging_function_data"},
+                            exception_id_list=["TEST_EXECEPTION"],
+                            default_exception_handler_name="MY_TOP_EXCEPTION_DISPATCHER",
+                            default_exception_handler_data=
+                               {"default_exception_handler_function_data":"default_exception_handler_function_data"},auto_start=True)
+    
+    exception_handler_column = ct.exception_catch(column_name="exception_handler_column",
+                            aux_function_name="CFL_NULL",
+                            aux_function_data={},
+                            logging_function_name="MY_EXCEPTION_LOGGING",
+                            logging_function_data={"logging_function_data":"logging_function_data"},
+                            exception_id_list=["TEST_EXECEPTION"],
+                            default_exception_handler_name="MY_EXCEPTION_DISPATCHER",
+                            default_exception_handler_data=
+                               {"default_exception_handler_function_data":"default_exception_handler_function_data"},auto_start=True)
+    
+    
+    middle_column = ct.define_column(column_name="middle_column",auto_start=True)
+    ct.asm_log_message("middle column is starting")
+    
+    heartbeat_column = ct.define_column(column_name="heartbeat_raise_column",auto_start=True)
+    ct.asm_log_message("heartbeat column is starting")
+    ct.asm_log_message("turning heartbeat on")
+    ct.asm_turn_heartbeat_on(parent_node_name=heartbeat_column,time_out=4)
+    ct.asm_heartbeat_event(parent_node_name=heartbeat_column)
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("should not be reached")
+    ct.asm_log_message("turning heartbeat off")
+    ct.asm_turn_heartbeat_off(parent_node_name=heartbeat_column)
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("turning heartbeat on")
+    ct.asm_turn_heartbeat_on(parent_node_name=heartbeat_column,time_out=2)
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("should not be reached")
+    ct.asm_terminate()
+    ct.end_column(column_name=heartbeat_column)
+    
+    ct.define_join_link(exception_handler_column)
+    ct.asm_log_message("middle column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=middle_column)
+    
+    error_recovery_column = ct.define_column(column_name="error_recovery_column",auto_start=False)
+    ct.asm_log_message("error recovery column is starting")
+    ct.asm_wait_time(time_delay=3)
+    ct.asm_log_message("error recovery column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=error_recovery_column)
+    
+    ct.end_column(column_name= exception_handler_column)
+    ct.define_join_link(exception_handler_column)
+    ct.end_column(column_name= top_exception_handler_column)
+    ct.define_join_link(top_exception_handler_column)
+      
+    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
+                                   link_id=middle_column,
+                                   disable_columns=[middle_column],enable_columns=[error_recovery_column])
+    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
+                                   link_id=error_recovery_column,
+                                   disable_columns=[],enable_columns=[])
+    
+    ct.finalize_exception_recovery_links(exception_handler_column)
+    
+   
+    
+   
+    
+    ct.define_join_link(exception_handler_column)
+    ct.asm_log_message("launch column is terminating ")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.finalize_and_check()  
 
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -671,7 +951,8 @@ def add_header(yaml_file):
 
 
 if __name__ == "__main__":
-    test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test","tenth_test"]
+    test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
+                 "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -682,7 +963,13 @@ if __name__ == "__main__":
                  "seventh_test": seventh_test,
                  "eighth_test": eighth_test,
                  "ninth_test": ninth_test,
-                 "tenth_test": tenth_test}
+                 "tenth_test": tenth_test,
+                 "eleventh_test": eleventh_test,
+                 "twelfth_test": twelfth_test,
+                 "thirteenth_test": thirteenth_test,
+                 "fourteenth_test": fourteenth_test,
+                 "seventeenth_test": seventeenth_test,
+                 "eighteenth_test": eighteenth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

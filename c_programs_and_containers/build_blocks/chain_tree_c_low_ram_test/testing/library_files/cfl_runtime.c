@@ -103,6 +103,7 @@ void cfl_runtime_reset(cfl_runtime_handle_t* handle) {
     
     cfl_heap_arena_system_reset(handle->arena_system);
     cfl_clear_queue(handle->event_queue);
+    handle->bitmask = 0;
     cfl_engine_init(handle);
     memset((void*)handle->flags, 0, handle->flash_handle->node_count);
     

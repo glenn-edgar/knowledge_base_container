@@ -65,6 +65,8 @@ typedef struct {
     int32_t main_function_ids[4];
 } main_function_data_t;
 
+
+
 typedef struct CFL_RUNTIME_HANDLE cfl_runtime_handle_t;
 struct CFL_RUNTIME_HANDLE {
      cfl_perm_t *perm;
@@ -80,6 +82,7 @@ struct CFL_RUNTIME_HANDLE {
      cfl_heap_allocator_id_t *kb_allocator_ids;      // Arena ID for each test (indexed by kb_idx)
      uint8_t *test_has_arena;  
      CT_TreeWalker* walker;
+     int32_t bitmask;
      CFL_EVENT_DATA_T *event_data_ptr;
     bool cfl_engine_flag;
     unsigned cfl_node_execution_count;

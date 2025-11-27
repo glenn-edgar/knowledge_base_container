@@ -131,7 +131,7 @@ class ColumnFlow():
         return self.ctb.add_node_element("WHILE_"+column_name, node_name, main_function, initialization_function, aux_function, termination_function, column_data)    
     
     def define_for_column(self, column_name:str,number_of_iterations:int, main_function ="CFL_FOR_MAIN",
-                     initialization_function ="CFL_FOR_INIT", termination_function ="CFL_NULL", 
+                     initialization_function ="CFL_FOR_INIT", termination_function ="CFL_FOR_TERM", 
                      aux_function ="CFL_NULL",user_data:dict = {},auto_start = False,label:str="FOR"):
         
         if not isinstance(column_name, str):

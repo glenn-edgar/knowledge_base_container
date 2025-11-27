@@ -115,8 +115,29 @@ void display_sequence_result_one_shot_fn(void *handle, unsigned node_index){
 }
 
 void display_failure_window_result_one_shot_fn(void *handle, unsigned node_index){
-    (void)handle;
-    (void)node_index;
-    printf("display_failure_window_result_one_shot_fn node_index: %d\n", node_index);
-    exit(0);
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    cfl_supervisor_data_t *ptr = (cfl_supervisor_data_t *)cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
+    int32_t uplink_node_id;
+    printf("failed_link_index: %d\n", ptr->failed_link_index);
+    printf("failed_node_index: %d\n", ptr->supervisor_failure_array[ptr->failed_link_index].node_id);
+    json_decoder_init_from_runtime(runtime, node_index);
+    json_extract_int32_runtime(runtime, "node_dict.column_data.user_data.uplink_node_id", &uplink_node_id);
+    printf("uplink_node_id: %d if communicating with uplink node\n", uplink_node_id);
+    json_decoder_init_from_runtime(runtime, ptr->supervisor_failure_array[ptr->failed_link_index].node_id);
+    printf("dump of json data for failed node \n");
+    json_print_node_data_runtime(runtime, ptr->supervisor_failure_array[ptr->failed_link_index].node_id);
+
+}
+
+void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index){
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime, node_index);
+    
+    bool  reset;
+    const char *message;
+    json_extract_bool_runtime(runtime, "node_dict.wd_reset", &reset);
+    json_extract_string_runtime(runtime, "node_dict.wd_fn_data.message", &message);
+    printf("watch_dog_time_out_one_shot_fn reset: %d\n", reset);
+    printf("watch_dog_time_out_one_shot_fn message: %s\n", message);
+    
 }

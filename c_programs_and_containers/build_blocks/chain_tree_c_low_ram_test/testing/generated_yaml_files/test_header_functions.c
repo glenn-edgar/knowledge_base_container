@@ -11,9 +11,12 @@
 /* Forward declarations - user must provide these functions */
 extern unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_disable_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_event_logger_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_exception_catch_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_fork_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_for_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_gate_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_halt_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_join_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -29,20 +32,32 @@ extern unsigned cfl_terminate_system_main_fn(void *handle, unsigned bool_functio
 extern unsigned cfl_verify_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_wait_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_wait_time_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_watch_dog_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_while_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
 extern void cfl_null_one_shot_fn(void *handle, unsigned node_index);
 extern void activate_valve_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_change_state_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_clear_bitmask_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_df_mask_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_df_mask_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_disable_nodes_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_disable_watch_dog_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_enable_nodes_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_enable_watch_dog_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_event_logger_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_event_logger_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_exception_catch_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_exception_catch_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_fork_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_fork_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_for_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_for_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_heartbeat_event_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_term_one_shot_fn(void *handle, unsigned node_index);
@@ -50,6 +65,8 @@ extern void cfl_join_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_log_message_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_mark_sequence_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_mark_supervisor_node_failure_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_pat_watch_dog_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_raise_exception_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_send_named_event_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_fail_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_fail_term_one_shot_fn(void *handle, unsigned node_index);
@@ -57,22 +74,30 @@ extern void cfl_sequence_pass_init_one_shot_fn(void *handle, unsigned node_index
 extern void cfl_sequence_pass_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_start_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_start_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_set_bitmask_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_supervisor_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_supervisor_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_terminate_state_machine_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_turn_heartbeat_off_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_turn_heartbeat_on_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_time_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_watch_dog_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_watch_dog_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_while_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_while_term_one_shot_fn(void *handle, unsigned node_index);
 extern void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index);
 extern void verify_error_one_shot_fn(void *handle, unsigned node_index);
 extern void initialize_sequence_one_shot_fn(void *handle, unsigned node_index);
 extern void display_sequence_result_one_shot_fn(void *handle, unsigned node_index);
 extern void display_sequence_till_result_one_shot_fn(void *handle, unsigned node_index);
 extern void display_failure_window_result_one_shot_fn(void *handle, unsigned node_index);
+extern void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index);
 
 extern bool cfl_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_bool_false_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -82,13 +107,17 @@ extern bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsi
 extern bool cfl_state_machine_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_time_out_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_hjr5gh90_main_functions[] = {
+const main_function_t ct_n0ese9w5_main_functions[] = {
     cfl_null_main_fn,
     cfl_column_main_main_fn,
+    cfl_df_mask_main_main_fn,
     cfl_disable_main_fn,
     cfl_event_logger_main_fn,
+    cfl_exception_catch_main_main_fn,
     cfl_fork_main_main_fn,
+    cfl_for_main_main_fn,
     cfl_gate_node_main_main_fn,
     cfl_halt_main_fn,
     cfl_join_main_main_fn,
@@ -104,22 +133,34 @@ const main_function_t ct_hjr5gh90_main_functions[] = {
     cfl_verify_main_fn,
     cfl_wait_main_fn,
     cfl_wait_time_main_fn,
+    cfl_watch_dog_main_main_fn,
+    cfl_while_main_main_fn,
 };
 
-const one_shot_function_t ct_hjr5gh90_one_shot_functions[] = {
+const one_shot_function_t ct_n0ese9w5_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     cfl_change_state_one_shot_fn,
+    cfl_clear_bitmask_one_shot_fn,
     cfl_column_init_one_shot_fn,
     cfl_column_term_one_shot_fn,
+    cfl_df_mask_init_one_shot_fn,
+    cfl_df_mask_term_one_shot_fn,
     cfl_disable_nodes_one_shot_fn,
+    cfl_disable_watch_dog_one_shot_fn,
     cfl_enable_nodes_one_shot_fn,
+    cfl_enable_watch_dog_one_shot_fn,
     cfl_event_logger_init_one_shot_fn,
     cfl_event_logger_term_one_shot_fn,
+    cfl_exception_catch_init_one_shot_fn,
+    cfl_exception_catch_term_one_shot_fn,
     cfl_fork_init_one_shot_fn,
     cfl_fork_term_one_shot_fn,
+    cfl_for_init_one_shot_fn,
+    cfl_for_term_one_shot_fn,
     cfl_gate_node_init_one_shot_fn,
     cfl_gate_node_term_one_shot_fn,
+    cfl_heartbeat_event_one_shot_fn,
     cfl_join_init_one_shot_fn,
     cfl_join_sequence_element_init_one_shot_fn,
     cfl_join_sequence_element_term_one_shot_fn,
@@ -127,6 +168,8 @@ const one_shot_function_t ct_hjr5gh90_one_shot_functions[] = {
     cfl_log_message_one_shot_fn,
     cfl_mark_sequence_one_shot_fn,
     cfl_mark_supervisor_node_failure_init_one_shot_fn,
+    cfl_pat_watch_dog_one_shot_fn,
+    cfl_raise_exception_one_shot_fn,
     cfl_send_named_event_one_shot_fn,
     cfl_sequence_fail_init_one_shot_fn,
     cfl_sequence_fail_term_one_shot_fn,
@@ -134,25 +177,33 @@ const one_shot_function_t ct_hjr5gh90_one_shot_functions[] = {
     cfl_sequence_pass_term_one_shot_fn,
     cfl_sequence_start_init_one_shot_fn,
     cfl_sequence_start_term_one_shot_fn,
+    cfl_set_bitmask_one_shot_fn,
     cfl_state_machine_init_one_shot_fn,
     cfl_state_machine_term_one_shot_fn,
     cfl_supervisor_init_one_shot_fn,
     cfl_supervisor_term_one_shot_fn,
     cfl_terminate_state_machine_one_shot_fn,
+    cfl_turn_heartbeat_off_one_shot_fn,
+    cfl_turn_heartbeat_on_one_shot_fn,
     cfl_verify_init_one_shot_fn,
     cfl_verify_term_one_shot_fn,
     cfl_wait_init_one_shot_fn,
     cfl_wait_term_one_shot_fn,
     cfl_wait_time_init_one_shot_fn,
+    cfl_watch_dog_init_one_shot_fn,
+    cfl_watch_dog_term_one_shot_fn,
+    cfl_while_init_one_shot_fn,
+    cfl_while_term_one_shot_fn,
     wait_for_event_error_one_shot_fn,
     verify_error_one_shot_fn,
     initialize_sequence_one_shot_fn,
     display_sequence_result_one_shot_fn,
     display_sequence_till_result_one_shot_fn,
     display_failure_window_result_one_shot_fn,
+    watch_dog_time_out_one_shot_fn,
 };
 
-const boolean_function_t ct_hjr5gh90_boolean_functions[] = {
+const boolean_function_t ct_n0ese9w5_boolean_functions[] = {
     cfl_null_boolean_fn,
     cfl_bool_false_boolean_fn,
     cfl_column_null_boolean_fn,
@@ -161,18 +212,22 @@ const boolean_function_t ct_hjr5gh90_boolean_functions[] = {
     cfl_state_machine_null_boolean_fn,
     cfl_verify_time_out_boolean_fn,
     cfl_wait_for_event_boolean_fn,
+    while_test_boolean_fn,
 };
 
 /* Main function usage count */
-const uint16_t ct_hjr5gh90_main_function_usage_count[20] = {
+const uint16_t ct_n0ese9w5_main_function_usage_count[25] = {
     0,  /* CFL_NULL */
-    55,  /* CFL_COLUMN_MAIN */
-    157,  /* CFL_DISABLE */
-    18,  /* CFL_EVENT_LOGGER */
+    69,  /* CFL_COLUMN_MAIN */
+    2,  /* CFL_DF_MASK_MAIN */
+    215,  /* CFL_DISABLE */
+    20,  /* CFL_EVENT_LOGGER */
+    3,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
-    9,  /* CFL_GATE_NODE_MAIN */
-    12,  /* CFL_HALT */
-    5,  /* CFL_JOIN_MAIN */
+    1,  /* CFL_FOR_MAIN */
+    15,  /* CFL_GATE_NODE_MAIN */
+    14,  /* CFL_HALT */
+    12,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
     13,  /* CFL_RESET */
     1,  /* CFL_SEQUENCE_FAIL_MAIN */
@@ -180,19 +235,24 @@ const uint16_t ct_hjr5gh90_main_function_usage_count[20] = {
     2,  /* CFL_SEQUENCE_START_MAIN */
     2,  /* CFL_STATE_MACHINE_MAIN */
     4,  /* CFL_SUPERVISOR_MAIN */
-    26,  /* CFL_TERMINATE */
-    6,  /* CFL_TERMINATE_SYSTEM */
+    39,  /* CFL_TERMINATE */
+    7,  /* CFL_TERMINATE_SYSTEM */
     2,  /* CFL_VERIFY */
     2,  /* CFL_WAIT */
-    51,  /* CFL_WAIT_TIME */
+    69,  /* CFL_WAIT_TIME */
+    1,  /* CFL_WATCH_DOG_MAIN */
+    1,  /* CFL_WHILE_MAIN */
 };
 
-const char *ct_hjr5gh90_main_function_names[20] = {
+const char *ct_n0ese9w5_main_function_names[25] = {
     "CFL_NULL",
     "CFL_COLUMN_MAIN",
+    "CFL_DF_MASK_MAIN",
     "CFL_DISABLE",
     "CFL_EVENT_LOGGER",
+    "CFL_EXCEPTION_CATCH_MAIN",
     "CFL_FORK_MAIN",
+    "CFL_FOR_MAIN",
     "CFL_GATE_NODE_MAIN",
     "CFL_HALT",
     "CFL_JOIN_MAIN",
@@ -208,22 +268,34 @@ const char *ct_hjr5gh90_main_function_names[20] = {
     "CFL_VERIFY",
     "CFL_WAIT",
     "CFL_WAIT_TIME",
+    "CFL_WATCH_DOG_MAIN",
+    "CFL_WHILE_MAIN",
 };
 
-const char *ct_hjr5gh90_one_shot_function_names[43] = {
+const char *ct_n0ese9w5_one_shot_function_names[63] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "CFL_CHANGE_STATE",
+    "CFL_CLEAR_BITMASK",
     "CFL_COLUMN_INIT",
     "CFL_COLUMN_TERM",
+    "CFL_DF_MASK_INIT",
+    "CFL_DF_MASK_TERM",
     "CFL_DISABLE_NODES",
+    "CFL_DISABLE_WATCH_DOG",
     "CFL_ENABLE_NODES",
+    "CFL_ENABLE_WATCH_DOG",
     "CFL_EVENT_LOGGER_INIT",
     "CFL_EVENT_LOGGER_TERM",
+    "CFL_EXCEPTION_CATCH_INIT",
+    "CFL_EXCEPTION_CATCH_TERM",
     "CFL_FORK_INIT",
     "CFL_FORK_TERM",
+    "CFL_FOR_INIT",
+    "CFL_FOR_TERM",
     "CFL_GATE_NODE_INIT",
     "CFL_GATE_NODE_TERM",
+    "CFL_HEARTBEAT_EVENT",
     "CFL_JOIN_INIT",
     "CFL_JOIN_SEQUENCE_ELEMENT_INIT",
     "CFL_JOIN_SEQUENCE_ELEMENT_TERM",
@@ -231,6 +303,8 @@ const char *ct_hjr5gh90_one_shot_function_names[43] = {
     "CFL_LOG_MESSAGE",
     "CFL_MARK_SEQUENCE",
     "CFL_MARK_SUPERVISOR_NODE_FAILURE_INIT",
+    "CFL_PAT_WATCH_DOG",
+    "CFL_RAISE_EXCEPTION",
     "CFL_SEND_NAMED_EVENT",
     "CFL_SEQUENCE_FAIL_INIT",
     "CFL_SEQUENCE_FAIL_TERM",
@@ -238,25 +312,33 @@ const char *ct_hjr5gh90_one_shot_function_names[43] = {
     "CFL_SEQUENCE_PASS_TERM",
     "CFL_SEQUENCE_START_INIT",
     "CFL_SEQUENCE_START_TERM",
+    "CFL_SET_BITMASK",
     "CFL_STATE_MACHINE_INIT",
     "CFL_STATE_MACHINE_TERM",
     "CFL_SUPERVISOR_INIT",
     "CFL_SUPERVISOR_TERM",
     "CFL_TERMINATE_STATE_MACHINE",
+    "CFL_TURN_HEARTBEAT_OFF",
+    "CFL_TURN_HEARTBEAT_ON",
     "CFL_VERIFY_INIT",
     "CFL_VERIFY_TERM",
     "CFL_WAIT_INIT",
     "CFL_WAIT_TERM",
     "CFL_WAIT_TIME_INIT",
+    "CFL_WATCH_DOG_INIT",
+    "CFL_WATCH_DOG_TERM",
+    "CFL_WHILE_INIT",
+    "CFL_WHILE_TERM",
     "WAIT_FOR_EVENT_ERROR",
     "VERIFY_ERROR",
     "INITIALIZE_SEQUENCE",
     "DISPLAY_SEQUENCE_RESULT",
     "DISPLAY_SEQUENCE_TILL_RESULT",
     "DISPLAY_FAILURE_WINDOW_RESULT",
+    "WATCH_DOG_TIME_OUT",
 };
 
-const char *ct_hjr5gh90_boolean_function_names[8] = {
+const char *ct_n0ese9w5_boolean_function_names[9] = {
     "CFL_NULL",
     "CFL_BOOL_FALSE",
     "CFL_COLUMN_NULL",
@@ -265,4 +347,5 @@ const char *ct_hjr5gh90_boolean_function_names[8] = {
     "CFL_STATE_MACHINE_NULL",
     "CFL_VERIFY_TIME_OUT",
     "CFL_WAIT_FOR_EVENT",
+    "WHILE_TEST",
 };

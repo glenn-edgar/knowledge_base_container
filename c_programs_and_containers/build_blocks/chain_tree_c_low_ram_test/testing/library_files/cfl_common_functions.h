@@ -19,10 +19,7 @@ void *cfl_smart_arena_alloc(cfl_runtime_handle_t *handle, uint16_t node_index, u
 void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id, const char *new_state, bool sync_flag, int32_t sync_event_id);
 void cfl_terminate_state_machine(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id);
 
-void cfl_mark_supervisor_node_failure(cfl_runtime_handle_t *handle, uint16_t node_index);
-
-unsigned cfl_handle_supervisor_node_failure(cfl_runtime_handle_t *handle, uint16_t node_index, unsigned bool_function_index, 
-        unsigned event_type, unsigned event_id, void *event_data);
+void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index);
 #ifdef __cplusplus
 }
 #endif

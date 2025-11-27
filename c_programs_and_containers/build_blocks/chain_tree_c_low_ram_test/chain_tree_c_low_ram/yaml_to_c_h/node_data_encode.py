@@ -290,6 +290,7 @@ class NodeDataEncoder:
             'boolean_function': 'boolean',
             'finalize_function': 'one_shot',
             'initialize_function': 'one_shot',
+            'wd_fn': 'one_shot',
            
     }
         

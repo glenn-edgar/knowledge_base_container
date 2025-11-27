@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_hjr5gh90_kb_table[9] = {
+const chaintree_kb_info_t ct_n0ese9w5_kb_table[15] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -63,7 +63,49 @@ const chaintree_kb_info_t ct_hjr5gh90_kb_table[9] = {
         .kb_name = "tenth_test",
         .root_node_index = 275,
         .start_index = 275,
-        .node_count = 95,
+        .node_count = 97,
         .max_depth = 5
+    },
+    {
+        .kb_name = "eleventh_test",
+        .root_node_index = 372,
+        .start_index = 372,
+        .node_count = 11,
+        .max_depth = 4
+    },
+    {
+        .kb_name = "twelfth_test",
+        .root_node_index = 383,
+        .start_index = 383,
+        .node_count = 7,
+        .max_depth = 3
+    },
+    {
+        .kb_name = "thirteenth_test",
+        .root_node_index = 390,
+        .start_index = 390,
+        .node_count = 22,
+        .max_depth = 2
+    },
+    {
+        .kb_name = "fourteenth_test",
+        .root_node_index = 412,
+        .start_index = 412,
+        .node_count = 25,
+        .max_depth = 3
+    },
+    {
+        .kb_name = "seventeenth_test",
+        .root_node_index = 437,
+        .start_index = 437,
+        .node_count = 26,
+        .max_depth = 5
+    },
+    {
+        .kb_name = "eighteenth_test",
+        .root_node_index = 463,
+        .start_index = 463,
+        .node_count = 36,
+        .max_depth = 6
     },
 };

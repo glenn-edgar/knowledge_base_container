@@ -92,6 +92,32 @@ typedef struct cfl_supervisor_data_t{
   bool restart_enabled;
 } cfl_supervisor_data_t;
 
+
+typedef struct {
+  int32_t number_of_iterations;
+  int32_t current_iteration;
+} cfl_for_fn_data_t;
+
+typedef struct {
+  int32_t current_iteration;
+  void *auxiliary_data;
+} cfl_while_fn_data_t;
+
+
+typedef struct {
+  int32_t current_count;
+  int32_t wd_time_count;
+  int32_t wd_fn_id;
+  bool wd_enabled;
+  bool wd_reset;
+} cfl_watch_dog_fn_data_t;
+  
+typedef struct {
+  int32_t bitmask;
+  bool node_state;
+} cfl_df_mask_fn_data_t;
+
+
 #ifdef __cplusplus
 }
 #endif
