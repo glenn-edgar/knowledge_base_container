@@ -34,7 +34,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         ExceptionHandler.__init__(self,self.ctb)
         
         self.ctb.register_event("CFL_INIT_EVENT")
-        self.ctb.register_event( "CFL_TERMINATE_EVENT")
+        self.ctb.register_event("CFL_TERMINATE_EVENT")
         self.ctb.register_event("CFL_START_TESTS")
         self.ctb.register_event("CFL_TERMINATE_TESTS")
         self.ctb.register_event("CFL_TIMER_EVENT")
@@ -45,8 +45,16 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         self.ctb.register_event("CFL_WEEK_EVENT")
         self.ctb.register_event("CFL_MONTH_EVENT")
         self.ctb.register_event("CFL_YEAR_EVENT")
-        
-    
+        self.ctb.register_event("CFL_RAISE_EXCEPTION_EVENT")
+        self.ctb.register_event("CFL_TURN_HEARTBEAT_ON_EVENT")
+        self.ctb.register_event("CFL_TURN_HEARTBEAT_OFF_EVENT")
+        self.ctb.register_event("CFL_HEARTBEAT_EVENT")
+        self.ctb.register_event("CFL_SET_EXCEPTION_STEP_EVENT")
+        self.ctb.register_event("CFL_START_TESTS")
+        self.ctb.register_event("CFL_TERMINATE_TESTS")
+        self.ctb.register_event("CFL_CHANGE_STATE_EVENT")
+        self.ctb.register_event("CFL_RESET_STATE_MACHINE_EVENT")
+        self.ctb.register_event("CFL_TERMINATE_STATE_MACHINE_EVENT")
         
         
 

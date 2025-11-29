@@ -155,7 +155,10 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
             cfl_generate_timer_events(handle, kb_idx, &tick_result);
         
             while(cfl_total_event_count(handle->event_queue) > 0) {
-                cfl_peek_event(handle->event_queue, &event_data);
+               
+                
+                event_data.node_id = 0xFFFF;
+                cfl_pop_event(handle->event_queue, &event_data);
                 
                 if (event_data.event_id == CFL_TERMINATE_SYSTEM_EVENT) {
                     printf("terminate system\n");
@@ -164,17 +167,18 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
         
                 handle->event_data_ptr = &event_data;
                 
+                
                 if(cfl_execute_event(handle) == false) {
-                    printf("terminate test\n");
+                
                     cfl_delete_test_by_index(handle, handle->current_kb_idx);
                 }
                 
-                cfl_pop_event(handle->event_queue, &event_data);
+                
             }
             
             // ADD THIS: Check if start node is still enabled after processing all events
             if (!cfl_engine_node_is_enabled(handle, handle->kb_start_index)) {
-                printf("Test %d start node disabled, deleting test\n", kb_idx);
+        
                 cfl_delete_test_by_index(handle, kb_idx);
             }
         }
@@ -358,5 +362,9 @@ static void cfl_find_main_ids(cfl_runtime_handle_t *runtime_handle) {
         runtime_handle->main_function_data->main_function_ids[2] = index;
         index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_SUPERVISOR_MAIN");
         runtime_handle->main_function_data->main_function_ids[3] = index;
-       
+        index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_EXCEPTION_CATCH_ALL_MAIN");
+        runtime_handle->main_function_data->main_function_ids[4] = index;
+        index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_EXCEPTION_CATCH_MAIN");
+        runtime_handle->main_function_data->main_function_ids[5] = index;
+        
 }

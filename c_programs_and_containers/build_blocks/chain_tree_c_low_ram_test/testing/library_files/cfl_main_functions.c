@@ -35,7 +35,8 @@ unsigned cfl_disable_main_fn(void *handle, unsigned bool_function_index, unsigne
 
 
 
-unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, 
+    unsigned event_type, unsigned event_id, void *event_data){
     if (event_id != CFL_TIMER_EVENT) {
         return CFL_CONTINUE;
     }

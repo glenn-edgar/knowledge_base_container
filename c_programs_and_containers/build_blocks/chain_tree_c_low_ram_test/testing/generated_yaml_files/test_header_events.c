@@ -2,7 +2,7 @@
 #include "test_header_events.h"
 
 /* Event names indexed by event index */
-const char *ct_59liv5hf_event_strings[19] = {
+const char *ct_6dh5beh1_event_strings[27] = {
     "CFL_INIT_EVENT",
     "CFL_TERMINATE_EVENT",
     "CFL_START_TESTS",
@@ -15,6 +15,14 @@ const char *ct_59liv5hf_event_strings[19] = {
     "CFL_WEEK_EVENT",
     "CFL_MONTH_EVENT",
     "CFL_YEAR_EVENT",
+    "CFL_RAISE_EXCEPTION_EVENT",
+    "CFL_TURN_HEARTBEAT_ON_EVENT",
+    "CFL_TURN_HEARTBEAT_OFF_EVENT",
+    "CFL_HEARTBEAT_EVENT",
+    "CFL_SET_EXCEPTION_STEP_EVENT",
+    "CFL_CHANGE_STATE_EVENT",
+    "CFL_RESET_STATE_MACHINE_EVENT",
+    "CFL_TERMINATE_STATE_MACHINE_EVENT",
     "WAIT_FOR_EVENT",
     "PUBLISH_EVENT",
     "TEST_EVENT_1",

@@ -7,7 +7,8 @@
  #include "cfl_exception.h"
  #include <string.h>  // For memset
  #include <stdlib.h>  // For free()
- 
+ #include <stdio.h> 
+ #include <stdint.h> // For printf()
  /*==============================================================================
   * Global Variables
   *============================================================================*/
@@ -200,9 +201,7 @@
              }
              
              // Free the allocated memory if pointer is non-null
-             if (event.data.ptr != NULL) {
-                 free(event.data.ptr);
-             }
+             
              // Note: NULL pointer with malloc flag is allowed - may occur
              // if pointer was already freed or intentionally nulled
          }
@@ -342,14 +341,18 @@
      // Select ring based on priority
       CFL_EVENT_RING_T* ring;
      if (priority == CFL_EVENT_PRIORITY_HIGH) {
+        
          ring = ( CFL_EVENT_RING_T*)&queue_control->high_priority;
+         
      } else {
+
          ring = ( CFL_EVENT_RING_T*)&queue_control->low_priority;
+         
      }
      
      // Check if ring is full
      if (ring_is_full(ring)) {
-         return false;  // Not an error - caller should handle full queue
+         EXCEPTION("cfl_send_event: ring is full");  // Not an error - caller should handle full queue
      }
      
      // Build event structure (local non-)
@@ -362,6 +365,7 @@
      event.data.ptr = data;  // Union assignment - works for all types
      
      // Insert into ring
+     
      ring_push(ring, &event);
      
      // Update statistics
@@ -385,13 +389,16 @@
      
      // Check high priority first
      if (!ring_is_empty(&queue_control->high_priority)) {
+        
          ring_pop(( CFL_EVENT_RING_T*)&queue_control->high_priority, event_data);
+        
          return true;
      }
      
      // Check low priority
      if (!ring_is_empty(&queue_control->low_priority)) {
          ring_pop(( CFL_EVENT_RING_T*)&queue_control->low_priority, event_data);
+        
          return true;
      }
      
@@ -414,6 +421,7 @@
      
      // Check high priority first
      if (!ring_is_empty(&queue_control->high_priority)) {
+         
          ring_peek(&queue_control->high_priority, event_data);
          return true;
      }

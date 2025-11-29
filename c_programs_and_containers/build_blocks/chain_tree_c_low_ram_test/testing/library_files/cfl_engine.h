@@ -26,6 +26,14 @@ typedef enum {
     CFL_WEEK_EVENT = 9,
     CFL_MONTH_EVENT = 10,
     CFL_YEAR_EVENT = 11,
+    CFL_RAISE_EXCEPTION_EVENT = 12,
+    CFL_TURN_HEARTBEAT_ON_EVENT = 13,
+    CFL_TURN_HEARTBEAT_OFF_EVENT = 14,
+    CFL_HEARTBEAT_EVENT = 15,
+    CFL_SET_EXCEPTION_STEP_EVENT = 16,
+    CFL_CHANGE_STATE_EVENT = 17,
+    CFL_RESET_STATE_MACHINE_EVENT = 18,
+    CFL_TERMINATE_STATE_MACHINE_EVENT = 19,
 } cfl_engine_event_t;
 
 #define CFL_TERMINATE_SYSTEM_EVENT 0xFFFF
@@ -38,6 +46,7 @@ typedef enum {
 #define CFL_DISABLE 4
 #define CFL_SKIP_CONTINUE 5
 #define CFL_TERMINATE_SYSTEM 6
+
 
 typedef struct {
     int32_t finalize_function_id;
@@ -61,8 +70,10 @@ typedef struct {
 #define CFL_FUNCTION_ID_SEQUENCE_TRY_PASS 1
 #define CFL_FUNCTION_ID_SEQUENCE_TRY_FAIL 2
 #define CFL_FUNCTION_ID_SUPERVISOR_MAIN 3
+#define CFL_FUNCTION_ID_EXCEPTION_CATCH_ALL_MAIN 4
+#define CFL_FUNCTION_ID_EXCEPTION_CATCH_MAIN 5
 typedef struct {
-    int32_t main_function_ids[4];
+    uint16_t main_function_ids[6];
 } main_function_data_t;
 
 

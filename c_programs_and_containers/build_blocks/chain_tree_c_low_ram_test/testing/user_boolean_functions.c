@@ -39,29 +39,73 @@ bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_typ
     return true;
 }
 
-
+#include "cfl_exception_support.h"
 bool catch_all_exception_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
     (void)handle;
     (void)node_index;
     (void)event_id;
     (void)event_type;
     (void)event_data;
-    printf("catch_all_exception_boolean_fn\n");
-    exit(0);
+    //cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    // all exceptions are caught and not passed on 
+    switch(event_id)
+    {
+        case CFL_INIT_EVENT:
+    
+            return false;
+        case CFL_TERMINATE_EVENT:
+            return false;
+        case CFL_RAISE_EXCEPTION_EVENT:
+              printf("Raise exception event\n");
+              return false;
+        default:
+            return false;
+    }
     return false;
 }
 
-bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
-    (void)handle;
-    (void)node_index;
-    (void)event_id;
+typedef struct {
+    const char *exception_filter_data;
+} user_exception_filter_data_t;
+
+bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data) {
     (void)event_type;
     (void)event_data;
-    printf("exception_filter_boolean_fn\n");
-    exit(0);
-    return false;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_exception_support_data_t *exception_support_data = 
+        (cfl_exception_support_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+   
+    if (event_id == CFL_INIT_EVENT) {
+        exception_support_data->auxiliary_data = 
+            (user_exception_filter_data_t *)cfl_heap_malloc_pointer(runtime_handle->heap, sizeof(user_exception_filter_data_t));
+        user_exception_filter_data_t *user_exception_filter_data = 
+            (user_exception_filter_data_t *)exception_support_data->auxiliary_data;
+        json_decoder_init_from_runtime(runtime_handle, node_index);
+        json_extract_string_runtime(runtime_handle, "node_dict.column_data.aux_function_data.exception_filter_data",
+             &user_exception_filter_data->exception_filter_data);
+        
+        return false;
+    }
+    
+    if (event_id == CFL_TERMINATE_EVENT) {
+        ;
+        cfl_heap_free_pointer(runtime_handle->heap, exception_support_data->auxiliary_data);
+        exception_support_data->auxiliary_data = NULL;
+        return false;
+    }
+    
+    switch (event_id) {
+        case CFL_RAISE_EXCEPTION_EVENT: {
+            user_exception_filter_data_t *user_data = 
+                (user_exception_filter_data_t *)exception_support_data->auxiliary_data;
+            printf("Raise exception originating node %d %s\n",(uint16_t)((size_t)event_data),user_data->exception_filter_data);
+        
+            return false;
+        }
+        default:
+            return false;
+    }
 }
-
 bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data){
     (void)handle;
     (void)node_index;

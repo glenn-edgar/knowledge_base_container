@@ -893,7 +893,7 @@ def insert_bad_finalize_column(ct,name:str):
 
 def insert_exception_catch_column(ct,name:str):
     
-    exception_catch_column = ct.define_exception_catch(name,"EXCEPTION_FILTER",{},"EXCEPTION_LOGGING",
+    exception_catch_column = ct.define_exception_catch(name,"EXCEPTION_FILTER",{"exception_filter_data":"exception_filter_data"},"EXCEPTION_LOGGING",
                                                        {"logging_function_data":"logging_function_data"},auto_start=True)
                     
     return exception_catch_column
@@ -915,6 +915,7 @@ def seventeenth_test(ct,kb_name): # exception handler
     insert_good_finalize_column(ct,"combo_1_finalize")
     end_exception_catch_column(ct,exception_catch_column)
     ct.define_join_link(exception_catch_column)
+    
     ct.asm_log_message("exception combo 2 is starting")
     exception_catch_column = insert_exception_catch_column(ct,"combo_2")
     insert_bad_main_column(ct,"combo_2_main")
@@ -938,6 +939,7 @@ def seventeenth_test(ct,kb_name): # exception handler
     
     ct.define_join_link(exception_catch_column)
     ct.end_column(column_name=catch_all_exception_column)
+    ct.define_join_link(catch_all_exception_column)
     ct.asm_log_message("launch column is terminating")
     ct.asm_terminate()
     ct.end_column(column_name=launch_column)

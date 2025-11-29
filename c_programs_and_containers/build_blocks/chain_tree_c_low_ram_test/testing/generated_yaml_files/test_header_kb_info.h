@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_59LIV5HF_KB_COUNT 14
+#define CT_6DH5BEH1_KB_COUNT 14
 
-extern const chaintree_kb_info_t ct_59liv5hf_kb_table[14];
+extern const chaintree_kb_info_t ct_6dh5beh1_kb_table[14];
 
 #endif /* TEST_HEADER_KB_INFO_H */

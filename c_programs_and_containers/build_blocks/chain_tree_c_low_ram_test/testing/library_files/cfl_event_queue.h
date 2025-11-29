@@ -61,14 +61,14 @@
  #define CFL_EVENT_PRIORITY_LOW      0       /**< Normal priority queue */
  #define CFL_EVENT_PRIORITY_HIGH     1       /**< High priority queue */
  
- /** Event data types (user-defined semantics) */
- #define CFL_EVENT_TYPE_PTR          0       /**< Data is pointer */
- #define CFL_EVENT_TYPE_INT          1       /**< Data is signed integer */
- #define CFL_EVENT_TYPE_UINT         2       /**< Data is unsigned integer */
- #define CFL_EVENT_TYPE_FLOAT        3       /**< Data is float/double */
- #define CFL_EVENT_TYPE_JSON_RECORD  4       /**< Data is JSON record */
- #define CFL_EVENT_TYPE_NULL         5       /**< Data is null */
- 
+ typedef enum {
+     CFL_EVENT_TYPE_PTR         = 0,  /**< Data is pointer */
+     CFL_EVENT_TYPE_INT         = 1,  /**< Data is signed integer */
+     CFL_EVENT_TYPE_UINT        = 2,  /**< Data is unsigned integer */
+     CFL_EVENT_TYPE_FLOAT       = 3,  /**< Data is float/double */
+     CFL_EVENT_TYPE_JSON_RECORD = 4,  /**< Data is JSON record */
+     CFL_EVENT_TYPE_NULL        = 5   /**< Data is null */
+ } cfl_event_type_t;
  /** Minimum queue size (power of 2) */
  #define CFL_EVENT_QUEUE_MIN_SIZE    2
  

@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CT_59LIV5HF_EVENT_STRING_COUNT 19
+#define CT_6DH5BEH1_EVENT_STRING_COUNT 27
 
 /* Event indices */
 typedef enum {
@@ -22,17 +22,25 @@ typedef enum {
     EVENT_CFL_WEEK_EVENT = 9,
     EVENT_CFL_MONTH_EVENT = 10,
     EVENT_CFL_YEAR_EVENT = 11,
-    EVENT_WAIT_FOR_EVENT = 12,
-    EVENT_PUBLISH_EVENT = 13,
-    EVENT_TEST_EVENT_1 = 14,
-    EVENT_TEST_EVENT_2 = 15,
-    EVENT_TEST_EVENT_3 = 16,
-    EVENT_SYNC_EVENT = 17,
-    EVENT_TEST_EVENT = 18,
-    EVENT_COUNT = 19
+    EVENT_CFL_RAISE_EXCEPTION_EVENT = 12,
+    EVENT_CFL_TURN_HEARTBEAT_ON_EVENT = 13,
+    EVENT_CFL_TURN_HEARTBEAT_OFF_EVENT = 14,
+    EVENT_CFL_HEARTBEAT_EVENT = 15,
+    EVENT_CFL_SET_EXCEPTION_STEP_EVENT = 16,
+    EVENT_CFL_CHANGE_STATE_EVENT = 17,
+    EVENT_CFL_RESET_STATE_MACHINE_EVENT = 18,
+    EVENT_CFL_TERMINATE_STATE_MACHINE_EVENT = 19,
+    EVENT_WAIT_FOR_EVENT = 20,
+    EVENT_PUBLISH_EVENT = 21,
+    EVENT_TEST_EVENT_1 = 22,
+    EVENT_TEST_EVENT_2 = 23,
+    EVENT_TEST_EVENT_3 = 24,
+    EVENT_SYNC_EVENT = 25,
+    EVENT_TEST_EVENT = 26,
+    EVENT_COUNT = 27
 } event_index_t;
 
 /* Event name array for debugging/lookup */
-extern const char *ct_59liv5hf_event_strings[19];
+extern const char *ct_6dh5beh1_event_strings[27];
 
 #endif /* TEST_HEADER_EVENTS_H */

@@ -143,11 +143,18 @@ void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index){
 }
 
 
+#include "cfl_exception_support.h"
+
 void exception_logging_one_shot_fn(void *handle, unsigned node_index){
-    (void)handle;
-    (void)node_index;
-    printf("exception_logging_one_shot_fn\n");
-    exit(0);
+
+    const char *message;
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    cfl_exception_support_data_t *ptr = (cfl_exception_support_data_t *)cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
+    json_decoder_init_from_runtime(runtime, node_index);
+    json_extract_string_runtime(runtime, "node_dict.column_data.logging_function_data.logging_function_data", &message);
+    printf("exception_logging_one_shot_fn message: %s\n", message);
+    printf("original_node_id: %d\n", ptr->original_node_id);
+    
 }
 
 

@@ -100,6 +100,7 @@ bool cfl_execute_event(cfl_runtime_handle_t *handle) {
     }
     
     unsigned node_index = handle->event_data_ptr->node_id;
+    
     if (node_index < handle->kb_start_index) {
         EXCEPTION("cfl_execute_event: node_id out of bounds too low");
     }

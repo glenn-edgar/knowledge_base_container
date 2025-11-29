@@ -20,6 +20,7 @@ void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t
 void cfl_terminate_state_machine(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id);
 
 void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index);
+unsigned cfl_verify_active_children(cfl_runtime_handle_t *handle, uint16_t node_index);
 #ifdef __cplusplus
 }
 #endif
