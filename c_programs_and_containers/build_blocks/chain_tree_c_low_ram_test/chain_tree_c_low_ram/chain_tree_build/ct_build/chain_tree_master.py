@@ -93,6 +93,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
        self.root_node = self.define_gate_node("root_node", column_data={"version":version},auto_start = True,links_flag = True)
        self.sequence_dict = {}
        self.s_expr_dict = {}
+       self.initialize_state_machine_stack()
                  
  
     

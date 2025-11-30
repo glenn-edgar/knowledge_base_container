@@ -27,16 +27,17 @@ typedef enum {
     MAIN_FUNC_CFL_SEQUENCE_FAIL_MAIN = 15,
     MAIN_FUNC_CFL_SEQUENCE_PASS_MAIN = 16,
     MAIN_FUNC_CFL_SEQUENCE_START_MAIN = 17,
-    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 18,
-    MAIN_FUNC_CFL_SUPERVISOR_MAIN = 19,
-    MAIN_FUNC_CFL_TERMINATE = 20,
-    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 21,
-    MAIN_FUNC_CFL_VERIFY = 22,
-    MAIN_FUNC_CFL_WAIT = 23,
-    MAIN_FUNC_CFL_WAIT_TIME = 24,
-    MAIN_FUNC_CFL_WATCH_DOG_MAIN = 25,
-    MAIN_FUNC_CFL_WHILE_MAIN = 26,
-    MAIN_FUNC_COUNT = 27
+    MAIN_FUNC_CFL_SM_ENVELOPE_MAIN = 18,
+    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 19,
+    MAIN_FUNC_CFL_SUPERVISOR_MAIN = 20,
+    MAIN_FUNC_CFL_TERMINATE = 21,
+    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 22,
+    MAIN_FUNC_CFL_VERIFY = 23,
+    MAIN_FUNC_CFL_WAIT = 24,
+    MAIN_FUNC_CFL_WAIT_TIME = 25,
+    MAIN_FUNC_CFL_WATCH_DOG_MAIN = 26,
+    MAIN_FUNC_CFL_WHILE_MAIN = 27,
+    MAIN_FUNC_COUNT = 28
 } MAIN_FUNC_t;
 
 /* One-shot function enum */
@@ -131,16 +132,16 @@ typedef enum {
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_50h2mlcx_main_functions[27];
-extern const one_shot_function_t ct_50h2mlcx_one_shot_functions[69];
-extern const boolean_function_t ct_50h2mlcx_boolean_functions[12];
+extern const main_function_t ct_lg1jtcli_main_functions[28];
+extern const one_shot_function_t ct_lg1jtcli_one_shot_functions[69];
+extern const boolean_function_t ct_lg1jtcli_boolean_functions[12];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_50h2mlcx_main_function_usage_count[27];
+extern const uint16_t ct_lg1jtcli_main_function_usage_count[28];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_50h2mlcx_main_function_names[27];
-extern const char *ct_50h2mlcx_one_shot_function_names[69];
-extern const char *ct_50h2mlcx_boolean_function_names[12];
+extern const char *ct_lg1jtcli_main_function_names[28];
+extern const char *ct_lg1jtcli_one_shot_function_names[69];
+extern const char *ct_lg1jtcli_boolean_function_names[12];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */

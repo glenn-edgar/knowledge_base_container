@@ -499,60 +499,7 @@ void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
 
 
 
-void cfl_state_machine_term_one_shot_fn(void *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    
-    /* Validate node_index */
-    if (node_index >= runtime_handle->flash_handle->node_count) {
-        EXCEPTION("cfl_state_machine_term_one_shot_fn: node_index out of bounds");
-        return;
-    }
-    
-    
-    
-    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
-    uint16_t link_count = node->link_count & LINK_COUNT_MASK;
-    uint16_t link_start = node->link_start;
-    
-    /* Validate link_start and link_count */
-    if (link_count > 0) {
-        if (link_start >= runtime_handle->flash_handle->link_table_size) {
-            EXCEPTION("cfl_state_machine_term_one_shot_fn: link_start out of bounds");
-            return;
-        }
-        if (link_start + link_count > runtime_handle->flash_handle->link_table_size) {
-            EXCEPTION("cfl_state_machine_term_one_shot_fn: link range exceeds table size");
-            return;
-        }
-    }
-    
-    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
-    
-    /* BUG FIX: Terminate link_table[link_start + i], not link_start + i */
-    for (uint32_t i = 0; i < link_count; i++) {
-        uint16_t link_id = link_table[link_start + i];
-        
-        /* Validate link_id */
-        if (link_id >= runtime_handle->flash_handle->node_count) {
-            EXCEPTION("cfl_state_machine_term_one_shot_fn: link_id out of bounds");
-            continue;
-        }
-        
-        cfl_terminate_node_tree(runtime_handle, link_id);
-    }    
-}
 
-void cfl_terminate_state_machine_one_shot_fn(void *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    json_decoder_init_from_runtime(runtime_handle, node_index);
-    
-    int32_t sm_node_id;
-    json_extract_int32_runtime(runtime_handle, "node_dict.sm_node_id", &sm_node_id);
-
-    cfl_terminate_state_machine(runtime_handle, node_index, sm_node_id);
-
-
-}
 
 
 void cfl_fork_init_one_shot_fn(void *handle, uint16_t node_index){

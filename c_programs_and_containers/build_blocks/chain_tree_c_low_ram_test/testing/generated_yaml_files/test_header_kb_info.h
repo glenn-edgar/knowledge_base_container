@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_50H2MLCX_KB_COUNT 15
+#define CT_LG1JTCLI_KB_COUNT 16
 
-extern const chaintree_kb_info_t ct_50h2mlcx_kb_table[15];
+extern const chaintree_kb_info_t ct_lg1jtcli_kb_table[16];
 
 #endif /* TEST_HEADER_KB_INFO_H */

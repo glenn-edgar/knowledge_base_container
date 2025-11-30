@@ -52,6 +52,7 @@ class ChainTreeYaml:
         self.s_main_functions: Dict[str, Dict[str, bool]] = {}
         self.s_one_shot_functions: Dict[str, Dict[str, bool]] = {}
         self.s_boolean_functions: Dict[str, Dict[str, bool]] = {}
+        
     
     # =========================================================================
     # Knowledge Base Management

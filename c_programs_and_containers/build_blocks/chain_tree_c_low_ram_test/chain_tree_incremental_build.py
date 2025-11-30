@@ -1158,95 +1158,110 @@ def eighteenth_test(ct,kb_name): # exception handler
     ct.end_test()   
     
     
-    
-    
-    
-    
-'''
-def eighteenth_test(ct,kb_name): # exception handler
-    ct.start_test(test_name=kb_name )
+def inner_state_machine(ct,name:str):
     
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
     ct.asm_log_message("launch column is starting")
-    
-    ct.asm_log_message("using top exception handler")
-    top_exception_handler_column = ct.exception_catch(column_name="top_exception_handler_column",
-                            aux_function_name="CFL_NULL",
-                            aux_function_data={},
-                            logging_function_name="MY_EXCEPTION_LOGGING",
-                            logging_function_data={"logging_function_data":"logging_function_data"},
-                            exception_id_list=["TEST_EXECEPTION"],
-                            default_exception_handler_name="MY_TOP_EXCEPTION_DISPATCHER",
-                            default_exception_handler_data=
-                               {"default_exception_handler_function_data":"default_exception_handler_function_data"},auto_start=True)
-    
-    exception_handler_column = ct.exception_catch(column_name="exception_handler_column",
-                            aux_function_name="CFL_NULL",
-                            aux_function_data={},
-                            logging_function_name="MY_EXCEPTION_LOGGING",
-                            logging_function_data={"logging_function_data":"logging_function_data"},
-                            exception_id_list=["TEST_EXECEPTION"],
-                            default_exception_handler_name="MY_EXCEPTION_DISPATCHER",
-                            default_exception_handler_data=
-                               {"default_exception_handler_function_data":"default_exception_handler_function_data"},auto_start=True)
+    ct.asm_log_message("launching state machine 1")
     
     
-    middle_column = ct.define_column(column_name="middle_column",auto_start=True)
-    ct.asm_log_message("middle column is starting")
+    sm_envelope_column_1 = ct.define_sm_envelope(column_name="sm_envelope_column_1", auto_start=True)
     
-    heartbeat_column = ct.define_column(column_name="heartbeat_raise_column",auto_start=True)
-    ct.asm_log_message("heartbeat column is starting")
-    ct.asm_log_message("turning heartbeat on")
-    ct.asm_turn_heartbeat_on(parent_node_name=heartbeat_column,time_out=4)
-    ct.asm_heartbeat_event(parent_node_name=heartbeat_column)
-    ct.asm_wait_time(time_delay=3)
-    ct.asm_log_message("should not be reached")
-    ct.asm_log_message("turning heartbeat off")
-    ct.asm_turn_heartbeat_off(parent_node_name=heartbeat_column)
+    sm_name_1 = "state_machine_1"
+    state_machine_1 = ct.define_state_machine(column_name="state_machine_1",sm_name=sm_name_1,state_names=["state1","state2","state3"],
+                                            initial_state="state2",auto_start=True)
+    
+    state1_1 = ct.define_state(state_name="state1",column_data=None)
+    ct.asm_log_message("state1")
     ct.asm_wait_time(time_delay=2)
-    ct.asm_log_message("turning heartbeat on")
-    ct.asm_turn_heartbeat_on(parent_node_name=heartbeat_column,time_out=2)
-    ct.asm_wait_time(time_delay=5)
-    ct.asm_log_message("should not be reached")
-    ct.asm_terminate()
-    ct.end_column(column_name=heartbeat_column)
+    ct.asm_log_message("changing state to state2")
+    ct.change_state(sm_node_id=state_machine_1,new_state="state2")
+    ct.asm_halt()
+    ct.end_column(column_name=state1_1)
     
-    ct.define_join_link(exception_handler_column)
-    ct.asm_log_message("middle column is terminating ")
-    ct.asm_terminate()
-    ct.end_column(column_name=middle_column)
+    state2_1 = ct.define_state(state_name="state2",column_data=None)
+    ct.asm_log_message("state2")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state3")
+    ct.change_state(state_machine_1,new_state="state3")
+    ct.asm_halt()
+    ct.end_column(column_name=state2_1)
+
+    state3_1 = ct.define_state(state_name="state3",column_data=None)
+    ct.asm_log_message("state3")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state1")
+    ct.change_state(state_machine_1,new_state="state1")
+    ct.asm_halt()
+    ct.end_column(column_name = state3_1)
     
-    error_recovery_column = ct.define_column(column_name="error_recovery_column",auto_start=False)
-    ct.asm_log_message("error recovery column is starting")
-    ct.asm_wait_time(time_delay=3)
-    ct.asm_log_message("error recovery column is terminating ")
-    ct.asm_terminate()
-    ct.end_column(column_name=error_recovery_column)
+    ct.end_state_machine(state_node=state_machine_1,sm_name="state_machine_1")
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_log_message("terminating state machine 1")
+    ct.terminate_state_machine(state_machine_1)
     
-    ct.end_column(column_name= exception_handler_column)
-    ct.define_join_link(exception_handler_column)
-    ct.end_column(column_name= top_exception_handler_column)
-    ct.define_join_link(top_exception_handler_column)
-      
-    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
-                                   link_id=middle_column,
-                                   disable_columns=[middle_column],enable_columns=[error_recovery_column])
-    ct.add_exception_recovery_link(except_node_id=exception_handler_column,
-                                   link_id=error_recovery_column,
-                                   disable_columns=[],enable_columns=[])
+    ct.end_column(column_name=sm_envelope_column_1)
+    ct.define_join_link(sm_envelope_column_1)
     
-    ct.finalize_exception_recovery_links(exception_handler_column)
+    sm_name_2 = "state_machine_2"
     
-   
+    sm_envelope_column_2 = ct.define_sm_envelope(column_name="sm_envelope_column_1",auto_start=True)
     
-   
+    state_machine_2 = ct.define_state_machine(column_name="state_machine_2",sm_name=sm_name_2,state_names=["state1","state2","state3"],
+                                            initial_state="state3",auto_start=True,aux_function_name="CFL_SM_EVENT_SYNC")
     
-    ct.define_join_link(exception_handler_column)
-    ct.asm_log_message("launch column is terminating ")
+    state1_2 = ct.define_state(state_name="state1",column_data=None)
+    ct.asm_log_message("state1")
+    ct.asm_event_logger("displaying state 1 events",["TEST_EVENT_1","TEST_EVENT_2","TEST_EVENT_3"])
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state2")
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_1",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_2",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_3",event_data={})
+    ct.change_state(sm_node_id=state_machine_2,new_state="state2",sync_event_id="SYNC_EVENT")
+    ct.asm_halt()
+    ct.end_column(column_name=state1_2)
+    
+    state2_2 = ct.define_state(state_name="state2",column_data=None)
+    ct.asm_log_message("state2")
+    ct.asm_event_logger("displaying state 2 events",["TEST_EVENT_1","TEST_EVENT_2","TEST_EVENT_3"])
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state3")
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_1",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_2",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_3",event_data={})
+    ct.change_state(state_machine_2,new_state="state3")
+    ct.asm_halt()
+    ct.end_column(column_name=state2_2)
+
+    state3_2 = ct.define_state(state_name="state3",column_data=None)
+    ct.asm_log_message("state3")
+    ct.asm_event_logger("displaying state 3 events",["TEST_EVENT_1","TEST_EVENT_2","TEST_EVENT_3"])
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state1")
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_1",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_2",event_data={})
+    ct.asm_send_named_event(node_id=state_machine_2,event_id="TEST_EVENT_3",event_data={})
+    ct.change_state(state_machine_2,new_state="state1",sync_event_id="SYNC_EVENT")
+    ct.asm_halt()
+    ct.end_column(column_name = state3_2)
+    
+    ct.end_state_machine(state_node=state_machine_2,sm_name="state_machine_2")
+    ct.end_column(column_name=sm_envelope_column_2)
+    ct.define_join_link(sm_envelope_column_2)
+    ct.asm_log_message("launch column is terminating")
     ct.asm_terminate()
     ct.end_column(column_name=launch_column)
-    ct.finalize_and_check()  
-'''
+    return launch_column
+    
+    
+    
+       
+def ninteenth_test(ct,kb_name): # state machine
+    ct.start_test(test_name=kb_name)
+    launch_column = inner_state_machine(ct,"inner_state_machine")
+    ct.end_test()
+
 
 
 def add_header(yaml_file):
@@ -1262,7 +1277,7 @@ def add_header(yaml_file):
 
 if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
-                 "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test"]
+                 "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test","ninteenth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -1279,7 +1294,8 @@ if __name__ == "__main__":
                  "thirteenth_test": thirteenth_test,
                  "fourteenth_test": fourteenth_test,
                  "seventeenth_test": seventeenth_test,
-                 "eighteenth_test": eighteenth_test}
+                 "eighteenth_test": eighteenth_test,
+                 "ninteenth_test": ninteenth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

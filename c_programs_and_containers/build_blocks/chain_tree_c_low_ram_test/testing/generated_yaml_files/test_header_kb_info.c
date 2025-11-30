@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_50h2mlcx_kb_table[15] = {
+const chaintree_kb_info_t ct_lg1jtcli_kb_table[16] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -107,5 +107,12 @@ const chaintree_kb_info_t ct_50h2mlcx_kb_table[15] = {
         .start_index = 658,
         .node_count = 187,
         .max_depth = 6
+    },
+    {
+        .kb_name = "ninteenth_test",
+        .root_node_index = 845,
+        .start_index = 845,
+        .node_count = 63,
+        .max_depth = 5
     },
 };
