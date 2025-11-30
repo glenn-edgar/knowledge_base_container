@@ -61,6 +61,7 @@ extern void cfl_for_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_for_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_gate_node_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_heartbeat_event_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_term_one_shot_fn(void *handle, unsigned node_index);
@@ -86,6 +87,8 @@ extern void cfl_state_machine_term_one_shot_fn(void *handle, unsigned node_index
 extern void cfl_supervisor_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_supervisor_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_terminate_state_machine_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_turn_heartbeat_off_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_turn_heartbeat_on_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_verify_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_wait_init_one_shot_fn(void *handle, unsigned node_index);
@@ -117,7 +120,7 @@ extern bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsig
 extern bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_6dh5beh1_main_functions[] = {
+const main_function_t ct_50h2mlcx_main_functions[] = {
     cfl_null_main_fn,
     cfl_column_main_main_fn,
     cfl_df_mask_main_main_fn,
@@ -147,7 +150,7 @@ const main_function_t ct_6dh5beh1_main_functions[] = {
     cfl_while_main_main_fn,
 };
 
-const one_shot_function_t ct_6dh5beh1_one_shot_functions[] = {
+const one_shot_function_t ct_50h2mlcx_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     cfl_catch_all_exception_init_one_shot_fn,
@@ -172,6 +175,7 @@ const one_shot_function_t ct_6dh5beh1_one_shot_functions[] = {
     cfl_for_term_one_shot_fn,
     cfl_gate_node_init_one_shot_fn,
     cfl_gate_node_term_one_shot_fn,
+    cfl_heartbeat_event_one_shot_fn,
     cfl_join_init_one_shot_fn,
     cfl_join_sequence_element_init_one_shot_fn,
     cfl_join_sequence_element_term_one_shot_fn,
@@ -197,6 +201,8 @@ const one_shot_function_t ct_6dh5beh1_one_shot_functions[] = {
     cfl_supervisor_init_one_shot_fn,
     cfl_supervisor_term_one_shot_fn,
     cfl_terminate_state_machine_one_shot_fn,
+    cfl_turn_heartbeat_off_one_shot_fn,
+    cfl_turn_heartbeat_on_one_shot_fn,
     cfl_verify_init_one_shot_fn,
     cfl_verify_term_one_shot_fn,
     cfl_wait_init_one_shot_fn,
@@ -216,7 +222,7 @@ const one_shot_function_t ct_6dh5beh1_one_shot_functions[] = {
     exception_logging_one_shot_fn,
 };
 
-const boolean_function_t ct_6dh5beh1_boolean_functions[] = {
+const boolean_function_t ct_50h2mlcx_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -232,37 +238,37 @@ const boolean_function_t ct_6dh5beh1_boolean_functions[] = {
 };
 
 /* Main function usage count */
-const uint16_t ct_6dh5beh1_main_function_usage_count[27] = {
+const uint16_t ct_50h2mlcx_main_function_usage_count[27] = {
     0,  /* CFL_NULL */
-    89,  /* CFL_COLUMN_MAIN */
+    119,  /* CFL_COLUMN_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    274,  /* CFL_DISABLE */
+    369,  /* CFL_DISABLE */
     20,  /* CFL_EVENT_LOGGER */
-    1,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
-    4,  /* CFL_EXCEPTION_CATCH_MAIN */
+    2,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
+    7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    14,  /* CFL_GATE_NODE_MAIN */
+    15,  /* CFL_GATE_NODE_MAIN */
     14,  /* CFL_HALT */
     16,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
-    4,  /* CFL_RECOVERY_MAIN */
+    7,  /* CFL_RECOVERY_MAIN */
     13,  /* CFL_RESET */
     1,  /* CFL_SEQUENCE_FAIL_MAIN */
     1,  /* CFL_SEQUENCE_PASS_MAIN */
     2,  /* CFL_SEQUENCE_START_MAIN */
     2,  /* CFL_STATE_MACHINE_MAIN */
     4,  /* CFL_SUPERVISOR_MAIN */
-    63,  /* CFL_TERMINATE */
+    96,  /* CFL_TERMINATE */
     7,  /* CFL_TERMINATE_SYSTEM */
     2,  /* CFL_VERIFY */
     2,  /* CFL_WAIT */
-    97,  /* CFL_WAIT_TIME */
+    137,  /* CFL_WAIT_TIME */
     1,  /* CFL_WATCH_DOG_MAIN */
     1,  /* CFL_WHILE_MAIN */
 };
 
-const char *ct_6dh5beh1_main_function_names[27] = {
+const char *ct_50h2mlcx_main_function_names[27] = {
     "CFL_NULL",
     "CFL_COLUMN_MAIN",
     "CFL_DF_MASK_MAIN",
@@ -292,7 +298,7 @@ const char *ct_6dh5beh1_main_function_names[27] = {
     "CFL_WHILE_MAIN",
 };
 
-const char *ct_6dh5beh1_one_shot_function_names[66] = {
+const char *ct_50h2mlcx_one_shot_function_names[69] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "CFL_CATCH_ALL_EXCEPTION_INIT",
@@ -317,6 +323,7 @@ const char *ct_6dh5beh1_one_shot_function_names[66] = {
     "CFL_FOR_TERM",
     "CFL_GATE_NODE_INIT",
     "CFL_GATE_NODE_TERM",
+    "CFL_HEARTBEAT_EVENT",
     "CFL_JOIN_INIT",
     "CFL_JOIN_SEQUENCE_ELEMENT_INIT",
     "CFL_JOIN_SEQUENCE_ELEMENT_TERM",
@@ -342,6 +349,8 @@ const char *ct_6dh5beh1_one_shot_function_names[66] = {
     "CFL_SUPERVISOR_INIT",
     "CFL_SUPERVISOR_TERM",
     "CFL_TERMINATE_STATE_MACHINE",
+    "CFL_TURN_HEARTBEAT_OFF",
+    "CFL_TURN_HEARTBEAT_ON",
     "CFL_VERIFY_INIT",
     "CFL_VERIFY_TERM",
     "CFL_WAIT_INIT",
@@ -361,7 +370,7 @@ const char *ct_6dh5beh1_one_shot_function_names[66] = {
     "EXCEPTION_LOGGING",
 };
 
-const char *ct_6dh5beh1_boolean_function_names[12] = {
+const char *ct_50h2mlcx_boolean_function_names[12] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",

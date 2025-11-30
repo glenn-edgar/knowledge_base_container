@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CT_6DH5BEH1_EVENT_STRING_COUNT 27
+#define CT_50H2MLCX_EVENT_STRING_COUNT 27
 
 /* Event indices */
 typedef enum {
@@ -41,6 +41,6 @@ typedef enum {
 } event_index_t;
 
 /* Event name array for debugging/lookup */
-extern const char *ct_6dh5beh1_event_strings[27];
+extern const char *ct_50h2mlcx_event_strings[27];
 
 #endif /* TEST_HEADER_EVENTS_H */

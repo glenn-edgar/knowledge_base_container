@@ -67,14 +67,7 @@ void initialize_sequence_one_shot_fn(void *handle, unsigned node_index){
     (void)handle;
     (void)node_index;
     
-     #if 0
-    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
-
-    json_decoder_init_from_runtime(runtime, node_index);
-    json_print_node_data_runtime(runtime, node_index);
-    printf("initialize_sequence_one_shot_fn\n");
-    exit(0);
-    #endif
+   
 }
 
 void display_sequence_till_result_one_shot_fn(void *handle, unsigned node_index){
@@ -147,13 +140,25 @@ void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index){
 
 void exception_logging_one_shot_fn(void *handle, unsigned node_index){
 
-    const char *message;
+    
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     cfl_exception_support_data_t *ptr = (cfl_exception_support_data_t *)cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
-    json_decoder_init_from_runtime(runtime, node_index);
-    json_extract_string_runtime(runtime, "node_dict.column_data.logging_function_data.logging_function_data", &message);
-    printf("exception_logging_one_shot_fn message: %s\n", message);
+    if (ptr == NULL) {
+        EXCEPTION("exception_logging_one_shot_fn: ptr is NULL");
+    }
+    
+    if (ptr->logging_data == NULL) {
+        ptr->logging_data = (void *)cfl_additional_arena_alloc(runtime, node_index, sizeof(void *));
+       json_decoder_init_from_runtime(runtime, node_index);
+       json_extract_string_runtime(runtime, "node_dict.column_data.logging_function_data.logging_function_data", (const char **)&ptr->logging_data);
+    }
+    
+    
+    printf("*********** exception_logging_one_shot_fn ***********\n");
     printf("original_node_id: %d\n", ptr->original_node_id);
+    printf("logging_data: %s\n", (const char *)ptr->logging_data);
+    printf("exception_type: %d\n", ptr->exception_type);   
+    printf("*********** exception_logging_one_shot_fn ***********\n");
     
 }
 

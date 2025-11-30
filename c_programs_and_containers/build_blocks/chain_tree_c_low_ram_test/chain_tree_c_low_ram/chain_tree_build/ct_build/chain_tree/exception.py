@@ -200,10 +200,8 @@ class ExceptionHandler():
     def asm_turn_heartbeat_off(self):
         return self.asm_one_shot_handler("CFL_TURN_HEARTBEAT_OFF",{})
     
-    def asm_heartbeat_event(self,parent_node_name:str):
-
-        node_id = self.ctb.get_node_index(parent_node_name)
-        return self.asm_one_shot_handler("CFL_HEARTBEAT_EVENT")
+    def asm_heartbeat_event(self):
+        return self.asm_one_shot_handler("CFL_HEARTBEAT_EVENT",{})
     
     def asm_raise_exception(self,exception_id:int,exception_data:dict={}):
     

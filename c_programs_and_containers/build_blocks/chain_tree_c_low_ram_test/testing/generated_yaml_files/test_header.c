@@ -4,49 +4,49 @@
 
 /* Const handle instance in flash memory */
 const chaintree_handle_t g_test_header = {
-    .unique_id = "ct_6dh5beh1",
+    .unique_id = "ct_50h2mlcx",
     
     /* Node data */
-    .nodes = ct_6dh5beh1_nodes,
-    .node_count = 653,
+    .nodes = ct_50h2mlcx_nodes,
+    .node_count = 860,
     
     /* Function arrays */
-    .main_functions = ct_6dh5beh1_main_functions,
+    .main_functions = ct_50h2mlcx_main_functions,
     .main_function_count = 27,
-    .one_shot_functions = ct_6dh5beh1_one_shot_functions,
-    .one_shot_function_count = 66,
-    .boolean_functions = ct_6dh5beh1_boolean_functions,
+    .one_shot_functions = ct_50h2mlcx_one_shot_functions,
+    .one_shot_function_count = 69,
+    .boolean_functions = ct_50h2mlcx_boolean_functions,
     .boolean_function_count = 12,
     
     /* Function names */
-    .main_function_names = ct_6dh5beh1_main_function_names,
-    .one_shot_function_names = ct_6dh5beh1_one_shot_function_names,
-    .boolean_function_names = ct_6dh5beh1_boolean_function_names,
+    .main_function_names = ct_50h2mlcx_main_function_names,
+    .one_shot_function_names = ct_50h2mlcx_one_shot_function_names,
+    .boolean_function_names = ct_50h2mlcx_boolean_function_names,
     
     /* Main function usage counts */
-    .main_function_usage_count = ct_6dh5beh1_main_function_usage_count,
+    .main_function_usage_count = ct_50h2mlcx_main_function_usage_count,
     
     /* Link table */
-    .link_table = ct_6dh5beh1_link_table,
-    .link_table_size = 625,
+    .link_table = ct_50h2mlcx_link_table,
+    .link_table_size = 830,
     
     /* Event strings */
-    .event_strings = (const char **)ct_6dh5beh1_event_strings,
+    .event_strings = (const char **)ct_50h2mlcx_event_strings,
     .event_count = 27,
     
     /* Bitmask names */
-    .bitmask_names = (const char **)ct_6dh5beh1_bitmask_names,
+    .bitmask_names = (const char **)ct_50h2mlcx_bitmask_names,
     .bitmask_count = 3,
     
     /* Knowledge base info */
-    .kb_table = ct_6dh5beh1_kb_table,
-    .kb_count = 14,
+    .kb_table = ct_50h2mlcx_kb_table,
+    .kb_count = 15,
     
     /* Node data (JSON records) */
-    .node_data_records = ct_6dh5beh1_node_data_records,
-    .node_data_records_count = 2725,
-    .node_data_strings = ct_6dh5beh1_node_data_strings,
-    .node_data_strings_size = 4041,
-    .node_data_controls = ct_6dh5beh1_node_data_controls,
-    .node_data_controls_count = 450
+    .node_data_records = ct_50h2mlcx_node_data_records,
+    .node_data_records_count = 3500,
+    .node_data_strings = ct_50h2mlcx_node_data_strings,
+    .node_data_strings_size = 4267,
+    .node_data_controls = ct_50h2mlcx_node_data_controls,
+    .node_data_controls_count = 586
 };

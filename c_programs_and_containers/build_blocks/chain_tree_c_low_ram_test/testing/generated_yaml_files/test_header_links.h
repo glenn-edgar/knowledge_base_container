@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_6DH5BEH1_LINK_TABLE_SIZE 625
+#define CT_50H2MLCX_LINK_TABLE_SIZE 830
 
-extern const uint16_t ct_6dh5beh1_link_table[CT_6DH5BEH1_LINK_TABLE_SIZE];
+extern const uint16_t ct_50h2mlcx_link_table[CT_50H2MLCX_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */
