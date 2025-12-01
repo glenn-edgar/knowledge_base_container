@@ -2,13 +2,114 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "cfl_runtime.h"
 #include "cfl_exception.h"
 #include "cfl_engine.h"
 #include "cfl_common_functions.h"
-#include "cfl_common_function_header.h"
-
+#include "cfl_common_function_headers.h"
+#include "json_node_decoder.h"
 #include "cfl_sm_functions.h"
+
+
+/* Extract node_id, new_state, and sync_event_id (which can be null or integer) */
+static void json_extract_new_state_data(
+    cfl_runtime_handle_t *runtime,
+    uint16_t node_index,
+    int32_t *out_node_id,
+    const char **out_new_state,
+    bool *out_sync_flag,
+    int32_t *out_sync_event_id)
+{
+    if (!runtime || !out_node_id || !out_new_state || !out_sync_flag || !out_sync_event_id) {
+        EXCEPTION("json_extract_node_transition_data: NULL parameter");
+    }
+    
+    json_decoder_init_from_runtime(runtime, node_index);
+    
+    const  json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    uint32_t root_record = region->start_position;
+    
+    // Navigate to node_dict
+    uint32_t node_dict_record;
+    json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
+    
+    // Extract node_id
+    json_extract_int32(ctx, node_dict_record, "node_id", out_node_id);
+    
+    // Extract new_state (pointer to string table)
+    json_extract_string(ctx, node_dict_record, "new_state", out_new_state);
+    
+    // Extract sync_event_id - check if it's null or integer
+    uint32_t sync_event_id_record;
+    json_find_object_child(ctx, node_dict_record, "sync_event_id", &sync_event_id_record);
+    
+    if (json_is_null(ctx, sync_event_id_record)) {
+        *out_sync_flag = false;
+        *out_sync_event_id = 0;  // Default value when null
+        
+    } else {
+        *out_sync_flag = true;
+        json_get_int32(ctx, sync_event_id_record, out_sync_event_id);
+        
+    }
+}
+
+/*******************   public api functions ******************************************************************************** */
+
+
+void cfl_terminate_state_machine(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id){
+    (void)node_index;
+    
+    /* Validate sm_node_id */
+    if (sm_node_id < 0 || (unsigned)sm_node_id >= handle->flash_handle->node_count) {
+        EXCEPTION("cfl_terminate_state_machine: sm_node_id out of bounds");
+        return;
+    }
+    
+    const chaintree_node_t *node = &handle->flash_handle->nodes[sm_node_id];
+   //CFL_FUNCTION_ID_STATE_MACHINE
+    if (node->main_function_index != handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_STATE_MACHINE] ){
+        EXCEPTION("cfl_change_state: Node is not a state machine");
+        return;
+    }
+   
+    
+    cfl_terminate_node_tree(handle, sm_node_id);
+
+}
+
+void cfl_reset_state_machine(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id){
+    (void)node_index;
+    
+    /* Validate sm_node_id */
+    if (sm_node_id < 0 || (unsigned)sm_node_id >= handle->flash_handle->node_count) {
+        EXCEPTION("cfl_terminate_state_machine: sm_node_id out of bounds");
+        return;
+    }
+    
+    const chaintree_node_t *node = &handle->flash_handle->nodes[sm_node_id];
+   //CFL_FUNCTION_ID_STATE_MACHINE
+    if (node->main_function_index != handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_STATE_MACHINE] ){
+        EXCEPTION("cfl_change_state: Node is not a state machine");
+        return;
+    }
+   
+    
+    cfl_terminate_node_tree(handle, sm_node_id);
+    cfl_enable_node(handle, sm_node_id);
+}
+
+void cfl_reset_state_machine_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t sm_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.sm_node_id", &sm_node_id);
+
+    cfl_reset_state_machine(runtime_handle, node_index, sm_node_id);
+}
 
 void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id, const char *new_state, bool sync_flag, int32_t sync_event_id){
     (void)node_index;
@@ -75,31 +176,41 @@ void cfl_change_state(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t
     }
 }
 
-oid cfl_terminate_state_machine(cfl_runtime_handle_t *handle, uint16_t node_index, int32_t sm_node_id){
-    (void)node_index;
+/*******************   one shot functions ******************************************************************************** */
+void cfl_change_state_one_shot_fn(void *handle, uint16_t node_index){
     
-    /* Validate sm_node_id */
-    if (sm_node_id < 0 || (unsigned)sm_node_id >= handle->flash_handle->node_count) {
-        EXCEPTION("cfl_terminate_state_machine: sm_node_id out of bounds");
-        return;
-    }
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    int32_t sm_node_id;
+    const char *new_state;
+    bool sync_flag;
+    int32_t sync_event_id;
     
-    const chaintree_node_t *node = &handle->flash_handle->nodes[sm_node_id];
-   
-    if (node->main_function_index != ct_get_main_function_index(handle->flash_handle, "CFL_STATE_MACHINE_MAIN")){
-        EXCEPTION("cfl_terminate_state_machine: Node is not a state machine");
-        return;
-    }
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    json_extract_new_state_data(runtime_handle, node_index, &sm_node_id, &new_state, &sync_flag, &sync_event_id);
     
-    cfl_terminate_node_tree(handle, sm_node_id);
-
+    cfl_change_state(runtime_handle, node_index, sm_node_id, new_state, sync_flag, sync_event_id);
 }
 
 
 
-unsigned cfl_sm_envelope_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
-    cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
+
+
+
+
+void cfl_terminate_state_machine_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    int32_t sm_node_id;
+    json_extract_int32_runtime(runtime_handle, "node_dict.sm_node_id", &sm_node_id);
+
+    cfl_terminate_state_machine(runtime_handle, node_index, sm_node_id);
+
+
 }
+
+
+/****************************************************   state machine functions ******************************************************************************** */
 
 unsigned cfl_state_machine_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     
@@ -196,6 +307,110 @@ unsigned cfl_state_machine_main_main_fn(void *handle, unsigned bool_function_ind
     return CFL_DISABLE;
 }
 
+void cfl_state_machine_init_one_shot_fn(void *handle, uint16_t node_index){
+    uint32_t node_count;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    
+    /* Validate node_index */
+    if (node_index >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: node_index out of bounds");
+        return;
+    }
+    
+    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
+    node_count = node->link_count & LINK_COUNT_MASK;
+    
+    /* Validate link_start and node_count */
+    if (node_count > 0) {
+        if (node->link_start >= runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link_start out of bounds");
+            return;
+        }
+        if (node->link_start + node_count > runtime_handle->flash_handle->link_table_size) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link range exceeds table size");
+            return;
+        }
+    }
+    bool allocator_state = cfl_allocate_state(runtime_handle, node_index);
+    cfl_state_machine_column_data_t *ptr = cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_state_machine_column_data_t));
+    
+    ptr->sync_event_id_valid = false;
+    ptr->sync_event_id = 0;
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    
+    const  json_decoder_ctx_t *ctx = runtime_handle->json_decoder_ctx;
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    uint32_t root_record = region->start_position;
+    
+    // Extract initial_state_number
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.initial_state_number", &ptr->current_state);
+    ptr->new_state = ptr->current_state;
+    
+    /* Validate initial_state_number */
+    if (ptr->current_state < 0 || (unsigned)ptr->current_state >= node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: initial_state_number out of range");
+        return;
+    }
+    
+    /* Check for overflow in state_names allocation */
+    size_t alloc_size = node_count * sizeof(const char *);
+    if (alloc_size > 65535) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: state_names allocation size exceeds uint16_t limit");
+        return;
+    }
+    if(allocator_state == false){
+        ptr->state_names = (const char **)cfl_additional_arena_alloc(runtime_handle, node_index, (uint16_t)alloc_size);
+        if(ptr->state_names == NULL){
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: failed to allocate state_names");
+            return;
+        }
+    }
+    
+
+    
+    // Navigate to node_dict.column_data
+    uint32_t node_dict_record;
+    json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
+    
+    uint32_t column_data_record;
+    json_find_object_child(ctx, node_dict_record, "column_data", &column_data_record);
+    
+    // Navigate to state_names array
+    uint32_t state_names_array;
+    json_find_object_child(ctx, column_data_record, "state_names", &state_names_array);
+    
+    // Extract each state name pointer from the string table
+    for (uint32_t i = 0; i < node_count; i++) {
+        uint32_t element_record;
+        json_get_array_child(ctx, state_names_array, i, &element_record);
+        json_get_string_value(ctx, element_record, &ptr->state_names[i]);
+    }
+    
+    const uint16_t *link_table = runtime_handle->flash_handle->link_table;
+    
+    // Terminate all state nodes first
+    for (uint32_t i = 0; i < node_count; i++) {
+        uint16_t link_id = link_table[node->link_start + i];
+        
+        /* Validate link_id */
+        if (link_id >= runtime_handle->flash_handle->node_count) {
+            EXCEPTION("cfl_state_machine_init_one_shot_fn: link_id out of bounds");
+            continue;
+        }
+        
+        cfl_terminate_node_tree(runtime_handle, link_id);
+    }
+    
+    /* Validate link_id for initial state before enabling */
+    uint16_t initial_link_id = link_table[node->link_start + ptr->current_state];
+    if (initial_link_id >= runtime_handle->flash_handle->node_count) {
+        EXCEPTION("cfl_state_machine_init_one_shot_fn: initial state link_id out of bounds");
+        return;
+    }
+    
+    cfl_enable_node(runtime_handle, initial_link_id);
+}
 
 void cfl_state_machine_term_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
@@ -240,14 +455,3 @@ void cfl_state_machine_term_one_shot_fn(void *handle, uint16_t node_index){
     }    
 }
 
-void cfl_terminate_state_machine_one_shot_fn(void *handle, uint16_t node_index){
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    json_decoder_init_from_runtime(runtime_handle, node_index);
-    
-    int32_t sm_node_id;
-    json_extract_int32_runtime(runtime_handle, "node_dict.sm_node_id", &sm_node_id);
-
-    cfl_terminate_state_machine(runtime_handle, node_index, sm_node_id);
-
-
-}

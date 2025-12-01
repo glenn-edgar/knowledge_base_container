@@ -20,25 +20,8 @@ class StateMachine(ColumnFlow):
         if len(self.sm_stack) != 0:
             
             raise ValueError(f"State machines have not been closed: {self.sm_stack.keys()}")
-    
-    def define_sm_envelope(self,column_name:str,aux_function_name:str="CFL_NULL", aux_function_data:dict={},
-                           auto_start:bool=False,label:str="SM_ENVELOPE"):
-        
-        if not isinstance(column_name, str):
-            raise TypeError("Column name must be a string")
-        if not isinstance(aux_function_name, str):
-            raise TypeError("Aux function name must be a string")
-        if not isinstance(aux_function_data, dict):
-            raise TypeError("Aux function data must be a dictionary")
-        if not isinstance(auto_start, bool):
-            raise TypeError("Auto start must be a boolean")
-        if not isinstance(label, str):
-            raise TypeError("Label must be a string")
-        column_node = self.define_column(column_name,  main_function ="CFL_SM_ENVELOPE_MAIN", 
-                      aux_function =aux_function_name,column_data=aux_function_data,
-                      auto_start=auto_start,label=label)
-        return column_node
-    
+
+  
     def define_state_machine(self,column_name:str,sm_name:str,state_names:list[str],initial_state:str,auto_start:bool,
                              aux_function_name:str="CFL_STATE_MACHINE_NULL"):
         

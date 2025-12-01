@@ -151,6 +151,26 @@ class BasicCfLinks(ColumnFlow):
                             node_data=wd_data)
         return node_id
     
+    def asm_node_element(self,main_function :str,
+                         initialization_function :str = "CFL_NULL",aux_function :str = "CFL_NULL",termination_function :str = "CFL_NULL",
+                         node_data :dict = {}):
+        if not isinstance(main_function, str):
+            raise TypeError("Main function must be a string")
+        if not isinstance(initialization_function, str):
+            raise TypeError("Initialization function must be a string")
+        if not isinstance(aux_function, str):
+            raise TypeError("Aux function must be a string")
+        if not isinstance(termination_function, str):
+            raise TypeError("Termination function must be a string")
+        if not isinstance(node_data, dict):
+            raise TypeError("Node data must be a dictionary")
+        if node_data == None:
+            node_data = {}
+        return self.define_column_link(main_function_name=main_function,
+                            initialization_function_name=initialization_function,
+                            aux_function_name=aux_function,termination_function_name=termination_function,
+                            node_data=node_data)
+        
     def asm_enable_watch_dog(self,node_id :str):
         if not isinstance(node_id, str):
             raise TypeError("Node id must be a string")

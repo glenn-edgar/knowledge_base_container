@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_LG1JTCLI_KB_COUNT 16
+#define CT_GRGA8SYZ_KB_COUNT 16
 
-extern const chaintree_kb_info_t ct_lg1jtcli_kb_table[16];
+extern const chaintree_kb_info_t ct_grga8syz_kb_table[16];
 
 #endif /* TEST_HEADER_KB_INFO_H */

@@ -7,7 +7,7 @@
 #include "json_node_decoder.h"
 #include "cfl_common_functions.h"
 #include "cfl_common_function_headers.h"
-
+#include "user_function_headers.h"
 
 void activate_valve_one_shot_fn(void *handle, unsigned node_index){
     
@@ -159,6 +159,21 @@ void exception_logging_one_shot_fn(void *handle, unsigned node_index){
     printf("logging_data: %s\n", (const char *)ptr->logging_data);
     printf("exception_type: %d\n", ptr->exception_type);   
     printf("*********** exception_logging_one_shot_fn ***********\n");
+    
+}
+
+
+void sm_event_filtering_init_one_shot_fn(void *handle, unsigned node_index){
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    sm_event_filtering_init_fn_data_t *ptr = (sm_event_filtering_init_fn_data_t *)cfl_smart_arena_alloc(runtime, node_index, 
+              sizeof(sm_event_filtering_init_fn_data_t));
+    if (ptr == NULL) {
+        EXCEPTION("sm_event_filtering_init_one_shot_fn: ptr is NULL");
+    }
+    ptr->event_id = ct_get_event_index(runtime->flash_handle, "TEST_EVENT_1");
+    if (ptr->event_id == -1) {
+        EXCEPTION("sm_event_filtering_init_one_shot_fn: event_id not found");
+    }
     
 }
 

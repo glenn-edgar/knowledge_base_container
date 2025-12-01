@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_LG1JTCLI_LINK_TABLE_SIZE 892
+#define CT_GRGA8SYZ_LINK_TABLE_SIZE 871
 
-extern const uint16_t ct_lg1jtcli_link_table[CT_LG1JTCLI_LINK_TABLE_SIZE];
+extern const uint16_t ct_grga8syz_link_table[CT_GRGA8SYZ_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

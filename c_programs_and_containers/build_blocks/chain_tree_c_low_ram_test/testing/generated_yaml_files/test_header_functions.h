@@ -27,16 +27,16 @@ typedef enum {
     MAIN_FUNC_CFL_SEQUENCE_FAIL_MAIN = 15,
     MAIN_FUNC_CFL_SEQUENCE_PASS_MAIN = 16,
     MAIN_FUNC_CFL_SEQUENCE_START_MAIN = 17,
-    MAIN_FUNC_CFL_SM_ENVELOPE_MAIN = 18,
-    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 19,
-    MAIN_FUNC_CFL_SUPERVISOR_MAIN = 20,
-    MAIN_FUNC_CFL_TERMINATE = 21,
-    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 22,
-    MAIN_FUNC_CFL_VERIFY = 23,
-    MAIN_FUNC_CFL_WAIT = 24,
-    MAIN_FUNC_CFL_WAIT_TIME = 25,
-    MAIN_FUNC_CFL_WATCH_DOG_MAIN = 26,
-    MAIN_FUNC_CFL_WHILE_MAIN = 27,
+    MAIN_FUNC_CFL_STATE_MACHINE_MAIN = 18,
+    MAIN_FUNC_CFL_SUPERVISOR_MAIN = 19,
+    MAIN_FUNC_CFL_TERMINATE = 20,
+    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 21,
+    MAIN_FUNC_CFL_VERIFY = 22,
+    MAIN_FUNC_CFL_WAIT = 23,
+    MAIN_FUNC_CFL_WAIT_TIME = 24,
+    MAIN_FUNC_CFL_WATCH_DOG_MAIN = 25,
+    MAIN_FUNC_CFL_WHILE_MAIN = 26,
+    MAIN_FUNC_SM_EVENT_FILTERING_MAIN = 27,
     MAIN_FUNC_COUNT = 28
 } MAIN_FUNC_t;
 
@@ -103,15 +103,16 @@ typedef enum {
     ONE_SHOT_FUNC_CFL_WATCH_DOG_TERM = 58,
     ONE_SHOT_FUNC_CFL_WHILE_INIT = 59,
     ONE_SHOT_FUNC_CFL_WHILE_TERM = 60,
-    ONE_SHOT_FUNC_WAIT_FOR_EVENT_ERROR = 61,
-    ONE_SHOT_FUNC_VERIFY_ERROR = 62,
-    ONE_SHOT_FUNC_INITIALIZE_SEQUENCE = 63,
-    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_RESULT = 64,
-    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_TILL_RESULT = 65,
-    ONE_SHOT_FUNC_DISPLAY_FAILURE_WINDOW_RESULT = 66,
-    ONE_SHOT_FUNC_WATCH_DOG_TIME_OUT = 67,
-    ONE_SHOT_FUNC_EXCEPTION_LOGGING = 68,
-    ONE_SHOT_FUNC_COUNT = 69
+    ONE_SHOT_FUNC_SM_EVENT_FILTERING_INIT = 61,
+    ONE_SHOT_FUNC_WAIT_FOR_EVENT_ERROR = 62,
+    ONE_SHOT_FUNC_VERIFY_ERROR = 63,
+    ONE_SHOT_FUNC_INITIALIZE_SEQUENCE = 64,
+    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_RESULT = 65,
+    ONE_SHOT_FUNC_DISPLAY_SEQUENCE_TILL_RESULT = 66,
+    ONE_SHOT_FUNC_DISPLAY_FAILURE_WINDOW_RESULT = 67,
+    ONE_SHOT_FUNC_WATCH_DOG_TIME_OUT = 68,
+    ONE_SHOT_FUNC_EXCEPTION_LOGGING = 69,
+    ONE_SHOT_FUNC_COUNT = 70
 } ONE_SHOT_FUNC_t;
 
 /* Boolean function enum */
@@ -132,16 +133,16 @@ typedef enum {
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_lg1jtcli_main_functions[28];
-extern const one_shot_function_t ct_lg1jtcli_one_shot_functions[69];
-extern const boolean_function_t ct_lg1jtcli_boolean_functions[12];
+extern const main_function_t ct_grga8syz_main_functions[28];
+extern const one_shot_function_t ct_grga8syz_one_shot_functions[70];
+extern const boolean_function_t ct_grga8syz_boolean_functions[12];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_lg1jtcli_main_function_usage_count[28];
+extern const uint16_t ct_grga8syz_main_function_usage_count[28];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_lg1jtcli_main_function_names[28];
-extern const char *ct_lg1jtcli_one_shot_function_names[69];
-extern const char *ct_lg1jtcli_boolean_function_names[12];
+extern const char *ct_grga8syz_main_function_names[28];
+extern const char *ct_grga8syz_one_shot_function_names[70];
+extern const char *ct_grga8syz_boolean_function_names[12];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */
