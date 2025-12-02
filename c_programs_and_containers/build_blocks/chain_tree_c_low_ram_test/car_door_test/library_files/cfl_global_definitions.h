@@ -1,0 +1,10 @@
+#ifndef CFL_GLOBAL_DEFINITIONS_H
+#define CFL_GLOBAL_DEFINITIONS_H
+
+#define CFL_64BIT 1
+#define BLOCK_ALIGNMENT 8
+#define MIN_BLOCK_SIZE 8
+#define ARENA_ALIGNMENT 8
+#define JSON_DEBUG 1
+
+#endif

@@ -12,7 +12,7 @@ class DataFlow(ColumnFlow):
         
         
         
-    def define_data_flow_event_mask(self, column_name:str,  aux_function:str, 
+    def define_data_flow_event_mask(self, column_name:str,  aux_function:str = "CFL_NULL",
                                     user_data:dict = {},
                                     event_list:list[str] = [], auto_start:bool = False):
         

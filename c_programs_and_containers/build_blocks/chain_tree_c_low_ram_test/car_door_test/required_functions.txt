@@ -1,0 +1,81 @@
+bool callibration_current_calibration_forward_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool callibration_current_calibration_reverse_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool callibration_position_timeout_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool close_door_reverse_stop_current_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool close_door_verify_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool open_door_reverse_stop_current_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+bool open_door_verify_boolean_fn(void *handle, unsigned node_index, unsigned event_type,unsigned event_id,void *event_data);
+
+
+
+void assign_motor_bitmask_one_shot_fn(void *handle, unsigned node_index);
+
+void battery_voltage_one_shot_fn(void *handle, unsigned node_index);
+
+void chip_initialization_one_shot_fn(void *handle, unsigned node_index);
+
+void current_monitor_init_one_shot_fn(void *handle, unsigned node_index);
+
+void idle_init_one_shot_fn(void *handle, unsigned node_index);
+
+void initialize_motor_bitmask_one_shot_fn(void *handle, unsigned node_index);
+
+void log_final_position_one_shot_fn(void *handle, unsigned node_index);
+
+(void *handle, unsigned node_index);
+
+void reset_position_counter_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_auto_reverse_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_auto_reverse_complete_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_callibration_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_close_door_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_emergency_stop_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_obstruction_detected_one_shot_fn(void *handle, unsigned node_index);
+
+void send_serial_message_open_door_complete_one_shot_fn(void *handle, unsigned node_index);
+
+void serial_init_one_shot_fn(void *handle, unsigned node_index);
+
+void set_calibration_success_fully_one_shot_fn(void *handle, unsigned node_index);
+
+void set_motor_direction_one_shot_fn(void *handle, unsigned node_index);
+
+void /usset_pwm_one_shot_fn(void *handle, unsigned node_index);
+
+void status_monitor_init_one_shot_fn(void *handle, unsigned node_index);
+
+void store_eprom_data_init_one_shot_fn(void *handle, unsigned node_index);
+
+void door_open_too_long_one_shot_fn(void *handle, unsigned node_index);
+
+void door_close_too_long_one_shot_fn(void *handle, unsigned node_index);
+
+void callibration_too_long_one_shot_fn(void *handle, unsigned node_index);
+
+
+
+
+
+unsigned current_monitor_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
+unsigned idle_main_main_fn'unsigned(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ 
+unsigned serial_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
+unsigned status_monitor_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
+unsigned store_eprom_data_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
+
