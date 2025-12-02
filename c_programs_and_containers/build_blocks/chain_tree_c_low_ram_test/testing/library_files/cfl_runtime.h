@@ -26,7 +26,7 @@ extern "C" {
 #define TEST_IS_ACTIVE(handle, kb_idx) \
     (((handle)->active_test_bitmap[(kb_idx)/32] & (1u << ((kb_idx) % 32))) != 0)
 
-typedef struct CFL_RUNTIME_CREATE_PARAMS {
+typedef struct  {
     cfl_perm_t* perm;
     char* perm_buffer;
     uint16_t perm_buffer_size;

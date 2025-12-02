@@ -605,13 +605,14 @@ class HeaderFileGenerator:
             "#define PACK_LINK_COUNT(count, auto_start) \\",
             "    (((count) & LINK_COUNT_MASK) | ((auto_start) ? AUTO_START_BIT : 0))",
             "",
-            "/* ===== Knowledge Base Info ===== */",
+           "/* ===== Knowledge Base Info ===== */",
             "typedef struct {",
             "    const char *kb_name;",
             "    uint16_t root_node_index;",
             "    uint16_t start_index;",
             "    uint16_t node_count;",
             "    uint16_t max_depth;           /* Maximum tree depth in this KB */",
+            "    uint16_t memory_factor;       /* Memory allocation factor for this KB */",
             "} chaintree_kb_info_t;",
             "",
             "/* ===== Node Data Structures ===== */",
@@ -1684,9 +1685,13 @@ class HeaderFileGenerator:
             # Calculate max depth for this KB
             max_depth = 0
             for i in range(start_idx, end_idx):
-                ltree_name = self.node_builder.final_index_to_ltree[i]
-                depth = self.node_builder.get_node_depth(ltree_name)
-                max_depth = max(max_depth, depth)
+                ltree_name = self.node_builder.final_index_to_ltree.get(i)
+                if ltree_name:
+                    depth = self.node_builder.get_node_depth(ltree_name)
+                    max_depth = max(max_depth, depth)
+            
+            # Get memory factor from KB metadata (default 10)
+            memory_factor = self.handle.get_kb_metadata(kb_name, "node_memory_factor", 10)
             
             lines.extend([
                 "    {",
@@ -1694,7 +1699,8 @@ class HeaderFileGenerator:
                 f"        .root_node_index = {root_node_index},",
                 f"        .start_index = {start_idx},",
                 f"        .node_count = {node_count},",
-                f"        .max_depth = {max_depth}",
+                f"        .max_depth = {max_depth},",
+                f"        .memory_factor = {memory_factor}",
                 "    },"
             ])
         
@@ -1707,7 +1713,6 @@ class HeaderFileGenerator:
             f.write("\n".join(lines))
         
         print(f"  Generated: {output_file}")
-
 if __name__ == "__main__":
     yaml_file = Path("chaintree_config.yaml")
     

@@ -99,11 +99,10 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
     
                  
     def start_test(self,test_name:str,
-                  template_function_list=None):  
-        
-    
+                  kb_memory_factor=10):  
         
         self.select_kb(test_name)
+        self.ctb.kb_metadata[test_name] = {"node_memory_factor": kb_memory_factor}
         self.define_root_node(version="1.0.0")            
        
     

@@ -356,6 +356,31 @@
      uint32_t control_idx
  );
  
+ /* Array length extraction */
+void json_extract_array_length(
+    const json_decoder_ctx_t *ctx,
+    uint32_t root_record,
+    const char *path,
+    uint32_t *out_length);
+
+void json_extract_array_length_runtime(
+    const cfl_runtime_handle_t *runtime,
+    const char *path,
+    uint32_t *out_length);
+
+/* Array element extraction */
+void json_extract_array_int32(
+    const json_decoder_ctx_t *ctx,
+    uint32_t root_record,
+    const char *path,
+    uint32_t index,
+    int32_t *out);
+
+void json_extract_array_int32_runtime(
+    const cfl_runtime_handle_t *runtime,
+    const char *path,
+    uint32_t index,
+    int32_t *out);
  /* ============================================================================
   * Debug Functions
   * ============================================================================ */

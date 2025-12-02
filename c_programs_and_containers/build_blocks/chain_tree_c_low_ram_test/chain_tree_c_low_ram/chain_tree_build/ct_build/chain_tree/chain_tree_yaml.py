@@ -43,6 +43,7 @@ class ChainTreeYaml:
         # Knowledge base management
         self.kb_dict: Dict[str, List[str]] = {}
         self.kb_log_dict: Dict[str, List[str]] = {}
+        self.kb_metadata: Dict[str, Dict] = {}
         self.current_kb_name: Optional[str] = None
         
         # Function mappings per knowledge base
@@ -700,7 +701,7 @@ class ChainTreeYaml:
         self.yaml_data["kb_log_dict"] = self.kb_log_dict
         self.yaml_data["ltree_to_index"] = self.ltree_to_index
         self.yaml_data["total_nodes"] = self.node_count
-        
+        self.yaml_data["kb_metadata"] = self.kb_metadata
         if self.kb_dict:
             raise ValueError(f"Knowledge bases still open: {list(self.kb_dict.keys())}")
         

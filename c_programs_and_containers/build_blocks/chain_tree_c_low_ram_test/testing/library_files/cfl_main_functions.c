@@ -88,7 +88,11 @@ unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, uns
     }
     return CFL_DISABLE;
 }
-  
+
+unsigned cfl_local_arena_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);
+}
+
 unsigned cfl_gate_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     
     return cfl_column_main_main_fn(handle, bool_function_index, node_index, event_type, event_id, event_data);

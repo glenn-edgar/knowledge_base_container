@@ -1532,16 +1532,108 @@ def insert_sm_event_filtering(ct):
 def ninteenth_test(ct,kb_name): # state machine
     ct.start_test(test_name=kb_name)
     define_container_column = ct.define_column(column_name="container_column",auto_start=True)
-   #inner_sequential_column = inner_state_sequential_machine(ct)
-    #ct.define_join_link(inner_sequential_column)
-    #inner_parallel_column = inner_state_parallel_machine(ct)
-    #ct.define_join_link(inner_parallel_column)
-    #inner_nested_column = nested_machine(ct)
-    #ct.define_join_link(inner_nested_column)
+    inner_sequential_column = inner_state_sequential_machine(ct)
+    ct.define_join_link(inner_sequential_column)
+    inner_parallel_column = inner_state_parallel_machine(ct)
+    ct.define_join_link(inner_parallel_column)
+    inner_nested_column = nested_machine(ct)
+    ct.define_join_link(inner_nested_column)
     event_filter_column = insert_sm_event_filtering(ct)
     ct.end_column(define_container_column)
     ct.end_test()
 
+
+def twentieth_test(ct,kb_name): # state machine
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_clear_bitmask(["a","b","c"])
+    bitmask_column = ct.define_column(column_name="bitmask_column",auto_start=True)
+    ct.asm_log_message("waiting for bitmask")
+    ct.asm_wait_for_bitmask(["a","b","c"],reset_flag=False,timeout=10,error_fn="WHILE_BITMASK_FAILURE",error_data={})
+    ct.asm_log_message("bitmask received")
+    ct.asm_verify_bitmask(["a","b","c"],reset_flag=False,error_fn="VERIFY_BITMASK_FAILURE",error_data={})
+    ct.asm_log_message("bitmask verified")
+    ct.asm_halt()
+    ct.end_column(column_name=bitmask_column)
+    ct.asm_log_message("setting bitmask")
+    ct.asm_set_bitmask(["a","b","c"])
+    ct.asm_log_message("bitmask set")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("clearing bitmask")
+    ct.asm_clear_bitmask(["a","b","c"])
+    ct.define_join_link(bitmask_column)
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
+    
+def twenty_first_test(ct,kb_name):
+    ct.start_test(test_name=kb_name,kb_memory_factor=40)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column_started")
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_start_stop_tests(stop_tests=[], start_tests = [3])
+    ct.asm_log_message("test 0 started")
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_start_stop_tests(stop_tests=[3], start_tests = [1])
+    ct.asm_log_message("test 1 started")
+    ct.asm_wait_for_tests_complete(test_ids = [1], reset_flag = False,timeout=30,
+                           error_fn = "WAIT_FOR_TEST_COMPLETE_ERROR",time_out_event ="CF_TIMER_EVENT",error_data = {})
+    ct.asm_log_message("test 1 completed")
+    ct.asm_start_stop_tests(stop_tests=[1], start_tests = [2])
+    ct.asm_verify_tests_active(test_ids = [2], reset_flag = False,
+                           error_fn = "VERIFY_TESTS_ACTIVE_ERROR",error_data = {})
+    ct.asm_halt()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
+    
+def twenty_second_test(ct,kb_name): # state machine
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column", column_data=None,auto_start=True)
+    ct.asm_log_message("launch column")
+    ct.asm_log_message("launching state machine 1")
+    ct.asm_log_message("launching local arena")
+    column_arena = ct.define_local_arena(column_name="column_arena", arena_size=500)
+    sm_name_1 = "state_machine_1"
+    state_machine_1 = ct.define_state_machine(column_name="state_machine_1",sm_name=sm_name_1,state_names=["state1","state2","state3"],
+                                            initial_state="state2",auto_start=True)
+    
+    state1_1 = ct.define_state(state_name="state1",column_data=None)
+    ct.asm_log_message("state1")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state2")
+    ct.change_state(sm_node_id=state_machine_1,new_state="state2")
+    ct.asm_halt()
+    ct.end_column(column_name=state1_1)
+    
+    state2_1 = ct.define_state(state_name="state2",column_data=None)
+    ct.asm_log_message("state2")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state3")
+    ct.change_state(state_machine_1,new_state="state3")
+    ct.asm_halt()
+    ct.end_column(column_name=state2_1)
+
+    state3_1 = ct.define_state(state_name="state3",column_data=None)
+    ct.asm_log_message("state3")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_log_message("changing state to state1")
+    ct.change_state(state_machine_1,new_state="state1")
+    ct.asm_halt()
+    ct.end_column(column_name = state3_1)
+    
+    ct.end_state_machine(state_node=state_machine_1,sm_name="state_machine_1")
+    
+    
+    
+    ct.asm_log_message("waiting 10 seconds to terminate state machine 1")
+
+    ct.end_column(column_name= column_arena)
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_log_message("launch column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test()
 
 
 def add_header(yaml_file):
@@ -1557,7 +1649,8 @@ def add_header(yaml_file):
 
 if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
-                 "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test","ninteenth_test"]
+                 "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
+                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -1575,7 +1668,10 @@ if __name__ == "__main__":
                  "fourteenth_test": fourteenth_test,
                  "seventeenth_test": seventeenth_test,
                  "eighteenth_test": eighteenth_test,
-                 "ninteenth_test": ninteenth_test}
+                 "ninteenth_test": ninteenth_test,
+                 "twentieth_test": twentieth_test,
+                 "twenty_first_test": twenty_first_test,
+                 "twenty_second_test": twenty_second_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

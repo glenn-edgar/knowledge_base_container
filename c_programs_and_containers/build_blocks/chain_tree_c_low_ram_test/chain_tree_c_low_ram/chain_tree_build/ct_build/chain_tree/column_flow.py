@@ -7,7 +7,18 @@ class ColumnFlow():
         self.ctb = ctb
 
         
-        
+   
+ 
+    def define_local_arena(self,column_name:str,  arena_size:int):
+        return self.define_column(column_name=column_name,
+                                  main_function="CFL_LOCAL_ARENA_MAIN",
+                                  initialization_function="CFL_LOCAL_ARENA_INIT", 
+                                  termination_function="CFL_LOCAL_ARENA_TERM", 
+                                       column_data={"arena_size": arena_size})
+    
+
+    
+      
         
     def define_column(self, column_name:str,  main_function ="CFL_COLUMN_MAIN",
                       initialization_function ="CFL_COLUMN_INIT", termination_function ="CFL_COLUMN_TERM", 
@@ -209,10 +220,3 @@ class ColumnFlow():
     
     
      
-
- 
-
-    
-
-    
- 

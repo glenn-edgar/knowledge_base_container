@@ -58,3 +58,4 @@ class DataFlow(ColumnFlow):
             bit_mask |= 1 << bit_position
         bitmask_data = {"bit_mask": bit_mask}
         self.asm_one_shot_handler("CFL_CLEAR_BITMASK",bitmask_data)
+        

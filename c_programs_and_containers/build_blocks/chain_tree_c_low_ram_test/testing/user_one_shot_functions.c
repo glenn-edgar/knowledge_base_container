@@ -42,21 +42,12 @@ void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index){
 }
 
 void verify_error_one_shot_fn(void *handle, unsigned node_index){
-    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
-    cfl_verify_fn_data_t *ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr( runtime->arena_system, node_index);
-    printf("verify_error_one_shot_fn failure_data: %s\n", ptr->failure_data);
+    (void)handle;
+    //cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    //cfl_verify_fn_data_t *ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr( runtime->arena_system, node_index);
+    printf("verify_error_one_shot_fn node index: %d\n", node_index);
     
 }
-#if 0
-
-typedef struct {
-    int32_t finalize_function_id;
-    int32_t try_node_count;
-    uint16_t *try_node_indexes;
-    void *auxiliary_data;
-  } sequence_aggregate_data_t;
-
-#endif
 
 
 
@@ -178,3 +169,34 @@ void sm_event_filtering_init_one_shot_fn(void *handle, unsigned node_index){
 }
 
 
+
+
+
+void while_bitmask_failure_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+    
+    printf("--------------------> while bitmask timeout: %d\n", node_index);
+
+}
+
+void verify_bitmask_failure_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+
+    printf("--------------------> verify bitmask failure: %d\n", node_index);
+}
+
+
+
+void wait_for_test_complete_error_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+    (void)node_index;
+    printf("--------------------> wait for test complete error: %d\n", node_index);
+    
+}
+
+void verify_tests_active_error_one_shot_fn(void *handle, unsigned node_index){
+    (void)handle;
+    (void)node_index;
+    printf("--------------------> verify tests active error: %d\n", node_index);
+
+}

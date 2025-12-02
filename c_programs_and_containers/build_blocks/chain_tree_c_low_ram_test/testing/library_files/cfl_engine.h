@@ -36,7 +36,11 @@ typedef enum {
     CFL_TERMINATE_STATE_MACHINE_EVENT = 19,
 } cfl_engine_event_t;
 
+
+
+
 #define CFL_TERMINATE_SYSTEM_EVENT 0xFFFF
+#define CFL_STOP_START_TESTS_EVENT 0xFFF0
 
 /* Chain Tree Main Function Return Codes */
 #define CFL_CONTINUE 0
@@ -85,6 +89,7 @@ struct CFL_RUNTIME_HANDLE {
      cfl_heap_arena_system_t* arena_system;
      cfl_event_queue_t *event_queue;
      uint8_t* flags;
+     cfl_heap_allocator_id_t allocator_id;
      cfl_timer_handle_t timer_handle;  /* Verify: should this be a pointer? */
      double delta_time;
      unsigned test_count;
@@ -124,6 +129,8 @@ void cfl_enable_node(cfl_runtime_handle_t *handle, unsigned node_index);
 void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index);
 void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id);
 void cfl_find_try_node_indexes(cfl_runtime_handle_t *handle, unsigned node_index, sequence_aggregate_data_t *sequence_aggregate_data);
+void cfl_terminate_all_nodes_in_kb(cfl_runtime_handle_t *handle, unsigned start_node, unsigned node_count);
+void cfl_memory_allocator_assignment(cfl_runtime_handle_t *handle, unsigned node_index, cfl_heap_allocator_id_t allocator_id);
 
 #ifdef __cplusplus
 }

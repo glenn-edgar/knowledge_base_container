@@ -209,3 +209,11 @@ class BasicCfLinks(ColumnFlow):
         return create_node_id
     
     
+    def asm_start_stop_tests(self,stop_tests :list, start_tests :list):
+        if not isinstance(stop_tests, list):
+            raise TypeError("Stop tests must be a list")
+        if not isinstance(start_tests, list):
+            raise TypeError("Start tests must be a list")
+        test_data = {"stop_tests": stop_tests, "start_tests": start_tests}
+        self.asm_one_shot_handler("CFL_START_STOP_TESTS",test_data)
+        self.asm_wait_for_event(event_id="CFL_TIMER_EVENT",event_count = 2)

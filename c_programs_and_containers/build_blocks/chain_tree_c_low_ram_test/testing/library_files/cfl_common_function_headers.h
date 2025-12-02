@@ -26,7 +26,6 @@ typedef struct{
 typedef struct{
   bool reset_flag;
   uint32_t error_function;
-  char *failure_data;
   void *auxiliary_data;
 }cfl_verify_fn_data_t;
 
@@ -117,6 +116,15 @@ typedef struct {
   bool node_state;
 } cfl_df_mask_fn_data_t;
 
+
+
+typedef struct{
+  uint8_t *stop_tests;
+  uint8_t *start_tests;
+  uint8_t stop_tests_length;
+  uint8_t start_tests_length;
+
+}cfl_start_stop_tests_fn_data_t;
 
 #ifdef __cplusplus
 }

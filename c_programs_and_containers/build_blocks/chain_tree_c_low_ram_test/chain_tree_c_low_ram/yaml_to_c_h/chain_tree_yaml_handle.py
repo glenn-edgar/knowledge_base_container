@@ -58,6 +58,10 @@ class ChainTreeYamlHandle:
         """Parse the raw YAML data into organized structures."""
         
         for ltree_name, node_data in self.raw_data.items():
+            # Extract kb_metadata if present
+            if 'kb_metadata' in self.raw_data:
+                self.kb_metadata = self.raw_data['kb_metadata'] 
+            
             # Skip metadata entries
             if ltree_name in ['kb_log_dict', 'ltree_to_index', 'total_nodes']:
                 continue
@@ -190,6 +194,13 @@ class ChainTreeYamlHandle:
     # =========================================================================
     # Query Methods - Knowledge Bases
     # =========================================================================
+    def get_kb_metadata(self, kb_name: str, key: str, default=None):
+         """Get metadata value for a knowledge base."""
+         return self.kb_metadata.get(kb_name, {}).get(key, default)
+
+    def get_all_kb_metadata(self, kb_name: str) -> Dict:
+        """Get all metadata for a knowledge base."""
+        return self.kb_metadata.get(kb_name, {})
     
     def get_kb_names(self) -> List[str]:
         """Get list of all knowledge base names."""

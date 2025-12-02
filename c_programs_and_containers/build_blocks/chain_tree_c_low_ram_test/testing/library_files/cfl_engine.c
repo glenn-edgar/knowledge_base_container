@@ -445,6 +445,10 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
 }
 
 void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id) {
+    if((handle->flags[node_id] & CT_FLAG_USER2) == 0) {
+        
+        return;
+    }
     if (!handle || !handle->flash_handle) {
         EXCEPTION("cfl_terminate_node_tree: invalid handle");
         return;
@@ -508,6 +512,7 @@ void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id) {
     
     /* Ensure node_id is within the KB range */
     if (node_id < handle->kb_start_index) {
+        printf("cfl_terminate_node_tree: node_id below kb_start_index: %d < %d\n", node_id, handle->kb_start_index);
         EXCEPTION("cfl_terminate_node_tree: node_id below kb_start_index");
         return;
     }
@@ -655,6 +660,56 @@ void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index) {
     flags[node_index] &= ~CT_FLAG_USER_MASK;
 }
 
+
+static void cfl_disable_kb_nodes(cfl_runtime_handle_t *handle, unsigned node_index) {
+    
+    
+    /* Validate node_index */
+    if (node_index >= handle->flash_handle->node_count) {
+        EXCEPTION("cfl_disable_node: node_index out of bounds");
+        return;
+    }
+    
+    /* Only disable if node is initialized and enabled */
+    if ((handle->flags[node_index] & (CT_FLAG_USER3 | CT_FLAG_USER2)) != 
+        (CT_FLAG_USER3 | CT_FLAG_USER2)) {
+        return;
+    }
+    
+    const chaintree_node_t *node = &handle->flash_handle->nodes[node_index];
+    unsigned int termination_function_index = node->term_function_index;
+    unsigned int aux_function_index = node->aux_function_index;
+    
+    /* Validate function indices */
+    if (termination_function_index != 0) {
+        if (termination_function_index >= handle->flash_handle->one_shot_function_count) {
+            EXCEPTION("cfl_disable_node: termination_function_index out of bounds");
+            return;
+        }
+        handle->flash_handle->one_shot_functions[termination_function_index](handle, node_index);
+    }
+    
+    if (aux_function_index != 0) {
+        if (aux_function_index >= handle->flash_handle->boolean_function_count) {
+            EXCEPTION("cfl_disable_node: aux_function_index out of bounds");
+            return;
+        }
+        handle->flash_handle->boolean_functions[aux_function_index](handle, node_index, 
+            CFL_EVENT_TYPE_NULL, CFL_TERMINATE_EVENT, NULL);
+    }
+    
+    cfl_disable_node_flag(handle, node_index);
+}
+
+
+void cfl_terminate_all_nodes_in_kb(cfl_runtime_handle_t *handle, unsigned start_node, unsigned node_count){
+    
+    for(int i = (int)start_node+node_count-1; i >= (int)start_node; i--){
+    
+        cfl_disable_kb_nodes(handle, i);
+    }
+}
+
 static void cfl_set_node_initialization_flag(cfl_runtime_handle_t *handle, unsigned node_index) {
     if (!handle || !handle->flags) {
         EXCEPTION("cfl_set_node_initialization_flag: invalid handle");
@@ -673,20 +728,37 @@ static void cfl_set_node_initialization_flag(cfl_runtime_handle_t *handle, unsig
     flags[node_index] |= CT_FLAG_USER2;
 }
 
-/*==============================================================================
- * ALLOCATOR ID ASSIGNMENT
- *============================================================================*/
- /*
-const chaintree_handle_t* flash_handle
-uint16_t cfl_assign_kb_allocator_id(cfl_runtime_handle_t *handle, uint16_t kb_index, uint16_t allocator_size) {
-    uint16_t kb_node_count = handle->flash_handle->kb_table[kb_index].node_count;
-    if(kb_index >= handle->flash_handle->kb_count) {
-        EXCEPTION("cfl_assign_kb_allocator_id: kb_index out of bounds");
-        return 0;
-    }
 
-    uint16_t kb_start_index = handle->flash_handle->kb_table[kb_index].start_index;
-    uint16_t kb_node_count = handle->flash_handle->kb_table[kb_index].node_count;
-    // later we will scan for number of node defined allegators
+static CT_ReturnCode cfl_memory_allocator_node_assignment(void *handle, unsigned node_index,
+    unsigned int level, uint8_t* flags) {
+    (void)level;
+    (void)flags;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_heap_arena_set_node_allocator_id(runtime_handle->arena_system, node_index, runtime_handle->allocator_id);
+    cfl_heap_arena_set_node_memory_index(runtime_handle->arena_system, node_index, 0xFFFF); 
+     return CT_CONTINUE;
 }
-*/
+
+
+void cfl_memory_allocator_assignment(cfl_runtime_handle_t *handle, unsigned node_index, cfl_heap_allocator_id_t allocator_id) {
+    handle->allocator_id = allocator_id;
+    ct_walker_save_context(handle->walker, handle->walker_context_ptr, handle->backup_flags);
+    
+    /* Switch function and walk subtree */
+    ct_walker_update_functions(handle->walker, cfl_memory_allocator_node_assignment, 
+        cfl_get_forward_enabled_links);
+    
+    ct_walker_walk(
+        handle->walker,
+        handle,
+        node_index,
+        handle->nested_stack,
+        handle->max_level,
+        handle->walker->max_level,
+        handle->flash_handle->node_count
+    );
+    
+    ct_walker_restore_context(handle->walker, handle->walker_context_ptr);
+    
+    
+}

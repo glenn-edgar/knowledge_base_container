@@ -202,3 +202,178 @@ bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned ev
 
     return true;
 }
+
+
+bool cfl_verify_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)event_data;
+    (void)event_type;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_verify_fn_data_t* ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_wait_for_bitmask_boolean_fn: failed to get node pointer");
+        return false;
+    }
+    if(event_id == CFL_INIT_EVENT){
+        if(ptr->auxiliary_data == NULL){
+            int32_t bit_mask;
+            json_decoder_init_from_runtime(runtime_handle, node_index);
+            json_extract_int32_runtime(runtime_handle, "node_dict.fn_data.bit_mask", &bit_mask);
+            ptr->auxiliary_data = (void *)((size_t)bit_mask);
+        }
+    }
+    if(event_id == CFL_TERMINATE_EVENT){
+        return false;
+    }
+    if(event_id != CFL_TIMER_EVENT){
+        return true;
+    }
+    uint32_t test_bitmask = (uint32_t)(size_t)ptr->auxiliary_data;
+    if((runtime_handle->bitmask & test_bitmask)==test_bitmask){
+        return true;
+    }
+    return false;
+}
+
+
+
+
+
+bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)event_type;
+    (void)event_data;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_wait_fn_data_t *ptr = (cfl_wait_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_wait_for_bitmask_boolean_fn: failed to get node pointer");
+        return false;
+    }
+    if(event_id == CFL_INIT_EVENT){
+        if(ptr->auxiliary_data == NULL){
+            int32_t bit_mask;
+            json_decoder_init_from_runtime(runtime_handle, node_index);
+            json_extract_int32_runtime(runtime_handle, "node_dict.wait_fn_data.bitmask_data.bit_mask", &bit_mask);
+            ptr->auxiliary_data = (void *)((size_t)bit_mask);
+        }
+    }
+    if(event_id == CFL_TERMINATE_EVENT){
+        return false;
+    }
+    if(event_id != CFL_TIMER_EVENT){
+        return false;
+    }
+    uint32_t test_bitmask = (uint32_t)(size_t)ptr->auxiliary_data;
+    if((runtime_handle->bitmask & test_bitmask)==test_bitmask){
+        return true;
+    }
+    return false;
+}
+
+typedef struct{
+
+    uint8_t *test_ids;
+    uint8_t test_ids_length;
+}cfl_wait_for_tests_complete_boolean_fn_data_t;
+
+
+bool cfl_verify_tests_active_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)event_type;
+    (void)event_data;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_verify_fn_data_t *ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: failed to get node pointer");
+        return false;
+    }
+    if(event_id == CFL_INIT_EVENT){
+        if(ptr->auxiliary_data == NULL){
+            cfl_wait_for_tests_complete_boolean_fn_data_t *auxiliary_data = 
+            (cfl_wait_for_tests_complete_boolean_fn_data_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(cfl_wait_for_tests_complete_boolean_fn_data_t));
+            if (!auxiliary_data) {
+                EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: failed to allocate auxiliary_data");
+                return false;
+            }
+            int32_t temp_value;
+            uint32_t temp_length;
+            json_decoder_init_from_runtime(runtime_handle, node_index);
+            json_extract_array_length_runtime(runtime_handle, "node_dict.fn_data.test_ids", &temp_length);
+            auxiliary_data->test_ids_length = temp_length;
+            if(temp_length > 0){
+            auxiliary_data->test_ids = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
+                for(uint16_t i = 0; i < temp_length; i++){
+                    json_extract_array_int32_runtime(runtime_handle, "node_dict.fn_data.test_ids", i, &temp_value);
+                    auxiliary_data->test_ids[i] = temp_value;
+                }
+                ptr->auxiliary_data = auxiliary_data;
+            }else{
+                EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: test_ids is empty");
+                return false;
+            }
+        }
+        return false;
+    }
+    if(event_id == CFL_TERMINATE_EVENT){
+        return false;
+    }
+    if(event_id != CFL_TIMER_EVENT){
+        return true;
+    }
+    cfl_wait_for_tests_complete_boolean_fn_data_t *auxiliary_data = (cfl_wait_for_tests_complete_boolean_fn_data_t *)ptr->auxiliary_data;
+    for(uint16_t i = 0; i < auxiliary_data->test_ids_length; i++){
+        if(!TEST_IS_ACTIVE(runtime_handle, auxiliary_data->test_ids[i])){
+            return false;
+        }
+    }
+    return true;
+}
+
+
+bool cfl_wait_for_tests_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
+    (void)event_type;
+    (void)event_data;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_wait_fn_data_t *ptr = (cfl_wait_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: failed to get node pointer");
+        return false;
+    }
+    if(event_id == CFL_INIT_EVENT){
+        if(ptr->auxiliary_data == NULL){
+            cfl_wait_for_tests_complete_boolean_fn_data_t *auxiliary_data = 
+            (cfl_wait_for_tests_complete_boolean_fn_data_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(cfl_wait_for_tests_complete_boolean_fn_data_t));
+            if (!auxiliary_data) {
+                EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: failed to allocate auxiliary_data");
+                return false;
+            }
+            int32_t temp_value;
+            uint32_t temp_length;
+            json_decoder_init_from_runtime(runtime_handle, node_index);
+            json_extract_array_length_runtime(runtime_handle, "node_dict.wait_fn_data.test_ids", &temp_length);
+            auxiliary_data->test_ids_length = temp_length;
+            if(temp_length > 0){
+            auxiliary_data->test_ids = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
+                for(uint16_t i = 0; i < temp_length; i++){
+                    json_extract_array_int32_runtime(runtime_handle, "node_dict.wait_fn_data.test_ids", i, &temp_value);
+                    auxiliary_data->test_ids[i] = temp_value;
+                }
+                ptr->auxiliary_data = auxiliary_data;
+            }else{
+                EXCEPTION("cfl_wait_for_tests_complete_boolean_fn: test_ids is empty");
+                return false;
+            }
+        }
+        return false;
+    }
+    if(event_id == CFL_TERMINATE_EVENT){
+        return false;
+    }
+    if(event_id != CFL_TIMER_EVENT){
+        return false;
+    }
+    cfl_wait_for_tests_complete_boolean_fn_data_t *auxiliary_data = (cfl_wait_for_tests_complete_boolean_fn_data_t *)ptr->auxiliary_data;
+    for(uint16_t i = 0; i < auxiliary_data->test_ids_length; i++){
+        if(!TEST_IS_ACTIVE(runtime_handle, auxiliary_data->test_ids[i])){
+            return false;
+        }
+    }
+    return true;
+}

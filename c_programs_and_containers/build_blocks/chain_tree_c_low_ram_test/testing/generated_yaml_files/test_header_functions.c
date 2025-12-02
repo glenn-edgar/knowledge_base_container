@@ -22,6 +22,7 @@ extern unsigned cfl_gate_node_main_main_fn(void *handle, unsigned bool_function_
 extern unsigned cfl_halt_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_join_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_join_sequence_element_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_local_arena_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_recovery_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_reset_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_sequence_fail_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -67,6 +68,8 @@ extern void cfl_join_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_sequence_element_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_join_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_local_arena_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_local_arena_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_log_message_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_mark_sequence_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_mark_supervisor_node_failure_init_one_shot_fn(void *handle, unsigned node_index);
@@ -74,6 +77,7 @@ extern void cfl_pat_watch_dog_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_raise_exception_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_recovery_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_recovery_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_reset_state_machine_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_send_named_event_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_fail_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_sequence_fail_term_one_shot_fn(void *handle, unsigned node_index);
@@ -83,6 +87,7 @@ extern void cfl_sequence_start_init_one_shot_fn(void *handle, unsigned node_inde
 extern void cfl_sequence_start_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_set_bitmask_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_set_exception_step_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_start_stop_tests_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_supervisor_init_one_shot_fn(void *handle, unsigned node_index);
@@ -108,6 +113,10 @@ extern void display_sequence_till_result_one_shot_fn(void *handle, unsigned node
 extern void display_failure_window_result_one_shot_fn(void *handle, unsigned node_index);
 extern void watch_dog_time_out_one_shot_fn(void *handle, unsigned node_index);
 extern void exception_logging_one_shot_fn(void *handle, unsigned node_index);
+extern void while_bitmask_failure_one_shot_fn(void *handle, unsigned node_index);
+extern void verify_bitmask_failure_one_shot_fn(void *handle, unsigned node_index);
+extern void wait_for_test_complete_error_one_shot_fn(void *handle, unsigned node_index);
+extern void verify_tests_active_error_one_shot_fn(void *handle, unsigned node_index);
 
 extern bool cfl_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool catch_all_exception_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -116,13 +125,17 @@ extern bool cfl_column_null_boolean_fn(void *handle, unsigned node_index, unsign
 extern bool cfl_gate_node_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_state_machine_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_verify_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_verify_tests_active_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_time_out_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_wait_for_tests_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_grga8syz_main_functions[] = {
+const main_function_t ct_deqxr7z9_main_functions[] = {
     cfl_null_main_fn,
     cfl_column_main_main_fn,
     cfl_df_mask_main_main_fn,
@@ -136,6 +149,7 @@ const main_function_t ct_grga8syz_main_functions[] = {
     cfl_halt_main_fn,
     cfl_join_main_main_fn,
     cfl_join_sequence_element_main_fn,
+    cfl_local_arena_main_main_fn,
     cfl_recovery_main_main_fn,
     cfl_reset_main_fn,
     cfl_sequence_fail_main_main_fn,
@@ -153,7 +167,7 @@ const main_function_t ct_grga8syz_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_grga8syz_one_shot_functions[] = {
+const one_shot_function_t ct_deqxr7z9_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     cfl_catch_all_exception_init_one_shot_fn,
@@ -183,6 +197,8 @@ const one_shot_function_t ct_grga8syz_one_shot_functions[] = {
     cfl_join_sequence_element_init_one_shot_fn,
     cfl_join_sequence_element_term_one_shot_fn,
     cfl_join_term_one_shot_fn,
+    cfl_local_arena_init_one_shot_fn,
+    cfl_local_arena_term_one_shot_fn,
     cfl_log_message_one_shot_fn,
     cfl_mark_sequence_one_shot_fn,
     cfl_mark_supervisor_node_failure_init_one_shot_fn,
@@ -190,6 +206,7 @@ const one_shot_function_t ct_grga8syz_one_shot_functions[] = {
     cfl_raise_exception_one_shot_fn,
     cfl_recovery_init_one_shot_fn,
     cfl_recovery_term_one_shot_fn,
+    cfl_reset_state_machine_one_shot_fn,
     cfl_send_named_event_one_shot_fn,
     cfl_sequence_fail_init_one_shot_fn,
     cfl_sequence_fail_term_one_shot_fn,
@@ -199,6 +216,7 @@ const one_shot_function_t ct_grga8syz_one_shot_functions[] = {
     cfl_sequence_start_term_one_shot_fn,
     cfl_set_bitmask_one_shot_fn,
     cfl_set_exception_step_one_shot_fn,
+    cfl_start_stop_tests_one_shot_fn,
     cfl_state_machine_init_one_shot_fn,
     cfl_state_machine_term_one_shot_fn,
     cfl_supervisor_init_one_shot_fn,
@@ -224,9 +242,13 @@ const one_shot_function_t ct_grga8syz_one_shot_functions[] = {
     display_failure_window_result_one_shot_fn,
     watch_dog_time_out_one_shot_fn,
     exception_logging_one_shot_fn,
+    while_bitmask_failure_one_shot_fn,
+    verify_bitmask_failure_one_shot_fn,
+    wait_for_test_complete_error_one_shot_fn,
+    verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_grga8syz_boolean_functions[] = {
+const boolean_function_t ct_deqxr7z9_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -234,46 +256,51 @@ const boolean_function_t ct_grga8syz_boolean_functions[] = {
     cfl_gate_node_null_boolean_fn,
     cfl_sm_event_sync_boolean_fn,
     cfl_state_machine_null_boolean_fn,
+    cfl_verify_bitmask_boolean_fn,
+    cfl_verify_tests_active_boolean_fn,
     cfl_verify_time_out_boolean_fn,
+    cfl_wait_for_bitmask_boolean_fn,
     cfl_wait_for_event_boolean_fn,
+    cfl_wait_for_tests_complete_boolean_fn,
     exception_filter_boolean_fn,
     user_skip_condition_boolean_fn,
     while_test_boolean_fn,
 };
 
 /* Main function usage count */
-const uint16_t ct_grga8syz_main_function_usage_count[28] = {
+const uint16_t ct_deqxr7z9_main_function_usage_count[29] = {
     0,  /* CFL_NULL */
-    125,  /* CFL_COLUMN_MAIN */
+    160,  /* CFL_COLUMN_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    391,  /* CFL_DISABLE */
-    23,  /* CFL_EVENT_LOGGER */
+    521,  /* CFL_DISABLE */
+    32,  /* CFL_EVENT_LOGGER */
     2,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
     7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    16,  /* CFL_GATE_NODE_MAIN */
-    17,  /* CFL_HALT */
-    16,  /* CFL_JOIN_MAIN */
+    19,  /* CFL_GATE_NODE_MAIN */
+    40,  /* CFL_HALT */
+    23,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
+    1,  /* CFL_LOCAL_ARENA_MAIN */
     7,  /* CFL_RECOVERY_MAIN */
     13,  /* CFL_RESET */
     1,  /* CFL_SEQUENCE_FAIL_MAIN */
     1,  /* CFL_SEQUENCE_PASS_MAIN */
     2,  /* CFL_SEQUENCE_START_MAIN */
-    3,  /* CFL_STATE_MACHINE_MAIN */
+    10,  /* CFL_STATE_MACHINE_MAIN */
     4,  /* CFL_SUPERVISOR_MAIN */
-    97,  /* CFL_TERMINATE */
+    101,  /* CFL_TERMINATE */
     7,  /* CFL_TERMINATE_SYSTEM */
-    2,  /* CFL_VERIFY */
-    2,  /* CFL_WAIT */
-    141,  /* CFL_WAIT_TIME */
+    4,  /* CFL_VERIFY */
+    7,  /* CFL_WAIT */
+    171,  /* CFL_WAIT_TIME */
     1,  /* CFL_WATCH_DOG_MAIN */
     1,  /* CFL_WHILE_MAIN */
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_grga8syz_main_function_names[28] = {
+const char *ct_deqxr7z9_main_function_names[29] = {
     "CFL_NULL",
     "CFL_COLUMN_MAIN",
     "CFL_DF_MASK_MAIN",
@@ -287,6 +314,7 @@ const char *ct_grga8syz_main_function_names[28] = {
     "CFL_HALT",
     "CFL_JOIN_MAIN",
     "CFL_JOIN_SEQUENCE_ELEMENT",
+    "CFL_LOCAL_ARENA_MAIN",
     "CFL_RECOVERY_MAIN",
     "CFL_RESET",
     "CFL_SEQUENCE_FAIL_MAIN",
@@ -304,7 +332,7 @@ const char *ct_grga8syz_main_function_names[28] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_grga8syz_one_shot_function_names[70] = {
+const char *ct_deqxr7z9_one_shot_function_names[78] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "CFL_CATCH_ALL_EXCEPTION_INIT",
@@ -334,6 +362,8 @@ const char *ct_grga8syz_one_shot_function_names[70] = {
     "CFL_JOIN_SEQUENCE_ELEMENT_INIT",
     "CFL_JOIN_SEQUENCE_ELEMENT_TERM",
     "CFL_JOIN_TERM",
+    "CFL_LOCAL_ARENA_INIT",
+    "CFL_LOCAL_ARENA_TERM",
     "CFL_LOG_MESSAGE",
     "CFL_MARK_SEQUENCE",
     "CFL_MARK_SUPERVISOR_NODE_FAILURE_INIT",
@@ -341,6 +371,7 @@ const char *ct_grga8syz_one_shot_function_names[70] = {
     "CFL_RAISE_EXCEPTION",
     "CFL_RECOVERY_INIT",
     "CFL_RECOVERY_TERM",
+    "CFL_RESET_STATE_MACHINE",
     "CFL_SEND_NAMED_EVENT",
     "CFL_SEQUENCE_FAIL_INIT",
     "CFL_SEQUENCE_FAIL_TERM",
@@ -350,6 +381,7 @@ const char *ct_grga8syz_one_shot_function_names[70] = {
     "CFL_SEQUENCE_START_TERM",
     "CFL_SET_BITMASK",
     "CFL_SET_EXCEPTION_STEP",
+    "CFL_START_STOP_TESTS",
     "CFL_STATE_MACHINE_INIT",
     "CFL_STATE_MACHINE_TERM",
     "CFL_SUPERVISOR_INIT",
@@ -375,9 +407,13 @@ const char *ct_grga8syz_one_shot_function_names[70] = {
     "DISPLAY_FAILURE_WINDOW_RESULT",
     "WATCH_DOG_TIME_OUT",
     "EXCEPTION_LOGGING",
+    "WHILE_BITMASK_FAILURE",
+    "VERIFY_BITMASK_FAILURE",
+    "WAIT_FOR_TEST_COMPLETE_ERROR",
+    "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_grga8syz_boolean_function_names[12] = {
+const char *ct_deqxr7z9_boolean_function_names[16] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",
@@ -385,8 +421,12 @@ const char *ct_grga8syz_boolean_function_names[12] = {
     "CFL_GATE_NODE_NULL",
     "CFL_SM_EVENT_SYNC",
     "CFL_STATE_MACHINE_NULL",
+    "CFL_VERIFY_BITMASK",
+    "CFL_VERIFY_TESTS_ACTIVE",
     "CFL_VERIFY_TIME_OUT",
+    "CFL_WAIT_FOR_BITMASK",
     "CFL_WAIT_FOR_EVENT",
+    "CFL_WAIT_FOR_TESTS_COMPLETE",
     "EXCEPTION_FILTER",
     "USER_SKIP_CONDITION",
     "WHILE_TEST",

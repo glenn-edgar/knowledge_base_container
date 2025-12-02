@@ -119,3 +119,15 @@ unsigned cfl_verify_active_children(cfl_runtime_handle_t *handle, uint16_t node_
     }
     return CFL_DISABLE;
 }
+
+
+void cfl_stop_start_tests(cfl_runtime_handle_t *handle, cfl_start_stop_tests_fn_data_t *ptr){
+   
+    cfl_send_data_event(
+        handle->event_queue,
+        CFL_EVENT_PRIORITY_LOW,
+        CFL_EVENT_BROADCAST_NODE,
+        false,
+        CFL_STOP_START_TESTS_EVENT,
+        ptr);
+}

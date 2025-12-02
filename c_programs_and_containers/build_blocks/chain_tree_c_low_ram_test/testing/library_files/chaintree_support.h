@@ -42,6 +42,7 @@ typedef struct {
     uint16_t start_index;
     uint16_t node_count;
     uint16_t max_depth;           /* Maximum tree depth in this KB */
+    uint16_t memory_factor;       /* Memory allocation factor for this KB */
 } chaintree_kb_info_t;
 
 /* ===== Node Data Structures ===== */

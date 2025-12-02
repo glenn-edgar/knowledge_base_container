@@ -135,7 +135,7 @@ void cfl_verify_init_one_shot_fn(void *handle, uint16_t node_index){
     json_decoder_init_from_runtime(runtime_handle, node_index);
     json_extract_bool_runtime(runtime_handle, "node_dict.reset_flag", &ptr->reset_flag);
     json_extract_int32_runtime(runtime_handle, "node_dict.error_function_id", (int32_t*)&ptr->error_function);
-    json_extract_string_runtime(runtime_handle, "node_dict.error_data.failure_data",(const char**) &ptr->failure_data);
+    
     ptr->auxiliary_data = NULL;
 
 }
@@ -155,10 +155,10 @@ void cfl_wait_init_one_shot_fn(void *handle, uint16_t node_index){
          sizeof(cfl_wait_fn_data_t));
     
     json_decoder_init_from_runtime(runtime_handle, node_index);
+    
     json_extract_bool_runtime(runtime_handle, "node_dict.reset_flag", &ptr->reset_flag);
     json_extract_int32_runtime(runtime_handle, "node_dict.timeout", (int32_t*)&ptr->timeout);
     json_extract_int32_runtime(runtime_handle, "node_dict.time_out_event", (int32_t*)&ptr->time_out_event);
-    json_extract_string_runtime(runtime_handle, "node_dict.error_data.error_message",(const char**) &ptr->error_message);
     json_extract_int32_runtime(runtime_handle, "node_dict.error_function_id", (int32_t*)&ptr->error_function);
     ptr->event_count = 0;
     ptr->auxiliary_data = NULL;
@@ -647,4 +647,85 @@ void cfl_set_bitmask_one_shot_fn(void *handle, uint16_t node_index){
 }
 
 
+  
 
+void cfl_start_stop_tests_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    cfl_start_stop_tests_fn_data_t *ptr = (cfl_start_stop_tests_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_start_stop_tests_fn_data_t));
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    uint32_t temp_length;
+    int32_t temp_value;
+    json_extract_array_length_runtime(runtime_handle, "node_dict.stop_tests", &temp_length);
+    ptr->stop_tests_length = temp_length;
+    if(temp_length > 0){
+        ptr->stop_tests = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
+        for (uint8_t i = 0; i < temp_length; i++) {
+            json_extract_array_int32_runtime(runtime_handle, "node_dict.stop_tests", i, &temp_value);
+            ptr->stop_tests[i] = temp_value;
+        }
+    }else{
+        ptr->stop_tests = NULL;
+    }
+    json_extract_array_length_runtime(runtime_handle, "node_dict.start_tests", &temp_length);
+    ptr->start_tests_length = temp_length;
+    if(temp_length > 0){
+        ptr->start_tests = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
+        for (uint8_t i = 0; i < temp_length; i++) {
+            json_extract_array_int32_runtime(runtime_handle, "node_dict.start_tests", i, &temp_value);
+            ptr->start_tests[i] = temp_value;
+        }
+    }else{
+
+        ptr->start_tests = NULL;
+    }
+    
+    cfl_stop_start_tests(runtime_handle, ptr);
+
+}
+
+typedef struct{
+    cfl_heap_allocator_id_t allocator_id;
+    uint16_t arena_size;
+} local_arena_data_t;
+
+void cfl_local_arena_init_one_shot_fn(void *handle, uint16_t node_index){
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    int32_t arena_size;
+    
+    
+    json_decoder_init_from_runtime(runtime_handle, node_index);
+    
+    json_extract_int32_runtime(runtime_handle, "node_dict.column_data.arena_size", &arena_size);
+    cfl_heap_allocator_id_t id = cfl_heap_arena_create(runtime_handle->arena_system, node_index, arena_size);
+    if (id == 0xff) {
+        EXCEPTION("cfl_local_arena_init_one_shot_fn: failed to create arena");
+        return;
+    }
+    cfl_memory_allocator_assignment(runtime_handle, node_index, id);
+    cfl_heap_arena_set_node_allocator_id(runtime_handle->arena_system, node_index, runtime_handle->allocator_id);
+    cfl_heap_arena_set_node_memory_index(runtime_handle->arena_system, node_index, 0xFFFF); 
+   
+    local_arena_data_t *ptr = (local_arena_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(local_arena_data_t));
+    if (!ptr) {
+        EXCEPTION("cfl_local_arena_init_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    ptr->allocator_id = id;
+    ptr->arena_size = arena_size;
+    cfl_enable_all_nodes(runtime_handle, node_index);
+  
+}
+
+void cfl_local_arena_term_one_shot_fn(void *handle, uint16_t node_index){
+    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    local_arena_data_t *ptr = (local_arena_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    if (!ptr) {
+        EXCEPTION("cfl_local_arena_term_one_shot_fn: failed to get node pointer");
+        return;
+    }
+    cfl_heap_arena_destroy(runtime_handle->arena_system, ptr->allocator_id, node_index);
+
+   
+}

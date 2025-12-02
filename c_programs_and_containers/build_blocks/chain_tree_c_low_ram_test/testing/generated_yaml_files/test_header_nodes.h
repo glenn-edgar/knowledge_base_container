@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_GRGA8SYZ_NODE_COUNT 978
+#define CT_DEQXR7Z9_NODE_COUNT 1252
 
-extern const chaintree_node_t ct_grga8syz_nodes[CT_GRGA8SYZ_NODE_COUNT];
+extern const chaintree_node_t ct_deqxr7z9_nodes[CT_DEQXR7Z9_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

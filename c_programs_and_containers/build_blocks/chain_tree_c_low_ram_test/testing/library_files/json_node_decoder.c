@@ -482,6 +482,7 @@ void json_find_object_child(
          // Convert float to int32 using truncation (toward zero)
          *out = (int32_t)record->value.f32_value;
      } else {
+        
          EXCEPTION("json_get_int32: Type mismatch - expected INT32 or FLOAT32");
      }
  }
@@ -728,6 +729,140 @@ void json_find_object_child(
  /* ============================================================================
  * Debug Functions Implementation
  * ============================================================================ */
+
+ /* ============================================================================
+ * Array Length and Element Extraction Functions
+ * ============================================================================ */
+
+void json_extract_array_length(
+    const json_decoder_ctx_t *ctx,
+    uint32_t root_record,
+    const char *path,
+    uint32_t *out_length)
+{
+    if (!ctx) {
+        EXCEPTION("json_extract_array_length: NULL context");
+    }
+    
+    if (!path) {
+        EXCEPTION("json_extract_array_length: NULL path");
+    }
+    
+    if (!out_length) {
+        EXCEPTION("json_extract_array_length: NULL output pointer");
+    }
+    
+    uint32_t target_record;
+    json_navigate_path(ctx, root_record, path, &target_record);
+    
+    const json_record_t *record = json_get_record(ctx, target_record);
+    if (!record) {
+        EXCEPTION("json_extract_array_length: Invalid target record");
+    }
+    
+    if (record->object_type != JSON_TYPE_ARRAY) {
+        EXCEPTION("json_extract_array_length: Target is not an array");
+    }
+    
+    *out_length = record->value.container_count;
+}
+
+void json_extract_array_int32(
+    const json_decoder_ctx_t *ctx,
+    uint32_t root_record,
+    const char *path,
+    uint32_t index,
+    int32_t *out)
+{
+    if (!ctx) {
+        EXCEPTION("json_extract_array_int32: NULL context");
+    }
+    
+    if (!path) {
+        EXCEPTION("json_extract_array_int32: NULL path");
+    }
+    
+    if (!out) {
+        EXCEPTION("json_extract_array_int32: NULL output pointer");
+    }
+    
+    uint32_t array_record;
+    json_navigate_path(ctx, root_record, path, &array_record);
+    
+    uint32_t element_record;
+    json_get_array_child(ctx, array_record, index, &element_record);
+    
+    json_get_int32(ctx, element_record, out);
+}
+
+/* ============================================================================
+ * Runtime Variants
+ * ============================================================================ */
+
+void json_extract_array_length_runtime(
+    const cfl_runtime_handle_t *runtime,
+    const char *path,
+    uint32_t *out_length)
+{
+    if (!runtime) {
+        EXCEPTION("json_extract_array_length_runtime: NULL runtime handle");
+    }
+    
+    if (!runtime->json_decoder_ctx) {
+        EXCEPTION("json_extract_array_length_runtime: NULL json_decoder_ctx");
+    }
+    
+    if (!path) {
+        EXCEPTION("json_extract_array_length_runtime: NULL path");
+    }
+    
+    if (!out_length) {
+        EXCEPTION("json_extract_array_length_runtime: NULL output pointer");
+    }
+    
+    const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    
+    if (ctx->current_control_idx >= ctx->controls_count) {
+        EXCEPTION("json_extract_array_length_runtime: Invalid control index");
+    }
+    
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    
+    json_extract_array_length(ctx, region->start_position, path, out_length);
+}
+
+void json_extract_array_int32_runtime(
+    const cfl_runtime_handle_t *runtime,
+    const char *path,
+    uint32_t index,
+    int32_t *out)
+{
+    if (!runtime) {
+        EXCEPTION("json_extract_array_int32_runtime: NULL runtime handle");
+    }
+    
+    if (!runtime->json_decoder_ctx) {
+        EXCEPTION("json_extract_array_int32_runtime: NULL json_decoder_ctx");
+    }
+    
+    if (!path) {
+        EXCEPTION("json_extract_array_int32_runtime: NULL path");
+    }
+    
+    if (!out) {
+        EXCEPTION("json_extract_array_int32_runtime: NULL output pointer");
+    }
+    
+    const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    
+    if (ctx->current_control_idx >= ctx->controls_count) {
+        EXCEPTION("json_extract_array_int32_runtime: Invalid control index");
+    }
+    
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    
+    json_extract_array_int32(ctx, region->start_position, path, index, out);
+}
 
 #ifdef JSON_DEBUG
 

@@ -42,5 +42,28 @@ class VerifyCfLinks(ColumnFlow):
         return self.asm_verify("CFL_VERIFY_TIME_OUT",fn_data, reset_flag, error_fn, error_data )
         
        
-   
+    def asm_verify_bitmask(self,bitmask_event_list,reset_flag = False,error_fn = "CFL_NULL",error_data = None):
+        bit_position_list = []
+        for event in bitmask_event_list:
+            bit_position = self.ctb.register_bitmask(event)
+            bit_position_list.append(bit_position)
+        bit_mask = 0
+        for bit_position in bit_position_list:
+            bit_mask |= 1 << bit_position
+        fn_data = {"bit_mask": bit_mask}
+        self.ctb.add_one_shot_function(error_fn)
+        return self.asm_verify("CFL_VERIFY_BITMASK",fn_data, reset_flag, error_fn, error_data )
     
+
+    def asm_verify_tests_active(self,test_ids :list, reset_flag = False,
+                           error_fn = "CFL_NULL",error_data = None):
+        if not isinstance(test_ids, list):
+            raise TypeError("Test ids must be a list")
+        element_data = {}
+        element_data["test_ids"] = test_ids
+        element_data["reset_flag"] = reset_flag
+        element_data["error_function"] = error_fn
+        element_data["error_data"] = error_data
+        element_data["error_function"] = error_fn
+        self.ctb.add_one_shot_function(error_fn)
+        return self.asm_verify("CFL_VERIFY_TESTS_ACTIVE",element_data, reset_flag, error_fn, error_data )

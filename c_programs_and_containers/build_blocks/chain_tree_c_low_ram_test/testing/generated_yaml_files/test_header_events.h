@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CT_GRGA8SYZ_EVENT_STRING_COUNT 27
+#define CT_DEQXR7Z9_EVENT_STRING_COUNT 28
 
 /* Event indices */
 typedef enum {
@@ -37,10 +37,11 @@ typedef enum {
     EVENT_TEST_EVENT_3 = 24,
     EVENT_SYNC_EVENT = 25,
     EVENT_TEST_EVENT = 26,
-    EVENT_COUNT = 27
+    EVENT_CF_TIMER_EVENT = 27,
+    EVENT_COUNT = 28
 } event_index_t;
 
 /* Event name array for debugging/lookup */
-extern const char *ct_grga8syz_event_strings[27];
+extern const char *ct_deqxr7z9_event_strings[28];
 
 #endif /* TEST_HEADER_EVENTS_H */

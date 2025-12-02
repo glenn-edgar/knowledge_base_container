@@ -5,6 +5,8 @@
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
 #include "json_node_decoder.h"
+#include "cfl_common_functions.h"
+#include "cfl_common_function_headers.h"
 
 
 
@@ -16,6 +18,8 @@ static void cfl_send_system_event_to_test(cfl_runtime_handle_t* handle,
     uint16_t kb_idx, unsigned event_id, unsigned event_type, bool malloc_flag, void *data);
 static void cfl_generate_timer_events(cfl_runtime_handle_t* handle, uint16_t kb_idx, cfl_tick_result_t* result);
 static void cfl_init_test_system(cfl_runtime_handle_t* handle);
+static void process_stop_start_tests(cfl_runtime_handle_t* handle, cfl_start_stop_tests_fn_data_t *ptr);
+
 
 cfl_runtime_create_params_t* cfl_runtime_create_params_create(void) {
     cfl_runtime_create_params_t* params = (cfl_runtime_create_params_t*)calloc(1, sizeof(cfl_runtime_create_params_t));
@@ -47,8 +51,11 @@ cfl_runtime_handle_t* cfl_runtime_create(cfl_perm_t* perm, cfl_runtime_create_pa
     if (!handle) {
         EXCEPTION("cfl_runtime_create: Failed to allocate memory for handle");
     }
-    
     handle->flash_handle = flash_handle;
+    handle->main_function_data = (main_function_data_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(main_function_data_t)));
+
+    cfl_find_main_ids(handle);
+   
     handle->perm = perm;
     handle->heap = cfl_heap_init(perm, params->heap_size);
     handle->arena_system = cfl_heap_arena_system_create(perm, handle->heap, params->max_allocator_count, 
@@ -81,8 +88,7 @@ cfl_runtime_handle_t* cfl_runtime_create(cfl_perm_t* perm, cfl_runtime_create_pa
     handle->json_decoder_ctx = (json_decoder_ctx_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(json_decoder_ctx_t)));
     
     memset((void*)handle->flags, 0, params->total_node_count);
-    handle->main_function_data = (main_function_data_t*)cfl_perm_alloc_pointer(perm, (uint16_t)(sizeof(main_function_data_t)));
-    cfl_find_main_ids(handle);
+   
     
     cfl_init_test_system(handle);
     cfl_engine_create(handle);
@@ -157,19 +163,24 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
             while(cfl_total_event_count(handle->event_queue) > 0) {
                
                 
-                event_data.node_id = 0xFFFF;
+                
                 cfl_pop_event(handle->event_queue, &event_data);
                 
                 if (event_data.event_id == CFL_TERMINATE_SYSTEM_EVENT) {
                     printf("terminate system\n");
                     goto exit;
                 }
+                if (event_data.event_id == CFL_STOP_START_TESTS_EVENT) {
+                    
+                    process_stop_start_tests(handle, (cfl_start_stop_tests_fn_data_t *)event_data.data.ptr);
+                    
+                    continue;
+                }
         
                 handle->event_data_ptr = &event_data;
                 
                 
                 if(cfl_execute_event(handle) == false) {
-                
                     cfl_delete_test_by_index(handle, handle->current_kb_idx);
                 }
                 
@@ -288,11 +299,13 @@ static void cfl_init_test_system(cfl_runtime_handle_t* handle) {
 }
 
 bool cfl_add_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
-    if (kb_index >= handle->flash_handle->kb_count) return false;
+    if (kb_index >= handle->flash_handle->kb_count) {
+        EXCEPTION("cfl_add_test_by_index: kb_index out of bounds");
+    }
     if (TEST_IS_ACTIVE(handle, kb_index)) return false;  // Already active
     
     const chaintree_kb_info_t* kb = &handle->flash_handle->kb_table[kb_index];
-    cfl_heap_allocator_id_t arena_id = cfl_heap_arena_create(handle->arena_system, kb->start_index, kb->node_count * 10);
+    cfl_heap_allocator_id_t arena_id = cfl_heap_arena_create(handle->arena_system, kb->start_index, kb->node_count * kb->memory_factor);
     if (arena_id == 0xff) {
         // Arena allocation failed
         EXCEPTION("cfl_add_test_by_index: Arena allocation failed");
@@ -315,6 +328,8 @@ bool cfl_delete_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
     if (kb_index >= handle->flash_handle->kb_count) return false;
     if (!TEST_IS_ACTIVE(handle, kb_index)) return false;
     if (handle->test_has_arena[kb_index] == true) {
+        
+        cfl_terminate_all_nodes_in_kb(handle,handle->flash_handle->kb_table[kb_index].start_index,handle->flash_handle->kb_table[kb_index].node_count);
         unsigned used_bytes = cfl_heap_arena_used_bytes(handle->arena_system, handle->kb_allocator_ids[kb_index]);
         printf("used bytes: %d\n", used_bytes);
         unsigned free_bytes = cfl_heap_arena_free_bytes(handle->arena_system, handle->kb_allocator_ids[kb_index]);
@@ -326,6 +341,7 @@ bool cfl_delete_test_by_index(cfl_runtime_handle_t* handle, uint16_t kb_index) {
         }
         handle->test_has_arena[kb_index] = false;
         handle->kb_allocator_ids[kb_index] = 0xff;
+
     }
     TEST_ACTIVE_CLR(handle, kb_index);
     handle->active_test_count--;
@@ -348,13 +364,17 @@ static unsigned int cfl_calculate_max_level(cfl_runtime_handle_t* runtime_handle
 }
 
 uint16_t cfl_calculate_arrena_number(const chaintree_handle_t* flash_handle) {
-    return flash_handle->kb_count + 1;
+    unsigned index = ct_get_main_function_index(flash_handle, "CFL_LOCAL_ARENA_MAIN");
+    unsigned count = flash_handle->main_function_usage_count[index];
+    
+    return flash_handle->kb_count + count;
     // later we will scan for number of node defined allegators
 }
 
 static void cfl_find_main_ids(cfl_runtime_handle_t *runtime_handle) {
        
         int index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_STATE_MACHINE_MAIN");
+        
         runtime_handle->main_function_data->main_function_ids[0] = index;
         index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_SEQUENCE_PASS_MAIN");
         runtime_handle->main_function_data->main_function_ids[1] = index;
@@ -366,5 +386,18 @@ static void cfl_find_main_ids(cfl_runtime_handle_t *runtime_handle) {
         runtime_handle->main_function_data->main_function_ids[4] = index;
         index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_EXCEPTION_CATCH_MAIN");
         runtime_handle->main_function_data->main_function_ids[5] = index;
+
+ 
         
 }
+
+static void process_stop_start_tests(cfl_runtime_handle_t* handle, cfl_start_stop_tests_fn_data_t *ptr) {
+    
+    for(uint16_t i = 0; i < ptr->stop_tests_length; i++) {
+        cfl_delete_test_by_index(handle, ptr->stop_tests[i]);
+    }
+    for(uint16_t i = 0; i < ptr->start_tests_length; i++) {
+        cfl_add_test_by_index(handle, ptr->start_tests[i]);
+    }
+}
+
