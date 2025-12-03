@@ -609,7 +609,7 @@ bool cfl_send_null_event(
          NULL);
  }
 
- bool cfl_send_json_event(
+ bool cfl_send_json_record_event(
      CFL_EVENT_QUEUE_T *queue_control,
     unsigned priority,
     unsigned node_id,
@@ -629,3 +629,25 @@ bool cfl_send_null_event(
          event_id,
          data_ptr);
  }
+
+ bool cfl_send_node_id_event(
+    CFL_EVENT_QUEUE_T *queue_control,
+   unsigned priority,
+   unsigned node_id,
+   unsigned event_id,
+   unsigned node_index)
+ {
+     void* data_ptr;
+     CFL_EVENT_VALUE_T temp;
+     temp.unsigned_val = node_index;
+     data_ptr = temp.ptr;  
+     return cfl_send_event(
+         queue_control,
+         priority,
+         node_id,
+         CFL_EVENT_TYPE_NODE_ID,
+         false,
+         event_id,
+         data_ptr);
+ }
+

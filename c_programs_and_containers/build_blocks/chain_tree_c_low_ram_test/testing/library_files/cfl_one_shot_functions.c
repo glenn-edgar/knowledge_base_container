@@ -116,11 +116,10 @@ void cfl_send_named_event_one_shot_fn(void *handle, uint16_t node_index){
     int32_t event_id;
     int32_t event_node_index;
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
     json_decoder_init_from_runtime(runtime_handle, node_index);
     json_extract_int32_runtime(runtime_handle, "node_dict.event_id", &event_id);
     json_extract_int32_runtime(runtime_handle, "node_dict.node_id", &event_node_index);
-    cfl_send_json_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_LOW, (unsigned)event_node_index, (unsigned)event_id, node->node_data_id);
+    cfl_send_node_id_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_LOW, (unsigned)event_node_index, (unsigned)event_id, (unsigned)node_index);
     
 }
 
@@ -651,37 +650,29 @@ void cfl_set_bitmask_one_shot_fn(void *handle, uint16_t node_index){
 
 void cfl_start_stop_tests_one_shot_fn(void *handle, uint16_t node_index){
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    cfl_start_stop_tests_fn_data_t *ptr = (cfl_start_stop_tests_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_start_stop_tests_fn_data_t));
+    
     json_decoder_init_from_runtime(runtime_handle, node_index);
     
     uint32_t temp_length;
     int32_t temp_value;
     json_extract_array_length_runtime(runtime_handle, "node_dict.stop_tests", &temp_length);
-    ptr->stop_tests_length = temp_length;
+    
     if(temp_length > 0){
-        ptr->stop_tests = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
         for (uint8_t i = 0; i < temp_length; i++) {
             json_extract_array_int32_runtime(runtime_handle, "node_dict.stop_tests", i, &temp_value);
-            ptr->stop_tests[i] = temp_value;
+            cfl_delete_test_by_index(runtime_handle, temp_value);
         }
-    }else{
-        ptr->stop_tests = NULL;
     }
     json_extract_array_length_runtime(runtime_handle, "node_dict.start_tests", &temp_length);
-    ptr->start_tests_length = temp_length;
+
     if(temp_length > 0){
-        ptr->start_tests = (uint8_t *)cfl_additional_arena_alloc(runtime_handle, node_index, sizeof(uint8_t) * temp_length);
+        
         for (uint8_t i = 0; i < temp_length; i++) {
             json_extract_array_int32_runtime(runtime_handle, "node_dict.start_tests", i, &temp_value);
-            ptr->start_tests[i] = temp_value;
+            cfl_add_test_by_index(runtime_handle, temp_value);
         }
-    }else{
-
-        ptr->start_tests = NULL;
     }
     
-    cfl_stop_start_tests(runtime_handle, ptr);
-
 }
 
 typedef struct{

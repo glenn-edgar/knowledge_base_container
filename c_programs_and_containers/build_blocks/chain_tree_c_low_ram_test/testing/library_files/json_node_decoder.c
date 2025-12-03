@@ -864,6 +864,38 @@ void json_extract_array_int32_runtime(
     json_extract_array_int32(ctx, region->start_position, path, index, out);
 }
 
+void json_navigate_path_runtime(
+    const cfl_runtime_handle_t *runtime,
+    const char *path,
+    uint32_t *out_record)
+{
+    if (!runtime) {
+        EXCEPTION("json_navigate_path_runtime: NULL runtime handle");
+    }
+    
+    if (!runtime->json_decoder_ctx) {
+        EXCEPTION("json_navigate_path_runtime: NULL json_decoder_ctx");
+    }
+    
+    if (!path) {
+        EXCEPTION("json_navigate_path_runtime: NULL path");
+    }
+    
+    if (!out_record) {
+        EXCEPTION("json_navigate_path_runtime: NULL output pointer");
+    }
+    
+    const json_decoder_ctx_t *ctx = runtime->json_decoder_ctx;
+    
+    if (ctx->current_control_idx >= ctx->controls_count) {
+        EXCEPTION("json_navigate_path_runtime: Invalid control index");
+    }
+    
+    const record_control_t *region = &ctx->controls[ctx->current_control_idx];
+    
+    json_navigate_path(ctx, region->start_position, path, out_record);
+}
+
 #ifdef JSON_DEBUG
 
 /**

@@ -381,6 +381,12 @@ void json_extract_array_int32_runtime(
     const char *path,
     uint32_t index,
     int32_t *out);
+
+void json_navigate_path_runtime(
+        const cfl_runtime_handle_t *runtime,
+        const char *path,
+        uint32_t *out_record);
+
  /* ============================================================================
   * Debug Functions
   * ============================================================================ */

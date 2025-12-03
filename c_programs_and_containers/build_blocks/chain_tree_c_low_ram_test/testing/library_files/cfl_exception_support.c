@@ -56,7 +56,7 @@ void cfl_raise_json_exception_event(cfl_runtime_handle_t *runtime_handle, uint16
     
   }
   
-  cfl_send_json_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_HIGH, parent_node_id, CFL_RAISE_EXCEPTION_EVENT, node_id);
+  cfl_send_node_id_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_HIGH, parent_node_id, CFL_RAISE_EXCEPTION_EVENT, node_id);
 
 }
 
@@ -71,7 +71,7 @@ static void cfl_forward_exception_event(cfl_runtime_handle_t *runtime_handle, un
             EXCEPTION("cfl_forward_exception_event: parent_node_id is 0xFFFF");
         }
     }
-    cfl_send_json_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_HIGH, parent_node_id, CFL_RAISE_EXCEPTION_EVENT,record_index);
+    cfl_send_node_id_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_HIGH, parent_node_id, CFL_RAISE_EXCEPTION_EVENT,record_index);
     
 }
 
