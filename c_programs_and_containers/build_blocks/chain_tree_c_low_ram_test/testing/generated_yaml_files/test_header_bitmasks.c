@@ -2,7 +2,7 @@
 #include "test_header_bitmasks.h"
 
 /* Bitmask names indexed by bit position */
-const char *ct_deqxr7z9_bitmask_names[3] = {
+const char *ct_8g23mb1x_bitmask_names[3] = {
     "a",
     "c",
     "b",

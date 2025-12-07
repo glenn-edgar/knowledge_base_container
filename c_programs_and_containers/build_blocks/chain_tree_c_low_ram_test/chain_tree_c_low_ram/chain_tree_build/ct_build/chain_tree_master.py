@@ -13,11 +13,12 @@ from .chain_tree.column_flow import ColumnFlow
 from .chain_tree.sequence_til import SequenceTil
 from .chain_tree.data_flow import DataFlow
 from .chain_tree.exception import ExceptionHandler
+from .chain_tree.streaming import Streaming
 
 
 
 
-class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, ExceptionHandler):
+class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, ExceptionHandler, Streaming):
     
 
     
@@ -27,7 +28,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         WaitCfLinks.__init__(self,self.ctb)
         VerifyCfLinks.__init__(self,self.ctb)
         StateMachine.__init__(self,self.ctb)
-
+        Streaming.__init__(self,self.ctb)
         ColumnFlow.__init__(self,self.ctb)
         SequenceTil.__init__(self,self.ctb)
         DataFlow.__init__(self,self.ctb)

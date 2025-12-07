@@ -1,0 +1,180 @@
+/* ============= USAGE EXAMPLES ============= */
+#include "cfl_heap.h"
+#include <stdio.h>
+
+/* Example 1: External buffer - explicit buffer management */
+void example_external_buffer(void) {
+    /* Allocate buffer separately */
+    static uint8_t my_buffer[1024] __attribute__((aligned(4)));
+    CflHeap heap;
+    
+    /* Initialize with external buffer */
+    cfl_heap_init(&heap, my_buffer, sizeof(my_buffer));
+    
+    /* Use the heap */
+    uint16_t idx1 = cfl_heap_malloc(&heap, 64);
+    uint16_t idx2 = cfl_heap_malloc(&heap, 128);
+    
+    void* ptr1 = cfl_heap_ptr(&heap, idx1);
+    void* ptr2 = cfl_heap_ptr(&heap, idx2);
+    
+    /* ... use memory ... */
+    
+    cfl_heap_free(&heap, idx1);
+    cfl_heap_free(&heap, idx2);
+}
+
+/* Example 2: Embedded buffer - all-in-one allocation */
+void example_embedded_buffer(void) {
+    /* Allocate heap + buffer in single block */
+    #define HEAP_SIZE 1024
+    static uint8_t heap_storage[CFL_HEAP_TOTAL_SIZE(HEAP_SIZE)] __attribute__((aligned(4)));
+    CflHeap* heap = (CflHeap*)heap_storage;
+    
+    /* Initialize with embedded buffer */
+    cfl_heap_init_embedded(heap, HEAP_SIZE);
+    
+    /* Use the heap */
+    uint16_t idx = cfl_heap_malloc(heap, 256);
+    void* ptr = cfl_heap_ptr(heap, idx);
+    
+    /* ... use memory ... */
+    
+    cfl_heap_free(heap, idx);
+}
+
+/* Example 3: Multiple independent heaps */
+void example_multiple_heaps(void) {
+    /* Create two separate heaps */
+    static uint8_t buffer1[512] __attribute__((aligned(4)));
+    static uint8_t buffer2[512] __attribute__((aligned(4)));
+    
+    CflHeap heap1, heap2;
+    
+    cfl_heap_init(&heap1, buffer1, sizeof(buffer1));
+    cfl_heap_init(&heap2, buffer2, sizeof(buffer2));
+    
+    /* Each heap is independent */
+    uint16_t idx1 = cfl_heap_malloc(&heap1, 64);
+    uint16_t idx2 = cfl_heap_malloc(&heap2, 64);
+    
+    /* Indices are relative to their own heap */
+    void* ptr1 = cfl_heap_ptr(&heap1, idx1);  // Points into buffer1
+    void* ptr2 = cfl_heap_ptr(&heap2, idx2);  // Points into buffer2
+    
+    cfl_heap_free(&heap1, idx1);
+    cfl_heap_free(&heap2, idx2);
+}
+
+/* Example 4: Using the macro for static allocation */
+void example_static_macro(void) {
+    /* One-liner to define heap with embedded buffer */
+    CFL_HEAP_DEFINE_STATIC(my_heap, 2048);
+    
+    /* Initialize */
+    cfl_heap_init_embedded(my_heap, 2048);
+    
+    /* Use normally */
+    uint16_t idx = cfl_heap_malloc(my_heap, 100);
+    cfl_heap_free(my_heap, idx);
+}
+
+/* Example 5: Heap as struct member (useful for ChainTree nodes) */
+typedef struct {
+    CflHeap heap;
+    uint8_t buffer[512];
+} NodeWithHeap;
+
+void example_struct_member(void) {
+    NodeWithHeap node;
+    
+    /* Initialize using the embedded buffer */
+    cfl_heap_init(&node.heap, node.buffer, sizeof(node.buffer));
+    
+    /* Allocate from node's local heap */
+    uint16_t idx = cfl_heap_malloc(&node.heap, 32);
+    void* ptr = cfl_heap_ptr(&node.heap, idx);
+    
+    cfl_heap_free(&node.heap, idx);
+}
+
+/* Example 6: Thread-safe usage pattern (each thread gets own heap) */
+typedef struct {
+    CflHeap* heap;
+    /* ... other thread-local data ... */
+} ThreadContext;
+
+void thread_worker(ThreadContext* ctx) {
+    /* Each thread has its own heap - no locking needed */
+    uint16_t idx = cfl_heap_malloc(ctx->heap, 128);
+    void* ptr = cfl_heap_ptr(ctx->heap, idx);
+    
+    /* ... do work ... */
+    
+    cfl_heap_free(ctx->heap, idx);
+}
+
+/* Example 7: Dynamic heap creation (for systems with malloc) */
+#ifdef HAS_MALLOC
+CflHeap* create_dynamic_heap(uint16_t size) {
+    /* Allocate everything in one block */
+    size_t total_size = CFL_HEAP_TOTAL_SIZE(size);
+    uint8_t* storage = malloc(total_size);
+    if (!storage) return NULL;
+    
+    CflHeap* heap = (CflHeap*)storage;
+    cfl_heap_init_embedded(heap, size);
+    
+    return heap;
+}
+
+void destroy_dynamic_heap(CflHeap* heap) {
+    if (heap) {
+        cfl_heap_reset(heap);
+        free(heap);
+    }
+}
+#endif
+
+/* Example 8: Diagnostics and monitoring */
+void example_diagnostics(CflHeap* heap) {
+    uint16_t used = cfl_heap_used_bytes(heap);
+    uint16_t free = cfl_heap_free_bytes(heap);
+    
+    printf("Heap usage: %u/%u bytes (%.1f%% used)\n", 
+           used, used + free, 
+           100.0 * used / (used + free));
+    
+    cfl_heap_dump_stats(heap);
+}
+
+/* Example 9: Pointer/index conversion */
+void example_ptr_idx_conversion(CflHeap* heap) {
+    uint16_t idx = cfl_heap_malloc(heap, 64);
+    
+    /* Convert index to pointer for use */
+    void* ptr = cfl_heap_ptr(heap, idx);
+    
+    /* Later, convert back to index (if needed for storage) */
+    uint16_t recovered_idx = cfl_heap_ptr_to_idx(heap, ptr);
+    
+    /* recovered_idx == idx */
+    
+    cfl_heap_free(heap, idx);
+}
+
+/* Example 10: Reset and reuse */
+void example_reset(CflHeap* heap) {
+    /* Allocate some memory */
+    uint16_t idx1 = cfl_heap_malloc(heap, 100);
+    uint16_t idx2 = cfl_heap_malloc(heap, 200);
+    
+    /* Reset clears all allocations */
+    cfl_heap_reset(heap);
+    
+    /* Re-initialize for reuse */
+    cfl_heap_init_embedded(heap, 1024);  /* Same size as before */
+    
+    /* Fresh start - all memory available again */
+    uint16_t idx3 = cfl_heap_malloc(heap, 100);
+}

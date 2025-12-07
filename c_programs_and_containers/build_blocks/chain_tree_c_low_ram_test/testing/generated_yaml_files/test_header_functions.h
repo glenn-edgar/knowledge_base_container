@@ -146,16 +146,16 @@ typedef enum {
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_deqxr7z9_main_functions[29];
-extern const one_shot_function_t ct_deqxr7z9_one_shot_functions[78];
-extern const boolean_function_t ct_deqxr7z9_boolean_functions[16];
+extern const main_function_t ct_8g23mb1x_main_functions[29];
+extern const one_shot_function_t ct_8g23mb1x_one_shot_functions[78];
+extern const boolean_function_t ct_8g23mb1x_boolean_functions[16];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_deqxr7z9_main_function_usage_count[29];
+extern const uint16_t ct_8g23mb1x_main_function_usage_count[29];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_deqxr7z9_main_function_names[29];
-extern const char *ct_deqxr7z9_one_shot_function_names[78];
-extern const char *ct_deqxr7z9_boolean_function_names[16];
+extern const char *ct_8g23mb1x_main_function_names[29];
+extern const char *ct_8g23mb1x_one_shot_function_names[78];
+extern const char *ct_8g23mb1x_boolean_function_names[16];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */

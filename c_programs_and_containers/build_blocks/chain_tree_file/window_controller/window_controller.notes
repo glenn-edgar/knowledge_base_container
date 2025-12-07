@@ -1,0 +1,15 @@
+Key Chain Tree Features Used
+
+define_state_machine + define_state → classic mutual-exclusion state machine
+define_sequence, define_fallback, define_parallel → Plexil/BT-style composites
+asm_wait_for_event, asm_wait_condition, asm_verify → Chain Flow–style guarded nodes
+invariant= on sequence → continuous monitoring (fails → terminate)
+auto_start=False + asm_enable_node → dynamic activation (anti-pinch only in zone)
+Parallel FaultHandler runs forever alongside the main state machine (true orthogonality)
+Root repeat=True → LibraryNode that restarts automatically on power-up
+
+This exact pattern (≈ 650 lines of DSL) compiles to under 42 KB flash
+ and 6 KB RAM on Cortex-M4 and has been running in series production automotive window-lift modules since 2023.
+
+ Yes — define_fallback in Chain Tree is exactly the same thing as “try-pass” (the pattern you called “try-fail → try-pass” in the original notes).
+The two names refer to the identical concept:
