@@ -1,0 +1,44 @@
+{
+  "type": "sequence",
+  "name": "main_loop",
+  "timeout_ms": 10000,
+  "children": [
+    {
+      "type": "condition",
+      "name": "check_temp",
+      "handler_id": 1,
+      "sensor_id": "temp_sensor_1",
+      "thresholds": {"min": 10, "max": 100},
+      "sample_rate_hz": 10
+    },
+    {
+      "type": "action",
+      "name": "control_pump",
+      "handler_id": 10,
+      "retry_count": 3,
+      "retry_delay_ms": 500,
+      "params": {
+        "mode": "automatic",
+        "max_flow": 1000
+      }
+    },
+    {
+      "type": "selector",
+      "name": "error_handling",
+      "children": [
+        {
+          "type": "action",
+          "name": "log_error",
+          "handler_id": 20,
+          "log_level": "warning"
+        },
+        {
+          "type": "action", 
+          "name": "send_alert",
+          "handler_id": 21,
+          "alert_channels": ["email", "sms"]
+        }
+      ]
+    }
+  ]
+}

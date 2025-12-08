@@ -1,0 +1,52 @@
+{
+    "type": "sequence",
+    "name": "main_loop",
+    "handler_id": 0,
+    "children": [
+      {
+        "type": "condition",
+        "name": "check_sensor",
+        "handler_id": 1,
+        "flags": 1
+      },
+      {
+        "type": "selector",
+        "name": "decide_action",
+        "handler_id": 0,
+        "children": [
+          {
+            "type": "action",
+            "name": "fast_path",
+            "handler_id": 10
+          },
+          {
+            "type": "action",
+            "name": "slow_path",
+            "handler_id": 11
+          }
+        ]
+      },
+      {
+        "type": "parallel",
+        "name": "concurrent_tasks",
+        "handler_id": 0,
+        "children": [
+          {
+            "type": "action",
+            "name": "monitor",
+            "handler_id": 20
+          },
+          {
+            "type": "action",
+            "name": "heartbeat",
+            "handler_id": 21
+          }
+        ]
+      },
+      {
+        "type": "action",
+        "name": "cleanup",
+        "handler_id": 30
+      }
+    ]
+  }

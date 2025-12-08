@@ -1,0 +1,71 @@
+# chaintree_types.yaml
+#
+# Single source of truth for ChainTree node types.
+# Run: python3 generate_node_types.py chaintree_types.yaml -o chaintree_node_types.h
+#
+# Each entry defines:
+#   - enum_name: C enum value (e.g., CT_SEQUENCE)
+#   - json_name: String used in JSON files (e.g., "sequence")
+#   - description: Optional documentation
+
+types:
+  # Control flow nodes
+  - enum_name: CT_SEQUENCE
+    json_name: sequence
+    description: Run children in order, fail on first failure
+
+  - enum_name: CT_SELECTOR
+    json_name: selector
+    description: Run children in order, succeed on first success
+
+  - enum_name: CT_PARALLEL
+    json_name: parallel
+    description: Run all children simultaneously
+
+  # Leaf nodes
+  - enum_name: CT_ACTION
+    json_name: action
+    description: Leaf node that performs an action
+
+  - enum_name: CT_CONDITION
+    json_name: condition
+    description: Leaf node that checks a condition
+
+  # State machine
+  - enum_name: CT_STATE
+    json_name: state
+    description: State machine state
+
+  # Decorators
+  - enum_name: CT_DECORATOR
+    json_name: decorator
+    description: Wraps single child with modifier
+
+  - enum_name: CT_REPEAT
+    json_name: repeat
+    description: Repeat child N times or until failure
+
+  - enum_name: CT_INVERTER
+    json_name: inverter
+    description: Invert child result (success <-> failure)
+
+  - enum_name: CT_TIMEOUT
+    json_name: timeout
+    description: Fail if child exceeds time limit
+
+  - enum_name: CT_RETRY
+    json_name: retry
+    description: Retry child on failure up to N times
+
+  - enum_name: CT_GUARD
+    json_name: guard
+    description: Run child only if condition passes
+
+# Default type when JSON "type" field is missing or unknown
+default_type: CT_ACTION
+
+# Enum type name
+enum_name: ct_node_type_t
+
+# Prefix for generated macros
+prefix: CT
