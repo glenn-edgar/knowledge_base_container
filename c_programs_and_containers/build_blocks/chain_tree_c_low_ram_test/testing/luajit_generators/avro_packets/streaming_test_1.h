@@ -60,6 +60,9 @@ static inline const accelerometer_reading_t* accelerometer_reading_packet_verify
 {
     const accelerometer_reading_packet_t* pkt = (const accelerometer_reading_packet_t*)packet_buffer;
     
+    // Verify schema file
+    if (strcmp(pkt->schema_file, STREAMING_TEST_1_SCHEMA_FILE) != 0) return NULL;
+    
     // Verify packet type
     if (pkt->index != 0) return NULL;
     

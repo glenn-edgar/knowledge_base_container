@@ -290,7 +290,6 @@ local function emit_wire_packets(out)
         out:write("    return &pkt->data;\n")
         out:write("}\n\n")
     end
-    -- Generate verify/decode helper per record
     out:write("// Packet verify helpers - validate and return data pointer\n")
     for i, r in ipairs(current_file.records) do
         local idx = i - 1  -- 0-based
@@ -300,6 +299,9 @@ local function emit_wire_packets(out)
         out:write("        uint16_t* source_node)\n")
         out:write("{\n")
         out:write(string.format("    const %s_packet_t* pkt = (const %s_packet_t*)packet_buffer;\n", r.name, r.name))
+        out:write("    \n")
+        out:write("    // Verify schema file\n")
+        out:write(string.format("    if (strcmp(pkt->schema_file, %s_SCHEMA_FILE) != 0) return NULL;\n", name_upper))
         out:write("    \n")
         out:write("    // Verify packet type\n")
         out:write(string.format("    if (pkt->index != %d) return NULL;\n", idx))
