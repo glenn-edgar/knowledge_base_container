@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* ===== Function Pointer Types ===== */
 typedef unsigned (*main_function_t)(void *handle, unsigned bool_function_index,
@@ -35,6 +36,12 @@ typedef struct {
 #define PACK_LINK_COUNT(count, auto_start) \
     (((count) & LINK_COUNT_MASK) | ((auto_start) ? AUTO_START_BIT : 0))
 
+/* ===== Node Alias Structure (for named node references) ===== */
+typedef struct {
+    const char *alias;
+    uint16_t node_index;
+} node_alias_t;
+
 /* ===== Knowledge Base Info ===== */
 typedef struct {
     const char *kb_name;
@@ -43,6 +50,8 @@ typedef struct {
     uint16_t node_count;
     uint16_t max_depth;           /* Maximum tree depth in this KB */
     uint16_t memory_factor;       /* Memory allocation factor for this KB */
+    const node_alias_t *aliases;  /* Node alias table (NULL if none) */
+    uint16_t alias_count;         /* Number of aliases */
 } chaintree_kb_info_t;
 
 /* ===== Node Data Structures ===== */

@@ -1636,6 +1636,26 @@ def twenty_second_test(ct,kb_name): # state machine
     ct.end_test()
 
 
+
+
+
+def twenty_third_test(ct,kb_name):
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column")
+    event_id = ct.ctb.register_event(event_id="GENERATE_AVRO_PACKET")
+    node_index = ct.ctb.get_node_index(launch_column)
+    ct.asm_one_shot_handler(one_shot_fn="GENERATE_AVRO_PACKET",one_shot_data={"event_id": event_id,"node_index": node_index})
+    ct.asm_node_element(main_function = "AVRO_VERIFY_PACKET",initialization_function="AVRO_VERIFY_PACKET_INIT",node_data={"event_id": event_id})
+
+    ct.asm_halt()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
+
+
+
+
+    
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
     
@@ -1650,7 +1670,7 @@ def add_header(yaml_file):
 if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
-                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test"]
+                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test","twenty_third_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -1671,7 +1691,8 @@ if __name__ == "__main__":
                  "ninteenth_test": ninteenth_test,
                  "twentieth_test": twentieth_test,
                  "twenty_first_test": twenty_first_test,
-                 "twenty_second_test": twenty_second_test}
+                 "twenty_second_test": twenty_second_test,
+                 "twenty_third_test": twenty_third_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

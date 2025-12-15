@@ -156,7 +156,7 @@ class ExceptionHandler():
         if len(self.exception_catch_stack) == 0:
             raise ValueError("Exception catch stack is empty")
         poped_exception_catch = self.exception_catch_stack.pop()
-        print(poped_exception_catch,exception_catch_name)
+    
         if poped_exception_catch != exception_catch_name:
             raise ValueError("Exception catch mismatch")
         check_flag = self.exception_catch_flags.pop()

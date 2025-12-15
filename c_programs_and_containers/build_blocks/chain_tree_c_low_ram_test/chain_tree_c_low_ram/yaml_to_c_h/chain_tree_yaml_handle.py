@@ -33,6 +33,7 @@ class ChainTreeYamlHandle:
         self.kb_log_dict = self.raw_data.get('kb_log_dict', {})
         self.ltree_to_index = self.raw_data.get('ltree_to_index', {})
         self.total_nodes = self.raw_data.get('total_nodes', 0)
+        self.kb_metadata = self.raw_data.get('kb_metadata', {})
         
         # Organize nodes by knowledge base
         self.kb_nodes: Dict[str, Dict[str, Dict]] = {}  # kb_name -> {ltree_name -> node_data}
@@ -58,12 +59,8 @@ class ChainTreeYamlHandle:
         """Parse the raw YAML data into organized structures."""
         
         for ltree_name, node_data in self.raw_data.items():
-            # Extract kb_metadata if present
-            if 'kb_metadata' in self.raw_data:
-                self.kb_metadata = self.raw_data['kb_metadata'] 
-            
             # Skip metadata entries
-            if ltree_name in ['kb_log_dict', 'ltree_to_index', 'total_nodes']:
+            if ltree_name in ['kb_log_dict', 'ltree_to_index', 'total_nodes', 'kb_metadata']:
                 continue
             
             # Skip non-dict entries
@@ -201,6 +198,19 @@ class ChainTreeYamlHandle:
     def get_all_kb_metadata(self, kb_name: str) -> Dict:
         """Get all metadata for a knowledge base."""
         return self.kb_metadata.get(kb_name, {})
+    
+    def get_kb_node_aliases(self, kb_name: str) -> Dict[str, int]:
+        """
+        Get the node aliases for a knowledge base.
+        
+        Args:
+            kb_name: Name of the knowledge base
+            
+        Returns:
+            Dictionary mapping alias names to node indices, or empty dict if none
+        """
+        kb_info = self.kb_metadata.get(kb_name, {})
+        return kb_info.get('node_aliases', {})
     
     def get_kb_names(self) -> List[str]:
         """Get list of all knowledge base names."""
@@ -415,43 +425,6 @@ class ChainTreeYamlHandle:
         
         return stats
     
-    def validate(self) -> List[str]:
-        """
-        Validate the loaded data for consistency.
-        
-        Returns:
-            List of validation error messages (empty if valid)
-        """
-        errors = []
-        
-        # Check that all nodes in ltree_to_index exist in node data
-        for ltree_name, index in self.ltree_to_index.items():
-            if not self.get_node_data(ltree_name):
-                errors.append(f"Node in ltree_to_index not found in data: {ltree_name}")
-        
-        # Check that all parent references are valid
-        for kb_name, kb_nodes in self.kb_nodes.items():
-            for ltree_name, node_data in kb_nodes.items():
-                if 'label_dict' in node_data:
-                    parent = node_data['label_dict'].get('parent_ltree_name')
-                    if parent and parent != '' and not self.get_node_data(parent):
-                        errors.append(f"Invalid parent reference in {ltree_name}: {parent}")
-                    
-                    # Check that all children exist
-                    children = node_data['label_dict'].get('links', [])
-                    for child in children:
-                        if not self.get_node_data(child):
-                            errors.append(f"Invalid child reference in {ltree_name}: {child}")
-        
-        # Check total_nodes matches actual count
-        actual_count = sum(len(nodes) for nodes in self.kb_nodes.values())
-        if self.total_nodes != actual_count:
-            errors.append(
-                f"total_nodes mismatch: declared={self.total_nodes}, actual={actual_count}"
-            )
-        
-        return errors
-    
     def print_summary(self) -> None:
         """Print a summary of the loaded data."""
         print("=" * 70)
@@ -464,7 +437,9 @@ class ChainTreeYamlHandle:
         for kb_name in self.kb_nodes.keys():
             node_count = self.get_kb_node_count(kb_name)
             root_node = self.get_kb_root_node(kb_name)
-            print(f"  - {kb_name}: {node_count} nodes, root={root_node}")
+            aliases = self.get_kb_node_aliases(kb_name)
+            alias_info = f", {len(aliases)} aliases" if aliases else ""
+            print(f"  - {kb_name}: {node_count} nodes, root={root_node}{alias_info}")
         
         print(f"\nFunctions:")
         print(f"  Main functions: {len(self.all_main_functions)}")
@@ -517,6 +492,11 @@ if __name__ == "__main__":
         # Get root and traverse
         root = handle.get_kb_root_node(kb_name)
         print(f"Root node: {root}")
+        
+        # Show aliases
+        aliases = handle.get_kb_node_aliases(kb_name)
+        if aliases:
+            print(f"Node aliases: {aliases}")
         
         # Breadth-first traversal
         bfs_order = handle.traverse_kb_breadth_first(kb_name)

@@ -46,6 +46,9 @@ class ChainTreeYaml:
         self.kb_metadata: Dict[str, Dict] = {}
         self.current_kb_name: Optional[str] = None
         
+        # Node alias tables per KB (for named node references in C)
+        self.node_alias_tables: Dict[str, Dict[str, int]] = {}
+        
         # Function mappings per knowledge base
         self.main_functions: Dict[str, Dict[str, bool]] = {}
         self.one_shot_functions: Dict[str, Dict[str, bool]] = {}
@@ -99,6 +102,25 @@ class ChainTreeYaml:
                 f"Path list is not at the root level: {self.path_list}"
             )
         
+        # Ensure kb_metadata exists for this KB (defensive)
+        if self.current_kb_name not in self.kb_metadata:
+            self.kb_metadata[self.current_kb_name] = {
+                "start_index": 0,
+                "node_count": 0,
+                "node_aliases": {}
+            }
+        
+        kb_meta = self.kb_metadata[self.current_kb_name]
+        
+        # Calculate node count for this KB (if start_index exists)
+        start_idx = kb_meta.get("start_index", 0)
+        kb_meta["node_count"] = self.node_count - start_idx
+        
+        # Attach alias table to kb_metadata (if alias table exists)
+        kb_meta["node_aliases"] = self.node_alias_tables.get(
+            self.current_kb_name, {}
+        ).copy()
+        
         self.pop_path(self.path_list[0], self.path_list[1])
         del self.kb_dict[self.current_kb_name]
         self.current_kb_name = None
@@ -115,6 +137,18 @@ class ChainTreeYaml:
         self.s_main_functions[kb_name] = {}
         self.s_one_shot_functions[kb_name] = {}
         self.s_boolean_functions[kb_name] = {}
+        
+        # Initialize alias table for this KB (only if not already set)
+        if kb_name not in self.node_alias_tables:
+            self.node_alias_tables[kb_name] = {}
+        
+        # Initialize KB metadata with start index (only if not already set)
+        if kb_name not in self.kb_metadata:
+            self.kb_metadata[kb_name] = {
+                "start_index": self.node_count,
+                "node_count": 0,
+                "node_aliases": {}
+            }
     
     # =========================================================================
     # Function Registration
@@ -154,6 +188,106 @@ class ChainTreeYaml:
         """Register a secure boolean function in the current knowledge base."""
         self._check_kb_selected()
         self.s_boolean_functions[self.current_kb_name][function_name] = True
+    
+    # =========================================================================
+    # Node Alias Table Management
+    # =========================================================================
+    
+    def register_node_alias(self, alias_name: str, ltree_name: Optional[str] = None) -> int:
+        """
+        Register a named alias for a node index.
+        
+        This allows referencing nodes by semantic names rather than hardcoded
+        indices in embedded C code.
+        
+        Args:
+            alias_name: String key for lookup (e.g., "main_sequence", "error_handler")
+            ltree_name: Full ltree path. If None, uses current node from ltree_stack.
+            
+        Returns:
+            The node index
+            
+        Raises:
+            ValueError: If no KB selected or no current node
+            KeyError: If ltree_name not found
+            TypeError: If alias_name not a string
+            
+        Example:
+            >>> nav = ct.add_node_element("subsystem", "navigation", ...)
+            >>> ct.register_node_alias("nav_root")  # Uses current node
+            >>> ct.register_node_alias("main_lidar", "kb.robot.sensor.lidar")
+        """
+        self._check_kb_selected()
+        
+        if not isinstance(alias_name, str):
+            raise TypeError("alias_name must be a string")
+        
+        if ltree_name is None:
+            if not self.ltree_stack:
+                raise ValueError("No current node and no ltree_name provided")
+            ltree_name = self.ltree_stack[-1]
+        
+        if ltree_name not in self.ltree_to_index:
+            raise KeyError(f"Node not found: {ltree_name}")
+        
+        node_index = self.ltree_to_index[ltree_name]
+        self.node_alias_tables[self.current_kb_name][alias_name] = node_index
+        
+        return node_index
+    
+    def get_node_by_alias(self, alias_name: str, kb_name: Optional[str] = None) -> int:
+        """
+        Get node index by alias name.
+        
+        Args:
+            alias_name: The alias to look up
+            kb_name: Knowledge base name (uses current if None)
+            
+        Returns:
+            Integer node index
+            
+        Raises:
+            ValueError: If no KB specified
+            KeyError: If alias not found
+        """
+        kb = kb_name or self.current_kb_name
+        if kb is None:
+            raise ValueError("No knowledge base specified")
+        
+        if alias_name not in self.node_alias_tables.get(kb, {}):
+            raise KeyError(f"Alias not found: {alias_name}")
+        
+        return self.node_alias_tables[kb][alias_name]
+    
+    def get_node_alias_table(self, kb_name: Optional[str] = None) -> Dict[str, int]:
+        """
+        Get all aliases for a KB.
+        
+        Args:
+            kb_name: Knowledge base name (uses current if None)
+            
+        Returns:
+            Dictionary mapping alias names to node indices
+        """
+        kb = kb_name or self.current_kb_name
+        if kb is None:
+            raise ValueError("No knowledge base specified")
+        
+        return self.node_alias_tables.get(kb, {}).copy()
+    
+    def get_kb_metadata(self, kb_name: str) -> Dict:
+        """
+        Get complete KB metadata including start_index, node_count, and aliases.
+        
+        Args:
+            kb_name: Knowledge base name
+            
+        Returns:
+            Dictionary with start_index, node_count, and node_aliases
+        """
+        if kb_name not in self.kb_metadata:
+            raise KeyError(f"KB not found: {kb_name}")
+        return self.kb_metadata[kb_name].copy()
     
     # =========================================================================
     # Path Management
@@ -825,6 +959,9 @@ if __name__ == "__main__":
         links_flag=False
     )
     
+    # Register alias for root node
+    ct.register_node_alias("root")
+    
     # Navigation subsystem
     nav = ct.add_node_element(
         "subsystem", "navigation",
@@ -835,8 +972,11 @@ if __name__ == "__main__":
         node_data={"update_rate_hz": 50}
     )
     
+    # Register alias for navigation
+    ct.register_node_alias("nav_root")
+    
     # Navigation leaves
-    ct.add_leaf_element(
+    lidar_ltree = ct.add_leaf_element(
         "sensor", "lidar",
         main_function_name="read_lidar",
         initialization_function_name="init_lidar",
@@ -844,6 +984,9 @@ if __name__ == "__main__":
         termination_function_name="close_lidar",
         node_data={"port": "/dev/ttyUSB0", "range_m": 10.0}
     )
+    
+    # Register alias for lidar using explicit ltree name
+    ct.register_node_alias("main_lidar", lidar_ltree)
     
     ct.add_leaf_element(
         "control", "path_planner",
@@ -866,7 +1009,10 @@ if __name__ == "__main__":
         node_data={"update_rate_hz": 100}
     )
     
-    ct.add_leaf_element(
+    # Register alias for manipulation
+    ct.register_node_alias("manip_root")
+    
+    gripper_ltree = ct.add_leaf_element(
         "actuator", "gripper",
         main_function_name="control_gripper",
         initialization_function_name="init_gripper",
@@ -874,6 +1020,9 @@ if __name__ == "__main__":
         termination_function_name="close_gripper",
         node_data={"max_force_n": 50, "speed_mm_s": 100}
     )
+    
+    # Register alias for gripper
+    ct.register_node_alias("gripper", gripper_ltree)
     
     ct.pop_node_element(manip)
     ct.pop_node_element(root)
@@ -915,7 +1064,7 @@ if __name__ == "__main__":
     ct.leave_kb()
     
     # Generate YAML
-    print("Generating YAML...")
+    print("\nGenerating YAML...")
     data = ct.generate_yaml()
     
     print("\nGenerated YAML content:")
@@ -936,6 +1085,55 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print(f"Total nodes created: {ct.node_count}")
     print(f"YAML file: {yaml_file.absolute()}")
+    
+    # Demonstrate KB metadata with aliases
+    print("\n" + "=" * 70)
+    print("KB Metadata (for embedded C kb_descriptor_t):")
+    print("-" * 70)
+    
+    kb_meta = ct.get_kb_metadata("robot_control")
+    print(f"\nKB: robot_control")
+    print(f"  start_index: {kb_meta['start_index']}")
+    print(f"  node_count: {kb_meta['node_count']}")
+    print(f"  node_aliases:")
+    for alias, index in kb_meta['node_aliases'].items():
+        print(f"    {alias}: {index}")
+    
+    print("\nGenerated C structures:")
+    print("-" * 70)
+    print("""
+// Generic KB descriptor structure
+typedef struct {
+    const char *name;
+    uint16_t start_index;
+    uint16_t node_count;
+    const node_alias_t *aliases;
+    uint16_t alias_count;
+} kb_descriptor_t;
+
+typedef struct {
+    const char *alias;
+    uint16_t node_index;
+} node_alias_t;
+""")
+    
+    print("// Per-KB alias tables")
+    print("static const node_alias_t kb_0_aliases[] = {")
+    for alias, index in kb_meta['node_aliases'].items():
+        print(f'    {{"{alias}", {index}}},')
+    print("};")
+    
+    print("\n// KB descriptor table")
+    print("static const kb_descriptor_t kb_table[] = {")
+    print("    {")
+    print(f'        .name = "robot_control",')
+    print(f'        .start_index = {kb_meta["start_index"]},')
+    print(f'        .node_count = {kb_meta["node_count"]},')
+    print(f'        .aliases = kb_0_aliases,')
+    print(f'        .alias_count = {len(kb_meta["node_aliases"])}')
+    print("    },")
+    print("};")
+    print(f"#define KB_COUNT 1")
     
     # Demonstrate array indexing features
     print("\n" + "=" * 70)

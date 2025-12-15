@@ -2,14 +2,16 @@
 #include "test_header_kb_info.h"
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
+const chaintree_kb_info_t ct_71uw6ipw_kb_table[20] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
         .start_index = 0,
         .node_count = 32,
         .max_depth = 2,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "second_test",
@@ -17,7 +19,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 32,
         .node_count = 34,
         .max_depth = 2,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "fourth_test",
@@ -25,7 +29,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 66,
         .node_count = 15,
         .max_depth = 3,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "fifth_test",
@@ -33,7 +39,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 81,
         .node_count = 61,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "sixth_test",
@@ -41,7 +49,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 142,
         .node_count = 35,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "seventh_test",
@@ -49,7 +59,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 177,
         .node_count = 40,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "eighth_test",
@@ -57,7 +69,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 217,
         .node_count = 28,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "ninth_test",
@@ -65,7 +79,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 245,
         .node_count = 30,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "tenth_test",
@@ -73,7 +89,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 275,
         .node_count = 97,
         .max_depth = 5,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "eleventh_test",
@@ -81,7 +99,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 372,
         .node_count = 11,
         .max_depth = 4,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "twelfth_test",
@@ -89,7 +109,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 383,
         .node_count = 7,
         .max_depth = 3,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "thirteenth_test",
@@ -97,7 +119,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 390,
         .node_count = 22,
         .max_depth = 2,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "fourteenth_test",
@@ -105,7 +129,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 412,
         .node_count = 25,
         .max_depth = 3,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "seventeenth_test",
@@ -113,7 +139,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 437,
         .node_count = 221,
         .max_depth = 6,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "eighteenth_test",
@@ -121,7 +149,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 658,
         .node_count = 187,
         .max_depth = 6,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "ninteenth_test",
@@ -129,7 +159,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 845,
         .node_count = 234,
         .max_depth = 10,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "twentieth_test",
@@ -137,7 +169,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 1079,
         .node_count = 18,
         .max_depth = 3,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "twenty_first_test",
@@ -145,7 +179,9 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 1097,
         .node_count = 17,
         .max_depth = 2,
-        .memory_factor = 40
+        .memory_factor = 40,
+        .aliases = NULL,
+        .alias_count = 0
     },
     {
         .kb_name = "twenty_second_test",
@@ -153,6 +189,18 @@ const chaintree_kb_info_t ct_8g23mb1x_kb_table[19] = {
         .start_index = 1114,
         .node_count = 29,
         .max_depth = 5,
-        .memory_factor = 10
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
+    },
+    {
+        .kb_name = "twenty_third_test",
+        .root_node_index = 1143,
+        .start_index = 1143,
+        .node_count = 6,
+        .max_depth = 2,
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
     },
 };

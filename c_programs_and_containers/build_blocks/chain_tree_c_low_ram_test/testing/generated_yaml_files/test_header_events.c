@@ -2,7 +2,7 @@
 #include "test_header_events.h"
 
 /* Event names indexed by event index */
-const char *ct_8g23mb1x_event_strings[28] = {
+const char *ct_71uw6ipw_event_strings[29] = {
     "CFL_INIT_EVENT",
     "CFL_TERMINATE_EVENT",
     "CFL_START_TESTS",
@@ -31,4 +31,5 @@ const char *ct_8g23mb1x_event_strings[28] = {
     "SYNC_EVENT",
     "TEST_EVENT",
     "CF_TIMER_EVENT",
+    "GENERATE_AVRO_PACKET",
 };

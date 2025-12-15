@@ -10,6 +10,7 @@
 
 /* Forward declarations - user must provide these functions */
 extern unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned avro_verify_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_disable_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -41,6 +42,7 @@ extern unsigned sm_event_filtering_main_main_fn(void *handle, unsigned bool_func
 
 extern void cfl_null_one_shot_fn(void *handle, unsigned node_index);
 extern void activate_valve_one_shot_fn(void *handle, unsigned node_index);
+extern void avro_verify_packet_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_catch_all_exception_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_catch_all_exception_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_change_state_one_shot_fn(void *handle, unsigned node_index);
@@ -104,6 +106,7 @@ extern void cfl_watch_dog_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_watch_dog_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_while_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_while_term_one_shot_fn(void *handle, unsigned node_index);
+extern void generate_avro_packet_one_shot_fn(void *handle, unsigned node_index);
 extern void sm_event_filtering_init_one_shot_fn(void *handle, unsigned node_index);
 extern void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index);
 extern void verify_error_one_shot_fn(void *handle, unsigned node_index);
@@ -135,8 +138,9 @@ extern bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsig
 extern bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_8g23mb1x_main_functions[] = {
+const main_function_t ct_71uw6ipw_main_functions[] = {
     cfl_null_main_fn,
+    avro_verify_packet_main_fn,
     cfl_column_main_main_fn,
     cfl_df_mask_main_main_fn,
     cfl_disable_main_fn,
@@ -167,9 +171,10 @@ const main_function_t ct_8g23mb1x_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_8g23mb1x_one_shot_functions[] = {
+const one_shot_function_t ct_71uw6ipw_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
+    avro_verify_packet_init_one_shot_fn,
     cfl_catch_all_exception_init_one_shot_fn,
     cfl_catch_all_exception_term_one_shot_fn,
     cfl_change_state_one_shot_fn,
@@ -233,6 +238,7 @@ const one_shot_function_t ct_8g23mb1x_one_shot_functions[] = {
     cfl_watch_dog_term_one_shot_fn,
     cfl_while_init_one_shot_fn,
     cfl_while_term_one_shot_fn,
+    generate_avro_packet_one_shot_fn,
     sm_event_filtering_init_one_shot_fn,
     wait_for_event_error_one_shot_fn,
     verify_error_one_shot_fn,
@@ -248,7 +254,7 @@ const one_shot_function_t ct_8g23mb1x_one_shot_functions[] = {
     verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_8g23mb1x_boolean_functions[] = {
+const boolean_function_t ct_71uw6ipw_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -268,18 +274,19 @@ const boolean_function_t ct_8g23mb1x_boolean_functions[] = {
 };
 
 /* Main function usage count */
-const uint16_t ct_8g23mb1x_main_function_usage_count[29] = {
+const uint16_t ct_71uw6ipw_main_function_usage_count[30] = {
     0,  /* CFL_NULL */
-    160,  /* CFL_COLUMN_MAIN */
+    1,  /* AVRO_VERIFY_PACKET */
+    161,  /* CFL_COLUMN_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    521,  /* CFL_DISABLE */
+    523,  /* CFL_DISABLE */
     32,  /* CFL_EVENT_LOGGER */
     2,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
     7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    19,  /* CFL_GATE_NODE_MAIN */
-    40,  /* CFL_HALT */
+    20,  /* CFL_GATE_NODE_MAIN */
+    41,  /* CFL_HALT */
     23,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
     1,  /* CFL_LOCAL_ARENA_MAIN */
@@ -300,8 +307,9 @@ const uint16_t ct_8g23mb1x_main_function_usage_count[29] = {
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_8g23mb1x_main_function_names[29] = {
+const char *ct_71uw6ipw_main_function_names[30] = {
     "CFL_NULL",
+    "AVRO_VERIFY_PACKET",
     "CFL_COLUMN_MAIN",
     "CFL_DF_MASK_MAIN",
     "CFL_DISABLE",
@@ -332,9 +340,10 @@ const char *ct_8g23mb1x_main_function_names[29] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_8g23mb1x_one_shot_function_names[78] = {
+const char *ct_71uw6ipw_one_shot_function_names[80] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
+    "AVRO_VERIFY_PACKET_INIT",
     "CFL_CATCH_ALL_EXCEPTION_INIT",
     "CFL_CATCH_ALL_EXCEPTION_TERM",
     "CFL_CHANGE_STATE",
@@ -398,6 +407,7 @@ const char *ct_8g23mb1x_one_shot_function_names[78] = {
     "CFL_WATCH_DOG_TERM",
     "CFL_WHILE_INIT",
     "CFL_WHILE_TERM",
+    "GENERATE_AVRO_PACKET",
     "SM_EVENT_FILTERING_INIT",
     "WAIT_FOR_EVENT_ERROR",
     "VERIFY_ERROR",
@@ -413,7 +423,7 @@ const char *ct_8g23mb1x_one_shot_function_names[78] = {
     "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_8g23mb1x_boolean_function_names[16] = {
+const char *ct_71uw6ipw_boolean_function_names[16] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",
