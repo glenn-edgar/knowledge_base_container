@@ -68,7 +68,8 @@
      CFL_EVENT_TYPE_FLOAT       = 3,  /**< Data is float/double */
      CFL_EVENT_TYPE_NODE_ID     = 4,  /**< Data is node ID */
      CFL_EVENT_TYPE_JSON_RECORD = 5,  /**< Data is JSON record */
-     CFL_EVENT_TYPE_NULL        = 6   /**< Data is null */
+     CFL_EVENT_TYPE_STREAMING_DATA = 6,  /**< Data is streaming data */
+     CFL_EVENT_TYPE_NULL        = 7   /**< Data is null */
  } cfl_event_type_t;
  /** Minimum queue size (power of 2) */
  #define CFL_EVENT_QUEUE_MIN_SIZE    2
@@ -511,6 +512,13 @@
      unsigned node_id,
      unsigned event_id,
      unsigned node_index);
+
+bool cfl_send_streaming_data_event(
+      CFL_EVENT_QUEUE_T *queue_control,
+     unsigned priority,
+     unsigned node_id,
+     unsigned event_id,
+     void *data);
  
  #ifdef __cplusplus
  }

@@ -651,3 +651,19 @@ bool cfl_send_null_event(
          data_ptr);
  }
 
+bool cfl_send_streaming_data_event(
+     CFL_EVENT_QUEUE_T *queue_control,
+    unsigned priority,
+    unsigned node_id,
+    unsigned event_id,
+    void *data)
+ {
+     return cfl_send_event(
+         queue_control,
+         priority,
+         node_id,
+         CFL_EVENT_TYPE_STREAMING_DATA,
+         false,
+         event_id,
+         data);
+ }

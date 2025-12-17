@@ -1654,6 +1654,42 @@ def twenty_third_test(ct,kb_name):
 
 
 
+def insert_packet_generator(ct,port_0,launch_column):
+    packet_generator_column = ct.define_column(column_name="packet_generator_column",auto_start=True)
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_log_message("sending packet")
+    ct.asm_streaming_emit_packet(aux_function="PACKET_GENERATOR",aux_function_data={"device_id":1},event_column=launch_column,streaming_event_name="PACKET_GENERATOR_EVENT_1",outport=port_0)
+    ct.asm_reset()
+    ct.end_column(column_name=packet_generator_column)
+    return packet_generator_column
+
+def insert_packet_sink(ct,port_0):
+    packet_sink_column = ct.define_column(column_name="packet_sink_column",auto_start=True)
+    ct.asm_log_message("receiving packet")
+    ct.asm_streaming_sink_packet(aux_function="PACKET_SINK",aux_function_data={"sink_message":"packet received"},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
+    ct.asm_halt()
+    ct.end_column(column_name=packet_sink_column)
+    return packet_sink_column
+
+def twenty_fourth_test(ct,kb_name):
+    port_0 = ct.make_port(file_name="stream_test_1.h",handler_id=0)
+    port_1 = ct.make_port(file_name="stream_test_1.h",handler_id=1)
+    ct.start_test(test_name=kb_name,kb_memory_factor=50)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column")
+    ct.asm_log_message("launching streaming column")
+    packet_generator_column = insert_packet_generator(ct,port_0,launch_column)
+    ct.asm_streaming_transform_packet("PACKET_TRANSFORM",aux_function_data={"x":.9},streaming_input_event_name="PACKET_GENERATOR_EVENT_1",
+                                      streaming_output_event_name="PACKET_GENERATOR_EVENT_2",inport=port_0,outport=port_1)
+ 
+    ct.asm_streaming_tap_packet(aux_function="PACKET_TAP",aux_function_data={"log_message":"packet received"},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
+    ct.asm_streaming_filter_packet("PACKET_FILTER",aux_function_data={"x":.5},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
+    packet_sink_column = insert_packet_sink(ct,port_0)
+    ct.asm_wait_time(time_delay=10)
+    ct.asm_log_message("launch column is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()
 
     
 def add_header(yaml_file):
@@ -1670,7 +1706,7 @@ def add_header(yaml_file):
 if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
-                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test","twenty_third_test"]
+                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test","twenty_third_test","twenty_fourth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -1692,7 +1728,8 @@ if __name__ == "__main__":
                  "twentieth_test": twentieth_test,
                  "twenty_first_test": twenty_first_test,
                  "twenty_second_test": twenty_second_test,
-                 "twenty_third_test": twenty_third_test}
+                 "twenty_third_test": twenty_third_test,
+                 "twenty_fourth_test": twenty_fourth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")
