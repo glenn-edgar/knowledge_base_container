@@ -1654,43 +1654,201 @@ def twenty_third_test(ct,kb_name):
 
 
 
-def insert_packet_generator(ct,port_0,launch_column):
-    packet_generator_column = ct.define_column(column_name="packet_generator_column",auto_start=True)
-    ct.asm_wait_time(time_delay=1)
+def insert_packet_generator(ct, port_0, event_column:str):
+    packet_generator_column = ct.define_column(column_name="packet_generator_column", auto_start=True)
+    ct.asm_wait_time(time_delay=.2)
     ct.asm_log_message("sending packet")
-    ct.asm_streaming_emit_packet(aux_function="PACKET_GENERATOR",aux_function_data={"device_id":1},event_column=launch_column,streaming_event_name="PACKET_GENERATOR_EVENT_1",outport=port_0)
+    ct.asm_streaming_emit_packet(aux_function="PACKET_GENERATOR", aux_function_data={"device_id": 1}, 
+                                  event_column=event_column, outport=port_0)
     ct.asm_reset()
     ct.end_column(column_name=packet_generator_column)
     return packet_generator_column
 
-def insert_packet_sink(ct,port_0):
-    packet_sink_column = ct.define_column(column_name="packet_sink_column",auto_start=True)
+def insert_packet_sink(ct, port_0, port_1):
+    packet_sink_column = ct.define_column(column_name="packet_sink_column", auto_start=True)
     ct.asm_log_message("receiving packet")
-    ct.asm_streaming_sink_packet(aux_function="PACKET_SINK",aux_function_data={"sink_message":"packet received"},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
+    ct.asm_streaming_sink_packet(aux_function="PACKET_SINK_A", 
+                                  aux_function_data={"sink_message": "raw packet received"},
+                                  inport=port_0)
+    ct.asm_streaming_sink_packet(aux_function="PACKET_SINK_B", 
+                                  aux_function_data={"sink_message": "filtered packet received"},
+                                  inport=port_1)
     ct.asm_halt()
     ct.end_column(column_name=packet_sink_column)
     return packet_sink_column
 
-def twenty_fourth_test(ct,kb_name):
-    port_0 = ct.make_port(file_name="stream_test_1.h",handler_id=0)
-    port_1 = ct.make_port(file_name="stream_test_1.h",handler_id=1)
-    ct.start_test(test_name=kb_name,kb_memory_factor=50)
-    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+def twenty_fourth_test(ct, kb_name):
+    # Events are now bound to ports at creation time
+    port_0 = ct.make_port(file_name="stream_test_1.h", handler_id=0, event="PACKET_GENERATOR_EVENT_1")
+    port_1 = ct.make_port(file_name="stream_test_1.h", handler_id=1, event="PACKET_GENERATOR_EVENT_2")
+    
+    ct.start_test(test_name=kb_name, kb_memory_factor=50)
+    launch_column = ct.define_column(column_name="launch_column", auto_start=True)
     ct.asm_log_message("launch column")
     ct.asm_log_message("launching streaming column")
-    packet_generator_column = insert_packet_generator(ct,port_0,launch_column)
-    ct.asm_streaming_transform_packet("PACKET_TRANSFORM",aux_function_data={"x":.9},streaming_input_event_name="PACKET_GENERATOR_EVENT_1",
-                                      streaming_output_event_name="PACKET_GENERATOR_EVENT_2",inport=port_0,outport=port_1)
+    
+    packet_generator_column = insert_packet_generator(ct, port_0, launch_column)
+    
+    ct.asm_streaming_transform_packet("PACKET_TRANSFORM", aux_function_data={"average": 5},
+                                       inport=port_0, outport=port_1, output_event_column=launch_column)
  
-    ct.asm_streaming_tap_packet(aux_function="PACKET_TAP",aux_function_data={"log_message":"packet received"},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
-    ct.asm_streaming_filter_packet("PACKET_FILTER",aux_function_data={"x":.5},streaming_event_name="PACKET_GENERATOR_EVENT_1",inport=port_0)
-    packet_sink_column = insert_packet_sink(ct,port_0)
-    ct.asm_wait_time(time_delay=10)
+    ct.asm_streaming_tap_packet(aux_function="PACKET_TAP", 
+                                 aux_function_data={"log_message": "packet received"}, 
+                                 inport=port_0)
+    
+    ct.asm_streaming_filter_packet("PACKET_FILTER", aux_function_data={"x": .5}, inport=port_0)
+    
+    packet_sink_column = insert_packet_sink(ct, port_0, port_1)
+    
+    ct.asm_wait_time(time_delay=100)
     ct.asm_log_message("launch column is terminating")
     ct.asm_terminate()
     ct.end_column(column_name=launch_column)
     ct.end_test()
+    
+def insert_packet_generator_delayed(ct, port, event_column: str, device_id: int, delay: float):
+    """Creates a packet generator with configurable delay"""
+    column_name = f"packet_generator_{device_id}_column"
+    generator_column = ct.define_column(column_name=column_name, auto_start=True)
+    ct.asm_wait_time(time_delay=delay)
+    ct.asm_log_message(f"emitter {device_id}: sending packet")
+    ct.asm_streaming_emit_packet(
+        aux_function="PACKET_GENERATOR",
+        aux_function_data={"device_id": device_id},
+        event_column=event_column,
+        outport=port
+    )
+    ct.asm_reset()
+    ct.end_column(column_name=generator_column)
+    return generator_column
 
+
+def insert_collector_sink(ct, event_name: str):
+    """Sink for collected packets"""
+    
+    sink_column = ct.define_column(column_name="collector_sink_column", auto_start=True)
+    ct.asm_log_message("collector sink: ready")
+    ct.asm_streaming_sink_collected_packets(
+        aux_function="PACKET_COLLECTOR_SINK",
+        aux_function_data={"sink_message": "collected packet received"},
+        event_name=event_name
+    )
+    ct.asm_halt()
+    ct.end_column(column_name=sink_column)
+    return sink_column
+
+
+def twenty_fifth_test(ct, kb_name):
+    # 3 input ports for 3 emitters (all emit accelerometer_reading, handler_id=0)
+    port_emitter_1 = ct.make_port(file_name="stream_test_1.h", handler_id=0, event="EMITTER_1_EVENT")
+    port_emitter_2 = ct.make_port(file_name="stream_test_1.h", handler_id=0, event="EMITTER_2_EVENT")
+    port_emitter_3 = ct.make_port(file_name="stream_test_1.h", handler_id=0, event="EMITTER_3_EVENT")
+    
+    # Output port for collector (could be same type or different - using same for simplicity)
+    
+    
+    ct.start_test(test_name=kb_name, kb_memory_factor=50)
+    
+    launch_column = ct.define_column(column_name="launch_column", auto_start=True)
+    ct.asm_log_message("launch column: collector test starting")
+    
+    # Create 3 packet generators, each with 1.0 second delay
+    insert_packet_generator_delayed(ct, port_emitter_1, launch_column, device_id=1, delay=1.0)
+    insert_packet_generator_delayed(ct, port_emitter_2, launch_column, device_id=2, delay=1.0)
+    insert_packet_generator_delayed(ct, port_emitter_3, launch_column, device_id=3, delay=1.0)
+    ct.asm_log_message("packet generators created")
+    
+    # Collector node - collects from all 3 emitters, outputs when all received
+    ct.asm_streaming_collect_packets(
+        aux_function="PACKET_COLLECTOR",
+        aux_function_data={"expected_count": 3},
+        inports=[port_emitter_1, port_emitter_2, port_emitter_3],
+        output_event="COLLECTOR_OUTPUT_EVENT",
+        output_event_column=launch_column
+    )
+    ct.asm_log_message("collector node created")
+    # Sink for collector output
+    insert_collector_sink(ct, "COLLECTOR_OUTPUT_EVENT")
+    
+    ct.asm_wait_time(time_delay=100)
+    ct.asm_log_message("launch column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()    
+    
+    
+def insert_packet_generator_for_verify(ct, port, event_column: str, device_id: int, delay: float):
+    """Creates a packet generator with configurable delay"""
+    column_name = f"packet_generator_{device_id}_column"
+    generator_column = ct.define_column(column_name=column_name, auto_start=True)
+    ct.asm_wait_time(time_delay=delay)
+    ct.asm_log_message(f"emitter {device_id}: sending packet")
+    ct.asm_streaming_emit_packet(
+        aux_function="PACKET_GENERATOR",
+        aux_function_data={"device_id": device_id},
+        event_column=event_column,
+        outport=port
+    )
+    ct.asm_reset()
+    ct.end_column(column_name=generator_column)
+    return generator_column
+
+
+def insert_verified_sink(ct, inport):
+    """Sink for verified packets"""
+    sink_column = ct.define_column(column_name="verified_sink_column", auto_start=True)
+    ct.asm_log_message("verified sink: ready")
+    ct.asm_streaming_sink_packet(
+        aux_function="PACKET_VERIFIED_SINK",
+        aux_function_data={"sink_message": "verified packet received"},
+        inport=inport
+    )
+    ct.asm_halt()
+    ct.end_column(column_name=sink_column)
+    return sink_column
+
+
+def twenty_sixth_test(ct, kb_name):
+    """Test demonstrating asm_streaming_verify_packet with reset_flag=True.
+    
+    Packets with x > 0.5 will fail verification and cause column reset.
+    Packets with x <= 0.5 will pass and reach the sink.
+    """
+    port_0 = ct.make_port(file_name="stream_test_1.h", handler_id=0, event="SENSOR_EVENT")
+    
+    ct.start_test(test_name=kb_name, kb_memory_factor=50)
+    
+    launch_column = ct.define_column(column_name="launch_column", auto_start=True)
+    ct.asm_log_message("launch column: verify packet test starting")
+    
+    # Create packet generator - emits every 0.5 seconds
+    insert_packet_generator_for_verify(ct, port_0, launch_column, device_id=1, delay=0.5)
+    ct.asm_log_message("packet generator created")
+    # Verify packets - x must be in range [0.0, 0.5]
+    # If verification fails, column resets (reset_flag=True)
+    ct.asm_streaming_verify_packet(
+        aux_function="PACKET_VERIFY_X_RANGE",
+        aux_function_data={"min_x": 0.0, "max_x": 0.5},
+        inport=port_0,
+        reset_flag=True
+    )
+    ct.asm_log_message("verify packet created")
+    # Tap to see packets that passed verification
+    ct.asm_streaming_tap_packet(
+        aux_function="PACKET_TAP",
+        aux_function_data={"log_message": "packet passed verification"},
+        inport=port_0
+    )
+    
+    # Sink for verified packets
+    insert_verified_sink(ct, port_0)
+    
+    ct.asm_wait_time(time_delay=30)
+    ct.asm_log_message("launch column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test()    
+    
     
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -1706,7 +1864,8 @@ def add_header(yaml_file):
 if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
-                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test","twenty_third_test","twenty_fourth_test"]
+                 "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test",
+                 "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -1729,14 +1888,16 @@ if __name__ == "__main__":
                  "twenty_first_test": twenty_first_test,
                  "twenty_second_test": twenty_second_test,
                  "twenty_third_test": twenty_third_test,
-                 "twenty_fourth_test": twenty_fourth_test}
+                 "twenty_fourth_test": twenty_fourth_test,
+                 "twenty_fifth_test": twenty_fifth_test,
+                 "twenty_sixth_test": twenty_sixth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")
         sys.exit(1)
     yaml_file = str(sys.argv[1])
     print(yaml_file)
-    single_test = "seventeenth_test"
+    single_test = "twenty_sixth_test"
     single_test_flag = False
     if single_test_flag == True:
         ct = add_header(yaml_file)

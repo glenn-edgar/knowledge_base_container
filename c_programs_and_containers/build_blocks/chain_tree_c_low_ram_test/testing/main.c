@@ -94,7 +94,9 @@ int main(void) {
    // cfl_add_test_by_index(handle, 18); //twenty-second test
     //cfl_add_test_by_index(handle, 19); //twenty-third test
 
-    cfl_add_test_by_index(handle, 20); //twenty-fourth test
+    //cfl_add_test_by_index(handle, 20); //twenty-fourth test
+    //cfl_add_test_by_index(handle, 21); //twenty-fifth test
+    cfl_add_test_by_index(handle, 22); //twenty-sixth test
     
     printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
     printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));

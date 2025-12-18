@@ -30,7 +30,9 @@ extern unsigned cfl_sequence_fail_main_main_fn(void *handle, unsigned bool_funct
 extern unsigned cfl_sequence_pass_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_sequence_start_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_state_machine_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_streaming_collect_packets_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_streaming_filter_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_streaming_sink_collected_packets_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_streaming_sink_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_streaming_tap_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_streaming_transform_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -96,8 +98,12 @@ extern void cfl_set_exception_step_one_shot_fn(void *handle, unsigned node_index
 extern void cfl_start_stop_tests_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_state_machine_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_streaming_collect_packets_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_streaming_collect_packets_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_streaming_filter_packet_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_streaming_filter_packet_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_streaming_sink_collected_packets_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_streaming_sink_collected_packets_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_streaming_sink_packet_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_streaming_sink_packet_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_streaming_tap_packet_init_one_shot_fn(void *handle, unsigned node_index);
@@ -141,6 +147,7 @@ extern bool cfl_column_null_boolean_fn(void *handle, unsigned node_index, unsign
 extern bool cfl_gate_node_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_state_machine_null_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool cfl_streaming_verify_packet_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_tests_active_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_verify_time_out_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -148,14 +155,19 @@ extern bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, u
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_tests_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_collector_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_collector_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
-extern bool packet_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_sink_a_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_sink_b_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_tap_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_verified_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_07a9rjhh_main_functions[] = {
+const main_function_t ct_8hi3dg81_main_functions[] = {
     cfl_null_main_fn,
     avro_verify_packet_main_fn,
     cfl_column_main_main_fn,
@@ -177,7 +189,9 @@ const main_function_t ct_07a9rjhh_main_functions[] = {
     cfl_sequence_pass_main_main_fn,
     cfl_sequence_start_main_main_fn,
     cfl_state_machine_main_main_fn,
+    cfl_streaming_collect_packets_main_fn,
     cfl_streaming_filter_packet_main_fn,
+    cfl_streaming_sink_collected_packets_main_fn,
     cfl_streaming_sink_packet_main_fn,
     cfl_streaming_tap_packet_main_fn,
     cfl_streaming_transform_packet_main_fn,
@@ -192,7 +206,7 @@ const main_function_t ct_07a9rjhh_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_07a9rjhh_one_shot_functions[] = {
+const one_shot_function_t ct_8hi3dg81_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     avro_verify_packet_init_one_shot_fn,
@@ -245,8 +259,12 @@ const one_shot_function_t ct_07a9rjhh_one_shot_functions[] = {
     cfl_start_stop_tests_one_shot_fn,
     cfl_state_machine_init_one_shot_fn,
     cfl_state_machine_term_one_shot_fn,
+    cfl_streaming_collect_packets_init_one_shot_fn,
+    cfl_streaming_collect_packets_term_one_shot_fn,
     cfl_streaming_filter_packet_init_one_shot_fn,
     cfl_streaming_filter_packet_term_one_shot_fn,
+    cfl_streaming_sink_collected_packets_init_one_shot_fn,
+    cfl_streaming_sink_collected_packets_term_one_shot_fn,
     cfl_streaming_sink_packet_init_one_shot_fn,
     cfl_streaming_sink_packet_term_one_shot_fn,
     cfl_streaming_tap_packet_init_one_shot_fn,
@@ -284,7 +302,7 @@ const one_shot_function_t ct_07a9rjhh_one_shot_functions[] = {
     verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_07a9rjhh_boolean_functions[] = {
+const boolean_function_t ct_8hi3dg81_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -292,6 +310,7 @@ const boolean_function_t ct_07a9rjhh_boolean_functions[] = {
     cfl_gate_node_null_boolean_fn,
     cfl_sm_event_sync_boolean_fn,
     cfl_state_machine_null_boolean_fn,
+    cfl_streaming_verify_packet_boolean_fn,
     cfl_verify_bitmask_boolean_fn,
     cfl_verify_tests_active_boolean_fn,
     cfl_verify_time_out_boolean_fn,
@@ -299,53 +318,60 @@ const boolean_function_t ct_07a9rjhh_boolean_functions[] = {
     cfl_wait_for_event_boolean_fn,
     cfl_wait_for_tests_complete_boolean_fn,
     exception_filter_boolean_fn,
+    packet_collector_boolean_fn,
+    packet_collector_sink_boolean_fn,
     packet_filter_boolean_fn,
-    packet_sink_boolean_fn,
+    packet_sink_a_boolean_fn,
+    packet_sink_b_boolean_fn,
     packet_tap_boolean_fn,
     packet_transform_boolean_fn,
+    packet_verified_sink_boolean_fn,
     user_skip_condition_boolean_fn,
     while_test_boolean_fn,
+    packet_verify_x_range_boolean_fn,
 };
 
 /* Main function usage count */
-const uint16_t ct_07a9rjhh_main_function_usage_count[34] = {
+const uint16_t ct_8hi3dg81_main_function_usage_count[36] = {
     0,  /* CFL_NULL */
     1,  /* AVRO_VERIFY_PACKET */
-    164,  /* CFL_COLUMN_MAIN */
+    172,  /* CFL_COLUMN_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    529,  /* CFL_DISABLE */
+    547,  /* CFL_DISABLE */
     32,  /* CFL_EVENT_LOGGER */
     2,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
     7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    21,  /* CFL_GATE_NODE_MAIN */
-    42,  /* CFL_HALT */
+    23,  /* CFL_GATE_NODE_MAIN */
+    44,  /* CFL_HALT */
     23,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
     1,  /* CFL_LOCAL_ARENA_MAIN */
     7,  /* CFL_RECOVERY_MAIN */
-    14,  /* CFL_RESET */
+    18,  /* CFL_RESET */
     1,  /* CFL_SEQUENCE_FAIL_MAIN */
     1,  /* CFL_SEQUENCE_PASS_MAIN */
     2,  /* CFL_SEQUENCE_START_MAIN */
     10,  /* CFL_STATE_MACHINE_MAIN */
+    1,  /* CFL_STREAMING_COLLECT_PACKETS */
     1,  /* CFL_STREAMING_FILTER_PACKET */
-    1,  /* CFL_STREAMING_SINK_PACKET */
-    1,  /* CFL_STREAMING_TAP_PACKET */
+    1,  /* CFL_STREAMING_SINK_COLLECTED_PACKETS */
+    3,  /* CFL_STREAMING_SINK_PACKET */
+    2,  /* CFL_STREAMING_TAP_PACKET */
     1,  /* CFL_STREAMING_TRANSFORM_PACKET */
     4,  /* CFL_SUPERVISOR_MAIN */
-    102,  /* CFL_TERMINATE */
+    104,  /* CFL_TERMINATE */
     7,  /* CFL_TERMINATE_SYSTEM */
-    4,  /* CFL_VERIFY */
+    5,  /* CFL_VERIFY */
     7,  /* CFL_WAIT */
-    173,  /* CFL_WAIT_TIME */
+    179,  /* CFL_WAIT_TIME */
     1,  /* CFL_WATCH_DOG_MAIN */
     1,  /* CFL_WHILE_MAIN */
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_07a9rjhh_main_function_names[34] = {
+const char *ct_8hi3dg81_main_function_names[36] = {
     "CFL_NULL",
     "AVRO_VERIFY_PACKET",
     "CFL_COLUMN_MAIN",
@@ -367,7 +393,9 @@ const char *ct_07a9rjhh_main_function_names[34] = {
     "CFL_SEQUENCE_PASS_MAIN",
     "CFL_SEQUENCE_START_MAIN",
     "CFL_STATE_MACHINE_MAIN",
+    "CFL_STREAMING_COLLECT_PACKETS",
     "CFL_STREAMING_FILTER_PACKET",
+    "CFL_STREAMING_SINK_COLLECTED_PACKETS",
     "CFL_STREAMING_SINK_PACKET",
     "CFL_STREAMING_TAP_PACKET",
     "CFL_STREAMING_TRANSFORM_PACKET",
@@ -382,7 +410,7 @@ const char *ct_07a9rjhh_main_function_names[34] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_07a9rjhh_one_shot_function_names[89] = {
+const char *ct_8hi3dg81_one_shot_function_names[93] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "AVRO_VERIFY_PACKET_INIT",
@@ -435,8 +463,12 @@ const char *ct_07a9rjhh_one_shot_function_names[89] = {
     "CFL_START_STOP_TESTS",
     "CFL_STATE_MACHINE_INIT",
     "CFL_STATE_MACHINE_TERM",
+    "CFL_STREAMING_COLLECT_PACKETS_INIT",
+    "CFL_STREAMING_COLLECT_PACKETS_TERM",
     "CFL_STREAMING_FILTER_PACKET_INIT",
     "CFL_STREAMING_FILTER_PACKET_TERM",
+    "CFL_STREAMING_SINK_COLLECTED_PACKETS_INIT",
+    "CFL_STREAMING_SINK_COLLECTED_PACKETS_TERM",
     "CFL_STREAMING_SINK_PACKET_INIT",
     "CFL_STREAMING_SINK_PACKET_TERM",
     "CFL_STREAMING_TAP_PACKET_INIT",
@@ -474,7 +506,7 @@ const char *ct_07a9rjhh_one_shot_function_names[89] = {
     "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_07a9rjhh_boolean_function_names[20] = {
+const char *ct_8hi3dg81_boolean_function_names[26] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",
@@ -482,6 +514,7 @@ const char *ct_07a9rjhh_boolean_function_names[20] = {
     "CFL_GATE_NODE_NULL",
     "CFL_SM_EVENT_SYNC",
     "CFL_STATE_MACHINE_NULL",
+    "CFL_STREAMING_VERIFY_PACKET",
     "CFL_VERIFY_BITMASK",
     "CFL_VERIFY_TESTS_ACTIVE",
     "CFL_VERIFY_TIME_OUT",
@@ -489,10 +522,15 @@ const char *ct_07a9rjhh_boolean_function_names[20] = {
     "CFL_WAIT_FOR_EVENT",
     "CFL_WAIT_FOR_TESTS_COMPLETE",
     "EXCEPTION_FILTER",
+    "PACKET_COLLECTOR",
+    "PACKET_COLLECTOR_SINK",
     "PACKET_FILTER",
-    "PACKET_SINK",
+    "PACKET_SINK_A",
+    "PACKET_SINK_B",
     "PACKET_TAP",
     "PACKET_TRANSFORM",
+    "PACKET_VERIFIED_SINK",
     "USER_SKIP_CONDITION",
     "WHILE_TEST",
+    "PACKET_VERIFY_X_RANGE",
 };

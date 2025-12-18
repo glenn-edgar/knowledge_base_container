@@ -321,35 +321,42 @@ void json_find_object_child(
     EXCEPTION("json_find_object_child: Key not found");
 }
  
- void json_get_array_child(
-     const  json_decoder_ctx_t *ctx,
-     uint32_t parent_record,
-     uint32_t index,
-     uint32_t *out_record)
- {
-     if (!ctx) {
-         EXCEPTION("json_get_array_child: NULL context");
-     }
-     
-     if (!out_record) {
-         EXCEPTION("json_get_array_child: NULL output pointer");
-     }
-     
-     const json_record_t *parent = json_get_record(ctx, parent_record);
-     if (!parent) {
-         EXCEPTION("json_get_array_child: Invalid parent record");
-     }
-     
-     if (parent->object_type != JSON_TYPE_ARRAY) {
-         EXCEPTION("json_get_array_child: Parent is not an array");
-     }
-     
-     if (index >= parent->value.container_count) {
-         EXCEPTION("json_get_array_child: Array index out of bounds");
-     }
-     
-     *out_record = parent_record + 1 + index;
- }
+void json_get_array_child(
+    const json_decoder_ctx_t *ctx,
+    uint32_t parent_record,
+    uint32_t index,
+    uint32_t *out_record)
+{
+    if (!ctx) {
+        EXCEPTION("json_get_array_child: NULL context");
+    }
+    
+    if (!out_record) {
+        EXCEPTION("json_get_array_child: NULL output pointer");
+    }
+    
+    const json_record_t *parent = json_get_record(ctx, parent_record);
+    if (!parent) {
+        EXCEPTION("json_get_array_child: Invalid parent record");
+    }
+    
+    if (parent->object_type != JSON_TYPE_ARRAY) {
+        EXCEPTION("json_get_array_child: Parent is not an array");
+    }
+    
+    if (index >= parent->value.container_count) {
+        EXCEPTION("json_get_array_child: Array index out of bounds");
+    }
+    
+    // Navigate to the correct element by skipping over preceding elements
+    uint32_t child_idx = parent_record + 1;
+    for (uint32_t i = 0; i < index; i++) {
+        uint32_t elem_size = json_calc_subtree_size(ctx, child_idx);
+        child_idx += elem_size;
+    }
+    
+    *out_record = child_idx;
+}
  
  /* ============================================================================
   * Path Navigation Implementation

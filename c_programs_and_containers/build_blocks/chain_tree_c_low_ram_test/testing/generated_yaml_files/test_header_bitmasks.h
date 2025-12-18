@@ -16,9 +16,9 @@
 #define MASK_C                             (1U << BIT_C)
 #define MASK_B                             (1U << BIT_B)
 
-#define CT_07A9RJHH_BITMASK_COUNT 3
+#define CT_8HI3DG81_BITMASK_COUNT 3
 
 /* Bitmask name array for debugging/lookup */
-extern const char *ct_07a9rjhh_bitmask_names[3];
+extern const char *ct_8hi3dg81_bitmask_names[3];
 
 #endif /* TEST_HEADER_BITMASKS_H */

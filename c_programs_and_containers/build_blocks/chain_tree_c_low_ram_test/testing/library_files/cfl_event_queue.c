@@ -667,3 +667,22 @@ bool cfl_send_streaming_data_event(
          event_id,
          data);
  }
+
+bool cfl_send_streaming_collected_packets_event(
+    CFL_EVENT_QUEUE_T *queue_control,
+   unsigned priority,
+   unsigned node_id,
+   unsigned event_id,
+   void *data)
+{
+    return cfl_send_event(
+        queue_control,
+        priority,
+        node_id,
+        CFL_EVENT_TYPE_STREAMING_COLLECTED_PACKETS,
+        false,
+        event_id,
+        data);
+}
+
+

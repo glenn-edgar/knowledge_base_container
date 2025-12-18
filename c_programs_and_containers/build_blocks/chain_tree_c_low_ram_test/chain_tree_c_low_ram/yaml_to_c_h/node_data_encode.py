@@ -292,6 +292,8 @@ class NodeDataEncoder:
             'initialize_function': 'one_shot',
             'wd_fn': 'one_shot',
             'logging_function': 'one_shot',
+            'user_aux_function': 'boolean',
+            
            
     }
         
@@ -503,38 +505,37 @@ class NodeDataEncoder:
             print(f"  Warning: Unknown function type '{func_type}' for field resolution")
             return None
     
-    def _process_function_fields(self, data_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def _process_function_fields(self, data_dict: Dict[str, Any], depth: int = 0) -> Dict[str, Any]:
         """
         Process a dictionary to resolve function name fields to function IDs.
-        
-        Args:
-            data_dict: Dictionary that may contain function name fields
-            
-        Returns:
-            Modified dictionary with function names replaced by IDs
         """
+        indent = "  " * depth
+        print(f"{indent}_process_function_fields called with keys: {list(data_dict.keys())}")
+        
         result = {}
         
         for key, value in data_dict.items():
             # Check if this field should be resolved to a function ID
             if key in self.function_fields and isinstance(value, str):
                 func_type = self.function_fields[key]
+                print(f"{indent}  FOUND function field: {key} = '{value}' (type: {func_type})")
                 func_id = self._resolve_function_field(value, func_type)
                 
                 if func_id is not None:
                     # Store as "{field_name}_id" with integer value
                     result[f"{key}_id"] = func_id
-                    print(f"    Resolved {key} '{value}' -> ID {func_id}")
+                    print(f"{indent}    Resolved {key} '{value}' -> ID {func_id}")
                 else:
                     # Failed to resolve, keep original
                     result[key] = value
             # Recursively process nested dictionaries
             elif isinstance(value, dict):
-                result[key] = self._process_function_fields(value)
+                print(f"{indent}  Recursing into: {key}")
+                result[key] = self._process_function_fields(value, depth + 1)
             # Process lists that might contain dicts
             elif isinstance(value, list):
                 result[key] = [
-                    self._process_function_fields(item) if isinstance(item, dict) else item
+                    self._process_function_fields(item, depth + 1) if isinstance(item, dict) else item
                     for item in value
                 ]
             else:
@@ -542,6 +543,7 @@ class NodeDataEncoder:
                 result[key] = value
         
         return result
+
     
     def encode_node_data(self) -> None:
         """
