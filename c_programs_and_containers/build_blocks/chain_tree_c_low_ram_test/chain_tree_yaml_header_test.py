@@ -1,4 +1,4 @@
-from chain_tree_c_low_ram.yaml_to_c_h.header_file_generator import HeaderFileGenerator
+from yaml_to_c_h.header_file_generator import HeaderFileGenerator
 from pathlib import Path
 
 def main(yaml_file, handle_name, generate_support_header):

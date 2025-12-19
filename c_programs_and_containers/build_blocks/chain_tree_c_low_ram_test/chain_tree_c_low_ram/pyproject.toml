@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chain-tree-c-low-ram"
+version = "0.1.0"
+description = "ChainTree C code generator for low RAM targets"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml",
+]
+
+[tool.setuptools.packages.find]
+include = ["ct_build", "ct_build.*", "yaml_to_c_h", "yaml_to_c_h.*"]
+

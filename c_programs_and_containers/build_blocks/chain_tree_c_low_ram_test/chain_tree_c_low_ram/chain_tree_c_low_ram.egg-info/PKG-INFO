@@ -1,0 +1,7 @@
+Metadata-Version: 2.4
+Name: chain-tree-c-low-ram
+Version: 0.1.0
+Summary: ChainTree C code generator for low RAM targets
+License: MIT
+Requires-Python: >=3.10
+Requires-Dist: pyyaml

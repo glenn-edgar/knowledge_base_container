@@ -4,49 +4,49 @@
 
 /* Const handle instance in flash memory */
 const chaintree_handle_t g_test_header = {
-    .unique_id = "ct_8hi3dg81",
+    .unique_id = "ct_58fk1o71",
     
     /* Node data */
-    .nodes = ct_8hi3dg81_nodes,
+    .nodes = ct_58fk1o71_nodes,
     .node_count = 1239,
     
     /* Function arrays */
-    .main_functions = ct_8hi3dg81_main_functions,
+    .main_functions = ct_58fk1o71_main_functions,
     .main_function_count = 36,
-    .one_shot_functions = ct_8hi3dg81_one_shot_functions,
+    .one_shot_functions = ct_58fk1o71_one_shot_functions,
     .one_shot_function_count = 93,
-    .boolean_functions = ct_8hi3dg81_boolean_functions,
+    .boolean_functions = ct_58fk1o71_boolean_functions,
     .boolean_function_count = 26,
     
     /* Function names */
-    .main_function_names = ct_8hi3dg81_main_function_names,
-    .one_shot_function_names = ct_8hi3dg81_one_shot_function_names,
-    .boolean_function_names = ct_8hi3dg81_boolean_function_names,
+    .main_function_names = ct_58fk1o71_main_function_names,
+    .one_shot_function_names = ct_58fk1o71_one_shot_function_names,
+    .boolean_function_names = ct_58fk1o71_boolean_function_names,
     
     /* Main function usage counts */
-    .main_function_usage_count = ct_8hi3dg81_main_function_usage_count,
+    .main_function_usage_count = ct_58fk1o71_main_function_usage_count,
     
     /* Link table */
-    .link_table = ct_8hi3dg81_link_table,
+    .link_table = ct_58fk1o71_link_table,
     .link_table_size = 1193,
     
     /* Event strings */
-    .event_strings = (const char **)ct_8hi3dg81_event_strings,
+    .event_strings = (const char **)ct_58fk1o71_event_strings,
     .event_count = 36,
     
     /* Bitmask names */
-    .bitmask_names = (const char **)ct_8hi3dg81_bitmask_names,
+    .bitmask_names = (const char **)ct_58fk1o71_bitmask_names,
     .bitmask_count = 3,
     
     /* Knowledge base info */
-    .kb_table = ct_8hi3dg81_kb_table,
+    .kb_table = ct_58fk1o71_kb_table,
     .kb_count = 23,
     
     /* Node data (JSON records) */
-    .node_data_records = ct_8hi3dg81_node_data_records,
+    .node_data_records = ct_58fk1o71_node_data_records,
     .node_data_records_count = 5560,
-    .node_data_strings = ct_8hi3dg81_node_data_strings,
+    .node_data_strings = ct_58fk1o71_node_data_strings,
     .node_data_strings_size = 5655,
-    .node_data_controls = ct_8hi3dg81_node_data_controls,
+    .node_data_controls = ct_58fk1o71_node_data_controls,
     .node_data_controls_count = 860
 };

@@ -14,10 +14,11 @@ from .chain_tree.sequence_til import SequenceTil
 from .chain_tree.data_flow import DataFlow
 from .chain_tree.exception import ExceptionHandler
 from .chain_tree.streaming import Streaming
+from .chain_tree.controlled_nodes import ControlledNodes
 
 
-
-class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, ExceptionHandler, Streaming):
+class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, 
+                      ExceptionHandler, Streaming, ControlledNodes):
     
 
     
@@ -33,6 +34,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         DataFlow.__init__(self,self.ctb)
         ExceptionHandler.__init__(self,self.ctb)
         Streaming.__init__(self,self.ctb)
+        ControlledNodes.__init__(self,self.ctb)
         self.ctb.register_event("CFL_INIT_EVENT")
         self.ctb.register_event("CFL_TERMINATE_EVENT")
         self.ctb.register_event("CFL_START_TESTS")

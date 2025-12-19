@@ -231,7 +231,10 @@ class ChainTreeYaml:
             raise KeyError(f"Node not found: {ltree_name}")
         
         node_index = self.ltree_to_index[ltree_name]
-        self.node_alias_tables[self.current_kb_name][alias_name] = node_index
+        if alias_name not in self.node_alias_tables.keys():
+            self.node_alias_tables[alias_name] = node_index
+        else:
+            raise ValueError(f"Alias {alias_name} already exists")
         
         return node_index
     

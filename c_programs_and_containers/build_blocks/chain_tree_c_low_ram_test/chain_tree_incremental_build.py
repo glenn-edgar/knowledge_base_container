@@ -1,6 +1,6 @@
 from calendar import c
 
-from chain_tree_c_low_ram.chain_tree_build.ct_build.chain_tree_master import ChainTreeMaster
+from ct_build.chain_tree_master import ChainTreeMaster
 
 
 from pathlib import Path
