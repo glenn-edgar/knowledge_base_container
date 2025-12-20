@@ -2,7 +2,7 @@
 #include "test_header_events.h"
 
 /* Event names indexed by event index */
-const char *ct_58fk1o71_event_strings[36] = {
+const char *ct_4cz3antp_event_strings[44] = {
     "CFL_INIT_EVENT",
     "CFL_TERMINATE_EVENT",
     "CFL_START_TESTS",
@@ -39,4 +39,12 @@ const char *ct_58fk1o71_event_strings[36] = {
     "EMITTER_3_EVENT",
     "COLLECTOR_OUTPUT_EVENT",
     "SENSOR_EVENT",
+    "fly_straight_request",
+    "fly_straight_response",
+    "fly_arc_request",
+    "fly_arc_response",
+    "fly_up_request",
+    "fly_up_response",
+    "fly_down_request",
+    "fly_down_response",
 };

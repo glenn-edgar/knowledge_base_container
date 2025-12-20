@@ -11,7 +11,10 @@
 /* Forward declarations - user must provide these functions */
 extern unsigned cfl_null_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned avro_verify_packet_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_column_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_controlled_node_container_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern unsigned cfl_controlled_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_disable_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern unsigned cfl_event_logger_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -53,8 +56,14 @@ extern void cfl_catch_all_exception_init_one_shot_fn(void *handle, unsigned node
 extern void cfl_catch_all_exception_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_change_state_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_clear_bitmask_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_client_controlled_node_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_client_controlled_node_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_column_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_controlled_node_container_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_controlled_node_container_term_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_controlled_node_init_one_shot_fn(void *handle, unsigned node_index);
+extern void cfl_controlled_node_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_df_mask_init_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_df_mask_term_one_shot_fn(void *handle, unsigned node_index);
 extern void cfl_disable_nodes_one_shot_fn(void *handle, unsigned node_index);
@@ -127,6 +136,10 @@ extern void cfl_while_term_one_shot_fn(void *handle, unsigned node_index);
 extern void generate_avro_packet_one_shot_fn(void *handle, unsigned node_index);
 extern void packet_generator_one_shot_fn(void *handle, unsigned node_index);
 extern void sm_event_filtering_init_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_arc_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_down_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_straight_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_up_final_one_shot_fn(void *handle, unsigned node_index);
 extern void wait_for_event_error_one_shot_fn(void *handle, unsigned node_index);
 extern void verify_error_one_shot_fn(void *handle, unsigned node_index);
 extern void initialize_sequence_one_shot_fn(void *handle, unsigned node_index);
@@ -155,6 +168,10 @@ extern bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, u
 extern bool cfl_wait_for_event_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool cfl_wait_for_tests_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool exception_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_arc_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_down_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_straight_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_up_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_collector_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_collector_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
@@ -165,12 +182,19 @@ extern bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsig
 extern bool packet_verified_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool while_test_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_arc_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_down_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_straight_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_up_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_58fk1o71_main_functions[] = {
+const main_function_t ct_4cz3antp_main_functions[] = {
     cfl_null_main_fn,
     avro_verify_packet_main_fn,
+    cfl_client_controlled_node_main_main_fn,
     cfl_column_main_main_fn,
+    cfl_controlled_node_container_main_main_fn,
+    cfl_controlled_node_main_main_fn,
     cfl_df_mask_main_main_fn,
     cfl_disable_main_fn,
     cfl_event_logger_main_fn,
@@ -206,7 +230,7 @@ const main_function_t ct_58fk1o71_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_58fk1o71_one_shot_functions[] = {
+const one_shot_function_t ct_4cz3antp_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     avro_verify_packet_init_one_shot_fn,
@@ -214,8 +238,14 @@ const one_shot_function_t ct_58fk1o71_one_shot_functions[] = {
     cfl_catch_all_exception_term_one_shot_fn,
     cfl_change_state_one_shot_fn,
     cfl_clear_bitmask_one_shot_fn,
+    cfl_client_controlled_node_init_one_shot_fn,
+    cfl_client_controlled_node_term_one_shot_fn,
     cfl_column_init_one_shot_fn,
     cfl_column_term_one_shot_fn,
+    cfl_controlled_node_container_init_one_shot_fn,
+    cfl_controlled_node_container_term_one_shot_fn,
+    cfl_controlled_node_init_one_shot_fn,
+    cfl_controlled_node_term_one_shot_fn,
     cfl_df_mask_init_one_shot_fn,
     cfl_df_mask_term_one_shot_fn,
     cfl_disable_nodes_one_shot_fn,
@@ -288,6 +318,10 @@ const one_shot_function_t ct_58fk1o71_one_shot_functions[] = {
     generate_avro_packet_one_shot_fn,
     packet_generator_one_shot_fn,
     sm_event_filtering_init_one_shot_fn,
+    update_fly_arc_final_one_shot_fn,
+    update_fly_down_final_one_shot_fn,
+    update_fly_straight_final_one_shot_fn,
+    update_fly_up_final_one_shot_fn,
     wait_for_event_error_one_shot_fn,
     verify_error_one_shot_fn,
     initialize_sequence_one_shot_fn,
@@ -302,7 +336,7 @@ const one_shot_function_t ct_58fk1o71_one_shot_functions[] = {
     verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_58fk1o71_boolean_functions[] = {
+const boolean_function_t ct_4cz3antp_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -318,6 +352,10 @@ const boolean_function_t ct_58fk1o71_boolean_functions[] = {
     cfl_wait_for_event_boolean_fn,
     cfl_wait_for_tests_complete_boolean_fn,
     exception_filter_boolean_fn,
+    on_fly_arc_complete_boolean_fn,
+    on_fly_down_complete_boolean_fn,
+    on_fly_straight_complete_boolean_fn,
+    on_fly_up_complete_boolean_fn,
     packet_collector_boolean_fn,
     packet_collector_sink_boolean_fn,
     packet_filter_boolean_fn,
@@ -328,24 +366,31 @@ const boolean_function_t ct_58fk1o71_boolean_functions[] = {
     packet_verified_sink_boolean_fn,
     user_skip_condition_boolean_fn,
     while_test_boolean_fn,
+    fly_arc_monitor_boolean_fn,
+    fly_down_monitor_boolean_fn,
+    fly_straight_monitor_boolean_fn,
+    fly_up_monitor_boolean_fn,
     packet_verify_x_range_boolean_fn,
 };
 
 /* Main function usage count */
-const uint16_t ct_58fk1o71_main_function_usage_count[36] = {
+const uint16_t ct_4cz3antp_main_function_usage_count[39] = {
     0,  /* CFL_NULL */
     1,  /* AVRO_VERIFY_PACKET */
-    172,  /* CFL_COLUMN_MAIN */
+    4,  /* CFL_CLIENT_CONTROLLED_NODE_MAIN */
+    174,  /* CFL_COLUMN_MAIN */
+    1,  /* CFL_CONTROLLED_NODE_CONTAINER_MAIN */
+    4,  /* CFL_CONTROLLED_NODE_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    547,  /* CFL_DISABLE */
+    566,  /* CFL_DISABLE */
     32,  /* CFL_EVENT_LOGGER */
     2,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
     7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    23,  /* CFL_GATE_NODE_MAIN */
+    24,  /* CFL_GATE_NODE_MAIN */
     44,  /* CFL_HALT */
-    23,  /* CFL_JOIN_MAIN */
+    24,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
     1,  /* CFL_LOCAL_ARENA_MAIN */
     7,  /* CFL_RECOVERY_MAIN */
@@ -361,20 +406,23 @@ const uint16_t ct_58fk1o71_main_function_usage_count[36] = {
     2,  /* CFL_STREAMING_TAP_PACKET */
     1,  /* CFL_STREAMING_TRANSFORM_PACKET */
     4,  /* CFL_SUPERVISOR_MAIN */
-    104,  /* CFL_TERMINATE */
+    110,  /* CFL_TERMINATE */
     7,  /* CFL_TERMINATE_SYSTEM */
     5,  /* CFL_VERIFY */
     7,  /* CFL_WAIT */
-    179,  /* CFL_WAIT_TIME */
+    186,  /* CFL_WAIT_TIME */
     1,  /* CFL_WATCH_DOG_MAIN */
     1,  /* CFL_WHILE_MAIN */
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_58fk1o71_main_function_names[36] = {
+const char *ct_4cz3antp_main_function_names[39] = {
     "CFL_NULL",
     "AVRO_VERIFY_PACKET",
+    "CFL_CLIENT_CONTROLLED_NODE_MAIN",
     "CFL_COLUMN_MAIN",
+    "CFL_CONTROLLED_NODE_CONTAINER_MAIN",
+    "CFL_CONTROLLED_NODE_MAIN",
     "CFL_DF_MASK_MAIN",
     "CFL_DISABLE",
     "CFL_EVENT_LOGGER",
@@ -410,7 +458,7 @@ const char *ct_58fk1o71_main_function_names[36] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_58fk1o71_one_shot_function_names[93] = {
+const char *ct_4cz3antp_one_shot_function_names[103] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "AVRO_VERIFY_PACKET_INIT",
@@ -418,8 +466,14 @@ const char *ct_58fk1o71_one_shot_function_names[93] = {
     "CFL_CATCH_ALL_EXCEPTION_TERM",
     "CFL_CHANGE_STATE",
     "CFL_CLEAR_BITMASK",
+    "CFL_CLIENT_CONTROLLED_NODE_INIT",
+    "CFL_CLIENT_CONTROLLED_NODE_TERM",
     "CFL_COLUMN_INIT",
     "CFL_COLUMN_TERM",
+    "CFL_CONTROLLED_NODE_CONTAINER_INIT",
+    "CFL_CONTROLLED_NODE_CONTAINER_TERM",
+    "CFL_CONTROLLED_NODE_INIT",
+    "CFL_CONTROLLED_NODE_TERM",
     "CFL_DF_MASK_INIT",
     "CFL_DF_MASK_TERM",
     "CFL_DISABLE_NODES",
@@ -492,6 +546,10 @@ const char *ct_58fk1o71_one_shot_function_names[93] = {
     "GENERATE_AVRO_PACKET",
     "PACKET_GENERATOR",
     "SM_EVENT_FILTERING_INIT",
+    "UPDATE_FLY_ARC_FINAL",
+    "UPDATE_FLY_DOWN_FINAL",
+    "UPDATE_FLY_STRAIGHT_FINAL",
+    "UPDATE_FLY_UP_FINAL",
     "WAIT_FOR_EVENT_ERROR",
     "VERIFY_ERROR",
     "INITIALIZE_SEQUENCE",
@@ -506,7 +564,7 @@ const char *ct_58fk1o71_one_shot_function_names[93] = {
     "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_58fk1o71_boolean_function_names[26] = {
+const char *ct_4cz3antp_boolean_function_names[34] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",
@@ -522,6 +580,10 @@ const char *ct_58fk1o71_boolean_function_names[26] = {
     "CFL_WAIT_FOR_EVENT",
     "CFL_WAIT_FOR_TESTS_COMPLETE",
     "EXCEPTION_FILTER",
+    "ON_FLY_ARC_COMPLETE",
+    "ON_FLY_DOWN_COMPLETE",
+    "ON_FLY_STRAIGHT_COMPLETE",
+    "ON_FLY_UP_COMPLETE",
     "PACKET_COLLECTOR",
     "PACKET_COLLECTOR_SINK",
     "PACKET_FILTER",
@@ -532,5 +594,9 @@ const char *ct_58fk1o71_boolean_function_names[26] = {
     "PACKET_VERIFIED_SINK",
     "USER_SKIP_CONDITION",
     "WHILE_TEST",
+    "fly_arc_monitor",
+    "fly_down_monitor",
+    "fly_straight_monitor",
+    "fly_up_monitor",
     "PACKET_VERIFY_X_RANGE",
 };

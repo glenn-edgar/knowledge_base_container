@@ -193,7 +193,8 @@ class ControlledNodes(ColumnFlow):
         # Validate parent is a container
         parent_node = self.ctb.ltree_stack[-1]
         parent_data = self.ctb.yaml_data[parent_node]
-        parent_main_function = parent_data["label_dict"]["main_function"]
+    
+        parent_main_function = parent_data["label_dict"]["main_function_name"]
         if parent_main_function != "CFL_CONTROLLED_NODE_CONTAINER_MAIN":
             raise ValueError(f"Parent node {parent_node} is not a controlled node container")
         
@@ -216,71 +217,43 @@ class ControlledNodes(ColumnFlow):
         self.ctb.register_node_alias(api_name, return_value)
         return return_value
     
-    def client_controlled_node(self, api_name: str, column_name: str, aux_function_name: str, aux_data: dict, request_port: dict, response_port: dict):
-        """
-        Define a client node that controls a dead node.
-        
-        Client nodes initiate activation of controlled nodes and receive
-        completion events and exceptions. The client is responsible for:
-        - Calling the activation sequence (init, aux, main with config)
-        - Setting enabled/initialized flags
-        - Handling completion events with response data
-        - Handling exceptions from the controlled node
-        
-        The controlled node (server) must be defined before the client.
-        Port definitions must match the server's ports exactly.
-        One client per server is enforced at runtime.
-        
-        If the client terminates, the controlled node is also terminated.
-        
-        Args:
-            api_name: Registry key matching a controlled_node's api_name
-            column_name: Identifier for this node in the tree
-            aux_function_name: C function name for aux event handling
-            aux_data: Static configuration passed to aux function
-            request_port: Typed buffer definition for activation data (must match server)
-            response_port: Typed buffer definition for completion data (must match server)
-        
-        Returns:
-            Node identifier for the created client node
-        
-        Raises:
-            ValueError: If api_name does not reference a defined controlled_node
-            ValueError: If ports are not fully defined
-            ValueError: If ports do not match server's port definitions
-        """
-        # Validate client ports are defined
-        self._validate_port_defined(request_port, "request_port", column_name)
-        self._validate_port_defined(response_port, "response_port", column_name)
-        
-        # Get server node and validate it exists
-        server_node_id = self.ctb.get_node_by_alias(api_name)
-        server_data = self.ctb.yaml_data[server_node_id]
-        server_column_data = server_data["label_dict"]["column_data"]
-        
-        # Get server ports
-        server_request_port = server_column_data.get("request_port")
-        server_response_port = server_column_data.get("response_port")
-        
-        # Validate ports match server
-        self._validate_port_match("request_port", request_port, server_request_port, api_name)
-        self._validate_port_match("response_port", response_port, server_response_port, api_name)
-        
-        column_data = {
-            "request_port": request_port,
-            "response_port": response_port,
-            "aux_data": aux_data,
-            "api_name": api_name
-        }
-        
-        return_value = self.define_column_link(
-            column_name,
-            main_function="CFL_CLIENT_CONTROLLED_NODE_MAIN",
-            initialization_function="CFL_CLIENT_CONTROLLED_NODE_INIT",
-            termination_function="CFL_CLIENT_CONTROLLED_NODE_TERM",
-            aux_function=aux_function_name,
-            column_data=column_data,
-            auto_start=True
-        )
-        
-        return return_value
+    def client_controlled_node(self, api_name: str, aux_function_name: str, aux_data: dict, request_port: dict, response_port: dict):
+            """
+            Define a client node that controls a dead node.
+            """
+            # Validate client ports are defined
+            self._validate_port_defined(request_port, "request_port", api_name)
+            self._validate_port_defined(response_port, "response_port", api_name)
+            
+            # Get server node - use ltree for yaml lookup, index for C code
+            server_ltree = self.ctb.get_ltree_by_alias(api_name)
+            server_node_index = self.ctb.get_node_by_alias(api_name)
+            server_data = self.ctb.yaml_data[server_ltree]
+            
+            # column_data is in node_dict, not label_dict
+            server_column_data = server_data["node_dict"]["column_data"]
+            
+            # Get server ports
+            server_request_port = server_column_data.get("request_port")
+            server_response_port = server_column_data.get("response_port")
+            
+            # Validate ports match server
+            self._validate_port_match("request_port", request_port, server_request_port, api_name)
+            self._validate_port_match("response_port", response_port, server_response_port, api_name)
+            
+            node_data = {
+                "request_port": request_port,
+                "response_port": response_port,
+                "aux_data": aux_data,
+                "api_name": api_name,
+                "server_node_index": server_node_index
+            }
+            
+            return self.define_column_link(
+                "CFL_CLIENT_CONTROLLED_NODE_MAIN",
+                "CFL_CLIENT_CONTROLLED_NODE_INIT",
+                aux_function_name,
+                "CFL_CLIENT_CONTROLLED_NODE_TERM",
+                node_data,
+                label="CLIENT"
+            )

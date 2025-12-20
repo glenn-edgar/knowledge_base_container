@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_58FK1O71_NODE_COUNT 1349
+#define CT_4CZ3ANTP_NODE_COUNT 1400
 
-extern const chaintree_node_t ct_58fk1o71_nodes[CT_58FK1O71_NODE_COUNT];
+extern const chaintree_node_t ct_4cz3antp_nodes[CT_4CZ3ANTP_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

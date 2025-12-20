@@ -35,6 +35,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         ExceptionHandler.__init__(self,self.ctb)
         Streaming.__init__(self,self.ctb)
         ControlledNodes.__init__(self,self.ctb)
+        self.register_event = self.ctb.register_event
         self.ctb.register_event("CFL_INIT_EVENT")
         self.ctb.register_event("CFL_TERMINATE_EVENT")
         self.ctb.register_event("CFL_START_TESTS")

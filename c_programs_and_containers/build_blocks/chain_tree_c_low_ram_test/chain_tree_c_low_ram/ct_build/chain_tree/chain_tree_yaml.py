@@ -31,7 +31,7 @@ class ChainTreeYaml:
         self.yaml_data: Dict = {}  # Flat structure with ltree keys
         self.node_count = 0
         self.ltree_to_index: Dict[str, int] = {}  # Map ltree name to array index
-        
+        self.index_to_ltree: Dict[int, str] = {}  # Map array index to ltree name
         # Event string table for embedded systems
         self.event_string_table: Dict[str, int] = {}  # Map event_id to index
         self.event_index_counter = 0
@@ -194,64 +194,46 @@ class ChainTreeYaml:
     # =========================================================================
     
     def register_node_alias(self, alias_name: str, ltree_name: Optional[str] = None) -> int:
-        """
-        Register a named alias for a node index.
-        
-        This allows referencing nodes by semantic names rather than hardcoded
-        indices in embedded C code.
-        
-        Args:
-            alias_name: String key for lookup (e.g., "main_sequence", "error_handler")
-            ltree_name: Full ltree path. If None, uses current node from ltree_stack.
+            """
+            Register a named alias for a node index.
             
-        Returns:
-            The node index
+            Returns:
+                The node index
+            """
+            self._check_kb_selected()
             
-        Raises:
-            ValueError: If no KB selected or no current node
-            KeyError: If ltree_name not found
-            TypeError: If alias_name not a string
+            if not isinstance(alias_name, str):
+                raise TypeError("alias_name must be a string")
             
-        Example:
-            >>> nav = ct.add_node_element("subsystem", "navigation", ...)
-            >>> ct.register_node_alias("nav_root")  # Uses current node
-            >>> ct.register_node_alias("main_lidar", "kb.robot.sensor.lidar")
-        """
-        self._check_kb_selected()
-        
-        if not isinstance(alias_name, str):
-            raise TypeError("alias_name must be a string")
-        
-        if ltree_name is None:
-            if not self.ltree_stack:
-                raise ValueError("No current node and no ltree_name provided")
-            ltree_name = self.ltree_stack[-1]
-        
-        if ltree_name not in self.ltree_to_index:
-            raise KeyError(f"Node not found: {ltree_name}")
-        
-        node_index = self.ltree_to_index[ltree_name]
-        if alias_name not in self.node_alias_tables.keys():
-            self.node_alias_tables[alias_name] = node_index
-        else:
-            raise ValueError(f"Alias {alias_name} already exists")
-        
-        return node_index
+            if ltree_name is None:
+                if not self.ltree_stack:
+                    raise ValueError("No current node and no ltree_name provided")
+                ltree_name = self.ltree_stack[-1]
+            
+            if ltree_name not in self.ltree_to_index:
+                raise KeyError(f"Node not found: {ltree_name}")
+            
+            node_index = self.ltree_to_index[ltree_name]
+            
+            # Ensure the KB has an alias table
+            if self.current_kb_name not in self.node_alias_tables:
+                self.node_alias_tables[self.current_kb_name] = {}
+            
+            # Check if alias already exists in THIS KB's table
+            if alias_name in self.node_alias_tables[self.current_kb_name]:
+                raise ValueError(f"Alias {alias_name} already exists in KB {self.current_kb_name}")
+            
+            # Store the node index
+            self.node_alias_tables[self.current_kb_name][alias_name] = node_index
+            
+            return node_index
     
     def get_node_by_alias(self, alias_name: str, kb_name: Optional[str] = None) -> int:
         """
         Get node index by alias name.
         
-        Args:
-            alias_name: The alias to look up
-            kb_name: Knowledge base name (uses current if None)
-            
         Returns:
             Integer node index
-            
-        Raises:
-            ValueError: If no KB specified
-            KeyError: If alias not found
         """
         kb = kb_name or self.current_kb_name
         if kb is None:
@@ -262,6 +244,32 @@ class ChainTreeYaml:
         
         return self.node_alias_tables[kb][alias_name]
     
+    def get_ltree_by_alias(self, alias_name: str, kb_name: Optional[str] = None) -> str:
+        """
+        Get ltree path by alias name.
+        
+        Returns:
+            ltree path string
+        """
+        node_index = self.get_node_by_alias(alias_name, kb_name)
+        return self.index_to_ltree[node_index]
+    def get_ltree_by_alias(self, alias_name: str, kb_name: Optional[str] = None) -> str:
+        """
+        Get ltree path by alias name.
+        
+        Args:
+            alias_name: The alias to look up
+            kb_name: Knowledge base name (uses current if None)
+            
+        Returns:
+            ltree path string
+            
+        Raises:
+            ValueError: If no KB specified
+            KeyError: If alias not found
+        """
+        node_index = self.get_node_by_alias(alias_name, kb_name)
+        return self.index_to_ltree[node_index]
     def get_node_alias_table(self, kb_name: Optional[str] = None) -> Dict[str, int]:
         """
         Get all aliases for a KB.
@@ -341,44 +349,45 @@ class ChainTreeYaml:
     # =========================================================================
     
     def define_composite_node(
-        self,
-        label_name: str,
-        node_name: str,
-        label_dict: Optional[Dict] = None,
-        node_dict: Optional[Dict] = None
-    ) -> int:
-        """
-        Define a composite node that can contain child nodes.
-        Updates the path for nested nodes.
-        
-        Returns:
-            Node count (node ID)
-        """
-        label_dict = label_dict or {}
-        node_dict = node_dict or {}
-        
-        ltree_name, parent_ltree_name = self._create_ltree_name(label_name, node_name)
-        label_dict["parent_ltree_name"] = parent_ltree_name
-        label_dict["ltree_name"] = ltree_name
-        label_dict["array_index"] = self.node_count  # Store array index for embedded C
-        
-        self.yaml_data[ltree_name] = {
-            "label": label_name,
-            "node_name": node_name,
-            "label_dict": label_dict,
-            "node_dict": node_dict
-        }
-        
-        # Update path list to include this composite node
-        self.path_list.append(label_name)
-        self.path_list.append(node_name)
-        
-        # Store mapping from ltree_name to array index
-        self.ltree_to_index[ltree_name] = self.node_count
-        self.node_count += 1
-        
-        return self.node_count
-    
+            self,
+            label_name: str,
+            node_name: str,
+            label_dict: Optional[Dict] = None,
+            node_dict: Optional[Dict] = None
+        ) -> int:
+            """
+            Define a composite node that can contain child nodes.
+            Updates the path for nested nodes.
+            
+            Returns:
+                Node count (node ID)
+            """
+            label_dict = label_dict or {}
+            node_dict = node_dict or {}
+            
+            ltree_name, parent_ltree_name = self._create_ltree_name(label_name, node_name)
+            label_dict["parent_ltree_name"] = parent_ltree_name
+            label_dict["ltree_name"] = ltree_name
+            label_dict["array_index"] = self.node_count  # Store array index for embedded C
+            
+            self.yaml_data[ltree_name] = {
+                "label": label_name,
+                "node_name": node_name,
+                "label_dict": label_dict,
+                "node_dict": node_dict
+            }
+            
+            # Update path list to include this composite node
+            self.path_list.append(label_name)
+            self.path_list.append(node_name)
+            
+            # Store mapping from ltree_name to array index (and reverse)
+            self.ltree_to_index[ltree_name] = self.node_count
+            self.index_to_ltree[self.node_count] = ltree_name
+            self.node_count += 1
+            
+            return self.node_count
+
     def define_simple_node(
         self,
         label_name: str,
@@ -408,8 +417,9 @@ class ChainTreeYaml:
             "node_dict": node_dict
         }
         
-        # Store mapping from ltree_name to array index
+        # Store mapping from ltree_name to array index (and reverse)
         self.ltree_to_index[ltree_name] = self.node_count
+        self.index_to_ltree[self.node_count] = ltree_name
         self.node_count += 1
         
         return self.node_count

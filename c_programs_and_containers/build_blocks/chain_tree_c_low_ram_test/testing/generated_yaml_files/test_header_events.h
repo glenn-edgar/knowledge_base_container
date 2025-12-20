@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CT_58FK1O71_EVENT_STRING_COUNT 36
+#define CT_4CZ3ANTP_EVENT_STRING_COUNT 44
 
 /* Event indices */
 typedef enum {
@@ -46,10 +46,18 @@ typedef enum {
     EVENT_EMITTER_3_EVENT = 33,
     EVENT_COLLECTOR_OUTPUT_EVENT = 34,
     EVENT_SENSOR_EVENT = 35,
-    EVENT_COUNT = 36
+    EVENT_FLY_STRAIGHT_REQUEST = 36,
+    EVENT_FLY_STRAIGHT_RESPONSE = 37,
+    EVENT_FLY_ARC_REQUEST = 38,
+    EVENT_FLY_ARC_RESPONSE = 39,
+    EVENT_FLY_UP_REQUEST = 40,
+    EVENT_FLY_UP_RESPONSE = 41,
+    EVENT_FLY_DOWN_REQUEST = 42,
+    EVENT_FLY_DOWN_RESPONSE = 43,
+    EVENT_COUNT = 44
 } event_index_t;
 
 /* Event name array for debugging/lookup */
-extern const char *ct_58fk1o71_event_strings[36];
+extern const char *ct_4cz3antp_event_strings[44];
 
 #endif /* TEST_HEADER_EVENTS_H */
