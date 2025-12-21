@@ -39,6 +39,7 @@ function M.FILE(name)
         enums = {},
         fixed = {},
         strings = {},
+        pointers = {},
         structs = {},
         records = {},
     }
@@ -77,6 +78,10 @@ function M.STRING(name, length)
     table.insert(current_file.strings, { name = name, length = length })
 end
 
+function M.POINTER(name)
+    table.insert(current_file.pointers, { name = name })
+end
+
 function M.STRUCT(name)
     current_container = {
         kind = "struct",
@@ -89,7 +94,7 @@ function M.RECORD(name)
     current_container = {
         kind = "record",
         name = name,
-        index = #current_file.records,  -- position-based index
+        index = #current_file.records,
         fields = {},
     }
 end
@@ -124,7 +129,6 @@ local function resolve_ctype(ftype)
     if type_cnames[ftype] then
         return type_cnames[ftype]
     end
-    -- Check if it's a defined type (enum, fixed, string, struct)
     for _, e in ipairs(current_file.enums) do
         if e.name == ftype then return ftype .. "_t" end
     end
@@ -134,13 +138,15 @@ local function resolve_ctype(ftype)
     for _, s in ipairs(current_file.strings) do
         if s.name == ftype then return ftype .. "_t" end
     end
+    for _, p in ipairs(current_file.pointers) do
+        if p.name == ftype then return ftype .. "_t" end
+    end
     for _, st in ipairs(current_file.structs) do
         if st.name == ftype then return ftype .. "_t" end
     end
     for _, r in ipairs(current_file.records) do
         if r.name == ftype then return ftype .. "_t" end
     end
-    -- Assume user-defined type
     return ftype .. "_t"
 end
 
@@ -153,7 +159,6 @@ local function emit_header(out)
         out:write(string.format("#include <%s>\n", inc))
     end
     for _, inc in ipairs(current_file.includes_string) do
-
         out:write(string.format("#include \"%s\"\n", inc))
     end
     if #current_file.includes_string > 0 or #current_file.includes_bracket > 0 then
@@ -169,6 +174,16 @@ local function emit_footer(out)
     out:write("\n#ifdef __cplusplus\n")
     out:write("}\n")
     out:write("#endif\n")
+end
+
+local function emit_pointers(out)
+    if #current_file.pointers == 0 then return end
+    out:write("// ============ USER POINTERS ============\n")
+    for _, p in ipairs(current_file.pointers) do
+        out:write(string.format("typedef struct {\n"))
+        out:write(string.format("    void *ptr;\n"))
+        out:write(string.format("} %s_t;\n\n", p.name))
+    end
 end
 
 local function emit_file_metadata(out)
@@ -205,9 +220,12 @@ local function emit_strings(out)
     if #current_file.strings == 0 then return end
     out:write("// ============ FIXED STRINGS ============\n")
     for _, s in ipairs(current_file.strings) do
-        out:write(string.format("typedef char %s_t[%d];\n", s.name, s.length))
+        out:write(string.format("typedef struct {\n"))
+        out:write(string.format("    char buffer[%d];\n", s.length))
+        out:write(string.format("    uint16_t length;\n"))
+        out:write(string.format("    uint16_t max_length;\n"))
+        out:write(string.format("} %s_t;\n\n", s.name))
     end
-    out:write("\n")
 end
 
 local function emit_struct_def(out, st)
@@ -244,12 +262,10 @@ local function emit_codecs(out)
     out:write("// ============ ENCODE/DECODE ============\n")
     for _, r in ipairs(current_file.records) do
         local tname = r.name .. "_t"
-        -- Encode
         out:write(string.format("static inline size_t %s_encode(const %s* src, uint8_t* buf) {\n", r.name, tname))
         out:write(string.format("    memcpy(buf, src, sizeof(%s));\n", tname))
         out:write(string.format("    return sizeof(%s);\n", tname))
         out:write("}\n\n")
-        -- Decode
         out:write(string.format("static inline void %s_decode(const uint8_t* buf, %s* dst) {\n", r.name, tname))
         out:write(string.format("    memcpy(dst, buf, sizeof(%s));\n", tname))
         out:write("}\n\n")
@@ -259,41 +275,48 @@ end
 local function emit_wire_packets(out)
     if #current_file.records == 0 then return end
     
-    local header_name = current_file.name .. ".h"
+    local name_upper = upper_name(current_file.name)
     
     out:write("// ============ WIRE PACKETS ============\n")
-    out:write("// Per-record packet types with schema info and source node\n\n")
+    out:write("// Per-record packet types with unified header (packed largest to smallest)\n\n")
     
     for _, r in ipairs(current_file.records) do
         out:write(string.format("typedef struct {\n"))
+        out:write("    // --- Wire Header ---\n")
         out:write("    const char* schema_file;   // schema .h file name\n")
+        out:write("    double      timestamp;     // message timestamp (set by transport)\n")
+        out:write("    uint32_t    seq;           // sequence number (set by transport)\n")
         out:write("    uint16_t    source_node;   // originating node ID\n")
-        out:write("    uint8_t     index;         // record type index\n")
         out:write("    uint16_t    length;        // payload size\n")
-        out:write(string.format("    %s_t data;           // payload\n", r.name))
+        out:write("    uint8_t     index;         // record type index\n")
+        out:write("    // --- Payload ---\n")
+        out:write(string.format("    %s_t        data;          // payload\n", r.name))
         out:write(string.format("} %s_packet_t;\n\n", r.name))
     end
     
     -- Generate encode helper per record
-    out:write("// Packet encode helpers - return pointer to data for direct population\n")
+    out:write("// Packet encode helpers - populate header and return pointer to data\n")
+    out:write("// Note: seq and timestamp are zeroed; set by transport layer before sending\n")
     for i, r in ipairs(current_file.records) do
         local idx = i - 1  -- 0-based
-        local name_upper = upper_name(current_file.name)
         out:write(string.format("static inline %s_t* %s_packet_encode(\n", r.name, r.name))
         out:write(string.format("        %s_packet_t* pkt,\n", r.name))
         out:write("        uint16_t source_node)\n")
         out:write("{\n")
         out:write(string.format("    pkt->schema_file = %s_SCHEMA_FILE;\n", name_upper))
+        out:write("    pkt->timestamp = 0.0;\n")
+        out:write("    pkt->seq = 0;\n")
         out:write("    pkt->source_node = source_node;\n")
-        out:write(string.format("    pkt->index = %d;\n", idx))
         out:write(string.format("    pkt->length = sizeof(%s_t);\n", r.name))
+        out:write(string.format("    pkt->index = %d;\n", idx))
         out:write("    return &pkt->data;\n")
         out:write("}\n\n")
     end
+    
     out:write("// Packet verify helpers - validate and return data pointer\n")
+    out:write("// Note: seq and timestamp accessible via get_packet_header() if needed\n")
     for i, r in ipairs(current_file.records) do
         local idx = i - 1  -- 0-based
-        local name_upper = upper_name(current_file.name)
         out:write(string.format("static inline const %s_t* %s_packet_verify(\n", r.name, r.name))
         out:write("        const void* packet_buffer,\n")
         out:write("        uint16_t* source_node)\n")
@@ -309,16 +332,14 @@ local function emit_wire_packets(out)
         out:write("    // Verify payload size\n")
         out:write(string.format("    if (pkt->length != sizeof(%s_t)) return NULL;\n", r.name))
         out:write("    \n")
-        out:write("    // Return source node (informational only)\n")
+        out:write("    // Extract source node\n")
         out:write("    if (source_node) *source_node = pkt->source_node;\n")
         out:write("    \n")
         out:write("    return &pkt->data;\n")
         out:write("}\n\n")
     end
 end
-
 local function emit_descriptors(out)
-    
     if #current_file.records == 0 then return end
     
     out:write(string.format("static const avro_record_desc_t %s_records[] = {\n", current_file.name))
@@ -341,11 +362,10 @@ function M.GENERATE(output_path)
     emit_enums(out)
     emit_fixed(out)
     emit_strings(out)
+    emit_pointers(out)
     emit_structs(out)
     emit_records(out)
-    --emit_codecs(out)
     emit_wire_packets(out)
-    --emit_descriptors(out)
     emit_footer(out)
     out:close()
     print("Generated: " .. output_path)
@@ -355,7 +375,6 @@ end
 -- MODULE EXPORT
 --------------------------------------------------------------------------------
 
--- Export all DSL commands to global namespace for convenience
 function M.export_globals()
     _G.FILE       = M.FILE
     _G.INCLUDE_BRACKET = M.INCLUDE_BRACKET
@@ -365,6 +384,7 @@ function M.export_globals()
     _G.END_ENUM   = M.END_ENUM
     _G.FIXED      = M.FIXED
     _G.STRING     = M.STRING
+    _G.POINTER    = M.POINTER
     _G.STRUCT     = M.STRUCT
     _G.RECORD     = M.RECORD
     _G.FIELD      = M.FIELD

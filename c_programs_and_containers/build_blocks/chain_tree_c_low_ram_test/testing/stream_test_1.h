@@ -15,48 +15,48 @@ extern "C" {
 #define STREAM_TEST_1_RECORD_COUNT  2
 #define STREAM_TEST_1_SCHEMA_FILE   "stream_test_1.h"
 
-// ============ STRUCTS ============
-typedef struct {
-    uint16_t device_id;
-    uint16_t seq;
-    double timestamp;
-} packet_header_t;
-
 // ============ RECORDS ============
 typedef struct {
-    packet_header_t header;
     float x;
     float y;
     float z;
 } accelerometer_reading_t;
 
 typedef struct {
-    packet_header_t header;
     float x;
     float y;
     float z;
 } accelerometer_reading_filtered_t;
 
 // ============ WIRE PACKETS ============
-// Per-record packet types with schema info and source node
+// Per-record packet types with unified header containing routing and timing
 
 typedef struct {
+    // --- Wire Header ---
     const char* schema_file;   // schema .h file name
     uint16_t    source_node;   // originating node ID
     uint8_t     index;         // record type index
     uint16_t    length;        // payload size
-    accelerometer_reading_t data;           // payload
+    uint32_t    seq;           // sequence number (set by transport)
+    double      timestamp;     // message timestamp (set by transport)
+    // --- Payload ---
+    accelerometer_reading_t        data;          // payload
 } accelerometer_reading_packet_t;
 
 typedef struct {
+    // --- Wire Header ---
     const char* schema_file;   // schema .h file name
     uint16_t    source_node;   // originating node ID
     uint8_t     index;         // record type index
     uint16_t    length;        // payload size
-    accelerometer_reading_filtered_t data;           // payload
+    uint32_t    seq;           // sequence number (set by transport)
+    double      timestamp;     // message timestamp (set by transport)
+    // --- Payload ---
+    accelerometer_reading_filtered_t        data;          // payload
 } accelerometer_reading_filtered_packet_t;
 
-// Packet encode helpers - return pointer to data for direct population
+// Packet encode helpers - populate header and return pointer to data
+// Note: seq and timestamp are zeroed; set by transport layer before sending
 static inline accelerometer_reading_t* accelerometer_reading_packet_encode(
         accelerometer_reading_packet_t* pkt,
         uint16_t source_node)
@@ -65,6 +65,8 @@ static inline accelerometer_reading_t* accelerometer_reading_packet_encode(
     pkt->source_node = source_node;
     pkt->index = 0;
     pkt->length = sizeof(accelerometer_reading_t);
+    pkt->seq = 0;
+    pkt->timestamp = 0.0;
     return &pkt->data;
 }
 
@@ -76,10 +78,13 @@ static inline accelerometer_reading_filtered_t* accelerometer_reading_filtered_p
     pkt->source_node = source_node;
     pkt->index = 1;
     pkt->length = sizeof(accelerometer_reading_filtered_t);
+    pkt->seq = 0;
+    pkt->timestamp = 0.0;
     return &pkt->data;
 }
 
 // Packet verify helpers - validate and return data pointer
+// Note: seq and timestamp accessible via get_packet_header() if needed
 static inline const accelerometer_reading_t* accelerometer_reading_packet_verify(
         const void* packet_buffer,
         uint16_t* source_node)
@@ -95,7 +100,7 @@ static inline const accelerometer_reading_t* accelerometer_reading_packet_verify
     // Verify payload size
     if (pkt->length != sizeof(accelerometer_reading_t)) return NULL;
     
-    // Return source node (informational only)
+    // Extract source node
     if (source_node) *source_node = pkt->source_node;
     
     return &pkt->data;
@@ -116,7 +121,7 @@ static inline const accelerometer_reading_filtered_t* accelerometer_reading_filt
     // Verify payload size
     if (pkt->length != sizeof(accelerometer_reading_filtered_t)) return NULL;
     
-    // Return source node (informational only)
+    // Extract source node
     if (source_node) *source_node = pkt->source_node;
     
     return &pkt->data;

@@ -10,6 +10,9 @@ extern "C" {
 
 #include "cfl_engine.h"
 #include "cfl_common_function_headers.h"
+#include "avro_common.h"
+
+
 
 
 void cfl_uint16_to_str(uint16_t value, char* buffer);
@@ -20,8 +23,10 @@ void *cfl_smart_arena_alloc(cfl_runtime_handle_t *handle, uint16_t node_index, u
 
 void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index);
 unsigned cfl_verify_active_children(cfl_runtime_handle_t *handle, uint16_t node_index);
-
+unsigned cfl_verify_active_children_a(cfl_runtime_handle_t *handle, uint16_t node_index);
 void cfl_stop_start_tests(cfl_runtime_handle_t *handle,  cfl_start_stop_tests_fn_data_t *ptr);
+
+
 #ifdef __cplusplus
 }
 #endif

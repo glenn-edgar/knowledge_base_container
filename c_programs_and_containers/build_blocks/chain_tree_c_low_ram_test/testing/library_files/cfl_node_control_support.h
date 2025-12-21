@@ -13,12 +13,7 @@ extern "C" {
 #include "json_node_decoder.h"
 #include "avro_common.h"
 
-typedef struct {
-    avro_packet_header_t header;
-    unsigned event_id;
-    void *packet_pointer;
-    void *data_pointer;
-} cfl_port_t;
+
 
 // Client controlled node data
 typedef struct {
@@ -31,7 +26,14 @@ typedef struct {
 
 
 
-
+// Client controlled node data
+typedef struct {
+    cfl_port_t request_port;
+    cfl_port_t response_port;
+    unsigned client_node_index;
+    void *aux_data;  // Application-specific data
+    
+} cfl_server_controlled_node_t;
 
 #ifdef __cplusplus
 }

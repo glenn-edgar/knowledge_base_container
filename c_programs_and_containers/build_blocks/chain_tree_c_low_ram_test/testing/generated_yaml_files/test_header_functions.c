@@ -188,7 +188,7 @@ extern bool fly_straight_monitor_boolean_fn(void *handle, unsigned node_index, u
 extern bool fly_up_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_4cz3antp_main_functions[] = {
+const main_function_t ct_q5b1irps_main_functions[] = {
     cfl_null_main_fn,
     avro_verify_packet_main_fn,
     cfl_client_controlled_node_main_main_fn,
@@ -230,7 +230,7 @@ const main_function_t ct_4cz3antp_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_4cz3antp_one_shot_functions[] = {
+const one_shot_function_t ct_q5b1irps_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     avro_verify_packet_init_one_shot_fn,
@@ -336,7 +336,7 @@ const one_shot_function_t ct_4cz3antp_one_shot_functions[] = {
     verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_4cz3antp_boolean_functions[] = {
+const boolean_function_t ct_q5b1irps_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -374,7 +374,7 @@ const boolean_function_t ct_4cz3antp_boolean_functions[] = {
 };
 
 /* Main function usage count */
-const uint16_t ct_4cz3antp_main_function_usage_count[39] = {
+const uint16_t ct_q5b1irps_main_function_usage_count[39] = {
     0,  /* CFL_NULL */
     1,  /* AVRO_VERIFY_PACKET */
     4,  /* CFL_CLIENT_CONTROLLED_NODE_MAIN */
@@ -416,7 +416,7 @@ const uint16_t ct_4cz3antp_main_function_usage_count[39] = {
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_4cz3antp_main_function_names[39] = {
+const char *ct_q5b1irps_main_function_names[39] = {
     "CFL_NULL",
     "AVRO_VERIFY_PACKET",
     "CFL_CLIENT_CONTROLLED_NODE_MAIN",
@@ -458,7 +458,7 @@ const char *ct_4cz3antp_main_function_names[39] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_4cz3antp_one_shot_function_names[103] = {
+const char *ct_q5b1irps_one_shot_function_names[103] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "AVRO_VERIFY_PACKET_INIT",
@@ -564,7 +564,7 @@ const char *ct_4cz3antp_one_shot_function_names[103] = {
     "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_4cz3antp_boolean_function_names[34] = {
+const char *ct_q5b1irps_boolean_function_names[34] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",

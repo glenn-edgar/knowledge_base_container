@@ -457,23 +457,7 @@ bool cfl_streaming_verify_packet_boolean_fn(void *handle, unsigned node_index, u
 }
 // ============ PACKET OPERATIONS ============
 
-bool cfl_packet_matches_port(const void *packet, const cfl_port_t *port) {
-    const char *schema_file;
-    uint16_t source_node;
-    uint8_t index;
-    uint16_t length;
-    
-    get_packet_header(packet, &schema_file, &source_node, &index, &length);
-    
-    if (strcmp(schema_file, port->schema_file) != 0) {
-        return false;
-    }
-    if (index != port->handler_id) {
-        return false;
-    }
-    
-    return true;
-}
+
 
 bool cfl_streaming_event_matches(unsigned event_type, unsigned event_id,
                                   void *event_data, const cfl_inport_t *inport) {

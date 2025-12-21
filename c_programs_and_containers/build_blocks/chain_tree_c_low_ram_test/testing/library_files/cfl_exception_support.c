@@ -62,7 +62,7 @@ void cfl_raise_json_exception_event(cfl_runtime_handle_t *runtime_handle, uint16
 
 
 
-static void cfl_forward_exception_event(cfl_runtime_handle_t *runtime_handle, unsigned node_index , unsigned parent_node_id , 
+void cfl_forward_exception_event(cfl_runtime_handle_t *runtime_handle, unsigned node_index , unsigned parent_node_id , 
                uint16_t record_index ){
     // find parent node id
     if (parent_node_id == 0xFFFF) {

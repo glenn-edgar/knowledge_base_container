@@ -25,9 +25,7 @@ void generate_avro_packet_one_shot_fn(void *handle, unsigned node_index)
     data->x = 1.0;
     data->y = 2.0;
     data->z = 3.0;
-    data->header.device_id = 1;
-    data->header.seq = 1;
-    data->header.timestamp = 2346445556; 
+    cfl_avro_update_packet_header(runtime, pkt);
     cfl_send_data_event(
         runtime->event_queue,
         CFL_EVENT_PRIORITY_LOW,
@@ -54,38 +52,40 @@ unsigned int avro_verify_packet_main_fn(void *handle, unsigned bool_function_ind
 {
     (void)bool_function_index;
     (void)event_type;
-    uint16_t source_node;
+    
     const char* schema_file;
+    double timestamp;
+    uint32_t seq;
+    uint16_t source_node;
     uint8_t index;
     uint16_t length;
 
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
-    avro_verify_packet_init_data_t *data = cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
-    if( event_id == (unsigned)data->event_id)
+    avro_verify_packet_init_data_t *init_data = cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
+    if( event_id == (unsigned)init_data->event_id)
     {
-        const void* header = get_packet_header(event_data, &schema_file, &source_node, &index, &length);
-        if( header == NULL)        
+        const void* payload = get_packet_header(event_data, &schema_file, &timestamp, &seq, &source_node, &index, &length);
+        if( payload == NULL)        
         {
             printf("packet header verification failed\n");
             EXCEPTION("packet header verification failed");
         }
         printf("schema file: %s\n", schema_file);
+        printf("timestamp: %f\n", timestamp);
+        printf("seq: %d\n", seq);
         printf("source node: %d\n", source_node);
         printf("index: %d\n", index);
         printf("length: %d\n", length);
-       
       
-        const accelerometer_reading_t* data = accelerometer_reading_packet_verify(event_data,&source_node);
-        if( data == NULL)
+        const accelerometer_reading_t* reading = accelerometer_reading_packet_verify(event_data, &source_node);
+        if( reading == NULL)
         {
             printf("packet verification failed\n");
             EXCEPTION("packet verification failed");
         }
-        printf("device id: %d\n", data->header.device_id);
-        printf("seq: %d\n", data->header.seq);
-        printf("timestamp: %lu\n", data->header.timestamp);
+       
         printf("packet received from node %d\n", source_node);
-        printf("x: %f, y: %f, z: %f\n", data->x, data->y, data->z);
+        printf("x: %f, y: %f, z: %f\n", reading->x, reading->y, reading->z);
         return CFL_TERMINATE;
     }
     return CFL_CONTINUE;

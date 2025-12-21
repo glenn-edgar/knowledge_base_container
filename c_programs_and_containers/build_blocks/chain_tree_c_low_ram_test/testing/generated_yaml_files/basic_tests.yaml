@@ -19197,11 +19197,11 @@ kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._1:
     column_data:
       request_port: &id015
         file_name: drone_control.h
-        handler_id: 0
+        handler_id: 2
         event_id: 38
       response_port: &id016
         file_name: drone_control.h
-        handler_id: 1
+        handler_id: 3
         event_id: 39
       aux_data: {}
 kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._1.LEAF._0:
@@ -19295,11 +19295,11 @@ kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._2:
     column_data:
       request_port: &id017
         file_name: drone_control.h
-        handler_id: 0
+        handler_id: 4
         event_id: 40
       response_port: &id018
         file_name: drone_control.h
-        handler_id: 1
+        handler_id: 5
         event_id: 41
       aux_data: {}
 kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._2.LEAF._0:
@@ -19393,11 +19393,11 @@ kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._3:
     column_data:
       request_port: &id019
         file_name: drone_control.h
-        handler_id: 0
+        handler_id: 6
         event_id: 42
       response_port: &id020
         file_name: drone_control.h
-        handler_id: 1
+        handler_id: 7
         event_id: 43
       aux_data: {}
 kb.twenty_seventh_test.GATE_root._0.COL_cont._0.COL_fly_._3.LEAF._0:

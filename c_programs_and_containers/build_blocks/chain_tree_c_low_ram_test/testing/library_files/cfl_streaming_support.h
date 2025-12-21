@@ -9,14 +9,9 @@ extern "C" {
 #include <stdint.h>
 #include "cfl_runtime.h"
 #include "cfl_common_function_headers.h"
-
+#include "avro_common.h"
 // ============ CORE PORT ABSTRACTION ============
 
-typedef struct {
-    const char *schema_file;
-    unsigned    handler_id;
-    unsigned    event_id;
-} cfl_port_t;
 
 typedef struct {
     cfl_port_t port;

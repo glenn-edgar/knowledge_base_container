@@ -69,16 +69,14 @@ void packet_generator_one_shot_fn(void *handle, unsigned node_index) {
     }
     
     // Generate packet
-    packet_generator_user_data_t *user = (packet_generator_user_data_t *)node->user_data;
+    
     accelerometer_reading_packet_t *pkt = (accelerometer_reading_packet_t *)node->packet_buffer;
     accelerometer_reading_t *data = accelerometer_reading_packet_encode(pkt, node_index);
     
     data->x = (float)rand() / (float)RAND_MAX * 1.0f;
     data->y = (float)rand() / (float)RAND_MAX * 2.0f;
     data->z = (float)rand() / (float)RAND_MAX * 3.0f;
-    data->header.device_id = user->device_id;
-    data->header.seq = user->seq;
-    data->header.timestamp = cfl_timer_get_timestamp(rt->timer_handle);
+    cfl_avro_update_packet_header(rt,pkt);
     
     // Emit packet
     cfl_emit_packet(rt, &node->outport, pkt);
@@ -105,6 +103,7 @@ bool packet_sink_a_boolean_fn(void *handle, unsigned node_index, unsigned event_
     
     // Process packet
     uint16_t source_node = 0;
+    const accelerometer_reading_packet_t *packet = (const accelerometer_reading_packet_t *)event_data;
     const accelerometer_reading_t *pkt = accelerometer_reading_packet_verify(event_data, &source_node);
     if (pkt == NULL) {
         EXCEPTION("packet_sink_a_boolean_fn: packet verify failed");
@@ -113,8 +112,9 @@ bool packet_sink_a_boolean_fn(void *handle, unsigned node_index, unsigned event_
     const char *msg = (const char *)node->user_data;
     printf("sink_a [%s]: x=%.3f, y=%.3f, z=%.3f from node %d\n", 
            msg, pkt->x, pkt->y, pkt->z, source_node);
-    printf("  header: device=%d, seq=%d, time=%.3f\n", 
-           pkt->header.device_id, pkt->header.seq, pkt->header.timestamp);
+    
+    printf("  header: seq=%d, time=%.3f\n", 
+           packet->seq, packet->timestamp);
     
     return true;
 }
@@ -140,6 +140,7 @@ bool packet_sink_b_boolean_fn(void *handle, unsigned node_index, unsigned event_
     
     // Process packet
     uint16_t source_node = 0;
+    const accelerometer_reading_filtered_packet_t *packet = (const accelerometer_reading_filtered_packet_t *)event_data;
     const accelerometer_reading_filtered_t *pkt = accelerometer_reading_filtered_packet_verify(event_data, &source_node);
     if (pkt == NULL) {
         EXCEPTION("packet_sink_b_boolean_fn: packet verify failed");
@@ -148,8 +149,8 @@ bool packet_sink_b_boolean_fn(void *handle, unsigned node_index, unsigned event_
     const char *msg = (const char *)node->user_data;
     printf("sink_b [%s]: x=%.3f, y=%.3f, z=%.3f from node %d\n", 
            msg, pkt->x, pkt->y, pkt->z, source_node);
-    printf("  header: device=%d, seq=%d, time=%.3f\n", 
-           pkt->header.device_id, pkt->header.seq, pkt->header.timestamp);
+    printf(" seq=%d, time=%.3f\n", 
+           packet->seq, packet->timestamp);
     
     return true;
 }
@@ -175,6 +176,7 @@ bool packet_tap_boolean_fn(void *handle, unsigned node_index, unsigned event_typ
     
     // Process packet
     uint16_t source_node = 0;
+    const accelerometer_reading_packet_t *packet = (const accelerometer_reading_packet_t *)event_data;
     const accelerometer_reading_t *pkt = accelerometer_reading_packet_verify(event_data, &source_node);
     if (pkt == NULL) {
         EXCEPTION("packet_tap_boolean_fn: packet verify failed");
@@ -183,7 +185,8 @@ bool packet_tap_boolean_fn(void *handle, unsigned node_index, unsigned event_typ
     const char *msg = (const char *)node->user_data;
     printf("tap [%s]: x=%.3f, y=%.3f, z=%.3f from node %d\n", 
            msg, pkt->x, pkt->y, pkt->z, source_node);
-    
+    printf(" seq=%d, time=%.3f\n", 
+           packet->seq, packet->timestamp);
     return true;
 }
 
@@ -279,9 +282,7 @@ bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned eve
             user->out_data->x = 0;
             user->out_data->y = 0;
             user->out_data->z = 0;
-            user->out_data->header.device_id = 0;
-            user->out_data->header.seq = 0;
-            user->out_data->header.timestamp = 0;
+            
             
             // Parse averaging count from JSON
             json_decoder_init_from_runtime(rt, node_index);
@@ -308,7 +309,7 @@ bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned eve
     
     // Reset accumulator at start of new averaging window
     if (user->sum_index == 0) {
-        user->out_data->header.seq++;
+        cfl_avro_update_packet_header(rt, user->out_pkt);
         user->out_data->x = 0;
         user->out_data->y = 0;
         user->out_data->z = 0;
@@ -328,7 +329,7 @@ bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned eve
         user->out_data->x /= user->sum_count;
         user->out_data->y /= user->sum_count;
         user->out_data->z /= user->sum_count;
-        user->out_data->header.timestamp = cfl_timer_get_timestamp(rt->timer_handle);
+        cfl_avro_update_packet_header(rt,user->out_pkt);
         
         printf("transform: emitting averaged packet\n");
         cfl_emit_packet(rt, &node->outport, user->out_pkt);
@@ -362,8 +363,7 @@ bool packet_collector_boolean_fn(void *handle, unsigned node_index, unsigned por
         EXCEPTION("packet_collector_boolean_fn: packet verify failed");
     }
     
-    printf("collector: evaluating packet from port %u, device %u (x=%.3f)\n", 
-           port_index, pkt->header.device_id, pkt->x);
+    printf("collector: evaluating packet from port %d (x=%.3f)\n",  port_index, pkt->x);
     
     // Example filter: reject packets with x < 0.1
     if (pkt->x < 0.1f) {
@@ -409,9 +409,9 @@ bool packet_collector_sink_boolean_fn(void *handle, unsigned node_index, unsigne
             container->packets[i], &source_node);
         
         if (pkt != NULL) {
-            printf("  [%u] port=%u, x=%.3f, y=%.3f, z=%.3f, device=%u\n",
+            printf("  [%u] port=%d, x=%.3f, y=%.3f, z=%.3f\n",
                    i, container->port_indices[i],
-                   pkt->x, pkt->y, pkt->z, pkt->header.device_id);
+                   pkt->x, pkt->y, pkt->z);
         }
     }
     
@@ -498,8 +498,9 @@ bool packet_verified_sink_boolean_fn(void *handle, unsigned node_index, unsigned
     const char *msg = (const char *)node->user_data;
     printf("verified_sink [%s]: x=%.3f, y=%.3f, z=%.3f from node %d\n",
            msg, pkt->x, pkt->y, pkt->z, source_node);
-    printf("  header: device=%d, seq=%d, time=%.3f\n",
-           pkt->header.device_id, pkt->header.seq, pkt->header.timestamp);
+    const accelerometer_reading_packet_t *packet = (const accelerometer_reading_packet_t *)event_data;
+    printf("  header: seq=%d, time=%.3f\n",
+         packet->seq, packet->timestamp);
     
     return true;
 }

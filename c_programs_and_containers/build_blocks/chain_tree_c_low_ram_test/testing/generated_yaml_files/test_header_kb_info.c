@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Node aliases for KB: twenty_seventh_test */
-const node_alias_t ct_4cz3antp_kb_23_aliases[4] = {
+const node_alias_t ct_q5b1irps_kb_23_aliases[4] = {
     {"drone_control_fly_straight", 1218},
     {"drone_control_fly_arc", 1224},
     {"drone_control_fly_up", 1230},
@@ -10,7 +10,7 @@ const node_alias_t ct_4cz3antp_kb_23_aliases[4] = {
 };
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_4cz3antp_kb_table[24] = {
+const chaintree_kb_info_t ct_q5b1irps_kb_table[24] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -248,7 +248,7 @@ const chaintree_kb_info_t ct_4cz3antp_kb_table[24] = {
         .node_count = 45,
         .max_depth = 3,
         .memory_factor = 50,
-        .aliases = ct_4cz3antp_kb_23_aliases,
+        .aliases = ct_q5b1irps_kb_23_aliases,
         .alias_count = 4
     },
 };

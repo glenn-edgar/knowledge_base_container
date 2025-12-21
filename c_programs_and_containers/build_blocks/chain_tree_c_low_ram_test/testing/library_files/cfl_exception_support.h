@@ -48,7 +48,8 @@ typedef struct{
 } cfl_exception_support_data_t;
 
 void cfl_raise_json_exception_event(cfl_runtime_handle_t *runtime_handle, uint16_t node_id, uint16_t parent_node_id);
-
+void cfl_forward_exception_event(cfl_runtime_handle_t *runtime_handle, unsigned node_index , unsigned parent_node_id , 
+    uint16_t record_index );
 #ifdef __cplusplus
 }
 #endif
