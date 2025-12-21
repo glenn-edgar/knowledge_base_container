@@ -196,6 +196,7 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
         return CT_SKIP_CHILDREN;
     }
     
+    
     /* Node is executing - increment counter once per actual execution */
     handle->cfl_node_execution_count++;
     
@@ -247,6 +248,7 @@ static CT_ReturnCode cfl_execute_node(void* user_handle, unsigned int node_id, u
 
         case CFL_TERMINATE:
             if (node->parent_index != 0xffff) {
+                
                 cfl_terminate_node_tree(handle, node->parent_index);
                 return CT_SKIP_CHILDREN;
             }
@@ -394,7 +396,7 @@ static CT_ReturnCode cfl_mark_node_for_termination(void *handle, unsigned node_i
         return CT_STOP_ALL;
     }
     
-    if ((flags[node_index] & (CT_FLAG_USER2 | CT_FLAG_USER3)) == (CT_FLAG_USER2 | CT_FLAG_USER3)) {
+    if ((flags[node_index] & (CT_FLAG_USER3 )) == (CT_FLAG_USER3)) {
         runtime_handle->backup_flags[node_index] |= CT_FLAG_USER1;
     }
     
@@ -412,9 +414,9 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
         EXCEPTION("cfl_disable_node: node_index out of bounds");
         return;
     }
-    
+    cfl_disable_node_flag(handle, node_index);
     /* Only disable if node is initialized and enabled */
-    if ((handle->flags[node_index] & (CT_FLAG_USER3 | CT_FLAG_USER2)) != 
+    if ((handle->flags[node_index] & (CT_FLAG_USER3| CT_FLAG_USER2)) != 
         (CT_FLAG_USER3 | CT_FLAG_USER2)) {
         return;
     }
@@ -423,14 +425,7 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
     unsigned int termination_function_index = node->term_function_index;
     unsigned int aux_function_index = node->aux_function_index;
     
-    /* Validate function indices */
-    if (termination_function_index != 0) {
-        if (termination_function_index >= handle->flash_handle->one_shot_function_count) {
-            EXCEPTION("cfl_disable_node: termination_function_index out of bounds");
-            return;
-        }
-        handle->flash_handle->one_shot_functions[termination_function_index](handle, node_index);
-    }
+    
     
     if (aux_function_index != 0) {
         if (aux_function_index >= handle->flash_handle->boolean_function_count) {
@@ -439,6 +434,15 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
         }
         handle->flash_handle->boolean_functions[aux_function_index](handle, node_index, 
             CFL_EVENT_TYPE_NULL, CFL_TERMINATE_EVENT, NULL);
+    }
+
+    /* Validate function indices */
+    if (termination_function_index != 0) {
+        if (termination_function_index >= handle->flash_handle->one_shot_function_count) {
+            EXCEPTION("cfl_disable_node: termination_function_index out of bounds");
+            return;
+        }
+        handle->flash_handle->one_shot_functions[termination_function_index](handle, node_index);
     }
     
     cfl_disable_node_flag(handle, node_index);
@@ -658,6 +662,7 @@ void cfl_disable_node_flag(cfl_runtime_handle_t *handle, unsigned node_index) {
     
      uint8_t *flags = handle->flags;
     flags[node_index] &= ~CT_FLAG_USER_MASK;
+    
 }
 
 

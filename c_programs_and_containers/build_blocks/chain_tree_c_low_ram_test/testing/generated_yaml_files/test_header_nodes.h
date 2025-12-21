@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_Q5B1IRPS_NODE_COUNT 1400
+#define CT_JQW17IAV_NODE_COUNT 1452
 
-extern const chaintree_node_t ct_q5b1irps_nodes[CT_Q5B1IRPS_NODE_COUNT];
+extern const chaintree_node_t ct_jqw17iav_nodes[CT_JQW17IAV_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

@@ -1853,10 +1853,12 @@ def twenty_sixth_test(ct, kb_name):
     
 from test_scripts.drone_control import DroneControl
 
+
+
 def insert_fly_up_column(ct):
     fly_up_column = ct.drone_control.fly_up_server("fly_up", "fly_up_monitor", monitor_data={})
     ct.asm_log_message("fly up column: ready")
-    ct.asm_wait_time(time_delay=5)
+    ct.asm_wait_time(time_delay=2)
     ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_UP_FINAL", one_shot_data={"final_data": {}})
     ct.asm_log_message("fly up column: terminating")
     ct.asm_terminate()
@@ -1867,7 +1869,7 @@ def insert_fly_up_column(ct):
 def insert_fly_down_column(ct):
     fly_down_column = ct.drone_control.fly_down_server("fly_down", "fly_down_monitor", monitor_data={})
     ct.asm_log_message("fly down column: ready")
-    ct.asm_wait_time(time_delay=5)
+    ct.asm_wait_time(time_delay=2)
     ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_DOWN_FINAL", one_shot_data={"final_data": {}})
     ct.asm_log_message("fly down column: terminating")
     ct.asm_terminate()
@@ -1878,7 +1880,7 @@ def insert_fly_down_column(ct):
 def insert_fly_arc_column(ct):
     fly_arc_column = ct.drone_control.fly_arc_server("fly_arc", "fly_arc_monitor", monitor_data={})
     ct.asm_log_message("fly arc column: ready")
-    ct.asm_wait_time(time_delay=5)
+    ct.asm_wait_time(time_delay=2)
     ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_ARC_FINAL", one_shot_data={"final_data": {}})
     ct.asm_log_message("fly arc column: terminating")
     ct.asm_terminate()
@@ -1889,7 +1891,7 @@ def insert_fly_arc_column(ct):
 def insert_fly_straight_column(ct):
     fly_straight_column = ct.drone_control.fly_straight_server("fly_straight", "fly_straight_monitor", monitor_data={})
     ct.asm_log_message("fly straight column: ready")
-    ct.asm_wait_time(time_delay=5)
+    ct.asm_wait_time(time_delay=2)
     ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_STRAIGHT_FINAL", one_shot_data={})
     ct.asm_log_message("fly straight column: terminating")
     ct.asm_terminate()
@@ -1974,13 +1976,144 @@ def twenty_seventh_test(ct, kb_name):
     ct.asm_log_message("launch column: starting client control")
     client_control_column = insert_client_control_column(ct)
     ct.define_join_link(client_control_column)
+
+    
     ct.asm_log_message("launch column: complete")
-    ct.asm_terminate()
+    ct.asm_terminate_system()
     ct.end_column(column_name=launch_column)
     
     ct.end_test()
     
+def insert_fly_up_column(ct):
+    fly_up_column = ct.drone_control.fly_up_server("fly_up", "fly_up_monitor", monitor_data={})
+    ct.asm_log_message("fly up column: ready")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_UP_FINAL", one_shot_data={"final_data": {}})
+    ct.asm_log_message("fly up column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fly_up_column)
+    return fly_up_column
+
+
+def insert_fly_down_column(ct):
+    fly_down_column = ct.drone_control.fly_down_server("fly_down", "fly_down_monitor", monitor_data={})
+    ct.asm_log_message("fly down column: ready")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_DOWN_FINAL", one_shot_data={"final_data": {}})
+    ct.asm_log_message("fly down column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fly_down_column)
+    return fly_down_column
+  
+
+def insert_fly_arc_column(ct):
+    fly_arc_column = ct.drone_control.fly_arc_server("fly_arc", "fly_arc_monitor", monitor_data={})
+    ct.asm_log_message("fly arc column: ready")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_ARC_FINAL", one_shot_data={"final_data": {}})
+    ct.asm_log_message("fly arc column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fly_arc_column)
+    return fly_arc_column
+
+
+def insert_fly_exception_straight_column(ct):
+    fly_straight_column = ct.drone_control.fly_straight_server("fly_straight", "fly_straight_monitor", monitor_data={})
+    ct.asm_log_message("fly straight column: ready")
+    ct.asm_wait_time(time_delay=2)
+    ct.asm_raise_exception(exception_id=1,exception_data={"low battery": 12.0})
+    ct.asm_one_shot_handler(one_shot_fn="UPDATE_FLY_STRAIGHT_FINAL", one_shot_data={})
+    ct.asm_log_message("fly straight column: terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=fly_straight_column)
+    return fly_straight_column
+
+
+def insert_exception_client_control_column(ct):
+    client_column = ct.catch_all_exception(column_name="client_control",aux_function ="DRONE_CONTROL_EXCEPTION_CATCH",aux_data={"aux_data": {}})
     
+    # Fly straight client - fly 100m at 50m altitude, 10m/s, heading 90 degrees
+    ct.drone_control.fly_straight_client(
+        
+        distance=100.0,
+        final_altitude=50.0,
+        final_speed=10.0,
+        heading=90.0,
+        finalize_fn="ON_FLY_STRAIGHT_COMPLETE",
+        finalize_data={"waypoint": "wp1"}
+    )
+    
+    ct.asm_log_message("fly straight command sent")
+    ct.asm_wait_time(time_delay=2)
+    
+    # Fly arc client - arc 50m at 60m altitude, 8m/s, heading 180 degrees
+    ct.drone_control.fly_arc_client(
+        
+        distance=50.0,
+        final_altitude=60.0,
+        final_speed=8.0,
+        heading=180.0,
+        finalize_fn="ON_FLY_ARC_COMPLETE",
+        finalize_data={"waypoint": "wp2"}
+    )
+    
+    ct.asm_log_message("fly arc command sent")
+    ct.asm_wait_time(time_delay=2)
+    
+    # Fly up client - climb to 100m at 5m/s
+    ct.drone_control.fly_up_client(
+
+        final_altitude=100.0,
+        final_speed=5.0,
+        finalize_fn="ON_FLY_UP_COMPLETE",
+        finalize_data={"target": "cruise_altitude"}
+    )
+    
+    ct.asm_log_message("fly up command sent")
+    ct.asm_wait_time(time_delay=2)
+    
+    # Fly down client - descend to 20m at 3m/s
+    ct.drone_control.fly_down_client(
+    
+        final_altitude=20.0,
+        final_speed=3.0,
+        finalize_fn="ON_FLY_DOWN_COMPLETE",
+        finalize_data={"target": "landing_approach"}
+    )
+    
+    ct.asm_log_message("fly down command sent")
+    ct.asm_log_message("client control column: complete")
+    ct.asm_terminate()
+    ct.end_column(column_name=client_column)
+    return client_column
+
+
+def twenty_eighth_test(ct, kb_name):
+    ct.drone_control = DroneControl(ct.ctb, "drone_control.h")
+
+    ct.start_test(test_name=kb_name, kb_memory_factor=50)
+    
+    # Create container for all server columns
+    controlled_node_container = ct.controlled_node_container(column_name="controlled_node_container")
+    insert_fly_exception_straight_column(ct)
+    insert_fly_arc_column(ct)
+    insert_fly_up_column(ct)
+    insert_fly_down_column(ct)
+    ct.end_column(column_name=controlled_node_container)
+    
+    # Create launch column that contains the client control
+    launch_column = ct.define_column(column_name="launch_column", auto_start=True)
+    ct.asm_log_message("launch column: starting client control")
+    client_control_column = insert_exception_client_control_column(ct)
+    ct.define_join_link(client_control_column)
+
+    
+    ct.asm_log_message("launch column: complete")
+    ct.asm_terminate_system()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test()
+        
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
     
@@ -1996,7 +2129,8 @@ if __name__ == "__main__":
     test_list = ["first_test","second_test","fourth_test","fifth_test","sixth_test","seventh_test","eighth_test","ninth_test",
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
                  "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test",
-                 "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test","twenty_seventh_test"]
+                 "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test",
+                 "twenty_seventh_test","twenty_eighth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -2022,7 +2156,8 @@ if __name__ == "__main__":
                  "twenty_fourth_test": twenty_fourth_test,
                  "twenty_fifth_test": twenty_fifth_test,
                  "twenty_sixth_test": twenty_sixth_test,
-                 "twenty_seventh_test": twenty_seventh_test}
+                 "twenty_seventh_test": twenty_seventh_test,
+                 "twenty_eighth_test": twenty_eighth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

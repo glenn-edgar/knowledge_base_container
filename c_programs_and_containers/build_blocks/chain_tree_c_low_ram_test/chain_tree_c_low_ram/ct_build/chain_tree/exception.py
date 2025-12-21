@@ -209,9 +209,14 @@ class ExceptionHandler():
             raise TypeError("Exception id must be an integer")
         if not isinstance(exception_data, dict):
             raise TypeError("Exception data must be a dictionary")
-        return self.asm_one_shot_handler("CFL_RAISE_EXCEPTION",{"exception_id": exception_id,
+        return self.define_column_link(main_function_name="CFL_HALT",
+                            initialization_function_name="CFL_RAISE_EXCEPTION",
+                            aux_function_name="CFL_NULL",
+                            termination_function_name="CFL_NULL",
+                            node_data={"exception_id": exception_id,
                                                                 "exception_data": exception_data})
-        
+
+       
     def asm_set_exception_step(self,step:int):
         if not isinstance(step, int):
             raise TypeError("Step must be an integer")

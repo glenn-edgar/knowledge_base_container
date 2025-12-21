@@ -175,40 +175,41 @@ typedef enum {
     BOOL_FUNC_CFL_WAIT_FOR_BITMASK = 11,
     BOOL_FUNC_CFL_WAIT_FOR_EVENT = 12,
     BOOL_FUNC_CFL_WAIT_FOR_TESTS_COMPLETE = 13,
-    BOOL_FUNC_EXCEPTION_FILTER = 14,
-    BOOL_FUNC_ON_FLY_ARC_COMPLETE = 15,
-    BOOL_FUNC_ON_FLY_DOWN_COMPLETE = 16,
-    BOOL_FUNC_ON_FLY_STRAIGHT_COMPLETE = 17,
-    BOOL_FUNC_ON_FLY_UP_COMPLETE = 18,
-    BOOL_FUNC_PACKET_COLLECTOR = 19,
-    BOOL_FUNC_PACKET_COLLECTOR_SINK = 20,
-    BOOL_FUNC_PACKET_FILTER = 21,
-    BOOL_FUNC_PACKET_SINK_A = 22,
-    BOOL_FUNC_PACKET_SINK_B = 23,
-    BOOL_FUNC_PACKET_TAP = 24,
-    BOOL_FUNC_PACKET_TRANSFORM = 25,
-    BOOL_FUNC_PACKET_VERIFIED_SINK = 26,
-    BOOL_FUNC_USER_SKIP_CONDITION = 27,
-    BOOL_FUNC_WHILE_TEST = 28,
-    BOOL_FUNC_FLY_ARC_MONITOR = 29,
-    BOOL_FUNC_FLY_DOWN_MONITOR = 30,
-    BOOL_FUNC_FLY_STRAIGHT_MONITOR = 31,
-    BOOL_FUNC_FLY_UP_MONITOR = 32,
-    BOOL_FUNC_PACKET_VERIFY_X_RANGE = 33,
-    BOOL_FUNC_COUNT = 34
+    BOOL_FUNC_DRONE_CONTROL_EXCEPTION_CATCH = 14,
+    BOOL_FUNC_EXCEPTION_FILTER = 15,
+    BOOL_FUNC_ON_FLY_ARC_COMPLETE = 16,
+    BOOL_FUNC_ON_FLY_DOWN_COMPLETE = 17,
+    BOOL_FUNC_ON_FLY_STRAIGHT_COMPLETE = 18,
+    BOOL_FUNC_ON_FLY_UP_COMPLETE = 19,
+    BOOL_FUNC_PACKET_COLLECTOR = 20,
+    BOOL_FUNC_PACKET_COLLECTOR_SINK = 21,
+    BOOL_FUNC_PACKET_FILTER = 22,
+    BOOL_FUNC_PACKET_SINK_A = 23,
+    BOOL_FUNC_PACKET_SINK_B = 24,
+    BOOL_FUNC_PACKET_TAP = 25,
+    BOOL_FUNC_PACKET_TRANSFORM = 26,
+    BOOL_FUNC_PACKET_VERIFIED_SINK = 27,
+    BOOL_FUNC_USER_SKIP_CONDITION = 28,
+    BOOL_FUNC_WHILE_TEST = 29,
+    BOOL_FUNC_FLY_ARC_MONITOR = 30,
+    BOOL_FUNC_FLY_DOWN_MONITOR = 31,
+    BOOL_FUNC_FLY_STRAIGHT_MONITOR = 32,
+    BOOL_FUNC_FLY_UP_MONITOR = 33,
+    BOOL_FUNC_PACKET_VERIFY_X_RANGE = 34,
+    BOOL_FUNC_COUNT = 35
 } BOOL_FUNC_t;
 
 /* Function pointer arrays */
-extern const main_function_t ct_q5b1irps_main_functions[39];
-extern const one_shot_function_t ct_q5b1irps_one_shot_functions[103];
-extern const boolean_function_t ct_q5b1irps_boolean_functions[34];
+extern const main_function_t ct_jqw17iav_main_functions[39];
+extern const one_shot_function_t ct_jqw17iav_one_shot_functions[103];
+extern const boolean_function_t ct_jqw17iav_boolean_functions[35];
 
 /* Main function usage count (indexed by function enum) */
-extern const uint16_t ct_q5b1irps_main_function_usage_count[39];
+extern const uint16_t ct_jqw17iav_main_function_usage_count[39];
 
 /* Function name arrays (for debugging) */
-extern const char *ct_q5b1irps_main_function_names[39];
-extern const char *ct_q5b1irps_one_shot_function_names[103];
-extern const char *ct_q5b1irps_boolean_function_names[34];
+extern const char *ct_jqw17iav_main_function_names[39];
+extern const char *ct_jqw17iav_one_shot_function_names[103];
+extern const char *ct_jqw17iav_boolean_function_names[35];
 
 #endif /* TEST_HEADER_FUNCTIONS_H */

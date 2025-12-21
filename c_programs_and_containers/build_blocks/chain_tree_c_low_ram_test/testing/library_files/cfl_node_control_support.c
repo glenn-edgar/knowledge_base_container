@@ -45,7 +45,7 @@ unsigned cfl_controlled_node_container_main_main_fn(void *handle, unsigned bool_
 
 
 
-void cfl_server_controlled_node_decode(
+static void cfl_server_controlled_node_decode(
     cfl_runtime_handle_t *runtime,
     unsigned node_index,
     cfl_server_controlled_node_t *node_data)
@@ -69,12 +69,12 @@ void cfl_controlled_node_init_one_shot_fn(void *handle, unsigned node_index)
 {
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     cfl_server_controlled_node_t *ptr = NULL;
-    printf("cfl_controlled_node_init_one_shot_fn: node_index: %d\n", node_index);
+    
     if (cfl_allocate_state(handle, node_index) == false)
     {
         ptr = (cfl_server_controlled_node_t *)cfl_smart_arena_alloc(
             handle, node_index, sizeof(cfl_server_controlled_node_t));
-        printf("server node allocated at: %p - %p\n", ptr, (uint8_t*)ptr + sizeof(cfl_server_controlled_node_t));
+    
         cfl_server_controlled_node_decode(runtime, node_index, ptr);
     }
     else
@@ -84,10 +84,11 @@ void cfl_controlled_node_init_one_shot_fn(void *handle, unsigned node_index)
     }
 }
 void cfl_controlled_node_term_one_shot_fn(void *handle,unsigned node_index){
-    (void)handle;
-    (void)node_index;
-    printf("cfl_controlled_node_term_one_shot_fn\n");
-    exit(0);
+    cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
+    cfl_server_controlled_node_t *ptr = (cfl_server_controlled_node_t *)cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
+    uint16_t client_node_id = cfl_avro_get_source_node(ptr->request_port.packet_pointer);
+    cfl_send_streaming_data_event(runtime->event_queue, CFL_EVENT_PRIORITY_LOW, client_node_id, ptr->response_port.event_id, 
+        ptr->response_port.packet_pointer);
 }
 
 
@@ -114,16 +115,19 @@ unsigned cfl_controlled_node_main_main_fn(void *handle, unsigned bool_function_i
         return CFL_HALT;
     }
     if(event_id == CFL_RAISE_EXCEPTION_EVENT){
-        if (event_type != CFL_EVENT_TYPE_JSON_RECORD) {
+        printf("cfl_controlled_node_main_main_fn: Raise exception event\n");
+        if (event_type != CFL_EVENT_TYPE_NODE_ID) {
             EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_JSON_RECORD");
         }
+        
         uint16_t original_node_id = (uint32_t)((size_t)event_data);
+        
         cfl_forward_exception_event(runtime, node_index, ptr->client_node_index, original_node_id);
     
         return CFL_DISABLE;
 
     }
-
+    
     unsigned return_value = cfl_verify_active_children(runtime, node_index);
     
     
@@ -143,7 +147,7 @@ unsigned cfl_controlled_node_main_main_fn(void *handle, unsigned bool_function_i
  */
 
 
-void cfl_client_controlled_node_decode(
+static void cfl_client_controlled_node_decode(
     cfl_runtime_handle_t *runtime,
     unsigned node_index,
     cfl_client_controlled_node_t *node_data)
@@ -196,9 +200,8 @@ void cfl_client_controlled_node_term_one_shot_fn(void *handle,unsigned node_inde
     
     (void)handle;
     (void)node_index;
-    printf("cfl_client_controlled_node_term_one_shot_fn\n");
-    exit(0);
 }
+
 unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_function_index, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     cfl_client_controlled_node_t *ptr = (cfl_client_controlled_node_t *)cfl_heap_arena_get_node_ptr(runtime->arena_system, node_index);
@@ -238,6 +241,7 @@ unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_fun
     }
 
     if(event_id ==ptr->response_port.event_id ){
+        ptr->response_port.packet_pointer = (void *)event_data;
         if(event_type != CFL_EVENT_TYPE_STREAMING_DATA)
         {
             EXCEPTION("cfl_client_controlled_node_main_main_fn: event type is not CFL_EVENT_TYPE_STREAMING_DATA");
@@ -247,15 +251,21 @@ unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_fun
             EXCEPTION("cfl_client_controlled_node_main_main_fn: packet does not match response port");
         }
         boolean_function_t boolean_function = runtime->flash_handle->boolean_functions[bool_function_index];
-        boolean_function(runtime, node_index, event_type, event_id, event_data);
+        if( boolean_function(runtime, node_index, event_type, event_id, event_data) == false)
+        {
+            return CFL_TERMINATE;
+        }
+        
+    
         return CFL_DISABLE;
 
     }
     if(event_id == CFL_RAISE_EXCEPTION_EVENT){
-        if (event_type != CFL_EVENT_TYPE_JSON_RECORD) {
-            EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_JSON_RECORD");
+        if (event_type != CFL_EVENT_TYPE_NODE_ID) {
+            EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_NODE_ID");
         }
-        uint16_t original_node_id = (uint32_t)((size_t)event_data);
+        uint16_t original_node_id = (uint16_t)((size_t)event_data);
+    
         cfl_forward_exception_event(runtime, node_index, 0xffff, original_node_id);
     
         return CFL_DISABLE;
@@ -266,5 +276,41 @@ unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_fun
 }
 
 
+/*********************
+    Supporting functions
+*/
 
+uint16_t cfl_server_controlled_node_get_server_node_index(cfl_runtime_handle_t *handle, unsigned node_index){
+
+    uint16_t test_index = node_index;
+    const chaintree_node_t *node = &handle->flash_handle->nodes[test_index];
+    uint16_t parent_index = node->parent_index;
+    while(parent_index != 0xffff){
+        if(node->main_function_index == handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_CONTROLLED_NODE_MAIN]){
+            return test_index;
+        }
+        node = &handle->flash_handle->nodes[parent_index];
+        test_index = parent_index;
+        parent_index = node->parent_index;
+
+    }
+    EXCEPTION("cfl_server_controlled_node_get_server_node_index: server node not found");
+    return 0xffff;
+
+
+}
+
+cfl_port_t *cfl_server_controlled_node_get_request_port(cfl_runtime_handle_t *handle, unsigned node_index){
+    uint16_t server_node_index = cfl_server_controlled_node_get_server_node_index(handle, node_index);
+    cfl_server_controlled_node_t *server_node = (cfl_server_controlled_node_t *)cfl_heap_arena_get_node_ptr(handle->arena_system, server_node_index);
+    return &server_node->request_port;
+    
+    
+}
+
+cfl_port_t *cfl_server_controlled_node_get_response_port(cfl_runtime_handle_t *handle, unsigned node_index){
+    uint16_t server_node_index = cfl_server_controlled_node_get_server_node_index(handle, node_index);
+    cfl_server_controlled_node_t *server_node = (cfl_server_controlled_node_t *)cfl_heap_arena_get_node_ptr(handle->arena_system, server_node_index);
+    return &server_node->response_port;
+}
 

@@ -30,6 +30,10 @@ typedef struct {
 } fly_straight_request_t;
 
 typedef struct {
+    float distance;
+    float final_altitude;
+    float final_speed;
+    float heading;
     bool success;
     int32_t error_code;
 } fly_straight_response_t;
@@ -43,6 +47,10 @@ typedef struct {
 } fly_arc_request_t;
 
 typedef struct {
+    float distance;
+    float final_altitude;
+    float final_speed;
+    float heading;
     bool success;
     int32_t error_code;
 } fly_arc_response_t;
@@ -54,6 +62,8 @@ typedef struct {
 } fly_up_request_t;
 
 typedef struct {
+    float final_altitude;
+    float final_speed;
     bool success;
     int32_t error_code;
 } fly_up_response_t;
@@ -65,6 +75,8 @@ typedef struct {
 } fly_down_request_t;
 
 typedef struct {
+    float final_altitude;
+    float final_speed;
     bool success;
     int32_t error_code;
 } fly_down_response_t;

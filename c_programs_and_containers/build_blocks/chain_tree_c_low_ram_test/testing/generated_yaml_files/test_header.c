@@ -4,49 +4,49 @@
 
 /* Const handle instance in flash memory */
 const chaintree_handle_t g_test_header = {
-    .unique_id = "ct_q5b1irps",
+    .unique_id = "ct_jqw17iav",
     
     /* Node data */
-    .nodes = ct_q5b1irps_nodes,
-    .node_count = 1285,
+    .nodes = ct_jqw17iav_nodes,
+    .node_count = 1332,
     
     /* Function arrays */
-    .main_functions = ct_q5b1irps_main_functions,
+    .main_functions = ct_jqw17iav_main_functions,
     .main_function_count = 39,
-    .one_shot_functions = ct_q5b1irps_one_shot_functions,
+    .one_shot_functions = ct_jqw17iav_one_shot_functions,
     .one_shot_function_count = 103,
-    .boolean_functions = ct_q5b1irps_boolean_functions,
-    .boolean_function_count = 34,
+    .boolean_functions = ct_jqw17iav_boolean_functions,
+    .boolean_function_count = 35,
     
     /* Function names */
-    .main_function_names = ct_q5b1irps_main_function_names,
-    .one_shot_function_names = ct_q5b1irps_one_shot_function_names,
-    .boolean_function_names = ct_q5b1irps_boolean_function_names,
+    .main_function_names = ct_jqw17iav_main_function_names,
+    .one_shot_function_names = ct_jqw17iav_one_shot_function_names,
+    .boolean_function_names = ct_jqw17iav_boolean_function_names,
     
     /* Main function usage counts */
-    .main_function_usage_count = ct_q5b1irps_main_function_usage_count,
+    .main_function_usage_count = ct_jqw17iav_main_function_usage_count,
     
     /* Link table */
-    .link_table = ct_q5b1irps_link_table,
-    .link_table_size = 1237,
+    .link_table = ct_jqw17iav_link_table,
+    .link_table_size = 1282,
     
     /* Event strings */
-    .event_strings = (const char **)ct_q5b1irps_event_strings,
+    .event_strings = (const char **)ct_jqw17iav_event_strings,
     .event_count = 44,
     
     /* Bitmask names */
-    .bitmask_names = (const char **)ct_q5b1irps_bitmask_names,
+    .bitmask_names = (const char **)ct_jqw17iav_bitmask_names,
     .bitmask_count = 3,
     
     /* Knowledge base info */
-    .kb_table = ct_q5b1irps_kb_table,
-    .kb_count = 24,
+    .kb_table = ct_jqw17iav_kb_table,
+    .kb_count = 25,
     
     /* Node data (JSON records) */
-    .node_data_records = ct_q5b1irps_node_data_records,
-    .node_data_records_count = 5912,
-    .node_data_strings = ct_q5b1irps_node_data_strings,
-    .node_data_strings_size = 6327,
-    .node_data_controls = ct_q5b1irps_node_data_controls,
-    .node_data_controls_count = 892
+    .node_data_records = ct_jqw17iav_node_data_records,
+    .node_data_records_count = 6273,
+    .node_data_strings = ct_jqw17iav_node_data_strings,
+    .node_data_strings_size = 6339,
+    .node_data_controls = ct_jqw17iav_node_data_controls,
+    .node_data_controls_count = 925
 };

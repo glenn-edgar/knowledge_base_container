@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_Q5B1IRPS_LINK_TABLE_SIZE 1237
+#define CT_JQW17IAV_LINK_TABLE_SIZE 1282
 
-extern const uint16_t ct_q5b1irps_link_table[CT_Q5B1IRPS_LINK_TABLE_SIZE];
+extern const uint16_t ct_jqw17iav_link_table[CT_JQW17IAV_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

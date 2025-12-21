@@ -386,7 +386,9 @@ static void cfl_find_main_ids(cfl_runtime_handle_t *runtime_handle) {
         runtime_handle->main_function_data->main_function_ids[4] = index;
         index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_EXCEPTION_CATCH_MAIN");
         runtime_handle->main_function_data->main_function_ids[5] = index;
-
+        index = ct_get_main_function_index(runtime_handle->flash_handle, "CFL_CONTROLLED_NODE_MAIN");
+        runtime_handle->main_function_data->main_function_ids[6] = index;
+       
  
         
 }

@@ -33,7 +33,11 @@ RECORD("fly_straight_request")          -- handler_id 0
     FIELD("finalize", "finalize_data")
 END_RECORD()
 
-RECORD("fly_straight_response")         -- handler_id 1
+RECORD("fly_straight_response")        
+    FIELD("distance", "float")
+    FIELD("final_altitude", "float")
+    FIELD("final_speed", "float")
+    FIELD("heading", "float")
     FIELD("success", "bool")
     FIELD("error_code", "int32")
 END_RECORD()
@@ -49,7 +53,11 @@ RECORD("fly_arc_request")               -- handler_id 2
     FIELD("finalize", "finalize_data")
 END_RECORD()
 
-RECORD("fly_arc_response")              -- handler_id 3
+RECORD("fly_arc_response")        
+    FIELD("distance", "float")
+    FIELD("final_altitude", "float")
+    FIELD("final_speed", "float")
+    FIELD("heading", "float")
     FIELD("success", "bool")
     FIELD("error_code", "int32")
 END_RECORD()
@@ -63,7 +71,9 @@ RECORD("fly_up_request")                -- handler_id 4
     FIELD("finalize", "finalize_data")
 END_RECORD()
 
-RECORD("fly_up_response")               -- handler_id 5
+RECORD("fly_up_response")              
+    FIELD("final_altitude", "float")
+    FIELD("final_speed", "float")
     FIELD("success", "bool")
     FIELD("error_code", "int32")
 END_RECORD()
@@ -77,12 +87,14 @@ RECORD("fly_down_request")              -- handler_id 6
     FIELD("finalize", "finalize_data")
 END_RECORD()
 
-RECORD("fly_down_response")             -- handler_id 7
+RECORD("fly_down_response")     
+    FIELD("final_altitude", "float")        -- handler_id 7
+    FIELD("final_speed", "float")
     FIELD("success", "bool")
     FIELD("error_code", "int32")
 END_RECORD()
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- GENERATE OUTPUT
 --------------------------------------------------------------------------------
 GENERATE()

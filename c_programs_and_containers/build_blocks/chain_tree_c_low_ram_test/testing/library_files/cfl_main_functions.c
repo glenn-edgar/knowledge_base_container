@@ -126,6 +126,7 @@ unsigned cfl_terminate_main_fn(void *handle, unsigned bool_function_index, unsig
     (void)event_type;
     (void)event_id;
     (void)event_data;
+    printf("cfl_terminate_main_fn: terminating node %d\n", node_index);
     return CFL_TERMINATE;
     
 }

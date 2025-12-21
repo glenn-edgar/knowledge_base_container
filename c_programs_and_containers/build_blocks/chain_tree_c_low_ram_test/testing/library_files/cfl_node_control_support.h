@@ -35,6 +35,17 @@ typedef struct {
     
 } cfl_server_controlled_node_t;
 
+
+
+uint16_t cfl_server_controlled_node_get_server_node_index(cfl_runtime_handle_t *handle, unsigned node_index);
+
+
+cfl_port_t *cfl_server_controlled_node_get_request_port(cfl_runtime_handle_t *handle, unsigned node_index);
+ 
+cfl_port_t *cfl_server_controlled_node_get_response_port(cfl_runtime_handle_t *handle, unsigned node_index);
+  
+
+
 #ifdef __cplusplus
 }
 #endif

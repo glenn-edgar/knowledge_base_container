@@ -35,9 +35,15 @@ static unsigned find_parent_node_exception(cfl_runtime_handle_t *runtime_handle,
         }
        
         if( node->main_function_index == runtime_handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_EXCEPTION_CATCH_ALL_MAIN]) {
+            
             return search_node_id;
         }
         if( node->main_function_index == runtime_handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_EXCEPTION_CATCH_MAIN]) {
+            
+            return search_node_id;
+        }
+        if( node->main_function_index == runtime_handle->main_function_data->main_function_ids[CFL_FUNCTION_ID_CONTROLLED_NODE_MAIN]) {
+            
             return search_node_id;
         }
         else{
