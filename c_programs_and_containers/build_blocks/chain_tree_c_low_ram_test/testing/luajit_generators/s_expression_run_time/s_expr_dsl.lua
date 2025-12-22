@@ -1,6 +1,6 @@
 --============================================================================
 -- CHAINTREE S-EXPRESSION DSL
--- Version 2.0 - Flat node_t array output
+-- Version 2.2 - Brace index matching, PARAM_OPEN_CALL for callable S-exprs
 --============================================================================
 
 local ffi = require("ffi")
@@ -32,8 +32,8 @@ local OPCODES = {
     ["not"]  = 0x08,
     quote    = 0x09,
     dbg      = 0x0A,
-    clause   = 0x0B,   -- NEW: cond clause wrapper
-    case     = 0x0C,   -- NEW: dispatch case wrapper
+    clause   = 0x0B,
+    case     = 0x0C,
 }
 
 local CONTROL_CODES = {
@@ -65,10 +65,17 @@ local NODE_TYPES = {
     ACTION      = "action",
 }
 
-local PARAM_INT32   = 0x00
-local PARAM_UINT32  = 0x01
-local PARAM_FLOAT32 = 0x02
-local PARAM_STRING  = 0x03
+-- Parameter types (generic, size determined by 64-bit flag)
+local PARAM_INT       = 0x00   -- int32_t or int64_t
+local PARAM_UINT      = 0x01   -- uint32_t or uint64_t
+local PARAM_FLOAT     = 0x02   -- float or double
+local PARAM_STRING    = 0x03   -- string index
+local PARAM_MAIN      = 0x04   -- main function index
+local PARAM_ONESHOT   = 0x05   -- oneshot function index
+local PARAM_PRED      = 0x06   -- predicate function index
+local PARAM_OPEN      = 0x07   -- open brace (data list)
+local PARAM_CLOSE     = 0x08   -- close brace
+local PARAM_OPEN_CALL = 0x09   -- open brace (callable S-expr)
 
 local CONTEXTS = {
     CONTROL_FLOW = "control_flow",
@@ -83,7 +90,7 @@ local NO_SIBLING = 0xFFFF
 local NO_CHILD   = 0xFFFF
 
 --============================================================================
--- DSL STATE (unchanged from original)
+-- DSL STATE
 --============================================================================
 
 local function new_tables()
@@ -105,6 +112,8 @@ local _state = {
     test_name = nil,
     tables = new_tables(),
     line = 0,
+    is_64bit = false,
+    brace_depth = 0,
 }
 
 local _module = {
@@ -113,10 +122,11 @@ local _module = {
     tree_order = {},
     tables = new_tables(),
     current_tree = nil,
+    is_64bit = false,
 }
 
 --============================================================================
--- ERROR HANDLING (unchanged)
+-- ERROR HANDLING
 --============================================================================
 
 local function get_line()
@@ -133,7 +143,24 @@ local function dsl_error(msg)
 end
 
 --============================================================================
--- STACK OPERATIONS (unchanged)
+-- 64-BIT FLAG CONTROL
+--============================================================================
+
+function use_64bit(enabled)
+    if enabled == nil then
+        enabled = true
+    end
+    _state.is_64bit = enabled
+    _module.is_64bit = enabled
+end
+
+function use_32bit()
+    _state.is_64bit = false
+    _module.is_64bit = false
+end
+
+--============================================================================
+-- STACK OPERATIONS
 --============================================================================
 
 local function stack_push(node_type, name, context)
@@ -198,7 +225,7 @@ local function current_node()
 end
 
 --============================================================================
--- CONTEXT VALIDATION (unchanged)
+-- CONTEXT VALIDATION
 --============================================================================
 
 local function check_context(allowed, fn_name)
@@ -224,7 +251,7 @@ local function add_child(child)
 end
 
 --============================================================================
--- COMPOSITE NODE HELPER (unchanged)
+-- COMPOSITE NODE HELPER
 --============================================================================
 
 local function start_composite(node_type, name, context, init_fn)
@@ -245,7 +272,7 @@ local function start_composite(node_type, name, context, init_fn)
 end
 
 --============================================================================
--- STRING TABLE FUNCTIONS (unchanged)
+-- STRING TABLE FUNCTIONS
 --============================================================================
 
 local function add_oneshot_fn(s)
@@ -293,40 +320,91 @@ local function add_string(s)
 end
 
 --============================================================================
--- PARAMETER TYPE HELPERS (unchanged)
+-- PARAMETER TYPE HELPERS (generic names)
 --============================================================================
 
-function int32(value)
-    return { _param_type = "int32", value = value }
+-- Generic int (becomes int32_t or int64_t based on flag)
+function int(value)
+    return { _param_type = "int", value = value }
 end
 
-function uint32(value)
-    return { _param_type = "uint32", value = value }
+-- Generic unsigned (becomes uint32_t or uint64_t based on flag)
+function uint(value)
+    return { _param_type = "uint", value = value }
 end
 
-function float32(value)
-    return { _param_type = "float32", value = value }
+-- Generic float (becomes float or double based on flag)
+function flt(value)
+    return { _param_type = "float", value = value }
 end
 
+-- String parameter
 function str(value)
     return { _param_type = "string", value = tostring(value) }
 end
 
+-- Function reference parameters
+function main_ref(fn_name)
+    return { _param_type = "main_ref", value = fn_name }
+end
+
+function oneshot_ref(fn_name)
+    return { _param_type = "oneshot_ref", value = fn_name }
+end
+
+function pred_ref(fn_name)
+    return { _param_type = "pred_ref", value = fn_name }
+end
+
+-- Brace markers (store index in params array for lookahead)
+function open_brace()
+    _state.brace_depth = _state.brace_depth + 1
+    return { _param_type = "open", value = _state.brace_depth }
+end
+
+function close_brace()
+    if _state.brace_depth == 0 then
+        dsl_error("unbalanced brace: extra close")
+    end
+    local depth = _state.brace_depth
+    _state.brace_depth = _state.brace_depth - 1
+    return { _param_type = "close", value = depth }
+end
+
 local function encode_param(p)
     if type(p) == "table" and p._param_type then
-        return { type = p._param_type, value = p.value }
+        local pt = p._param_type
+        if pt == "int" then
+            return { type = "int", value = p.value }
+        elseif pt == "uint" then
+            return { type = "uint", value = p.value }
+        elseif pt == "float" then
+            return { type = "float", value = p.value }
+        elseif pt == "string" then
+            return { type = "string", value = p.value }
+        elseif pt == "main_ref" then
+            return { type = "main_ref", value = p.value }
+        elseif pt == "oneshot_ref" then
+            return { type = "oneshot_ref", value = p.value }
+        elseif pt == "pred_ref" then
+            return { type = "pred_ref", value = p.value }
+        elseif pt == "open" then
+            return { type = "open", value = p.value }
+        elseif pt == "close" then
+            return { type = "close", value = p.value }
+        end
     end
     
     local t = type(p)
     if t == "number" then
         if math.floor(p) == p then
             if p < 0 then
-                return { type = "int32", value = p }
+                return { type = "int", value = p }
             else
-                return { type = "uint32", value = p }
+                return { type = "uint", value = p }
             end
         else
-            return { type = "float32", value = p }
+            return { type = "float", value = p }
         end
     elseif t == "string" then
         return { type = "string", value = p }
@@ -345,23 +423,7 @@ local function encode_params(...)
 end
 
 --============================================================================
--- ALL DSL FUNCTIONS (unchanged from original)
--- start_test, end_test, start_module, start_tree, end_tree, end_module
--- oneshot, main, bool_fn, quote
--- pipeline, end_pipeline
--- if_then, end_if_then, if_then_else, end_if_then_else
--- cond, end_cond, clause, end_clause, default_clause, end_default_clause
--- dispatch, end_dispatch, case, end_case, default_case, end_default_case
--- condition, end_condition, action, end_action
--- bool_and, end_bool_and, bool_or, end_bool_or, bool_not, end_bool_not
--- dbg, end_dbg
---============================================================================
-
--- [Include all the DSL functions from original - they don't change]
--- ... (keeping same as original for brevity)
-
---============================================================================
--- TEST/MODULE WRAPPERS (unchanged structure, different return)
+-- TEST/MODULE WRAPPERS
 --============================================================================
 
 function start_test(name)
@@ -375,6 +437,8 @@ function start_test(name)
         test_name = name,
         tables = new_tables(),
         line = 0,
+        is_64bit = _module.is_64bit,
+        brace_depth = 0,
     }
 end
 
@@ -397,17 +461,23 @@ function end_test(name)
                                table.concat(unclosed, ", ")))
     end
     
+    if _state.brace_depth ~= 0 then
+        dsl_error(string.format("unbalanced braces: %d unclosed", _state.brace_depth))
+    end
+    
     if not _state.root then
         dsl_error("no root node defined")
     end
     
-    return TreeGenerator.new(name, _state.root, _state.tables)
+    return TreeGenerator.new(name, _state.root, _state.tables, _state.is_64bit)
 end
 
-function start_module(name)
+function start_module(name, opts)
     if type(name) ~= "string" then
         error("[DSL ERROR] start_module() requires string name", 2)
     end
+    
+    opts = opts or {}
     
     _module = {
         name = name,
@@ -415,6 +485,7 @@ function start_module(name)
         tree_order = {},
         tables = new_tables(),
         current_tree = nil,
+        is_64bit = opts.is_64bit or false,
     }
 end
 
@@ -439,6 +510,8 @@ function start_tree(name)
         test_name = name,
         tables = _module.tables,
         line = 0,
+        is_64bit = _module.is_64bit,
+        brace_depth = 0,
     }
 end
 
@@ -459,6 +532,10 @@ function end_tree(name)
         end
         dsl_error(string.format("stack not empty, unclosed: %s", 
                                table.concat(unclosed, ", ")))
+    end
+    
+    if _state.brace_depth ~= 0 then
+        dsl_error(string.format("unbalanced braces: %d unclosed", _state.brace_depth))
     end
     
     if not _state.root then
@@ -492,12 +569,13 @@ function end_module(name)
         _module.name,
         _module.trees,
         _module.tree_order,
-        _module.tables
+        _module.tables,
+        _module.is_64bit
     )
 end
 
 --============================================================================
--- LEAF FUNCTIONS (unchanged)
+-- LEAF FUNCTIONS
 --============================================================================
 
 function oneshot(fn_name, ...)
@@ -559,7 +637,7 @@ function quote(code)
 end
 
 --============================================================================
--- COMPOSITE NODES (unchanged)
+-- COMPOSITE NODES
 --============================================================================
 
 function pipeline(name)
@@ -961,19 +1039,20 @@ function end_dbg(name)
 end
 
 --============================================================================
--- TREE GENERATOR (single tree -> flat node_t array)
+-- TREE GENERATOR
 --============================================================================
 
 TreeGenerator = {}
 TreeGenerator.__index = TreeGenerator
 
-function TreeGenerator.new(name, root, tables)
+function TreeGenerator.new(name, root, tables, is_64bit)
     local self = setmetatable({}, TreeGenerator)
     self.name = name
     self.root = root
     self.tables = tables
-    self.nodes = {}        -- flat array of node_t
-    self.params = {}       -- flat array of param_t
+    self.is_64bit = is_64bit or false
+    self.nodes = {}
+    self.params = {}
     self.node_count = 0
     self.compiled = false
     return self
@@ -1017,16 +1096,13 @@ function TreeGenerator:add_string(s)
 end
 
 --============================================================================
--- PASS 1: Assign node indices (pre-order traversal)
+-- PASS 1: Assign node indices
 --============================================================================
 
 function TreeGenerator:assign_indices(node, index)
     node._node_index = index
     local next_index = index + 1
     
-    local t = node.type
-    
-    -- Get children based on node type
     local children = self:get_node_children(node)
     
     for _, child in ipairs(children) do
@@ -1036,7 +1112,6 @@ function TreeGenerator:assign_indices(node, index)
     return next_index
 end
 
--- Returns ordered list of children for a node
 function TreeGenerator:get_node_children(node)
     local t = node.type
     local children = {}
@@ -1045,20 +1120,16 @@ function TreeGenerator:get_node_children(node)
         children = node.children
         
     elseif t == NODE_TYPES.IF then
-        -- condition, then_action
         table.insert(children, node.condition)
         table.insert(children, node.then_action)
         
     elseif t == NODE_TYPES.IF_ELSE then
-        -- condition, then_action, else_action
         table.insert(children, node.condition)
         table.insert(children, node.then_action)
         table.insert(children, node.else_action)
         
     elseif t == NODE_TYPES.COND then
-        -- clauses become children (each clause is a node)
         for _, cl in ipairs(node.clauses) do
-            -- Create clause wrapper node
             local clause_node = {
                 type = NODE_TYPES.CLAUSE,
                 condition = cl.condition,
@@ -1069,14 +1140,12 @@ function TreeGenerator:get_node_children(node)
         end
         
     elseif t == NODE_TYPES.CLAUSE then
-        -- condition (if not default), action
         if not node.is_default and node.condition then
             table.insert(children, node.condition)
         end
         table.insert(children, node.action)
         
     elseif t == NODE_TYPES.DISPATCH then
-        -- cases become children
         for _, cs in ipairs(node.cases) do
             local case_node = {
                 type = NODE_TYPES.CASE,
@@ -1088,7 +1157,6 @@ function TreeGenerator:get_node_children(node)
         end
         
     elseif t == NODE_TYPES.CASE then
-        -- just action
         table.insert(children, node.action)
         
     elseif t == NODE_TYPES.AND or t == NODE_TYPES.OR then
@@ -1101,8 +1169,6 @@ function TreeGenerator:get_node_children(node)
         table.insert(children, node.child)
     end
     
-    -- Leaf nodes: QUOTE, ONESHOT, BOOLEAN, MAIN have no children
-    
     return children
 end
 
@@ -1114,7 +1180,6 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
     local t = node.type
     local children = self:get_node_children(node)
     
-    -- Build node_t structure
     local n = {
         type = 0,
         child_count = #children,
@@ -1124,10 +1189,9 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         fn_index = 0,
         param_offset = #self.params,
         param_count = 0,
-        is_default = false,  -- for clause/case
+        is_default = false,
     }
     
-    -- Set type and fn_index based on node type
     if t == NODE_TYPES.QUOTE then
         n.type = TABLE_OPCODE + OPCODES.quote
         n.fn_index = CONTROL_CODES[node.value]
@@ -1168,7 +1232,6 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         
     elseif t == NODE_TYPES.DISPATCH then
         n.type = TABLE_OPCODE + OPCODES.dispatch
-        -- key is first param
         local key_idx = self:add_string(node.key)
         table.insert(self.params, { type = PARAM_STRING, value = key_idx })
         n.param_count = 1
@@ -1177,7 +1240,6 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         n.type = TABLE_OPCODE + OPCODES.case
         n.is_default = node.is_default
         if not node.is_default then
-            -- pattern(s) as params
             if type(node.pattern) == "table" then
                 for _, p in ipairs(node.pattern) do
                     local pidx = self:add_string(p)
@@ -1207,15 +1269,12 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         n.param_count = 1
     end
     
-    -- Set first_child
     if #children > 0 then
         n.first_child = children[1]._node_index
     end
     
-    -- Add this node to array
     table.insert(self.nodes, n)
     
-    -- Recursively emit children with correct next_sibling
     for i, child in ipairs(children) do
         local child_next_sibling = NO_SIBLING
         if i < #children then
@@ -1226,25 +1285,77 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
 end
 
 function TreeGenerator:emit_params(params)
-    for _, p in ipairs(params) do
+    -- Two-pass: first emit, then patch brace indices
+    local open_stack = {}   -- stack of {param_index} for open braces
+    local patch_list = {}   -- {open_idx, close_idx} pairs
+    local base_offset = #self.params
+    
+    -- First pass: emit all params
+    for i, p in ipairs(params) do
         local pt = {
-            type = PARAM_INT32,
+            type = PARAM_INT,
             value = 0,
         }
-        if p.type == "int32" then
-            pt.type = PARAM_INT32
+        
+        if p.type == "int" then
+            pt.type = PARAM_INT
             pt.value = p.value
-        elseif p.type == "uint32" then
-            pt.type = PARAM_UINT32
+        elseif p.type == "uint" then
+            pt.type = PARAM_UINT
             pt.value = p.value
-        elseif p.type == "float32" then
-            pt.type = PARAM_FLOAT32
+        elseif p.type == "float" then
+            pt.type = PARAM_FLOAT
             pt.value = p.value
         elseif p.type == "string" then
             pt.type = PARAM_STRING
             pt.value = self:add_string(p.value)
+        elseif p.type == "main_ref" then
+            pt.type = PARAM_MAIN
+            pt.value = self:add_main_fn(p.value)
+        elseif p.type == "oneshot_ref" then
+            pt.type = PARAM_ONESHOT
+            pt.value = self:add_oneshot_fn(p.value)
+        elseif p.type == "pred_ref" then
+            pt.type = PARAM_PRED
+            pt.value = self:add_boolean_fn(p.value)
+        elseif p.type == "open" then
+            -- Check if next param is a function type
+            local next_p = params[i + 1]
+            local is_callable = false
+            if next_p then
+                local nt = next_p.type
+                if nt == "main_ref" or nt == "oneshot_ref" or nt == "pred_ref" then
+                    is_callable = true
+                end
+            end
+            
+            if is_callable then
+                pt.type = PARAM_OPEN_CALL
+            else
+                pt.type = PARAM_OPEN
+            end
+            pt.value = 0  -- placeholder, patched later
+            
+            -- Push current index onto stack (relative to this node's params)
+            table.insert(open_stack, #self.params - base_offset)
+            
+        elseif p.type == "close" then
+            pt.type = PARAM_CLOSE
+            -- Pop matching open
+            local open_rel_idx = table.remove(open_stack)
+            local close_rel_idx = #self.params - base_offset
+            -- Record for patching
+            table.insert(patch_list, {open_idx = open_rel_idx, close_idx = close_rel_idx})
+            pt.value = open_rel_idx  -- close points to open (relative)
         end
+        
         table.insert(self.params, pt)
+    end
+    
+    -- Second pass: patch open braces with close indices
+    for _, patch in ipairs(patch_list) do
+        local abs_open_idx = base_offset + patch.open_idx + 1  -- +1 for Lua 1-indexing
+        self.params[abs_open_idx].value = patch.close_idx      -- relative index
     end
 end
 
@@ -1257,10 +1368,7 @@ function TreeGenerator:compile()
         return
     end
     
-    -- Pass 1: assign indices
     self.node_count = self:assign_indices(self.root, 0)
-    
-    -- Pass 2: emit flat array
     self:emit_nodes(self.root, NO_SIBLING)
     
     self.compiled = true
@@ -1282,18 +1390,19 @@ function TreeGenerator:get_params()
 end
 
 --============================================================================
--- MODULE GENERATOR (multi-tree)
+-- MODULE GENERATOR
 --============================================================================
 
 ModuleGenerator = {}
 ModuleGenerator.__index = ModuleGenerator
 
-function ModuleGenerator.new(name, trees, tree_order, tables)
+function ModuleGenerator.new(name, trees, tree_order, tables, is_64bit)
     local self = setmetatable({}, ModuleGenerator)
     self.name = name
     self.trees = trees
     self.tree_order = tree_order
     self.tables = tables
+    self.is_64bit = is_64bit or false
     self.tree_generators = {}
     self.max_node_count = 0
     self.compiled = false
@@ -1305,13 +1414,11 @@ function ModuleGenerator:compile()
         return
     end
     
-    -- Create generator for each tree
     for _, tree_name in ipairs(self.tree_order) do
-        local gen = TreeGenerator.new(tree_name, self.trees[tree_name], self.tables)
+        local gen = TreeGenerator.new(tree_name, self.trees[tree_name], self.tables, self.is_64bit)
         gen:compile()
         self.tree_generators[tree_name] = gen
         
-        -- Track max node count
         local count = gen:get_node_count()
         if count > self.max_node_count then
             self.max_node_count = count
@@ -1356,10 +1463,18 @@ function ModuleGenerator:to_c_header(base_name)
     local guard = string.upper(base_name) .. "_MODULE_H"
     local prefix = base_name
     
+    -- Type names based on 64-bit flag
+    local int_type = self.is_64bit and "int64_t" or "int32_t"
+    local uint_type = self.is_64bit and "uint64_t" or "uint32_t"
+    local float_type = self.is_64bit and "double" or "float"
+    local int_suffix = self.is_64bit and "LL" or ""
+    local uint_suffix = self.is_64bit and "ULL" or "U"
+    local float_suffix = self.is_64bit and "" or "f"
+    
     -- Header
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_module.h")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.2")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1370,11 +1485,25 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "#include <stdbool.h>")
     table.insert(lines, "")
     
-    -- Include the engine types (assume they exist)
+    -- 64-bit flag defines (MODULE_IS_64BIT required by s_engine_types.h)
+    table.insert(lines, "// Size configuration")
+    table.insert(lines, "#define MODULE_IS_64BIT " .. (self.is_64bit and "1" or "0"))
+    table.insert(lines, "#define " .. string.upper(prefix) .. "_IS_64BIT " .. (self.is_64bit and "1" or "0"))
+    table.insert(lines, "")
+    
+    -- Type aliases (CT_TYPES_DEFINED required by s_engine_types.h)
+    table.insert(lines, "// Type aliases (based on 64-bit flag)")
+    table.insert(lines, "typedef " .. int_type .. " ct_int_t;")
+    table.insert(lines, "typedef " .. uint_type .. " ct_uint_t;")
+    table.insert(lines, "typedef " .. float_type .. " ct_float_t;")
+    table.insert(lines, "#define CT_TYPES_DEFINED 1")
+    table.insert(lines, "")
+    
+    -- Include engine types (defines param_t, node_t, PARAM_* constants, etc.)
     table.insert(lines, '#include "s_engine_types.h"')
     table.insert(lines, "")
     
-    -- Function name tables (shared across module)
+    -- Function name tables
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// FUNCTION NAME TABLES (shared by all trees)")
     table.insert(lines, "// ============================================================================")
@@ -1411,23 +1540,46 @@ function ModuleGenerator:to_c_header(base_name)
         -- Parameters for this tree
         if #params > 0 then
             table.insert(lines, "static const param_t " .. tree_prefix .. "_params[] = {")
-            for _, p in ipairs(params) do
-                local type_str = "PARAM_INT32"
+            for idx, p in ipairs(params) do
+                local type_str = "PARAM_INT"
                 local val_str = ""
-                if p.type == PARAM_INT32 then
-                    type_str = "PARAM_INT32"
-                    val_str = string.format(".i32 = %d", p.value)
-                elseif p.type == PARAM_UINT32 then
-                    type_str = "PARAM_UINT32"
-                    val_str = string.format(".u32 = %uU", p.value)
-                elseif p.type == PARAM_FLOAT32 then
-                    type_str = "PARAM_FLOAT32"
-                    val_str = string.format(".f32 = %ff", p.value)
+                local comment = ""
+                if p.type == PARAM_INT then
+                    type_str = "PARAM_INT"
+                    val_str = string.format(".i = %d%s", p.value, int_suffix)
+                elseif p.type == PARAM_UINT then
+                    type_str = "PARAM_UINT"
+                    val_str = string.format(".u = %u%s", p.value, uint_suffix)
+                elseif p.type == PARAM_FLOAT then
+                    type_str = "PARAM_FLOAT"
+                    val_str = string.format(".f = %g%s", p.value, float_suffix)
                 elseif p.type == PARAM_STRING then
                     type_str = "PARAM_STRING"
                     val_str = string.format(".str_index = %d", p.value)
+                elseif p.type == PARAM_MAIN then
+                    type_str = "PARAM_MAIN"
+                    val_str = string.format(".func_idx = %d", p.value)
+                elseif p.type == PARAM_ONESHOT then
+                    type_str = "PARAM_ONESHOT"
+                    val_str = string.format(".func_idx = %d", p.value)
+                elseif p.type == PARAM_PRED then
+                    type_str = "PARAM_PRED"
+                    val_str = string.format(".func_idx = %d", p.value)
+                elseif p.type == PARAM_OPEN then
+                    type_str = "PARAM_OPEN"
+                    val_str = string.format(".brace_idx = %d", p.value)
+                    comment = string.format("  // closes at [%d]", p.value)
+                elseif p.type == PARAM_OPEN_CALL then
+                    type_str = "PARAM_OPEN_CALL"
+                    val_str = string.format(".brace_idx = %d", p.value)
+                    comment = string.format("  // callable, closes at [%d]", p.value)
+                elseif p.type == PARAM_CLOSE then
+                    type_str = "PARAM_CLOSE"
+                    val_str = string.format(".brace_idx = %d", p.value)
+                    comment = string.format("  // opens at [%d]", p.value)
                 end
-                table.insert(lines, string.format("    { .type = %s, %s },", type_str, val_str))
+                table.insert(lines, string.format("    { .type = %s, %s },%s  // [%d]", 
+                    type_str, val_str, comment, idx - 1))
             end
             table.insert(lines, "};")
         else
@@ -1449,14 +1601,12 @@ function ModuleGenerator:to_c_header(base_name)
                 n.fn_index or 0, n.param_offset or 0, n.param_count or 0,
                 n.is_default and 1 or 0,
                 comment
-                  ))
+            ))
         end
         table.insert(lines, "};")
         table.insert(lines, "#define " .. string.upper(tree_prefix) .. "_NODE_COUNT " .. #nodes)
         table.insert(lines, "")
     end
-    
-    -- Tree definitions array
     
     -- Tree definitions array
     table.insert(lines, "// ============================================================================")
@@ -1498,6 +1648,7 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, '    .name = "' .. self.name .. '",')
     table.insert(lines, '    .trees = ' .. prefix .. '_trees,')
     table.insert(lines, '    .tree_count = ' .. #self.tree_order .. ',')
+    table.insert(lines, '    .is_64bit = ' .. (self.is_64bit and 'true' or 'false') .. ',')
     table.insert(lines, "")
     table.insert(lines, '    .oneshot_names = ' .. prefix .. '_oneshot_names,')
     table.insert(lines, '    .boolean_names = ' .. prefix .. '_boolean_names,')
@@ -1513,7 +1664,6 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "};")
     table.insert(lines, "")
     
-    -- Footer
     table.insert(lines, "#endif // " .. guard)
     
     return table.concat(lines, "\n")
@@ -1527,8 +1677,8 @@ function ModuleGenerator:to_bin()
     self:compile()
     
     local out = {}
+    local value_size = self.is_64bit and 8 or 4
     
-    -- Helper functions
     local function emit_u8(v)
         table.insert(out, bit.band(v, 0xFF))
     end
@@ -1551,6 +1701,30 @@ function ModuleGenerator:to_bin()
         emit_u32(v)
     end
     
+    local function emit_u64(v)
+        local lo = bit.band(v, 0xFFFFFFFF)
+        local hi = bit.rshift(v, 32)
+        emit_u32(lo)
+        emit_u32(hi)
+    end
+    
+    local function emit_i64(v)
+        local lo, hi
+        if v >= 0 then
+            lo = bit.band(v, 0xFFFFFFFF)
+            hi = math.floor(v / 0x100000000)
+        else
+            local abs_v = -v
+            local abs_lo = bit.band(abs_v, 0xFFFFFFFF)
+            local abs_hi = math.floor(abs_v / 0x100000000)
+            lo = bit.band(bit.bnot(abs_lo) + 1, 0xFFFFFFFF)
+            local carry = (lo == 0) and 1 or 0
+            hi = bit.band(bit.bnot(abs_hi) + carry, 0xFFFFFFFF)
+        end
+        emit_u32(lo)
+        emit_u32(hi)
+    end
+    
     local function emit_f32(v)
         local buf = ffi.new("float[1]", v)
         local bytes = ffi.cast("uint8_t*", buf)
@@ -1559,7 +1733,40 @@ function ModuleGenerator:to_bin()
         end
     end
     
-    -- Build string blob and collect offsets
+    local function emit_f64(v)
+        local buf = ffi.new("double[1]", v)
+        local bytes = ffi.cast("uint8_t*", buf)
+        for i = 0, 7 do
+            table.insert(out, bytes[i])
+        end
+    end
+    
+    -- Emit value based on 64-bit flag
+    local function emit_int(v)
+        if self.is_64bit then
+            emit_i64(v)
+        else
+            emit_i32(v)
+        end
+    end
+    
+    local function emit_uint(v)
+        if self.is_64bit then
+            emit_u64(v)
+        else
+            emit_u32(v)
+        end
+    end
+    
+    local function emit_float(v)
+        if self.is_64bit then
+            emit_f64(v)
+        else
+            emit_f32(v)
+        end
+    end
+    
+    -- Build string blob
     local string_blob = {}
     local string_offsets = {}
     local blob_pos = 0
@@ -1580,7 +1787,6 @@ function ModuleGenerator:to_bin()
         return offset
     end
     
-    -- Add all strings to blob
     local module_name_blob_offset = add_to_blob(self.name)
     
     local oneshot_blob_offsets = {}
@@ -1616,10 +1822,12 @@ function ModuleGenerator:to_bin()
     local tree_dir_file_offset = string_blob_file_offset + #string_blob
     local tree_dir_size = #self.tree_order * 16
     
-    -- Calculate tree data offsets
     local tree_data_offset = tree_dir_file_offset + tree_dir_size
     local tree_offsets = {}
     local current_offset = tree_data_offset
+    
+    -- Param size: 4 bytes type/reserved + value_size
+    local param_size = 4 + value_size
     
     for _, tree_name in ipairs(self.tree_order) do
         local gen = self.tree_generators[tree_name]
@@ -1630,7 +1838,7 @@ function ModuleGenerator:to_bin()
         current_offset = current_offset + #nodes * 14
         
         local params_offset = current_offset
-        current_offset = current_offset + #params * 8
+        current_offset = current_offset + #params * param_size
         
         table.insert(tree_offsets, {
             nodes_offset = nodes_offset,
@@ -1640,8 +1848,8 @@ function ModuleGenerator:to_bin()
     
     -- Emit header (32 bytes)
     emit_u32(0x32444D53)  -- "SMD2" magic
-    emit_u16(0x0001)      -- version
-    emit_u16(0x0000)      -- flags
+    emit_u16(0x0002)      -- version 2 (with 64-bit support)
+    emit_u16(self.is_64bit and 0x0001 or 0x0000)  -- flags: bit 0 = 64-bit
     emit_u16(#self.tree_order)
     emit_u16(#self.tables.oneshot_fns)
     emit_u16(#self.tables.boolean_fns)
@@ -1675,7 +1883,7 @@ function ModuleGenerator:to_bin()
         emit_u32(offsets.params_offset)
     end
     
-    -- Emit tree data (nodes and params)
+    -- Emit tree data
     for _, tree_name in ipairs(self.tree_order) do
         local gen = self.tree_generators[tree_name]
         local nodes = gen:get_nodes()
@@ -1694,18 +1902,18 @@ function ModuleGenerator:to_bin()
             emit_u8(n.is_default and 1 or 0)
         end
         
-        -- Emit params (8 bytes each)
+        -- Emit params (4 + value_size bytes each)
         for _, p in ipairs(params) do
             emit_u8(p.type)
             emit_u8(0)  -- reserved
             emit_u8(0)
             emit_u8(0)
-            if p.type == PARAM_FLOAT32 then
-                emit_f32(p.value)
-            elseif p.type == PARAM_INT32 then
-                emit_i32(p.value)
+            if p.type == PARAM_FLOAT then
+                emit_float(p.value)
+            elseif p.type == PARAM_INT then
+                emit_int(p.value)
             else
-                emit_u32(p.value)
+                emit_uint(p.value)
             end
         end
     end
@@ -1714,13 +1922,14 @@ function ModuleGenerator:to_bin()
 end
 
 --============================================================================
--- DUMP (for debugging)
+-- DUMP
 --============================================================================
 
 function ModuleGenerator:dump()
     self:compile()
     
     print("MODULE: " .. self.name)
+    print("64-bit: " .. (self.is_64bit and "yes" or "no"))
     print("")
     print("ONESHOT FUNCTIONS (@):")
     for i, s in ipairs(self.tables.oneshot_fns) do
@@ -1765,4 +1974,4 @@ end
 -- EXPORT
 --============================================================================
 
-print("ChainTree S-Expression DSL v2.0 loaded (flat node_t output)")
+print("ChainTree S-Expression DSL v2.2 loaded (brace index matching, PARAM_OPEN_CALL)")

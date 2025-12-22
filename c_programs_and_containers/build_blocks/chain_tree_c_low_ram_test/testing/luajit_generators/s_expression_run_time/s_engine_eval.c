@@ -1,6 +1,7 @@
 // ============================================================================
 // s_engine_eval.c
 // S-Expression Evaluator Implementation
+// Version 2.2 - param_count, callable S-expressions
 // ============================================================================
 
 #include "s_engine_eval.h"
@@ -19,20 +20,20 @@
 // FORWARD DECLARATIONS
 // ============================================================================
 
-static uint8_t eval_pipeline(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_if(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_if_else(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_cond(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_dispatch(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_debug(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_pipeline(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_if(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_if_else(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_cond(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_dispatch(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_debug(module_runtime_t* mod, const node_t* node);
 
 static bool eval_and(module_runtime_t* mod, const node_t* node);
 static bool eval_or(module_runtime_t* mod, const node_t* node);
 static bool eval_not(module_runtime_t* mod, const node_t* node);
 
-static uint8_t eval_oneshot(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_oneshot(module_runtime_t* mod, const node_t* node);
 static bool eval_boolean(module_runtime_t* mod, const node_t* node);
-static uint8_t eval_main(module_runtime_t* mod, const node_t* node);
+static cfl_code_t eval_main(module_runtime_t* mod, const node_t* node);
 
 // ============================================================================
 // NODE ACCESS HELPERS
@@ -51,10 +52,45 @@ static inline const param_t* get_params(module_runtime_t* mod, const node_t* nod
 }
 
 // ============================================================================
+// PARAMETER NAVIGATION (v2.2)
+// ============================================================================
+
+// Skip over a single parameter, handling braces
+uint16_t skip_param(const param_t* params, uint16_t idx) {
+    uint8_t type = params[idx].type;
+    
+    if (PARAM_IS_OPEN(type)) {
+        // Jump to after matching close brace
+        return params[idx].brace_idx + 1;
+    }
+    
+    // Simple parameter - just advance by 1
+    return idx + 1;
+}
+
+// Count arguments in a callable S-expr (between open and close)
+// Used by eval_sexpr for argument handling
+__attribute__((unused))
+static uint16_t count_sexpr_args(const param_t* params, uint16_t open_idx) {
+    uint16_t close_idx = params[open_idx].brace_idx;
+    uint16_t count = 0;
+    
+    // Start after open brace and function ref
+    uint16_t idx = open_idx + 2;
+    
+    while (idx < close_idx) {
+        count++;
+        idx = skip_param(params, idx);
+    }
+    
+    return count;
+}
+
+// ============================================================================
 // MAIN ENTRY POINT
 // ============================================================================
 
-uint8_t module_tick(
+cfl_code_t module_tick(
     module_runtime_t* mod,
     uint16_t event_id,
     void* event_data
@@ -75,7 +111,7 @@ uint8_t module_tick(
 // GENERIC NODE EVALUATOR
 // ============================================================================
 
-uint8_t eval_node(module_runtime_t* mod, uint16_t node_index) {
+cfl_code_t eval_node(module_runtime_t* mod, uint16_t node_index) {
     if (node_index == NO_CHILD) {
         return CFL_HALT;
     }
@@ -93,7 +129,7 @@ uint8_t eval_node(module_runtime_t* mod, uint16_t node_index) {
             case OP_COND:       return eval_cond(mod, node);
             case OP_DISPATCH:   return eval_dispatch(mod, node);
             case OP_DEBUG:      return eval_debug(mod, node);
-            case OP_QUOTE:      return (uint8_t)node->fn_index;  // fn_index holds control code
+            case OP_QUOTE:      return (cfl_code_t)node->fn_index;  // fn_index holds control code
             default:            return CFL_HALT;
         }
     } else {
@@ -140,12 +176,81 @@ bool eval_bool(module_runtime_t* mod, uint16_t node_index) {
 }
 
 // ============================================================================
+// S-EXPRESSION EVALUATION (v2.2)
+// ============================================================================
+
+cfl_code_t eval_sexpr(
+    module_runtime_t* mod,
+    const node_t* node,
+    node_state_t* state,
+    const param_t* params,
+    uint16_t open_idx
+) {
+    // Verify it's a callable S-expr
+    if (params[open_idx].type != PARAM_OPEN_CALL) {
+        return CFL_TERMINATE;
+    }
+    
+    // Get function reference (first element after open brace)
+    const param_t* func_param = &params[open_idx + 1];
+    
+    // Get args (everything between function and close brace)
+    uint16_t close_idx = params[open_idx].brace_idx;
+    const param_t* args = &params[open_idx + 2];
+    uint8_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    
+    // Dispatch based on function type
+    switch (func_param->type) {
+        case PARAM_MAIN: {
+            uint16_t fn_idx = func_param->func_idx;
+            if (fn_idx >= mod->def->main_count || !mod->main_fns[fn_idx]) {
+                return CFL_TERMINATE;
+            }
+            return mod->main_fns[fn_idx](
+                mod, node, state, 
+                mod->current_event, mod->event_data,
+                args, arg_count
+            );
+        }
+        
+        case PARAM_ONESHOT: {
+            uint16_t fn_idx = func_param->func_idx;
+            if (fn_idx >= mod->def->oneshot_count || !mod->oneshot_fns[fn_idx]) {
+                return CFL_TERMINATE;
+            }
+            mod->oneshot_fns[fn_idx](
+                mod, node, state,
+                mod->current_event, mod->event_data,
+                args, arg_count
+            );
+            return CFL_CONTINUE;
+        }
+        
+        case PARAM_PRED: {
+            uint16_t fn_idx = func_param->func_idx;
+            if (fn_idx >= mod->def->boolean_count || !mod->boolean_fns[fn_idx]) {
+                return CFL_TERMINATE;
+            }
+            bool result = mod->boolean_fns[fn_idx](
+                mod, node, state,
+                mod->current_event, mod->event_data,
+                args, arg_count
+            );
+            return result ? CFL_CONTINUE : CFL_HALT;
+        }
+        
+        default:
+            return CFL_TERMINATE;
+    }
+}
+
+// ============================================================================
 // PIPELINE
 // ============================================================================
 
-static uint8_t eval_pipeline(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_pipeline(module_runtime_t* mod, const node_t* node) {
     uint16_t child_idx = node->first_child;
-    uint8_t result = CFL_CONTINUE;
+    cfl_code_t result = CFL_CONTINUE;
     
     while (child_idx != NO_CHILD) {
         result = eval_node(mod, child_idx);
@@ -167,7 +272,7 @@ static uint8_t eval_pipeline(module_runtime_t* mod, const node_t* node) {
 // IF (condition + then)
 // ============================================================================
 
-static uint8_t eval_if(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_if(module_runtime_t* mod, const node_t* node) {
     if (node->child_count < 2) {
         return CFL_HALT;
     }
@@ -191,7 +296,7 @@ static uint8_t eval_if(module_runtime_t* mod, const node_t* node) {
 // IF-ELSE (condition + then + else)
 // ============================================================================
 
-static uint8_t eval_if_else(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_if_else(module_runtime_t* mod, const node_t* node) {
     if (node->child_count < 3) {
         return CFL_HALT;
     }
@@ -218,7 +323,7 @@ static uint8_t eval_if_else(module_runtime_t* mod, const node_t* node) {
 // COND (multi-way conditional)
 // ============================================================================
 
-static uint8_t eval_cond(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_cond(module_runtime_t* mod, const node_t* node) {
     uint16_t clause_idx = node->first_child;
     
     while (clause_idx != NO_CHILD) {
@@ -252,16 +357,11 @@ static uint8_t eval_cond(module_runtime_t* mod, const node_t* node) {
 // DISPATCH (event-based switching)
 // ============================================================================
 
-static uint8_t eval_dispatch(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_dispatch(module_runtime_t* mod, const node_t* node) {
     // First param is the dispatch key (string index)
     const param_t* params = get_params(mod, node);
     uint16_t key_str_idx = params[0].str_index;
     const char* key_name = mod->def->strings[key_str_idx];
-    
-    // For now, dispatch on event_id
-    // The key_name tells us what to match against
-    // Simple implementation: match event_id as integer
-    // More complex: could look up key in event_data
     
     uint16_t event_id = mod->current_event;
     
@@ -282,16 +382,17 @@ static uint8_t eval_dispatch(module_runtime_t* mod, const node_t* node) {
             uint16_t pattern_str_idx = case_params[i].str_index;
             const char* pattern = mod->def->strings[pattern_str_idx];
             
-            // Match: compare pattern string to event_id as string
-            // Or use string hash / numeric conversion
-            // Simple approach: treat event_id as index, pattern as name
-            // Application-specific matching logic here
-            
-            // For now, simple string-to-int comparison
-            // In real use, might hash event names or use lookup table
-            (void)pattern;  // TODO: implement matching
+            // Simple string comparison matching
+            // Application can extend this for more complex matching
+            (void)pattern;
             (void)event_id;
             (void)key_name;
+            
+            // TODO: Implement application-specific matching logic
+            // For example:
+            // if (match_event(key_name, pattern, event_id, mod->event_data)) {
+            //     return eval_node(mod, case_node->first_child);
+            // }
         }
         
         case_idx = case_node->next_sibling;
@@ -305,7 +406,7 @@ static uint8_t eval_dispatch(module_runtime_t* mod, const node_t* node) {
 // DEBUG
 // ============================================================================
 
-static uint8_t eval_debug(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_debug(module_runtime_t* mod, const node_t* node) {
     if (mod->debug_fn) {
         const param_t* params = get_params(mod, node);
         uint16_t msg_idx = params[0].str_index;
@@ -356,10 +457,10 @@ static bool eval_not(module_runtime_t* mod, const node_t* node) {
 }
 
 // ============================================================================
-// FUNCTION CALLS
+// FUNCTION CALLS (v2.2 - with param_count)
 // ============================================================================
 
-static uint8_t eval_oneshot(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_oneshot(module_runtime_t* mod, const node_t* node) {
     node_state_t* state = get_state(mod, node->node_index);
     
     // Check if disabled
@@ -379,8 +480,9 @@ static uint8_t eval_oneshot(module_runtime_t* mod, const node_t* node) {
     oneshot_fn_t fn = mod->oneshot_fns[node->fn_index];
     const param_t* params = get_params(mod, node);
     
-    // Call function
-    fn(mod, node, state, mod->current_event, mod->event_data, params);
+    // Call function with param_count (v2.2)
+    fn(mod, node, state, mod->current_event, mod->event_data, 
+       params, node->param_count);
     
     return CFL_CONTINUE;
 }
@@ -397,11 +499,12 @@ static bool eval_boolean(module_runtime_t* mod, const node_t* node) {
     boolean_fn_t fn = mod->boolean_fns[node->fn_index];
     const param_t* params = get_params(mod, node);
     
-    // Call function
-    return fn(mod, node, state, mod->current_event, mod->event_data, params);
+    // Call function with param_count (v2.2)
+    return fn(mod, node, state, mod->current_event, mod->event_data,
+              params, node->param_count);
 }
 
-static uint8_t eval_main(module_runtime_t* mod, const node_t* node) {
+static cfl_code_t eval_main(module_runtime_t* mod, const node_t* node) {
     node_state_t* state = get_state(mod, node->node_index);
     
     // Check if disabled
@@ -419,8 +522,9 @@ static uint8_t eval_main(module_runtime_t* mod, const node_t* node) {
     main_fn_t fn = mod->main_fns[node->fn_index];
     const param_t* params = get_params(mod, node);
     
-    // Call function
-    uint8_t result = fn(mod, node, state, mod->current_event, mod->event_data, params);
+    // Call function with param_count (v2.2)
+    cfl_code_t result = fn(mod, node, state, mod->current_event, mod->event_data,
+                           params, node->param_count);
     
     // Handle CFL_DISABLE
     if (result == CFL_DISABLE) {

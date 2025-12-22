@@ -1,6 +1,7 @@
 // ============================================================================
 // s_engine_module.c
 // Module Management Implementation
+// Version 2.2
 // ============================================================================
 
 #include "s_engine_module.h"
@@ -11,6 +12,8 @@
 // ============================================================================
 
 static void* find_fn(const fn_table_t* table, const char* name) {
+    if (!table || !table->entries) return NULL;
+    
     for (uint16_t i = 0; i < table->count; i++) {
         if (strcmp(table->entries[i].name, name) == 0) {
             return table->entries[i].fn_ptr;
@@ -49,6 +52,20 @@ module_runtime_t* module_create(
     if (!alloc || !alloc->malloc || !alloc->free) {
         return NULL;
     }
+    
+    // Verify 64-bit mode matches compilation
+    // This catches mismatched header/library combinations
+    #if MODULE_IS_64BIT
+    if (!def->is_64bit) {
+        // Engine compiled for 64-bit, module is 32-bit
+        return NULL;
+    }
+    #else
+    if (def->is_64bit) {
+        // Engine compiled for 32-bit, module is 64-bit
+        return NULL;
+    }
+    #endif
     
     // Allocate runtime structure
     module_runtime_t* mod = (module_runtime_t*)alloc->malloc(
@@ -203,6 +220,7 @@ bool module_select_tree(module_runtime_t* mod, uint16_t tree_index) {
     mod->active_tree = tree_index;
     mod->active_tree_def = &mod->def->trees[tree_index];
     init_node_states(mod);
+    mod->error_code = MOD_OK;
     
     return true;
 }
@@ -254,4 +272,64 @@ const char* module_active_tree_name(module_runtime_t* mod) {
 uint16_t module_active_node_count(module_runtime_t* mod) {
     if (!mod) return 0;
     return mod->active_tree_def->node_count;
+}
+
+// ============================================================================
+// FUNCTION INVOCATION HELPERS
+// ============================================================================
+
+void module_call_oneshot(
+    module_runtime_t* mod,
+    uint16_t fn_index,
+    const node_t* node,
+    node_state_t* state,
+    uint16_t event_id,
+    void* event_data,
+    const param_t* params,
+    uint8_t param_count
+) {
+    if (!mod) return;
+    if (fn_index >= mod->def->oneshot_count) return;
+    if (!mod->oneshot_fns[fn_index]) return;
+    
+    mod->oneshot_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+}
+
+bool module_call_boolean(
+    module_runtime_t* mod,
+    uint16_t fn_index,
+    const node_t* node,
+    node_state_t* state,
+    uint16_t event_id,
+    void* event_data,
+    const param_t* params,
+    uint8_t param_count
+) {
+    if (!mod) return false;
+    if (fn_index >= mod->def->boolean_count) return false;
+    if (!mod->boolean_fns[fn_index]) return false;
+    
+    return mod->boolean_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+}
+
+cfl_code_t module_call_main(
+    module_runtime_t* mod,
+    uint16_t fn_index,
+    const node_t* node,
+    node_state_t* state,
+    uint16_t event_id,
+    void* event_data,
+    const param_t* params,
+    uint8_t param_count
+) {
+    if (!mod) return CFL_TERMINATE;
+    if (fn_index >= mod->def->main_count) return CFL_TERMINATE;
+    if (!mod->main_fns[fn_index]) return CFL_TERMINATE;
+    
+    return mod->main_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+}
+
+void module_call_debug(module_runtime_t* mod, const char* message) {
+    if (!mod || !mod->debug_fn) return;
+    mod->debug_fn(mod, message);
 }
