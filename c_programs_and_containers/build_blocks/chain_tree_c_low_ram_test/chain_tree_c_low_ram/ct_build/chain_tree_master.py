@@ -15,10 +15,11 @@ from .chain_tree.data_flow import DataFlow
 from .chain_tree.exception import ExceptionHandler
 from .chain_tree.streaming import Streaming
 from .chain_tree.controlled_nodes import ControlledNodes
+from .chain_tree.s_expression_nodes import SExpressionNodes
 
 
 class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, SequenceTil, DataFlow, 
-                      ExceptionHandler, Streaming, ControlledNodes):
+                      ExceptionHandler, Streaming, ControlledNodes, SExpressionNodes):
     
 
     
@@ -35,6 +36,7 @@ class ChainTreeMaster(BasicCfLinks, WaitCfLinks, VerifyCfLinks, StateMachine, Se
         ExceptionHandler.__init__(self,self.ctb)
         Streaming.__init__(self,self.ctb)
         ControlledNodes.__init__(self,self.ctb)
+        SExpressionNodes.__init__(self,self.ctb)
         self.register_event = self.ctb.register_event
         self.ctb.register_event("CFL_INIT_EVENT")
         self.ctb.register_event("CFL_TERMINATE_EVENT")

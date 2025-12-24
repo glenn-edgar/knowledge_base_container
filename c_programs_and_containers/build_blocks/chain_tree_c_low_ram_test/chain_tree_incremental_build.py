@@ -2113,7 +2113,69 @@ def twenty_eighth_test(ct, kb_name):
     ct.end_column(column_name=launch_column)
     
     ct.end_test()
-        
+       
+       
+       
+       
+       
+def insert_s_expression_df_a(ct):
+    
+    
+    data_flow_mask_column = ct.define_s_expression_node(column_name="s_expression_df_a",module_name= "chain_flow_dsl_tests",tree_name="s_expression_test_1",
+                                                    user_data={})
+                                            
+    ct.asm_log_message("s expression column s_expression_df_a is active")
+    ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=data_flow_mask_column)
+    return data_flow_mask_column
+
+def insert_s_expression_df_b(ct):
+    
+    
+    data_flow_mask_column = ct.define_s_expression_node(column_name="s_expression_df_b",module_name= "chain_flow_dsl_tests",tree_name="s_expression_test_2",
+                                                        user_data={})
+                                                           
+    ct.asm_log_message("data flow expression column df_b is active")
+    ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
+    ct.asm_halt()
+    ct.end_column(column_name=data_flow_mask_column)
+    return data_flow_mask_column
+
+
+
+
+def twenty_ninth_test(ct,kb_name): # data f
+
+    ct.start_test(test_name=kb_name)
+
+
+    ##### register data flow events
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    insert_s_expression_df_a(ct)
+    insert_s_expression_df_b(ct)
+
+    ct.asm_log_message("data flow columns are instantiated")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_set_bitmask(["a","c"])
+    ct.asm_log_message("bitmask event a and c are set")
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("bitmask event b is now set")
+    ct.asm_set_bitmask(["b"])
+    ct.asm_log_message("bitmask event a is now cleared")
+    ct.asm_clear_bitmask(["a"])
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("bitmask event b and c are now cleared")
+    ct.asm_clear_bitmask(["b","c"])
+    
+    ct.asm_wait_time(time_delay=5)
+    ct.asm_log_message("test is terminating")
+   
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test() 
+           
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
     
@@ -2130,7 +2192,7 @@ if __name__ == "__main__":
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
                  "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test",
                  "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test",
-                 "twenty_seventh_test","twenty_eighth_test"]
+                 "twenty_seventh_test","twenty_eighth_test","twenty_ninth_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -2157,7 +2219,8 @@ if __name__ == "__main__":
                  "twenty_fifth_test": twenty_fifth_test,
                  "twenty_sixth_test": twenty_sixth_test,
                  "twenty_seventh_test": twenty_seventh_test,
-                 "twenty_eighth_test": twenty_eighth_test}
+                 "twenty_eighth_test": twenty_eighth_test,
+                 "twenty_ninth_test": twenty_ninth_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

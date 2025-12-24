@@ -37,9 +37,11 @@ class ChainTreeYaml:
         self.event_index_counter = 0
         
         # Bitmask table for embedded systems (max 32 bits)
-        self.bitmask_table: Dict[str, int] = {}  # Map event_name to bit_number
-        self.bitmask_bit_counter = 0
         
+        self.bitmask_bit_counter = 0
+        self.bitmask_table = {}           # str → int (event name to bit)
+        self.used_bits = set()            # set of all occupied bit numbers
+        self.next_auto_bit = 0     
         # Knowledge base management
         self.kb_dict: Dict[str, List[str]] = {}
         self.kb_log_dict: Dict[str, List[str]] = {}
@@ -668,73 +670,116 @@ class ChainTreeYaml:
         """
         return self.event_index_counter
     
-    # =========================================================================
-    # Bitmask Table Management (for embedded C)
-    # =========================================================================
-    
-    def register_bitmask(self, event_name: str) -> int:
+
+
+    def register_bitmask(self, event: str | int) -> int:
         """
-        Register an event in the bitmask table and return its bit position.
-        If the event was previously registered, return existing bit position.
+        Register an event and return its bit position.
         
-        This is used for embedded C systems to handle events using bit masks.
-        Each event gets a unique bit position (0-31) in a 32-bit mask.
+        - If `event` is a **string**:
+          - If already registered → return existing bit
+          - Else → auto-assign the next free bit (skipping any explicitly reserved bits)
+        - If `event` is an **integer**:
+          - Try to reserve exactly that bit position
+          - Raise ValueError if already in use
         
-        Args:
-            event_name: String identifier for the event
-            
-        Returns:
-            Integer bit position (0-31)
-            
+        Once a bit is allocated (auto or explicit), it cannot be overwritten.
+        
         Raises:
-            ValueError: If more than 32 events are registered (bit mask full)
-            TypeError: If event_name is not a string
-            
-        Example:
-            >>> bit1 = ct.register_bitmask("BUTTON_PRESSED")  # Returns: 0
-            >>> bit2 = ct.register_bitmask("TIMER_EXPIRED")   # Returns: 1
-            >>> bit3 = ct.register_bitmask("BUTTON_PRESSED")  # Returns: 0 (already exists)
-            
-            In C: uint32_t events = (1 << bit1) | (1 << bit2);
+            TypeError: If event is neither str nor int
+            ValueError: If bit position out of 0–31
+            ValueError: If requested bit (explicit) is already used
+            ValueError: If more than 32 bits needed
         """
-        if not isinstance(event_name, str):
-            raise TypeError("event_name must be a string")
-        
-        # Check if already registered
-        if event_name in self.bitmask_table:
-            return self.bitmask_table[event_name]
-        
-        # Check if we've exceeded 32-bit limit
-        if self.bitmask_bit_counter >= 32:
-            raise ValueError(
-                f"Bitmask table full: cannot register more than 32 events. "
-                f"Already registered: {list(self.bitmask_table.keys())}"
-            )
-        
-        # Register new event
-        bit_number = self.bitmask_bit_counter
-        self.bitmask_table[event_name] = bit_number
-        self.bitmask_bit_counter += 1
-        
-        return bit_number
-    
-    def get_bitmask_bit(self, event_name: str) -> int:
-        """
-        Get the bit position for a previously registered bitmask event.
-        
-        Args:
-            event_name: String identifier for the event
+        if isinstance(event, str):
+            name = event
+            if name in self.bitmask_table:
+                return self.bitmask_table[name]
+
+            # Find next free bit (skip used ones)
+            bit = self.next_auto_bit
+            while bit in self.used_bits:
+                bit += 1
+                if bit > 31:
+                    raise ValueError(
+                        "No free bits left (0-31). "
+                        f"Used bits: {sorted(self.used_bits)}"
+                    )
+
+            # Register
+            self.bitmask_table[name] = bit
+            self.used_bits.add(bit)
+            self.next_auto_bit = bit + 1  # next auto starts after this one
+
+            return bit
+
+        elif isinstance(event, int):
+            bit = event
+            if not (0 <= bit <= 31):
+                raise ValueError(f"Bit position must be 0–31, got {bit}")
+
+            if bit in self.used_bits:
+                # Find who owns it
+                owner = next(
+                    (n for n, b in self.bitmask_table.items() if b == bit),
+                    "explicit reservation"
+                )
+                raise ValueError(f"Bit {bit} already in use by '{owner}'")
+
+            # Reserve it
+            self.bitmask_table[f"EXPLICIT_{bit}"] = bit  # optional pseudo-name
+            self.used_bits.add(bit)
+
+            # Update auto-next if needed
+            if bit >= self.next_auto_bit:
+                self.next_auto_bit = bit + 1
+
+            return bit
+
+        else:
+            raise TypeError("event must be str (event name) or int (bit position)")
+        def get_bitmask_bit(self, event: str | int) -> int:
+            """
+            Get the bit position for a previously registered event.
             
-        Returns:
-            Integer bit position (0-31)
+            - If a string is passed: Returns the bit position for the registered event name.
+            - If an integer is passed: Returns the integer itself, but only if it has been 
+            previously registered (explicitly or auto-allocated); otherwise raises ValueError.
             
-        Raises:
-            KeyError: If event_name not registered
-        """
-        if event_name not in self.bitmask_table:
-            raise KeyError(f"Bitmask event not registered: {event_name}")
-        return self.bitmask_table[event_name]
-    
+            Args:
+                event: Either a string (event name) or an integer (bit position)
+                
+            Returns:
+                Integer bit position (0-31)
+                
+            Raises:
+                TypeError: If event is neither str nor int
+                KeyError: If string event_name is not registered
+                ValueError: If integer bit position has not been allocated/registered
+            """
+            if isinstance(event, str):
+                if event not in self.bitmask_table:
+                    raise KeyError(f"Bitmask event not registered: {event}")
+                return self.bitmask_table[event]
+
+            elif isinstance(event, int):
+                bit = event
+                
+                # Check if this bit has been allocated to any event
+                if bit not in self.bitmask_table.values():
+                    raise ValueError(
+                        f"Bit position {bit} has not been allocated "
+                        f"(no event registered with this bit)"
+                    )
+                
+                # Optionally: you can return the bit directly, or even return the event name too
+                # But since the function is expected to return the bit position, just return it
+                return bit
+
+            else:
+                raise TypeError("event must be a string (event name) or an integer (bit position)")
+            
+            
     def get_all_bitmasks(self) -> Dict[str, int]:
         """
         Get all registered bitmask events and their bit positions.

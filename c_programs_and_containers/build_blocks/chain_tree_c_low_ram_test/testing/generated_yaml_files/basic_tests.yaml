@@ -20553,6 +20553,390 @@ kb.twenty_eighth_test.GATE_root._0.COL_laun._1.LEAF._4:
     ltree_name: kb.twenty_eighth_test.GATE_root._0.COL_laun._1.LEAF._4
     array_index: 1306
   node_dict: {}
+kb.twenty_ninth_test.GATE_root._0:
+  label: GATE_root
+  node_name: _0
+  label_dict:
+    main_function_name: CFL_GATE_NODE_MAIN
+    initialization_function_name: CFL_GATE_NODE_INIT
+    aux_function_name: CFL_GATE_NODE_NULL
+    termination_function_name: CFL_GATE_NODE_TERM
+    links:
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    parent_ltree_name: kb.twenty_ninth_test
+    ltree_name: kb.twenty_ninth_test.GATE_root._0
+    array_index: 1307
+  node_dict:
+    version: 1.0.0
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0:
+  label: COL_laun
+  node_name: _0
+  label_dict:
+    main_function_name: CFL_COLUMN_MAIN
+    initialization_function_name: CFL_COLUMN_INIT
+    aux_function_name: CFL_COLUMN_NULL
+    termination_function_name: CFL_COLUMN_TERM
+    links:
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._2
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._3
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._4
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._5
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._6
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._7
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._8
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._9
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._10
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._11
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._12
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._13
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._14
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._15
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._16
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    array_index: 1308
+  node_dict:
+    auto_start: true
+    column_data: null
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0:
+  label: COL_s_ex
+  node_name: _0
+  label_dict:
+    main_function_name: CFL_S_EXPRESSION_NODE_MAIN
+    initialization_function_name: CFL_S_EXPRESSION_NODE_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_S_EXPRESSION_NODE_TERM
+    links:
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._0
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._1
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._2
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0
+    array_index: 1309
+  node_dict:
+    auto_start: true
+    column_data:
+      module_name: chain_flow_dsl_tests
+      tree_name: s_expression_test_1
+      user_data: {}
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._0:
+  label: LEAF
+  node_name: _0
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._0
+    array_index: 1310
+  node_dict:
+    message: s expression column s_expression_df_a is active
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._1:
+  label: LEAF
+  node_name: _1
+  label_dict:
+    main_function_name: CFL_EVENT_LOGGER
+    initialization_function_name: CFL_EVENT_LOGGER_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_EVENT_LOGGER_TERM
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._1
+    array_index: 1311
+  node_dict:
+    message: '----------->  displaying data flow mask events'
+    events:
+    - 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._2:
+  label: LEAF
+  node_name: _2
+  label_dict:
+    main_function_name: CFL_HALT
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._2
+    array_index: 1312
+  node_dict: {}
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1:
+  label: COL_s_ex
+  node_name: _1
+  label_dict:
+    main_function_name: CFL_S_EXPRESSION_NODE_MAIN
+    initialization_function_name: CFL_S_EXPRESSION_NODE_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_S_EXPRESSION_NODE_TERM
+    links:
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._0
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._1
+    - kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._2
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1
+    array_index: 1313
+  node_dict:
+    auto_start: true
+    column_data:
+      module_name: chain_flow_dsl_tests
+      tree_name: s_expression_test_2
+      user_data: {}
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._0:
+  label: LEAF
+  node_name: _0
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._0
+    array_index: 1314
+  node_dict:
+    message: data flow expression column df_b is active
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._1:
+  label: LEAF
+  node_name: _1
+  label_dict:
+    main_function_name: CFL_EVENT_LOGGER
+    initialization_function_name: CFL_EVENT_LOGGER_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_EVENT_LOGGER_TERM
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._1
+    array_index: 1315
+  node_dict:
+    message: '----------->  displaying data flow mask events'
+    events:
+    - 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._2:
+  label: LEAF
+  node_name: _2
+  label_dict:
+    main_function_name: CFL_HALT
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._2
+    array_index: 1316
+  node_dict: {}
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._2:
+  label: LEAF
+  node_name: _2
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._2
+    array_index: 1317
+  node_dict:
+    message: data flow columns are instantiated
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._3:
+  label: LEAF
+  node_name: _3
+  label_dict:
+    main_function_name: CFL_WAIT_TIME
+    initialization_function_name: CFL_WAIT_TIME_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._3
+    array_index: 1318
+  node_dict:
+    time_delay: 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._4:
+  label: LEAF
+  node_name: _4
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_SET_BITMASK
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._4
+    array_index: 1319
+  node_dict:
+    bit_mask: 3
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._5:
+  label: LEAF
+  node_name: _5
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._5
+    array_index: 1320
+  node_dict:
+    message: bitmask event a and c are set
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._6:
+  label: LEAF
+  node_name: _6
+  label_dict:
+    main_function_name: CFL_WAIT_TIME
+    initialization_function_name: CFL_WAIT_TIME_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._6
+    array_index: 1321
+  node_dict:
+    time_delay: 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._7:
+  label: LEAF
+  node_name: _7
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._7
+    array_index: 1322
+  node_dict:
+    message: bitmask event b is now set
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._8:
+  label: LEAF
+  node_name: _8
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_SET_BITMASK
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._8
+    array_index: 1323
+  node_dict:
+    bit_mask: 4
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._9:
+  label: LEAF
+  node_name: _9
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._9
+    array_index: 1324
+  node_dict:
+    message: bitmask event a is now cleared
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._10:
+  label: LEAF
+  node_name: _10
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_CLEAR_BITMASK
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._10
+    array_index: 1325
+  node_dict:
+    bit_mask: 1
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._11:
+  label: LEAF
+  node_name: _11
+  label_dict:
+    main_function_name: CFL_WAIT_TIME
+    initialization_function_name: CFL_WAIT_TIME_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._11
+    array_index: 1326
+  node_dict:
+    time_delay: 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._12:
+  label: LEAF
+  node_name: _12
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._12
+    array_index: 1327
+  node_dict:
+    message: bitmask event b and c are now cleared
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._13:
+  label: LEAF
+  node_name: _13
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_CLEAR_BITMASK
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._13
+    array_index: 1328
+  node_dict:
+    bit_mask: 6
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._14:
+  label: LEAF
+  node_name: _14
+  label_dict:
+    main_function_name: CFL_WAIT_TIME
+    initialization_function_name: CFL_WAIT_TIME_INIT
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._14
+    array_index: 1329
+  node_dict:
+    time_delay: 5
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._15:
+  label: LEAF
+  node_name: _15
+  label_dict:
+    main_function_name: CFL_DISABLE
+    initialization_function_name: CFL_LOG_MESSAGE
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._15
+    array_index: 1330
+  node_dict:
+    message: test is terminating
+kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._16:
+  label: LEAF
+  node_name: _16
+  label_dict:
+    main_function_name: CFL_TERMINATE
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0
+    ltree_name: kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._16
+    array_index: 1331
+  node_dict: {}
 kb.first_test_functions.kb.first_test:
   label: kb
   node_name: first_test
@@ -20565,7 +20949,7 @@ kb.first_test_functions.kb.first_test:
     - kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.first_test_functions
     ltree_name: kb.first_test_functions.kb.first_test
-    array_index: 1307
+    array_index: 1332
   node_dict: {}
 kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -20582,7 +20966,7 @@ kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions:
     - kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.first_test_functions.kb.first_test
     ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions
-    array_index: 1308
+    array_index: 1333
   node_dict: {}
 kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -20595,7 +20979,7 @@ kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions
     ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1312
+    array_index: 1337
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -20618,7 +21002,7 @@ kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions
     ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1310
+    array_index: 1335
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -20646,7 +21030,7 @@ kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions
     ltree_name: kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1311
+    array_index: 1336
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -20666,7 +21050,7 @@ kb.second_test_functions.kb.second_test:
     - kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.second_test_functions
     ltree_name: kb.second_test_functions.kb.second_test
-    array_index: 1313
+    array_index: 1338
   node_dict: {}
 kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -20683,7 +21067,7 @@ kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions:
     - kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.second_test_functions.kb.second_test
     ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions
-    array_index: 1314
+    array_index: 1339
   node_dict: {}
 kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -20696,7 +21080,7 @@ kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions
     ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1318
+    array_index: 1343
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -20717,7 +21101,7 @@ kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions
     ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1316
+    array_index: 1341
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -20744,7 +21128,7 @@ kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions
     ltree_name: kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1317
+    array_index: 1342
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -20762,7 +21146,7 @@ kb.fourth_test_functions.kb.fourth_test:
     - kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.fourth_test_functions
     ltree_name: kb.fourth_test_functions.kb.fourth_test
-    array_index: 1319
+    array_index: 1344
   node_dict: {}
 kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -20779,7 +21163,7 @@ kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions:
     - kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.fourth_test_functions.kb.fourth_test
     ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions
-    array_index: 1320
+    array_index: 1345
   node_dict: {}
 kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -20792,7 +21176,7 @@ kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1324
+    array_index: 1349
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -20813,7 +21197,7 @@ kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1322
+    array_index: 1347
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -20836,7 +21220,7 @@ kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1323
+    array_index: 1348
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -20853,7 +21237,7 @@ kb.fifth_test_functions.kb.fifth_test:
     - kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.fifth_test_functions
     ltree_name: kb.fifth_test_functions.kb.fifth_test
-    array_index: 1325
+    array_index: 1350
   node_dict: {}
 kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -20870,7 +21254,7 @@ kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions:
     - kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.fifth_test_functions.kb.fifth_test
     ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions
-    array_index: 1326
+    array_index: 1351
   node_dict: {}
 kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -20883,7 +21267,7 @@ kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1330
+    array_index: 1355
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -20903,7 +21287,7 @@ kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1328
+    array_index: 1353
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -20930,7 +21314,7 @@ kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1329
+    array_index: 1354
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -20949,7 +21333,7 @@ kb.sixth_test_functions.kb.sixth_test:
     - kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.sixth_test_functions
     ltree_name: kb.sixth_test_functions.kb.sixth_test
-    array_index: 1331
+    array_index: 1356
   node_dict: {}
 kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -20966,7 +21350,7 @@ kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions:
     - kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.sixth_test_functions.kb.sixth_test
     ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions
-    array_index: 1332
+    array_index: 1357
   node_dict: {}
 kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -20979,7 +21363,7 @@ kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1336
+    array_index: 1361
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21001,7 +21385,7 @@ kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1334
+    array_index: 1359
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21026,7 +21410,7 @@ kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1335
+    array_index: 1360
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21043,7 +21427,7 @@ kb.seventh_test_functions.kb.seventh_test:
     - kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.seventh_test_functions
     ltree_name: kb.seventh_test_functions.kb.seventh_test
-    array_index: 1337
+    array_index: 1362
   node_dict: {}
 kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21060,7 +21444,7 @@ kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions:
     - kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.seventh_test_functions.kb.seventh_test
     ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions
-    array_index: 1338
+    array_index: 1363
   node_dict: {}
 kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21073,7 +21457,7 @@ kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1342
+    array_index: 1367
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21096,7 +21480,7 @@ kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1340
+    array_index: 1365
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21123,7 +21507,7 @@ kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1341
+    array_index: 1366
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21140,7 +21524,7 @@ kb.eighth_test_functions.kb.eighth_test:
     - kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.eighth_test_functions
     ltree_name: kb.eighth_test_functions.kb.eighth_test
-    array_index: 1343
+    array_index: 1368
   node_dict: {}
 kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21157,7 +21541,7 @@ kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions:
     - kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.eighth_test_functions.kb.eighth_test
     ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions
-    array_index: 1344
+    array_index: 1369
   node_dict: {}
 kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21170,7 +21554,7 @@ kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1348
+    array_index: 1373
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_SEQUENCE_START_MAIN: true
@@ -21192,7 +21576,7 @@ kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1346
+    array_index: 1371
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21224,7 +21608,7 @@ kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virt
     links: []
     parent_ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1347
+    array_index: 1372
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_NULL: true
@@ -21241,7 +21625,7 @@ kb.ninth_test_functions.kb.ninth_test:
     - kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.ninth_test_functions
     ltree_name: kb.ninth_test_functions.kb.ninth_test
-    array_index: 1349
+    array_index: 1374
   node_dict: {}
 kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21258,7 +21642,7 @@ kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions:
     - kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.ninth_test_functions.kb.ninth_test
     ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions
-    array_index: 1350
+    array_index: 1375
   node_dict: {}
 kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21271,7 +21655,7 @@ kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1354
+    array_index: 1379
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_SEQUENCE_START_MAIN: true
@@ -21293,7 +21677,7 @@ kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1352
+    array_index: 1377
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21324,7 +21708,7 @@ kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1353
+    array_index: 1378
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_NULL: true
@@ -21341,7 +21725,7 @@ kb.tenth_test_functions.kb.tenth_test:
     - kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.tenth_test_functions
     ltree_name: kb.tenth_test_functions.kb.tenth_test
-    array_index: 1355
+    array_index: 1380
   node_dict: {}
 kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21358,7 +21742,7 @@ kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions:
     - kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.tenth_test_functions.kb.tenth_test
     ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions
-    array_index: 1356
+    array_index: 1381
   node_dict: {}
 kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21371,7 +21755,7 @@ kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions
     ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1360
+    array_index: 1385
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21392,7 +21776,7 @@ kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions
     ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1358
+    array_index: 1383
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21418,7 +21802,7 @@ kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions
     ltree_name: kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1359
+    array_index: 1384
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21435,7 +21819,7 @@ kb.eleventh_test_functions.kb.eleventh_test:
     - kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.eleventh_test_functions
     ltree_name: kb.eleventh_test_functions.kb.eleventh_test
-    array_index: 1361
+    array_index: 1386
   node_dict: {}
 kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21452,7 +21836,7 @@ kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions:
     - kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.eleventh_test_functions.kb.eleventh_test
     ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions
-    array_index: 1362
+    array_index: 1387
   node_dict: {}
 kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21465,7 +21849,7 @@ kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.
     links: []
     parent_ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions
     ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1366
+    array_index: 1391
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21485,7 +21869,7 @@ kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.
     links: []
     parent_ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions
     ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1364
+    array_index: 1389
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21509,7 +21893,7 @@ kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.
     links: []
     parent_ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions
     ltree_name: kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1365
+    array_index: 1390
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21526,7 +21910,7 @@ kb.twelfth_test_functions.kb.twelfth_test:
     - kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twelfth_test_functions
     ltree_name: kb.twelfth_test_functions.kb.twelfth_test
-    array_index: 1367
+    array_index: 1392
   node_dict: {}
 kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21543,7 +21927,7 @@ kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions:
     - kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twelfth_test_functions.kb.twelfth_test
     ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions
-    array_index: 1368
+    array_index: 1393
   node_dict: {}
 kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21556,7 +21940,7 @@ kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions
     ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1372
+    array_index: 1397
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_WHILE_MAIN: true
@@ -21575,7 +21959,7 @@ kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions
     ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1370
+    array_index: 1395
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21597,7 +21981,7 @@ kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.vi
     links: []
     parent_ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions
     ltree_name: kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1371
+    array_index: 1396
   node_dict:
     CFL_GATE_NODE_NULL: true
     WHILE_TEST: true
@@ -21615,7 +21999,7 @@ kb.thirteenth_test_functions.kb.thirteenth_test:
     - kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.thirteenth_test_functions
     ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test
-    array_index: 1373
+    array_index: 1398
   node_dict: {}
 kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21632,7 +22016,7 @@ kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functi
     - kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test
     ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions
-    array_index: 1374
+    array_index: 1399
   node_dict: {}
 kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21645,7 +22029,7 @@ kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1378
+    array_index: 1403
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21665,7 +22049,7 @@ kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1376
+    array_index: 1401
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21691,7 +22075,7 @@ kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1377
+    array_index: 1402
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21708,7 +22092,7 @@ kb.fourteenth_test_functions.kb.fourteenth_test:
     - kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.fourteenth_test_functions
     ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test
-    array_index: 1379
+    array_index: 1404
   node_dict: {}
 kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21725,7 +22109,7 @@ kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functi
     - kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test
     ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions
-    array_index: 1380
+    array_index: 1405
   node_dict: {}
 kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21738,7 +22122,7 @@ kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1384
+    array_index: 1409
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21759,7 +22143,7 @@ kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1382
+    array_index: 1407
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21785,7 +22169,7 @@ kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1383
+    array_index: 1408
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21802,7 +22186,7 @@ kb.seventeenth_test_functions.kb.seventeenth_test:
     - kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.seventeenth_test_functions
     ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test
-    array_index: 1385
+    array_index: 1410
   node_dict: {}
 kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21819,7 +22203,7 @@ kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_func
     - kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test
     ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions
-    array_index: 1386
+    array_index: 1411
   node_dict: {}
 kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21832,7 +22216,7 @@ kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_func
     links: []
     parent_ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions
     ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1390
+    array_index: 1415
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21855,7 +22239,7 @@ kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_func
     links: []
     parent_ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions
     ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1388
+    array_index: 1413
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21886,7 +22270,7 @@ kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_func
     links: []
     parent_ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions
     ltree_name: kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1389
+    array_index: 1414
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -21906,7 +22290,7 @@ kb.eighteenth_test_functions.kb.eighteenth_test:
     - kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.eighteenth_test_functions
     ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test
-    array_index: 1391
+    array_index: 1416
   node_dict: {}
 kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -21923,7 +22307,7 @@ kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functi
     - kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test
     ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions
-    array_index: 1392
+    array_index: 1417
   node_dict: {}
 kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -21936,7 +22320,7 @@ kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1396
+    array_index: 1421
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -21959,7 +22343,7 @@ kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1394
+    array_index: 1419
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -21993,7 +22377,7 @@ kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functi
     links: []
     parent_ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1395
+    array_index: 1420
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22013,7 +22397,7 @@ kb.ninteenth_test_functions.kb.ninteenth_test:
     - kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.ninteenth_test_functions
     ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test
-    array_index: 1397
+    array_index: 1422
   node_dict: {}
 kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22030,7 +22414,7 @@ kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_function
     - kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test
     ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions
-    array_index: 1398
+    array_index: 1423
   node_dict: {}
 kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22043,7 +22427,7 @@ kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1402
+    array_index: 1427
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22066,7 +22450,7 @@ kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1400
+    array_index: 1425
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22097,7 +22481,7 @@ kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions
     ltree_name: kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1401
+    array_index: 1426
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22116,7 +22500,7 @@ kb.twentieth_test_functions.kb.twentieth_test:
     - kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twentieth_test_functions
     ltree_name: kb.twentieth_test_functions.kb.twentieth_test
-    array_index: 1403
+    array_index: 1428
   node_dict: {}
 kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22133,7 +22517,7 @@ kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_function
     - kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twentieth_test_functions.kb.twentieth_test
     ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions
-    array_index: 1404
+    array_index: 1429
   node_dict: {}
 kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22146,7 +22530,7 @@ kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions
     ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1408
+    array_index: 1433
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22168,7 +22552,7 @@ kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions
     ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1406
+    array_index: 1431
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22198,7 +22582,7 @@ kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_function
     links: []
     parent_ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions
     ltree_name: kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1407
+    array_index: 1432
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22217,7 +22601,7 @@ kb.twenty_first_test_functions.kb.twenty_first_test:
     - kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_first_test_functions
     ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test
-    array_index: 1409
+    array_index: 1434
   node_dict: {}
 kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22234,7 +22618,7 @@ kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_fu
     - kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test
     ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions
-    array_index: 1410
+    array_index: 1435
   node_dict: {}
 kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22247,7 +22631,7 @@ kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1414
+    array_index: 1439
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22267,7 +22651,7 @@ kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1412
+    array_index: 1437
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22294,7 +22678,7 @@ kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1413
+    array_index: 1438
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22314,7 +22698,7 @@ kb.twenty_second_test_functions.kb.twenty_second_test:
     - kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_second_test_functions
     ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test
-    array_index: 1415
+    array_index: 1440
   node_dict: {}
 kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22331,7 +22715,7 @@ kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_
     - kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test
     ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions
-    array_index: 1416
+    array_index: 1441
   node_dict: {}
 kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22344,7 +22728,7 @@ kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1420
+    array_index: 1445
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22365,7 +22749,7 @@ kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1418
+    array_index: 1443
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22390,7 +22774,7 @@ kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1419
+    array_index: 1444
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22408,7 +22792,7 @@ kb.twenty_third_test_functions.kb.twenty_third_test:
     - kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_third_test_functions
     ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test
-    array_index: 1421
+    array_index: 1446
   node_dict: {}
 kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22425,7 +22809,7 @@ kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_fu
     - kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test
     ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions
-    array_index: 1422
+    array_index: 1447
   node_dict: {}
 kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22438,7 +22822,7 @@ kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1426
+    array_index: 1451
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22456,7 +22840,7 @@ kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1424
+    array_index: 1449
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22477,7 +22861,7 @@ kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1425
+    array_index: 1450
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22494,7 +22878,7 @@ kb.twenty_fourth_test_functions.kb.twenty_fourth_test:
     - kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_fourth_test_functions
     ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test
-    array_index: 1427
+    array_index: 1452
   node_dict: {}
 kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22511,7 +22895,7 @@ kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_
     - kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test
     ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions
-    array_index: 1428
+    array_index: 1453
   node_dict: {}
 kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22524,7 +22908,7 @@ kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1432
+    array_index: 1457
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22548,7 +22932,7 @@ kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1430
+    array_index: 1455
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22577,7 +22961,7 @@ kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1431
+    array_index: 1456
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22599,7 +22983,7 @@ kb.twenty_fifth_test_functions.kb.twenty_fifth_test:
     - kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_fifth_test_functions
     ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test
-    array_index: 1433
+    array_index: 1458
   node_dict: {}
 kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22616,7 +23000,7 @@ kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_fu
     - kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test
     ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions
-    array_index: 1434
+    array_index: 1459
   node_dict: {}
 kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22629,7 +23013,7 @@ kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1438
+    array_index: 1463
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22651,7 +23035,7 @@ kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1436
+    array_index: 1461
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22676,7 +23060,7 @@ kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1437
+    array_index: 1462
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22695,7 +23079,7 @@ kb.twenty_sixth_test_functions.kb.twenty_sixth_test:
     - kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_sixth_test_functions
     ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test
-    array_index: 1439
+    array_index: 1464
   node_dict: {}
 kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22712,7 +23096,7 @@ kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_fu
     - kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test
     ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions
-    array_index: 1440
+    array_index: 1465
   node_dict: {}
 kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22725,7 +23109,7 @@ kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1444
+    array_index: 1469
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -22748,7 +23132,7 @@ kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1442
+    array_index: 1467
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22775,7 +23159,7 @@ kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_fu
     links: []
     parent_ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1443
+    array_index: 1468
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -22795,7 +23179,7 @@ kb.twenty_seventh_test_functions.kb.twenty_seventh_test:
     - kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_seventh_test_functions
     ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test
-    array_index: 1445
+    array_index: 1470
   node_dict: {}
 kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22812,7 +23196,7 @@ kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtua
     - kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test
     ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions
-    array_index: 1446
+    array_index: 1471
   node_dict: {}
 ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
 : label: virtual_functions
@@ -22825,7 +23209,7 @@ kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1450
+    array_index: 1475
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_CONTROLLED_NODE_CONTAINER_MAIN: true
@@ -22848,7 +23232,7 @@ kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1448
+    array_index: 1473
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22880,7 +23264,7 @@ kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtua
     links: []
     parent_ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1449
+    array_index: 1474
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_NULL: true
@@ -22905,7 +23289,7 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test:
     - kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions
     parent_ltree_name: kb.twenty_eighth_test_functions
     ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test
-    array_index: 1451
+    array_index: 1476
   node_dict: {}
 kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions:
   label: virtual_functions
@@ -22922,7 +23306,7 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_
     - kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
     parent_ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test
     ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions
-    array_index: 1452
+    array_index: 1477
   node_dict: {}
 kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
@@ -22935,7 +23319,7 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-    array_index: 1456
+    array_index: 1481
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_CONTROLLED_NODE_CONTAINER_MAIN: true
@@ -22960,7 +23344,7 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-    array_index: 1454
+    array_index: 1479
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -22995,7 +23379,7 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_
     links: []
     parent_ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions
     ltree_name: kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-    array_index: 1455
+    array_index: 1480
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_NULL: true
@@ -23009,6 +23393,100 @@ kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_
     ON_FLY_ARC_COMPLETE: true
     ON_FLY_UP_COMPLETE: true
     ON_FLY_DOWN_COMPLETE: true
+kb.twenty_ninth_test_functions.kb.twenty_ninth_test:
+  label: kb
+  node_name: twenty_ninth_test
+  label_dict:
+    main_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links:
+    - kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions
+    parent_ltree_name: kb.twenty_ninth_test_functions
+    ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test
+    array_index: 1482
+  node_dict: {}
+kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions:
+  label: virtual_functions
+  node_name: virtual_functions
+  label_dict:
+    main_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links:
+    - kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
+    - kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+    - kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+    - kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
+    parent_ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test
+    ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions
+    array_index: 1483
+  node_dict: {}
+kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions:
+  label: virtual_functions
+  node_name: main_functions
+  label_dict:
+    main_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions
+    ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions
+    array_index: 1487
+  node_dict:
+    CFL_GATE_NODE_MAIN: true
+    CFL_COLUMN_MAIN: true
+    CFL_S_EXPRESSION_NODE_MAIN: true
+    CFL_DISABLE: true
+    CFL_EVENT_LOGGER: true
+    CFL_HALT: true
+    CFL_WAIT_TIME: true
+    CFL_TERMINATE: true
+? kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+: label: virtual_functions
+  node_name: one_shot_functions
+  label_dict:
+    main_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions
+    ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+    array_index: 1485
+  node_dict:
+    CFL_GATE_NODE_INIT: true
+    CFL_GATE_NODE_TERM: true
+    CFL_COLUMN_TERM: true
+    CFL_COLUMN_INIT: true
+    CFL_S_EXPRESSION_NODE_TERM: true
+    CFL_S_EXPRESSION_NODE_INIT: true
+    CFL_NULL: true
+    CFL_LOG_MESSAGE: true
+    CFL_EVENT_LOGGER_TERM: true
+    CFL_EVENT_LOGGER_INIT: true
+    CFL_WAIT_TIME_INIT: true
+    CFL_SET_BITMASK: true
+    CFL_CLEAR_BITMASK: true
+? kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+: label: virtual_functions
+  node_name: boolean_functions
+  label_dict:
+    main_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    aux_function_name: CFL_NULL
+    termination_function_name: CFL_NULL
+    links: []
+    parent_ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions
+    ltree_name: kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+    array_index: 1486
+  node_dict:
+    CFL_GATE_NODE_NULL: true
+    CFL_COLUMN_NULL: true
+    CFL_NULL: true
 kb.complete_functions_kb.complete_functions.complete_functions:
   label: complete_functions
   node_name: complete_functions
@@ -23023,7 +23501,7 @@ kb.complete_functions_kb.complete_functions.complete_functions:
     - kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.main_functions
     parent_ltree_name: kb.complete_functions_kb
     ltree_name: kb.complete_functions_kb.complete_functions.complete_functions
-    array_index: 1457
+    array_index: 1488
   node_dict: {}
 kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.one_shot_functions:
   label: complete_functions
@@ -23036,7 +23514,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     links: []
     parent_ltree_name: kb.complete_functions_kb.complete_functions.complete_functions
     ltree_name: kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.one_shot_functions
-    array_index: 1458
+    array_index: 1489
   node_dict:
     CFL_GATE_NODE_INIT: true
     CFL_GATE_NODE_TERM: true
@@ -23141,6 +23619,8 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     UPDATE_FLY_DOWN_FINAL: true
     CFL_CLIENT_CONTROLLED_NODE_TERM: true
     CFL_CLIENT_CONTROLLED_NODE_INIT: true
+    CFL_S_EXPRESSION_NODE_TERM: true
+    CFL_S_EXPRESSION_NODE_INIT: true
 kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.boolean_functions:
   label: complete_functions
   node_name: boolean_functions
@@ -23152,7 +23632,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     links: []
     parent_ltree_name: kb.complete_functions_kb.complete_functions.complete_functions
     ltree_name: kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.boolean_functions
-    array_index: 1459
+    array_index: 1490
   node_dict:
     CFL_GATE_NODE_NULL: true
     CFL_COLUMN_NULL: true
@@ -23199,7 +23679,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     links: []
     parent_ltree_name: kb.complete_functions_kb.complete_functions.complete_functions
     ltree_name: kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.main_functions
-    array_index: 1460
+    array_index: 1491
   node_dict:
     CFL_GATE_NODE_MAIN: true
     CFL_COLUMN_MAIN: true
@@ -23239,6 +23719,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     CFL_CONTROLLED_NODE_CONTAINER_MAIN: true
     CFL_CONTROLLED_NODE_MAIN: true
     CFL_CLIENT_CONTROLLED_NODE_MAIN: true
+    CFL_S_EXPRESSION_NODE_MAIN: true
     CFL_NULL: true
 kb.event_string_table_kb.event_strings.event_string_table:
   label: event_strings
@@ -23251,7 +23732,7 @@ kb.event_string_table_kb.event_strings.event_string_table:
     links: []
     parent_ltree_name: kb.event_string_table_kb
     ltree_name: kb.event_string_table_kb.event_strings.event_string_table
-    array_index: 1461
+    array_index: 1492
   node_dict:
     CFL_INIT_EVENT: 0
     CFL_TERMINATE_EVENT: 1
@@ -23308,7 +23789,7 @@ kb.bitmask_table_kb.bitmask.bitmask_table:
     links: []
     parent_ltree_name: kb.bitmask_table_kb
     ltree_name: kb.bitmask_table_kb.bitmask.bitmask_table
-    array_index: 1462
+    array_index: 1493
   node_dict:
     a: 0
     c: 1
@@ -23389,6 +23870,9 @@ kb_log_dict:
   twenty_eighth_test:
   - kb
   - twenty_eighth_test
+  twenty_ninth_test:
+  - kb
+  - twenty_ninth_test
   complete_functions_kb:
   - kb
   - complete_functions_kb
@@ -24731,155 +25215,187 @@ ltree_to_index:
   kb.twenty_eighth_test.GATE_root._0.COL_laun._1.LEAF._2: 1304
   kb.twenty_eighth_test.GATE_root._0.COL_laun._1.LEAF._3: 1305
   kb.twenty_eighth_test.GATE_root._0.COL_laun._1.LEAF._4: 1306
-  kb.first_test_functions.kb.first_test: 1307
-  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions: 1308
-  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1312
-  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1310
-  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1311
-  kb.second_test_functions.kb.second_test: 1313
-  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions: 1314
-  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1318
-  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1316
-  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1317
-  kb.fourth_test_functions.kb.fourth_test: 1319
-  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions: 1320
-  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1324
-  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1322
-  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1323
-  kb.fifth_test_functions.kb.fifth_test: 1325
-  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions: 1326
-  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1330
-  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1328
-  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1329
-  kb.sixth_test_functions.kb.sixth_test: 1331
-  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions: 1332
-  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1336
-  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1334
-  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1335
-  kb.seventh_test_functions.kb.seventh_test: 1337
-  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions: 1338
-  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1342
-  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1340
-  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1341
-  kb.eighth_test_functions.kb.eighth_test: 1343
-  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions: 1344
-  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1348
-  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1346
-  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1347
-  kb.ninth_test_functions.kb.ninth_test: 1349
-  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions: 1350
-  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1354
-  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1352
-  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1353
-  kb.tenth_test_functions.kb.tenth_test: 1355
-  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions: 1356
-  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1360
-  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1358
-  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1359
-  kb.eleventh_test_functions.kb.eleventh_test: 1361
-  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions: 1362
-  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1366
-  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1364
-  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1365
-  kb.twelfth_test_functions.kb.twelfth_test: 1367
-  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions: 1368
-  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1372
-  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1370
-  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1371
-  kb.thirteenth_test_functions.kb.thirteenth_test: 1373
-  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions: 1374
-  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1378
-  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1376
-  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1377
-  kb.fourteenth_test_functions.kb.fourteenth_test: 1379
-  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions: 1380
-  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1384
-  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1382
-  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1383
-  kb.seventeenth_test_functions.kb.seventeenth_test: 1385
-  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions: 1386
-  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1390
-  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1388
-  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1389
-  kb.eighteenth_test_functions.kb.eighteenth_test: 1391
-  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions: 1392
-  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1396
-  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1394
-  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1395
-  kb.ninteenth_test_functions.kb.ninteenth_test: 1397
-  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions: 1398
-  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1402
-  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1400
-  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1401
-  kb.twentieth_test_functions.kb.twentieth_test: 1403
-  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions: 1404
-  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1408
-  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1406
-  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1407
-  kb.twenty_first_test_functions.kb.twenty_first_test: 1409
-  kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions: 1410
-  kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1414
+  kb.twenty_ninth_test.GATE_root._0: 1307
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0: 1308
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0: 1309
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._0: 1310
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._1: 1311
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._0.LEAF._2: 1312
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1: 1313
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._0: 1314
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._1: 1315
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.COL_s_ex._1.LEAF._2: 1316
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._2: 1317
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._3: 1318
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._4: 1319
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._5: 1320
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._6: 1321
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._7: 1322
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._8: 1323
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._9: 1324
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._10: 1325
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._11: 1326
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._12: 1327
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._13: 1328
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._14: 1329
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._15: 1330
+  kb.twenty_ninth_test.GATE_root._0.COL_laun._0.LEAF._16: 1331
+  kb.first_test_functions.kb.first_test: 1332
+  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions: 1333
+  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1337
+  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1335
+  kb.first_test_functions.kb.first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1336
+  kb.second_test_functions.kb.second_test: 1338
+  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions: 1339
+  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1343
+  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1341
+  kb.second_test_functions.kb.second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1342
+  kb.fourth_test_functions.kb.fourth_test: 1344
+  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions: 1345
+  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1349
+  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1347
+  kb.fourth_test_functions.kb.fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1348
+  kb.fifth_test_functions.kb.fifth_test: 1350
+  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions: 1351
+  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1355
+  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1353
+  kb.fifth_test_functions.kb.fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1354
+  kb.sixth_test_functions.kb.sixth_test: 1356
+  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions: 1357
+  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1361
+  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1359
+  kb.sixth_test_functions.kb.sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1360
+  kb.seventh_test_functions.kb.seventh_test: 1362
+  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions: 1363
+  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1367
+  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1365
+  kb.seventh_test_functions.kb.seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1366
+  kb.eighth_test_functions.kb.eighth_test: 1368
+  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions: 1369
+  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1373
+  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1371
+  kb.eighth_test_functions.kb.eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1372
+  kb.ninth_test_functions.kb.ninth_test: 1374
+  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions: 1375
+  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1379
+  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1377
+  kb.ninth_test_functions.kb.ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1378
+  kb.tenth_test_functions.kb.tenth_test: 1380
+  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions: 1381
+  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1385
+  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1383
+  kb.tenth_test_functions.kb.tenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1384
+  kb.eleventh_test_functions.kb.eleventh_test: 1386
+  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions: 1387
+  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1391
+  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1389
+  kb.eleventh_test_functions.kb.eleventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1390
+  kb.twelfth_test_functions.kb.twelfth_test: 1392
+  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions: 1393
+  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1397
+  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1395
+  kb.twelfth_test_functions.kb.twelfth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1396
+  kb.thirteenth_test_functions.kb.thirteenth_test: 1398
+  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions: 1399
+  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1403
+  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1401
+  kb.thirteenth_test_functions.kb.thirteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1402
+  kb.fourteenth_test_functions.kb.fourteenth_test: 1404
+  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions: 1405
+  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1409
+  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1407
+  kb.fourteenth_test_functions.kb.fourteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1408
+  kb.seventeenth_test_functions.kb.seventeenth_test: 1410
+  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions: 1411
+  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1415
+  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1413
+  kb.seventeenth_test_functions.kb.seventeenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1414
+  kb.eighteenth_test_functions.kb.eighteenth_test: 1416
+  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions: 1417
+  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1421
+  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1419
+  kb.eighteenth_test_functions.kb.eighteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1420
+  kb.ninteenth_test_functions.kb.ninteenth_test: 1422
+  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions: 1423
+  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1427
+  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1425
+  kb.ninteenth_test_functions.kb.ninteenth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1426
+  kb.twentieth_test_functions.kb.twentieth_test: 1428
+  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions: 1429
+  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1433
+  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions: 1431
+  kb.twentieth_test_functions.kb.twentieth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions: 1432
+  kb.twenty_first_test_functions.kb.twenty_first_test: 1434
+  kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions: 1435
+  kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1439
   ? kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1412
-  ? kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-  : 1413
-  kb.twenty_second_test_functions.kb.twenty_second_test: 1415
-  kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions: 1416
-  kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1420
-  ? kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1418
-  ? kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-  : 1419
-  kb.twenty_third_test_functions.kb.twenty_third_test: 1421
-  kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions: 1422
-  kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1426
-  ? kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1424
-  ? kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-  : 1425
-  kb.twenty_fourth_test_functions.kb.twenty_fourth_test: 1427
-  kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions: 1428
-  kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1432
-  ? kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1430
-  ? kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
-  : 1431
-  kb.twenty_fifth_test_functions.kb.twenty_fifth_test: 1433
-  kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions: 1434
-  kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1438
-  ? kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1436
-  ? kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
   : 1437
-  kb.twenty_sixth_test_functions.kb.twenty_sixth_test: 1439
-  kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions: 1440
-  kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1444
-  ? kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1442
-  ? kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  ? kb.twenty_first_test_functions.kb.twenty_first_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1438
+  kb.twenty_second_test_functions.kb.twenty_second_test: 1440
+  kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions: 1441
+  kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1445
+  ? kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
   : 1443
-  kb.twenty_seventh_test_functions.kb.twenty_seventh_test: 1445
-  kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions: 1446
-  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
-  : 1450
-  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1448
-  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  ? kb.twenty_second_test_functions.kb.twenty_second_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1444
+  kb.twenty_third_test_functions.kb.twenty_third_test: 1446
+  kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions: 1447
+  kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1451
+  ? kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
   : 1449
-  kb.twenty_eighth_test_functions.kb.twenty_eighth_test: 1451
-  kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions: 1452
-  kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1456
-  ? kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
-  : 1454
-  ? kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  ? kb.twenty_third_test_functions.kb.twenty_third_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1450
+  kb.twenty_fourth_test_functions.kb.twenty_fourth_test: 1452
+  kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions: 1453
+  kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1457
+  ? kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
   : 1455
-  kb.complete_functions_kb.complete_functions.complete_functions: 1457
-  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.one_shot_functions: 1458
-  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.boolean_functions: 1459
-  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.main_functions: 1460
-  kb.event_string_table_kb.event_strings.event_string_table: 1461
-  kb.bitmask_table_kb.bitmask.bitmask_table: 1462
-total_nodes: 1463
+  ? kb.twenty_fourth_test_functions.kb.twenty_fourth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1456
+  kb.twenty_fifth_test_functions.kb.twenty_fifth_test: 1458
+  kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions: 1459
+  kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1463
+  ? kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+  : 1461
+  ? kb.twenty_fifth_test_functions.kb.twenty_fifth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1462
+  kb.twenty_sixth_test_functions.kb.twenty_sixth_test: 1464
+  kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions: 1465
+  kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1469
+  ? kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+  : 1467
+  ? kb.twenty_sixth_test_functions.kb.twenty_sixth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1468
+  kb.twenty_seventh_test_functions.kb.twenty_seventh_test: 1470
+  kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions: 1471
+  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.main_functions
+  : 1475
+  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+  : 1473
+  ? kb.twenty_seventh_test_functions.kb.twenty_seventh_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1474
+  kb.twenty_eighth_test_functions.kb.twenty_eighth_test: 1476
+  kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions: 1477
+  kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1481
+  ? kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+  : 1479
+  ? kb.twenty_eighth_test_functions.kb.twenty_eighth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1480
+  kb.twenty_ninth_test_functions.kb.twenty_ninth_test: 1482
+  kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions: 1483
+  kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.main_functions: 1487
+  ? kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+  : 1485
+  ? kb.twenty_ninth_test_functions.kb.twenty_ninth_test.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+  : 1486
+  kb.complete_functions_kb.complete_functions.complete_functions: 1488
+  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.one_shot_functions: 1489
+  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.boolean_functions: 1490
+  kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.main_functions: 1491
+  kb.event_string_table_kb.event_strings.event_string_table: 1492
+  kb.bitmask_table_kb.bitmask.bitmask_table: 1493
+total_nodes: 1494
 kb_metadata:
   first_test:
     node_memory_factor: 10
@@ -24989,115 +25505,123 @@ kb_metadata:
       drone_control_fly_arc: 1270
       drone_control_fly_up: 1276
       drone_control_fly_down: 1282
+  twenty_ninth_test:
+    node_memory_factor: 10
+    node_count: 1332
+    node_aliases: {}
   first_test_functions:
-    start_index: 1307
+    start_index: 1332
     node_count: 6
     node_aliases: {}
   second_test_functions:
-    start_index: 1313
+    start_index: 1338
     node_count: 6
     node_aliases: {}
   fourth_test_functions:
-    start_index: 1319
+    start_index: 1344
     node_count: 6
     node_aliases: {}
   fifth_test_functions:
-    start_index: 1325
+    start_index: 1350
     node_count: 6
     node_aliases: {}
   sixth_test_functions:
-    start_index: 1331
+    start_index: 1356
     node_count: 6
     node_aliases: {}
   seventh_test_functions:
-    start_index: 1337
+    start_index: 1362
     node_count: 6
     node_aliases: {}
   eighth_test_functions:
-    start_index: 1343
+    start_index: 1368
     node_count: 6
     node_aliases: {}
   ninth_test_functions:
-    start_index: 1349
+    start_index: 1374
     node_count: 6
     node_aliases: {}
   tenth_test_functions:
-    start_index: 1355
+    start_index: 1380
     node_count: 6
     node_aliases: {}
   eleventh_test_functions:
-    start_index: 1361
+    start_index: 1386
     node_count: 6
     node_aliases: {}
   twelfth_test_functions:
-    start_index: 1367
+    start_index: 1392
     node_count: 6
     node_aliases: {}
   thirteenth_test_functions:
-    start_index: 1373
+    start_index: 1398
     node_count: 6
     node_aliases: {}
   fourteenth_test_functions:
-    start_index: 1379
+    start_index: 1404
     node_count: 6
     node_aliases: {}
   seventeenth_test_functions:
-    start_index: 1385
+    start_index: 1410
     node_count: 6
     node_aliases: {}
   eighteenth_test_functions:
-    start_index: 1391
+    start_index: 1416
     node_count: 6
     node_aliases: {}
   ninteenth_test_functions:
-    start_index: 1397
+    start_index: 1422
     node_count: 6
     node_aliases: {}
   twentieth_test_functions:
-    start_index: 1403
+    start_index: 1428
     node_count: 6
     node_aliases: {}
   twenty_first_test_functions:
-    start_index: 1409
+    start_index: 1434
     node_count: 6
     node_aliases: {}
   twenty_second_test_functions:
-    start_index: 1415
+    start_index: 1440
     node_count: 6
     node_aliases: {}
   twenty_third_test_functions:
-    start_index: 1421
+    start_index: 1446
     node_count: 6
     node_aliases: {}
   twenty_fourth_test_functions:
-    start_index: 1427
+    start_index: 1452
     node_count: 6
     node_aliases: {}
   twenty_fifth_test_functions:
-    start_index: 1433
+    start_index: 1458
     node_count: 6
     node_aliases: {}
   twenty_sixth_test_functions:
-    start_index: 1439
+    start_index: 1464
     node_count: 6
     node_aliases: {}
   twenty_seventh_test_functions:
-    start_index: 1445
+    start_index: 1470
     node_count: 6
     node_aliases: {}
   twenty_eighth_test_functions:
-    start_index: 1451
+    start_index: 1476
+    node_count: 6
+    node_aliases: {}
+  twenty_ninth_test_functions:
+    start_index: 1482
     node_count: 6
     node_aliases: {}
   complete_functions_kb:
-    start_index: 1457
+    start_index: 1488
     node_count: 4
     node_aliases: {}
   event_string_table_kb:
-    start_index: 1461
+    start_index: 1492
     node_count: 1
     node_aliases: {}
   bitmask_table_kb:
-    start_index: 1462
+    start_index: 1493
     node_count: 1
     node_aliases: {}

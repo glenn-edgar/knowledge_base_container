@@ -2,7 +2,7 @@
 #include "test_header_node_data.h"
 
 /* JSON records array */
-const json_record_t ct_jqw17iav_node_data_records[6273] = {
+const json_record_t ct_uur5w4px_node_data_records[6273] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6279,7 +6279,7 @@ const json_record_t ct_jqw17iav_node_data_records[6273] = {
 };
 
 /* String data buffer */
-const char ct_jqw17iav_node_data_strings[6339] = {
+const char ct_uur5w4px_node_data_strings[6339] = {
     0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x64, 0x69, 0x63, 0x74, 0x00, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
     0x6e, 0x00, 0x31, 0x2e, 0x30, 0x2e, 0x30, 0x00, 0x73, 0x74, 0x61, 0x74, 0x65, 0x00, 0x6f, 0x70,
     0x65, 0x6e, 0x00, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x00, 0x56, 0x61, 0x6c, 0x76, 0x65,
@@ -6680,7 +6680,7 @@ const char ct_jqw17iav_node_data_strings[6339] = {
 };
 
 /* Record control array (maps node data IDs to record ranges) */
-const record_control_t ct_jqw17iav_node_data_controls[925] = {
+const record_control_t ct_uur5w4px_node_data_controls[925] = {
     { .start_position = 0, .num_records = 5 },
     { .start_position = 5, .num_records = 5 },
     { .start_position = 10, .num_records = 5 },
