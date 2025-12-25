@@ -147,3 +147,23 @@ void cfl_stop_start_tests(cfl_runtime_handle_t *handle, cfl_start_stop_tests_fn_
         CFL_STOP_START_TESTS_EVENT,
         ptr);
 }
+
+void cfl_enable_all_children(cfl_runtime_handle_t *handle, uint16_t node_index){
+    cfl_enable_all_nodes(handle, node_index);
+}
+
+void cfl_disable_all_children(cfl_runtime_handle_t *handle, uint16_t node_index)
+{
+    const chaintree_node_t *node = &handle->flash_handle->nodes[node_index];
+    uint16_t link_start = node->link_start;
+    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    const uint16_t *link_table = handle->flash_handle->link_table;
+    for (uint16_t i = 0; i < link_count; i++) {
+        uint16_t link_id = link_table[link_start + i];
+        if (cfl_engine_node_is_enabled(handle, link_id) == true) {
+            cfl_terminate_node_tree(handle, link_id);
+        }
+    }
+    
+}

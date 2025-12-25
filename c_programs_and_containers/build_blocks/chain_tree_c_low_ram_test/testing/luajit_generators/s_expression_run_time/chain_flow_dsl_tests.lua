@@ -11,49 +11,56 @@ end
 
 -- Log message helper
 function log(msg)
-    oneshot("LOG", str(msg))
+    oneshot("CFL_LOG", str(msg))
 end
 
 -- Delay helper  
 function delay(ms)
-    main("DELAY", int(ms))
+    main("CFL_DELAY", int(ms))
 end
 
 -- ============================================================================
 -- BEGIN MODULE
 -- ============================================================================
-start_module("chain_flow_dsl_tests", { is_64bit = false })
+local mod = start_module("chain_flow_dsl_tests", { is_64bit = false })
 
 
-start_tree("s_expression_test_1")
-    local n = gensym("check")
-    pipeline("main")
-        if_then(n)
-            local c = gensym("cond")
-            condition(c)
-                local top = gensym("or")
-                bool_or(top)
-                    local inner = gensym("and_1")
-                    bool_and(inner)
-                        bool_fn("CFL_READ_BIT 0")
-                        bool_fn("CFL_READ_BIT 1")
+local tree1 = start_tree("s_expression_test_1")
+    
+    local main_pipeline = pipeline("main")
+        local n = if_then_else("check")  -- Changed from if_then
+            local c = condition("cond")
+                local top = bool_or("or")
+                    local inner = bool_and("and_1")
+                        bool_fn("CFL_READ_BIT", int(0))
+                        bool_fn("CFL_READ_BIT", int(1))
                     end_bool_and(inner)
-                    local inner_2 = gensym("and_2")
-                    bool_and(inner_2)
-                        bool_fn("CFL_READ_BIT 2")
-                        bool_fn("CFL_READ_BIT 3")
+                    local inner_2 = bool_and("and_2")
+                        bool_fn("CFL_READ_BIT", int(2))
+                        bool_fn("CFL_READ_BIT", int(3))
                     end_bool_and(inner_2)
                 end_bool_or(top)
             end_condition(c)
-            local a = gensym("act")
-            action(a)
-                log("complex condition met")
-                quote("CFL_CONTINUE")
+        
+            local a = action("then")
+                local p = pipeline()
+                    log("complex condition met")
+                    oneshot("CFL_ENABLE_CHILDREN")
+                    quote("SE_CONTINUE")
+                end_pipeline(p)
             end_action(a)
-        end_if_then(n)
-        quote("")
-    end_pipeline("main")
-end_tree("nested_bool_test")
+            
+            local e = action("else")
+                local p1 = pipeline()
+                    log("complex condition not met")
+                    oneshot("CFL_DISABLE_CHILDREN")
+                    quote("SE_HALT")
+                end_pipeline(p1)
+            end_action(e)
+        end_if_then_else(n)  -- Changed from end_if_then
+        
+        quote("SE_HALT")
+    end_pipeline(main_pipeline)
+end_tree(tree1)
 
-
-return end_module("chain_flow_dsl_tests")
+return end_module(mod)

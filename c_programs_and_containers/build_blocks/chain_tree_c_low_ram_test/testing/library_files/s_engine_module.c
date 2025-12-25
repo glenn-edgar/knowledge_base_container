@@ -1,7 +1,7 @@
 // ============================================================================
 // s_engine_module.c
 // Module Management Implementation
-// Version 2.2
+// Version 2.5 - Two-tier architecture: shared module + tree instances
 // ============================================================================
 
 #include "s_engine_module.h"
@@ -11,7 +11,7 @@
 // INTERNAL HELPERS
 // ============================================================================
 
-static void* find_fn(const fn_table_t* table, const char* name) {
+static void* find_fn(const s_expr_fn_table_t* table, const char* name) {
     if (!table || !table->entries) return NULL;
     
     for (uint16_t i = 0; i < table->count; i++) {
@@ -22,314 +22,391 @@ static void* find_fn(const fn_table_t* table, const char* name) {
     return NULL;
 }
 
-static void init_node_states(module_runtime_t* mod) {
-    uint16_t count = mod->active_tree_def->node_count;
-    
-    for (uint16_t i = 0; i < count; i++) {
-        mod->node_states[i].flags = NODE_FLAG_ACTIVE;
-        mod->node_states[i].state = 0;
-        mod->node_states[i].user_data = 0;
+static void init_node_states(s_expr_tree_instance_t* inst) {
+    for (uint16_t i = 0; i < inst->node_count; i++) {
+        inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE;
+        inst->node_states[i].state = 0;
+        inst->node_states[i].user_data = 0;
     }
 }
 
 // ============================================================================
-// MODULE CREATE
+// MODULE CREATE (Step 1)
 // ============================================================================
 
-module_runtime_t* module_create(
-    const module_def_t* def,
-    const module_registry_t* registry,
-    const s_allocator_t* alloc,
+s_expr_module_t* s_expr_module_create(
+    const s_expr_module_def_t* def,
+    const s_expr_allocator_t* alloc,
     void* handle,
     uint16_t ct_node_id
 ) {
-    if (!def) {
-        return NULL;
-    }
-    if (!registry) {
-        return NULL;
-    }
-    if (!alloc || !alloc->malloc || !alloc->free) {
+    if (!def || !alloc || !alloc->malloc || !alloc->free) {
         return NULL;
     }
     
-    // Verify 64-bit mode matches compilation
-    // This catches mismatched header/library combinations
-    #if MODULE_IS_64BIT
-    if (!def->is_64bit) {
-        // Engine compiled for 64-bit, module is 32-bit
-        return NULL;
-    }
-    #else
-    if (def->is_64bit) {
-        // Engine compiled for 32-bit, module is 64-bit
-        return NULL;
-    }
-    #endif
-    
-    // Allocate runtime structure
-    module_runtime_t* mod = (module_runtime_t*)alloc->malloc(
-        handle, ct_node_id, sizeof(module_runtime_t)
+    // Allocate module structure
+    s_expr_module_t* mod = (s_expr_module_t*)alloc->malloc(
+        handle, ct_node_id, sizeof(s_expr_module_t)
     );
     if (!mod) {
         return NULL;
     }
     
     // Zero initialize
-    memset(mod, 0, sizeof(module_runtime_t));
+    memset(mod, 0, sizeof(s_expr_module_t));
     
     mod->def = def;
-    mod->handle = handle;
-    mod->ct_node_id = ct_node_id;
     mod->alloc = *alloc;
-    mod->error_code = MOD_OK;
+    mod->handle = handle;
+    mod->error_code = S_EXPR_MOD_OK;
     
-    // Allocate node states for largest tree
-    mod->node_states = (node_state_t*)alloc->malloc(
-        handle, ct_node_id, def->max_node_count * sizeof(node_state_t)
-    );
-    if (!mod->node_states) {
-        mod->error_code = MOD_ERR_ALLOC;
-        goto fail;
+    // Verify 64-bit mode matches compilation
+    #if MODULE_IS_64BIT
+    if (!def->is_64bit) {
+        mod->error_code = S_EXPR_MOD_ERR_64BIT_MISMATCH;
+        return mod;
     }
+    #else
+    if (def->is_64bit) {
+        mod->error_code = S_EXPR_MOD_ERR_64BIT_MISMATCH;
+        return mod;
+    }
+    #endif
     
-    // Allocate function pointer arrays
+    // Allocate function pointer arrays (all NULL initially)
     if (def->oneshot_count > 0) {
-        mod->oneshot_fns = (oneshot_fn_t*)alloc->malloc(
-            handle, ct_node_id, def->oneshot_count * sizeof(oneshot_fn_t)
+        mod->oneshot_fns = (s_expr_oneshot_fn_t*)alloc->malloc(
+            handle, ct_node_id, def->oneshot_count * sizeof(s_expr_oneshot_fn_t)
         );
         if (!mod->oneshot_fns) {
-            mod->error_code = MOD_ERR_ALLOC;
-            goto fail;
+            mod->error_code = S_EXPR_MOD_ERR_ALLOC;
+            return mod;
         }
+        memset(mod->oneshot_fns, 0, def->oneshot_count * sizeof(s_expr_oneshot_fn_t));
     }
     
     if (def->boolean_count > 0) {
-        mod->boolean_fns = (boolean_fn_t*)alloc->malloc(
-            handle, ct_node_id, def->boolean_count * sizeof(boolean_fn_t)
+        mod->boolean_fns = (s_expr_boolean_fn_t*)alloc->malloc(
+            handle, ct_node_id, def->boolean_count * sizeof(s_expr_boolean_fn_t)
         );
         if (!mod->boolean_fns) {
-            mod->error_code = MOD_ERR_ALLOC;
-            goto fail;
+            mod->error_code = S_EXPR_MOD_ERR_ALLOC;
+            return mod;
         }
+        memset(mod->boolean_fns, 0, def->boolean_count * sizeof(s_expr_boolean_fn_t));
     }
     
     if (def->main_count > 0) {
-        mod->main_fns = (main_fn_t*)alloc->malloc(
-            handle, ct_node_id, def->main_count * sizeof(main_fn_t)
+        mod->main_fns = (s_expr_main_fn_t*)alloc->malloc(
+            handle, ct_node_id, def->main_count * sizeof(s_expr_main_fn_t)
         );
         if (!mod->main_fns) {
-            mod->error_code = MOD_ERR_ALLOC;
-            goto fail;
+            mod->error_code = S_EXPR_MOD_ERR_ALLOC;
+            return mod;
         }
+        memset(mod->main_fns, 0, def->main_count * sizeof(s_expr_main_fn_t));
     }
-    
-    // Resolve oneshot functions
-    for (uint16_t i = 0; i < def->oneshot_count; i++) {
-        const char* name = def->oneshot_names[i];
-        oneshot_fn_t fn = (oneshot_fn_t)find_fn(&registry->oneshot, name);
-        if (!fn) {
-            mod->error_code = MOD_ERR_ONESHOT_NOT_FOUND;
-            mod->error_index = i;
-            mod->error_name = name;
-            goto fail;
-        }
-        mod->oneshot_fns[i] = fn;
-    }
-    
-    // Resolve boolean functions
-    for (uint16_t i = 0; i < def->boolean_count; i++) {
-        const char* name = def->boolean_names[i];
-        boolean_fn_t fn = (boolean_fn_t)find_fn(&registry->boolean, name);
-        if (!fn) {
-            mod->error_code = MOD_ERR_BOOLEAN_NOT_FOUND;
-            mod->error_index = i;
-            mod->error_name = name;
-            goto fail;
-        }
-        mod->boolean_fns[i] = fn;
-    }
-    
-    // Resolve main functions
-    for (uint16_t i = 0; i < def->main_count; i++) {
-        const char* name = def->main_names[i];
-        main_fn_t fn = (main_fn_t)find_fn(&registry->main, name);
-        if (!fn) {
-            mod->error_code = MOD_ERR_MAIN_NOT_FOUND;
-            mod->error_index = i;
-            mod->error_name = name;
-            goto fail;
-        }
-        mod->main_fns[i] = fn;
-    }
-    
-    // Debug is optional
-    mod->debug_fn = registry->debug;
-    
-    // Select first tree by default
-    mod->active_tree = 0;
-    mod->active_tree_def = &def->trees[0];
-    init_node_states(mod);
     
     return mod;
-
-fail:
-    module_destroy(mod);
-    return NULL;
 }
 
 // ============================================================================
-// MODULE DESTROY
+// MODULE LOAD FUNCTIONS (Step 2)
 // ============================================================================
 
-void module_destroy(module_runtime_t* mod) {
+uint16_t s_expr_module_load_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
+    if (!mod || !mod->def || !table || !table->entries) return 0;
+    if (mod->error_code != S_EXPR_MOD_OK) return 0;
+    
+    uint16_t loaded = 0;
+    
+    for (uint16_t i = 0; i < mod->def->oneshot_count; i++) {
+        const char* name = mod->def->oneshot_names[i];
+        s_expr_oneshot_fn_t fn = (s_expr_oneshot_fn_t)find_fn(table, name);
+        if (fn) {
+            mod->oneshot_fns[i] = fn;
+            loaded++;
+        }
+    }
+    
+    return loaded;
+}
+
+uint16_t s_expr_module_load_boolean(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
+    if (!mod || !mod->def || !table || !table->entries) return 0;
+    if (mod->error_code != S_EXPR_MOD_OK) return 0;
+    
+    uint16_t loaded = 0;
+    
+    for (uint16_t i = 0; i < mod->def->boolean_count; i++) {
+        const char* name = mod->def->boolean_names[i];
+        s_expr_boolean_fn_t fn = (s_expr_boolean_fn_t)find_fn(table, name);
+        if (fn) {
+            mod->boolean_fns[i] = fn;
+            loaded++;
+        }
+    }
+    
+    return loaded;
+}
+
+uint16_t s_expr_module_load_main(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
+    if (!mod || !mod->def || !table || !table->entries) return 0;
+    if (mod->error_code != S_EXPR_MOD_OK) return 0;
+    
+    uint16_t loaded = 0;
+    
+    for (uint16_t i = 0; i < mod->def->main_count; i++) {
+        const char* name = mod->def->main_names[i];
+        s_expr_main_fn_t fn = (s_expr_main_fn_t)find_fn(table, name);
+        if (fn) {
+            mod->main_fns[i] = fn;
+            loaded++;
+        }
+    }
+    
+    return loaded;
+}
+
+void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t fn) {
+    if (mod) {
+        mod->debug_fn = fn;
+    }
+}
+
+// ============================================================================
+// MODULE VALIDATE (Step 3)
+// ============================================================================
+
+uint8_t s_expr_module_validate(s_expr_module_t* mod) {
+    if (!mod || !mod->def) return S_EXPR_MOD_ERR_NULL_DEF;
+    
+    // Already has an error from create
+    if (mod->error_code != S_EXPR_MOD_OK) {
+        return mod->error_code;
+    }
+    
+    // Check all oneshot functions resolved
+    for (uint16_t i = 0; i < mod->def->oneshot_count; i++) {
+        if (!mod->oneshot_fns[i]) {
+            mod->error_code = S_EXPR_MOD_ERR_ONESHOT_NOT_FOUND;
+            mod->error_index = i;
+            mod->error_name = mod->def->oneshot_names[i];
+            return mod->error_code;
+        }
+    }
+    
+    // Check all boolean functions resolved
+    for (uint16_t i = 0; i < mod->def->boolean_count; i++) {
+        if (!mod->boolean_fns[i]) {
+            mod->error_code = S_EXPR_MOD_ERR_BOOLEAN_NOT_FOUND;
+            mod->error_index = i;
+            mod->error_name = mod->def->boolean_names[i];
+            return mod->error_code;
+        }
+    }
+    
+    // Check all main functions resolved
+    for (uint16_t i = 0; i < mod->def->main_count; i++) {
+        if (!mod->main_fns[i]) {
+            mod->error_code = S_EXPR_MOD_ERR_MAIN_NOT_FOUND;
+            mod->error_index = i;
+            mod->error_name = mod->def->main_names[i];
+            return mod->error_code;
+        }
+    }
+    
+    return S_EXPR_MOD_OK;
+}
+
+// ============================================================================
+// MODULE DEINIT
+// ============================================================================
+
+void s_expr_module_deinit(s_expr_module_t* mod) {
     if (!mod) return;
     
-    s_free_fn_t free_fn = mod->alloc.free;
+    s_expr_free_fn_t free_fn = mod->alloc.free;
     void* handle = mod->handle;
-    uint16_t ct_node_id = mod->ct_node_id;
     
     if (mod->oneshot_fns) {
-        free_fn(handle, ct_node_id, mod->oneshot_fns);
+        free_fn(handle, 0, mod->oneshot_fns);
     }
     if (mod->boolean_fns) {
-        free_fn(handle, ct_node_id, mod->boolean_fns);
+        free_fn(handle, 0, mod->boolean_fns);
     }
     if (mod->main_fns) {
-        free_fn(handle, ct_node_id, mod->main_fns);
-    }
-    if (mod->node_states) {
-        free_fn(handle, ct_node_id, mod->node_states);
+        free_fn(handle, 0, mod->main_fns);
     }
     
-    free_fn(handle, ct_node_id, mod);
+    free_fn(handle, 0, mod);
 }
 
 // ============================================================================
-// TREE SELECTION
+// TREE LOOKUP
 // ============================================================================
 
-bool module_select_tree(module_runtime_t* mod, uint16_t tree_index) {
-    if (!mod) return false;
-    
-    if (tree_index >= mod->def->tree_count) {
-        mod->error_code = MOD_ERR_INVALID_TREE;
-        return false;
-    }
-    
-    mod->active_tree = tree_index;
-    mod->active_tree_def = &mod->def->trees[tree_index];
-    init_node_states(mod);
-    mod->error_code = MOD_OK;
-    
-    return true;
-}
-
-bool module_select_tree_by_name(module_runtime_t* mod, const char* name) {
-    if (!mod || !name) return false;
+int16_t s_expr_module_find_tree(const s_expr_module_t* mod, const char* name) {
+    if (!mod || !mod->def || !name) return -1;
     
     for (uint16_t i = 0; i < mod->def->tree_count; i++) {
         if (strcmp(mod->def->trees[i].name, name) == 0) {
-            return module_select_tree(mod, i);
+            return (int16_t)i;
         }
     }
     
-    mod->error_code = MOD_ERR_INVALID_TREE;
-    return false;
-}
-
-void module_reset(module_runtime_t* mod) {
-    if (!mod) return;
-    init_node_states(mod);
+    return -1;
 }
 
 // ============================================================================
-// ACCESSORS
+// TREE INSTANCE CREATE
 // ============================================================================
 
-node_state_t* module_get_state(module_runtime_t* mod, uint16_t node_index) {
-    if (!mod) return NULL;
-    if (node_index >= mod->active_tree_def->node_count) return NULL;
-    return &mod->node_states[node_index];
+s_expr_tree_instance_t* s_expr_tree_create_by_index(
+    s_expr_module_t* mod,
+    uint16_t tree_index,
+    void* handle,
+    uint16_t ct_node_id
+) {
+    if (!mod || !mod->def) return NULL;
+    if (tree_index >= mod->def->tree_count) return NULL;
+    if (mod->error_code != S_EXPR_MOD_OK) return NULL;  // Don't create if module has errors
+    
+    const s_expr_tree_def_t* tree_def = &mod->def->trees[tree_index];
+    
+    // Allocate instance structure using the node's handle
+    s_expr_tree_instance_t* inst = (s_expr_tree_instance_t*)mod->alloc.malloc(
+        handle, ct_node_id, sizeof(s_expr_tree_instance_t)
+    );
+    if (!inst) return NULL;
+    
+    // Zero initialize
+    memset(inst, 0, sizeof(s_expr_tree_instance_t));
+    
+    inst->module = mod;
+    inst->tree_index = tree_index;
+    inst->tree_def = tree_def;
+    inst->node_count = tree_def->node_count;
+    inst->handle = handle;
+    inst->ct_node_id = ct_node_id;
+    
+    // Allocate node states sized to THIS tree (not max)
+    inst->node_states = (s_expr_node_state_t*)mod->alloc.malloc(
+        handle, ct_node_id, 
+        tree_def->node_count * sizeof(s_expr_node_state_t)
+    );
+    if (!inst->node_states) {
+        mod->alloc.free(handle, ct_node_id, inst);
+        return NULL;
+    }
+    
+    // Initialize node states
+    init_node_states(inst);
+    
+    return inst;
 }
 
-const char* module_get_string(module_runtime_t* mod, uint16_t str_index) {
-    if (!mod) return NULL;
-    if (str_index >= mod->def->string_count) return NULL;
-    return mod->def->strings[str_index];
+s_expr_tree_instance_t* s_expr_tree_create(
+    s_expr_module_t* mod,
+    const char* tree_name,
+    void* handle,
+    uint16_t ct_node_id
+) {
+    int16_t idx = s_expr_module_find_tree(mod, tree_name);
+    if (idx < 0) return NULL;
+    
+    return s_expr_tree_create_by_index(mod, (uint16_t)idx, handle, ct_node_id);
 }
 
-const param_t* module_get_params(module_runtime_t* mod, const node_t* node) {
-    if (!mod || !node) return NULL;
-    return &mod->active_tree_def->params[node->param_offset];
+// ============================================================================
+// TREE INSTANCE DESTROY
+// ============================================================================
+
+void s_expr_tree_destroy(s_expr_tree_instance_t* inst) {
+    if (!inst) return;
+    
+    s_expr_module_t* mod = inst->module;
+    void* handle = inst->handle;
+    uint16_t ct_node_id = inst->ct_node_id;
+    
+    if (inst->node_states) {
+        mod->alloc.free(handle, ct_node_id, inst->node_states);
+    }
+    
+    mod->alloc.free(handle, ct_node_id, inst);
 }
 
-const char* module_active_tree_name(module_runtime_t* mod) {
-    if (!mod) return NULL;
-    return mod->active_tree_def->name;
-}
+// ============================================================================
+// TREE INSTANCE RESET
+// ============================================================================
 
-uint16_t module_active_node_count(module_runtime_t* mod) {
-    if (!mod) return 0;
-    return mod->active_tree_def->node_count;
+void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
+    if (!inst) return;
+    init_node_states(inst);
 }
 
 // ============================================================================
 // FUNCTION INVOCATION HELPERS
 // ============================================================================
 
-void module_call_oneshot(
-    module_runtime_t* mod,
+void s_expr_call_oneshot(
+    s_expr_tree_instance_t* inst,
     uint16_t fn_index,
-    const node_t* node,
-    node_state_t* state,
-    uint16_t event_id,
-    void* event_data,
-    const param_t* params,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
     uint8_t param_count
 ) {
-    if (!mod) return;
-    if (fn_index >= mod->def->oneshot_count) return;
-    if (!mod->oneshot_fns[fn_index]) return;
+    if (!inst || !inst->module) return;
+    if (fn_index >= inst->module->def->oneshot_count) return;
+    if (!inst->module->oneshot_fns[fn_index]) return;
     
-    mod->oneshot_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+    inst->module->oneshot_fns[fn_index](
+        inst, node, state,
+        inst->current_event, inst->event_data,
+        params, param_count
+    );
 }
 
-bool module_call_boolean(
-    module_runtime_t* mod,
+bool s_expr_call_boolean(
+    s_expr_tree_instance_t* inst,
     uint16_t fn_index,
-    const node_t* node,
-    node_state_t* state,
-    uint16_t event_id,
-    void* event_data,
-    const param_t* params,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
     uint8_t param_count
 ) {
-    if (!mod) return false;
-    if (fn_index >= mod->def->boolean_count) return false;
-    if (!mod->boolean_fns[fn_index]) return false;
+    if (!inst || !inst->module) return false;
+    if (fn_index >= inst->module->def->boolean_count) return false;
+    if (!inst->module->boolean_fns[fn_index]) return false;
     
-    return mod->boolean_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+    return inst->module->boolean_fns[fn_index](
+        inst, node, state,
+        inst->current_event, inst->event_data,
+        params, param_count
+    );
 }
 
-cfl_code_t module_call_main(
-    module_runtime_t* mod,
+s_expr_result_t s_expr_call_main(
+    s_expr_tree_instance_t* inst,
     uint16_t fn_index,
-    const node_t* node,
-    node_state_t* state,
-    uint16_t event_id,
-    void* event_data,
-    const param_t* params,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
     uint8_t param_count
 ) {
-    if (!mod) return CFL_TERMINATE;
-    if (fn_index >= mod->def->main_count) return CFL_TERMINATE;
-    if (!mod->main_fns[fn_index]) return CFL_TERMINATE;
+    if (!inst || !inst->module) return SE_TERMINATE;
+    if (fn_index >= inst->module->def->main_count) return SE_TERMINATE;
+    if (!inst->module->main_fns[fn_index]) return SE_TERMINATE;
     
-    return mod->main_fns[fn_index](mod, node, state, event_id, event_data, params, param_count);
+    return inst->module->main_fns[fn_index](
+        inst, node, state,
+        inst->current_event, inst->event_data,
+        params, param_count
+    );
 }
 
-void module_call_debug(module_runtime_t* mod, const char* message) {
-    if (!mod || !mod->debug_fn) return;
-    mod->debug_fn(mod, message);
+void s_expr_call_debug(s_expr_tree_instance_t* inst, const char* message) {
+    if (!inst || !inst->module || !inst->module->debug_fn) return;
+    inst->module->debug_fn(inst, message);
 }

@@ -5,6 +5,10 @@
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
 #include "cfl_exception.h"
+#include "s_engine_types.h"
+#include "chain_flow_dsl_tests.h"
+#include "cfl_s_engine_interface.h"
+
 static cfl_perm_t perm;
 static char perm_buffer[0xffff];
 
@@ -64,6 +68,9 @@ int main(void) {
     }
    
     cfl_runtime_reset(handle);
+    cfl_initialize_s_engine(handle, &chain_flow_dsl_tests_module);
+    cfl_s_engine_module_check(handle);
+    
     
     #if 0
     if (!cfl_add_test_by_index(handle, test_index)) {
@@ -99,6 +106,7 @@ int main(void) {
     //cfl_add_test_by_index(handle, 22); //twenty-sixth test
     //cfl_add_test_by_index(handle, 23); //twenty-seventh test
     //cfl_add_test_by_index(handle, 24); //twenty-eighth test
+    cfl_add_test_by_index(handle, 25); //twenty-ninth test
     printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
     printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));
     bool result = cfl_runtime_run(handle);

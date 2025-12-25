@@ -12,6 +12,7 @@ extern "C" {
 #include "cfl_timer_system.h"
 #include "chaintree_support.h"
 #include "CT_Tree_Walker.h"
+#include "s_engine_types.h"
 
 typedef enum {
     CFL_INIT_EVENT = 0,
@@ -117,6 +118,7 @@ struct CFL_RUNTIME_HANDLE {
     double future_time_stamp;
     main_function_data_t *main_function_data;
     const chaintree_handle_t* flash_handle;
+    s_expr_module_t *s_expr_module_ptr;
 };
 
 void cfl_engine_create(cfl_runtime_handle_t *handle);

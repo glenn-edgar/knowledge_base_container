@@ -25,7 +25,8 @@ void cfl_enable_all_nodes(cfl_runtime_handle_t *handle, uint16_t node_index);
 unsigned cfl_verify_active_children(cfl_runtime_handle_t *handle, uint16_t node_index);
 unsigned cfl_verify_active_children_a(cfl_runtime_handle_t *handle, uint16_t node_index);
 void cfl_stop_start_tests(cfl_runtime_handle_t *handle,  cfl_start_stop_tests_fn_data_t *ptr);
-
+void cfl_enable_all_children(cfl_runtime_handle_t *handle, uint16_t node_index);
+void cfl_disable_all_children(cfl_runtime_handle_t *handle, uint16_t node_index);
 
 #ifdef __cplusplus
 }

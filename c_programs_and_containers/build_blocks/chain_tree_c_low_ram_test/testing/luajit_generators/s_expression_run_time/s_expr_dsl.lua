@@ -1,12 +1,28 @@
 --============================================================================
 -- CHAINTREE S-EXPRESSION DSL
--- Version 2.2 - Brace index matching, PARAM_OPEN_CALL for callable S-exprs
+-- Version 2.5 - Two-tier architecture, s_expr_ type prefixes
 --============================================================================
 
 local ffi = require("ffi")
 local bit = require("bit")
 
 local lua_debug = debug
+
+--============================================================================
+-- GENSYM - Unique symbol generator
+--============================================================================
+
+local _gensym_counter = 0
+
+function gensym(prefix)
+    _gensym_counter = _gensym_counter + 1
+    return (prefix or "g") .. "_" .. _gensym_counter
+end
+
+-- Reset counter (useful for testing)
+function gensym_reset()
+    _gensym_counter = 0
+end
 
 --============================================================================
 -- CONSTANTS
@@ -34,15 +50,18 @@ local OPCODES = {
     dbg      = 0x0A,
     clause   = 0x0B,
     case     = 0x0C,
+    ["xor"]  = 0x0D,
+    ["nand"] = 0x0E,
+    ["nor"]  = 0x0F,
 }
 
 local CONTROL_CODES = {
-    CFL_CONTINUE           = 0,
-    CFL_HALT               = 1,
-    CFL_TERMINATE          = 2,
-    CFL_RESET              = 3,
-    CFL_DISABLE            = 4,
-    CFL_FUNCTION_TERMINATE = 5,
+    SE_CONTINUE           = 0,
+    SE_HALT               = 1,
+    SE_TERMINATE          = 2,
+    SE_RESET              = 3,
+    SE_DISABLE            = 4,
+    SE_FUNCTION_TERMINATE = 5,
 }
 
 local NODE_TYPES = {
@@ -59,6 +78,9 @@ local NODE_TYPES = {
     AND         = "and",
     OR          = "or",
     NOT         = "not",
+    XOR         = "xor",
+    NAND        = "nand",
+    NOR         = "nor",
     CLAUSE      = "clause",
     CASE        = "case",
     CONDITION   = "condition",
@@ -426,10 +448,9 @@ end
 -- TEST/MODULE WRAPPERS
 --============================================================================
 
-function start_test(name)
-    if type(name) ~= "string" then
-        error("[DSL ERROR] start_test() requires string name", 2)
-    end
+function start_test(prefix)
+    prefix = prefix or "test"
+    local name = gensym(prefix)
     
     _state = {
         stack = {},
@@ -440,6 +461,8 @@ function start_test(name)
         is_64bit = _module.is_64bit,
         brace_depth = 0,
     }
+    
+    return name
 end
 
 function end_test(name)
@@ -472,10 +495,9 @@ function end_test(name)
     return TreeGenerator.new(name, _state.root, _state.tables, _state.is_64bit)
 end
 
-function start_module(name, opts)
-    if type(name) ~= "string" then
-        error("[DSL ERROR] start_module() requires string name", 2)
-    end
+function start_module(prefix, opts)
+    prefix = prefix or "module"
+    local name = gensym(prefix)
     
     opts = opts or {}
     
@@ -487,12 +509,13 @@ function start_module(name, opts)
         current_tree = nil,
         is_64bit = opts.is_64bit or false,
     }
+    
+    return name
 end
 
-function start_tree(name)
-    if type(name) ~= "string" then
-        error("[DSL ERROR] start_tree() requires string name", 2)
-    end
+function start_tree(prefix)
+    prefix = prefix or "tree"
+    local name = gensym(prefix)
     
     if not _module.name then
         error("[DSL ERROR] start_tree() must be inside start_module()", 2)
@@ -513,6 +536,8 @@ function start_tree(name)
         is_64bit = _module.is_64bit,
         brace_depth = 0,
     }
+    
+    return name
 end
 
 function end_tree(name)
@@ -545,6 +570,8 @@ function end_tree(name)
     _module.trees[name] = _state.root
     table.insert(_module.tree_order, name)
     _module.current_tree = nil
+    
+    return name
 end
 
 function end_module(name)
@@ -637,15 +664,15 @@ function quote(code)
 end
 
 --============================================================================
--- COMPOSITE NODES
+-- COMPOSITE NODES - All return gensym'd name
 --============================================================================
 
-function pipeline(name)
-    if type(name) ~= "string" then
-        dsl_error("pipeline() requires name")
-    end
+function pipeline(prefix)
+    prefix = prefix or "pipeline"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "pipeline")
     start_composite(NODE_TYPES.PIPELINE, name, CONTEXTS.CONTROL_FLOW)
+    return name
 end
 
 function end_pipeline(name)
@@ -660,15 +687,15 @@ function end_pipeline(name)
     end
 end
 
-function if_then(name)
-    if type(name) ~= "string" then
-        dsl_error("if_then() requires name")
-    end
+function if_then(prefix)
+    prefix = prefix or "if"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "if_then")
     start_composite(NODE_TYPES.IF, name, CONTEXTS.CONDITION, function(n)
         n.condition = nil
         n.then_action = nil
     end)
+    return name
 end
 
 function end_if_then(name)
@@ -686,16 +713,16 @@ function end_if_then(name)
     end
 end
 
-function if_then_else(name)
-    if type(name) ~= "string" then
-        dsl_error("if_then_else() requires name")
-    end
+function if_then_else(prefix)
+    prefix = prefix or "if_else"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "if_then_else")
     start_composite(NODE_TYPES.IF_ELSE, name, CONTEXTS.CONDITION, function(n)
         n.condition = nil
         n.then_action = nil
         n.else_action = nil
     end)
+    return name
 end
 
 function end_if_then_else(name)
@@ -716,14 +743,14 @@ function end_if_then_else(name)
     end
 end
 
-function cond(name)
-    if type(name) ~= "string" then
-        dsl_error("cond() requires name")
-    end
+function cond(prefix)
+    prefix = prefix or "cond"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "cond")
     start_composite(NODE_TYPES.COND, name, CONTEXTS.CLAUSE_LIST, function(n)
         n.clauses = {}
     end)
+    return name
 end
 
 function end_cond(name)
@@ -738,16 +765,16 @@ function end_cond(name)
     end
 end
 
-function clause(name)
-    if type(name) ~= "string" then
-        dsl_error("clause() requires name")
-    end
+function clause(prefix)
+    prefix = prefix or "clause"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CLAUSE_LIST}, "clause")
     
     local node = stack_push(NODE_TYPES.CLAUSE, name, CONTEXTS.CONDITION)
     node.condition = nil
     node.action = nil
     node.is_default = false
+    return name
 end
 
 function end_clause(name)
@@ -768,16 +795,16 @@ function end_clause(name)
     table.insert(parent.clauses, node)
 end
 
-function default_clause(name)
-    if type(name) ~= "string" then
-        dsl_error("default_clause() requires name")
-    end
+function default_clause(prefix)
+    prefix = prefix or "default_clause"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CLAUSE_LIST}, "default_clause")
     
     local node = stack_push(NODE_TYPES.CLAUSE, name, CONTEXTS.ACTION)
     node.condition = nil
     node.action = nil
     node.is_default = true
+    return name
 end
 
 function end_default_clause(name)
@@ -795,18 +822,18 @@ function end_default_clause(name)
     table.insert(parent.clauses, node)
 end
 
-function dispatch(name, key)
-    if type(name) ~= "string" then
-        dsl_error("dispatch() requires name")
-    end
+function dispatch(key, prefix)
     if type(key) ~= "string" then
-        dsl_error("dispatch() requires key parameter")
+        dsl_error("dispatch() requires key parameter as first argument")
     end
+    prefix = prefix or "dispatch"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "dispatch")
     start_composite(NODE_TYPES.DISPATCH, name, CONTEXTS.CASE_LIST, function(n)
         n.key = key
         n.cases = {}
     end)
+    return name
 end
 
 function end_dispatch(name)
@@ -821,19 +848,19 @@ function end_dispatch(name)
     end
 end
 
-function case(name, pattern)
-    if type(name) ~= "string" then
-        dsl_error("case() requires name")
-    end
+function case(pattern, prefix)
     if pattern == nil then
-        dsl_error("case() requires pattern")
+        dsl_error("case() requires pattern as first argument")
     end
+    prefix = prefix or "case"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CASE_LIST}, "case")
     
     local node = stack_push(NODE_TYPES.CASE, name, CONTEXTS.ACTION)
     node.pattern = pattern
     node.action = nil
     node.is_default = false
+    return name
 end
 
 function end_case(name)
@@ -851,16 +878,16 @@ function end_case(name)
     table.insert(parent.cases, node)
 end
 
-function default_case(name)
-    if type(name) ~= "string" then
-        dsl_error("default_case() requires name")
-    end
+function default_case(prefix)
+    prefix = prefix or "default_case"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CASE_LIST}, "default_case")
     
     local node = stack_push(NODE_TYPES.CASE, name, CONTEXTS.ACTION)
     node.pattern = nil
     node.action = nil
     node.is_default = true
+    return name
 end
 
 function end_default_case(name)
@@ -878,14 +905,14 @@ function end_default_case(name)
     table.insert(parent.cases, node)
 end
 
-function condition(name)
-    if type(name) ~= "string" then
-        dsl_error("condition() requires name")
-    end
+function condition(prefix)
+    prefix = prefix or "cond"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONDITION}, "condition")
     
     local node = stack_push(NODE_TYPES.CONDITION, name, CONTEXTS.BOOLEAN)
     node.expr = nil
+    return name
 end
 
 function end_condition(name)
@@ -911,13 +938,13 @@ function end_condition(name)
     end
 end
 
-function action(name)
-    if type(name) ~= "string" then
-        dsl_error("action() requires name")
-    end
+function action(prefix)
+    prefix = prefix or "action"
+    local name = gensym(prefix)
     check_context({CONTEXTS.ACTION, CONTEXTS.CONDITION}, "action")
     
     stack_push(NODE_TYPES.ACTION, name, CONTEXTS.CONTROL_FLOW)
+    return name
 end
 
 function end_action(name)
@@ -950,12 +977,12 @@ function end_action(name)
     end
 end
 
-function bool_and(name)
-    if type(name) ~= "string" then
-        dsl_error("bool_and() requires name")
-    end
+function bool_and(prefix)
+    prefix = prefix or "and"
+    local name = gensym(prefix)
     check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_and")
     start_composite(NODE_TYPES.AND, name, CONTEXTS.BOOLEAN)
+    return name
 end
 
 function end_bool_and(name)
@@ -970,12 +997,12 @@ function end_bool_and(name)
     end
 end
 
-function bool_or(name)
-    if type(name) ~= "string" then
-        dsl_error("bool_or() requires name")
-    end
+function bool_or(prefix)
+    prefix = prefix or "or"
+    local name = gensym(prefix)
     check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_or")
     start_composite(NODE_TYPES.OR, name, CONTEXTS.BOOLEAN)
+    return name
 end
 
 function end_bool_or(name)
@@ -990,12 +1017,12 @@ function end_bool_or(name)
     end
 end
 
-function bool_not(name)
-    if type(name) ~= "string" then
-        dsl_error("bool_not() requires name")
-    end
+function bool_not(prefix)
+    prefix = prefix or "not"
+    local name = gensym(prefix)
     check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_not")
     start_composite(NODE_TYPES.NOT, name, CONTEXTS.BOOLEAN)
+    return name
 end
 
 function end_bool_not(name)
@@ -1010,17 +1037,77 @@ function end_bool_not(name)
     end
 end
 
-function dbg(name, message)
+function bool_xor(prefix)
+    prefix = prefix or "xor"
+    local name = gensym(prefix)
+    check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_xor")
+    start_composite(NODE_TYPES.XOR, name, CONTEXTS.BOOLEAN)
+    return name
+end
+
+function end_bool_xor(name)
     if type(name) ~= "string" then
-        dsl_error("dbg() requires name")
+        dsl_error("end_bool_xor() requires name")
     end
+    
+    local node = stack_pop(NODE_TYPES.XOR, name)
+    
+    if #node.children < 2 then
+        dsl_error(string.format("bool_xor('%s') requires at least 2 children", name))
+    end
+end
+
+function bool_nand(prefix)
+    prefix = prefix or "nand"
+    local name = gensym(prefix)
+    check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_nand")
+    start_composite(NODE_TYPES.NAND, name, CONTEXTS.BOOLEAN)
+    return name
+end
+
+function end_bool_nand(name)
+    if type(name) ~= "string" then
+        dsl_error("end_bool_nand() requires name")
+    end
+    
+    local node = stack_pop(NODE_TYPES.NAND, name)
+    
+    if #node.children < 2 then
+        dsl_error(string.format("bool_nand('%s') requires at least 2 children", name))
+    end
+end
+
+function bool_nor(prefix)
+    prefix = prefix or "nor"
+    local name = gensym(prefix)
+    check_context({CONTEXTS.BOOLEAN, CONTEXTS.CONDITION}, "bool_nor")
+    start_composite(NODE_TYPES.NOR, name, CONTEXTS.BOOLEAN)
+    return name
+end
+
+function end_bool_nor(name)
+    if type(name) ~= "string" then
+        dsl_error("end_bool_nor() requires name")
+    end
+    
+    local node = stack_pop(NODE_TYPES.NOR, name)
+    
+    if #node.children < 2 then
+        dsl_error(string.format("bool_nor('%s') requires at least 2 children", name))
+    end
+end
+
+function dbg(message, prefix)
     if type(message) ~= "string" then
-        dsl_error("dbg() requires message string")
+        dsl_error("dbg() requires message string as first argument")
     end
+    prefix = prefix or "dbg"
+    local name = gensym(prefix)
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "dbg")
     start_composite(NODE_TYPES.DEBUG, name, CONTEXTS.CONTROL_FLOW, function(n)
         n.message = message
     end)
+    return name
 end
 
 function end_dbg(name)
@@ -1162,6 +1249,9 @@ function TreeGenerator:get_node_children(node)
     elseif t == NODE_TYPES.AND or t == NODE_TYPES.OR then
         children = node.children
         
+    elseif t == NODE_TYPES.XOR or t == NODE_TYPES.NAND or t == NODE_TYPES.NOR then
+        children = node.children
+        
     elseif t == NODE_TYPES.NOT then
         children = node.children
         
@@ -1261,6 +1351,15 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         
     elseif t == NODE_TYPES.NOT then
         n.type = TABLE_OPCODE + OPCODES["not"]
+        
+    elseif t == NODE_TYPES.XOR then
+        n.type = TABLE_OPCODE + OPCODES["xor"]
+        
+    elseif t == NODE_TYPES.NAND then
+        n.type = TABLE_OPCODE + OPCODES["nand"]
+        
+    elseif t == NODE_TYPES.NOR then
+        n.type = TABLE_OPCODE + OPCODES["nor"]
         
     elseif t == NODE_TYPES.DEBUG then
         n.type = TABLE_OPCODE + OPCODES.dbg
@@ -1474,7 +1573,7 @@ function ModuleGenerator:to_c_header(base_name)
     -- Header
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_module.h")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.2")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.5")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1499,7 +1598,7 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "#define CT_TYPES_DEFINED 1")
     table.insert(lines, "")
     
-    -- Include engine types (defines param_t, node_t, PARAM_* constants, etc.)
+    -- Include engine types (defines s_expr_param_t, s_expr_node_t, S_EXPR_PARAM_* constants, etc.)
     table.insert(lines, '#include "s_engine_types.h"')
     table.insert(lines, "")
     
@@ -1539,43 +1638,43 @@ function ModuleGenerator:to_c_header(base_name)
         
         -- Parameters for this tree
         if #params > 0 then
-            table.insert(lines, "static const param_t " .. tree_prefix .. "_params[] = {")
+            table.insert(lines, "static const s_expr_param_t " .. tree_prefix .. "_params[] = {")
             for idx, p in ipairs(params) do
-                local type_str = "PARAM_INT"
+                local type_str = "S_EXPR_PARAM_INT"
                 local val_str = ""
                 local comment = ""
                 if p.type == PARAM_INT then
-                    type_str = "PARAM_INT"
-                    val_str = string.format(".i = %d%s", p.value, int_suffix)
+                    type_str = "S_EXPR_PARAM_INT"
+                    val_str = string.format(".reserved = {0}, .i = %d%s", p.value, int_suffix)
                 elseif p.type == PARAM_UINT then
-                    type_str = "PARAM_UINT"
-                    val_str = string.format(".u = %u%s", p.value, uint_suffix)
+                    type_str = "S_EXPR_PARAM_UINT"
+                    val_str = string.format(".reserved = {0}, .u = %u%s", p.value, uint_suffix)
                 elseif p.type == PARAM_FLOAT then
-                    type_str = "PARAM_FLOAT"
-                    val_str = string.format(".f = %g%s", p.value, float_suffix)
+                    type_str = "S_EXPR_PARAM_FLOAT"
+                    val_str = string.format(".reserved = {0}, .f = %g%s", p.value, float_suffix)
                 elseif p.type == PARAM_STRING then
-                    type_str = "PARAM_STRING"
-                    val_str = string.format(".str_index = %d", p.value)
+                    type_str = "S_EXPR_PARAM_STRING"
+                    val_str = string.format(".reserved = {0}, .str_index = %d", p.value)
                 elseif p.type == PARAM_MAIN then
-                    type_str = "PARAM_MAIN"
-                    val_str = string.format(".func_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_MAIN"
+                    val_str = string.format(".reserved = {0}, .func_idx = %d", p.value)
                 elseif p.type == PARAM_ONESHOT then
-                    type_str = "PARAM_ONESHOT"
-                    val_str = string.format(".func_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_ONESHOT"
+                    val_str = string.format(".reserved = {0}, .func_idx = %d", p.value)
                 elseif p.type == PARAM_PRED then
-                    type_str = "PARAM_PRED"
-                    val_str = string.format(".func_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_PRED"
+                    val_str = string.format(".reserved = {0}, .func_idx = %d", p.value)
                 elseif p.type == PARAM_OPEN then
-                    type_str = "PARAM_OPEN"
-                    val_str = string.format(".brace_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_OPEN"
+                    val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
                     comment = string.format("  // closes at [%d]", p.value)
                 elseif p.type == PARAM_OPEN_CALL then
-                    type_str = "PARAM_OPEN_CALL"
-                    val_str = string.format(".brace_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_OPEN_CALL"
+                    val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
                     comment = string.format("  // callable, closes at [%d]", p.value)
                 elseif p.type == PARAM_CLOSE then
-                    type_str = "PARAM_CLOSE"
-                    val_str = string.format(".brace_idx = %d", p.value)
+                    type_str = "S_EXPR_PARAM_CLOSE"
+                    val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
                     comment = string.format("  // opens at [%d]", p.value)
                 end
                 table.insert(lines, string.format("    { .type = %s, %s },%s  // [%d]", 
@@ -1583,13 +1682,13 @@ function ModuleGenerator:to_c_header(base_name)
             end
             table.insert(lines, "};")
         else
-            table.insert(lines, "static const param_t* " .. tree_prefix .. "_params = NULL;")
+            table.insert(lines, "static const s_expr_param_t* " .. tree_prefix .. "_params = NULL;")
         end
         table.insert(lines, "#define " .. string.upper(tree_prefix) .. "_PARAM_COUNT " .. #params)
         table.insert(lines, "")
         
         -- Nodes for this tree
-        table.insert(lines, "static const node_t " .. tree_prefix .. "_nodes[] = {")
+        table.insert(lines, "static const s_expr_node_t " .. tree_prefix .. "_nodes[] = {")
         for i, n in ipairs(nodes) do
             local comment = string.format("// [%d]", i - 1)
             table.insert(lines, string.format(
@@ -1614,7 +1713,7 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     
-    table.insert(lines, "static const tree_def_t " .. prefix .. "_trees[] = {")
+    table.insert(lines, "static const s_expr_tree_def_t " .. prefix .. "_trees[] = {")
     for _, tree_name in ipairs(self.tree_order) do
         local tree_prefix = prefix .. "_" .. tree_name
         local gen = self.tree_generators[tree_name]
@@ -1644,7 +1743,7 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     
-    table.insert(lines, "static const module_def_t " .. prefix .. "_module = {")
+    table.insert(lines, "static const s_expr_module_def_t " .. prefix .. "_module = {")
     table.insert(lines, '    .name = "' .. self.name .. '",')
     table.insert(lines, '    .trees = ' .. prefix .. '_trees,')
     table.insert(lines, '    .tree_count = ' .. #self.tree_order .. ',')
@@ -1963,8 +2062,8 @@ function ModuleGenerator:dump()
         for i, n in ipairs(nodes) do
             print(string.format(
                 "  [%d] type=0x%02X children=%d first=%d next=%d fn=%d params=%d+%d",
-                i - 1, n.type, n.child_count, n.first_child, n.next_sibling,
-                n.fn_index, n.param_offset, n.param_count
+                i - 1, n.type or 0, n.child_count or 0, n.first_child or 0xFFFF, n.next_sibling or 0xFFFF,
+                n.fn_index or 0, n.param_offset or 0, n.param_count or 0
             ))
         end
     end
@@ -1974,4 +2073,4 @@ end
 -- EXPORT
 --============================================================================
 
-print("ChainTree S-Expression DSL v2.2 loaded (brace index matching, PARAM_OPEN_CALL)")
+print("ChainTree S-Expression DSL v2.5 loaded (two-tier architecture, s_expr_ types)")
