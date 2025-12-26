@@ -1,0 +1,58 @@
+#include "cfl_s_boolean_functions.h"
+
+#include "cfl_runtime.h"
+#include "cfl_engine.h"
+#include "s_engine_module.h"
+#include "s_engine_eval.h"
+#include "json_node_decoder.h"
+
+// ============================================================================
+// BOOLEAN FUNCTIONS (?)
+// ============================================================================
+
+static bool cfl_read_bit(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)node; (void)state; (void)event_id; (void)event_data;
+    
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)inst->handle;
+    
+    if (param_count < 1) {
+        EXCEPTION("cfl_read_bit: Invalid parameter count");
+        return false;
+    }
+    
+    if (params[0].type != S_EXPR_PARAM_INT && params[0].type != S_EXPR_PARAM_UINT) {
+        EXCEPTION("cfl_read_bit: Expected integer parameter");
+        return false;
+    }
+    
+    uint32_t bit_index = (uint32_t)s_expr_param_get_uint(&params[0]);
+    
+    if (bit_index >= 32) {
+        EXCEPTION("cfl_read_bit: Bit index out of range");
+        return false;
+    }
+    
+    uint32_t bit_mask = 1U << bit_index;
+    return (runtime_handle->bitmask & bit_mask) != 0;
+}
+
+// ============================================================================
+// FUNCTION TABLE
+// ============================================================================
+
+static const s_expr_fn_entry_t cfl_boolean_entries[] = {
+    { "CFL_READ_BIT", (void*)cfl_read_bit },
+};
+
+// ============================================================================
+// PUBLIC API
+// ============================================================================
+
+const s_expr_fn_entry_t* cfl_get_boolean_entries(uint16_t* count) {
+    *count = sizeof(cfl_boolean_entries) / sizeof(cfl_boolean_entries[0]);
+    return cfl_boolean_entries;
+}
