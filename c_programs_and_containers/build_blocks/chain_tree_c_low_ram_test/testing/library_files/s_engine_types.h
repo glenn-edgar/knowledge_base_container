@@ -1,7 +1,7 @@
 // ============================================================================
 // s_engine_types.h
 // S-Expression Engine Type Definitions
-// Version 2.5 - Two-tier architecture: shared module + tree instances
+// Version 2.7 - Added lifecycle events (init/terminate), reserved flag bits
 // ============================================================================
 //
 // ARCHITECTURE:
@@ -20,6 +20,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ============================================================================
 // 64-BIT CONFIGURATION
@@ -66,6 +70,13 @@ typedef enum {
 } s_expr_result_t;
 
 // ============================================================================
+// LIFECYCLE EVENTS
+// ============================================================================
+
+#define S_EXPR_EVENT_INIT       0xFFFE  // Sent on first execution (before normal event)
+#define S_EXPR_EVENT_TERMINATE  0xFFFF  // Sent before node is disabled/reset
+
+// ============================================================================
 // TABLE SELECTORS (upper 2 bits of node type)
 // ============================================================================
 
@@ -110,6 +121,7 @@ typedef enum {
 #define S_EXPR_PARAM_OPEN      0x07
 #define S_EXPR_PARAM_CLOSE     0x08
 #define S_EXPR_PARAM_OPEN_CALL 0x09
+#define S_EXPR_PARAM_SLOT      0x0A
 
 // ============================================================================
 // PARAMETER TYPE PREDICATES
@@ -120,6 +132,7 @@ typedef enum {
 #define S_EXPR_PARAM_IS_BRACE(t)     ((t) >= S_EXPR_PARAM_OPEN && (t) <= S_EXPR_PARAM_OPEN_CALL)
 #define S_EXPR_PARAM_IS_OPEN(t)      ((t) == S_EXPR_PARAM_OPEN || (t) == S_EXPR_PARAM_OPEN_CALL)
 #define S_EXPR_PARAM_IS_CALLABLE(t)  ((t) == S_EXPR_PARAM_OPEN_CALL)
+#define S_EXPR_PARAM_IS_SLOT(t)      ((t) == S_EXPR_PARAM_SLOT)
 
 // ============================================================================
 // SENTINEL VALUES
@@ -129,13 +142,43 @@ typedef enum {
 #define S_EXPR_NO_SIBLING      0xFFFF
 
 // ============================================================================
-// NODE FLAGS (runtime state)
+// NODE FLAGS (runtime state) - 8 bits
+//
+// Bit allocation:
+//   [0] ACTIVE      - Node executes on tick
+//   [1] INITIALIZED - Init event has been sent
+//   [2] SUSPENDED   - Reserved for future use (skip but don't terminate)
+//   [3] ERROR       - Reserved for future use (node in error state)
+//   [4-7]           - Available for user/application use
+//
 // ============================================================================
 
-#define S_EXPR_NODE_FLAG_ACTIVE        0x80
-#define S_EXPR_NODE_FLAG_INITIALIZED   0x40
-#define S_EXPR_NODE_FLAG_DISABLED      0x20
-#define S_EXPR_NODE_FLAG_ONESHOT_FIRED 0x10
+#define S_EXPR_NODE_FLAG_ACTIVE        0x01  // bit 0
+#define S_EXPR_NODE_FLAG_INITIALIZED   0x02  // bit 1
+#define S_EXPR_NODE_FLAG_SUSPENDED     0x04  // bit 2 (reserved)
+#define S_EXPR_NODE_FLAG_ERROR         0x08  // bit 3 (reserved)
+
+// System-reserved flags mask (bits 0-3)
+#define S_EXPR_NODE_FLAGS_SYSTEM       0x0F
+
+// User-available flags mask (bits 4-7)
+#define S_EXPR_NODE_FLAGS_USER         0xF0
+
+// Convenience: check if node is active and initialized
+#define S_EXPR_NODE_IS_RUNNING(flags) \
+    (((flags) & (S_EXPR_NODE_FLAG_ACTIVE | S_EXPR_NODE_FLAG_INITIALIZED)) == \
+     (S_EXPR_NODE_FLAG_ACTIVE | S_EXPR_NODE_FLAG_INITIALIZED))
+
+// ============================================================================
+// SLOT REFERENCE STRUCTURE
+// ============================================================================
+
+typedef struct {
+    uint16_t pool_id;
+    uint16_t slot_index;
+} s_expr_slot_ref_t;
+
+_Static_assert(sizeof(s_expr_slot_ref_t) == 4, "s_expr_slot_ref_t should be 4 bytes");
 
 // ============================================================================
 // PARAMETER STRUCTURE
@@ -145,12 +188,13 @@ typedef struct {
     uint8_t  type;
     uint8_t  reserved[3];
     union {
-        ct_int_t   i;
-        ct_uint_t  u;
-        ct_float_t f;
-        uint16_t   str_index;
-        uint16_t   func_idx;
-        uint16_t   brace_idx;
+        ct_int_t         i;
+        ct_uint_t        u;
+        ct_float_t       f;
+        uint16_t         str_index;
+        uint16_t         func_idx;
+        uint16_t         brace_idx;
+        s_expr_slot_ref_t slot;
     };
 } s_expr_param_t;
 
@@ -313,6 +357,10 @@ struct s_expr_module {
     s_expr_main_fn_t*            main_fns;
     s_expr_debug_fn_t            debug_fn;
     
+    // Pool table (optional - set via s_expr_module_set_pool_table)
+    void**                       pool_table;
+    uint16_t                     pool_count;
+    
     // Allocator functions (for creating tree instances)
     s_expr_allocator_t           alloc;
     
@@ -336,9 +384,9 @@ struct s_expr_tree_instance {
     
     // Active tree definition
     uint16_t                    tree_index;
-    const s_expr_tree_def_t*    tree_def;
+    const s_expr_tree_def_t*    tree;
     
-    // Per-node state (sized to tree_def->node_count)
+    // Per-node state (sized to tree->node_count)
     s_expr_node_state_t*        node_states;
     uint16_t                    node_count;
     
@@ -409,6 +457,64 @@ static inline const s_expr_param_t* s_expr_param_brace_contents(
     uint16_t close_idx = params[open_idx].brace_idx;
     *out_count = close_idx - open_idx - 1;
     return &params[open_idx + 1];
+}
+
+// ============================================================================
+// SLOT ACCESS HELPERS
+// ============================================================================
+
+static inline s_expr_slot_ref_t s_expr_param_get_slot(const s_expr_param_t* p) {
+    return p->slot;
+}
+
+static inline uint16_t s_expr_param_get_pool_id(const s_expr_param_t* p) {
+    return p->slot.pool_id;
+}
+
+static inline uint16_t s_expr_param_get_slot_index(const s_expr_param_t* p) {
+    return p->slot.slot_index;
+}
+
+static inline bool s_expr_param_is_slot(const s_expr_param_t* p) {
+    return p->type == S_EXPR_PARAM_SLOT;
+}
+
+// ============================================================================
+// POOL ACCESS HELPERS
+// Requires pool_table[] to be defined in generated pools.c
+// ============================================================================
+
+// Generic pool access - caller casts to correct type
+static inline void* s_expr_pool_get_ptr(
+    void* const* pool_table,
+    const s_expr_param_t* slot_param,
+    size_t element_size
+) {
+    uint16_t pool_id = slot_param->slot.pool_id;
+    uint16_t slot_idx = slot_param->slot.slot_index;
+    uint8_t* pool = (uint8_t*)pool_table[pool_id];
+    return pool + (slot_idx * element_size);
+}
+
+// Type-safe macro for pool access
+#define S_EXPR_POOL_GET(pool_table, slot_param, type) \
+    ((type*)s_expr_pool_get_ptr((pool_table), (slot_param), sizeof(type)))
+
+// Direct pool/slot access when you have the values
+#define S_EXPR_POOL_SLOT(pool_table, pool_id, slot_idx, type) \
+    (&((type*)(pool_table)[pool_id])[slot_idx])
+
+// ============================================================================
+// STRING ACCESS HELPER
+// ============================================================================
+
+static inline const char* s_expr_tree_get_string(
+    const s_expr_tree_instance_t* inst,
+    uint16_t str_index
+) {
+    if (!inst || !inst->module || !inst->module->def) return NULL;
+    if (str_index >= inst->module->def->string_count) return NULL;
+    return inst->module->def->strings[str_index];
 }
 
 // ============================================================================
@@ -495,5 +601,9 @@ static inline bool s_expr_invoke_pred_ref(
     }
     return inst->module->boolean_fns[idx](inst, node, state, event_id, event_data, args, arg_count);
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // S_ENGINE_TYPES_H

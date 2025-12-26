@@ -1,104 +1,104 @@
 // ============================================================================
 // s_engine_module.h
-// Module Management API
-// Version 2.5 - Two-tier architecture: shared module + tree instances
-// ============================================================================
-//
-// ARCHITECTURE:
-//   1. Initialize shared module once (resolves function tables)
-//   2. Create tree instances as needed (each sized for its specific tree)
-//   3. Multiple tree instances can run simultaneously
-//
-// USAGE:
-//   #include "my_module.h"       // Generated header
-//   #include "s_engine_module.h" // This file
-//
+// S-Expression Module Management API
+// Version 2.7 - Pool table support, lifecycle management, incremental loading
 // ============================================================================
 
 #ifndef S_ENGINE_MODULE_H
 #define S_ENGINE_MODULE_H
 
 #include "s_engine_types.h"
+#include <string.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ============================================================================
-// MODULE LIFECYCLE - THREE STEP PROCESS
-// ============================================================================
-//
-// Step 1: Create module structure (allocates, doesn't resolve functions)
-// Step 2: Load functions (call multiple times with different tables)
-// Step 3: Validate all functions resolved
-//
+// MODULE INITIALIZATION (two-phase: init + validate)
 // ============================================================================
 
-// Step 1: Create module structure
-// - Allocates module and function pointer arrays
-// - Returns NULL only on allocation failure
-// - Does NOT resolve any functions yet
-s_expr_module_t* s_expr_module_create(
+// Phase 1: Initialize module structure (no function resolution yet)
+uint8_t s_expr_module_init(
+    s_expr_module_t* mod,
     const s_expr_module_def_t* def,
-    const s_expr_allocator_t* alloc,
-    void* handle,
-    uint16_t ct_node_id
+    s_expr_allocator_t alloc,
+    void* handle
 );
 
-// Step 2: Load functions (call multiple times with different tables)
-// - Returns count of functions successfully loaded from this table
-// - Can be called multiple times (system fns, user fns, app fns, etc.)
-// - Later loads can override earlier ones (last write wins)
+// Phase 2a: Load function entries (can be called multiple times)
+// Returns number of entries loaded
 uint16_t s_expr_module_load_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 uint16_t s_expr_module_load_boolean(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 uint16_t s_expr_module_load_main(s_expr_module_t* mod, const s_expr_fn_table_t* table);
-void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t fn);
 
-// Step 3: Validate all required functions are resolved
-// - Returns S_EXPR_MOD_OK if all functions resolved
-// - Returns error code if any function missing
-// - Use s_expr_module_get_error_name() to find missing function
+// Phase 2b: Resolve all function references (call after all load calls)
+// Returns 0 on success, error code on failure
 uint8_t s_expr_module_validate(s_expr_module_t* mod);
 
-// Destroy module
-// NOTE: All tree instances must be destroyed before calling this
-void s_expr_module_deinit(s_expr_module_t* mod);
+// Free module resources
+void s_expr_module_free(s_expr_module_t* mod);
+
+// Set debug function (optional)
+void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t debug_fn);
 
 // ============================================================================
-// MODULE ERROR HANDLING
-// Check immediately after s_expr_module_init()
+// ERROR ACCESSORS
 // ============================================================================
 
 static inline uint8_t s_expr_module_get_error(const s_expr_module_t* mod) {
-    return mod ? mod->error_code : S_EXPR_MOD_ERR_NULL_DEF;
-}
-
-static inline const char* s_expr_module_get_error_name(const s_expr_module_t* mod) {
-    return mod ? mod->error_name : NULL;
+    return mod ? mod->error_code : S_EXPR_MOD_ERR_ALLOC;
 }
 
 static inline uint16_t s_expr_module_get_error_index(const s_expr_module_t* mod) {
     return mod ? mod->error_index : 0;
 }
 
-static inline const char* s_expr_module_error_str(uint8_t code) {
-    switch (code) {
-        case S_EXPR_MOD_OK:                    return "OK";
-        case S_EXPR_MOD_ERR_ALLOC:             return "allocation failed";
-        case S_EXPR_MOD_ERR_ONESHOT_NOT_FOUND: return "oneshot function not found";
-        case S_EXPR_MOD_ERR_BOOLEAN_NOT_FOUND: return "boolean function not found";
-        case S_EXPR_MOD_ERR_MAIN_NOT_FOUND:    return "main function not found";
-        case S_EXPR_MOD_ERR_INVALID_TREE:      return "invalid tree index";
-        case S_EXPR_MOD_ERR_NULL_DEF:          return "null module definition";
-        case S_EXPR_MOD_ERR_NULL_REGISTRY:     return "null registry";
-        case S_EXPR_MOD_ERR_64BIT_MISMATCH:    return "64-bit mode mismatch";
-        default:                               return "unknown error";
+static inline const char* s_expr_module_get_error_name(const s_expr_module_t* mod) {
+    return mod ? mod->error_name : NULL;
+}
+
+const char* s_expr_module_error_str(uint8_t error_code);
+
+// ============================================================================
+// POOL TABLE MANAGEMENT
+// ============================================================================
+
+static inline void s_expr_module_set_pool_table(
+    s_expr_module_t* mod,
+    void** pool_table,
+    uint16_t pool_count
+) {
+    if (mod) {
+        mod->pool_table = pool_table;
+        mod->pool_count = pool_count;
     }
 }
+
+static inline void** s_expr_module_get_pool_table(const s_expr_module_t* mod) {
+    return mod ? mod->pool_table : NULL;
+}
+
+static inline uint16_t s_expr_module_get_pool_count(const s_expr_module_t* mod) {
+    return mod ? mod->pool_count : 0;
+}
+
+// ============================================================================
+// TREE INSTANCE CREATION
+// ============================================================================
+
+s_expr_tree_instance_t* s_expr_tree_create(
+    s_expr_module_t* mod,
+    uint16_t tree_index,
+    void* handle,
+    uint16_t ct_node_id
+);
+
+void s_expr_tree_free(s_expr_tree_instance_t* inst);
 
 // ============================================================================
 // MODULE ACCESSORS
 // ============================================================================
-
-static inline bool s_expr_module_is_64bit(const s_expr_module_t* mod) {
-    return mod && mod->def && mod->def->is_64bit;
-}
 
 static inline const char* s_expr_module_get_name(const s_expr_module_t* mod) {
     return (mod && mod->def) ? mod->def->name : NULL;
@@ -108,126 +108,144 @@ static inline uint16_t s_expr_module_tree_count(const s_expr_module_t* mod) {
     return (mod && mod->def) ? mod->def->tree_count : 0;
 }
 
-static inline const char* s_expr_module_tree_name(const s_expr_module_t* mod, uint16_t idx) {
-    if (!mod || !mod->def || idx >= mod->def->tree_count) return NULL;
-    return mod->def->trees[idx].name;
+static inline const char* s_expr_module_tree_name(const s_expr_module_t* mod, uint16_t index) {
+    if (!mod || !mod->def || index >= mod->def->tree_count) return NULL;
+    return mod->def->trees[index].name;
 }
-
-static inline const char* s_expr_module_get_string(const s_expr_module_t* mod, uint16_t str_index) {
-    if (!mod || !mod->def || str_index >= mod->def->string_count) return NULL;
-    return mod->def->strings[str_index];
-}
-
-// Find tree index by name (-1 if not found)
-int16_t s_expr_module_find_tree(const s_expr_module_t* mod, const char* name);
-
-// ============================================================================
-// TREE INSTANCE LIFECYCLE (per-execution, can have many)
-// ============================================================================
-
-// Create tree instance by name
-// - Allocates node_states sized to this specific tree's node_count
-// - Returns NULL on error (invalid name or allocation failure)
-s_expr_tree_instance_t* s_expr_tree_create(
-    s_expr_module_t* mod,
-    const char* tree_name,
-    void* handle,
-    uint16_t ct_node_id
-);
-
-// Create tree instance by index
-s_expr_tree_instance_t* s_expr_tree_create_by_index(
-    s_expr_module_t* mod,
-    uint16_t tree_index,
-    void* handle,
-    uint16_t ct_node_id
-);
-
-// Destroy tree instance
-void s_expr_tree_destroy(s_expr_tree_instance_t* inst);
-
-// Reset tree instance (reinitialize all node states)
-void s_expr_tree_reset(s_expr_tree_instance_t* inst);
 
 // ============================================================================
 // TREE INSTANCE ACCESSORS
 // ============================================================================
 
 static inline const char* s_expr_tree_get_name(const s_expr_tree_instance_t* inst) {
-    return (inst && inst->tree_def) ? inst->tree_def->name : NULL;
+    return (inst && inst->tree) ? inst->tree->name : NULL;
 }
 
-static inline uint16_t s_expr_tree_node_count(const s_expr_tree_instance_t* inst) {
+static inline uint16_t s_expr_tree_get_node_count(const s_expr_tree_instance_t* inst) {
     return inst ? inst->node_count : 0;
 }
 
-static inline s_expr_node_state_t* s_expr_tree_get_state(
-    s_expr_tree_instance_t* inst, 
+static inline s_expr_node_state_t* s_expr_tree_get_node_state(
+    s_expr_tree_instance_t* inst,
     uint16_t node_index
 ) {
     if (!inst || node_index >= inst->node_count) return NULL;
     return &inst->node_states[node_index];
 }
 
-static inline const s_expr_param_t* s_expr_tree_get_params(
+static inline const s_expr_node_t* s_expr_tree_get_node(
     const s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node
+    uint16_t node_index
 ) {
-    if (!inst || !node || !inst->tree_def) return NULL;
-    return &inst->tree_def->params[node->param_offset];
+    if (!inst || !inst->tree || node_index >= inst->tree->node_count) return NULL;
+    return &inst->tree->nodes[node_index];
 }
 
-static inline s_expr_module_t* s_expr_tree_get_module(const s_expr_tree_instance_t* inst) {
-    return inst ? inst->module : NULL;
+// ============================================================================
+// POOL ACCESS FROM TREE INSTANCE
+// ============================================================================
+
+static inline void* s_expr_tree_get_pool_slot(
+    const s_expr_tree_instance_t* inst,
+    const s_expr_param_t* slot_param,
+    size_t element_size
+) {
+    if (!inst || !inst->module || !inst->module->pool_table) return NULL;
+    if (slot_param->type != S_EXPR_PARAM_SLOT) return NULL;
+    
+    uint16_t pool_id = slot_param->slot.pool_id;
+    if (pool_id >= inst->module->pool_count) return NULL;
+    
+    uint8_t* pool = (uint8_t*)inst->module->pool_table[pool_id];
+    if (!pool) return NULL;
+    
+    uint16_t slot_idx = slot_param->slot.slot_index;
+    return pool + (slot_idx * element_size);
 }
 
-static inline void* s_expr_tree_get_handle(const s_expr_tree_instance_t* inst) {
-    return inst ? inst->handle : NULL;
+#define S_EXPR_TREE_GET_SLOT(inst, slot_param, type) \
+    ((type*)s_expr_tree_get_pool_slot((inst), (slot_param), sizeof(type)))
+
+// ============================================================================
+// STRING ACCESS
+// ============================================================================
+
+static inline const char* s_expr_module_get_string(
+    const s_expr_module_t* mod,
+    uint16_t str_index
+) {
+    if (!mod || !mod->def || str_index >= mod->def->string_count) return NULL;
+    return mod->def->strings[str_index];
 }
 
-static inline uint16_t s_expr_tree_get_ct_node_id(const s_expr_tree_instance_t* inst) {
-    return inst ? inst->ct_node_id : 0;
-}
-
-// Get string from module (convenience wrapper)
-static inline const char* s_expr_tree_get_string(
+static inline const char* s_expr_inst_get_string(
     const s_expr_tree_instance_t* inst,
     uint16_t str_index
 ) {
-    return (inst && inst->module) ? s_expr_module_get_string(inst->module, str_index) : NULL;
+    if (!inst || !inst->module) return NULL;
+    return s_expr_module_get_string(inst->module, str_index);
 }
 
 // ============================================================================
-// FUNCTION INVOCATION HELPERS
+// FUNCTION NAME LOOKUP (for debugging)
 // ============================================================================
 
-void s_expr_call_oneshot(
-    s_expr_tree_instance_t* inst,
-    uint16_t fn_index,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint8_t param_count
-);
+static inline const char* s_expr_module_get_oneshot_name(
+    const s_expr_module_t* mod,
+    uint16_t fn_index
+) {
+    if (!mod || !mod->def || fn_index >= mod->def->oneshot_count) return NULL;
+    return mod->def->oneshot_names[fn_index];
+}
 
-bool s_expr_call_boolean(
-    s_expr_tree_instance_t* inst,
-    uint16_t fn_index,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint8_t param_count
-);
+static inline const char* s_expr_module_get_boolean_name(
+    const s_expr_module_t* mod,
+    uint16_t fn_index
+) {
+    if (!mod || !mod->def || fn_index >= mod->def->boolean_count) return NULL;
+    return mod->def->boolean_names[fn_index];
+}
 
-s_expr_result_t s_expr_call_main(
-    s_expr_tree_instance_t* inst,
-    uint16_t fn_index,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint8_t param_count
-);
+static inline const char* s_expr_module_get_main_name(
+    const s_expr_module_t* mod,
+    uint16_t fn_index
+) {
+    if (!mod || !mod->def || fn_index >= mod->def->main_count) return NULL;
+    return mod->def->main_names[fn_index];
+}
 
-void s_expr_call_debug(s_expr_tree_instance_t* inst, const char* message);
+// ============================================================================
+// NODE FLAG HELPERS
+// ============================================================================
+
+static inline bool s_expr_node_is_active(const s_expr_node_state_t* state) {
+    return state && (state->flags & S_EXPR_NODE_FLAG_ACTIVE);
+}
+
+static inline bool s_expr_node_is_initialized(const s_expr_node_state_t* state) {
+    return state && (state->flags & S_EXPR_NODE_FLAG_INITIALIZED);
+}
+
+static inline bool s_expr_node_is_running(const s_expr_node_state_t* state) {
+    return state && S_EXPR_NODE_IS_RUNNING(state->flags);
+}
+
+static inline void s_expr_node_set_user_flags(
+    s_expr_node_state_t* state,
+    uint8_t user_flags
+) {
+    if (state) {
+        state->flags = (state->flags & S_EXPR_NODE_FLAGS_SYSTEM) | 
+                       (user_flags & S_EXPR_NODE_FLAGS_USER);
+    }
+}
+
+static inline uint8_t s_expr_node_get_user_flags(const s_expr_node_state_t* state) {
+    return state ? (state->flags & S_EXPR_NODE_FLAGS_USER) : 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // S_ENGINE_MODULE_H

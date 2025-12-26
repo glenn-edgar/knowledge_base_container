@@ -1,79 +1,117 @@
 // ============================================================================
 // s_engine_eval.c
-// S-Expression Evaluator Implementation
-// Version 2.5 - Two-tier architecture: operates on tree instances
+// S-Expression Tree Evaluation Engine
+// Version 2.7 - Lifecycle events for main functions only
 // ============================================================================
 
 #include "s_engine_eval.h"
 #include "s_engine_module.h"
 #include <string.h>
+#include <stdint.h>
 
 // ============================================================================
-// HELPER MACROS
+// INTERNAL: Evaluate a single node
 // ============================================================================
 
-#define NODE_TABLE(n)   ((n)->type & S_EXPR_TABLE_MASK)
-#define NODE_OPCODE(n)  ((n)->type & S_EXPR_OPCODE_MASK)
-#define IS_DEFAULT(n)   ((n)->reserved & 0x01)
-
-// ============================================================================
-// FORWARD DECLARATIONS
-// ============================================================================
-
-static s_expr_result_t eval_pipeline(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_if(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_if_else(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_cond(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_dispatch(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_debug(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-
-static bool eval_and(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_or(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_not(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_xor(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_nand(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_nor(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-
-static s_expr_result_t eval_oneshot(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static bool eval_boolean(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-static s_expr_result_t eval_main(s_expr_tree_instance_t* inst, const s_expr_node_t* node);
-
-// ============================================================================
-// NODE ACCESS HELPERS
-// ============================================================================
-
-static inline const s_expr_node_t* get_node(s_expr_tree_instance_t* inst, uint16_t index) {
-    return &inst->tree_def->nodes[index];
-}
-
-static inline s_expr_node_state_t* get_state(s_expr_tree_instance_t* inst, uint16_t index) {
-    return &inst->node_states[index];
-}
-
-static inline const s_expr_param_t* get_params(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    return &inst->tree_def->params[node->param_offset];
-}
-
-static inline const char* get_string(s_expr_tree_instance_t* inst, uint16_t str_index) {
-    return inst->module->def->strings[str_index];
-}
-
-// ============================================================================
-// PARAMETER NAVIGATION
-// ============================================================================
-
-uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t idx) {
-    uint8_t type = params[idx].type;
-    
-    if (S_EXPR_PARAM_IS_OPEN(type)) {
-        return params[idx].brace_idx + 1;
+static s_expr_result_t eval_node(
+    s_expr_tree_instance_t* inst,
+    uint16_t node_index,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst || node_index >= inst->node_count) {
+        return SE_TERMINATE;
     }
     
-    return idx + 1;
+    const s_expr_node_t* node = &inst->tree->nodes[node_index];
+    s_expr_node_state_t* state = &inst->node_states[node_index];
+    
+    // Skip inactive nodes
+    if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
+        return SE_CONTINUE;
+    }
+    
+    s_expr_module_t* mod = inst->module;
+    
+    // Get parameters (stored in tree definition)
+    const s_expr_param_t* params = NULL;
+    uint8_t param_count = 0;
+    if (node->param_count > 0 && inst->tree->params) {
+        params = &inst->tree->params[node->param_offset];
+        param_count = node->param_count;
+    }
+    
+    // Dispatch based on node type
+    switch (node->type) {
+        case S_EXPR_TABLE_ONESHOT: {
+            // Oneshot: no lifecycle events, just execute
+            if (node->fn_index < mod->def->oneshot_count && mod->oneshot_fns) {
+                s_expr_oneshot_fn_t fn = mod->oneshot_fns[node->fn_index];
+                if (fn) {
+                    fn(inst, node, state, event_id, event_data, params, param_count);
+                }
+            }
+            return SE_CONTINUE;
+        }
+        
+        case S_EXPR_TABLE_BOOLEAN: {
+            // Boolean: no lifecycle events, just evaluate
+            if (node->fn_index < mod->def->boolean_count && mod->boolean_fns) {
+                s_expr_boolean_fn_t fn = mod->boolean_fns[node->fn_index];
+                if (fn) {
+                    bool result = fn(inst, node, state, event_id, event_data, params, param_count);
+                    return result ? SE_CONTINUE : SE_HALT;
+                }
+            }
+            return SE_HALT;
+        }
+        
+        case S_EXPR_TABLE_MAIN: {
+            if (node->fn_index >= mod->def->main_count || !mod->main_fns) {
+                return SE_CONTINUE;
+            }
+            
+            s_expr_main_fn_t fn = mod->main_fns[node->fn_index];
+            if (!fn) {
+                return SE_CONTINUE;
+            }
+            
+            // Main functions receive lifecycle events
+            // Check if init event needed (first execution)
+            if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+                state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
+                
+                // Send init event
+                s_expr_result_t init_result = fn(inst, node, state, 
+                    S_EXPR_EVENT_INIT, event_data, params, param_count);
+                
+                // If init returns SE_DISABLE, send terminate and deactivate
+                if (init_result == SE_DISABLE) {
+                    fn(inst, node, state, S_EXPR_EVENT_TERMINATE, event_data, params, param_count);
+                    state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
+                    return SE_DISABLE;
+                }
+            }
+            
+            // Normal execution
+            s_expr_result_t result = fn(inst, node, state, event_id, event_data, params, param_count);
+            
+            // If result is SE_DISABLE, send terminate event
+            if (result == SE_DISABLE) {
+                fn(inst, node, state, S_EXPR_EVENT_TERMINATE, event_data, params, param_count);
+                state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
+            }
+            
+            return result;
+        }
+        
+        default:
+            return SE_CONTINUE;
+    }
 }
 
 // ============================================================================
-// MAIN ENTRY POINT
+// PUBLIC: Tree tick
 // ============================================================================
 
 s_expr_result_t s_expr_tree_tick(
@@ -81,420 +119,128 @@ s_expr_result_t s_expr_tree_tick(
     uint16_t event_id,
     void* event_data
 ) {
-    if (!inst || !inst->tree_def || !inst->module) {
-        return SE_HALT;
-    }
-    
-    // Set execution context
-    inst->current_event = event_id;
-    inst->event_data = event_data;
-    
-    // Evaluate from root
-    return s_expr_eval_node(inst, inst->tree_def->root_index);
-}
-
-// ============================================================================
-// GENERIC NODE EVALUATOR
-// ============================================================================
-
-s_expr_result_t s_expr_eval_node(s_expr_tree_instance_t* inst, uint16_t node_index) {
-    if (node_index == S_EXPR_NO_CHILD) {
-        return SE_HALT;
-    }
-    
-    const s_expr_node_t* node = get_node(inst, node_index);
-    uint8_t table = NODE_TABLE(node);
-    uint8_t opcode = NODE_OPCODE(node);
-    
-    if (table == S_EXPR_TABLE_OPCODE) {
-        switch (opcode) {
-            case S_EXPR_OP_PIPELINE:   return eval_pipeline(inst, node);
-            case S_EXPR_OP_IF:         return eval_if(inst, node);
-            case S_EXPR_OP_IF_ELSE:    return eval_if_else(inst, node);
-            case S_EXPR_OP_COND:       return eval_cond(inst, node);
-            case S_EXPR_OP_DISPATCH:   return eval_dispatch(inst, node);
-            case S_EXPR_OP_DEBUG:      return eval_debug(inst, node);
-            case S_EXPR_OP_QUOTE:      return (s_expr_result_t)node->fn_index;
-            default:                   return SE_HALT;
-        }
-    } else {
-        switch (table) {
-            case S_EXPR_TABLE_ONESHOT:
-                return eval_oneshot(inst, node);
-            case S_EXPR_TABLE_BOOLEAN:
-                return eval_boolean(inst, node) ? SE_CONTINUE : SE_HALT;
-            case S_EXPR_TABLE_MAIN:
-                return eval_main(inst, node);
-            default:
-                return SE_HALT;
-        }
-    }
-}
-
-// ============================================================================
-// BOOLEAN NODE EVALUATOR
-// ============================================================================
-
-bool s_expr_eval_bool(s_expr_tree_instance_t* inst, uint16_t node_index) {
-    if (node_index == S_EXPR_NO_CHILD) {
-        return false;
-    }
-    
-    const s_expr_node_t* node = get_node(inst, node_index);
-    uint8_t table = NODE_TABLE(node);
-    uint8_t opcode = NODE_OPCODE(node);
-    
-    if (table == S_EXPR_TABLE_OPCODE) {
-        switch (opcode) {
-            case S_EXPR_OP_AND:    return eval_and(inst, node);
-            case S_EXPR_OP_OR:     return eval_or(inst, node);
-            case S_EXPR_OP_NOT:    return eval_not(inst, node);
-            case S_EXPR_OP_XOR:    return eval_xor(inst, node);
-            case S_EXPR_OP_NAND:   return eval_nand(inst, node);
-            case S_EXPR_OP_NOR:    return eval_nor(inst, node);
-            default:               return false;
-        }
-    } else if (table == S_EXPR_TABLE_BOOLEAN) {
-        return eval_boolean(inst, node);
-    }
-    
-    return false;
-}
-
-// ============================================================================
-// S-EXPRESSION EVALUATION
-// ============================================================================
-
-s_expr_result_t s_expr_eval_sexpr(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-) {
-    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
+    if (!inst || !inst->tree || inst->node_count == 0) {
         return SE_TERMINATE;
     }
     
-    const s_expr_param_t* func_param = &params[open_idx + 1];
-    uint16_t close_idx = params[open_idx].brace_idx;
-    const s_expr_param_t* args = &params[open_idx + 2];
-    uint8_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    // Evaluate root node (index 0)
+    s_expr_result_t result = eval_node(inst, 0, event_id, event_data);
+    
+    // Handle SE_RESET
+    if (result == SE_RESET) {
+        s_expr_tree_reset(inst);
+        return SE_CONTINUE;
+    }
+    
+    return result;
+}
+
+// ============================================================================
+// PUBLIC: Terminate all nodes (sends terminate to main functions only)
+// ============================================================================
+
+void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
+    if (!inst || !inst->tree) return;
     
     s_expr_module_t* mod = inst->module;
     
-    switch (func_param->type) {
-        case S_EXPR_PARAM_MAIN: {
-            uint16_t fn_idx = func_param->func_idx;
-            if (fn_idx >= mod->def->main_count || !mod->main_fns[fn_idx]) {
-                return SE_TERMINATE;
+    // Walk nodes in reverse order (children before parents)
+    for (int i = (int)inst->node_count - 1; i >= 0; i--) {
+        s_expr_node_state_t* state = &inst->node_states[i];
+        
+        // Only terminate initialized main nodes
+        if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+            continue;
+        }
+        
+        const s_expr_node_t* node = &inst->tree->nodes[i];
+        
+        // Only main functions receive terminate events
+        if (node->type != S_EXPR_TABLE_MAIN) {
+            state->flags = 0;
+            continue;
+        }
+        
+        if (node->fn_index >= mod->def->main_count || !mod->main_fns) {
+            state->flags = 0;
+            continue;
+        }
+        
+        s_expr_main_fn_t fn = mod->main_fns[node->fn_index];
+        if (fn) {
+            const s_expr_param_t* params = NULL;
+            uint8_t param_count = 0;
+            if (node->param_count > 0 && inst->tree->params) {
+                params = &inst->tree->params[node->param_offset];
+                param_count = node->param_count;
             }
-            return mod->main_fns[fn_idx](
-                inst, node, state, 
-                inst->current_event, inst->event_data,
-                args, arg_count
-            );
-        }
-        
-        case S_EXPR_PARAM_ONESHOT: {
-            uint16_t fn_idx = func_param->func_idx;
-            if (fn_idx >= mod->def->oneshot_count || !mod->oneshot_fns[fn_idx]) {
-                return SE_TERMINATE;
-            }
-            mod->oneshot_fns[fn_idx](
-                inst, node, state,
-                inst->current_event, inst->event_data,
-                args, arg_count
-            );
-            return SE_CONTINUE;
-        }
-        
-        case S_EXPR_PARAM_PRED: {
-            uint16_t fn_idx = func_param->func_idx;
-            if (fn_idx >= mod->def->boolean_count || !mod->boolean_fns[fn_idx]) {
-                return SE_TERMINATE;
-            }
-            bool result = mod->boolean_fns[fn_idx](
-                inst, node, state,
-                inst->current_event, inst->event_data,
-                args, arg_count
-            );
-            return result ? SE_CONTINUE : SE_HALT;
-        }
-        
-        default:
-            return SE_TERMINATE;
-    }
-}
-
-// ============================================================================
-// PIPELINE
-// ============================================================================
-
-static s_expr_result_t eval_pipeline(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    uint16_t child_idx = node->first_child;
-    s_expr_result_t result = SE_CONTINUE;
-    
-    while (child_idx != S_EXPR_NO_CHILD) {
-        result = s_expr_eval_node(inst, child_idx);
-        
-        if (result != SE_CONTINUE) {
-            return result;
-        }
-        
-        const s_expr_node_t* child = get_node(inst, child_idx);
-        child_idx = child->next_sibling;
-    }
-    
-    return result;
-}
-
-// ============================================================================
-// IF (condition + then)
-// ============================================================================
-
-static s_expr_result_t eval_if(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    if (node->child_count < 2) {
-        return SE_HALT;
-    }
-    
-    uint16_t cond_idx = node->first_child;
-    const s_expr_node_t* cond_node = get_node(inst, cond_idx);
-    uint16_t then_idx = cond_node->next_sibling;
-    
-    if (s_expr_eval_bool(inst, cond_idx)) {
-        return s_expr_eval_node(inst, then_idx);
-    }
-    
-    return SE_CONTINUE;
-}
-
-// ============================================================================
-// IF-ELSE (condition + then + else)
-// ============================================================================
-
-static s_expr_result_t eval_if_else(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    if (node->child_count < 3) {
-        return SE_HALT;
-    }
-    
-    uint16_t cond_idx = node->first_child;
-    const s_expr_node_t* cond_node = get_node(inst, cond_idx);
-    uint16_t then_idx = cond_node->next_sibling;
-    const s_expr_node_t* then_node = get_node(inst, then_idx);
-    uint16_t else_idx = then_node->next_sibling;
-    
-    if (s_expr_eval_bool(inst, cond_idx)) {
-        return s_expr_eval_node(inst, then_idx);
-    } else {
-        return s_expr_eval_node(inst, else_idx);
-    }
-}
-
-// ============================================================================
-// COND (multi-way conditional)
-// ============================================================================
-
-static s_expr_result_t eval_cond(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    uint16_t clause_idx = node->first_child;
-    
-    while (clause_idx != S_EXPR_NO_CHILD) {
-        const s_expr_node_t* clause = get_node(inst, clause_idx);
-        
-        if (IS_DEFAULT(clause)) {
-            return s_expr_eval_node(inst, clause->first_child);
-        }
-        
-        uint16_t cond_idx = clause->first_child;
-        const s_expr_node_t* cond_node = get_node(inst, cond_idx);
-        uint16_t action_idx = cond_node->next_sibling;
-        
-        if (s_expr_eval_bool(inst, cond_idx)) {
-            return s_expr_eval_node(inst, action_idx);
-        }
-        
-        clause_idx = clause->next_sibling;
-    }
-    
-    return SE_HALT;
-}
-
-// ============================================================================
-// DISPATCH (event-based switching)
-// ============================================================================
-
-static s_expr_result_t eval_dispatch(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    const s_expr_param_t* params = get_params(inst, node);
-    uint16_t key_str_idx = params[0].str_index;
-    const char* key_name = get_string(inst, key_str_idx);
-    
-    uint16_t event_id = inst->current_event;
-    
-    uint16_t case_idx = node->first_child;
-    
-    while (case_idx != S_EXPR_NO_CHILD) {
-        const s_expr_node_t* case_node = get_node(inst, case_idx);
-        
-        if (IS_DEFAULT(case_node)) {
-            return s_expr_eval_node(inst, case_node->first_child);
-        }
-        
-        const s_expr_param_t* case_params = get_params(inst, case_node);
-        
-        for (uint8_t i = 0; i < case_node->param_count; i++) {
-            uint16_t pattern_str_idx = case_params[i].str_index;
-            const char* pattern = get_string(inst, pattern_str_idx);
             
-            (void)pattern;
-            (void)event_id;
-            (void)key_name;
-            // TODO: Application-specific matching logic
+            fn(inst, node, state, S_EXPR_EVENT_TERMINATE, NULL, params, param_count);
         }
         
-        case_idx = case_node->next_sibling;
+        state->flags = 0;
     }
-    
-    return SE_HALT;
 }
 
 // ============================================================================
-// DEBUG
+// PUBLIC: Reset tree (terminate all, then reinitialize)
 // ============================================================================
 
-static s_expr_result_t eval_debug(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    if (inst->module->debug_fn) {
-        const s_expr_param_t* params = get_params(inst, node);
-        uint16_t msg_idx = params[0].str_index;
-        const char* message = get_string(inst, msg_idx);
-        inst->module->debug_fn(inst, message);
-    }
+void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
+    if (!inst) return;
     
-    return s_expr_eval_node(inst, node->first_child);
+    // Terminate all nodes
+    s_expr_tree_terminate(inst);
+    
+    // Reinitialize all nodes to ACTIVE
+    s_expr_tree_init_states(inst);
 }
 
 // ============================================================================
-// BOOLEAN OPERATORS
+// PUBLIC: Initialize node states
 // ============================================================================
 
-static bool eval_and(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    uint16_t child_idx = node->first_child;
+void s_expr_tree_init_states(s_expr_tree_instance_t* inst) {
+    if (!inst) return;
     
-    while (child_idx != S_EXPR_NO_CHILD) {
-        if (!s_expr_eval_bool(inst, child_idx)) {
-            return false;
+    for (uint16_t i = 0; i < inst->node_count; i++) {
+        inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE;
+        inst->node_states[i].state = 0;
+        inst->node_states[i].user_data = 0;
+    }
+}
+
+// ============================================================================
+// PUBLIC: Parameter helpers
+// ============================================================================
+
+uint16_t s_expr_find_param_type(
+    const s_expr_param_t* params,
+    uint8_t param_count,
+    uint8_t param_type
+) {
+    if (!params) return UINT16_MAX;
+    
+    for (uint8_t i = 0; i < param_count; i++) {
+        if (params[i].type == param_type) {
+            return i;
         }
-        
-        const s_expr_node_t* child = get_node(inst, child_idx);
-        child_idx = child->next_sibling;
     }
-    
-    return true;
+    return UINT16_MAX;  // Not found
 }
 
-static bool eval_or(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    uint16_t child_idx = node->first_child;
+uint8_t s_expr_count_param_type(
+    const s_expr_param_t* params,
+    uint8_t param_count,
+    uint8_t param_type
+) {
+    if (!params) return 0;
     
-    while (child_idx != S_EXPR_NO_CHILD) {
-        if (s_expr_eval_bool(inst, child_idx)) {
-            return true;
+    uint8_t count = 0;
+    for (uint8_t i = 0; i < param_count; i++) {
+        if (params[i].type == param_type) {
+            count++;
         }
-        
-        const s_expr_node_t* child = get_node(inst, child_idx);
-        child_idx = child->next_sibling;
     }
-    
-    return false;
-}
-
-static bool eval_not(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    return !s_expr_eval_bool(inst, node->first_child);
-}
-
-static bool eval_xor(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    uint16_t child_idx = node->first_child;
-    bool result = false;
-    
-    while (child_idx != S_EXPR_NO_CHILD) {
-        if (s_expr_eval_bool(inst, child_idx)) {
-            result = !result;
-        }
-        
-        const s_expr_node_t* child = get_node(inst, child_idx);
-        child_idx = child->next_sibling;
-    }
-    
-    return result;
-}
-
-static bool eval_nand(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    return !eval_and(inst, node);
-}
-
-static bool eval_nor(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    return !eval_or(inst, node);
-}
-
-// ============================================================================
-// FUNCTION CALLS
-// ============================================================================
-
-static s_expr_result_t eval_oneshot(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    s_expr_node_state_t* state = get_state(inst, node->node_index);
-    
-    if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return SE_CONTINUE;
-    }
-    
-    if (state->flags & S_EXPR_NODE_FLAG_ONESHOT_FIRED) {
-        return SE_CONTINUE;
-    }
-    
-    state->flags |= S_EXPR_NODE_FLAG_ONESHOT_FIRED;
-    
-    s_expr_oneshot_fn_t fn = inst->module->oneshot_fns[node->fn_index];
-    const s_expr_param_t* params = get_params(inst, node);
-    
-    fn(inst, node, state, inst->current_event, inst->event_data, 
-       params, node->param_count);
-    
-    return SE_CONTINUE;
-}
-
-static bool eval_boolean(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    s_expr_node_state_t* state = get_state(inst, node->node_index);
-    
-    if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return false;
-    }
-    
-    s_expr_boolean_fn_t fn = inst->module->boolean_fns[node->fn_index];
-    const s_expr_param_t* params = get_params(inst, node);
-    
-    return fn(inst, node, state, inst->current_event, inst->event_data,
-              params, node->param_count);
-}
-
-static s_expr_result_t eval_main(s_expr_tree_instance_t* inst, const s_expr_node_t* node) {
-    s_expr_node_state_t* state = get_state(inst, node->node_index);
-    
-    if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return SE_CONTINUE;
-    }
-    
-    if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
-        state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
-    }
-    
-    s_expr_main_fn_t fn = inst->module->main_fns[node->fn_index];
-    const s_expr_param_t* params = get_params(inst, node);
-    
-    s_expr_result_t result = fn(inst, node, state, inst->current_event, inst->event_data,
-                           params, node->param_count);
-    
-    if (result == SE_DISABLE) {
-        state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
-        return SE_CONTINUE;
-    }
-    
-    return result;
+    return count;
 }

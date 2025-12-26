@@ -414,10 +414,11 @@ static void cfl_disable_node(cfl_runtime_handle_t *handle, unsigned node_index) 
         EXCEPTION("cfl_disable_node: node_index out of bounds");
         return;
     }
-    cfl_disable_node_flag(handle, node_index);
+    //cfl_disable_node_flag(handle, node_index);
     /* Only disable if node is initialized and enabled */
     if ((handle->flags[node_index] & (CT_FLAG_USER3| CT_FLAG_USER2)) != 
         (CT_FLAG_USER3 | CT_FLAG_USER2)) {
+        cfl_disable_node_flag(handle, node_index);
         return;
     }
     

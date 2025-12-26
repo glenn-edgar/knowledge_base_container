@@ -1,6 +1,6 @@
 --============================================================================
 -- CHAINTREE S-EXPRESSION DSL
--- Version 2.5 - Two-tier architecture, s_expr_ type prefixes
+-- Version 2.6 - Two-tier architecture, s_expr_ type prefixes, slotted blackboards
 --============================================================================
 
 local ffi = require("ffi")
@@ -98,6 +98,7 @@ local PARAM_PRED      = 0x06   -- predicate function index
 local PARAM_OPEN      = 0x07   -- open brace (data list)
 local PARAM_CLOSE     = 0x08   -- close brace
 local PARAM_OPEN_CALL = 0x09   -- open brace (callable S-expr)
+local PARAM_SLOT      = 0x0A   -- slot reference (pool_id + slot_index)
 
 local CONTEXTS = {
     CONTROL_FLOW = "control_flow",
@@ -128,6 +129,14 @@ local function new_tables()
     }
 end
 
+local function new_pools()
+    return {
+        pools = {},      -- pool_name -> { type, id, slot_count }
+        slots = {},      -- slot_name -> { pool, index }
+        pool_id = 0,
+    }
+end
+
 local _state = {
     stack = {},
     root = nil,
@@ -143,6 +152,7 @@ local _module = {
     trees = {},
     tree_order = {},
     tables = new_tables(),
+    pools = new_pools(),
     current_tree = nil,
     is_64bit = false,
 }
@@ -342,6 +352,72 @@ local function add_string(s)
 end
 
 --============================================================================
+-- POOL / SLOT DEFINITIONS (Slotted Blackboards)
+--============================================================================
+
+function defpool(name, ctype)
+    if not _module.name then
+        error("[DSL ERROR] defpool() must be inside start_module()", 2)
+    end
+    
+    local p = _module.pools
+    if p.pools[name] then
+        dsl_error("Pool already defined: " .. name)
+    end
+    
+    p.pools[name] = {
+        type = ctype,
+        id = p.pool_id,
+        slot_count = 0,
+    }
+    p.pool_id = p.pool_id + 1
+end
+
+function defslot(name, pool_name)
+    if not _module.name then
+        error("[DSL ERROR] defslot() must be inside start_module()", 2)
+    end
+    
+    local p = _module.pools
+    if p.slots[name] then
+        dsl_error("Slot already defined: " .. name)
+    end
+    
+    local pool = p.pools[pool_name]
+    if not pool then
+        dsl_error("Unknown pool: " .. pool_name)
+    end
+    
+    local index = pool.slot_count
+    pool.slot_count = index + 1
+    
+    p.slots[name] = {
+        pool = pool_name,
+        index = index,
+    }
+end
+
+function resolve_slot(slot_name)
+    if not _module.name then
+        error("[DSL ERROR] resolve_slot() must be inside start_module()", 2)
+    end
+    
+    local p = _module.pools
+    local slot = p.slots[slot_name]
+    if not slot then
+        dsl_error("Unknown slot: " .. slot_name)
+    end
+    
+    local pool = p.pools[slot.pool]
+    return pool.id, slot.index
+end
+
+-- Slot reference parameter
+function slot_ref(slot_name)
+    return { _param_type = "slot_ref", value = slot_name }
+end
+
+--============================================================================
 -- PARAMETER TYPE HELPERS (generic names)
 --============================================================================
 
@@ -410,6 +486,10 @@ local function encode_param(p)
             return { type = "oneshot_ref", value = p.value }
         elseif pt == "pred_ref" then
             return { type = "pred_ref", value = p.value }
+        elseif pt == "slot_ref" then
+            -- Resolve at encode time
+            local pool_id, slot_index = resolve_slot(p.value)
+            return { type = "slot_ref", pool_id = pool_id, slot_index = slot_index, name = p.value }
         elseif pt == "open" then
             return { type = "open", value = p.value }
         elseif pt == "close" then
@@ -506,6 +586,7 @@ function start_module(prefix, opts)
         trees = {},
         tree_order = {},
         tables = new_tables(),
+        pools = new_pools(),
         current_tree = nil,
         is_64bit = opts.is_64bit or false,
     }
@@ -597,6 +678,7 @@ function end_module(name)
         _module.trees,
         _module.tree_order,
         _module.tables,
+        _module.pools,
         _module.is_64bit
     )
 end
@@ -1417,6 +1499,11 @@ function TreeGenerator:emit_params(params)
         elseif p.type == "pred_ref" then
             pt.type = PARAM_PRED
             pt.value = self:add_boolean_fn(p.value)
+        elseif p.type == "slot_ref" then
+            pt.type = PARAM_SLOT
+            pt.pool_id = p.pool_id
+            pt.slot_index = p.slot_index
+            pt.name = p.name
         elseif p.type == "open" then
             -- Check if next param is a function type
             local next_p = params[i + 1]
@@ -1495,12 +1582,13 @@ end
 ModuleGenerator = {}
 ModuleGenerator.__index = ModuleGenerator
 
-function ModuleGenerator.new(name, trees, tree_order, tables, is_64bit)
+function ModuleGenerator.new(name, trees, tree_order, tables, pools, is_64bit)
     local self = setmetatable({}, ModuleGenerator)
     self.name = name
     self.trees = trees
     self.tree_order = tree_order
     self.tables = tables
+    self.pools = pools
     self.is_64bit = is_64bit or false
     self.tree_generators = {}
     self.max_node_count = 0
@@ -1530,6 +1618,156 @@ end
 function ModuleGenerator:get_max_node_count()
     self:compile()
     return self.max_node_count
+end
+
+--============================================================================
+-- POOLS HEADER OUTPUT
+--============================================================================
+
+function ModuleGenerator:to_pools_header(base_name)
+    self:compile()
+    
+    local lines = {}
+    local guard = string.upper(base_name) .. "_POOLS_H"
+    local prefix = base_name
+    local p = self.pools
+    
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// " .. base_name .. "_pools.h")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
+    table.insert(lines, "// DO NOT EDIT")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "#ifndef " .. guard)
+    table.insert(lines, "#define " .. guard)
+    table.insert(lines, "")
+    table.insert(lines, "#ifdef __cplusplus")
+    table.insert(lines, 'extern "C" {')
+    table.insert(lines, "#endif")
+    table.insert(lines, "")
+    table.insert(lines, '#include "pool_types.h"')
+    table.insert(lines, "")
+    
+    -- Order pools by ID
+    local ordered_pools = {}
+    for name, pool in pairs(p.pools) do
+        ordered_pools[pool.id + 1] = { name = name, pool = pool }
+    end
+    
+    -- Pool IDs
+    table.insert(lines, "// Pool IDs")
+    for _, entry in ipairs(ordered_pools) do
+        table.insert(lines, string.format(
+            "#define POOL_%s %d",
+            string.upper(entry.name), entry.pool.id
+        ))
+    end
+    table.insert(lines, "")
+    
+    -- Pool sizes
+    table.insert(lines, "// Pool sizes")
+    for _, entry in ipairs(ordered_pools) do
+        table.insert(lines, string.format(
+            "#define %s_POOL_SIZE %d",
+            string.upper(entry.name), entry.pool.slot_count
+        ))
+    end
+    table.insert(lines, "")
+    
+    -- Slot defines (SLOT_X expands to POOL_Y, index)
+    table.insert(lines, "// Slot defines (pool_id, slot_index)")
+    for slot_name, slot in pairs(p.slots) do
+        table.insert(lines, string.format(
+            "#define SLOT_%s POOL_%s, %d",
+            string.upper(slot_name),
+            string.upper(slot.pool),
+            slot.index
+        ))
+    end
+    table.insert(lines, "")
+    
+    -- Pool count
+    table.insert(lines, string.format("#define POOL_COUNT %d", p.pool_id))
+    table.insert(lines, "")
+    
+    -- Extern declarations
+    table.insert(lines, "// Pool table (defined in .c)")
+    if p.pool_id > 0 then
+        table.insert(lines, "extern void* pool_table[POOL_COUNT];")
+    else
+        table.insert(lines, "// No pools defined")
+    end
+    table.insert(lines, "")
+    
+    table.insert(lines, "#ifdef __cplusplus")
+    table.insert(lines, "}")
+    table.insert(lines, "#endif")
+    table.insert(lines, "")
+    table.insert(lines, "#endif // " .. guard)
+    
+    return table.concat(lines, "\n")
+end
+
+--============================================================================
+-- POOLS SOURCE OUTPUT
+--============================================================================
+
+function ModuleGenerator:to_pools_source(base_name)
+    self:compile()
+    
+    local lines = {}
+    local prefix = base_name
+    local p = self.pools
+    
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// " .. base_name .. "_pools.c")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
+    table.insert(lines, "// DO NOT EDIT")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, '#include "pool_types.h"')
+    table.insert(lines, '#include "' .. base_name .. '_pools.h"')
+    table.insert(lines, "")
+    
+    -- Order pools by ID
+    local ordered_pools = {}
+    for name, pool in pairs(p.pools) do
+        ordered_pools[pool.id + 1] = { name = name, pool = pool }
+    end
+    
+    if p.pool_id > 0 then
+        -- Pool arrays
+        table.insert(lines, "// Pool arrays")
+        for _, entry in ipairs(ordered_pools) do
+            if entry.pool.slot_count > 0 then
+                table.insert(lines, string.format(
+                    "%s %s_pool[%s_POOL_SIZE];",
+                    entry.pool.type,
+                    entry.name,
+                    string.upper(entry.name)
+                ))
+            else
+                table.insert(lines, string.format(
+                    "%s %s_pool[1];  // placeholder, no slots defined",
+                    entry.pool.type,
+                    entry.name
+                ))
+            end
+        end
+        table.insert(lines, "")
+        
+        -- Pool table
+        table.insert(lines, "// Pool table")
+        table.insert(lines, "void* pool_table[POOL_COUNT] = {")
+        for _, entry in ipairs(ordered_pools) do
+            table.insert(lines, string.format("    %s_pool,", entry.name))
+        end
+        table.insert(lines, "};")
+    else
+        table.insert(lines, "// No pools defined")
+    end
+    
+    return table.concat(lines, "\n")
 end
 
 --============================================================================
@@ -1573,12 +1811,16 @@ function ModuleGenerator:to_c_header(base_name)
     -- Header
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_module.h")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.5")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#ifndef " .. guard)
     table.insert(lines, "#define " .. guard)
+    table.insert(lines, "")
+    table.insert(lines, "#ifdef __cplusplus")
+    table.insert(lines, 'extern "C" {')
+    table.insert(lines, "#endif")
     table.insert(lines, "")
     table.insert(lines, "#include <stdint.h>")
     table.insert(lines, "#include <stdbool.h>")
@@ -1601,6 +1843,12 @@ function ModuleGenerator:to_c_header(base_name)
     -- Include engine types (defines s_expr_param_t, s_expr_node_t, S_EXPR_PARAM_* constants, etc.)
     table.insert(lines, '#include "s_engine_types.h"')
     table.insert(lines, "")
+    
+    -- Include pools header if pools defined
+    if self.pools.pool_id > 0 then
+        table.insert(lines, '#include "' .. base_name .. '_pools.h"')
+        table.insert(lines, "")
+    end
     
     -- Function name tables
     table.insert(lines, "// ============================================================================")
@@ -1664,6 +1912,11 @@ function ModuleGenerator:to_c_header(base_name)
                 elseif p.type == PARAM_PRED then
                     type_str = "S_EXPR_PARAM_PRED"
                     val_str = string.format(".reserved = {0}, .func_idx = %d", p.value)
+                elseif p.type == PARAM_SLOT then
+                    type_str = "S_EXPR_PARAM_SLOT"
+                    val_str = string.format(".reserved = {0}, .slot = { .pool_id = %d, .slot_index = %d }",
+                        p.pool_id, p.slot_index)
+                    comment = string.format("  // %s", p.name or "")
                 elseif p.type == PARAM_OPEN then
                     type_str = "S_EXPR_PARAM_OPEN"
                     val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
@@ -1763,6 +2016,10 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "};")
     table.insert(lines, "")
     
+    table.insert(lines, "#ifdef __cplusplus")
+    table.insert(lines, "}")
+    table.insert(lines, "#endif")
+    table.insert(lines, "")
     table.insert(lines, "#endif // " .. guard)
     
     return table.concat(lines, "\n")
@@ -2011,8 +2268,18 @@ function ModuleGenerator:to_bin()
                 emit_float(p.value)
             elseif p.type == PARAM_INT then
                 emit_int(p.value)
+            elseif p.type == PARAM_SLOT then
+                -- Pack pool_id (16 bits) + slot_index (16 bits) for 32-bit
+                -- or pool_id (32 bits) + slot_index (32 bits) for 64-bit
+                if self.is_64bit then
+                    emit_u32(p.pool_id)
+                    emit_u32(p.slot_index)
+                else
+                    emit_u16(p.pool_id)
+                    emit_u16(p.slot_index)
+                end
             else
-                emit_uint(p.value)
+                emit_uint(p.value or 0)
             end
         end
     end
@@ -2030,6 +2297,26 @@ function ModuleGenerator:dump()
     print("MODULE: " .. self.name)
     print("64-bit: " .. (self.is_64bit and "yes" or "no"))
     print("")
+    
+    -- Dump pools
+    print("POOLS:")
+    local ordered_pools = {}
+    for name, pool in pairs(self.pools.pools) do
+        ordered_pools[pool.id + 1] = { name = name, pool = pool }
+    end
+    for _, entry in ipairs(ordered_pools) do
+        print(string.format("  [%d] %s (%s) - %d slots",
+            entry.pool.id, entry.name, entry.pool.type, entry.pool.slot_count))
+    end
+    print("")
+    
+    print("SLOTS:")
+    for slot_name, slot in pairs(self.pools.slots) do
+        local pool = self.pools.pools[slot.pool]
+        print(string.format("  %s -> %s[%d]", slot_name, slot.pool, slot.index))
+    end
+    print("")
+    
     print("ONESHOT FUNCTIONS (@):")
     for i, s in ipairs(self.tables.oneshot_fns) do
         print(string.format("  [%d] @%s", i - 1, s))
@@ -2058,6 +2345,7 @@ function ModuleGenerator:dump()
         print("TREE: " .. tree_name)
         local gen = self.tree_generators[tree_name]
         local nodes = gen:get_nodes()
+        local params = gen:get_params()
         print("  Node count: " .. #nodes)
         for i, n in ipairs(nodes) do
             print(string.format(
@@ -2066,6 +2354,16 @@ function ModuleGenerator:dump()
                 n.fn_index or 0, n.param_offset or 0, n.param_count or 0
             ))
         end
+        print("  Params: " .. #params)
+        for i, p in ipairs(params) do
+            if p.type == PARAM_SLOT then
+                print(string.format("    [%d] SLOT pool=%d index=%d (%s)",
+                    i - 1, p.pool_id, p.slot_index, p.name or ""))
+            else
+                print(string.format("    [%d] type=%d value=%s",
+                    i - 1, p.type, tostring(p.value)))
+            end
+        end
     end
 end
 
@@ -2073,4 +2371,4 @@ end
 -- EXPORT
 --============================================================================
 
-print("ChainTree S-Expression DSL v2.5 loaded (two-tier architecture, s_expr_ types)")
+print("ChainTree S-Expression DSL v2.6 loaded (two-tier architecture, s_expr_ types, slotted blackboards)")

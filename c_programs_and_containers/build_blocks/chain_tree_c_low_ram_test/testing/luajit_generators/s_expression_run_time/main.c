@@ -1,10 +1,10 @@
 // ============================================================================
 // main.c
-// Test harness for S-Expression Engine v2.5
-// Demonstrates two-tier architecture with multiple simultaneous tree instances
+// Test harness for S-Expression Engine v2.7
+// Demonstrates two-tier architecture with slotted blackboards
 // 
 // Build:
-//   gcc -o test_runner main.c s_engine_module.c s_engine_eval.c
+//   gcc -o test_runner main.c s_engine_module.c s_engine_eval.c test_comprehensive_pools.c
 //   ./test_runner
 //
 // ============================================================================
@@ -14,57 +14,12 @@
 #include <string.h>
 #include <stdbool.h>
 
-// Include generated module header FIRST
+// Include generated module header FIRST (defines types)
 #include "test_comprehensive.h"
 
 // Then include engine headers
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
-
-// ============================================================================
-// TEST STATE (per tree instance)
-// ============================================================================
-
-typedef struct {
-    // Instance identifier
-    uint16_t ct_node_id;
-    const char* name;
-    
-    // Simulated hardware state
-    bool led_on;
-    int counter;
-    
-    // Simulated conditions
-    bool is_ready;
-    bool is_calibrated;
-    bool has_power;
-    bool has_fault;
-    bool has_warning;
-    bool has_timeout;
-    bool has_override;
-    bool is_valid;
-    
-    // Delay tracking
-    int delay_remaining;
-    int delay_target;
-    
-    // Stats
-    int oneshot_calls;
-    int boolean_calls;
-    int main_calls;
-} test_state_t;
-
-// Multiple states for multiple instances
-#define MAX_TEST_INSTANCES 4
-static test_state_t g_states[MAX_TEST_INSTANCES];
-
-static test_state_t* get_state_for_instance(s_expr_tree_instance_t* inst) {
-    uint16_t id = s_expr_tree_get_ct_node_id(inst);
-    if (id < MAX_TEST_INSTANCES) {
-        return &g_states[id];
-    }
-    return &g_states[0];
-}
 
 // ============================================================================
 // HELPER: Print param value
@@ -102,6 +57,9 @@ static void print_param(s_expr_tree_instance_t* inst, const s_expr_param_t* p) {
         case S_EXPR_PARAM_CLOSE:
             printf("}");
             break;
+        case S_EXPR_PARAM_SLOT:
+            printf("slot(pool=%d,idx=%d)", p->slot.pool_id, p->slot.slot_index);
+            break;
         default:
             printf("?(%d)", p->type);
     }
@@ -122,6 +80,59 @@ static void print_params(s_expr_tree_instance_t* inst, const s_expr_param_t* par
 }
 
 // ============================================================================
+// SLOT ACCESS HELPERS
+// ============================================================================
+
+static motor_state_t* get_motor_slot(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return NULL;
+    if (p->slot.pool_id != POOL_MOTOR_STATE) return NULL;
+    return &motor_state_pool[p->slot.slot_index];
+}
+
+static led_state_t* get_led_slot(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return NULL;
+    if (p->slot.pool_id != POOL_LED_STATE) return NULL;
+    return &led_state_pool[p->slot.slot_index];
+}
+
+static system_state_t* get_system_slot(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return NULL;
+    if (p->slot.pool_id != POOL_SYSTEM_STATE) return NULL;
+    return &system_state_pool[p->slot.slot_index];
+}
+
+static alarm_state_t* get_alarm_slot(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return NULL;
+    if (p->slot.pool_id != POOL_ALARM_STATE) return NULL;
+    return &alarm_state_pool[p->slot.slot_index];
+}
+
+static counter_state_t* get_counter_slot(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return NULL;
+    if (p->slot.pool_id != POOL_COUNTER_STATE) return NULL;
+    return &counter_state_pool[p->slot.slot_index];
+}
+
+static const char* get_slot_name(const s_expr_param_t* p) {
+    if (p->type != S_EXPR_PARAM_SLOT) return "?";
+    
+    switch (p->slot.pool_id) {
+        case POOL_MOTOR_STATE:
+            return (p->slot.slot_index == 0) ? "motor_main" : "motor_aux";
+        case POOL_LED_STATE:
+            return (p->slot.slot_index == 0) ? "led_status" : "led_alarm";
+        case POOL_SYSTEM_STATE:
+            return "sys_main";
+        case POOL_ALARM_STATE:
+            return "alarm_main";
+        case POOL_COUNTER_STATE:
+            return (p->slot.slot_index == 0) ? "counter_a" : "counter_b";
+        default:
+            return "unknown";
+    }
+}
+
+// ============================================================================
 // ONESHOT FUNCTIONS (@)
 // ============================================================================
 
@@ -130,13 +141,17 @@ static void fn_led_on(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s @] LED_ON\n", ts->name);
-    ts->led_on = true;
-    ts->oneshot_calls++;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        led_state_t* led = get_led_slot(&params[0]);
+        if (led) {
+            led->on = true;
+            printf("  [@] LED_ON slot=%s -> on=true\n", get_slot_name(&params[0]));
+            return;
+        }
+    }
+    printf("  [@] LED_ON (no slot)\n");
 }
 
 static void fn_led_off(
@@ -144,13 +159,17 @@ static void fn_led_off(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s @] LED_OFF\n", ts->name);
-    ts->led_on = false;
-    ts->oneshot_calls++;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        led_state_t* led = get_led_slot(&params[0]);
+        if (led) {
+            led->on = false;
+            printf("  [@] LED_OFF slot=%s -> on=false\n", get_slot_name(&params[0]));
+            return;
+        }
+    }
+    printf("  [@] LED_OFF (no slot)\n");
 }
 
 static void fn_log(
@@ -160,14 +179,12 @@ static void fn_log(
 ) {
     (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
     const char* msg = "";
     if (param_count > 0 && params[0].type == S_EXPR_PARAM_STRING) {
         msg = s_expr_tree_get_string(inst, params[0].str_index);
     }
     
-    printf("  [%s @] LOG: \"%s\"\n", ts->name, msg ? msg : "(null)");
-    ts->oneshot_calls++;
+    printf("  [@] LOG: \"%s\"\n", msg ? msg : "(null)");
 }
 
 static void fn_alarm_on(
@@ -175,12 +192,18 @@ static void fn_alarm_on(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s @] ALARM_ON\n", ts->name);
-    ts->oneshot_calls++;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        alarm_state_t* alarm = get_alarm_slot(&params[0]);
+        if (alarm) {
+            alarm->active = true;
+            alarm->level = 1;
+            printf("  [@] ALARM_ON slot=%s -> active=true\n", get_slot_name(&params[0]));
+            return;
+        }
+    }
+    printf("  [@] ALARM_ON (no slot)\n");
 }
 
 static void fn_increment_counter(
@@ -188,13 +211,18 @@ static void fn_increment_counter(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    ts->counter++;
-    printf("  [%s @] INCREMENT_COUNTER -> %d\n", ts->name, ts->counter);
-    ts->oneshot_calls++;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        counter_state_t* counter = get_counter_slot(&params[0]);
+        if (counter) {
+            counter->count++;
+            printf("  [@] INCREMENT_COUNTER slot=%s -> count=%u\n", 
+                   get_slot_name(&params[0]), (unsigned)counter->count);
+            return;
+        }
+    }
+    printf("  [@] INCREMENT_COUNTER (no slot)\n");
 }
 
 static void fn_cleanup(
@@ -202,12 +230,10 @@ static void fn_cleanup(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     (void)params; (void)param_count;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s @] CLEANUP\n", ts->name);
-    ts->oneshot_calls++;
+    printf("  [@] CLEANUP\n");
 }
 
 // ============================================================================
@@ -219,13 +245,18 @@ static bool fn_is_ready(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] IS_READY -> %s\n", ts->name, ts->is_ready ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->is_ready;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] IS_READY slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->ready ? "true" : "false");
+            return sys->ready;
+        }
+    }
+    printf("  [?] IS_READY (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_is_calibrated(
@@ -233,13 +264,18 @@ static bool fn_is_calibrated(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] IS_CALIBRATED -> %s\n", ts->name, ts->is_calibrated ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->is_calibrated;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] IS_CALIBRATED slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->calibrated ? "true" : "false");
+            return sys->calibrated;
+        }
+    }
+    printf("  [?] IS_CALIBRATED (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_has_power(
@@ -247,13 +283,18 @@ static bool fn_has_power(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] HAS_POWER -> %s\n", ts->name, ts->has_power ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->has_power;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] HAS_POWER slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->has_power ? "true" : "false");
+            return sys->has_power;
+        }
+    }
+    printf("  [?] HAS_POWER (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_has_fault(
@@ -261,13 +302,18 @@ static bool fn_has_fault(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] HAS_FAULT -> %s\n", ts->name, ts->has_fault ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->has_fault;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] HAS_FAULT slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->has_fault ? "true" : "false");
+            return sys->has_fault;
+        }
+    }
+    printf("  [?] HAS_FAULT (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_has_warning(
@@ -275,13 +321,18 @@ static bool fn_has_warning(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] HAS_WARNING -> %s\n", ts->name, ts->has_warning ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->has_warning;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] HAS_WARNING slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->has_warning ? "true" : "false");
+            return sys->has_warning;
+        }
+    }
+    printf("  [?] HAS_WARNING (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_has_timeout(
@@ -289,13 +340,18 @@ static bool fn_has_timeout(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] HAS_TIMEOUT -> %s\n", ts->name, ts->has_timeout ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->has_timeout;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] HAS_TIMEOUT slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->has_timeout ? "true" : "false");
+            return sys->has_timeout;
+        }
+    }
+    printf("  [?] HAS_TIMEOUT (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_has_override(
@@ -303,13 +359,18 @@ static bool fn_has_override(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] HAS_OVERRIDE -> %s\n", ts->name, ts->has_override ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->has_override;
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            printf("  [?] HAS_OVERRIDE slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), sys->has_override ? "true" : "false");
+            return sys->has_override;
+        }
+    }
+    printf("  [?] HAS_OVERRIDE (no slot) -> false\n");
+    return false;
 }
 
 static bool fn_is_valid(
@@ -317,13 +378,30 @@ static bool fn_is_valid(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     (void)params; (void)param_count;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s ?] IS_VALID -> %s\n", ts->name, ts->is_valid ? "true" : "false");
-    ts->boolean_calls++;
-    return ts->is_valid;
+    printf("  [?] IS_VALID -> true\n");
+    return true;
+}
+
+static bool fn_is_running(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
+    
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        motor_state_t* motor = get_motor_slot(&params[0]);
+        if (motor) {
+            printf("  [?] IS_RUNNING slot=%s -> %s\n", 
+                   get_slot_name(&params[0]), motor->running ? "true" : "false");
+            return motor->running;
+        }
+    }
+    printf("  [?] IS_RUNNING (no slot) -> false\n");
+    return false;
 }
 
 // ============================================================================
@@ -335,9 +413,16 @@ static s_expr_result_t fn_delay(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
+    if (event_id == S_EXPR_EVENT_INIT) {
+        printf("  [!] DELAY: init event\n");
+        return SE_CONTINUE;
+    }
+    if (event_id == S_EXPR_EVENT_TERMINATE) {
+        printf("  [!] DELAY: terminate event\n");
+        return SE_CONTINUE;
+    }
     
     int delay_ms = 500;
     if (param_count > 0 && params[0].type == S_EXPR_PARAM_INT) {
@@ -345,23 +430,20 @@ static s_expr_result_t fn_delay(
     }
     
     if (state->state == 0) {
-        ts->delay_target = delay_ms;
-        ts->delay_remaining = delay_ms;
+        state->user_data = (uint16_t)(delay_ms / 100);
         state->state = 1;
-        printf("  [%s !] DELAY(%d) starting\n", ts->name, delay_ms);
+        printf("  [!] DELAY(%d) starting, ticks=%d\n", delay_ms, state->user_data);
     }
     
-    ts->delay_remaining -= 100;
-    
-    if (ts->delay_remaining <= 0) {
-        printf("  [%s !] DELAY(%d) complete\n", ts->name, delay_ms);
-        state->state = 0;
-        ts->main_calls++;
-        return SE_CONTINUE;
+    if (state->user_data > 0) {
+        state->user_data--;
+        printf("  [!] DELAY(%d) remaining ticks=%d\n", delay_ms, state->user_data);
+        return SE_HALT;
     }
     
-    printf("  [%s !] DELAY(%d) remaining: %d\n", ts->name, delay_ms, ts->delay_remaining);
-    return SE_HALT;
+    printf("  [!] DELAY(%d) complete\n", delay_ms);
+    state->state = 0;
+    return SE_CONTINUE;
 }
 
 static s_expr_result_t fn_start_motor(
@@ -369,12 +451,27 @@ static s_expr_result_t fn_start_motor(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] START_MOTOR\n", ts->name);
-    ts->main_calls++;
+    if (event_id == S_EXPR_EVENT_INIT) {
+        printf("  [!] START_MOTOR: init event\n");
+        return SE_CONTINUE;
+    }
+    if (event_id == S_EXPR_EVENT_TERMINATE) {
+        printf("  [!] START_MOTOR: terminate event\n");
+        return SE_CONTINUE;
+    }
+    
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        motor_state_t* motor = get_motor_slot(&params[0]);
+        if (motor) {
+            motor->running = true;
+            motor->speed = 100;
+            printf("  [!] START_MOTOR slot=%s -> running=true\n", get_slot_name(&params[0]));
+            return SE_CONTINUE;
+        }
+    }
+    printf("  [!] START_MOTOR (no slot)\n");
     return SE_CONTINUE;
 }
 
@@ -383,12 +480,27 @@ static s_expr_result_t fn_stop_motor(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] STOP_MOTOR\n", ts->name);
-    ts->main_calls++;
+    if (event_id == S_EXPR_EVENT_INIT) {
+        printf("  [!] STOP_MOTOR: init event\n");
+        return SE_CONTINUE;
+    }
+    if (event_id == S_EXPR_EVENT_TERMINATE) {
+        printf("  [!] STOP_MOTOR: terminate event\n");
+        return SE_CONTINUE;
+    }
+    
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        motor_state_t* motor = get_motor_slot(&params[0]);
+        if (motor) {
+            motor->running = false;
+            motor->speed = 0;
+            printf("  [!] STOP_MOTOR slot=%s -> running=false\n", get_slot_name(&params[0]));
+            return SE_CONTINUE;
+        }
+    }
+    printf("  [!] STOP_MOTOR (no slot)\n");
     return SE_CONTINUE;
 }
 
@@ -397,12 +509,28 @@ static s_expr_result_t fn_init_system(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] INIT_SYSTEM\n", ts->name);
-    ts->main_calls++;
+    if (event_id == S_EXPR_EVENT_INIT) {
+        printf("  [!] INIT_SYSTEM: init event\n");
+        return SE_CONTINUE;
+    }
+    if (event_id == S_EXPR_EVENT_TERMINATE) {
+        printf("  [!] INIT_SYSTEM: terminate event\n");
+        return SE_CONTINUE;
+    }
+    
+    if (param_count > 0 && params[0].type == S_EXPR_PARAM_SLOT) {
+        system_state_t* sys = get_system_slot(&params[0]);
+        if (sys) {
+            sys->ready = true;
+            sys->calibrated = true;
+            sys->has_power = true;
+            printf("  [!] INIT_SYSTEM slot=%s -> initialized\n", get_slot_name(&params[0]));
+            return SE_CONTINUE;
+        }
+    }
+    printf("  [!] INIT_SYSTEM (no slot)\n");
     return SE_CONTINUE;
 }
 
@@ -411,14 +539,16 @@ static s_expr_result_t fn_test_params(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] TEST_PARAMS ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] TEST_PARAMS ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -427,14 +557,16 @@ static s_expr_result_t fn_process_array(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] PROCESS_ARRAY ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] PROCESS_ARRAY ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -443,14 +575,16 @@ static s_expr_result_t fn_eval(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] EVAL ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] EVAL ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -459,14 +593,16 @@ static s_expr_result_t fn_eval_nested(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] EVAL_NESTED ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] EVAL_NESTED ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -475,14 +611,16 @@ static s_expr_result_t fn_register_callbacks(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] REGISTER_CALLBACKS ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] REGISTER_CALLBACKS ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -491,14 +629,16 @@ static s_expr_result_t fn_filter(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] FILTER ", ts->name);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] FILTER ");
     print_params(inst, params, param_count);
     printf("\n");
     
-    ts->main_calls++;
     return SE_CONTINUE;
 }
 
@@ -507,9 +647,12 @@ static s_expr_result_t fn_add(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
     ct_int_t sum = 0;
     for (uint8_t i = 0; i < param_count; i++) {
         if (params[i].type == S_EXPR_PARAM_INT) {
@@ -517,8 +660,7 @@ static s_expr_result_t fn_add(
         }
     }
     
-    printf("  [%s !] ADD -> %d\n", ts->name, (int)sum);
-    ts->main_calls++;
+    printf("  [!] ADD -> %d\n", (int)sum);
     return SE_CONTINUE;
 }
 
@@ -527,9 +669,12 @@ static s_expr_result_t fn_sub(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
     ct_int_t result = 0;
     if (param_count > 0 && params[0].type == S_EXPR_PARAM_INT) {
         result = params[0].i;
@@ -540,8 +685,7 @@ static s_expr_result_t fn_sub(
         }
     }
     
-    printf("  [%s !] SUB -> %d\n", ts->name, (int)result);
-    ts->main_calls++;
+    printf("  [!] SUB -> %d\n", (int)result);
     return SE_CONTINUE;
 }
 
@@ -550,9 +694,12 @@ static s_expr_result_t fn_mul(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_data;
     
-    test_state_t* ts = get_state_for_instance(inst);
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
     ct_int_t product = 1;
     for (uint8_t i = 0; i < param_count; i++) {
         if (params[i].type == S_EXPR_PARAM_INT) {
@@ -560,8 +707,7 @@ static s_expr_result_t fn_mul(
         }
     }
     
-    printf("  [%s !] MUL -> %d\n", ts->name, (int)product);
-    ts->main_calls++;
+    printf("  [!] MUL -> %d\n", (int)product);
     return SE_CONTINUE;
 }
 
@@ -570,12 +716,14 @@ static s_expr_result_t fn_on_success(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_data;
     (void)params; (void)param_count;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] ON_SUCCESS\n", ts->name);
-    ts->main_calls++;
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] ON_SUCCESS\n");
     return SE_CONTINUE;
 }
 
@@ -584,12 +732,14 @@ static s_expr_result_t fn_on_failure(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)inst; (void)node; (void)state; (void)event_data;
     (void)params; (void)param_count;
     
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s !] ON_FAILURE\n", ts->name);
-    ts->main_calls++;
+    if (event_id == S_EXPR_EVENT_INIT || event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    printf("  [!] ON_FAILURE\n");
     return SE_CONTINUE;
 }
 
@@ -598,8 +748,8 @@ static s_expr_result_t fn_on_failure(
 // ============================================================================
 
 static void fn_debug(s_expr_tree_instance_t* inst, const char* message) {
-    test_state_t* ts = get_state_for_instance(inst);
-    printf("  [%s DBG] %s\n", ts->name, message);
+    (void)inst;
+    printf("  [DBG] %s\n", message);
 }
 
 // ============================================================================
@@ -638,6 +788,7 @@ static const s_expr_fn_entry_t boolean_entries[] = {
     { "HAS_TIMEOUT",   (void*)fn_has_timeout },
     { "HAS_OVERRIDE",  (void*)fn_has_override },
     { "IS_VALID",      (void*)fn_is_valid },
+    { "IS_RUNNING",    (void*)fn_is_running },
 };
 
 static const s_expr_fn_entry_t main_entries[] = {
@@ -658,29 +809,45 @@ static const s_expr_fn_entry_t main_entries[] = {
     { "FILTER",             (void*)fn_filter },
 };
 
-// ============================================================================
-// TEST STATE MANAGEMENT
-// ============================================================================
+static const s_expr_fn_table_t oneshot_table = {
+    .entries = oneshot_entries,
+    .count = sizeof(oneshot_entries) / sizeof(oneshot_entries[0])
+};
 
-static void init_test_state(test_state_t* ts, uint16_t id, const char* name) {
-    memset(ts, 0, sizeof(test_state_t));
-    ts->ct_node_id = id;
-    ts->name = name;
-    ts->has_power = true;
-    ts->is_ready = true;
-    ts->is_calibrated = true;
-    ts->is_valid = true;
-}
+static const s_expr_fn_table_t boolean_table = {
+    .entries = boolean_entries,
+    .count = sizeof(boolean_entries) / sizeof(boolean_entries[0])
+};
+
+static const s_expr_fn_table_t main_table = {
+    .entries = main_entries,
+    .count = sizeof(main_entries) / sizeof(main_entries[0])
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
 
 static const char* se_result_str(s_expr_result_t code) {
     switch (code) {
-        case SE_CONTINUE:  return "CONTINUE";
-        case SE_HALT:      return "HALT";
-        case SE_TERMINATE: return "TERMINATE";
-        case SE_RESET:     return "RESET";
-        case SE_DISABLE:   return "DISABLE";
-        default:            return "UNKNOWN";
+        case SE_CONTINUE:           return "CONTINUE";
+        case SE_HALT:               return "HALT";
+        case SE_TERMINATE:          return "TERMINATE";
+        case SE_RESET:              return "RESET";
+        case SE_DISABLE:            return "DISABLE";
+        case SE_FUNCTION_TERMINATE: return "FUNCTION_TERMINATE";
+        default:                    return "UNKNOWN";
     }
+}
+
+static int find_tree_index(const s_expr_module_def_t* def, const char* name) {
+    if (!def || !name) return -1;
+    for (uint16_t i = 0; i < def->tree_count; i++) {
+        if (def->trees[i].name && strcmp(def->trees[i].name, name) == 0) {
+            return (int)i;
+        }
+    }
+    return -1;
 }
 
 // ============================================================================
@@ -690,19 +857,20 @@ static const char* se_result_str(s_expr_result_t code) {
 static void run_single_tree_test(
     s_expr_module_t* mod,
     const char* tree_name,
-    uint16_t ct_node_id,
     int max_ticks
 ) {
     printf("\n");
     printf("============================================================\n");
-    printf("TREE: %s (node %d)\n", tree_name, ct_node_id);
+    printf("TREE: %s\n", tree_name);
     printf("============================================================\n");
     
-    // Initialize test state
-    init_test_state(&g_states[ct_node_id], ct_node_id, tree_name);
+    int tree_idx = find_tree_index(mod->def, tree_name);
+    if (tree_idx < 0) {
+        printf("ERROR: Tree not found: %s\n", tree_name);
+        return;
+    }
     
-    // Create tree instance
-    s_expr_tree_instance_t* inst = s_expr_tree_create(mod, tree_name, NULL, ct_node_id);
+    s_expr_tree_instance_t* inst = s_expr_tree_create(mod, (uint16_t)tree_idx, NULL, 0);
     if (!inst) {
         printf("ERROR: Failed to create tree instance: %s\n", tree_name);
         return;
@@ -710,7 +878,7 @@ static void run_single_tree_test(
     
     printf("Tree: %s, Nodes: %d\n", 
            s_expr_tree_get_name(inst), 
-           s_expr_tree_node_count(inst));
+           s_expr_tree_get_node_count(inst));
     
     for (int tick = 0; tick < max_ticks; tick++) {
         printf("\n--- Tick %d ---\n", tick + 1);
@@ -724,68 +892,36 @@ static void run_single_tree_test(
         }
     }
     
-    test_state_t* ts = &g_states[ct_node_id];
-    printf("\nStats: oneshot=%d, boolean=%d, main=%d\n",
-           ts->oneshot_calls, ts->boolean_calls, ts->main_calls);
-    
-    // Cleanup
-    s_expr_tree_destroy(inst);
+    s_expr_tree_free(inst);
 }
 
 // ============================================================================
-// MULTI-INSTANCE TEST (demonstrates simultaneous execution)
+// POOL STATE DUMP
 // ============================================================================
 
-static void run_multi_instance_test(s_expr_module_t* mod) {
-    printf("\n");
-    printf("============================================================\n");
-    printf("MULTI-INSTANCE TEST: Two trees running simultaneously\n");
-    printf("============================================================\n");
+static void dump_pool_state(void) {
+    printf("\n--- Pool State ---\n");
     
-    // Create two instances of the same tree
-    init_test_state(&g_states[0], 0, "inst_A");
-    init_test_state(&g_states[1], 1, "inst_B");
+    printf("Motor Pool:\n");
+    printf("  motor_main: running=%d, speed=%d\n", 
+           motor_state_pool[0].running, motor_state_pool[0].speed);
+    printf("  motor_aux:  running=%d, speed=%d\n", 
+           motor_state_pool[1].running, motor_state_pool[1].speed);
     
-    s_expr_tree_instance_t* inst_a = s_expr_tree_create(
-        mod, "simple_pipeline_2", NULL, 0
-    );
-    s_expr_tree_instance_t* inst_b = s_expr_tree_create(
-        mod, "simple_pipeline_2", NULL, 1
-    );
+    printf("LED Pool:\n");
+    printf("  led_status: on=%d\n", led_state_pool[0].on);
+    printf("  led_alarm:  on=%d\n", led_state_pool[1].on);
     
-    if (!inst_a || !inst_b) {
-        printf("ERROR: Failed to create instances\n");
-        if (inst_a) s_expr_tree_destroy(inst_a);
-        if (inst_b) s_expr_tree_destroy(inst_b);
-        return;
-    }
+    printf("System Pool:\n");
+    printf("  sys_main: ready=%d, calibrated=%d, power=%d, fault=%d\n",
+           system_state_pool[0].ready,
+           system_state_pool[0].calibrated,
+           system_state_pool[0].has_power,
+           system_state_pool[0].has_fault);
     
-    printf("Created two instances of 'simple_pipeline_2'\n");
-    printf("Each has independent node states\n\n");
-    
-    // Run alternating ticks
-    for (int tick = 0; tick < 6; tick++) {
-        printf("--- Tick %d ---\n", tick + 1);
-        
-        s_expr_result_t result_a = s_expr_tree_tick(inst_a, 0, NULL);
-        s_expr_result_t result_b = s_expr_tree_tick(inst_b, 0, NULL);
-        
-        printf("  inst_A: %s, inst_B: %s\n", 
-               se_result_str(result_a), se_result_str(result_b));
-        
-        if (result_a == SE_CONTINUE && result_b == SE_CONTINUE) {
-            break;
-        }
-    }
-    
-    printf("\nFinal stats:\n");
-    printf("  inst_A: oneshot=%d, main=%d\n", 
-           g_states[0].oneshot_calls, g_states[0].main_calls);
-    printf("  inst_B: oneshot=%d, main=%d\n", 
-           g_states[1].oneshot_calls, g_states[1].main_calls);
-    
-    s_expr_tree_destroy(inst_a);
-    s_expr_tree_destroy(inst_b);
+    printf("Counter Pool:\n");
+    printf("  counter_a: count=%u\n", (unsigned)counter_state_pool[0].count);
+    printf("  counter_b: count=%u\n", (unsigned)counter_state_pool[1].count);
 }
 
 // ============================================================================
@@ -795,12 +931,25 @@ static void run_multi_instance_test(s_expr_module_t* mod) {
 int main(int argc, char* argv[]) {
     (void)argc; (void)argv;
     
-    printf("ChainTree S-Expression Engine v2.5\n");
-    printf("Two-tier Architecture: Shared Module + Tree Instances\n");
+    printf("ChainTree S-Expression Engine v2.7\n");
+    printf("Two-tier Architecture with Slotted Blackboards\n");
+    printf("Lifecycle Events: INIT/TERMINATE\n");
+    printf("Incremental Function Loading\n");
     printf("\n");
     
     // ========================================================================
-    // STEP 1: Set up allocator (just function pointers, no state)
+    // STEP 1: Initialize pools
+    // ========================================================================
+    
+    printf("Initializing pools...\n");
+    test_comprehensive_pools_init();
+    
+    system_state_pool[0].ready = true;
+    system_state_pool[0].calibrated = true;
+    system_state_pool[0].has_power = true;
+    
+    // ========================================================================
+    // STEP 2: Set up allocator
     // ========================================================================
     
     s_expr_allocator_t alloc = {
@@ -808,109 +957,101 @@ int main(int argc, char* argv[]) {
         .free = test_free
     };
     
-    // Simulated ChainTree runtime handle (in real system, provided by runtime)
-    void* runtime_handle = NULL;
-    
     // ========================================================================
-    // STEP 2: Set up function tables (can be from different sources)
+    // STEP 3: Initialize module (Phase 1 - no function resolution yet)
     // ========================================================================
     
-    // System functions (could come from a system library)
-    s_expr_fn_table_t system_oneshot = {
-        .entries = oneshot_entries,
-        .count = sizeof(oneshot_entries) / sizeof(oneshot_entries[0])
-    };
+    printf("Creating module...\n");
     
-    s_expr_fn_table_t system_boolean = {
-        .entries = boolean_entries,
-        .count = sizeof(boolean_entries) / sizeof(boolean_entries[0])
-    };
+    s_expr_module_t mod;
+    uint8_t err = s_expr_module_init(&mod, &test_comprehensive_module, alloc, NULL);
     
-    s_expr_fn_table_t system_main = {
-        .entries = main_entries,
-        .count = sizeof(main_entries) / sizeof(main_entries[0])
-    };
-    
-    // ========================================================================
-    // STEP 3: Initialize module using three-step process
-    // ========================================================================
-    
-    printf("Creating module structure...\n");
-    
-    // Step 1: Create module structure
-    s_expr_module_t* mod = s_expr_module_create(
-        &test_comprehensive_module,
-        &alloc,
-        runtime_handle,
-        0  // ct_node_id (0 for system-level)
-    );
-    
-    if (!mod) {
-        printf("ERROR: Module allocation failed\n");
+    if (err != S_EXPR_MOD_OK) {
+        printf("ERROR: %s\n", s_expr_module_error_str(err));
         return 1;
     }
     
-    // Check for create errors (allocation, 64-bit mismatch)
-    if (s_expr_module_get_error(mod) != S_EXPR_MOD_OK) {
-        printf("ERROR: %s\n", s_expr_module_error_str(s_expr_module_get_error(mod)));
-        s_expr_module_deinit(mod);
-        return 1;
-    }
+    // Set debug function
+    s_expr_module_set_debug(&mod, fn_debug);
     
-    // Step 2: Load functions (can call multiple times with different tables)
+    // Set pool table
+    s_expr_module_set_pool_table(&mod, test_comprehensive_pool_table, TEST_COMPREHENSIVE_POOL_COUNT);
+    
+    // ========================================================================
+    // STEP 4: Load function tables (Phase 2a - can be called multiple times)
+    // ========================================================================
+    
     printf("Loading functions...\n");
     
-    uint16_t loaded_oneshot = s_expr_module_load_oneshot(mod, &system_oneshot);
-    uint16_t loaded_boolean = s_expr_module_load_boolean(mod, &system_boolean);
-    uint16_t loaded_main = s_expr_module_load_main(mod, &system_main);
-    s_expr_module_set_debug(mod, fn_debug);
+    uint16_t loaded_oneshot = s_expr_module_load_oneshot(&mod, &oneshot_table);
+    uint16_t loaded_boolean = s_expr_module_load_boolean(&mod, &boolean_table);
+    uint16_t loaded_main = s_expr_module_load_main(&mod, &main_table);
     
-    printf("  Loaded: %d oneshot, %d boolean, %d main\n", 
+    printf("  Loaded: %u oneshot, %u boolean, %u main\n",
            loaded_oneshot, loaded_boolean, loaded_main);
     
-    // Step 3: Validate all functions resolved
-    printf("Validating...\n");
+    // ========================================================================
+    // STEP 5: Validate and resolve functions (Phase 2b)
+    // ========================================================================
     
-    uint8_t err = s_expr_module_validate(mod);
+    printf("Validating module...\n");
+    
+    err = s_expr_module_validate(&mod);
     if (err != S_EXPR_MOD_OK) {
         printf("ERROR: %s", s_expr_module_error_str(err));
-        if (s_expr_module_get_error_name(mod)) {
-            printf(" - '%s' (index %d)", 
-                   s_expr_module_get_error_name(mod),
-                   s_expr_module_get_error_index(mod));
+        if (mod.error_name) {
+            printf(" - '%s' (index %d)", mod.error_name, mod.error_index);
         }
         printf("\n");
-        s_expr_module_deinit(mod);
+        s_expr_module_free(&mod);
         return 1;
     }
     
     printf("Module validated successfully!\n\n");
     
-    printf("Module: %s\n", s_expr_module_get_name(mod));
-    printf("Trees: %d\n", s_expr_module_tree_count(mod));
-    printf("64-bit: %s\n", s_expr_module_is_64bit(mod) ? "yes" : "no");
+    printf("Module: %s\n", s_expr_module_get_name(&mod));
+    printf("Trees: %d\n", s_expr_module_tree_count(&mod));
+    printf("Pools: %d\n", s_expr_module_get_pool_count(&mod));
     
-    // List all trees
     printf("\nAvailable trees:\n");
-    for (uint16_t i = 0; i < s_expr_module_tree_count(mod); i++) {
-        printf("  [%d] %s\n", i, s_expr_module_tree_name(mod, i));
+    for (uint16_t i = 0; i < s_expr_module_tree_count(&mod); i++) {
+        printf("  [%d] %s\n", i, s_expr_module_tree_name(&mod, i));
     }
     
     // ========================================================================
-    // STEP 4: Run tests (create tree instances as needed)
+    // STEP 6: Run tests
     // ========================================================================
     
-    // Single tree tests
-    run_single_tree_test(mod, "simple_pipeline_2", 0, 15);
+    run_single_tree_test(&mod, "simple_pipeline_2", 15);
+    dump_pool_state();
     
-    // Multi-instance test (demonstrates simultaneous execution)
-    run_multi_instance_test(mod);
+    test_comprehensive_pools_init();
+    system_state_pool[0].ready = true;
+    system_state_pool[0].calibrated = true;
+    system_state_pool[0].has_power = true;
+    
+    run_single_tree_test(&mod, "if_else_test_9", 5);
+    dump_pool_state();
+    
+    test_comprehensive_pools_init();
+    system_state_pool[0].ready = true;
+    system_state_pool[0].calibrated = true;
+    system_state_pool[0].has_power = true;
+    
+    run_single_tree_test(&mod, "multi_slot_test_104", 5);
+    dump_pool_state();
+    
+    test_comprehensive_pools_init();
+    system_state_pool[0].ready = true;
+    
+    run_single_tree_test(&mod, "cross_pool_test_110", 5);
+    dump_pool_state();
     
     // ========================================================================
-    // STEP 5: Cleanup shared module
+    // STEP 7: Cleanup
     // ========================================================================
     
-    s_expr_module_deinit(mod);
+    s_expr_module_free(&mod);
     
     printf("\n============================================================\n");
     printf("All tests completed.\n");

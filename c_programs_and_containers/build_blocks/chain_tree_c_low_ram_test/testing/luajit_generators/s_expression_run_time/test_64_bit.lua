@@ -2,12 +2,9 @@
 -- Demonstrates 64-bit flag and generic int/uint/float types
 
 dofile("s_expr_dsl.lua")
+defpool("motor_state", "motor_state_t")
+defslot("motor_main", "motor_state")
 
--- Enable 64-bit mode (uncomment for 64-bit output)
--- use_64bit()
-
--- Or explicitly use 32-bit (default)
---use_32bit()
 
 start_module("sensor_system")
 --use_64bit()
