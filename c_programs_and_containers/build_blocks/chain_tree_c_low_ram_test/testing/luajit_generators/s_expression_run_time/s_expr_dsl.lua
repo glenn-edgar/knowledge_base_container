@@ -528,15 +528,26 @@ end
 -- TEST/MODULE WRAPPERS
 --============================================================================
 
-function start_test(prefix)
-    prefix = prefix or "test"
-    local name = gensym(prefix)
+function start_tree(name)
+    if not name or name == "" then
+        error("[DSL ERROR] start_tree() requires explicit name", 2)
+    end
+    
+    if not _module.name then
+        error("[DSL ERROR] start_tree() must be inside start_module()", 2)
+    end
+    
+    if _module.trees[name] then
+        error("[DSL ERROR] tree '" .. name .. "' already defined", 2)
+    end
+    
+    _module.current_tree = name
     
     _state = {
         stack = {},
         root = nil,
         test_name = name,
-        tables = new_tables(),
+        tables = _module.tables,
         line = 0,
         is_64bit = _module.is_64bit,
         brace_depth = 0,
@@ -575,9 +586,9 @@ function end_test(name)
     return TreeGenerator.new(name, _state.root, _state.tables, _state.is_64bit)
 end
 
-function start_module(prefix, opts)
+function start_module(name, opts)
     prefix = prefix or "module"
-    local name = gensym(prefix)
+    
     
     opts = opts or {}
     
@@ -594,9 +605,8 @@ function start_module(prefix, opts)
     return name
 end
 
-function start_tree(prefix)
-    prefix = prefix or "tree"
-    local name = gensym(prefix)
+function start_tree(name)
+    
     
     if not _module.name then
         error("[DSL ERROR] start_tree() must be inside start_module()", 2)

@@ -108,6 +108,11 @@ uint8_t s_expr_count_param_type(
     uint8_t param_type
 );
 
+uint8_t s_expr_count_params(
+    const s_expr_param_t* params,
+    uint8_t param_count
+)''
+
 #ifdef __cplusplus
 }
 #endif

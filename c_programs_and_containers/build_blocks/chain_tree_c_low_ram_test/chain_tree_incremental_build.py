@@ -2133,7 +2133,7 @@ def insert_s_expression_df_a(ct):
 def insert_s_expression_df_b(ct):
     
     
-    data_flow_mask_column = ct.define_s_expression_node(column_name="s_expression_df_b",module_name= "chain_flow_dsl_tests",tree_name="s_expression_test_2",
+    data_flow_mask_column = ct.define_s_expression_node(column_name="s_expression_df_b",module_name= "chain_flow_dsl_tests",tree_name="s_expression_test_1",
                                                         user_data={})
                                                            
     ct.asm_log_message("data flow expression column df_b is active")
@@ -2152,21 +2152,22 @@ def twenty_ninth_test(ct,kb_name): # data f
 
     ##### register data flow events
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_clear_bitmask([0,1,2,3])
     insert_s_expression_df_a(ct)
     insert_s_expression_df_b(ct)
 
     ct.asm_log_message("data flow columns are instantiated")
     ct.asm_wait_time(time_delay=5)
-    ct.asm_set_bitmask(["a","c"])
+    ct.asm_set_bitmask([0,1,2,3])
     ct.asm_log_message("bitmask event a and c are set")
     ct.asm_wait_time(time_delay=5)
     ct.asm_log_message("bitmask event b is now set")
-    ct.asm_set_bitmask(["b"])
+    ct.asm_set_bitmask([0,1])
     ct.asm_log_message("bitmask event a is now cleared")
-    ct.asm_clear_bitmask(["a"])
+    ct.asm_clear_bitmask([0,1])
     ct.asm_wait_time(time_delay=5)
     ct.asm_log_message("bitmask event b and c are now cleared")
-    ct.asm_clear_bitmask(["b","c"])
+    ct.asm_clear_bitmask([2,3])
     
     ct.asm_wait_time(time_delay=5)
     ct.asm_log_message("test is terminating")

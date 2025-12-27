@@ -5,60 +5,83 @@
 #include "s_engine_module.h"
 #include "cfl_common_function_headers.h"
 #include <stdio.h>
-
+#include "chain_flow_dsl_tests_pools.h"
 // ============================================================================
 // USER ONESHOT FUNCTIONS (@)
 // ============================================================================
 
-static void user_fn_example_oneshot(
+static void test_29_set_state_oneshot(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)node; (void)state; (void)event_id; (void)event_data;
     
-    printf("  [@] USER_EXAMPLE_ONESHOT\n");
+    if (param_count < 2 || params[0].type != S_EXPR_PARAM_SLOT || params[1].type != S_EXPR_PARAM_INT) {
+        EXCEPTION("Invalid parameters for TEST_29_SET_STATE_ONESHOT");
+        return;
+    }
+    
+    // Use helper macro (defined in s_engine_module.h)
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    
+    
+    data->children_active = params[1].i;
 }
 
 // ============================================================================
 // USER BOOLEAN FUNCTIONS (?)
 // ============================================================================
 
-static bool user_fn_example_boolean(
+static bool test_29_read_state_boolean(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)node; (void)state; (void)event_id; (void)event_data;
     
-    printf("  [?] USER_EXAMPLE_BOOLEAN -> true\n");
-    return true;
+    if (param_count < 1 || params[0].type != S_EXPR_PARAM_SLOT) {
+        EXCEPTION("Invalid parameters for TEST_29_READ_STATE_BOOLEAN");
+        return false;
+    }
+    
+    // Use helper macro (defined in s_engine_module.h)
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    return data->children_active;
+   
 }
 
 // ============================================================================
 // USER MAIN FUNCTIONS (!)
 // ============================================================================
 
-static s_expr_result_t user_fn_example_main(
+static s_expr_result_t test_29_set_state_main(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)inst; (void)node; (void)state; (void)event_data;
-    (void)params; (void)param_count;
+    (void)node; (void)state; (void)event_data;
+    
+
+    if (param_count < 2 || params[0].type != S_EXPR_PARAM_SLOT || params[1].type != S_EXPR_PARAM_INT) {
+        EXCEPTION("Invalid parameters for TEST_29_SET_STATE_MAIN");
+        return SE_CONTINUE;
+    }
     
     if (event_id == S_EXPR_EVENT_INIT) {
-        printf("  [!] USER_EXAMPLE_MAIN: init event\n");
         return SE_CONTINUE;
     }
     if (event_id == S_EXPR_EVENT_TERMINATE) {
-        printf("  [!] USER_EXAMPLE_MAIN: terminate event\n");
         return SE_CONTINUE;
     }
     
-    printf("  [!] USER_EXAMPLE_MAIN\n");
+    
+    // Use helper macro (defined in s_engine_module.h)
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    
+    
+    data->children_active = params[1].i;
+    
     return SE_CONTINUE;
 }
 
@@ -67,17 +90,17 @@ static s_expr_result_t user_fn_example_main(
 // ============================================================================
 
 static const s_expr_fn_entry_t user_oneshot_entries[] = {
-    { "TEST_29_SET_STATE", (void*)user_fn_example_oneshot },
+    { "TEST_29_SET_STATE", (void*)test_29_set_state_oneshot },
     // Add more user oneshot functions here
 };
 
 static const s_expr_fn_entry_t user_boolean_entries[] = {
-    { "TEST_29_READ_STATE", (void*)user_fn_example_boolean },
+    { "TEST_29_READ_STATE", (void*)test_29_read_state_boolean },
     // Add more user boolean functions here
 };
 
 static const s_expr_fn_entry_t user_main_entries[] = {
-    { "USER_EXAMPLE_MAIN", (void*)user_fn_example_main },
+    { "TEST_29_SET_STATE", (void*)test_29_set_state_main },
     // Add more user main functions here
 };
 
@@ -101,7 +124,7 @@ static const s_expr_fn_table_t user_main_table = {
 // ============================================================================
 
 void load_user_s_functions(cfl_runtime_handle_t* handle) {
-    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_module_ptr;
+    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
     
     if (!mod) {
         printf("ERROR: load_user_s_functions called before module init\n");

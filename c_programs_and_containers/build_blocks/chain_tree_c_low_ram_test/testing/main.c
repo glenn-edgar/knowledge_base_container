@@ -6,7 +6,7 @@
 #include "chaintree_support.h"
 #include "cfl_exception.h"
 #include "s_engine_types.h"
-#include "chain_flow_dsl_tests.h"
+#include "chain_flow_dsl_registry.h"
 #include "cfl_s_engine_interface.h"
 #include "user_s_functions.h"
 
@@ -69,7 +69,7 @@ int main(void) {
     }
    
     cfl_runtime_reset(handle);
-    cfl_initialize_s_engine(handle, &chain_flow_dsl_tests_module);
+    cfl_initialize_s_engine(handle, module_registry, MODULE_REGISTRY_COUNT);
     load_user_s_functions(handle);
     cfl_s_engine_module_check(handle);
     

@@ -2,7 +2,7 @@
 #include "test_header_node_data.h"
 
 /* JSON records array */
-const json_record_t ct_odg0ujmi_node_data_records[6396] = {
+const json_record_t ct_mihp1u4t_node_data_records[6401] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6284,6 +6284,11 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 2811 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 15 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 898 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 6 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6339 } },
@@ -6300,7 +6305,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6339 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6351 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6372 } },
-    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6402 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6382 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 1754 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6317,7 +6322,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 2811 } },
-    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 3 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 15 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6337,7 +6342,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 2811 } },
-    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 4 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 3 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6347,7 +6352,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 2811 } },
-    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 1 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 3 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6362,7 +6367,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 2811 } },
-    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 6 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 12 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6377,7 +6382,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 35 } },
-    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6422 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6402 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 4 } },
@@ -6402,7 +6407,7 @@ const json_record_t ct_odg0ujmi_node_data_records[6396] = {
 };
 
 /* String data buffer */
-const char ct_odg0ujmi_node_data_strings[6470] = {
+const char ct_mihp1u4t_node_data_strings[6450] = {
     0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x64, 0x69, 0x63, 0x74, 0x00, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
     0x6e, 0x00, 0x31, 0x2e, 0x30, 0x2e, 0x30, 0x00, 0x73, 0x74, 0x61, 0x74, 0x65, 0x00, 0x6f, 0x70,
     0x65, 0x6e, 0x00, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x00, 0x56, 0x61, 0x6c, 0x76, 0x65,
@@ -6803,15 +6808,14 @@ const char ct_odg0ujmi_node_data_strings[6470] = {
     0x68, 0x61, 0x69, 0x6e, 0x5f, 0x66, 0x6c, 0x6f, 0x77, 0x5f, 0x64, 0x73, 0x6c, 0x5f, 0x74, 0x65,
     0x73, 0x74, 0x73, 0x00, 0x74, 0x72, 0x65, 0x65, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x73, 0x5f,
     0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x5f,
-    0x31, 0x00, 0x73, 0x5f, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74,
-    0x65, 0x73, 0x74, 0x5f, 0x32, 0x00, 0x73, 0x20, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69,
-    0x6f, 0x6e, 0x20, 0x63, 0x6f, 0x6c, 0x75, 0x6d, 0x6e, 0x20, 0x73, 0x5f, 0x65, 0x78, 0x70, 0x72,
-    0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x64, 0x66, 0x5f, 0x61, 0x20, 0x69, 0x73, 0x20, 0x61,
-    0x63, 0x74, 0x69, 0x76, 0x65, 0x00
+    0x31, 0x00, 0x73, 0x20, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x20, 0x63,
+    0x6f, 0x6c, 0x75, 0x6d, 0x6e, 0x20, 0x73, 0x5f, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69,
+    0x6f, 0x6e, 0x5f, 0x64, 0x66, 0x5f, 0x61, 0x20, 0x69, 0x73, 0x20, 0x61, 0x63, 0x74, 0x69, 0x76,
+    0x65, 0x00
 };
 
 /* Record control array (maps node data IDs to record ranges) */
-const record_control_t ct_odg0ujmi_node_data_controls[946] = {
+const record_control_t ct_mihp1u4t_node_data_controls[947] = {
     { .start_position = 0, .num_records = 5 },
     { .start_position = 5, .num_records = 5 },
     { .start_position = 10, .num_records = 5 },
@@ -7738,9 +7742,9 @@ const record_control_t ct_odg0ujmi_node_data_controls[946] = {
     { .start_position = 6263, .num_records = 5 },
     { .start_position = 6268, .num_records = 5 },
     { .start_position = 6273, .num_records = 5 },
-    { .start_position = 6278, .num_records = 11 },
-    { .start_position = 6289, .num_records = 11 },
-    { .start_position = 6300, .num_records = 5 },
+    { .start_position = 6278, .num_records = 5 },
+    { .start_position = 6283, .num_records = 11 },
+    { .start_position = 6294, .num_records = 11 },
     { .start_position = 6305, .num_records = 5 },
     { .start_position = 6310, .num_records = 5 },
     { .start_position = 6315, .num_records = 5 },
@@ -7755,7 +7759,8 @@ const record_control_t ct_odg0ujmi_node_data_controls[946] = {
     { .start_position = 6360, .num_records = 5 },
     { .start_position = 6365, .num_records = 5 },
     { .start_position = 6370, .num_records = 5 },
-    { .start_position = 6375, .num_records = 8 },
-    { .start_position = 6383, .num_records = 5 },
-    { .start_position = 6388, .num_records = 8 }
+    { .start_position = 6375, .num_records = 5 },
+    { .start_position = 6380, .num_records = 8 },
+    { .start_position = 6388, .num_records = 5 },
+    { .start_position = 6393, .num_records = 8 }
 };

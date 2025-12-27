@@ -244,3 +244,34 @@ uint8_t s_expr_count_param_type(
     }
     return count;
 }
+
+uint8_t s_expr_count_params(
+    const s_expr_param_t* params,
+    uint8_t param_count
+) {
+    if (!params || param_count == 0) return 0;
+    
+    uint8_t count = 0;
+    uint8_t depth = 0;
+    
+    for (uint8_t i = 0; i < param_count; i++) {
+        uint8_t type = params[i].type;
+        
+        if (type == S_EXPR_PARAM_OPEN || type == S_EXPR_PARAM_OPEN_CALL) {
+            if (depth == 0) {
+                count++;  // Count nested expr as one param
+            }
+            depth++;
+        } else if (type == S_EXPR_PARAM_CLOSE) {
+            if (depth > 0) {
+                depth--;
+            }
+        } else {
+            if (depth == 0) {
+                count++;  // Count top-level atom
+            }
+        }
+    }
+    
+    return count;
+}

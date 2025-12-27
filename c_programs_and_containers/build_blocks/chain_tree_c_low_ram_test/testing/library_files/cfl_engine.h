@@ -118,7 +118,8 @@ struct CFL_RUNTIME_HANDLE {
     double future_time_stamp;
     main_function_data_t *main_function_data;
     const chaintree_handle_t* flash_handle;
-    s_expr_module_t *s_expr_module_ptr;
+    s_expr_module_t **s_expr_modules;
+    int s_expr_module_count;
 };
 
 void cfl_engine_create(cfl_runtime_handle_t *handle);

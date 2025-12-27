@@ -66,7 +66,19 @@ static const s_expr_fn_entry_t system_oneshot_entries[] = {
     // Add more system oneshot functions here
 };
 
-const s_expr_fn_table_t system_oneshot = {
+static const s_expr_fn_table_t system_oneshot = {
     .entries = system_oneshot_entries,
     .count = sizeof(system_oneshot_entries) / sizeof(system_oneshot_entries[0])
 };
+
+void cfl_load_oneshot_s_functions(cfl_runtime_handle_t* handle) {
+    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
+    
+    if (!mod) {
+        printf("ERROR: load_oneshot_s_functions called before module init\n");
+        return;
+    }
+    
+    s_expr_module_load_oneshot(mod, &system_oneshot);
+    
+}

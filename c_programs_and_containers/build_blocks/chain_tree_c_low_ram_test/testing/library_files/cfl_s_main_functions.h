@@ -11,6 +11,8 @@ extern "C" {
 #include "s_engine_eval.h"
 #include "json_node_decoder.h"
 
+void cfl_load_main_s_functions(cfl_runtime_handle_t* handle);
+
 
 #ifdef __cplusplus  
 }

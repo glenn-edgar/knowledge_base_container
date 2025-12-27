@@ -57,7 +57,19 @@ static const s_expr_fn_entry_t system_boolean_entries[] = {
     // Add more system boolean functions here
 };
 
-const s_expr_fn_table_t system_boolean = {
+static const s_expr_fn_table_t system_boolean = {
     .entries = system_boolean_entries,
     .count = sizeof(system_boolean_entries) / sizeof(system_boolean_entries[0])
 };
+
+void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
+    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
+    
+    if (!mod) {
+        printf("ERROR: load_boolean_s_functions called before module init\n");
+        return;
+    }
+    
+    s_expr_module_load_boolean(mod, &system_boolean);
+    
+}
