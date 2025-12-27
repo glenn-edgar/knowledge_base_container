@@ -54,6 +54,10 @@ void cfl_initialize_s_engine(cfl_runtime_handle_t *handle,
                              const s_expr_module_def_t* const* registry,
                              int registry_count) {
     
+    if (!handle) {
+        EXCEPTION("ERROR: Null handle");
+    }
+    
     if (registry_count <= 0 || !registry) {
         EXCEPTION("ERROR: Empty or null registry");
     }
@@ -75,7 +79,8 @@ void cfl_initialize_s_engine(cfl_runtime_handle_t *handle,
         );
         
         if (!mod) {
-            EXCEPTION("ERROR: Module allocation failed");
+            printf("ERROR: Module allocation failed for index %d\n", i);
+            EXCEPTION("ERROR: Module allocation failed for index ");
         }
         
         // Phase 1: Initialize module structure
@@ -99,7 +104,7 @@ void cfl_initialize_s_engine(cfl_runtime_handle_t *handle,
     handle->s_expr_modules = modules;
     handle->s_expr_module_count = registry_count;
     
-    // Phase 2: Load function tables (shared across all modules)
+    // Phase 2a: Load function tables (shared across all modules)
     cfl_load_oneshot_s_functions(handle);
     cfl_load_boolean_s_functions(handle);
     cfl_load_main_s_functions(handle);
@@ -111,16 +116,38 @@ void cfl_initialize_s_engine(cfl_runtime_handle_t *handle,
 // ============================================================================
 
 void cfl_s_engine_module_check(cfl_runtime_handle_t *handle) {
+    if (!handle || !handle->s_expr_modules) {
+        EXCEPTION("cfl_s_engine_module_check: invalid handle");
+    }
+    
     int failed_count = 0;
+    int pool_warning_count = 0;
     
     for (int i = 0; i < handle->s_expr_module_count; i++) {
         s_expr_module_t* mod = handle->s_expr_modules[i];
         
+        if (!mod) {
+            printf("ERROR: Module %d is NULL\n", i);
+            failed_count++;
+            continue;
+        }
+        
+        // Check pool table
+        if (!mod->pool_table || mod->pool_count == 0) {
+            printf("WARNING: Module %d (%s) has no pool table set\n",
+                   i, mod->def->name);
+            pool_warning_count++;
+        } else {
+           //printf("cfl_s_engine_module_check: module %d (%s) pool table OK (%d pools)\n",
+             //      i, mod->def->name, mod->pool_count);
+        }
+        
+        // Validate function resolution
         uint8_t err = s_expr_module_validate(mod);
         
         if (err == S_EXPR_MOD_OK) {
-            printf("cfl_s_engine_module_check: module %d (%s) OK\n",
-                   i, mod->def->name);
+           // printf("cfl_s_engine_module_check: module %d (%s) functions OK\n",
+            //       i, mod->def->name);
             continue;
         }
         
@@ -135,13 +162,17 @@ void cfl_s_engine_module_check(cfl_runtime_handle_t *handle) {
     }
     
     if (failed_count > 0) {
-        printf("S-Engine validation failed: %d of %d modules", 
-                  failed_count, handle->s_expr_module_count);
+        printf("S-Engine validation failed: %d of %d modules\n", 
+               failed_count, handle->s_expr_module_count);
         EXCEPTION("S-Engine validation failed");
     }
     
-    printf("cfl_s_engine_module_check: all %d modules validated\n", 
-           handle->s_expr_module_count);
+   // printf("cfl_s_engine_module_check: all %d modules validated", 
+    //       handle->s_expr_module_count);
+    if (pool_warning_count > 0) {
+        EXCEPTION("cfl_s_engine_module_check: some modules have no pool tables");
+    }
+    
 }
 
 
@@ -150,11 +181,16 @@ void cfl_s_engine_module_check(cfl_runtime_handle_t *handle) {
 // ============================================================================
 
 void cfl_deinitialize_s_engine(cfl_runtime_handle_t *handle) {
+    if (!handle) {
+        return;
+    }
+    
     if (handle->s_expr_modules) {
         for (int i = 0; i < handle->s_expr_module_count; i++) {
             if (handle->s_expr_modules[i]) {
                 s_expr_module_free(handle->s_expr_modules[i]);
                 cfl_heap_free_pointer(handle->heap, handle->s_expr_modules[i]);
+                handle->s_expr_modules[i] = NULL;
             }
         }
         cfl_heap_free_pointer(handle->heap, handle->s_expr_modules);
@@ -163,28 +199,82 @@ void cfl_deinitialize_s_engine(cfl_runtime_handle_t *handle) {
     }
 }
 
+
+// ============================================================================
+// POOL TABLE REGISTRATION
+// ============================================================================
+
+void cfl_set_pool_table(cfl_runtime_handle_t *handle, 
+                        const char* module_name,
+                        void** pool_table, 
+                        uint16_t pool_count) {
+    if (!handle || !handle->s_expr_modules || !module_name) {
+        EXCEPTION("cfl_set_pool_table: invalid parameters");
+    }
+    
+    if (!pool_table || pool_count == 0) {
+        EXCEPTION("cfl_set_pool_table: invalid pool table");
+    }
+    
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        const char* name = s_expr_module_get_name(handle->s_expr_modules[i]);
+        if (name && strcmp(name, module_name) == 0) {
+            s_expr_module_set_pool_table(handle->s_expr_modules[i], pool_table, pool_count);
+            
+            return;
+        }
+    }
+    
+    printf("cfl_set_pool_table: module '%s' not found\n", module_name);
+    EXCEPTION("cfl_set_pool_table: module not found");
+}
+
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-// Find module by name
-s_expr_module_t* cfl_find_module(cfl_runtime_handle_t *handle, const char* name) {
+
+s_expr_module_t* cfl_find_module(cfl_runtime_handle_t *handle, const char* module_name) {
+    if (!handle || !handle->s_expr_modules || !module_name) {
+        return NULL;
+    }
+    
     for (int i = 0; i < handle->s_expr_module_count; i++) {
-        
-        if (strcmp(handle->s_expr_modules[i]->def->name, name) == 0) {
+        const char* name = s_expr_module_get_name(handle->s_expr_modules[i]);
+        if (name && strcmp(name, module_name) == 0) {
             return handle->s_expr_modules[i];
         }
     }
+    
+    EXCEPTION("cfl_find_module: module not found");
     return NULL;
 }
 
-// Get module by index
 s_expr_module_t* cfl_get_module(cfl_runtime_handle_t *handle, int index) {
-    if (index >= 0 && index < handle->s_expr_module_count) {
-        return handle->s_expr_modules[index];
+    if (!handle || !handle->s_expr_modules) {
+         EXCEPTION("cfl_get_module: invalid handle");
+         return NULL;
     }
-    return NULL;
+    
+    if (index < 0 || index >= handle->s_expr_module_count) {
+        EXCEPTION("cfl_get_module: invalid index");
+        return NULL;
+    }
+    
+    return handle->s_expr_modules[index];
 }
 
+int cfl_get_module_count(cfl_runtime_handle_t *handle) {
+    if (!handle) {
+        EXCEPTION("cfl_get_module_count: invalid handle");
+        return -1;
+    }
+    if (handle->s_expr_module_count == 0) {
+        EXCEPTION("cfl_get_module_count: no modules");
+        return -1;
+    }
+    return handle->s_expr_module_count;
+}
 // ============================================================================
 // NODE FUNCTIONS (stubs - implement as needed)
 // ============================================================================
@@ -196,14 +286,14 @@ void cfl_s_expression_node_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16
     }
     
     json_decoder_init_from_runtime(handle, node_index);
-    json_print_node_data_runtime(handle, node_index);
+    
     
     
     const char *module_name;
     const char *tree_name;
     json_extract_string_runtime(handle, "node_dict.column_data.module_name", &module_name);
     json_extract_string_runtime(handle, "node_dict.column_data.tree_name", &tree_name);
-    printf("module_name: %s, tree_name: %s\n", module_name, tree_name);
+
  
     // Find the module
     s_expr_module_t* mod = cfl_find_module(handle, module_name);
@@ -215,7 +305,7 @@ void cfl_s_expression_node_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16
     // Find tree index by name
     uint16_t tree_index = UINT16_MAX;
     for (uint16_t i = 0; i < mod->def->tree_count; i++) {
-        printf("tree name: %s\n", mod->def->trees[i].name);
+    
         if (strcmp(mod->def->trees[i].name, tree_name) == 0) {
             tree_index = i;
             break;
@@ -227,11 +317,7 @@ void cfl_s_expression_node_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16
         EXCEPTION("tree not found");
     }
     
-    printf("Found tree: %s (index: %d, nodes: %d, params: %d)\n", 
-           mod->def->trees[tree_index].name,
-           tree_index,
-           mod->def->trees[tree_index].node_count,
-           mod->def->trees[tree_index].param_count);
+    
     
     // Create tree instance
     s_expr_tree_instance_t* tree_inst = s_expr_tree_create(
@@ -246,10 +332,7 @@ void cfl_s_expression_node_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16
         EXCEPTION("failed to create tree instance");
     }
     
-    printf("Created tree instance: %s (node_count: %d)\n", 
-           s_expr_tree_get_name(tree_inst),
-           s_expr_tree_get_node_count(tree_inst));
-    
+   
     // Store tree instance in node's private data
    
 }
@@ -287,5 +370,37 @@ unsigned cfl_s_expression_node_main_main_fn(
         EXCEPTION("failed to locate tree instance");
     }
     
-    return s_expr_tree_tick(tree_inst, event_id, event_data);
+    unsigned result = s_expr_tree_tick(tree_inst, event_id, event_data);
+    
+    switch(result) {
+        case SE_CONTINUE:
+            return CFL_CONTINUE;
+        case SE_TERMINATE:
+            return CFL_TERMINATE;
+        case SE_RESET:
+            return CFL_RESET;
+        case SE_DISABLE:
+            return CFL_DISABLE;
+        case SE_HALT:
+            return CFL_HALT;
+        case SE_FUNCTION_TERMINATE:
+            return CFL_DISABLE;
+        default:
+            EXCEPTION("cfl_s_expression_node_main_main_fn: invalid result");
+            return CFL_TERMINATE_SYSTEM;
+    }
+   
+    EXCEPTION("cfl_s_expression_node_main_main_fn: invalid result");
+    return CFL_TERMINATE_SYSTEM;
 }
+
+#if 0
+typedef enum {
+    SE_CONTINUE           = 0,
+    SE_HALT               = 1,
+    SE_TERMINATE          = 2,
+    SE_RESET              = 3,
+    SE_DISABLE            = 4,
+    SE_FUNCTION_TERMINATE = 5,
+} s_expr_result_t;
+#endif

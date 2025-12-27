@@ -8,7 +8,10 @@
 
 #include "cfl_s_one_shot_functions.h"
 #include "cfl_common_function_headers.h"
-#include "s_engine_module.h"  // Add this for s_expr_inst_get_string
+#include "s_engine_module.h"  // 
+#include "cfl_runtime.h"
+#include "cfl_engine.h"
+#include "cfl_common_functions.h"
 #include <stdio.h>
 
 // ============================================================================
@@ -35,11 +38,13 @@ static void s_enable_children(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_id; (void)event_data;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
     (void)params; (void)param_count;
     
     // TODO: Implement enable children logic
     printf("  [@] ENABLE_CHILDREN\n");
+    cfl_enable_all_children(runtime_handle,inst->ct_node_id);
 }
 
 static void s_disable_children(
@@ -47,11 +52,12 @@ static void s_disable_children(
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)node; (void)state; (void)event_id; (void)event_data;
     (void)params; (void)param_count;
-    
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
     // TODO: Implement disable children logic
     printf("  [@] DISABLE_CHILDREN\n");
+    cfl_disable_all_children(runtime_handle,inst->ct_node_id);
 }
 
 // ============================================================================

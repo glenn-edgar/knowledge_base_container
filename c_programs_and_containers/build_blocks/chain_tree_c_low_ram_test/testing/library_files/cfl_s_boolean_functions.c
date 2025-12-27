@@ -14,14 +14,29 @@ static bool cfl_read_bit(
     (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
     (void)params;  // Add this line
     
-    if (param_count < 2) {
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)inst->handle;
+    if (param_count < 1) {
         printf("  [?] READ_BIT: missing parameters\n");
+        EXCEPTION("cfl_read_bit: Invalid parameter count");
+    return false;
+    }
+    
+    if (params[0].type != S_EXPR_PARAM_INT && params[0].type != S_EXPR_PARAM_UINT) {
+        EXCEPTION("cfl_read_bit: Expected integer parameter");
         return false;
     }
     
-    // TODO: Implement actual bit reading from runtime bitmask
-    printf("  [?] READ_BIT -> false (stub)\n");
-    return false;
+    uint32_t bit_index = (uint32_t)s_expr_param_get_uint(&params[0]);
+    
+    if (bit_index >= 32) {
+        EXCEPTION("cfl_read_bit: Bit index out of range");
+        return false;
+    }
+    uint32_t bit_mask = 1U << bit_index;
+   
+    bool result = (runtime_handle->bitmask & bit_mask) != 0; 
+    
+    return result;
 }
 
 static bool cfl_true(

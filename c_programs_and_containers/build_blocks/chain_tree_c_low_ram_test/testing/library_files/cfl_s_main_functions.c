@@ -39,7 +39,7 @@ static s_expr_result_t cfl_disable_children_main(
 
         return SE_CONTINUE;
     }
-    
+
     cfl_disable_all_children(runtime_handle,inst->ct_node_id);
     return SE_CONTINUE;
 }

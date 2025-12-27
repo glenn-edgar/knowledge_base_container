@@ -67,10 +67,12 @@ int main(void) {
         printf("Failed to create runtime handle\n");
         return -1;
     }
-   
+    
     cfl_runtime_reset(handle);
     cfl_initialize_s_engine(handle, module_registry, MODULE_REGISTRY_COUNT);
     load_user_s_functions(handle);
+    cfl_set_pool_table(handle, "chain_flow_dsl_tests", chain_flow_pool_table, CHAIN_FLOW_POOL_COUNT);
+       
     cfl_s_engine_module_check(handle);
     
     

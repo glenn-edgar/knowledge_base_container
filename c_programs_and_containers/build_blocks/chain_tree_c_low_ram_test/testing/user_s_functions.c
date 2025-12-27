@@ -16,14 +16,16 @@ static void test_29_set_state_oneshot(
     const s_expr_param_t* params, uint8_t param_count
 ) {
     (void)node; (void)state; (void)event_id; (void)event_data;
-    
-    if (param_count < 2 || params[0].type != S_EXPR_PARAM_SLOT || params[1].type != S_EXPR_PARAM_INT) {
+   
+    if (param_count < 3 || 
+        params[1].type != S_EXPR_PARAM_SLOT || 
+        (params[2].type != S_EXPR_PARAM_INT && params[2].type != S_EXPR_PARAM_UINT)) {
         EXCEPTION("Invalid parameters for TEST_29_SET_STATE_ONESHOT");
         return;
     }
     
-    // Use helper macro (defined in s_engine_module.h)
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    // Use helper macro (defined in s_engine_module.h)a
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
     
     
     data->children_active = params[1].i;
@@ -40,13 +42,14 @@ static bool test_29_read_state_boolean(
 ) {
     (void)node; (void)state; (void)event_id; (void)event_data;
     
-    if (param_count < 1 || params[0].type != S_EXPR_PARAM_SLOT) {
+    if (param_count < 2 || params[1].type != S_EXPR_PARAM_SLOT ) {
         EXCEPTION("Invalid parameters for TEST_29_READ_STATE_BOOLEAN");
         return false;
     }
     
     // Use helper macro (defined in s_engine_module.h)
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
+    
     return data->children_active;
    
 }
@@ -63,7 +66,7 @@ static s_expr_result_t test_29_set_state_main(
     (void)node; (void)state; (void)event_data;
     
 
-    if (param_count < 2 || params[0].type != S_EXPR_PARAM_SLOT || params[1].type != S_EXPR_PARAM_INT) {
+    if (param_count < 3 || params[1].type != S_EXPR_PARAM_SLOT || params[2].type != S_EXPR_PARAM_INT) {
         EXCEPTION("Invalid parameters for TEST_29_SET_STATE_MAIN");
         return SE_CONTINUE;
     }
@@ -77,10 +80,10 @@ static s_expr_result_t test_29_set_state_main(
     
     
     // Use helper macro (defined in s_engine_module.h)
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], node_state_t);
+    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
     
     
-    data->children_active = params[1].i;
+    data->children_active = params[2].i;
     
     return SE_CONTINUE;
 }

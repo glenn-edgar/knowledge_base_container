@@ -6,11 +6,18 @@ extern "C" {
 #include "cfl_runtime.h"
 #include "cfl_engine.h"
 #include "s_engine_types.h"
+#include "s_engine_module.h"
+
+void cfl_s_engine_module_check(cfl_runtime_handle_t *handle);
 
 void cfl_initialize_s_engine(cfl_runtime_handle_t *handle, 
     const s_expr_module_def_t* const* registry,
     int registry_count);
-void cfl_s_engine_module_check(cfl_runtime_handle_t *handle);
+    
+void cfl_set_pool_table(cfl_runtime_handle_t *handle, 
+    const char* module_name,
+    void** pool_table, 
+    uint16_t pool_count);
 
 #ifdef __cplusplus
 }

@@ -103,7 +103,7 @@ static const s_expr_node_t chain_flow_dsl_tests_s_expression_test_1_nodes[] = {
     { .type = 0x01, .child_count = 3, .node_index = 13, .first_child = 0x000E, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 9, .param_count = 0, .reserved = 0 }, // [13]
     { .type = 0xC0, .child_count = 0, .node_index = 14, .first_child = 0xFFFF, .next_sibling = 0x000F, .fn_index = 0, .param_offset = 9, .param_count = 0, .reserved = 0 }, // [14]
     { .type = 0xC0, .child_count = 0, .node_index = 15, .first_child = 0xFFFF, .next_sibling = 0x0010, .fn_index = 1, .param_offset = 9, .param_count = 3, .reserved = 0 }, // [15]
-    { .type = 0x09, .child_count = 0, .node_index = 16, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [16]
+    { .type = 0x09, .child_count = 0, .node_index = 16, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [16]
     { .type = 0x03, .child_count = 3, .node_index = 17, .first_child = 0x0012, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [17]
     { .type = 0x07, .child_count = 2, .node_index = 18, .first_child = 0x0013, .next_sibling = 0x0019, .fn_index = 0, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [18]
     { .type = 0x06, .child_count = 2, .node_index = 19, .first_child = 0x0014, .next_sibling = 0x0016, .fn_index = 0, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [19]
@@ -115,9 +115,9 @@ static const s_expr_node_t chain_flow_dsl_tests_s_expression_test_1_nodes[] = {
     { .type = 0x01, .child_count = 3, .node_index = 25, .first_child = 0x001A, .next_sibling = 0x001D, .fn_index = 0, .param_offset = 16, .param_count = 0, .reserved = 0 }, // [25]
     { .type = 0xC0, .child_count = 0, .node_index = 26, .first_child = 0xFFFF, .next_sibling = 0x001B, .fn_index = 2, .param_offset = 16, .param_count = 0, .reserved = 0 }, // [26]
     { .type = 0xC0, .child_count = 0, .node_index = 27, .first_child = 0xFFFF, .next_sibling = 0x001C, .fn_index = 1, .param_offset = 16, .param_count = 3, .reserved = 0 }, // [27]
-    { .type = 0x09, .child_count = 0, .node_index = 28, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [28]
+    { .type = 0x09, .child_count = 0, .node_index = 28, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [28]
     { .type = 0x09, .child_count = 0, .node_index = 29, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [29]
-    { .type = 0x09, .child_count = 0, .node_index = 30, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [30]
+    { .type = 0x09, .child_count = 0, .node_index = 30, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [30]
 };
 #define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_1_NODE_COUNT 31
 
