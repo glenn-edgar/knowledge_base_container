@@ -1,7 +1,8 @@
 // ============================================================================
 // s_engine_module.c
 // S-Expression Module Management Implementation
-// Version 2.7 - Pool table support, lifecycle management, incremental loading
+// Version 2.8 - Pool table support, lifecycle management, incremental loading
+//               Updated for pointer-sized user_data
 // ============================================================================
 
 #include "s_engine_module.h"
@@ -294,7 +295,8 @@ s_expr_tree_instance_t* s_expr_tree_create(
         for (uint16_t i = 0; i < tree_def->node_count; i++) {
             inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE;
             inst->node_states[i].state = 0;
-            inst->node_states[i].user_data = 0;
+            memset(inst->node_states[i].reserved, 0, sizeof(inst->node_states[i].reserved));
+            inst->node_states[i].user_data.u64 = 0;
         }
     }
     

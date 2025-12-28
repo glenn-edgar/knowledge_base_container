@@ -747,7 +747,8 @@ void s_expr_tree_init_states(s_expr_tree_instance_t* inst) {
     for (uint16_t i = 0; i < inst->node_count; i++) {
         inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE;
         inst->node_states[i].state = 0;
-        inst->node_states[i].user_data = 0;
+        memset(inst->node_states[i].reserved, 0, sizeof(inst->node_states[i].reserved));
+        inst->node_states[i].user_data.u64 = 0;
     }
 }
 

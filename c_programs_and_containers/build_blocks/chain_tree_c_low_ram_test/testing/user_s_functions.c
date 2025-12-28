@@ -109,105 +109,103 @@ static s_expr_result_t test_29_set_state_main(
 #define S_EXPR_PARAM_SLOT      0x0A
 #endif
 
-static inline void test_29_df_control_main_validate_parameters(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    unsigned parameter_index = 0;
-    if( param_count < 3 ){
-        EXCEPTION("Invalid parameters for TEST_29_DF_CONTROL_MAIN");
-        return;
-    }        
-    switch(params[parameter_index].type){
-        case S_EXPR_PARAM_PRED:
-            break;
-        case S_EXPR_PARAM_OPEN_CALL:
-            break;
-        default:
-            EXCEPTION("Invalid parameters for TEST_29_DF_CONTROL_MAIN");
-            return;
-    }
-    s_expr_invoke_any(inst, node, state, params, parameter_index);
-    parameter_index =s_expr_skip_param(params, parameter_index);
- 
-    switch(params[parameter_index].type){
-        case S_EXPR_PARAM_MAIN:
-            break;
-        case S_EXPR_PARAM_ONESHOT:
-            break;
-        case S_EXPR_PARAM_OPEN_CALL:
-            break;
-        default:
-            EXCEPTION("Invalid parameters for TEST_29_DF_CONTROL_MAIN");
-            return;
-    }
-    if(params[parameter_index].type != S_EXPR_PARAM_ONESHOT){
-        s_expr_invoke_any(inst, node, state, params, parameter_index);
-    }
-    parameter_index = s_expr_skip_param(params, parameter_index);
+// ============================================================================
+// Parameter type validation helpers (add to s_engine_eval.h or local)
+// ============================================================================
 
-    switch(params[parameter_index].type){
-        case S_EXPR_PARAM_MAIN:
-            break;
-        case S_EXPR_PARAM_ONESHOT:
-            break;
-        case S_EXPR_PARAM_OPEN_CALL:
-            break;
-        default:
-            EXCEPTION("Invalid parameters for TEST_29_DF_CONTROL_MAIN");
-            return;
-    }
-    if(params[parameter_index].type != S_EXPR_PARAM_ONESHOT){
-        s_expr_invoke_any(inst, node, state, params, parameter_index);
-    }
-
+static inline bool s_expr_param_is_predicate(const s_expr_param_t* p) {
+    return p->type == S_EXPR_PARAM_PRED || p->type == S_EXPR_PARAM_OPEN_CALL;
 }
 
-static s_expr_result_t test_29_df_control_main (
+static inline bool s_expr_param_is_action(const s_expr_param_t* p) {
+    return p->type == S_EXPR_PARAM_MAIN || 
+           p->type == S_EXPR_PARAM_ONESHOT || 
+           p->type == S_EXPR_PARAM_OPEN_CALL;
+}
+
+// ============================================================================
+// Named flag for state tracking
+// ============================================================================
+
+#define DF_CONTROL_FLAG_ACTIVE  0x80  // true branch was activated
+
+// ============================================================================
+// DF_CONTROL: if (pred) then_action else else_action
+// Params: [0] = predicate, [1] = then_action, [2] = else_action
+// ============================================================================
+
+static s_expr_result_t test_29_df_control_main(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
     uint16_t event_id, void* event_data,
     const s_expr_param_t* params, uint8_t param_count
 ) {
-    (void)node; (void)state; (void)event_data;
+    (void)event_data;
     
-     if (event_id == S_EXPR_EVENT_INIT) {
-        unsigned event_id_temp = inst->current_event;
-        inst->current_event = S_EXPR_EVENT_INIT;
-        test_29_df_control_main_validate_parameters(inst, node, state, params, param_count);
-        inst->current_event = event_id_temp;
-        state->flags &= ~S_EXPR_NODE_FLAG_ERROR;
+    // Calculate parameter positions once
+    const uint16_t pred_idx = 0;
+    const uint16_t then_idx = s_expr_skip_param(params, pred_idx);
+    const uint16_t else_idx = s_expr_skip_param(params, then_idx);
     
-        return SE_CONTINUE;
-    }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-        printf("test_29_df_control_main: TERMINATE\n");
-        return SE_CONTINUE;
-    }
-    
-    s_expr_result_t result = s_expr_invoke_any(inst, node, state, params, 0);
-   
-    if( result == SE_HALT ){
-        if(state->flags & 0x80){
-            uint16_t parameter_index = s_expr_skip_param(params, 0);
-            parameter_index = s_expr_skip_param(params, parameter_index);
-            s_expr_invoke_any(inst, node, state, params, parameter_index);
-            state->flags &= ~0x80;
+    // -------------------------------------------------------------------------
+    // INIT: Validate parameters
+    // -------------------------------------------------------------------------
+    if (event_id == S_EXPR_EVENT_INIT) {
+        // Validate param count
+        if (s_expr_count_logical_params(params, param_count) < 3) {
+            EXCEPTION("DF_CONTROL requires 3 parameters: pred, then, else");
+            state->flags |= S_EXPR_NODE_FLAG_ERROR;
             return SE_CONTINUE;
-        }        
+        }
+        
+        // Validate types
+        if (!s_expr_param_is_predicate(&params[pred_idx])) {
+            EXCEPTION("DF_CONTROL param[0] must be predicate");
+            state->flags |= S_EXPR_NODE_FLAG_ERROR;
+            return SE_CONTINUE;
+        }
+        if (!s_expr_param_is_action(&params[then_idx])) {
+            EXCEPTION("DF_CONTROL param[1] must be action");
+            state->flags |= S_EXPR_NODE_FLAG_ERROR;
+            return SE_CONTINUE;
+        }
+        if (!s_expr_param_is_action(&params[else_idx])) {
+            EXCEPTION("DF_CONTROL param[2] must be action");
+            state->flags |= S_EXPR_NODE_FLAG_ERROR;
+            return SE_CONTINUE;
+        }
+        
+        // Clear active flag
+        state->flags &= ~DF_CONTROL_FLAG_ACTIVE;
         return SE_CONTINUE;
     }
-    else if( result == SE_CONTINUE ){
-       if((state->flags & 0x80) == 0){
-          uint16_t parameter_index = s_expr_skip_param(params, 0);
-          s_expr_invoke_any(inst, node, state, params, parameter_index);
-          state->flags |= 0x80;
-          return SE_CONTINUE;
-       }
-       return SE_CONTINUE;
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Cleanup
+    // -------------------------------------------------------------------------
+    if (event_id == S_EXPR_EVENT_TERMINATE) {
+        return SE_CONTINUE;
     }
-
-    printf("test_29_df_control_main: expected result %d\n", result);
-    EXCEPTION("test_29_df_control_main: expected result");
+    
+    // -------------------------------------------------------------------------
+    // TICK: Evaluate and dispatch
+    // -------------------------------------------------------------------------
+    bool pred_result = (s_expr_invoke_any(inst, node, state, params, pred_idx) == SE_CONTINUE);
+    bool was_active = (state->flags & DF_CONTROL_FLAG_ACTIVE) != 0;
+    
+    if (pred_result) {
+        // Condition true - activate if not already active
+        if (!was_active) {
+            s_expr_invoke_any(inst, node, state, params, then_idx);
+            state->flags |= DF_CONTROL_FLAG_ACTIVE;
+        }
+    } else {
+        // Condition false - deactivate if was active
+        if (was_active) {
+            s_expr_invoke_any(inst, node, state, params, else_idx);
+            state->flags &= ~DF_CONTROL_FLAG_ACTIVE;
+        }
+    }
+    
     return SE_CONTINUE;
 }
 
@@ -267,3 +265,17 @@ void load_user_s_functions(cfl_runtime_handle_t* handle) {
     printf("load_user_s_functions: %u oneshot, %u boolean, %u main\n",
            loaded_oneshot, loaded_boolean, loaded_main);
 }
+
+#if 0
+// future reference
+uint16_t content_count;
+const s_expr_param_t* contents = s_expr_param_brace_contents(params, idx, &content_count);
+
+// Iterate contents
+uint16_t i = 0;
+while (i < content_count) {
+    // Process contents[i]
+    printf("type: %d\n", contents[i].type);
+    i = s_expr_skip_param(contents, i);
+}
+#endif

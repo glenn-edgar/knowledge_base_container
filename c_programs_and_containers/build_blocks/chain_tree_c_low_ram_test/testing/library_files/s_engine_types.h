@@ -271,10 +271,15 @@ typedef struct {
 typedef struct {
     uint8_t  flags;
     uint8_t  state;
-    uint16_t user_data;
+    uint8_t  reserved[6];  // padding for 8-byte alignment of user_data
+    union {
+        void*    ptr;
+        uint64_t u64;
+        int64_t  i64;
+    } user_data;
 } s_expr_node_state_t;
 
-_Static_assert(sizeof(s_expr_node_state_t) == 4, "s_expr_node_state_t should be 4 bytes");
+_Static_assert(sizeof(s_expr_node_state_t) == 16, "s_expr_node_state_t should be 16 bytes");
 
 // ============================================================================
 // FORWARD DECLARATIONS
