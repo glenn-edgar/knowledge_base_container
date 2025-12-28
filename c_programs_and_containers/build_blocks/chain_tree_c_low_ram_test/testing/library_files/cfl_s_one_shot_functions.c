@@ -43,7 +43,7 @@ static void s_enable_children(
     (void)params; (void)param_count;
     
     // TODO: Implement enable children logic
-    printf("  [@] ENABLE_CHILDREN\n");
+    
     cfl_enable_all_children(runtime_handle,inst->ct_node_id);
 }
 
@@ -55,8 +55,8 @@ static void s_disable_children(
     (void)node; (void)state; (void)event_id; (void)event_data;
     (void)params; (void)param_count;
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
-    // TODO: Implement disable children logic
-    printf("  [@] DISABLE_CHILDREN\n");
+    
+    
     cfl_disable_all_children(runtime_handle,inst->ct_node_id);
 }
 

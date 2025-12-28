@@ -1,12 +1,18 @@
 // ============================================================================
 // s_engine_types.h
 // S-Expression Engine Type Definitions
-// Version 2.7 - Added lifecycle events (init/terminate), reserved flag bits
+// Version 2.8 - Relative brace offsets for sub-array compatibility
 // ============================================================================
 //
 // ARCHITECTURE:
 //   s_expr_module_t        - Shared module (function tables, created once)
 //   s_expr_tree_instance_t - Per-execution instance (node states per tree)
+//
+// BRACE INDEXING:
+//   brace_idx stores RELATIVE OFFSET, not absolute index
+//   - For OPEN/OPEN_CALL: offset to matching CLOSE (close_idx = open_idx + brace_idx)
+//   - For CLOSE: offset back to matching OPEN (open_idx = close_idx - brace_idx)
+//   This allows sub-arrays to work correctly when passed to nested functions.
 //
 // USAGE:
 //   The generated module header MUST be included BEFORE this file.
@@ -193,7 +199,7 @@ typedef struct {
         ct_float_t       f;
         uint16_t         str_index;
         uint16_t         func_idx;
-        uint16_t         brace_idx;
+        uint16_t         brace_idx;   // RELATIVE OFFSET to matching brace
         s_expr_slot_ref_t slot;
     };
 } s_expr_param_t;
@@ -437,7 +443,7 @@ static inline uint16_t s_expr_param_get_func_idx(const s_expr_param_t* p) {
     return p->func_idx;
 }
 
-static inline uint16_t s_expr_param_get_brace_idx(const s_expr_param_t* p) {
+static inline uint16_t s_expr_param_get_brace_offset(const s_expr_param_t* p) {
     return p->brace_idx;
 }
 
@@ -445,16 +451,20 @@ static inline bool s_expr_param_is_callable(const s_expr_param_t* p) {
     return p->type == S_EXPR_PARAM_OPEN_CALL;
 }
 
+// Skip past a braced expression (open_idx + offset + 1)
+// NOTE: brace_idx is now a RELATIVE OFFSET
 static inline uint16_t s_expr_param_skip_brace(const s_expr_param_t* params, uint16_t open_idx) {
-    return params[open_idx].brace_idx + 1;
+    return open_idx + params[open_idx].brace_idx + 1;
 }
 
+// Get contents of a braced expression
+// NOTE: brace_idx is now a RELATIVE OFFSET
 static inline const s_expr_param_t* s_expr_param_brace_contents(
     const s_expr_param_t* params, 
     uint16_t open_idx,
     uint16_t* out_count
 ) {
-    uint16_t close_idx = params[open_idx].brace_idx;
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
     *out_count = close_idx - open_idx - 1;
     return &params[open_idx + 1];
 }
@@ -519,6 +529,7 @@ static inline const char* s_expr_tree_get_string(
 
 // ============================================================================
 // S-EXPRESSION EVALUATION HELPERS
+// NOTE: brace_idx is now a RELATIVE OFFSET
 // ============================================================================
 
 static inline const s_expr_param_t* s_expr_sexpr_get_func(
@@ -533,7 +544,7 @@ static inline const s_expr_param_t* s_expr_sexpr_get_args(
     uint16_t open_idx,
     uint16_t* out_count
 ) {
-    uint16_t close_idx = params[open_idx].brace_idx;
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
     *out_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
     return &params[open_idx + 2];
 }

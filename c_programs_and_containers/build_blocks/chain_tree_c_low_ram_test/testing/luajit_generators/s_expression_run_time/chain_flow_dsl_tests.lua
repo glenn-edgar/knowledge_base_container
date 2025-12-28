@@ -90,6 +90,7 @@ function inactive_state()
 end
 
 
+
 -- ============================================================================
 -- BEGIN MODULE
 -- ============================================================================
@@ -105,6 +106,7 @@ local tree1 = start_tree("s_expression_test_1")
     
     local main_pipeline = pipeline("main")
     oneshot("TEST_29_SET_STATE", str("node_state"),slot_ref("branch_1"), int(0))
+    oneshot("CFL_DISABLE_CHILDREN")
      local n = if_then_else("check_state")
         check_state()
         active_state()
@@ -114,6 +116,36 @@ local tree1 = start_tree("s_expression_test_1")
     end_pipeline(main_pipeline)
 end_tree(tree1)
 
+local function bit_test()
+    
+end
+
+local tree2 = start_tree("s_expression_test_2")
+    local main_pipeline = pipeline("main")
+    oneshot("CFL_DISABLE_CHILDREN")
+    --[[
+    main("TEST_29_DF_CONTROL",     open_brace(),
+                                        pred_ref("CFL_S_BIT_OR") ,
+                                        open_brace(),
+                                             open_brace(), pred_ref("CFL_S_BIT_AND"),0,1, close_brace(),
+                                              open_brace(), pred_ref("CFL_S_BIT_AND"),2,3, close_brace(),
+                                        close_brace(),
+                                    close_brace(),
+                                    oneshot_ref("CFL_ENABLE_CHILDREN"),
+                                    oneshot_ref("CFL_DISABLE_CHILDREN") )
+    --]]          
+    main("TEST_29_DF_CONTROL",
+    p_call("CFL_S_BIT_OR",
+        
+            p_call("CFL_S_BIT_AND", 0, 1),
+            p_call("CFL_S_BIT_AND", 2, 3)
+        
+    ),
+    oneshot_ref("CFL_ENABLE_CHILDREN"),
+    oneshot_ref("CFL_DISABLE_CHILDREN")
+)                                   
+    end_pipeline(main_pipeline)
+end_tree(tree2)
 return end_module(mod)
 
 

@@ -1,6 +1,7 @@
 --============================================================================
 -- CHAINTREE S-EXPRESSION DSL
--- Version 2.6 - Two-tier architecture, s_expr_ type prefixes, slotted blackboards
+-- Version 2.7 - Two-tier architecture, s_expr_ type prefixes, slotted blackboards
+--               Added flatten support for nested call/list helpers
 --============================================================================
 
 local ffi = require("ffi")
@@ -469,6 +470,72 @@ function close_brace()
     return { _param_type = "close", value = depth }
 end
 
+--============================================================================
+-- CALLABLE / LIST HELPERS (return marked tables for flattening)
+--============================================================================
+
+-- Wrap function call with args in braces (callable S-expr)
+function call(fn_ref, ...)
+    local result = { open_brace(), fn_ref }
+    local args = {...}
+    for _, a in ipairs(args) do
+        table.insert(result, a)
+    end
+    table.insert(result, close_brace())
+    result._flatten = true  -- Set after building array to avoid index confusion
+    return result
+end
+
+-- Wrap a list of items in braces (data, not callable)
+function list(...)
+    local result = { open_brace() }
+    local args = {...}
+    for _, a in ipairs(args) do
+        table.insert(result, a)
+    end
+    table.insert(result, close_brace())
+    result._flatten = true  -- Set after building array to avoid index confusion
+    return result
+end
+
+-- Type-specific call helpers
+-- Note: using p_call not pcall to avoid shadowing Lua's protected call
+function p_call(name, ...)  -- predicate call
+    return call(pred_ref(name), ...)
+end
+
+function m_call(name, ...)  -- main call
+    return call(main_ref(name), ...)
+end
+
+function o_call(name, ...)  -- oneshot call
+    return call(oneshot_ref(name), ...)
+end
+
+--============================================================================
+-- PARAMETER FLATTENING
+--============================================================================
+
+local function flatten_args(args)
+    local result = {}
+    for _, a in ipairs(args) do
+        if type(a) == "table" and a._flatten then
+            -- Recursively flatten marked tables (skip _flatten key)
+            local inner = {}
+            for i, v in ipairs(a) do
+                table.insert(inner, v)
+            end
+            local flattened = flatten_args(inner)
+            for _, v in ipairs(flattened) do
+                table.insert(result, v)
+            end
+        else
+            table.insert(result, a)
+        end
+    end
+    return result
+end
+
 local function encode_param(p)
     if type(p) == "table" and p._param_type then
         local pt = p._param_type
@@ -517,7 +584,7 @@ end
 
 local function encode_params(...)
     local params = {}
-    local args = {...}
+    local args = flatten_args({...})
     for _, p in ipairs(args) do
         table.insert(params, encode_param(p))
     end
@@ -600,32 +667,6 @@ function start_module(name, opts)
         pools = new_pools(),
         current_tree = nil,
         is_64bit = opts.is_64bit or false,
-    }
-    
-    return name
-end
-
-function start_tree(name)
-    
-    
-    if not _module.name then
-        error("[DSL ERROR] start_tree() must be inside start_module()", 2)
-    end
-    
-    if _module.trees[name] then
-        error("[DSL ERROR] tree '" .. name .. "' already defined", 2)
-    end
-    
-    _module.current_tree = name
-    
-    _state = {
-        stack = {},
-        root = nil,
-        test_name = name,
-        tables = _module.tables,
-        line = 0,
-        is_64bit = _module.is_64bit,
-        brace_depth = 0,
     }
     
     return name
@@ -1540,18 +1581,20 @@ function TreeGenerator:emit_params(params)
             -- Pop matching open
             local open_rel_idx = table.remove(open_stack)
             local close_rel_idx = #self.params - base_offset
-            -- Record for patching
+            -- Record for patching - store RELATIVE OFFSET (close - open)
             table.insert(patch_list, {open_idx = open_rel_idx, close_idx = close_rel_idx})
-            pt.value = open_rel_idx  -- close points to open (relative)
+            -- Close stores offset back to open (relative)
+            pt.value = close_rel_idx - open_rel_idx
         end
         
         table.insert(self.params, pt)
     end
     
-    -- Second pass: patch open braces with close indices
+    -- Second pass: patch open braces with RELATIVE OFFSET to close
     for _, patch in ipairs(patch_list) do
         local abs_open_idx = base_offset + patch.open_idx + 1  -- +1 for Lua 1-indexing
-        self.params[abs_open_idx].value = patch.close_idx      -- relative index
+        -- Store relative offset: close_idx - open_idx
+        self.params[abs_open_idx].value = patch.close_idx - patch.open_idx
     end
 end
 
@@ -1644,7 +1687,7 @@ function ModuleGenerator:to_pools_header(base_name)
     
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_pools.h")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.7")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1731,7 +1774,7 @@ function ModuleGenerator:to_pools_source(base_name)
     
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_pools.c")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.7")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1821,7 +1864,7 @@ function ModuleGenerator:to_c_header(base_name)
     -- Header
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_module.h")
-    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.6")
+    table.insert(lines, "// Generated by ChainTree S-Expression DSL v2.7")
     table.insert(lines, "// DO NOT EDIT")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1930,15 +1973,15 @@ function ModuleGenerator:to_c_header(base_name)
                 elseif p.type == PARAM_OPEN then
                     type_str = "S_EXPR_PARAM_OPEN"
                     val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
-                    comment = string.format("  // closes at [%d]", p.value)
+                    comment = string.format("  // offset to close: +%d", p.value)
                 elseif p.type == PARAM_OPEN_CALL then
                     type_str = "S_EXPR_PARAM_OPEN_CALL"
                     val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
-                    comment = string.format("  // callable, closes at [%d]", p.value)
+                    comment = string.format("  // callable, offset to close: +%d", p.value)
                 elseif p.type == PARAM_CLOSE then
                     type_str = "S_EXPR_PARAM_CLOSE"
                     val_str = string.format(".reserved = {0}, .brace_idx = %d", p.value)
-                    comment = string.format("  // opens at [%d]", p.value)
+                    comment = string.format("  // offset to open: -%d", p.value)
                 end
                 table.insert(lines, string.format("    { .type = %s, %s },%s  // [%d]", 
                     type_str, val_str, comment, idx - 1))
@@ -2381,4 +2424,4 @@ end
 -- EXPORT
 --============================================================================
 
-print("ChainTree S-Expression DSL v2.6 loaded (two-tier architecture, s_expr_ types, slotted blackboards)")
+print("ChainTree S-Expression DSL v2.7 loaded (two-tier architecture, s_expr_ types, slotted blackboards, flatten support)")

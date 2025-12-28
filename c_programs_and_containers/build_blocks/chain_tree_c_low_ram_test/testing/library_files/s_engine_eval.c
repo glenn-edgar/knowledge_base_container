@@ -2,6 +2,7 @@
 // s_engine_eval.c
 // S-Expression Tree Evaluation Engine
 // Version 2.8 - Complete tree walker with all control flow opcodes
+//               Added braced callable invokers
 // ============================================================================
 
 #include "s_engine_eval.h"
@@ -44,6 +45,192 @@ static uint16_t get_child_index(
     }
     
     return child_idx;
+}
+
+// ============================================================================
+// PUBLIC: Skip over a parameter
+// NOTE: brace_idx is a RELATIVE OFFSET (close = open + offset)
+// ============================================================================
+
+uint16_t s_expr_skip_param(
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    if (!params) return idx + 1;
+    
+    uint8_t type = params[idx].type;
+    
+    // For open braces, jump past matching close using relative offset
+    if (type == S_EXPR_PARAM_OPEN || type == S_EXPR_PARAM_OPEN_CALL) {
+        return idx + params[idx].brace_idx + 1;
+    }
+    
+    // All other params are single tokens
+    return idx + 1;
+}
+
+// ============================================================================
+// PUBLIC: Braced callable invokers
+// ============================================================================
+
+s_expr_result_t s_expr_eval_sexpr(
+    s_expr_tree_instance_t* inst,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
+    uint16_t open_idx
+) {
+    if (!inst || !params) return SE_TERMINATE;
+    
+    // Validate open brace
+    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
+        return SE_TERMINATE;
+    }
+    
+    // Extract components (brace_idx is relative offset)
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    const s_expr_param_t* func_param = &params[open_idx + 1];
+    
+    // Calculate args
+    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
+    
+    // Dispatch based on function type
+    return s_expr_invoke_main_ref(
+        inst, func_param, node, state,
+        inst->current_event, inst->event_data,
+        args, (uint8_t)arg_count
+    );
+}
+
+void s_expr_eval_sexpr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
+    uint16_t open_idx
+) {
+    if (!inst || !params) return;
+    
+    // Validate open brace
+    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
+        return;
+    }
+    
+    // Extract components (brace_idx is relative offset)
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    const s_expr_param_t* func_param = &params[open_idx + 1];
+    
+    // Calculate args
+    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
+    
+    // Dispatch
+    s_expr_invoke_oneshot_ref(
+        inst, func_param, node, state,
+        inst->current_event, inst->event_data,
+        args, (uint8_t)arg_count
+    );
+}
+
+bool s_expr_eval_sexpr_pred(
+    s_expr_tree_instance_t* inst,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
+    uint16_t open_idx
+) {
+    if (!inst || !params) return false;
+    
+    // Validate open brace
+    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
+        return false;
+    }
+    
+    // Extract components (brace_idx is relative offset)
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    const s_expr_param_t* func_param = &params[open_idx + 1];
+    
+    // Calculate args
+    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
+    
+    // Dispatch
+    return s_expr_invoke_pred_ref(
+        inst, func_param, node, state,
+        inst->current_event, inst->event_data,
+        args, (uint8_t)arg_count
+    );
+}
+
+s_expr_result_t s_expr_eval_sexpr_any(
+    s_expr_tree_instance_t* inst,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
+    uint16_t open_idx
+) {
+    if (!inst || !params) return SE_TERMINATE;
+    
+    // Validate open brace
+    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
+        return SE_TERMINATE;
+    }
+    
+    // Check function type
+    const s_expr_param_t* func_param = &params[open_idx + 1];
+    
+    switch (func_param->type) {
+        case S_EXPR_PARAM_MAIN:
+            return s_expr_eval_sexpr(inst, node, state, params, open_idx);
+            
+        case S_EXPR_PARAM_ONESHOT:
+            s_expr_eval_sexpr_oneshot(inst, node, state, params, open_idx);
+            return SE_CONTINUE;
+            
+        case S_EXPR_PARAM_PRED: {
+            bool result = s_expr_eval_sexpr_pred(inst, node, state, params, open_idx);
+            return result ? SE_CONTINUE : SE_HALT;
+        }
+        
+        default:
+            return SE_TERMINATE;
+    }
+}
+
+s_expr_result_t s_expr_invoke_any(
+    s_expr_tree_instance_t* inst,
+    const s_expr_node_t* node,
+    s_expr_node_state_t* state,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    if (!inst || !params) return SE_TERMINATE;
+    
+    uint8_t type = params[idx].type;
+    
+    switch (type) {
+        case S_EXPR_PARAM_OPEN_CALL:
+            return s_expr_eval_sexpr_any(inst, node, state, params, idx);
+            
+        case S_EXPR_PARAM_MAIN:
+            return s_expr_invoke_main_ref(inst, &params[idx], node, state,
+                inst->current_event, inst->event_data, NULL, 0);
+            
+        case S_EXPR_PARAM_ONESHOT:
+            s_expr_invoke_oneshot_ref(inst, &params[idx], node, state,
+                inst->current_event, inst->event_data, NULL, 0);
+            return SE_CONTINUE;
+            
+        case S_EXPR_PARAM_PRED: {
+            bool result = s_expr_invoke_pred_ref(inst, &params[idx], node, state,
+                inst->current_event, inst->event_data, NULL, 0);
+            return result ? SE_CONTINUE : SE_HALT;
+        }
+        
+        default:
+            return SE_TERMINATE;
+    }
 }
 
 // ============================================================================
@@ -595,6 +782,21 @@ uint8_t s_expr_count_param_type(
         if (params[i].type == param_type) {
             count++;
         }
+    }
+    return count;
+}
+
+uint8_t s_expr_count_logical_params(
+    const s_expr_param_t* params,
+    uint8_t param_count
+) {
+    if (!params || param_count == 0) return 0;
+    
+    uint8_t count = 0;
+    uint16_t idx = 0;
+    while (idx < param_count) {
+        count++;
+        idx = s_expr_skip_param(params, idx);
     }
     return count;
 }
