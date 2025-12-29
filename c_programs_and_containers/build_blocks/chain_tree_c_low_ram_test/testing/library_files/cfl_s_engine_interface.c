@@ -332,7 +332,7 @@ void cfl_s_expression_node_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16
         EXCEPTION("failed to create tree instance");
     }
     
-   
+    printf("tree instance created: %s\n", tree_name);
     // Store tree instance in node's private data
    
 }
@@ -372,19 +372,42 @@ unsigned cfl_s_expression_node_main_main_fn(
     
     unsigned result = s_expr_tree_tick(tree_inst, event_id, event_data);
     
+    
     switch(result) {
         case SE_CONTINUE:
+            
             return CFL_CONTINUE;
         case SE_TERMINATE:
+    
             return CFL_TERMINATE;
         case SE_RESET:
             return CFL_RESET;
         case SE_DISABLE:
+             
             return CFL_DISABLE;
         case SE_HALT:
-            return CFL_HALT;
+            return CFL_CONTINUE;
+
+        case SE_SKIP_CONTINUE:
+            return CFL_SKIP_CONTINUE;
+
+        case SE_FUNCTION_HALT:
+            return CFL_CONTINUE;
+
+        case SE_FUNCTION_RESET:
+        
+            // keep never initialize flags;
+             s_expr_tree_reset(tree_inst);
+            return CFL_CONTINUE;
+
+
         case SE_FUNCTION_TERMINATE:
+          
+            // reset never initialize flags
+            //s_expr_tree_full_terminate(tree_inst);
+           
             return CFL_DISABLE;
+        
         default:
             EXCEPTION("cfl_s_expression_node_main_main_fn: invalid result");
             return CFL_TERMINATE_SYSTEM;
@@ -395,12 +418,15 @@ unsigned cfl_s_expression_node_main_main_fn(
 }
 
 #if 0
-typedef enum {
+ttypedef enum {
     SE_CONTINUE           = 0,
     SE_HALT               = 1,
     SE_TERMINATE          = 2,
     SE_RESET              = 3,
     SE_DISABLE            = 4,
     SE_FUNCTION_TERMINATE = 5,
+    SE_SKIP_CONTINUE      = 6,  // Skip remaining siblings, return CONTINUE to parent
+    SE_FUNCTION_HALT      = 7,  // Function-level halt, propagates up
+    SE_FUNCTION_RESET     = 8,  // Function-level reset, propagates up
 } s_expr_result_t;
 #endif

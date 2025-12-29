@@ -73,6 +73,9 @@ typedef enum {
     SE_RESET              = 3,
     SE_DISABLE            = 4,
     SE_FUNCTION_TERMINATE = 5,
+    SE_SKIP_CONTINUE      = 6,  // Skip remaining siblings, return CONTINUE to parent
+    SE_FUNCTION_HALT      = 7,  // Function-level halt, propagates up
+    SE_FUNCTION_RESET     = 8,  // Function-level reset, propagates up
 } s_expr_result_t;
 
 // ============================================================================
@@ -161,7 +164,7 @@ typedef enum {
 
 #define S_EXPR_NODE_FLAG_ACTIVE        0x01  // bit 0
 #define S_EXPR_NODE_FLAG_INITIALIZED   0x02  // bit 1
-#define S_EXPR_NODE_FLAG_SUSPENDED     0x04  // bit 2 (reserved)
+#define S_EXPR_NODE_FLAG_EVER_INIT     0x04  // bit 2 - survives reset, cleared on terminate
 #define S_EXPR_NODE_FLAG_ERROR         0x08  // bit 3 (reserved)
 
 // System-reserved flags mask (bits 0-3)
@@ -276,6 +279,7 @@ typedef struct {
         void*    ptr;
         uint64_t u64;
         int64_t  i64;
+        double   f64;
     } user_data;
 } s_expr_node_state_t;
 

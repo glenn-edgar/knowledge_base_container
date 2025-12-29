@@ -192,7 +192,7 @@ extern bool fly_straight_monitor_boolean_fn(void *handle, unsigned node_index, u
 extern bool fly_up_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 extern bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
 
-const main_function_t ct_baulid0x_main_functions[] = {
+const main_function_t ct_wd9w3330_main_functions[] = {
     cfl_null_main_fn,
     avro_verify_packet_main_fn,
     cfl_client_controlled_node_main_main_fn,
@@ -235,7 +235,7 @@ const main_function_t ct_baulid0x_main_functions[] = {
     sm_event_filtering_main_main_fn,
 };
 
-const one_shot_function_t ct_baulid0x_one_shot_functions[] = {
+const one_shot_function_t ct_wd9w3330_one_shot_functions[] = {
     cfl_null_one_shot_fn,
     activate_valve_one_shot_fn,
     avro_verify_packet_init_one_shot_fn,
@@ -343,7 +343,7 @@ const one_shot_function_t ct_baulid0x_one_shot_functions[] = {
     verify_tests_active_error_one_shot_fn,
 };
 
-const boolean_function_t ct_baulid0x_boolean_functions[] = {
+const boolean_function_t ct_wd9w3330_boolean_functions[] = {
     cfl_null_boolean_fn,
     catch_all_exception_boolean_fn,
     cfl_bool_false_boolean_fn,
@@ -382,27 +382,27 @@ const boolean_function_t ct_baulid0x_boolean_functions[] = {
 };
 
 /* Main function usage count */
-const uint16_t ct_baulid0x_main_function_usage_count[40] = {
+const uint16_t ct_wd9w3330_main_function_usage_count[40] = {
     0,  /* CFL_NULL */
     1,  /* AVRO_VERIFY_PACKET */
     8,  /* CFL_CLIENT_CONTROLLED_NODE_MAIN */
-    176,  /* CFL_COLUMN_MAIN */
+    185,  /* CFL_COLUMN_MAIN */
     2,  /* CFL_CONTROLLED_NODE_CONTAINER_MAIN */
     8,  /* CFL_CONTROLLED_NODE_MAIN */
     2,  /* CFL_DF_MASK_MAIN */
-    588,  /* CFL_DISABLE */
+    605,  /* CFL_DISABLE */
     34,  /* CFL_EVENT_LOGGER */
     3,  /* CFL_EXCEPTION_CATCH_ALL_MAIN */
     7,  /* CFL_EXCEPTION_CATCH_MAIN */
     2,  /* CFL_FORK_MAIN */
     1,  /* CFL_FOR_MAIN */
-    26,  /* CFL_GATE_NODE_MAIN */
+    27,  /* CFL_GATE_NODE_MAIN */
     57,  /* CFL_HALT */
-    25,  /* CFL_JOIN_MAIN */
+    27,  /* CFL_JOIN_MAIN */
     2,  /* CFL_JOIN_SEQUENCE_ELEMENT */
     1,  /* CFL_LOCAL_ARENA_MAIN */
     7,  /* CFL_RECOVERY_MAIN */
-    18,  /* CFL_RESET */
+    26,  /* CFL_RESET */
     1,  /* CFL_SEQUENCE_FAIL_MAIN */
     1,  /* CFL_SEQUENCE_PASS_MAIN */
     2,  /* CFL_SEQUENCE_START_MAIN */
@@ -414,18 +414,18 @@ const uint16_t ct_baulid0x_main_function_usage_count[40] = {
     2,  /* CFL_STREAMING_TAP_PACKET */
     1,  /* CFL_STREAMING_TRANSFORM_PACKET */
     4,  /* CFL_SUPERVISOR_MAIN */
-    2,  /* CFL_S_EXPRESSION_NODE_MAIN */
-    115,  /* CFL_TERMINATE */
+    4,  /* CFL_S_EXPRESSION_NODE_MAIN */
+    116,  /* CFL_TERMINATE */
     9,  /* CFL_TERMINATE_SYSTEM */
     5,  /* CFL_VERIFY */
     7,  /* CFL_WAIT */
-    197,  /* CFL_WAIT_TIME */
+    205,  /* CFL_WAIT_TIME */
     1,  /* CFL_WATCH_DOG_MAIN */
     1,  /* CFL_WHILE_MAIN */
     1,  /* SM_EVENT_FILTERING_MAIN */
 };
 
-const char *ct_baulid0x_main_function_names[40] = {
+const char *ct_wd9w3330_main_function_names[40] = {
     "CFL_NULL",
     "AVRO_VERIFY_PACKET",
     "CFL_CLIENT_CONTROLLED_NODE_MAIN",
@@ -468,7 +468,7 @@ const char *ct_baulid0x_main_function_names[40] = {
     "SM_EVENT_FILTERING_MAIN",
 };
 
-const char *ct_baulid0x_one_shot_function_names[105] = {
+const char *ct_wd9w3330_one_shot_function_names[105] = {
     "CFL_NULL",
     "ACTIVATE_VALVE",
     "AVRO_VERIFY_PACKET_INIT",
@@ -576,7 +576,7 @@ const char *ct_baulid0x_one_shot_function_names[105] = {
     "VERIFY_TESTS_ACTIVE_ERROR",
 };
 
-const char *ct_baulid0x_boolean_function_names[35] = {
+const char *ct_wd9w3330_boolean_function_names[35] = {
     "CFL_NULL",
     "CATCH_ALL_EXCEPTION",
     "CFL_BOOL_FALSE",

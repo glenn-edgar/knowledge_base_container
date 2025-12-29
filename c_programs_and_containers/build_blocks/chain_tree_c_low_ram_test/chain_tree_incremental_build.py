@@ -2175,6 +2175,62 @@ def twenty_ninth_test(ct,kb_name): # data f
     ct.end_column(column_name=launch_column)
     
     ct.end_test() 
+    
+    
+    
+      
+       
+       
+
+
+
+def test_30_insert_column_state_column(ct,state_name):
+    state_column = ct.define_column(column_name=state_name,column_data=None)
+    ct.asm_log_message(f"{state_name} column: ready")
+    ct.asm_wait_time(time_delay=1)
+    ct.asm_log_message(f"{state_name} column: terminating")
+    ct.asm_reset()
+    ct.end_column(column_name=state_column)
+    return state_column
+
+def test_30_define_s_flow_state_machine(ct):
+    state_machine_column = ct.define_s_expression_node(column_name="state_machine_column",module_name= "chain_flow_dsl_tests",tree_name="s_expression_test_3",
+                                                        user_data={})
+    test_30_insert_column_state_column(ct,"column_0")
+    test_30_insert_column_state_column(ct,"column_1")
+    test_30_insert_column_state_column(ct,"column_2")
+    test_30_insert_column_state_column(ct,"column_3")
+    
+    ct.end_column(column_name=state_machine_column)
+    return state_machine_column
+
+def test_30_define_s_flow_state_machine_b(ct):
+    state_machine_column = ct.define_s_expression_node(column_name="state_machine_column",module_name= "chain_flow_dsl_tests",
+                                                       tree_name="s_expression_test_4",
+                                                        user_data={})
+    test_30_insert_column_state_column(ct,"column_0")
+    test_30_insert_column_state_column(ct,"column_1")
+    test_30_insert_column_state_column(ct,"column_2")
+    test_30_insert_column_state_column(ct,"column_3")
+    
+    ct.end_column(column_name=state_machine_column)
+    return state_machine_column
+def thirty_test(ct,kb_name): # data f
+
+    ct.start_test(test_name=kb_name)
+
+
+    ##### register data flow events
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    state_machine_column = test_30_define_s_flow_state_machine(ct)
+    ct.define_join_link(state_machine_column)
+    ct.asm_log_message("launch column: is terminating")
+    state_machine_column_b = test_30_define_s_flow_state_machine_b(ct)
+    ct.define_join_link(state_machine_column_b)
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    
+    ct.end_test() 
            
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -2192,7 +2248,7 @@ if __name__ == "__main__":
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
                  "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test",
                  "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test",
-                 "twenty_seventh_test","twenty_eighth_test","twenty_ninth_test"]
+                 "twenty_seventh_test","twenty_eighth_test","twenty_ninth_test","thirty_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -2220,7 +2276,8 @@ if __name__ == "__main__":
                  "twenty_sixth_test": twenty_sixth_test,
                  "twenty_seventh_test": twenty_seventh_test,
                  "twenty_eighth_test": twenty_eighth_test,
-                 "twenty_ninth_test": twenty_ninth_test}
+                 "twenty_ninth_test": twenty_ninth_test,
+                 "thirty_test": thirty_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

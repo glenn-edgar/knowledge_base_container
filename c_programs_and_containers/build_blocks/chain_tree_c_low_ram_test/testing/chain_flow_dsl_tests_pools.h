@@ -22,31 +22,37 @@ typedef struct {
     bool children_active;
 } node_state_t;
 
+typedef struct {
+    uint32_t state;
+} state_machine_state_t;
+
 // ============================================================================
 // POOL IDS
 // ============================================================================
 
 #define POOL_NODE_STATE  0
 
-#define CHAIN_FLOW_POOL_COUNT 1
+#define CHAIN_FLOW_POOL_COUNT 2
 
 // ============================================================================
 // POOL SIZES
 // ============================================================================
 
-#define NODE_STATE_POOL_SIZE 1
+#define NODE_STATE_POOL_SIZE 2
+#define STATE_MACHINE_STATE_POOL_SIZE 1
 
 // ============================================================================
 // SLOT DEFINITIONS (pool_id, slot_index)
 // ============================================================================
 
 #define SLOT_BRANCH_1  POOL_NODE_STATE, 0
-
+#define SLOT_STATE_MACHINE_STATE  POOL_STATE_MACHINE_STATE, 0
 // ============================================================================
 // POOL ARRAYS
 // ============================================================================
 
 extern node_state_t node_state_pool[NODE_STATE_POOL_SIZE];
+extern state_machine_state_t state_machine_state_pool[STATE_MACHINE_STATE_POOL_SIZE];
 
 // ============================================================================
 // POOL TABLE

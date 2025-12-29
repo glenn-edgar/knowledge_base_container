@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "cfl_runtime.h"
 #include "cfl_engine.h"
@@ -38,6 +39,34 @@ static void test_29_set_state_oneshot(
     data->children_active = params[1].i;
 }
 
+
+static void test_30_set_state_oneshot(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)node; (void)state; (void)event_id; (void)event_data;
+   
+    if (param_count < 2) {
+        EXCEPTION("CFL_SET_STATE: requires slot and value");
+        return;
+    }
+    if (params[0].type != S_EXPR_PARAM_SLOT) {
+        EXCEPTION("CFL_SET_STATE: param[0] must be SLOT");
+        return;
+    }
+    if (params[1].type != S_EXPR_PARAM_INT && params[1].type != S_EXPR_PARAM_UINT) {
+        EXCEPTION("CFL_SET_STATE: param[1] must be INT or UINT");
+        return;
+    }
+    
+    // Use int32_t* to match main functions
+    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
+    if (!slot_ptr) return;
+    
+    *slot_ptr = (uint32_t)s_expr_param_get_int(&params[1]);
+   
+}
 // ============================================================================
 // USER BOOLEAN FUNCTIONS (?)
 // ============================================================================
@@ -60,7 +89,31 @@ static bool test_29_read_state_boolean(
     return data->children_active;
    
 }
-
+ 
+static bool test_30_check_state_boolean(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)node; (void)state; (void)event_id; (void)event_data;
+   
+    if (param_count < 2) {
+        EXCEPTION("CFL_CHECK_STATE: requires slot and value");
+        return false;
+    }
+    if (params[0].type != S_EXPR_PARAM_SLOT) {
+        EXCEPTION("CFL_CHECK_STATE: param[0] must be SLOT");
+        return false;
+    }
+    if (params[1].type != S_EXPR_PARAM_INT && params[1].type != S_EXPR_PARAM_UINT) {
+        EXCEPTION("CFL_CHECK_STATE: param[1] must be INT or UINT");
+        return false;
+    }
+    
+    state_machine_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], state_machine_state_t);
+    
+    return data->state == (uint32_t)s_expr_param_get_int(&params[1]);
+}
 // ============================================================================
 // USER MAIN FUNCTIONS (!)
 // ============================================================================
@@ -208,8 +261,22 @@ static s_expr_result_t test_29_df_control_main(
     
     return SE_CONTINUE;
 }
-
-
+static s_expr_result_t test_30_set_state_main(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)node; (void)state; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) return SE_CONTINUE;
+    
+    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
+        
+    
+    *slot_ptr = (int32_t)s_expr_param_get_int(&params[1]);
+    
+    return SE_DISABLE;
+}
 
 // ============================================================================
 // FUNCTION TABLES
@@ -217,17 +284,20 @@ static s_expr_result_t test_29_df_control_main(
 
 static const s_expr_fn_entry_t user_oneshot_entries[] = {
     { "TEST_29_SET_STATE", (void*)test_29_set_state_oneshot },
+    { "TEST_30_SET_STATE", (void*)test_30_set_state_oneshot },
     // Add more user oneshot functions here
 };
 
 static const s_expr_fn_entry_t user_boolean_entries[] = {
     { "TEST_29_READ_STATE", (void*)test_29_read_state_boolean },
+    { "TEST_30_CHECK_STATE", (void*)test_30_check_state_boolean },
     // Add more user boolean functions here
 };
 
 static const s_expr_fn_entry_t user_main_entries[] = {
     { "TEST_29_SET_STATE", (void*)test_29_set_state_main },
     {"TEST_29_DF_CONTROL",(void*)test_29_df_control_main },
+    {"TEST_30_SET_STATE",(void*)test_30_set_state_main },
     // Add more user main functions here
 };
 

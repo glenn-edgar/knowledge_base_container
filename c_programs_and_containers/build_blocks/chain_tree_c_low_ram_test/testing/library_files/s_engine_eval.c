@@ -392,14 +392,18 @@ static s_expr_result_t eval_node(
     // Dispatch based on table selector
     switch (table) {
         case S_EXPR_TABLE_ONESHOT: {
-            // Oneshot: execute only once (first tick)
-            if (state->flags & S_EXPR_NODE_FLAG_INITIALIZED) {
-                // Already executed, skip
+            // Bit 1 of reserved: survives reset (init_once vs oneshot)
+            // init_once: uses EVER_INIT (survives reset)
+            // oneshot: uses INITIALIZED (re-runs on reset)
+            uint8_t check_flag = (node->reserved & 0x02) 
+                ? S_EXPR_NODE_FLAG_EVER_INIT 
+                : S_EXPR_NODE_FLAG_INITIALIZED;
+            
+            if (state->flags & check_flag) {
                 return SE_CONTINUE;
             }
             
-            // Mark as executed
-            state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
+            state->flags |= check_flag;
             
             if (node->fn_index < mod->def->oneshot_count && mod->oneshot_fns) {
                 s_expr_oneshot_fn_t fn = mod->oneshot_fns[node->fn_index];
@@ -466,9 +470,15 @@ static s_expr_result_t eval_node(
                     uint16_t child_idx = node->first_child;
                     while (child_idx != S_EXPR_NO_CHILD) {
                         s_expr_result_t result = eval_node(inst, child_idx, event_id, event_data);
-                        if (result != SE_CONTINUE) {
+                        
+                        // These results continue to next sibling:
+                        // SE_CONTINUE: normal continue
+                        // SE_DISABLE: node disabled itself
+                        // All others propagate up (HALT, TERMINATE, RESET, FUNCTION_TERMINATE, SKIP_CONTINUE)
+                        if (result != SE_CONTINUE && result != SE_DISABLE) {
                             return result;
                         }
+                        
                         child_idx = inst->tree->nodes[child_idx].next_sibling;
                     }
                     return SE_CONTINUE;
@@ -519,7 +529,6 @@ static s_expr_result_t eval_node(
                     uint16_t child_idx = node->first_child;
                     while (child_idx != S_EXPR_NO_CHILD) {
                         const s_expr_node_t* clause = &inst->tree->nodes[child_idx];
-                        
                         bool is_default = (clause->reserved & 0x01) != 0;
                         
                         if (is_default) {
@@ -733,8 +742,25 @@ void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
 
 void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
     if (!inst) return;
+    
+    // Reset node states but PRESERVE EVER_INIT flag
+    for (uint16_t i = 0; i < inst->node_count; i++) {
+        // Preserve EVER_INIT, clear other flags, set ACTIVE
+        uint8_t ever_init = inst->node_states[i].flags & S_EXPR_NODE_FLAG_EVER_INIT;
+        inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+        inst->node_states[i].state = 0;
+        inst->node_states[i].user_data.u64 = 0;
+    }
+}
+
+// ============================================================================
+// PUBLIC: Full terminate (clears EVER_INIT)
+// ============================================================================
+
+void s_expr_tree_full_terminate(s_expr_tree_instance_t* inst) {
+    if (!inst) return;
     s_expr_tree_terminate(inst);
-    s_expr_tree_init_states(inst);
+    s_expr_tree_init_states(inst);  // Clears ALL flags including EVER_INIT
 }
 
 // ============================================================================

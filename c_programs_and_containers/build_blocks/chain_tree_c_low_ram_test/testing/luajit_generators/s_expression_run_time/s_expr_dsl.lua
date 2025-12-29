@@ -63,7 +63,21 @@ local CONTROL_CODES = {
     SE_RESET              = 3,
     SE_DISABLE            = 4,
     SE_FUNCTION_TERMINATE = 5,
+    SE_SKIP_CONTINUE      = 6,
+    SE_FUNCTION_HALT      = 7,
+    SE_FUNCTION_RESET     = 8,
 }
+
+-- Export control codes as globals for use in DSL
+SE_CONTINUE           = 0
+SE_HALT               = 1
+SE_TERMINATE          = 2
+SE_RESET              = 3
+SE_DISABLE            = 4
+SE_FUNCTION_TERMINATE = 5
+SE_SKIP_CONTINUE      = 6
+SE_FUNCTION_HALT      = 7
+SE_FUNCTION_RESET     = 8
 
 local NODE_TYPES = {
     QUOTE       = "quote",
@@ -748,6 +762,22 @@ function oneshot(fn_name, ...)
         type = NODE_TYPES.ONESHOT,
         fn_name = fn_name,
         params = encode_params(...),
+        survives_reset = false,
+    }
+    add_child(node)
+end
+
+function init_once(fn_name, ...)
+    if type(fn_name) ~= "string" then
+        dsl_error("init_once() requires function name as first argument")
+    end
+    check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "init_once")
+    
+    local node = {
+        type = NODE_TYPES.ONESHOT,
+        fn_name = fn_name,
+        params = encode_params(...),
+        survives_reset = true,  -- Bit 1 of reserved field
     }
     add_child(node)
 end
@@ -1349,14 +1379,21 @@ function TreeGenerator:get_node_children(node)
         table.insert(children, node.else_action)
         
     elseif t == NODE_TYPES.COND then
-        for _, cl in ipairs(node.clauses) do
-            local clause_node = {
-                type = NODE_TYPES.CLAUSE,
-                condition = cl.condition,
-                action = cl.action,
-                is_default = cl.is_default,
-            }
-            table.insert(children, clause_node)
+        -- Reuse existing clause nodes (created once, then reused)
+        if not node._clause_nodes then
+            node._clause_nodes = {}
+            for _, cl in ipairs(node.clauses) do
+                local clause_node = {
+                    type = NODE_TYPES.CLAUSE,
+                    condition = cl.condition,
+                    action = cl.action,
+                    is_default = cl.is_default,
+                }
+                table.insert(node._clause_nodes, clause_node)
+            end
+        end
+        for _, cn in ipairs(node._clause_nodes) do
+            table.insert(children, cn)
         end
         
     elseif t == NODE_TYPES.CLAUSE then
@@ -1366,14 +1403,21 @@ function TreeGenerator:get_node_children(node)
         table.insert(children, node.action)
         
     elseif t == NODE_TYPES.DISPATCH then
-        for _, cs in ipairs(node.cases) do
-            local case_node = {
-                type = NODE_TYPES.CASE,
-                pattern = cs.pattern,
-                action = cs.action,
-                is_default = cs.is_default,
-            }
-            table.insert(children, case_node)
+        -- Reuse existing case nodes (created once, then reused)
+        if not node._case_nodes then
+            node._case_nodes = {}
+            for _, cs in ipairs(node.cases) do
+                local case_node = {
+                    type = NODE_TYPES.CASE,
+                    pattern = cs.pattern,
+                    action = cs.action,
+                    is_default = cs.is_default,
+                }
+                table.insert(node._case_nodes, case_node)
+            end
+        end
+        for _, cn in ipairs(node._case_nodes) do
+            table.insert(children, cn)
         end
         
     elseif t == NODE_TYPES.CASE then
@@ -1424,6 +1468,10 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         n.fn_index = self:add_oneshot_fn(node.fn_name)
         self:emit_params(node.params or {})
         n.param_count = #(node.params or {})
+        -- Bit 1 (0x02) = survives reset (init_once vs oneshot)
+        if node.survives_reset then
+            n.is_default = 2  -- becomes reserved field in C
+        end
         
     elseif t == NODE_TYPES.BOOLEAN then
         n.type = TABLE_BOOLEAN
@@ -2004,7 +2052,7 @@ function ModuleGenerator:to_c_header(base_name)
                 n.type or 0, n.child_count or 0, n.node_index or 0,
                 n.first_child or 0xFFFF, n.next_sibling or 0xFFFF,
                 n.fn_index or 0, n.param_offset or 0, n.param_count or 0,
-                n.is_default and 1 or 0,
+                type(n.is_default) == "number" and n.is_default or (n.is_default and 1 or 0),
                 comment
             ))
         end
@@ -2308,7 +2356,7 @@ function ModuleGenerator:to_bin()
             emit_u16(n.fn_index)
             emit_u16(n.param_offset)
             emit_u8(n.param_count)
-            emit_u8(n.is_default and 1 or 0)
+            emit_u8(type(n.is_default) == "number" and n.is_default or (n.is_default and 1 or 0))
         end
         
         -- Emit params (4 + value_size bytes each)

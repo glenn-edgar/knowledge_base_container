@@ -34,9 +34,13 @@ s_expr_result_t s_expr_tree_tick(
 // Sends S_EXPR_EVENT_TERMINATE to each node, then clears all flags
 void s_expr_tree_terminate(s_expr_tree_instance_t* inst);
 
-// Reset tree: terminate all nodes, then set all to ACTIVE but not INITIALIZED
-// Called automatically when SE_RESET is returned from evaluation
+// Reset tree: set all nodes to ACTIVE, clear INITIALIZED but PRESERVE EVER_INIT
+// Oneshots will NOT re-run after reset
 void s_expr_tree_reset(s_expr_tree_instance_t* inst);
+
+// Full terminate: terminate all nodes, clear ALL flags including EVER_INIT
+// Use when completely restarting the tree from scratch
+void s_expr_tree_full_terminate(s_expr_tree_instance_t* inst);
 
 // Initialize tree state (all nodes ACTIVE, none INITIALIZED)
 // Called automatically during tree creation, can be called manually
