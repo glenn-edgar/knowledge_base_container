@@ -168,6 +168,7 @@ uint8_t s_expr_count_logical_params(
     uint8_t param_count
 );
 
+
 #ifdef __cplusplus
 }
 #endif

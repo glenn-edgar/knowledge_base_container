@@ -274,9 +274,210 @@ local tree4 = start_tree("s_expression_test_4")
 end_tree(tree4)
 
 
+-- Command routing based on slot value
+
+local MOTOR_LEFT  = 0
+local MOTOR_RIGHT = 1
+
+local LED_STATUS = 0
+local LED_ALARM  = 1
+
+local CMD_IDLE    = 0
+local CMD_FORWARD = 1
+local CMD_BACK    = 2
+local CMD_LEFT    = 3
+local CMD_RIGHT   = 4
+local CMD_STOP    = 5
+
+-- Slot for robot_command (missing)
+defpool("cmd_pool", "int32_t")
+defslot("robot_command", "cmd_pool")
+
+
+local tree = start_tree("s_expression_test_5")
+    local p = pipeline("main")
+        init_once("TEST_31_SET_STATE", slot_ref("robot_command"), int(CMD_FORWARD))
+        local d = dispatch("command_router", slot_ref("robot_command"))
+        
+            local c1 = case("forward", int(CMD_FORWARD))
+                local a1 = action("action")
+                    local p1 = pipeline("forward_action")
+                        oneshot("CFL_LOG", str("Moving forward"))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_LEFT), int(100))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_RIGHT), int(100))
+                        main("CFL_TICK_DELAY", int(50))
+                        main("TEST_31_SET_STATE", slot_ref("robot_command"), int(CMD_BACK))
+                        quote("SE_HALT")
+                    end_pipeline(p1)
+                end_action(a1)
+            end_case(c1)
+            
+            local c2 = case("back", int(CMD_BACK))
+                local a2 = action("action")
+                    local p2 = pipeline("back_action")
+                        oneshot("CFL_LOG", str("Moving backward"))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_LEFT), int(-100))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_RIGHT), int(-100))
+                        main("CFL_TICK_DELAY", int(50))
+                        main("TEST_31_SET_STATE", slot_ref("robot_command"), int(CMD_LEFT))
+                        quote("SE_HALT")
+                    end_pipeline(p2)
+                end_action(a2)
+            end_case(c2)
+            
+            local c3 = case("left", int(CMD_LEFT))
+                local a3 = action("action")
+                    local p3 = pipeline("left_action")
+                        oneshot("CFL_LOG", str("Turning left"))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_LEFT), int(-50))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_RIGHT), int(50))
+                        main("CFL_TICK_DELAY", int(25))
+                        main("TEST_31_SET_STATE", slot_ref("robot_command"), int(CMD_RIGHT))
+                        quote("SE_HALT")
+                    end_pipeline(p3)
+                end_action(a3)
+            end_case(c3)
+            
+            local c4 = case("right", int(CMD_RIGHT))
+                local a4 = action("action")
+                    local p4 = pipeline("right_action")
+                        oneshot("CFL_LOG", str("Turning right"))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_LEFT), int(50))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_RIGHT), int(-50))
+                        main("CFL_TICK_DELAY", int(25))
+                        main("TEST_31_SET_STATE", slot_ref("robot_command"), int(CMD_STOP))
+                        quote("SE_HALT")
+                    end_pipeline(p4)
+                end_action(a4)
+            end_case(c4)
+            
+            local c5 = case("stop", int(CMD_STOP))
+                local a5 = action("action")
+                    local p5 = pipeline("stop_action")
+                        oneshot("CFL_LOG", str("Stopping"))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_LEFT), int(0))
+                        oneshot("TEST_31_SET_MOTOR", int(MOTOR_RIGHT), int(0))
+                        quote("SE_FUNCTION_TERMINATE")
+                    end_pipeline(p5)
+                end_action(a5)
+            end_case(c5)
+            
+            local df = default_case("idle")
+                local ad = action("action")
+                    local p6 = pipeline("idle_action")
+                        oneshot("CFL_LOG", str("Idle"))
+                        oneshot("CFL_LOG", str("SHOULD NOT HAPPEN"))
+                        quote("SE_TERMINATE")
+                    end_pipeline(p6)
+                end_action(ad)
+            end_default_case(df)
+            
+        end_dispatch(d)
+        
+    end_pipeline(p)
+end_tree(tree)
+
+-- Event handling based on event_id
+
+
+local EVT_TICK      = 4
+local EVT_TIMER     = 0xEE01
+local EVT_BUTTON    = 0xEE02
+local EVT_SENSOR    = 0xEE03
+local EVT_ALARM     = 0xEE04
+local EVT_SHUTDOWN  = 0xEE05
+
+local LED_STATUS = 0
+local LED_ALARM  = 1
+
+-- Slot definitions (already have these)
+defpool("counter_pool", "int32_t")
+defslot("timer_count", "counter_pool")
+defpool("sensor_pool", "int32_t")
+defslot("sensor_value", "sensor_pool")
+defpool("event_pool", "int32_t")
+defslot("event_id", "event_pool")
 
 
 
+
+local tree = start_tree("s_expression_test_6")
+    local p = pipeline("main")
+        
+        local d = event_dispatch("event_router")
+        
+            local c1 = case("timer", int(EVT_TIMER))
+                local a1 = action("action")
+                    local p1 = pipeline("timer_action")
+                        oneshot("CFL_LOG", str("Timer expired"))
+                        main("TEST_32_PROCESS_SCHEDULED_TASKS")
+                        quote("SE_HALT")
+                    end_pipeline(p1)
+                end_action(a1)
+            end_case(c1)
+            
+            local c2 = case("button", int(EVT_BUTTON))
+                local a2 = action("action")
+                    local p2 = pipeline("button_action")
+                        oneshot("CFL_LOG", str("Button pressed"))
+                        main("TEST_32_DEBOUNCE", slot_ref("timer_count"), int(10))
+                        oneshot("TEST_32_TOGGLE_LED", int(LED_STATUS))
+                        quote("SE_HALT")
+                    end_pipeline(p2)
+                end_action(a2)
+            end_case(c2)
+            
+            local c3 = case("sensor", int(EVT_SENSOR))
+                local a3 = action("action")
+                    local p3 = pipeline("sensor_action")
+                        oneshot("CFL_LOG", str("Sensor reading"))
+                        main("TEST_32_CHECK_THRESHOLD", slot_ref("sensor_value"), int(50))
+                        
+                        quote("SE_HALT")
+                    end_pipeline(p3)
+                end_action(a3)
+            end_case(c3)
+            
+            local c4 = case("alarm", int(EVT_ALARM))
+                local a4 = action("action")
+                    local p4 = pipeline("alarm_action")
+                        oneshot("CFL_LOG", str("ALARM TRIGGERED"))
+                        oneshot("TEST_32_ENABLE_BUZZER")
+                        oneshot("TEST_32_SET_LED", int(LED_ALARM), int(1))
+                        oneshot("TEST_32_NOTIFY_SYSTEM", str("ALARM"))
+                        oneshot("CFL_INTERNAL_EVENT", int(EVT_SHUTDOWN), int(1))
+                        oneshot("CFL_LOG", str("ALARM SETTING"));
+                        quote("SE_HALT")
+                    end_pipeline(p4)
+                end_action(a4)
+            end_case(c4)
+            
+            local c5 = case("shutdown", int(EVT_SHUTDOWN))
+                local a5 = action("action")
+                    local p5 = pipeline("shutdown_action")
+                        oneshot("CFL_LOG", str("Shutdown requested"))
+                        oneshot("TEST_32_DISABLE_ALL_OUTPUTS")
+                        oneshot("TEST_32_SAVE_STATE")
+                        quote("SE_FUNCTION_TERMINATE")
+                    end_pipeline(p5)
+                end_action(a5)
+            end_case(c5)
+            
+            local df = default_case("tick")
+                local ad = action("action")
+                    local p6 = pipeline("tick_action")
+                    -- EVT_TICK or unknown - normal tick processing
+                        main("TEST_32_GENERATE_INTERNAL_EVENTS", slot_ref("event_id"))
+                        main("TEST_32_RUN_BACKGROUND_TASKS")
+                        quote("SE_HALT")
+                    end_pipeline(p6)
+                end_action(ad)
+            end_default_case(df)
+            
+        end_event_dispatch(d)
+        
+    end_pipeline(p)
+end_tree(tree)
 
 return end_module(mod)
 

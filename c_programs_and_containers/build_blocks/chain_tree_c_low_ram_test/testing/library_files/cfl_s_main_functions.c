@@ -233,6 +233,34 @@ static s_expr_result_t cfl_state_actions_main(
     state->flags &= ~S_EXPR_NODE_FLAGS_USER;
     return SE_CONTINUE;
 }
+
+static s_expr_result_t s_internal_event(
+    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
+    uint16_t event_id, void* event_data,
+    const s_expr_param_t* params, uint8_t param_count
+) {
+    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)params; (void)param_count;
+    if(event_id != S_EXPR_EVENT_INIT){
+        cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
+        if(param_count != 2){
+            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
+            return SE_TERMINATE;
+        }
+        if((params[0].type != S_EXPR_PARAM_INT) && (params[0].type != S_EXPR_PARAM_UINT)){
+            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
+            return SE_TERMINATE;
+        }
+        if((params[1].type != S_EXPR_PARAM_INT) && (params[1].type != S_EXPR_PARAM_UINT)){
+            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
+            return SE_TERMINATE;
+        }
+        
+        cfl_send_integer_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_LOW,inst->ct_node_id, (unsigned)params[0].i, (cfl_int_t)params[1].i);
+        return SE_CONTINUE;
+    }
+    return SE_CONTINUE;
+}
 static const s_expr_fn_entry_t user_main_entries[] = {
     { "CFL_ENABLE_CHILDREN", (void*)cfl_enable_children_main },
     { "CFL_DISABLE_CHILDREN", (void*)cfl_disable_children_main },
@@ -240,6 +268,7 @@ static const s_expr_fn_entry_t user_main_entries[] = {
     { "CFL_TIME_DELAY",(void*)cfl_time_delay_main },
     { "CFL_STATE_ACTIONS",(void*)cfl_state_actions_main },
     { "CFL_STATE_MACHINE",(void*)cfl_state_machine_main },
+    { "CFL_INTERNAL_EVENT",(void*)s_internal_event },
     // Add more user main functions here
 };
 

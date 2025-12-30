@@ -17,6 +17,92 @@
 // ============================================================================
 // USER ONESHOT FUNCTIONS (@)
 // ============================================================================
+static inline void s_expr_dump_params(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint8_t param_count
+) {
+    printf("--- Parameter Dump (count=%d) ---\n", param_count);
+    
+    for (uint8_t i = 0; i < param_count; i++) {
+        printf("[%2d] ", i);
+        
+        switch (params[i].type) {
+            case S_EXPR_PARAM_INT:
+                printf("INT          value=%d\n", (int)params[i].i);
+                break;
+                
+            case S_EXPR_PARAM_UINT:
+                printf("UINT         value=%u\n", (unsigned)params[i].u);
+                break;
+                
+            case S_EXPR_PARAM_FLOAT:
+                printf("FLOAT        value=%g\n", (double)params[i].f);
+                break;
+                
+            case S_EXPR_PARAM_STRING: {
+                const char* str = s_expr_module_get_string(inst->module, params[i].str_index);
+                printf("STRING       index=%d, value=\"%s\"\n", 
+                       params[i].str_index, str ? str : "(null)");
+                break;
+            }
+            
+            case S_EXPR_PARAM_SLOT: {
+                printf("SLOT         pool_id=%d, slot_index=%d", 
+                       params[i].slot.pool_id, params[i].slot.slot_index);
+                // Try to read the value
+                int32_t* ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[i], sizeof(int32_t));
+                if (ptr) {
+                    printf(", *value=%d", *ptr);
+                }
+                printf("\n");
+                break;
+            }
+            
+            case S_EXPR_PARAM_MAIN: {
+                const char* name = s_expr_module_get_main_name(inst->module, params[i].func_idx);
+                printf("MAIN_REF     index=%d, name=\"%s\"\n", 
+                       params[i].func_idx, name ? name : "(unknown)");
+                break;
+            }
+            
+            case S_EXPR_PARAM_ONESHOT: {
+                const char* name = s_expr_module_get_oneshot_name(inst->module, params[i].func_idx);
+                printf("ONESHOT_REF  index=%d, name=\"%s\"\n", 
+                       params[i].func_idx, name ? name : "(unknown)");
+                break;
+            }
+            
+            case S_EXPR_PARAM_PRED: {
+                const char* name = s_expr_module_get_boolean_name(inst->module, params[i].func_idx);
+                printf("PRED_REF     index=%d, name=\"%s\"\n", 
+                       params[i].func_idx, name ? name : "(unknown)");
+                break;
+            }
+            
+            case S_EXPR_PARAM_OPEN:
+                printf("OPEN         brace_idx=+%d (closes at [%d])\n", 
+                       params[i].brace_idx, i + params[i].brace_idx);
+                break;
+                
+            case S_EXPR_PARAM_OPEN_CALL:
+                printf("OPEN_CALL    brace_idx=+%d (closes at [%d])\n", 
+                       params[i].brace_idx, i + params[i].brace_idx);
+                break;
+                
+            case S_EXPR_PARAM_CLOSE:
+                printf("CLOSE        brace_idx=-%d (opens at [%d])\n", 
+                       params[i].brace_idx, i - params[i].brace_idx);
+                break;
+                
+            default:
+                printf("UNKNOWN      type=0x%02X\n", params[i].type);
+                break;
+        }
+    }
+    
+    printf("--- End Parameter Dump ---\n");
+}
 
 static void test_29_set_state_oneshot(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
@@ -67,6 +153,7 @@ static void test_30_set_state_oneshot(
     *slot_ptr = (uint32_t)s_expr_param_get_int(&params[1]);
    
 }
+
 // ============================================================================
 // USER BOOLEAN FUNCTIONS (?)
 // ============================================================================
@@ -182,6 +269,7 @@ static inline bool s_expr_param_is_action(const s_expr_param_t* p) {
 
 #define DF_CONTROL_FLAG_ACTIVE  0x80  // true branch was activated
 
+ 
 // ============================================================================
 // DF_CONTROL: if (pred) then_action else else_action
 // Params: [0] = predicate, [1] = then_action, [2] = else_action
@@ -278,6 +366,8 @@ static s_expr_result_t test_30_set_state_main(
     return SE_DISABLE;
 }
 
+ #include "user_s_test_31.h"
+ #include "user_s_test_32.h"
 // ============================================================================
 // FUNCTION TABLES
 // ============================================================================
@@ -285,6 +375,17 @@ static s_expr_result_t test_30_set_state_main(
 static const s_expr_fn_entry_t user_oneshot_entries[] = {
     { "TEST_29_SET_STATE", (void*)test_29_set_state_oneshot },
     { "TEST_30_SET_STATE", (void*)test_30_set_state_oneshot },
+    { "TEST_31_SET_MOTOR", (void*)test_31_set_motor_oneshot },
+    { "TEST_31_SET_STATE", (void*)test_31_set_state_oneshot },
+   
+    { "TEST_32_TOGGLE_LED", (void*)test_32_toggle_led_oneshot },
+    
+    { "TEST_32_ENABLE_BUZZER", (void*)test_32_enable_buzzer_oneshot },
+    { "TEST_32_SET_LED", (void*)test_32_set_led_oneshot },
+    { "TEST_32_DISABLE_ALL_OUTPUTS", (void*)test_32_disable_all_outputs_oneshot },
+    { "TEST_32_SAVE_STATE", (void*)test_32_save_state_oneshot },
+    
+    { "TEST_32_NOTIFY_SYSTEM",(void*)test_32_notify_system_oneshot },
     // Add more user oneshot functions here
 };
 
@@ -298,6 +399,14 @@ static const s_expr_fn_entry_t user_main_entries[] = {
     { "TEST_29_SET_STATE", (void*)test_29_set_state_main },
     {"TEST_29_DF_CONTROL",(void*)test_29_df_control_main },
     {"TEST_30_SET_STATE",(void*)test_30_set_state_main },
+    {"TEST_31_SET_MOTOR",(void*)test_31_set_motor_main },
+    {"TEST_31_SET_STATE",(void*)test_31_set_state_main },
+   
+    {"TEST_32_RUN_BACKGROUND_TASKS",(void*)test_32_run_background_tasks_main },
+    {"TEST_32_DEBOUNCE",(void*)test_32_debounce_main },
+    {"TEST_32_CHECK_THRESHOLD",(void*)test_32_check_threshold_main },
+    {"TEST_32_GENERATE_INTERNAL_EVENTS",(void*)test_32_generate_internal_events_main },
+    {"TEST_32_PROCESS_SCHEDULED_TASKS",(void*)test_32_process_scheduled_tasks_main },
     // Add more user main functions here
 };
 

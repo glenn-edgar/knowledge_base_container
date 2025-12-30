@@ -622,6 +622,8 @@ static inline bool s_expr_invoke_pred_ref(
     return inst->module->boolean_fns[idx](inst, node, state, event_id, event_data, args, arg_count);
 }
 
+// Debug helper to dump all parameters for an s_function
+
 #ifdef __cplusplus
 }
 #endif

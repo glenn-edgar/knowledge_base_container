@@ -13,13 +13,22 @@
 
 node_state_t node_state_pool[NODE_STATE_POOL_SIZE];
 state_machine_state_t state_machine_state_pool[STATE_MACHINE_STATE_POOL_SIZE];
+int32_t cmd_pool[CMD_POOL_SIZE];
+int32_t counter_pool[COUNTER_POOL_SIZE];
+int32_t sensor_pool[SENSOR_POOL_SIZE];
+int32_t event_pool[EVENT_POOL_SIZE];
+
 // ============================================================================
 // POOL TABLE
 // ============================================================================
 
 void* chain_flow_pool_table[CHAIN_FLOW_POOL_COUNT] = {
-    node_state_pool,  // POOL_NODE_STATE = 0
+    node_state_pool,           // POOL_NODE_STATE = 0
     state_machine_state_pool,  // POOL_STATE_MACHINE_STATE = 1
+    cmd_pool,                  // POOL_CMD = 2
+    counter_pool,              // POOL_COUNTER = 3
+    sensor_pool,               // POOL_SENSOR = 4
+    event_pool,                // POOL_EVENT = 5
 };
 
 // ============================================================================
@@ -29,4 +38,8 @@ void* chain_flow_pool_table[CHAIN_FLOW_POOL_COUNT] = {
 void chain_flow_pools_init(void) {
     memset(node_state_pool, 0, sizeof(node_state_pool));
     memset(state_machine_state_pool, 0, sizeof(state_machine_state_pool));
+    memset(cmd_pool, 0, sizeof(cmd_pool));
+    memset(counter_pool, 0, sizeof(counter_pool));
+    memset(sensor_pool, 0, sizeof(sensor_pool));
+    memset(event_pool, 0, sizeof(event_pool));
 }

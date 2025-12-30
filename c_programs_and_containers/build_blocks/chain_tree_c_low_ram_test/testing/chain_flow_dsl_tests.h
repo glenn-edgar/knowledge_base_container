@@ -41,8 +41,17 @@ static const char* const chain_flow_dsl_tests_oneshot_names[] = {
     "CFL_LOG",
     "CFL_ENABLE_CHILD",
     "CFL_EXCEPTION",
+    "TEST_31_SET_STATE",
+    "TEST_31_SET_MOTOR",
+    "TEST_32_TOGGLE_LED",
+    "TEST_32_ENABLE_BUZZER",
+    "TEST_32_SET_LED",
+    "TEST_32_NOTIFY_SYSTEM",
+    "CFL_INTERNAL_EVENT",
+    "TEST_32_DISABLE_ALL_OUTPUTS",
+    "TEST_32_SAVE_STATE",
 };
-#define CHAIN_FLOW_DSL_TESTS_ONESHOT_NAMES_COUNT 7
+#define CHAIN_FLOW_DSL_TESTS_ONESHOT_NAMES_COUNT 16
 
 // Boolean (?) function names
 static const char* const chain_flow_dsl_tests_boolean_names[] = {
@@ -64,8 +73,14 @@ static const char* const chain_flow_dsl_tests_main_names[] = {
     "CFL_STATE_MACHINE",
     "CFL_STATE_ACTIONS",
     "TEST_30_SET_STATE",
+    "TEST_31_SET_STATE",
+    "TEST_32_PROCESS_SCHEDULED_TASKS",
+    "TEST_32_DEBOUNCE",
+    "TEST_32_CHECK_THRESHOLD",
+    "TEST_32_GENERATE_INTERNAL_EVENTS",
+    "TEST_32_RUN_BACKGROUND_TASKS",
 };
-#define CHAIN_FLOW_DSL_TESTS_MAIN_NAMES_COUNT 8
+#define CHAIN_FLOW_DSL_TESTS_MAIN_NAMES_COUNT 14
 
 // Data strings
 static const char* const chain_flow_dsl_tests_strings[] = {
@@ -77,8 +92,22 @@ static const char* const chain_flow_dsl_tests_strings[] = {
     "state 3 active",
     "state 3 terminate",
     "UNKNOWN_STATE test_30_state_machine",
+    "Moving forward",
+    "Moving backward",
+    "Turning left",
+    "Turning right",
+    "Stopping",
+    "Idle",
+    "SHOULD NOT HAPPEN",
+    "Timer expired",
+    "Button pressed",
+    "Sensor reading",
+    "ALARM TRIGGERED",
+    "ALARM",
+    "ALARM SETTING",
+    "Shutdown requested",
 };
-#define CHAIN_FLOW_DSL_TESTS_STRINGS_COUNT 8
+#define CHAIN_FLOW_DSL_TESTS_STRINGS_COUNT 22
 
 // ============================================================================
 // TREE: s_expression_test_1
@@ -324,6 +353,183 @@ static const s_expr_node_t chain_flow_dsl_tests_s_expression_test_4_nodes[] = {
 #define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_4_NODE_COUNT 3
 
 // ============================================================================
+// TREE: s_expression_test_5
+// ============================================================================
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_5_params[] = {
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [0]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [1]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [2]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [3]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 8 },  // [4]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [5]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 100 },  // [6]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [7]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 100 },  // [8]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 50 },  // [9]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [10]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 2 },  // [11]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 2 },  // [12]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 9 },  // [13]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [14]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = -100 },  // [15]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [16]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = -100 },  // [17]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 50 },  // [18]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [19]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 3 },  // [20]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 3 },  // [21]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 10 },  // [22]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [23]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = -50 },  // [24]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [25]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 50 },  // [26]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 25 },  // [27]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [28]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 4 },  // [29]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 4 },  // [30]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 11 },  // [31]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [32]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 50 },  // [33]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [34]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = -50 },  // [35]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 25 },  // [36]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 2, .slot_index = 0 } },  // robot_command  // [37]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 5 },  // [38]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 5 },  // [39]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 12 },  // [40]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [41]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [42]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [43]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [44]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 13 },  // [45]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 14 },  // [46]
+};
+#define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_5_PARAM_COUNT 47
+
+static const s_expr_node_t chain_flow_dsl_tests_s_expression_test_5_nodes[] = {
+    { .type = 0x01, .child_count = 2, .node_index = 0, .first_child = 0x0001, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 0, .param_count = 0, .reserved = 0 }, // [0]
+    { .type = 0x40, .child_count = 0, .node_index = 1, .first_child = 0xFFFF, .next_sibling = 0x0002, .fn_index = 7, .param_offset = 0, .param_count = 2, .reserved = 2 }, // [1]
+    { .type = 0x05, .child_count = 6, .node_index = 2, .first_child = 0x0003, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 2, .param_count = 1, .reserved = 0 }, // [2]
+    { .type = 0x0C, .child_count = 1, .node_index = 3, .first_child = 0x0004, .next_sibling = 0x000B, .fn_index = 0, .param_offset = 3, .param_count = 1, .reserved = 0 }, // [3]
+    { .type = 0x01, .child_count = 6, .node_index = 4, .first_child = 0x0005, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 4, .param_count = 0, .reserved = 0 }, // [4]
+    { .type = 0x40, .child_count = 0, .node_index = 5, .first_child = 0xFFFF, .next_sibling = 0x0006, .fn_index = 4, .param_offset = 4, .param_count = 1, .reserved = 0 }, // [5]
+    { .type = 0x40, .child_count = 0, .node_index = 6, .first_child = 0xFFFF, .next_sibling = 0x0007, .fn_index = 8, .param_offset = 5, .param_count = 2, .reserved = 0 }, // [6]
+    { .type = 0x40, .child_count = 0, .node_index = 7, .first_child = 0xFFFF, .next_sibling = 0x0008, .fn_index = 8, .param_offset = 7, .param_count = 2, .reserved = 0 }, // [7]
+    { .type = 0xC0, .child_count = 0, .node_index = 8, .first_child = 0xFFFF, .next_sibling = 0x0009, .fn_index = 4, .param_offset = 9, .param_count = 1, .reserved = 0 }, // [8]
+    { .type = 0xC0, .child_count = 0, .node_index = 9, .first_child = 0xFFFF, .next_sibling = 0x000A, .fn_index = 8, .param_offset = 10, .param_count = 2, .reserved = 0 }, // [9]
+    { .type = 0x09, .child_count = 0, .node_index = 10, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [10]
+    { .type = 0x0C, .child_count = 1, .node_index = 11, .first_child = 0x000C, .next_sibling = 0x0013, .fn_index = 0, .param_offset = 12, .param_count = 1, .reserved = 0 }, // [11]
+    { .type = 0x01, .child_count = 6, .node_index = 12, .first_child = 0x000D, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 13, .param_count = 0, .reserved = 0 }, // [12]
+    { .type = 0x40, .child_count = 0, .node_index = 13, .first_child = 0xFFFF, .next_sibling = 0x000E, .fn_index = 4, .param_offset = 13, .param_count = 1, .reserved = 0 }, // [13]
+    { .type = 0x40, .child_count = 0, .node_index = 14, .first_child = 0xFFFF, .next_sibling = 0x000F, .fn_index = 8, .param_offset = 14, .param_count = 2, .reserved = 0 }, // [14]
+    { .type = 0x40, .child_count = 0, .node_index = 15, .first_child = 0xFFFF, .next_sibling = 0x0010, .fn_index = 8, .param_offset = 16, .param_count = 2, .reserved = 0 }, // [15]
+    { .type = 0xC0, .child_count = 0, .node_index = 16, .first_child = 0xFFFF, .next_sibling = 0x0011, .fn_index = 4, .param_offset = 18, .param_count = 1, .reserved = 0 }, // [16]
+    { .type = 0xC0, .child_count = 0, .node_index = 17, .first_child = 0xFFFF, .next_sibling = 0x0012, .fn_index = 8, .param_offset = 19, .param_count = 2, .reserved = 0 }, // [17]
+    { .type = 0x09, .child_count = 0, .node_index = 18, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 21, .param_count = 0, .reserved = 0 }, // [18]
+    { .type = 0x0C, .child_count = 1, .node_index = 19, .first_child = 0x0014, .next_sibling = 0x001B, .fn_index = 0, .param_offset = 21, .param_count = 1, .reserved = 0 }, // [19]
+    { .type = 0x01, .child_count = 6, .node_index = 20, .first_child = 0x0015, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 22, .param_count = 0, .reserved = 0 }, // [20]
+    { .type = 0x40, .child_count = 0, .node_index = 21, .first_child = 0xFFFF, .next_sibling = 0x0016, .fn_index = 4, .param_offset = 22, .param_count = 1, .reserved = 0 }, // [21]
+    { .type = 0x40, .child_count = 0, .node_index = 22, .first_child = 0xFFFF, .next_sibling = 0x0017, .fn_index = 8, .param_offset = 23, .param_count = 2, .reserved = 0 }, // [22]
+    { .type = 0x40, .child_count = 0, .node_index = 23, .first_child = 0xFFFF, .next_sibling = 0x0018, .fn_index = 8, .param_offset = 25, .param_count = 2, .reserved = 0 }, // [23]
+    { .type = 0xC0, .child_count = 0, .node_index = 24, .first_child = 0xFFFF, .next_sibling = 0x0019, .fn_index = 4, .param_offset = 27, .param_count = 1, .reserved = 0 }, // [24]
+    { .type = 0xC0, .child_count = 0, .node_index = 25, .first_child = 0xFFFF, .next_sibling = 0x001A, .fn_index = 8, .param_offset = 28, .param_count = 2, .reserved = 0 }, // [25]
+    { .type = 0x09, .child_count = 0, .node_index = 26, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 30, .param_count = 0, .reserved = 0 }, // [26]
+    { .type = 0x0C, .child_count = 1, .node_index = 27, .first_child = 0x001C, .next_sibling = 0x0023, .fn_index = 0, .param_offset = 30, .param_count = 1, .reserved = 0 }, // [27]
+    { .type = 0x01, .child_count = 6, .node_index = 28, .first_child = 0x001D, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 31, .param_count = 0, .reserved = 0 }, // [28]
+    { .type = 0x40, .child_count = 0, .node_index = 29, .first_child = 0xFFFF, .next_sibling = 0x001E, .fn_index = 4, .param_offset = 31, .param_count = 1, .reserved = 0 }, // [29]
+    { .type = 0x40, .child_count = 0, .node_index = 30, .first_child = 0xFFFF, .next_sibling = 0x001F, .fn_index = 8, .param_offset = 32, .param_count = 2, .reserved = 0 }, // [30]
+    { .type = 0x40, .child_count = 0, .node_index = 31, .first_child = 0xFFFF, .next_sibling = 0x0020, .fn_index = 8, .param_offset = 34, .param_count = 2, .reserved = 0 }, // [31]
+    { .type = 0xC0, .child_count = 0, .node_index = 32, .first_child = 0xFFFF, .next_sibling = 0x0021, .fn_index = 4, .param_offset = 36, .param_count = 1, .reserved = 0 }, // [32]
+    { .type = 0xC0, .child_count = 0, .node_index = 33, .first_child = 0xFFFF, .next_sibling = 0x0022, .fn_index = 8, .param_offset = 37, .param_count = 2, .reserved = 0 }, // [33]
+    { .type = 0x09, .child_count = 0, .node_index = 34, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 39, .param_count = 0, .reserved = 0 }, // [34]
+    { .type = 0x0C, .child_count = 1, .node_index = 35, .first_child = 0x0024, .next_sibling = 0x0029, .fn_index = 0, .param_offset = 39, .param_count = 1, .reserved = 0 }, // [35]
+    { .type = 0x01, .child_count = 4, .node_index = 36, .first_child = 0x0025, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 40, .param_count = 0, .reserved = 0 }, // [36]
+    { .type = 0x40, .child_count = 0, .node_index = 37, .first_child = 0xFFFF, .next_sibling = 0x0026, .fn_index = 4, .param_offset = 40, .param_count = 1, .reserved = 0 }, // [37]
+    { .type = 0x40, .child_count = 0, .node_index = 38, .first_child = 0xFFFF, .next_sibling = 0x0027, .fn_index = 8, .param_offset = 41, .param_count = 2, .reserved = 0 }, // [38]
+    { .type = 0x40, .child_count = 0, .node_index = 39, .first_child = 0xFFFF, .next_sibling = 0x0028, .fn_index = 8, .param_offset = 43, .param_count = 2, .reserved = 0 }, // [39]
+    { .type = 0x09, .child_count = 0, .node_index = 40, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 5, .param_offset = 45, .param_count = 0, .reserved = 0 }, // [40]
+    { .type = 0x0C, .child_count = 1, .node_index = 41, .first_child = 0x002A, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 45, .param_count = 0, .reserved = 1 }, // [41]
+    { .type = 0x01, .child_count = 3, .node_index = 42, .first_child = 0x002B, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 45, .param_count = 0, .reserved = 0 }, // [42]
+    { .type = 0x40, .child_count = 0, .node_index = 43, .first_child = 0xFFFF, .next_sibling = 0x002C, .fn_index = 4, .param_offset = 45, .param_count = 1, .reserved = 0 }, // [43]
+    { .type = 0x40, .child_count = 0, .node_index = 44, .first_child = 0xFFFF, .next_sibling = 0x002D, .fn_index = 4, .param_offset = 46, .param_count = 1, .reserved = 0 }, // [44]
+    { .type = 0x09, .child_count = 0, .node_index = 45, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 2, .param_offset = 47, .param_count = 0, .reserved = 0 }, // [45]
+};
+#define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_5_NODE_COUNT 46
+
+// ============================================================================
+// TREE: s_expression_test_6
+// ============================================================================
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_6_params[] = {
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60929 },  // [0]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 15 },  // [1]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60930 },  // [2]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 16 },  // [3]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 3, .slot_index = 0 } },  // timer_count  // [4]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 10 },  // [5]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 0 },  // [6]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60931 },  // [7]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 17 },  // [8]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 4, .slot_index = 0 } },  // sensor_value  // [9]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 50 },  // [10]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60932 },  // [11]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 18 },  // [12]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [13]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [14]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 19 },  // [15]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60933 },  // [16]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 1 },  // [17]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 20 },  // [18]
+    { .type = S_EXPR_PARAM_INT, .reserved = {0}, .i = 60933 },  // [19]
+    { .type = S_EXPR_PARAM_STRING, .reserved = {0}, .str_index = 21 },  // [20]
+    { .type = S_EXPR_PARAM_SLOT, .reserved = {0}, .slot = { .pool_id = 5, .slot_index = 0 } },  // event_id  // [21]
+};
+#define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_6_PARAM_COUNT 22
+
+static const s_expr_node_t chain_flow_dsl_tests_s_expression_test_6_nodes[] = {
+    { .type = 0x01, .child_count = 1, .node_index = 0, .first_child = 0x0001, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 0, .param_count = 0, .reserved = 0 }, // [0]
+    { .type = 0x05, .child_count = 6, .node_index = 1, .first_child = 0x0002, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 0, .param_count = 0, .reserved = 4 }, // [1]
+    { .type = 0x0C, .child_count = 1, .node_index = 2, .first_child = 0x0003, .next_sibling = 0x0007, .fn_index = 0, .param_offset = 0, .param_count = 1, .reserved = 0 }, // [2]
+    { .type = 0x01, .child_count = 3, .node_index = 3, .first_child = 0x0004, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 1, .param_count = 0, .reserved = 0 }, // [3]
+    { .type = 0x40, .child_count = 0, .node_index = 4, .first_child = 0xFFFF, .next_sibling = 0x0005, .fn_index = 4, .param_offset = 1, .param_count = 1, .reserved = 0 }, // [4]
+    { .type = 0xC0, .child_count = 0, .node_index = 5, .first_child = 0xFFFF, .next_sibling = 0x0006, .fn_index = 9, .param_offset = 2, .param_count = 0, .reserved = 0 }, // [5]
+    { .type = 0x09, .child_count = 0, .node_index = 6, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 2, .param_count = 0, .reserved = 0 }, // [6]
+    { .type = 0x0C, .child_count = 1, .node_index = 7, .first_child = 0x0008, .next_sibling = 0x000D, .fn_index = 0, .param_offset = 2, .param_count = 1, .reserved = 0 }, // [7]
+    { .type = 0x01, .child_count = 4, .node_index = 8, .first_child = 0x0009, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 3, .param_count = 0, .reserved = 0 }, // [8]
+    { .type = 0x40, .child_count = 0, .node_index = 9, .first_child = 0xFFFF, .next_sibling = 0x000A, .fn_index = 4, .param_offset = 3, .param_count = 1, .reserved = 0 }, // [9]
+    { .type = 0xC0, .child_count = 0, .node_index = 10, .first_child = 0xFFFF, .next_sibling = 0x000B, .fn_index = 10, .param_offset = 4, .param_count = 2, .reserved = 0 }, // [10]
+    { .type = 0x40, .child_count = 0, .node_index = 11, .first_child = 0xFFFF, .next_sibling = 0x000C, .fn_index = 9, .param_offset = 6, .param_count = 1, .reserved = 0 }, // [11]
+    { .type = 0x09, .child_count = 0, .node_index = 12, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 7, .param_count = 0, .reserved = 0 }, // [12]
+    { .type = 0x0C, .child_count = 1, .node_index = 13, .first_child = 0x000E, .next_sibling = 0x0012, .fn_index = 0, .param_offset = 7, .param_count = 1, .reserved = 0 }, // [13]
+    { .type = 0x01, .child_count = 3, .node_index = 14, .first_child = 0x000F, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 8, .param_count = 0, .reserved = 0 }, // [14]
+    { .type = 0x40, .child_count = 0, .node_index = 15, .first_child = 0xFFFF, .next_sibling = 0x0010, .fn_index = 4, .param_offset = 8, .param_count = 1, .reserved = 0 }, // [15]
+    { .type = 0xC0, .child_count = 0, .node_index = 16, .first_child = 0xFFFF, .next_sibling = 0x0011, .fn_index = 11, .param_offset = 9, .param_count = 2, .reserved = 0 }, // [16]
+    { .type = 0x09, .child_count = 0, .node_index = 17, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 11, .param_count = 0, .reserved = 0 }, // [17]
+    { .type = 0x0C, .child_count = 1, .node_index = 18, .first_child = 0x0013, .next_sibling = 0x001B, .fn_index = 0, .param_offset = 11, .param_count = 1, .reserved = 0 }, // [18]
+    { .type = 0x01, .child_count = 7, .node_index = 19, .first_child = 0x0014, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 12, .param_count = 0, .reserved = 0 }, // [19]
+    { .type = 0x40, .child_count = 0, .node_index = 20, .first_child = 0xFFFF, .next_sibling = 0x0015, .fn_index = 4, .param_offset = 12, .param_count = 1, .reserved = 0 }, // [20]
+    { .type = 0x40, .child_count = 0, .node_index = 21, .first_child = 0xFFFF, .next_sibling = 0x0016, .fn_index = 10, .param_offset = 13, .param_count = 0, .reserved = 0 }, // [21]
+    { .type = 0x40, .child_count = 0, .node_index = 22, .first_child = 0xFFFF, .next_sibling = 0x0017, .fn_index = 11, .param_offset = 13, .param_count = 2, .reserved = 0 }, // [22]
+    { .type = 0x40, .child_count = 0, .node_index = 23, .first_child = 0xFFFF, .next_sibling = 0x0018, .fn_index = 12, .param_offset = 15, .param_count = 1, .reserved = 0 }, // [23]
+    { .type = 0x40, .child_count = 0, .node_index = 24, .first_child = 0xFFFF, .next_sibling = 0x0019, .fn_index = 13, .param_offset = 16, .param_count = 2, .reserved = 0 }, // [24]
+    { .type = 0x40, .child_count = 0, .node_index = 25, .first_child = 0xFFFF, .next_sibling = 0x001A, .fn_index = 4, .param_offset = 18, .param_count = 1, .reserved = 0 }, // [25]
+    { .type = 0x09, .child_count = 0, .node_index = 26, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 19, .param_count = 0, .reserved = 0 }, // [26]
+    { .type = 0x0C, .child_count = 1, .node_index = 27, .first_child = 0x001C, .next_sibling = 0x0021, .fn_index = 0, .param_offset = 19, .param_count = 1, .reserved = 0 }, // [27]
+    { .type = 0x01, .child_count = 4, .node_index = 28, .first_child = 0x001D, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 20, .param_count = 0, .reserved = 0 }, // [28]
+    { .type = 0x40, .child_count = 0, .node_index = 29, .first_child = 0xFFFF, .next_sibling = 0x001E, .fn_index = 4, .param_offset = 20, .param_count = 1, .reserved = 0 }, // [29]
+    { .type = 0x40, .child_count = 0, .node_index = 30, .first_child = 0xFFFF, .next_sibling = 0x001F, .fn_index = 14, .param_offset = 21, .param_count = 0, .reserved = 0 }, // [30]
+    { .type = 0x40, .child_count = 0, .node_index = 31, .first_child = 0xFFFF, .next_sibling = 0x0020, .fn_index = 15, .param_offset = 21, .param_count = 0, .reserved = 0 }, // [31]
+    { .type = 0x09, .child_count = 0, .node_index = 32, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 5, .param_offset = 21, .param_count = 0, .reserved = 0 }, // [32]
+    { .type = 0x0C, .child_count = 1, .node_index = 33, .first_child = 0x0022, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 21, .param_count = 0, .reserved = 1 }, // [33]
+    { .type = 0x01, .child_count = 3, .node_index = 34, .first_child = 0x0023, .next_sibling = 0xFFFF, .fn_index = 0, .param_offset = 21, .param_count = 0, .reserved = 0 }, // [34]
+    { .type = 0xC0, .child_count = 0, .node_index = 35, .first_child = 0xFFFF, .next_sibling = 0x0024, .fn_index = 12, .param_offset = 21, .param_count = 1, .reserved = 0 }, // [35]
+    { .type = 0xC0, .child_count = 0, .node_index = 36, .first_child = 0xFFFF, .next_sibling = 0x0025, .fn_index = 13, .param_offset = 22, .param_count = 0, .reserved = 0 }, // [36]
+    { .type = 0x09, .child_count = 0, .node_index = 37, .first_child = 0xFFFF, .next_sibling = 0xFFFF, .fn_index = 1, .param_offset = 22, .param_count = 0, .reserved = 0 }, // [37]
+};
+#define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_6_NODE_COUNT 38
+
+// ============================================================================
 // TREE DEFINITIONS
 // ============================================================================
 
@@ -360,8 +566,24 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_trees[] = {
         .params = chain_flow_dsl_tests_s_expression_test_4_params,
         .param_count = 62,
     },
+    {
+        .name = "s_expression_test_5",
+        .nodes = chain_flow_dsl_tests_s_expression_test_5_nodes,
+        .node_count = 46,
+        .root_index = 0,
+        .params = chain_flow_dsl_tests_s_expression_test_5_params,
+        .param_count = 47,
+    },
+    {
+        .name = "s_expression_test_6",
+        .nodes = chain_flow_dsl_tests_s_expression_test_6_nodes,
+        .node_count = 38,
+        .root_index = 0,
+        .params = chain_flow_dsl_tests_s_expression_test_6_params,
+        .param_count = 22,
+    },
 };
-#define CHAIN_FLOW_DSL_TESTS_TREE_COUNT 4
+#define CHAIN_FLOW_DSL_TESTS_TREE_COUNT 6
 
 // ============================================================================
 // MODULE DEFINITION
@@ -370,7 +592,7 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_trees[] = {
 static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .name = "chain_flow_dsl_tests",
     .trees = chain_flow_dsl_tests_trees,
-    .tree_count = 4,
+    .tree_count = 6,
     .is_64bit = false,
 
     .oneshot_names = chain_flow_dsl_tests_oneshot_names,
@@ -378,12 +600,12 @@ static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .main_names = chain_flow_dsl_tests_main_names,
     .strings = chain_flow_dsl_tests_strings,
 
-    .oneshot_count = 7,
+    .oneshot_count = 16,
     .boolean_count = 5,
-    .main_count = 8,
-    .string_count = 8,
+    .main_count = 14,
+    .string_count = 22,
 
-    .max_node_count = 35,
+    .max_node_count = 46,
 };
 
 #ifdef __cplusplus

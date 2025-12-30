@@ -430,3 +430,163 @@ ttypedef enum {
     SE_FUNCTION_RESET     = 8,  // Function-level reset, propagates up
 } s_expr_result_t;
 #endif
+
+
+
+
+void cfl_s_expression_link_init_one_shot_fn(cfl_runtime_handle_t *handle, uint16_t node_index) {
+    s_expr_tree_instance_t** tree_inst_ptr = (s_expr_tree_instance_t**)cfl_smart_arena_alloc(handle, node_index, sizeof(s_expr_tree_instance_t*));
+    if (!tree_inst_ptr) {
+        EXCEPTION("failed to allocate tree instance");
+    }
+    
+    json_decoder_init_from_runtime(handle, node_index);
+    
+    
+    
+    
+    const char *module_name;
+    const char *tree_name;
+    json_extract_string_runtime(handle, "node_dict.module_name", &module_name);
+    json_extract_string_runtime(handle, "node_dict.tree_name", &tree_name);
+
+ 
+    // Find the module
+    s_expr_module_t* mod = cfl_find_module(handle, module_name);
+    if (!mod) {
+        printf("module not found: %s\n", module_name);
+        EXCEPTION("module not found");
+    }
+    
+    // Find tree index by name
+    uint16_t tree_index = UINT16_MAX;
+    for (uint16_t i = 0; i < mod->def->tree_count; i++) {
+    
+        if (strcmp(mod->def->trees[i].name, tree_name) == 0) {
+            tree_index = i;
+            break;
+        }
+    }
+    
+    if (tree_index == UINT16_MAX) {
+        printf("tree not found: %s in module %s\n", tree_name, module_name);
+        EXCEPTION("tree not found");
+    }
+    
+    
+    
+    // Create tree instance
+    s_expr_tree_instance_t* tree_inst = s_expr_tree_create(
+        mod,
+        tree_index,
+        handle,          // runtime handle
+        node_index       // ct_node_id
+    );
+    *tree_inst_ptr = tree_inst;
+    if (!tree_inst) {
+        printf("failed to create tree instance: %s\n", tree_name);
+        EXCEPTION("failed to create tree instance");
+    }
+    
+    printf("tree instance created: %s\n", tree_name);
+    // Store tree instance in node's private data
+   
+}
+
+void cfl_s_expression_link_term_one_shot_fn(cfl_runtime_handle_t *handle, uint16_t node_index) {
+      
+        s_expr_tree_instance_t** tree_inst_ptr = (s_expr_tree_instance_t**)cfl_heap_arena_get_node_ptr(handle->arena_system, node_index);
+        s_expr_tree_instance_t* tree_inst = *tree_inst_ptr;
+        if (tree_inst) {
+            // Send terminate events to all active nodes
+            s_expr_tree_terminate(tree_inst);
+            
+            // Free the instance
+            s_expr_tree_free(tree_inst);
+            
+            
+        }
+    
+}
+
+unsigned cfl_s_expression_link_main_main_fn(
+    void *handle, 
+    unsigned bool_function_index, 
+    unsigned node_index, 
+    unsigned event_type, 
+    unsigned event_id, 
+    void *event_data
+) {
+    (void)bool_function_index;
+    (void)event_type;
+    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
+    s_expr_tree_instance_t** tree_inst_ptr = (s_expr_tree_instance_t**)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    s_expr_tree_instance_t* tree_inst = *tree_inst_ptr;
+    if (!tree_inst) {
+        EXCEPTION("failed to locate tree instance");
+    }
+    
+    unsigned result = s_expr_tree_tick(tree_inst, event_id, event_data);
+    //printf("cfl_s_expression_link_main_main_fn: result: %d\n", result);
+    
+    switch(result) {
+        case SE_CONTINUE:
+            return CFL_CONTINUE;
+
+
+        case SE_TERMINATE:
+            return CFL_TERMINATE;
+
+        case SE_RESET:
+            return CFL_RESET;
+
+
+
+        case SE_DISABLE:
+             
+            return CFL_DISABLE;
+        case SE_HALT:
+            return CFL_HALT;
+
+        case SE_SKIP_CONTINUE:
+            return CFL_HALT;
+
+        case SE_FUNCTION_HALT:
+            return CFL_HALT;
+
+        case SE_FUNCTION_RESET:
+        
+            // keep never initialize flags;
+             s_expr_tree_reset(tree_inst);
+            return CFL_HALT;
+
+
+        case SE_FUNCTION_TERMINATE:
+             return CFL_DISABLE;
+            // reset never initialize flags
+            //s_expr_tree_full_terminate(tree_inst);
+           
+            return CFL_DISABLE;
+        
+        default:
+            EXCEPTION("cfl_s_expression_node_main_main_fn: invalid result");
+            return CFL_TERMINATE_SYSTEM;
+    }
+   
+    EXCEPTION("cfl_s_expression_node_main_main_fn: invalid result");
+    return CFL_TERMINATE_SYSTEM;
+}
+
+#if 0
+ttypedef enum {
+    SE_CONTINUE           = 0,
+    SE_HALT               = 1,
+    SE_TERMINATE          = 2,
+    SE_RESET              = 3,
+    SE_DISABLE            = 4,
+    SE_FUNCTION_TERMINATE = 5,
+    SE_SKIP_CONTINUE      = 6,  // Skip remaining siblings, return CONTINUE to parent
+    SE_FUNCTION_HALT      = 7,  // Function-level halt, propagates up
+    SE_FUNCTION_RESET     = 8,  // Function-level reset, propagates up
+} s_expr_result_t;
+#endif

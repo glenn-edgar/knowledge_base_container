@@ -985,15 +985,17 @@ function end_default_clause(name)
     table.insert(parent.clauses, node)
 end
 
-function dispatch(key, prefix)
-    if type(key) ~= "string" then
-        dsl_error("dispatch() requires key parameter as first argument")
+function dispatch(name, slot)
+    if type(name) ~= "string" then
+        dsl_error("dispatch() requires name as first argument")
     end
-    prefix = prefix or "dispatch"
-    local name = gensym(prefix)
+    if slot == nil or type(slot) ~= "table" or slot._param_type ~= "slot_ref" then
+        dsl_error("dispatch() requires slot_ref as second argument")
+    end
     check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "dispatch")
     start_composite(NODE_TYPES.DISPATCH, name, CONTEXTS.CASE_LIST, function(n)
-        n.key = key
+        n.slot_params = encode_params(slot)
+        n.event_mode = false
         n.cases = {}
     end)
     return name
@@ -1011,16 +1013,42 @@ function end_dispatch(name)
     end
 end
 
-function case(pattern, prefix)
-    if pattern == nil then
-        dsl_error("case() requires pattern as first argument")
+function event_dispatch(name)
+    if type(name) ~= "string" then
+        dsl_error("event_dispatch() requires name as first argument")
     end
-    prefix = prefix or "case"
-    local name = gensym(prefix)
+    check_context({CONTEXTS.CONTROL_FLOW, CONTEXTS.ACTION}, "event_dispatch")
+    start_composite(NODE_TYPES.DISPATCH, name, CONTEXTS.CASE_LIST, function(n)
+        n.slot_params = nil
+        n.event_mode = true
+        n.cases = {}
+    end)
+    return name
+end
+
+function end_event_dispatch(name)
+    if type(name) ~= "string" then
+        dsl_error("end_event_dispatch() requires name")
+    end
+    
+    local node = stack_pop(NODE_TYPES.DISPATCH, name)
+    
+    if #node.cases == 0 then
+        dsl_error(string.format("event_dispatch('%s') has no cases", name))
+    end
+end
+
+function case(name, pattern)
+    if type(name) ~= "string" then
+        dsl_error("case() requires name as first argument")
+    end
+    if pattern == nil then
+        dsl_error("case() requires pattern as second argument (int or uint)")
+    end
     check_context({CONTEXTS.CASE_LIST}, "case")
     
     local node = stack_push(NODE_TYPES.CASE, name, CONTEXTS.ACTION)
-    node.pattern = pattern
+    node.pattern_params = encode_params(pattern)
     node.action = nil
     node.is_default = false
     return name
@@ -1041,9 +1069,10 @@ function end_case(name)
     table.insert(parent.cases, node)
 end
 
-function default_case(prefix)
-    prefix = prefix or "default_case"
-    local name = gensym(prefix)
+function default_case(name)
+    if type(name) ~= "string" then
+        dsl_error("default_case() requires name as first argument")
+    end
     check_context({CONTEXTS.CASE_LIST}, "default_case")
     
     local node = stack_push(NODE_TYPES.CASE, name, CONTEXTS.ACTION)
@@ -1409,7 +1438,7 @@ function TreeGenerator:get_node_children(node)
             for _, cs in ipairs(node.cases) do
                 local case_node = {
                     type = NODE_TYPES.CASE,
-                    pattern = cs.pattern,
+                    pattern_params = cs.pattern_params,
                     action = cs.action,
                     is_default = cs.is_default,
                 }
@@ -1503,25 +1532,25 @@ function TreeGenerator:emit_nodes(node, next_sibling_index)
         
     elseif t == NODE_TYPES.DISPATCH then
         n.type = TABLE_OPCODE + OPCODES.dispatch
-        local key_idx = self:add_string(node.key)
-        table.insert(self.params, { type = PARAM_STRING, value = key_idx })
-        n.param_count = 1
+        
+        -- Set event_mode flag in reserved (bit 2 = 0x04)
+        if node.event_mode then
+            n.is_default = 4  -- Will become reserved = 0x04
+            n.param_count = 0
+        else
+            -- Slot dispatch mode - emit slot_ref (already encoded in dispatch())
+            n.is_default = 0
+            self:emit_params(node.slot_params)
+            n.param_count = 1
+        end
         
     elseif t == NODE_TYPES.CASE then
         n.type = TABLE_OPCODE + OPCODES.case
-        n.is_default = node.is_default
-        if not node.is_default then
-            if type(node.pattern) == "table" then
-                for _, p in ipairs(node.pattern) do
-                    local pidx = self:add_string(p)
-                    table.insert(self.params, { type = PARAM_STRING, value = pidx })
-                end
-                n.param_count = #node.pattern
-            else
-                local pidx = self:add_string(node.pattern)
-                table.insert(self.params, { type = PARAM_STRING, value = pidx })
-                n.param_count = 1
-            end
+        n.is_default = node.is_default and 1 or 0
+        if not node.is_default and node.pattern_params then
+            -- Pattern already encoded in case()
+            self:emit_params(node.pattern_params)
+            n.param_count = 1
         end
         
     elseif t == NODE_TYPES.AND then

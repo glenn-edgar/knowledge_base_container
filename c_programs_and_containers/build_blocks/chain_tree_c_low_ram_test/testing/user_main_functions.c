@@ -18,8 +18,8 @@ unsigned sm_event_filtering_main_main_fn(void *handle, unsigned bool_function_in
         EXCEPTION("sm_event_filtering_main_main_fn: ptr is NULL");
     }
     if(event_id == (unsigned) ptr->event_id){
-        printf("*****>  sm_event_filtering_main_main_fn:filtering and processing event_id: %d\n", event_id);
-        return CFL_HALT;
+        
+        return CFL_CONTINUE;
     }
     return CFL_CONTINUE;
 

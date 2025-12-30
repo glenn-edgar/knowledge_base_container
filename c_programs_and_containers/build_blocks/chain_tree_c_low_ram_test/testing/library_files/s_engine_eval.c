@@ -9,6 +9,7 @@
 #include "s_engine_module.h"
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -557,13 +558,26 @@ static s_expr_result_t eval_node(
                 }
                 
                 case S_EXPR_OP_DISPATCH: {
-                    if (param_count == 0) {
-                        return SE_CONTINUE;
-                    }
+                    // Dispatch mode: bit 2 of reserved
+                    // 0 = slot mode (read key from slot)
+                    // 1 = event mode (use event_id as key)
+                    #define S_EXPR_NODE_DISPATCH_EVENT_MODE 0x04
                     
-                    const char* key = s_expr_module_get_string(mod, params[0].str_index);
-                    if (!key) {
-                        return SE_CONTINUE;
+                    int32_t key;
+                    
+                    if (node->reserved & S_EXPR_NODE_DISPATCH_EVENT_MODE) {
+                        // Event dispatch mode - use event_id
+                        key = (int32_t)event_id;
+                    } else {
+                        // Slot dispatch mode - read from slot
+                        if (param_count == 0) {
+                            return SE_CONTINUE;
+                        }
+                        int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
+                        if (!slot_ptr) {
+                            return SE_CONTINUE;
+                        }
+                        key = *slot_ptr;
                     }
                     
                     uint16_t child_idx = node->first_child;
@@ -585,14 +599,18 @@ static s_expr_result_t eval_node(
                             case_params = &inst->tree->params[case_node->param_offset];
                         }
                         
+                        // Match integer case values
                         for (uint8_t i = 0; i < case_node->param_count; i++) {
-                            const char* pattern = s_expr_module_get_string(mod, case_params[i].str_index);
-                            if (pattern && strcmp(key, pattern) == 0) {
-                                uint16_t action_idx = case_node->first_child;
-                                if (action_idx != S_EXPR_NO_CHILD) {
-                                    return eval_node(inst, action_idx, event_id, event_data);
+                            if (case_params[i].type == S_EXPR_PARAM_INT ||
+                                case_params[i].type == S_EXPR_PARAM_UINT) {
+                                int32_t case_val = (int32_t)s_expr_param_get_int(&case_params[i]);
+                                if (key == case_val) {
+                                    uint16_t action_idx = case_node->first_child;
+                                    if (action_idx != S_EXPR_NO_CHILD) {
+                                        return eval_node(inst, action_idx, event_id, event_data);
+                                    }
+                                    return SE_CONTINUE;
                                 }
-                                return SE_CONTINUE;
                             }
                         }
                         

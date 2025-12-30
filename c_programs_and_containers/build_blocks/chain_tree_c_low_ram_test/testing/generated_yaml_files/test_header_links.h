@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_WD9W3330_LINK_TABLE_SIZE 1354
+#define CT_3UQ9HAUS_LINK_TABLE_SIZE 1364
 
-extern const uint16_t ct_wd9w3330_link_table[CT_WD9W3330_LINK_TABLE_SIZE];
+extern const uint16_t ct_3uq9haus_link_table[CT_3UQ9HAUS_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */
