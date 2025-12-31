@@ -78,6 +78,7 @@ local PARAM_OPCODES = {
     ONESHOT     = 0x08,
     MAIN        = 0x09,
     PRED        = 0x0A,
+    FIELD       = 0x0B,  -- field reference in record
 }
 
 -- Type flags
@@ -137,6 +138,8 @@ local function init_module(name, opts)
         pred_table = new_hash_table(),
         string_hashes = new_string_hashes(),
         pools = new_pools(),
+        records = {},       -- RECORD definitions
+        record_order = {},  -- order of record definitions
         is_64bit = opts.is_64bit or false,
         
         -- Current tree state
@@ -144,6 +147,7 @@ local function init_module(name, opts)
         params = nil,
         func_node_counter = 0,
         pointer_counter = 0,
+        tree_record = nil,  -- record bound to current tree
         
         -- Stack for open braces (stores param index)
         brace_stack = {},
@@ -305,6 +309,144 @@ local function resolve_slot(slot_name)
 end
 
 --============================================================================
+-- RECORD / FIELD DEFINITIONS (Blackboard Schema)
+--============================================================================
+
+-- Type sizes for offset calculation
+local FIELD_TYPE_SIZES = {
+    int8    = 1,  uint8   = 1,
+    int16   = 2,  uint16  = 2,
+    int32   = 4,  uint32  = 4,
+    int64   = 8,  uint64  = 8,
+    float   = 4,  double  = 8,
+    bool    = 1,
+}
+
+local FIELD_TYPE_CNAMES = {
+    int8    = "int8_t",   uint8   = "uint8_t",
+    int16   = "int16_t",  uint16  = "uint16_t",
+    int32   = "int32_t",  uint32  = "uint32_t",
+    int64   = "int64_t",  uint64  = "uint64_t",
+    float   = "float",    double  = "double",
+    bool    = "bool",
+}
+
+local FIELD_TYPE_ALIGN = {
+    int8    = 1,  uint8   = 1,
+    int16   = 2,  uint16  = 2,
+    int32   = 4,  uint32  = 4,
+    int64   = 8,  uint64  = 8,
+    float   = 4,  double  = 8,
+    bool    = 1,
+}
+
+local _current_record = nil
+
+function RECORD(name)
+    if not _module then
+        error("[DSL ERROR] RECORD() must be inside start_module()", 2)
+    end
+    if _current_record then
+        error("[DSL ERROR] RECORD() called while already in a record", 2)
+    end
+    if _module.records[name] then
+        error("[DSL ERROR] Record already defined: " .. name, 2)
+    end
+    
+    _current_record = {
+        name = name,
+        fields = {},
+        field_order = {},
+        current_offset = 0,
+        max_align = 1,
+    }
+end
+
+function FIELD(name, ftype, array_size)
+    if not _current_record then
+        error("[DSL ERROR] FIELD() must be inside RECORD()", 2)
+    end
+    if _current_record.fields[name] then
+        error("[DSL ERROR] Field already defined: " .. name, 2)
+    end
+    
+    local base_size = FIELD_TYPE_SIZES[ftype]
+    local ctype = FIELD_TYPE_CNAMES[ftype]
+    local align = FIELD_TYPE_ALIGN[ftype]
+    
+    if not base_size then
+        -- Check for pointer type (reference to another record)
+        if _module.records[ftype] then
+            base_size = 8  -- pointer size
+            ctype = ftype .. "_t*"
+            align = 8
+        else
+            error("[DSL ERROR] Unknown field type: " .. ftype, 2)
+        end
+    end
+    
+    local total_size = base_size
+    if array_size then
+        total_size = base_size * array_size
+    end
+    
+    -- Align current offset
+    local padding = (align - (_current_record.current_offset % align)) % align
+    local offset = _current_record.current_offset + padding
+    
+    _current_record.fields[name] = {
+        name = name,
+        type = ftype,
+        ctype = ctype,
+        array_size = array_size,
+        offset = offset,
+        size = total_size,
+        base_size = base_size,
+        align = align,
+        hash = fnv1a_32(name),
+    }
+    table.insert(_current_record.field_order, name)
+    
+    _current_record.current_offset = offset + total_size
+    if align > _current_record.max_align then
+        _current_record.max_align = align
+    end
+end
+
+function END_RECORD()
+    if not _current_record then
+        error("[DSL ERROR] END_RECORD() without matching RECORD()", 2)
+    end
+    
+    -- Align total size to max alignment
+    local align = _current_record.max_align
+    local padding = (align - (_current_record.current_offset % align)) % align
+    _current_record.total_size = _current_record.current_offset + padding
+    _current_record.hash = fnv1a_32(_current_record.name)
+    
+    _module.records[_current_record.name] = _current_record
+    table.insert(_module.record_order, _current_record.name)
+    
+    _current_record = nil
+end
+
+-- Tree uses a record as its blackboard
+function use_record(record_name)
+    check_in_tree("use_record")
+    
+    local record = _module.records[record_name]
+    if not record then
+        dsl_error("Unknown record: " .. record_name)
+    end
+    
+    if _module.tree_record then
+        dsl_error("Tree already has a record: " .. _module.tree_record)
+    end
+    
+    _module.tree_record = record_name
+end
+
+--============================================================================
 -- PARAMETER EMISSION
 --============================================================================
 
@@ -372,6 +514,32 @@ function slot_ref(slot_name)
         slot_index = slot_index,
         value_type = "slot",
         slot_name = slot_name,
+    })
+end
+
+-- Reference a field in the tree's record (blackboard)
+function field_ref(field_name)
+    check_in_tree("field_ref")
+    
+    if not _module.tree_record then
+        dsl_error("field_ref() requires use_record() first")
+    end
+    
+    local record = _module.records[_module.tree_record]
+    local field = record.fields[field_name]
+    if not field then
+        dsl_error("Unknown field '" .. field_name .. "' in record '" .. _module.tree_record .. "'")
+    end
+    
+    emit_param({
+        type = PARAM_OPCODES.FIELD,
+        index_to_pointer = 0,
+        node_index = 0,
+        field_offset = field.offset,
+        field_size = field.size,
+        value_type = "field",
+        field_name = field_name,
+        record_name = _module.tree_record,
     })
 end
 
@@ -615,6 +783,7 @@ function start_tree(name)
     _module.func_node_counter = 0
     _module.pointer_counter = 0
     _module.brace_stack = {}
+    _module.tree_record = nil  -- reset record binding
     
     return name
 end
@@ -645,11 +814,13 @@ function end_tree(name)
         params = _module.params,
         func_node_count = _module.func_node_counter,
         pointer_count = _module.pointer_counter,
+        record_name = _module.tree_record,  -- bound record (may be nil)
     }
     table.insert(_module.tree_order, name)
     
     _module.current_tree = nil
     _module.params = nil
+    _module.tree_record = nil
     
     return name
 end
@@ -692,6 +863,8 @@ function ModuleGenerator.new(mod_data)
     self.pred_table = mod_data.pred_table
     self.string_hashes = mod_data.string_hashes
     self.pools = mod_data.pools
+    self.records = mod_data.records
+    self.record_order = mod_data.record_order
     self.is_64bit = mod_data.is_64bit
     
     -- Compute max counts
@@ -728,9 +901,6 @@ function ModuleGenerator:to_c_header(base_name)
     local guard = string.upper(base_name) .. "_MODULE_H"
     local prefix = base_name
     
-    local int_type = self.is_64bit and "int64_t" or "int32_t"
-    local uint_type = self.is_64bit and "uint64_t" or "uint32_t"
-    local float_type = self.is_64bit and "double" or "float"
     local int_suffix = self.is_64bit and "LL" or ""
     local uint_suffix = self.is_64bit and "ULL" or "U"
     local float_suffix = self.is_64bit and "" or "f"
@@ -748,98 +918,72 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, 'extern "C" {')
     table.insert(lines, "#endif")
     table.insert(lines, "")
-    table.insert(lines, "#include <stdint.h>")
-    table.insert(lines, "#include <stdbool.h>")
-    table.insert(lines, "")
     
-    -- Size configuration
-    table.insert(lines, "// Size configuration")
+    -- Size configuration (must be before s_engine_v3_types.h)
+    table.insert(lines, "// Size configuration - must be defined before including s_engine_v3_types.h")
+    table.insert(lines, "#ifndef MODULE_IS_64BIT")
     table.insert(lines, "#define MODULE_IS_64BIT " .. (self.is_64bit and "1" or "0"))
+    table.insert(lines, "#endif")
     table.insert(lines, "")
     
-    -- Type aliases
-    table.insert(lines, "// Type aliases")
-    table.insert(lines, "typedef " .. int_type .. " ct_int_t;")
-    table.insert(lines, "typedef " .. uint_type .. " ct_uint_t;")
-    table.insert(lines, "typedef " .. float_type .. " ct_float_t;")
+    -- Include the runtime types header
+    table.insert(lines, '#include "s_engine_types.h"')
     table.insert(lines, "")
     
-    -- Parameter type constants
-    table.insert(lines, "// Parameter type opcodes (bits 3:0)")
-    table.insert(lines, "#define S_EXPR_PARAM_INT         0x00")
-    table.insert(lines, "#define S_EXPR_PARAM_UINT        0x01")
-    table.insert(lines, "#define S_EXPR_PARAM_FLOAT       0x02")
-    table.insert(lines, "#define S_EXPR_PARAM_STR_HASH    0x03")
-    table.insert(lines, "#define S_EXPR_PARAM_SLOT        0x04")
-    table.insert(lines, "#define S_EXPR_PARAM_OPEN        0x05")
-    table.insert(lines, "#define S_EXPR_PARAM_CLOSE       0x06")
-    table.insert(lines, "#define S_EXPR_PARAM_OPEN_CALL   0x07")
-    table.insert(lines, "#define S_EXPR_PARAM_ONESHOT     0x08")
-    table.insert(lines, "#define S_EXPR_PARAM_MAIN        0x09")
-    table.insert(lines, "#define S_EXPR_PARAM_PRED        0x0A")
-    table.insert(lines, "")
-    table.insert(lines, "// Type flags")
-    table.insert(lines, "#define S_EXPR_FLAG_SURVIVES_RESET 0x10")
-    table.insert(lines, "#define S_EXPR_FLAG_POINTER        0x80")
-    table.insert(lines, "#define S_EXPR_OPCODE_MASK         0x0F")
-    table.insert(lines, "")
-    
-    -- Slot reference structure
-    table.insert(lines, "// Slot reference")
-    table.insert(lines, "typedef struct {")
-    table.insert(lines, "    uint16_t pool_id;")
-    table.insert(lines, "    uint16_t slot_index;")
-    table.insert(lines, "} s_expr_slot_ref_t;")
-    table.insert(lines, "")
-    
-    -- Parameter structure
-    table.insert(lines, "// Parameter structure")
-    table.insert(lines, "typedef struct {")
-    table.insert(lines, "    uint8_t  type;")
-    table.insert(lines, "    uint8_t  index_to_pointer;")
-    table.insert(lines, "    uint16_t node_index;")
-    table.insert(lines, "    uint8_t  reserved[4];")
-    table.insert(lines, "    union {")
-    table.insert(lines, "        ct_int_t   i;")
-    table.insert(lines, "        ct_uint_t  u;")
-    table.insert(lines, "        ct_float_t f;")
-    table.insert(lines, "        uint32_t   str_hash;")
-    table.insert(lines, "        uint16_t   func_idx;")
-    table.insert(lines, "        uint16_t   brace_idx;")
-    table.insert(lines, "        s_expr_slot_ref_t slot;")
-    table.insert(lines, "    };")
-    table.insert(lines, "} s_expr_param_t;")
-    table.insert(lines, "")
-    
-    -- Tree definition structure
-    table.insert(lines, "// Tree definition")
-    table.insert(lines, "typedef struct {")
-    table.insert(lines, "    uint32_t name_hash;")
-    table.insert(lines, "    const s_expr_param_t* params;")
-    table.insert(lines, "    uint16_t param_count;")
-    table.insert(lines, "    uint16_t func_node_count;")
-    table.insert(lines, "    uint16_t pointer_count;")
-    table.insert(lines, "} s_expr_tree_def_t;")
-    table.insert(lines, "")
-    
-    -- Module definition structure
-    table.insert(lines, "// Module definition")
-    table.insert(lines, "typedef struct {")
-    table.insert(lines, "    uint32_t name_hash;")
-    table.insert(lines, "    const s_expr_tree_def_t* trees;")
-    table.insert(lines, "    uint16_t tree_count;")
-    table.insert(lines, "    bool is_64bit;")
-    table.insert(lines, "    const uint32_t* oneshot_hashes;")
-    table.insert(lines, "    const uint32_t* main_hashes;")
-    table.insert(lines, "    const uint32_t* pred_hashes;")
-    table.insert(lines, "    uint16_t oneshot_count;")
-    table.insert(lines, "    uint16_t main_count;")
-    table.insert(lines, "    uint16_t pred_count;")
-    table.insert(lines, "    uint16_t max_func_node_count;")
-    table.insert(lines, "    uint16_t max_pointer_count;")
-    table.insert(lines, "    uint16_t max_param_count;")
-    table.insert(lines, "} s_expr_module_def_t;")
-    table.insert(lines, "")
+    -- Record (blackboard) structures - these ARE module-specific
+    if #self.record_order > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// RECORD (BLACKBOARD) STRUCTURES")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "")
+        
+        -- Generate each record struct and field array
+        for _, record_name in ipairs(self.record_order) do
+            local record = self.records[record_name]
+            
+            -- Generate C struct
+            table.insert(lines, "// Record: " .. record_name)
+            table.insert(lines, "typedef struct {")
+            for _, field_name in ipairs(record.field_order) do
+                local field = record.fields[field_name]
+                if field.array_size then
+                    table.insert(lines, string.format("    %s %s[%d];  // offset=%d size=%d",
+                        field.ctype, field.name, field.array_size, field.offset, field.size))
+                else
+                    table.insert(lines, string.format("    %s %s;  // offset=%d size=%d",
+                        field.ctype, field.name, field.offset, field.size))
+                end
+            end
+            table.insert(lines, "} " .. record_name .. "_t;")
+            table.insert(lines, "")
+            
+            -- Generate field descriptor array
+            table.insert(lines, "static const s_expr_field_desc_t " .. prefix .. "_" .. record_name .. "_fields[] = {")
+            for _, field_name in ipairs(record.field_order) do
+                local field = record.fields[field_name]
+                table.insert(lines, string.format('    { %s, %d, %d },  // %s',
+                    format_hash(field.hash), field.offset, field.size, field.name))
+            end
+            table.insert(lines, "};")
+            table.insert(lines, "")
+        end
+        
+        -- Generate record descriptor array
+        table.insert(lines, "static const s_expr_record_desc_t " .. prefix .. "_records[] = {")
+        for _, record_name in ipairs(self.record_order) do
+            local record = self.records[record_name]
+            table.insert(lines, string.format('    { %s, %d, %d, %s_%s_fields },  // %s',
+                format_hash(record.hash),
+                record.total_size,
+                #record.field_order,
+                prefix,
+                record_name,
+                record_name))
+        end
+        table.insert(lines, "};")
+        table.insert(lines, "#define " .. string.upper(prefix) .. "_RECORD_COUNT " .. #self.record_order)
+        table.insert(lines, "")
+    end
     
     -- Function hash arrays
     table.insert(lines, "// ============================================================================")
@@ -924,6 +1068,9 @@ function ModuleGenerator:to_c_header(base_name)
             elseif p.value_type == "slot" then
                 val_str = string.format(".slot = { %d, %d }", p.pool_id or 0, p.slot_index or 0)
                 comment = p.slot_name and (" // " .. p.slot_name) or ""
+            elseif p.value_type == "field" then
+                val_str = string.format(".field = { %d, %d }", p.field_offset or 0, p.field_size or 0)
+                comment = p.field_name and (" // " .. p.field_name) or ""
             elseif p.value_type == "brace" then
                 val_str = string.format(".brace_idx = %d", p.value)
                 if base_type == PARAM_OPCODES.OPEN or base_type == PARAM_OPCODES.OPEN_CALL then
@@ -960,8 +1107,14 @@ function ModuleGenerator:to_c_header(base_name)
         local tree = self.trees[tree_name]
         local tree_prefix = prefix .. "_" .. tree_name
         
-        table.insert(lines, string.format('    { %s, %s_params, %d, %d, %d },  // "%s"',
+        local record_hash = "0"
+        if tree.record_name and self.records[tree.record_name] then
+            record_hash = format_hash(self.records[tree.record_name].hash)
+        end
+        
+        table.insert(lines, string.format('    { %s, %s, %s_params, %d, %d, %d },  // "%s"',
             format_hash(fnv1a_32(tree_name)),
+            record_hash,
             tree_prefix,
             #tree.params,
             tree.func_node_count,
@@ -1056,6 +1209,27 @@ function ModuleGenerator:dump()
     print("64-bit: " .. (self.is_64bit and "yes" or "no"))
     print("")
     
+    -- Records
+    if #self.record_order > 0 then
+        print("RECORDS:")
+        for _, record_name in ipairs(self.record_order) do
+            local record = self.records[record_name]
+            print(string.format("  %s (%s) size=%d",
+                record_name, format_hash(record.hash), record.total_size))
+            for _, field_name in ipairs(record.field_order) do
+                local field = record.fields[field_name]
+                if field.array_size then
+                    print(string.format("    %s: %s[%d] offset=%d size=%d",
+                        field_name, field.type, field.array_size, field.offset, field.size))
+                else
+                    print(string.format("    %s: %s offset=%d size=%d",
+                        field_name, field.type, field.offset, field.size))
+                end
+            end
+        end
+        print("")
+    end
+    
     print("ONESHOT FUNCTIONS:")
     for i, name in ipairs(self.oneshot_table.names) do
         print(string.format("  [%d] %s -> %s", i - 1, name, format_hash(self.oneshot_table.hashes[i])))
@@ -1086,7 +1260,11 @@ function ModuleGenerator:dump()
     
     for _, tree_name in ipairs(self.tree_order) do
         local tree = self.trees[tree_name]
-        print("TREE: " .. tree_name .. " (" .. format_hash(fnv1a_32(tree_name)) .. ")")
+        local record_info = ""
+        if tree.record_name then
+            record_info = " record=" .. tree.record_name
+        end
+        print("TREE: " .. tree_name .. " (" .. format_hash(fnv1a_32(tree_name)) .. ")" .. record_info)
         print(string.format("  func_nodes=%d pointers=%d params=%d",
             tree.func_node_count, tree.pointer_count, #tree.params))
         
@@ -1098,7 +1276,7 @@ function ModuleGenerator:dump()
             if band(p.type, TYPE_FLAGS.POINTER) ~= 0 then flags = flags .. " PTR" end
             if band(p.type, TYPE_FLAGS.SURVIVES_RESET) ~= 0 then flags = flags .. " INIT" end
             
-            local opcodes = {"INT","UINT","FLOAT","STR","SLOT","OPEN","CLOSE","CALL","ONESHOT","MAIN","PRED"}
+            local opcodes = {"INT","UINT","FLOAT","STR","SLOT","OPEN","CLOSE","CALL","ONESHOT","MAIN","PRED","FIELD"}
             type_name = opcodes[base + 1] or string.format("0x%02X", base)
             
             local detail = ""
@@ -1108,6 +1286,8 @@ function ModuleGenerator:dump()
                 detail = string.format("%s \"%s\"", format_hash(p.value), p.str_content or "")
             elseif p.value_type == "slot" then
                 detail = string.format("pool=%d slot=%d %s", p.pool_id, p.slot_index, p.slot_name or "")
+            elseif p.value_type == "field" then
+                detail = string.format("offset=%d size=%d %s", p.field_offset, p.field_size, p.field_name or "")
             elseif p.value_type == "brace" then
                 detail = string.format("offset=%d", p.value)
             else

@@ -1,251 +1,242 @@
 // ============================================================================
-// s_engine_module.h
-// S-Expression Module Management API
-// Version 2.7 - Pool table support, lifecycle management, incremental loading
+// s_engine_v3_module.h
+// S-Expression Module Management API - Version 3.0
 // ============================================================================
 
-#ifndef S_ENGINE_MODULE_H
-#define S_ENGINE_MODULE_H
+#ifndef S_ENGINE_V3_MODULE_H
+#define S_ENGINE_V3_MODULE_H
 
 #include "s_engine_types.h"
-#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // ============================================================================
-// MODULE INITIALIZATION (two-phase: init + validate)
+// MODULE LIFECYCLE
 // ============================================================================
 
-// Phase 1: Initialize module structure (no function resolution yet)
+// Initialize module with definition and allocator
 uint8_t s_expr_module_init(
     s_expr_module_t* mod,
     const s_expr_module_def_t* def,
-    s_expr_allocator_t alloc,
-    void* handle
+    s_expr_allocator_t alloc
 );
 
-// Phase 2a: Load function entries (can be called multiple times)
-// Returns number of entries loaded
-uint16_t s_expr_module_load_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table);
-uint16_t s_expr_module_load_boolean(s_expr_module_t* mod, const s_expr_fn_table_t* table);
-uint16_t s_expr_module_load_main(s_expr_module_t* mod, const s_expr_fn_table_t* table);
+// Register function tables (call before validate)
+void s_expr_module_register_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table);
+void s_expr_module_register_main(s_expr_module_t* mod, const s_expr_fn_table_t* table);
+void s_expr_module_register_pred(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 
-// Phase 2b: Resolve all function references (call after all load calls)
-// Returns 0 on success, error code on failure
+// Validate all functions are resolved
 uint8_t s_expr_module_validate(s_expr_module_t* mod);
 
 // Free module resources
 void s_expr_module_free(s_expr_module_t* mod);
 
-// Set debug function (optional)
-void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t debug_fn);
+// Set callbacks
+void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t fn);
+void s_expr_module_set_error(s_expr_module_t* mod, s_expr_error_fn_t fn);
+
+// Set pool table (legacy support)
+void s_expr_module_set_pools(s_expr_module_t* mod, void** pools, uint16_t count);
+
+// Error info
+const char* s_expr_error_str(uint8_t error_code);
 
 // ============================================================================
-// ERROR ACCESSORS
-// ============================================================================
-
-static inline uint8_t s_expr_module_get_error(const s_expr_module_t* mod) {
-    return mod ? mod->error_code : S_EXPR_MOD_ERR_ALLOC;
-}
-
-static inline uint16_t s_expr_module_get_error_index(const s_expr_module_t* mod) {
-    return mod ? mod->error_index : 0;
-}
-
-static inline const char* s_expr_module_get_error_name(const s_expr_module_t* mod) {
-    return mod ? mod->error_name : NULL;
-}
-
-const char* s_expr_module_error_str(uint8_t error_code);
-
-// ============================================================================
-// POOL TABLE MANAGEMENT
-// ============================================================================
-
-static inline void s_expr_module_set_pool_table(
-    s_expr_module_t* mod,
-    void** pool_table,
-    uint16_t pool_count
-) {
-    if (mod) {
-        mod->pool_table = pool_table;
-        mod->pool_count = pool_count;
-    }
-}
-
-static inline void** s_expr_module_get_pool_table(const s_expr_module_t* mod) {
-    return mod ? mod->pool_table : NULL;
-}
-
-static inline uint16_t s_expr_module_get_pool_count(const s_expr_module_t* mod) {
-    return mod ? mod->pool_count : 0;
-}
-
-// ============================================================================
-// TREE INSTANCE CREATION
+// TREE INSTANCE LIFECYCLE
 // ============================================================================
 
 s_expr_tree_instance_t* s_expr_tree_create(
     s_expr_module_t* mod,
     uint16_t tree_index,
-    void* handle,
-    uint16_t ct_node_id
+    uint32_t ct_node_id    // <-- ADD THIS
 );
 
+// Create tree instance by name hash
+s_expr_tree_instance_t* s_expr_tree_create_by_hash(
+    s_expr_module_t* mod,
+    uint32_t name_hash
+);
+
+// Free tree instance
 void s_expr_tree_free(s_expr_tree_instance_t* inst);
+
+// Bind blackboard (record) to tree
+// blackboard must remain valid for lifetime of tree instance
+void s_expr_tree_bind_blackboard(
+    s_expr_tree_instance_t* inst,
+    void* blackboard,
+    uint16_t size
+);
+
+// Set user context
+void s_expr_tree_set_user_ctx(s_expr_tree_instance_t* inst, void* ctx);
+void* s_expr_tree_get_user_ctx(s_expr_tree_instance_t* inst);
+
+// ============================================================================
+// NODE STATE ACCESS (for use inside function callbacks)
+// These operate on the CURRENT node being executed
+// ============================================================================
+
+// Get/set user flags (bits 4-7 only, system bits protected)
+uint8_t s_expr_get_user_flags(s_expr_tree_instance_t* inst);
+void s_expr_set_user_flags(s_expr_tree_instance_t* inst, uint8_t flags);
+
+// Get/set user state byte
+uint8_t s_expr_get_state(s_expr_tree_instance_t* inst);
+void s_expr_set_state(s_expr_tree_instance_t* inst, uint8_t state);
+
+// Get/set user data (general purpose storage)
+void* s_expr_get_user_ptr(s_expr_tree_instance_t* inst);
+void s_expr_set_user_ptr(s_expr_tree_instance_t* inst, void* ptr);
+uint64_t s_expr_get_user_u64(s_expr_tree_instance_t* inst);
+void s_expr_set_user_u64(s_expr_tree_instance_t* inst, uint64_t val);
+double s_expr_get_user_f64(s_expr_tree_instance_t* inst);
+void s_expr_set_user_f64(s_expr_tree_instance_t* inst, double val);
+// ============================================================================
+// POINTER ACCESS (for pt_m_call only)
+// These error if called outside a pt_m_call context
+// ============================================================================
+
+// Get pointer slot for param at relative index (0 = first param after func ref)
+// Returns pointer to the slot (void**) so user can read/write
+void** s_expr_get_pointer_slot(s_expr_tree_instance_t* inst, uint16_t param_index);
+
+// Allocate memory and store in pointer slot
+void* s_expr_pointer_alloc(s_expr_tree_instance_t* inst, uint16_t param_index, size_t size);
+
+// Free memory in pointer slot (sets slot to NULL)
+void s_expr_pointer_free(s_expr_tree_instance_t* inst, uint16_t param_index);
+
+// Check if currently in a pointer-capable call
+bool s_expr_is_pointer_call(s_expr_tree_instance_t* inst);
+
+// ============================================================================
+// BLACKBOARD ACCESS (for field_ref parameters)
+// ============================================================================
+
+// Get pointer to field in blackboard
+void* s_expr_get_field_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* field_param);
+
+// Type-safe field access macros
+#define S_EXPR_GET_FIELD(inst, param, type) \
+    ((type*)s_expr_get_field_ptr((inst), (param)))
+
+// ============================================================================
+// POOL ACCESS (legacy support)
+// ============================================================================
+
+void* s_expr_get_slot_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* slot_param, size_t elem_size);
+
+#define S_EXPR_GET_SLOT(inst, param, type) \
+    ((type*)s_expr_get_slot_ptr((inst), (param), sizeof(type)))
+
+// ============================================================================
+// PARAMETER ACCESS HELPERS
+// ============================================================================
+
+// Get value from parameter
+static inline ct_int_t s_expr_param_int(const s_expr_param_t* p) { return p->i; }
+static inline ct_uint_t s_expr_param_uint(const s_expr_param_t* p) { return p->u; }
+static inline ct_float_t s_expr_param_float(const s_expr_param_t* p) { return p->f; }
+static inline uint32_t s_expr_param_str_hash(const s_expr_param_t* p) { return p->str_hash; }
+static inline uint16_t s_expr_param_func_idx(const s_expr_param_t* p) { return p->func_idx; }
+static inline uint16_t s_expr_param_brace_offset(const s_expr_param_t* p) { return p->brace_idx; }
+
+// Get opcode (lower 4 bits)
+static inline uint8_t s_expr_param_opcode(const s_expr_param_t* p) {
+    return p->type & S_EXPR_OPCODE_MASK;
+}
+
+// Check flags
+static inline bool s_expr_param_is_pointer(const s_expr_param_t* p) {
+    return (p->type & S_EXPR_FLAG_POINTER) != 0;
+}
+
+static inline bool s_expr_param_survives_reset(const s_expr_param_t* p) {
+    return (p->type & S_EXPR_FLAG_SURVIVES_RESET) != 0;
+}
+
+// ============================================================================
+// PARAMETER NAVIGATION
+// ============================================================================
+
+// Skip past a parameter (handles braces)
+static inline uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t idx) {
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_OPEN || opcode == S_EXPR_PARAM_OPEN_CALL) {
+        return idx + params[idx].brace_idx + 1;
+    }
+    return idx + 1;
+}
+
+// Get contents of braced expression
+// Returns pointer to first element inside braces, sets count
+static inline const s_expr_param_t* s_expr_brace_contents(
+    const s_expr_param_t* params,
+    uint16_t open_idx,
+    uint16_t* out_count
+) {
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    *out_count = close_idx - open_idx - 1;
+    return &params[open_idx + 1];
+}
+
+// For OPEN_CALL: get function ref and args
+static inline const s_expr_param_t* s_expr_call_func(
+    const s_expr_param_t* params,
+    uint16_t open_idx
+) {
+    return &params[open_idx + 1];
+}
+
+static inline const s_expr_param_t* s_expr_call_args(
+    const s_expr_param_t* params,
+    uint16_t open_idx,
+    uint16_t* out_count
+) {
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    *out_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    return (*out_count > 0) ? &params[open_idx + 2] : NULL;
+}
 
 // ============================================================================
 // MODULE ACCESSORS
 // ============================================================================
 
-static inline const char* s_expr_module_get_name(const s_expr_module_t* mod) {
-    return (mod && mod->def) ? mod->def->name : NULL;
-}
-
 static inline uint16_t s_expr_module_tree_count(const s_expr_module_t* mod) {
     return (mod && mod->def) ? mod->def->tree_count : 0;
 }
 
-static inline const char* s_expr_module_tree_name(const s_expr_module_t* mod, uint16_t index) {
-    if (!mod || !mod->def || index >= mod->def->tree_count) return NULL;
-    return mod->def->trees[index].name;
+static inline uint32_t s_expr_module_tree_hash(const s_expr_module_t* mod, uint16_t idx) {
+    if (!mod || !mod->def || idx >= mod->def->tree_count) return 0;
+    return mod->def->trees[idx].name_hash;
 }
 
 // ============================================================================
 // TREE INSTANCE ACCESSORS
 // ============================================================================
 
-static inline const char* s_expr_tree_get_name(const s_expr_tree_instance_t* inst) {
-    return (inst && inst->tree) ? inst->tree->name : NULL;
+static inline uint32_t s_expr_tree_name_hash(const s_expr_tree_instance_t* inst) {
+    return (inst && inst->tree) ? inst->tree->name_hash : 0;
 }
 
-static inline uint16_t s_expr_tree_get_node_count(const s_expr_tree_instance_t* inst) {
+static inline uint16_t s_expr_tree_node_count(const s_expr_tree_instance_t* inst) {
     return inst ? inst->node_count : 0;
 }
 
-static inline s_expr_node_state_t* s_expr_tree_get_node_state(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index
-) {
-    if (!inst || node_index >= inst->node_count) return NULL;
-    return &inst->node_states[node_index];
+static inline const s_expr_param_t* s_expr_tree_params(const s_expr_tree_instance_t* inst) {
+    return (inst && inst->tree) ? inst->tree->params : NULL;
 }
 
-static inline const s_expr_node_t* s_expr_tree_get_node(
-    const s_expr_tree_instance_t* inst,
-    uint16_t node_index
-) {
-    if (!inst || !inst->tree || node_index >= inst->tree->node_count) return NULL;
-    return &inst->tree->nodes[node_index];
-}
-
-// ============================================================================
-// POOL ACCESS FROM TREE INSTANCE
-// ============================================================================
-
-static inline void* s_expr_tree_get_pool_slot(
-    const s_expr_tree_instance_t* inst,
-    const s_expr_param_t* slot_param,
-    size_t element_size
-) {
-    if (!inst || !inst->module || !inst->module->pool_table) return NULL;
-    if (slot_param->type != S_EXPR_PARAM_SLOT) return NULL;
-    
-    uint16_t pool_id = slot_param->slot.pool_id;
-    if (pool_id >= inst->module->pool_count) return NULL;
-    
-    uint8_t* pool = (uint8_t*)inst->module->pool_table[pool_id];
-    if (!pool) return NULL;
-    
-    uint16_t slot_idx = slot_param->slot.slot_index;
-    return pool + (slot_idx * element_size);
-}
-
-#define S_EXPR_TREE_GET_SLOT(inst, slot_param, type) \
-    ((type*)s_expr_tree_get_pool_slot((inst), (slot_param), sizeof(type)))
-
-// ============================================================================
-// STRING ACCESS
-// ============================================================================
-
-static inline const char* s_expr_module_get_string(
-    const s_expr_module_t* mod,
-    uint16_t str_index
-) {
-    if (!mod || !mod->def || str_index >= mod->def->string_count) return NULL;
-    return mod->def->strings[str_index];
-}
-
-static inline const char* s_expr_inst_get_string(
-    const s_expr_tree_instance_t* inst,
-    uint16_t str_index
-) {
-    if (!inst || !inst->module) return NULL;
-    return s_expr_module_get_string(inst->module, str_index);
-}
-
-// ============================================================================
-// FUNCTION NAME LOOKUP (for debugging)
-// ============================================================================
-
-static inline const char* s_expr_module_get_oneshot_name(
-    const s_expr_module_t* mod,
-    uint16_t fn_index
-) {
-    if (!mod || !mod->def || fn_index >= mod->def->oneshot_count) return NULL;
-    return mod->def->oneshot_names[fn_index];
-}
-
-static inline const char* s_expr_module_get_boolean_name(
-    const s_expr_module_t* mod,
-    uint16_t fn_index
-) {
-    if (!mod || !mod->def || fn_index >= mod->def->boolean_count) return NULL;
-    return mod->def->boolean_names[fn_index];
-}
-
-static inline const char* s_expr_module_get_main_name(
-    const s_expr_module_t* mod,
-    uint16_t fn_index
-) {
-    if (!mod || !mod->def || fn_index >= mod->def->main_count) return NULL;
-    return mod->def->main_names[fn_index];
-}
-
-// ============================================================================
-// NODE FLAG HELPERS
-// ============================================================================
-
-static inline bool s_expr_node_is_active(const s_expr_node_state_t* state) {
-    return state && (state->flags & S_EXPR_NODE_FLAG_ACTIVE);
-}
-
-static inline bool s_expr_node_is_initialized(const s_expr_node_state_t* state) {
-    return state && (state->flags & S_EXPR_NODE_FLAG_INITIALIZED);
-}
-
-static inline bool s_expr_node_is_running(const s_expr_node_state_t* state) {
-    return state && S_EXPR_NODE_IS_RUNNING(state->flags);
-}
-
-static inline void s_expr_node_set_user_flags(
-    s_expr_node_state_t* state,
-    uint8_t user_flags
-) {
-    if (state) {
-        state->flags = (state->flags & S_EXPR_NODE_FLAGS_SYSTEM) | 
-                       (user_flags & S_EXPR_NODE_FLAGS_USER);
-    }
-}
-
-static inline uint8_t s_expr_node_get_user_flags(const s_expr_node_state_t* state) {
-    return state ? (state->flags & S_EXPR_NODE_FLAGS_USER) : 0;
+static inline uint16_t s_expr_tree_param_count(const s_expr_tree_instance_t* inst) {
+    return (inst && inst->tree) ? inst->tree->param_count : 0;
 }
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // S_ENGINE_MODULE_H
+#endif // S_ENGINE_V3_MODULE_H

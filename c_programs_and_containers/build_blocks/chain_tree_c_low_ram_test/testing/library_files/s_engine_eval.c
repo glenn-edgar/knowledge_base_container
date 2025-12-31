@@ -1,666 +1,307 @@
 // ============================================================================
-// s_engine_eval.c
-// S-Expression Tree Evaluation Engine
-// Version 2.8 - Complete tree walker with all control flow opcodes
-//               Added braced callable invokers
+// s_engine_v3_eval.c
+// S-Expression Evaluator Implementation - Version 3.0
+// Flat parameter walker
 // ============================================================================
 
 #include "s_engine_eval.h"
 #include "s_engine_module.h"
 #include <string.h>
-#include <stdint.h>
-#include <stdio.h>
 
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
 
-static s_expr_result_t eval_node(
+static s_expr_result_t eval_params(
     s_expr_tree_instance_t* inst,
-    uint16_t node_index,
-    uint16_t event_id,
-    void* event_data
-);
-
-static bool eval_bool_node(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index,
+    const s_expr_param_t* params,
+    uint16_t count,
+    s_expr_event_type_t event_type,
     uint16_t event_id,
     void* event_data
 );
 
 // ============================================================================
-// INTERNAL: Get child by index
+// INTERNAL: Get node state by index
 // ============================================================================
 
-static uint16_t get_child_index(
+static inline s_expr_node_state_t* get_node_state(
     s_expr_tree_instance_t* inst,
-    uint16_t parent_index,
-    uint8_t child_num
+    uint16_t node_index
 ) {
-    const s_expr_node_t* parent = &inst->tree->nodes[parent_index];
-    uint16_t child_idx = parent->first_child;
-    
-    for (uint8_t i = 0; i < child_num && child_idx != S_EXPR_NO_CHILD; i++) {
-        child_idx = inst->tree->nodes[child_idx].next_sibling;
-    }
-    
-    return child_idx;
+    if (!inst || node_index >= inst->node_count) return NULL;
+    return &inst->node_states[node_index];
 }
 
 // ============================================================================
-// PUBLIC: Skip over a parameter
-// NOTE: brace_idx is a RELATIVE OFFSET (close = open + offset)
+// INTERNAL: Dispatch oneshot function
 // ============================================================================
 
-uint16_t s_expr_skip_param(
-    const s_expr_param_t* params,
-    uint16_t idx
-) {
-    if (!params) return idx + 1;
-    
-    uint8_t type = params[idx].type;
-    
-    // For open braces, jump past matching close using relative offset
-    if (type == S_EXPR_PARAM_OPEN || type == S_EXPR_PARAM_OPEN_CALL) {
-        return idx + params[idx].brace_idx + 1;
-    }
-    
-    // All other params are single tokens
-    return idx + 1;
-}
-
-// ============================================================================
-// PUBLIC: Braced callable invokers
-// ============================================================================
-
-s_expr_result_t s_expr_eval_sexpr(
+static void dispatch_oneshot(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-) {
-    if (!inst || !params) return SE_TERMINATE;
-    
-    // Validate open brace
-    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
-        return SE_TERMINATE;
-    }
-    
-    // Extract components (brace_idx is relative offset)
-    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
-    const s_expr_param_t* func_param = &params[open_idx + 1];
-    
-    // Calculate args
-    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
-    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
-    
-    // Dispatch based on function type
-    return s_expr_invoke_main_ref(
-        inst, func_param, node, state,
-        inst->current_event, inst->event_data,
-        args, (uint8_t)arg_count
-    );
-}
-
-void s_expr_eval_sexpr_oneshot(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-) {
-    if (!inst || !params) return;
-    
-    // Validate open brace
-    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
-        return;
-    }
-    
-    // Extract components (brace_idx is relative offset)
-    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
-    const s_expr_param_t* func_param = &params[open_idx + 1];
-    
-    // Calculate args
-    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
-    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
-    
-    // Dispatch
-    s_expr_invoke_oneshot_ref(
-        inst, func_param, node, state,
-        inst->current_event, inst->event_data,
-        args, (uint8_t)arg_count
-    );
-}
-
-bool s_expr_eval_sexpr_pred(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-) {
-    if (!inst || !params) return false;
-    
-    // Validate open brace
-    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
-        return false;
-    }
-    
-    // Extract components (brace_idx is relative offset)
-    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
-    const s_expr_param_t* func_param = &params[open_idx + 1];
-    
-    // Calculate args
-    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
-    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
-    
-    // Dispatch
-    return s_expr_invoke_pred_ref(
-        inst, func_param, node, state,
-        inst->current_event, inst->event_data,
-        args, (uint8_t)arg_count
-    );
-}
-
-s_expr_result_t s_expr_eval_sexpr_any(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-) {
-    if (!inst || !params) return SE_TERMINATE;
-    
-    // Validate open brace
-    if (params[open_idx].type != S_EXPR_PARAM_OPEN_CALL) {
-        return SE_TERMINATE;
-    }
-    
-    // Check function type
-    const s_expr_param_t* func_param = &params[open_idx + 1];
-    
-    switch (func_param->type) {
-        case S_EXPR_PARAM_MAIN:
-            return s_expr_eval_sexpr(inst, node, state, params, open_idx);
-            
-        case S_EXPR_PARAM_ONESHOT:
-            s_expr_eval_sexpr_oneshot(inst, node, state, params, open_idx);
-            return SE_CONTINUE;
-            
-        case S_EXPR_PARAM_PRED: {
-            bool result = s_expr_eval_sexpr_pred(inst, node, state, params, open_idx);
-            return result ? SE_CONTINUE : SE_HALT;
-        }
-        
-        default:
-            return SE_TERMINATE;
-    }
-}
-
-s_expr_result_t s_expr_invoke_any(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t idx
-) {
-    if (!inst || !params) return SE_TERMINATE;
-    
-    uint8_t type = params[idx].type;
-    
-    switch (type) {
-        case S_EXPR_PARAM_OPEN_CALL:
-            return s_expr_eval_sexpr_any(inst, node, state, params, idx);
-            
-        case S_EXPR_PARAM_MAIN:
-            return s_expr_invoke_main_ref(inst, &params[idx], node, state,
-                inst->current_event, inst->event_data, NULL, 0);
-            
-        case S_EXPR_PARAM_ONESHOT:
-            s_expr_invoke_oneshot_ref(inst, &params[idx], node, state,
-                inst->current_event, inst->event_data, NULL, 0);
-            return SE_CONTINUE;
-            
-        case S_EXPR_PARAM_PRED: {
-            bool result = s_expr_invoke_pred_ref(inst, &params[idx], node, state,
-                inst->current_event, inst->event_data, NULL, 0);
-            return result ? SE_CONTINUE : SE_HALT;
-        }
-        
-        default:
-            return SE_TERMINATE;
-    }
-}
-
-// ============================================================================
-// INTERNAL: Evaluate boolean expression node
-// ============================================================================
-
-static bool eval_bool_node(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index,
+    const s_expr_param_t* func_param,
+    const s_expr_param_t* args,
+    uint16_t arg_count,
+    s_expr_event_type_t event_type,
     uint16_t event_id,
     void* event_data
 ) {
-    if (!inst || node_index >= inst->node_count) {
-        return false;
-    }
-    
-    const s_expr_node_t* node = &inst->tree->nodes[node_index];
-    s_expr_node_state_t* state = &inst->node_states[node_index];
     s_expr_module_t* mod = inst->module;
+    uint16_t func_idx = func_param->func_idx;
+    uint16_t node_idx = func_param->node_index;
+    bool survives_reset = (func_param->type & S_EXPR_FLAG_SURVIVES_RESET) != 0;
     
-    uint8_t table = node->type & S_EXPR_TABLE_MASK;
-    uint8_t opcode = node->type & S_EXPR_OPCODE_MASK;
+    // Get node state
+    s_expr_node_state_t* state = get_node_state(inst, node_idx);
+    if (!state) return;
     
-    // Get parameters
-    const s_expr_param_t* params = NULL;
-    uint8_t param_count = 0;
-    if (node->param_count > 0 && inst->tree->params) {
-        params = &inst->tree->params[node->param_offset];
-        param_count = node->param_count;
+    // Check if already run
+    // io_call (survives_reset): check EVER_INIT
+    // o_call: check INITIALIZED
+    uint8_t check_flag = survives_reset ? S_EXPR_NODE_FLAG_EVER_INIT : S_EXPR_NODE_FLAG_INITIALIZED;
+    
+    if (state->flags & check_flag) {
+        return;  // Already executed
     }
     
-    // Boolean function call
-    if (table == S_EXPR_TABLE_BOOLEAN) {
-        if (node->fn_index < mod->def->boolean_count && mod->boolean_fns) {
-            s_expr_boolean_fn_t fn = mod->boolean_fns[node->fn_index];
-            if (fn) {
-                return fn(inst, node, state, event_id, event_data, params, param_count);
-            }
-        }
-        return false;
+    // Mark as executed
+    state->flags |= check_flag;
+    
+    // Set current node for state access functions
+    uint16_t saved_node = inst->current_node_index;
+    inst->current_node_index = node_idx;
+    
+    // Dispatch
+    if (func_idx < mod->def->oneshot_count && mod->oneshot_fns[func_idx]) {
+        mod->oneshot_fns[func_idx](inst, args, arg_count, event_type, event_id, event_data);
     }
     
-    // Boolean opcodes
-    if (table == S_EXPR_TABLE_OPCODE) {
-        switch (opcode) {
-            case S_EXPR_OP_AND: {
-                // All children must be true
-                uint16_t child_idx = node->first_child;
-                while (child_idx != S_EXPR_NO_CHILD) {
-                    if (!eval_bool_node(inst, child_idx, event_id, event_data)) {
-                        return false;
-                    }
-                    child_idx = inst->tree->nodes[child_idx].next_sibling;
-                }
-                return true;
-            }
-            
-            case S_EXPR_OP_OR: {
-                // Any child must be true
-                uint16_t child_idx = node->first_child;
-                while (child_idx != S_EXPR_NO_CHILD) {
-                    if (eval_bool_node(inst, child_idx, event_id, event_data)) {
-                        return true;
-                    }
-                    child_idx = inst->tree->nodes[child_idx].next_sibling;
-                }
-                return false;
-            }
-            
-            case S_EXPR_OP_NOT: {
-                // Negate single child
-                uint16_t child_idx = node->first_child;
-                if (child_idx == S_EXPR_NO_CHILD) {
-                    return true;
-                }
-                return !eval_bool_node(inst, child_idx, event_id, event_data);
-            }
-            
-            case S_EXPR_OP_XOR: {
-                // Odd number of true children
-                uint16_t child_idx = node->first_child;
-                bool result = false;
-                while (child_idx != S_EXPR_NO_CHILD) {
-                    if (eval_bool_node(inst, child_idx, event_id, event_data)) {
-                        result = !result;
-                    }
-                    child_idx = inst->tree->nodes[child_idx].next_sibling;
-                }
-                return result;
-            }
-            
-            case S_EXPR_OP_NAND: {
-                // NOT AND
-                uint16_t child_idx = node->first_child;
-                while (child_idx != S_EXPR_NO_CHILD) {
-                    if (!eval_bool_node(inst, child_idx, event_id, event_data)) {
-                        return true;  // Short-circuit: one false -> NAND is true
-                    }
-                    child_idx = inst->tree->nodes[child_idx].next_sibling;
-                }
-                return false;  // All true -> NAND is false
-            }
-            
-            case S_EXPR_OP_NOR: {
-                // NOT OR
-                uint16_t child_idx = node->first_child;
-                while (child_idx != S_EXPR_NO_CHILD) {
-                    if (eval_bool_node(inst, child_idx, event_id, event_data)) {
-                        return false;  // Short-circuit: one true -> NOR is false
-                    }
-                    child_idx = inst->tree->nodes[child_idx].next_sibling;
-                }
-                return true;  // All false -> NOR is true
-            }
-            
-            default:
-                return false;
-        }
-    }
-    
-    return false;
+    inst->current_node_index = saved_node;
 }
 
 // ============================================================================
-// INTERNAL: Evaluate a single node (control flow)
+// INTERNAL: Dispatch predicate function
 // ============================================================================
 
-static s_expr_result_t eval_node(
+static bool dispatch_pred(
     s_expr_tree_instance_t* inst,
-    uint16_t node_index,
+    const s_expr_param_t* func_param,
+    const s_expr_param_t* args,
+    uint16_t arg_count,
+    s_expr_event_type_t event_type,
     uint16_t event_id,
     void* event_data
 ) {
-    if (!inst || node_index >= inst->node_count) {
-        return SE_TERMINATE;
+    s_expr_module_t* mod = inst->module;
+    uint16_t func_idx = func_param->func_idx;
+    uint16_t node_idx = func_param->node_index;
+    
+    // Set current node
+    uint16_t saved_node = inst->current_node_index;
+    inst->current_node_index = node_idx;
+    
+    bool result = false;
+    if (func_idx < mod->def->pred_count && mod->pred_fns[func_idx]) {
+        result = mod->pred_fns[func_idx](inst, args, arg_count, event_type, event_id, event_data);
     }
     
-    const s_expr_node_t* node = &inst->tree->nodes[node_index];
-    s_expr_node_state_t* state = &inst->node_states[node_index];
+    inst->current_node_index = saved_node;
+    return result;
+}
+
+// ============================================================================
+// INTERNAL: Dispatch main function
+// ============================================================================
+
+static s_expr_result_t dispatch_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* func_param,
+    const s_expr_param_t* args,
+    uint16_t arg_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    s_expr_module_t* mod = inst->module;
+    uint16_t func_idx = func_param->func_idx;
+    uint16_t node_idx = func_param->node_index;
+    bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
+    uint8_t pointer_base = func_param->index_to_pointer;
     
-    // Skip inactive nodes
+    // Get node state
+    s_expr_node_state_t* state = get_node_state(inst, node_idx);
+    if (!state) return SE_CONTINUE;
+    
+    // Skip if not active
     if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
         return SE_CONTINUE;
     }
     
-    s_expr_module_t* mod = inst->module;
+    // Save context
+    uint16_t saved_node = inst->current_node_index;
+    bool saved_in_ptr = inst->in_pointer_call;
+    uint8_t saved_ptr_base = inst->pointer_base;
     
-    uint8_t table = node->type & S_EXPR_TABLE_MASK;
-    uint8_t opcode = node->type & S_EXPR_OPCODE_MASK;
-    
-    // Get parameters
-    const s_expr_param_t* params = NULL;
-    uint8_t param_count = 0;
-    if (node->param_count > 0 && inst->tree->params) {
-        params = &inst->tree->params[node->param_offset];
-        param_count = node->param_count;
+    // Set context
+    inst->current_node_index = node_idx;
+    if (is_pointer_call) {
+        inst->in_pointer_call = true;
+        inst->pointer_base = pointer_base;
     }
     
-    // Dispatch based on table selector
-    switch (table) {
-        case S_EXPR_TABLE_ONESHOT: {
-            // Bit 1 of reserved: survives reset (init_once vs oneshot)
-            // init_once: uses EVER_INIT (survives reset)
-            // oneshot: uses INITIALIZED (re-runs on reset)
-            uint8_t check_flag = (node->reserved & 0x02) 
-                ? S_EXPR_NODE_FLAG_EVER_INIT 
-                : S_EXPR_NODE_FLAG_INITIALIZED;
+    s_expr_result_t result = SE_CONTINUE;
+    s_expr_main_fn_t fn = NULL;
+    
+    if (func_idx < mod->def->main_count) {
+        fn = mod->main_fns[func_idx];
+    }
+    
+    if (!fn) {
+        inst->current_node_index = saved_node;
+        inst->in_pointer_call = saved_in_ptr;
+        inst->pointer_base = saved_ptr_base;
+        return SE_CONTINUE;
+    }
+    
+    // Check if INIT event needed
+    if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+        state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
+        
+        result = fn(inst, args, arg_count, SE_EVENT_INIT, event_id, event_data);
+        
+        if (result == SE_DISABLE) {
+            // Send terminate, deactivate
+            fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
+            state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
             
-            if (state->flags & check_flag) {
-                return SE_CONTINUE;
-            }
-            
-            state->flags |= check_flag;
-            
-            if (node->fn_index < mod->def->oneshot_count && mod->oneshot_fns) {
-                s_expr_oneshot_fn_t fn = mod->oneshot_fns[node->fn_index];
-                if (fn) {
-                    fn(inst, node, state, event_id, event_data, params, param_count);
-                }
-            }
+            inst->current_node_index = saved_node;
+            inst->in_pointer_call = saved_in_ptr;
+            inst->pointer_base = saved_ptr_base;
+            return SE_DISABLE;
+        }
+    }
+    
+    // Normal tick
+    result = fn(inst, args, arg_count, event_type, event_id, event_data);
+    
+    // Handle disable
+    if (result == SE_DISABLE) {
+        fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
+        state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
+    }
+    
+    // Restore context
+    inst->current_node_index = saved_node;
+    inst->in_pointer_call = saved_in_ptr;
+    inst->pointer_base = saved_ptr_base;
+    
+    return result;
+}
+
+// ============================================================================
+// INTERNAL: Evaluate a single callable (OPEN_CALL ... CLOSE)
+// Returns result and sets *out_skip to index after CLOSE
+// ============================================================================
+
+static s_expr_result_t eval_callable(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t open_idx,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data,
+    uint16_t* out_skip
+) {
+    // Get close index via relative offset
+    uint16_t close_idx = open_idx + params[open_idx].brace_idx;
+    *out_skip = close_idx + 1;
+    
+    // Function ref is right after OPEN_CALL
+    const s_expr_param_t* func_param = &params[open_idx + 1];
+    uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+    
+    // Calculate args (between func_ref and CLOSE)
+    uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
+    const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
+    
+    // Dispatch based on function type
+    switch (func_opcode) {
+        case S_EXPR_PARAM_ONESHOT:
+            dispatch_oneshot(inst, func_param, args, arg_count, event_type, event_id, event_data);
             return SE_CONTINUE;
+            
+        case S_EXPR_PARAM_PRED: {
+            bool result = dispatch_pred(inst, func_param, args, arg_count, event_type, event_id, event_data);
+            return result ? SE_CONTINUE : SE_HALT;
         }
         
-        case S_EXPR_TABLE_BOOLEAN: {
-            if (node->fn_index < mod->def->boolean_count && mod->boolean_fns) {
-                s_expr_boolean_fn_t fn = mod->boolean_fns[node->fn_index];
-                if (fn) {
-                    bool result = fn(inst, node, state, event_id, event_data, params, param_count);
-                    return result ? SE_CONTINUE : SE_HALT;
-                }
-            }
-            return SE_HALT;
-        }
-        
-        case S_EXPR_TABLE_MAIN: {
-            if (node->fn_index >= mod->def->main_count || !mod->main_fns) {
-                return SE_CONTINUE;
-            }
+        case S_EXPR_PARAM_MAIN:
+            return dispatch_main(inst, func_param, args, arg_count, event_type, event_id, event_data);
             
-            s_expr_main_fn_t fn = mod->main_fns[node->fn_index];
-            if (!fn) {
-                return SE_CONTINUE;
-            }
-            
-            // Check if init event needed
-            if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
-                state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
-                
-                s_expr_result_t init_result = fn(inst, node, state, 
-                    S_EXPR_EVENT_INIT, event_data, params, param_count);
-                
-                if (init_result == SE_DISABLE) {
-                    fn(inst, node, state, S_EXPR_EVENT_TERMINATE, event_data, params, param_count);
-                    state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
-                    return SE_DISABLE;
-                }
-            }
-            
-            s_expr_result_t result = fn(inst, node, state, event_id, event_data, params, param_count);
-            
-            if (result == SE_DISABLE) {
-                fn(inst, node, state, S_EXPR_EVENT_TERMINATE, event_data, params, param_count);
-                state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
-            }
-            
-            return result;
-        }
-        
-        case S_EXPR_TABLE_OPCODE: {
-            // Control flow opcodes
-            switch (opcode) {
-                case S_EXPR_OP_QUOTE: {
-                    return (s_expr_result_t)node->fn_index;
-                }
-                
-                case S_EXPR_OP_PIPELINE: {
-                    uint16_t child_idx = node->first_child;
-                    while (child_idx != S_EXPR_NO_CHILD) {
-                        s_expr_result_t result = eval_node(inst, child_idx, event_id, event_data);
-                        
-                        // These results continue to next sibling:
-                        // SE_CONTINUE: normal continue
-                        // SE_DISABLE: node disabled itself
-                        // All others propagate up (HALT, TERMINATE, RESET, FUNCTION_TERMINATE, SKIP_CONTINUE)
-                        if (result != SE_CONTINUE && result != SE_DISABLE) {
-                            return result;
-                        }
-                        
-                        child_idx = inst->tree->nodes[child_idx].next_sibling;
-                    }
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_IF: {
-                    uint16_t cond_idx = get_child_index(inst, node_index, 0);
-                    uint16_t then_idx = get_child_index(inst, node_index, 1);
-                    
-                    if (cond_idx == S_EXPR_NO_CHILD) {
-                        return SE_CONTINUE;
-                    }
-                    
-                    bool cond_result = eval_bool_node(inst, cond_idx, event_id, event_data);
-                    
-                    if (cond_result && then_idx != S_EXPR_NO_CHILD) {
-                        return eval_node(inst, then_idx, event_id, event_data);
-                    }
-                    
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_IF_ELSE: {
-                    uint16_t cond_idx = get_child_index(inst, node_index, 0);
-                    uint16_t then_idx = get_child_index(inst, node_index, 1);
-                    uint16_t else_idx = get_child_index(inst, node_index, 2);
-                    
-                    if (cond_idx == S_EXPR_NO_CHILD) {
-                        return SE_CONTINUE;
-                    }
-                    
-                    bool cond_result = eval_bool_node(inst, cond_idx, event_id, event_data);
-                    
-                    if (cond_result) {
-                        if (then_idx != S_EXPR_NO_CHILD) {
-                            return eval_node(inst, then_idx, event_id, event_data);
-                        }
-                    } else {
-                        if (else_idx != S_EXPR_NO_CHILD) {
-                            return eval_node(inst, else_idx, event_id, event_data);
-                        }
-                    }
-                    
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_COND: {
-                    uint16_t child_idx = node->first_child;
-                    while (child_idx != S_EXPR_NO_CHILD) {
-                        const s_expr_node_t* clause = &inst->tree->nodes[child_idx];
-                        bool is_default = (clause->reserved & 0x01) != 0;
-                        
-                        if (is_default) {
-                            uint16_t action_idx = clause->first_child;
-                            if (action_idx != S_EXPR_NO_CHILD) {
-                                return eval_node(inst, action_idx, event_id, event_data);
-                            }
-                            return SE_CONTINUE;
-                        }
-                        
-                        uint16_t cond_idx = clause->first_child;
-                        if (cond_idx != S_EXPR_NO_CHILD) {
-                            bool cond_result = eval_bool_node(inst, cond_idx, event_id, event_data);
-                            if (cond_result) {
-                                uint16_t action_idx = inst->tree->nodes[cond_idx].next_sibling;
-                                if (action_idx != S_EXPR_NO_CHILD) {
-                                    return eval_node(inst, action_idx, event_id, event_data);
-                                }
-                                return SE_CONTINUE;
-                            }
-                        }
-                        
-                        child_idx = clause->next_sibling;
-                    }
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_DISPATCH: {
-                    // Dispatch mode: bit 2 of reserved
-                    // 0 = slot mode (read key from slot)
-                    // 1 = event mode (use event_id as key)
-                    #define S_EXPR_NODE_DISPATCH_EVENT_MODE 0x04
-                    
-                    int32_t key;
-                    
-                    if (node->reserved & S_EXPR_NODE_DISPATCH_EVENT_MODE) {
-                        // Event dispatch mode - use event_id
-                        key = (int32_t)event_id;
-                    } else {
-                        // Slot dispatch mode - read from slot
-                        if (param_count == 0) {
-                            return SE_CONTINUE;
-                        }
-                        int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
-                        if (!slot_ptr) {
-                            return SE_CONTINUE;
-                        }
-                        key = *slot_ptr;
-                    }
-                    
-                    uint16_t child_idx = node->first_child;
-                    uint16_t default_case_idx = S_EXPR_NO_CHILD;
-                    
-                    while (child_idx != S_EXPR_NO_CHILD) {
-                        const s_expr_node_t* case_node = &inst->tree->nodes[child_idx];
-                        
-                        bool is_default = (case_node->reserved & 0x01) != 0;
-                        
-                        if (is_default) {
-                            default_case_idx = child_idx;
-                            child_idx = case_node->next_sibling;
-                            continue;
-                        }
-                        
-                        const s_expr_param_t* case_params = NULL;
-                        if (case_node->param_count > 0 && inst->tree->params) {
-                            case_params = &inst->tree->params[case_node->param_offset];
-                        }
-                        
-                        // Match integer case values
-                        for (uint8_t i = 0; i < case_node->param_count; i++) {
-                            if (case_params[i].type == S_EXPR_PARAM_INT ||
-                                case_params[i].type == S_EXPR_PARAM_UINT) {
-                                int32_t case_val = (int32_t)s_expr_param_get_int(&case_params[i]);
-                                if (key == case_val) {
-                                    uint16_t action_idx = case_node->first_child;
-                                    if (action_idx != S_EXPR_NO_CHILD) {
-                                        return eval_node(inst, action_idx, event_id, event_data);
-                                    }
-                                    return SE_CONTINUE;
-                                }
-                            }
-                        }
-                        
-                        child_idx = case_node->next_sibling;
-                    }
-                    
-                    if (default_case_idx != S_EXPR_NO_CHILD) {
-                        const s_expr_node_t* case_node = &inst->tree->nodes[default_case_idx];
-                        uint16_t action_idx = case_node->first_child;
-                        if (action_idx != S_EXPR_NO_CHILD) {
-                            return eval_node(inst, action_idx, event_id, event_data);
-                        }
-                    }
-                    
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_DEBUG: {
-                    if (mod->debug_fn && param_count > 0) {
-                        const char* msg = s_expr_module_get_string(mod, params[0].str_index);
-                        if (msg) {
-                            mod->debug_fn(inst, msg);
-                        }
-                    }
-                    
-                    uint16_t child_idx = node->first_child;
-                    if (child_idx != S_EXPR_NO_CHILD) {
-                        return eval_node(inst, child_idx, event_id, event_data);
-                    }
-                    return SE_CONTINUE;
-                }
-                
-                case S_EXPR_OP_AND:
-                case S_EXPR_OP_OR:
-                case S_EXPR_OP_NOT:
-                case S_EXPR_OP_XOR:
-                case S_EXPR_OP_NAND:
-                case S_EXPR_OP_NOR: {
-                    bool result = eval_bool_node(inst, node_index, event_id, event_data);
-                    return result ? SE_CONTINUE : SE_HALT;
-                }
-                
-                default:
-                    return SE_CONTINUE;
-            }
-        }
-        
         default:
             return SE_CONTINUE;
     }
+}
+
+// ============================================================================
+// INTERNAL: Walk parameter array, execute callables in sequence
+// ============================================================================
+
+static s_expr_result_t eval_params(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    uint16_t idx = 0;
+    
+    while (idx < count) {
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            // Callable expression
+            uint16_t skip;
+            s_expr_result_t result = eval_callable(
+                inst, params, idx, event_type, event_id, event_data, &skip
+            );
+            
+            // Handle control flow
+            switch (result) {
+                case SE_CONTINUE:
+                case SE_DISABLE:
+                    // Continue to next
+                    idx = skip;
+                    break;
+                    
+                case SE_HALT:
+                case SE_TERMINATE:
+                case SE_RESET:
+                case SE_FUNCTION_TERMINATE:
+                case SE_FUNCTION_HALT:
+                case SE_FUNCTION_RESET:
+                    // Propagate up
+                    return result;
+                    
+                case SE_SKIP_CONTINUE:
+                    // Skip remaining, return CONTINUE
+                    return SE_CONTINUE;
+                    
+                default:
+                    idx = skip;
+                    break;
+            }
+        } else if (opcode == S_EXPR_PARAM_OPEN) {
+            // Plain list - skip it
+            idx = idx + params[idx].brace_idx + 1;
+        } else {
+            // Other param - skip
+            idx++;
+        }
+    }
+    
+    return SE_CONTINUE;
 }
 
 // ============================================================================
@@ -672,86 +313,31 @@ s_expr_result_t s_expr_tree_tick(
     uint16_t event_id,
     void* event_data
 ) {
-    if (!inst || !inst->tree || inst->node_count == 0) {
+    if (!inst || !inst->tree || !inst->tree->params) {
         return SE_TERMINATE;
     }
     
     // Store event context
-    inst->current_event = event_id;
-    inst->event_data = event_data;
+    inst->current_event_id = event_id;
+    inst->current_event_data = event_data;
     
-    // Evaluate root node
-    s_expr_result_t result = eval_node(inst, 0, event_id, event_data);
+    // Evaluate all params
+    s_expr_result_t result = eval_params(
+        inst,
+        inst->tree->params,
+        inst->tree->param_count,
+        SE_EVENT_TICK,
+        event_id,
+        event_data
+    );
     
     // Handle SE_RESET
-    if (result == SE_RESET) {
+    if (result == SE_RESET || result == SE_FUNCTION_RESET) {
         s_expr_tree_reset(inst);
         return SE_CONTINUE;
     }
     
     return result;
-}
-
-// ============================================================================
-// PUBLIC: Exposed node evaluators
-// ============================================================================
-
-s_expr_result_t s_expr_eval_node(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index
-) {
-    return eval_node(inst, node_index, inst->current_event, inst->event_data);
-}
-
-bool s_expr_eval_bool(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index
-) {
-    return eval_bool_node(inst, node_index, inst->current_event, inst->event_data);
-}
-
-// ============================================================================
-// PUBLIC: Terminate all nodes
-// ============================================================================
-
-void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
-    if (!inst || !inst->tree) return;
-    
-    s_expr_module_t* mod = inst->module;
-    
-    for (int i = (int)inst->node_count - 1; i >= 0; i--) {
-        s_expr_node_state_t* state = &inst->node_states[i];
-        
-        if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
-            continue;
-        }
-        
-        const s_expr_node_t* node = &inst->tree->nodes[i];
-        
-        if ((node->type & S_EXPR_TABLE_MASK) != S_EXPR_TABLE_MAIN) {
-            state->flags = 0;
-            continue;
-        }
-        
-        if (node->fn_index >= mod->def->main_count || !mod->main_fns) {
-            state->flags = 0;
-            continue;
-        }
-        
-        s_expr_main_fn_t fn = mod->main_fns[node->fn_index];
-        if (fn) {
-            const s_expr_param_t* params = NULL;
-            uint8_t param_count = 0;
-            if (node->param_count > 0 && inst->tree->params) {
-                params = &inst->tree->params[node->param_offset];
-                param_count = node->param_count;
-            }
-            
-            fn(inst, node, state, S_EXPR_EVENT_TERMINATE, NULL, params, param_count);
-        }
-        
-        state->flags = 0;
-    }
 }
 
 // ============================================================================
@@ -761,9 +347,8 @@ void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
 void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
     if (!inst) return;
     
-    // Reset node states but PRESERVE EVER_INIT flag
     for (uint16_t i = 0; i < inst->node_count; i++) {
-        // Preserve EVER_INIT, clear other flags, set ACTIVE
+        // Preserve EVER_INIT (for io_call), clear INITIALIZED
         uint8_t ever_init = inst->node_states[i].flags & S_EXPR_NODE_FLAG_EVER_INIT;
         inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
         inst->node_states[i].state = 0;
@@ -772,17 +357,56 @@ void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
 }
 
 // ============================================================================
-// PUBLIC: Full terminate (clears EVER_INIT)
+// PUBLIC: Terminate tree
 // ============================================================================
 
-void s_expr_tree_full_terminate(s_expr_tree_instance_t* inst) {
-    if (!inst) return;
-    s_expr_tree_terminate(inst);
-    s_expr_tree_init_states(inst);  // Clears ALL flags including EVER_INIT
+void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
+    if (!inst || !inst->tree) return;
+    
+    // Walk params to find all main nodes and send TERMINATE
+    const s_expr_param_t* params = inst->tree->params;
+    uint16_t count = inst->tree->param_count;
+    
+    for (uint16_t idx = 0; idx < count; idx++) {
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_MAIN) {
+            uint16_t node_idx = params[idx].node_index;
+            s_expr_node_state_t* state = get_node_state(inst, node_idx);
+            
+            if (state && (state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+                uint16_t func_idx = params[idx].func_idx;
+                
+                if (func_idx < inst->module->def->main_count) {
+                    s_expr_main_fn_t fn = inst->module->main_fns[func_idx];
+                    if (fn) {
+                        inst->current_node_index = node_idx;
+                        fn(inst, NULL, 0, SE_EVENT_TERMINATE, 0, NULL);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Clear all states
+    for (uint16_t i = 0; i < inst->node_count; i++) {
+        inst->node_states[i].flags = 0;
+        inst->node_states[i].state = 0;
+        inst->node_states[i].user_data.u64 = 0;
+    }
 }
 
 // ============================================================================
-// PUBLIC: Initialize node states
+// PUBLIC: Full reset
+// ============================================================================
+
+void s_expr_tree_full_reset(s_expr_tree_instance_t* inst) {
+    s_expr_tree_terminate(inst);
+    s_expr_tree_init_states(inst);
+}
+
+// ============================================================================
+// PUBLIC: Initialize states
 // ============================================================================
 
 void s_expr_tree_init_states(s_expr_tree_instance_t* inst) {
@@ -797,51 +421,279 @@ void s_expr_tree_init_states(s_expr_tree_instance_t* inst) {
 }
 
 // ============================================================================
-// PUBLIC: Parameter helpers
+// PUBLIC: Invoke main callable
 // ============================================================================
 
-uint16_t s_expr_find_param_type(
+s_expr_result_t s_expr_invoke_main(
+    s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
-    uint8_t param_count,
-    uint8_t param_type
+    uint16_t idx
 ) {
-    if (!params) return UINT16_MAX;
+    if (!inst || !params) return SE_TERMINATE;
     
-    for (uint8_t i = 0; i < param_count; i++) {
-        if (params[i].type == param_type) {
-            return i;
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        // Braced callable
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        const s_expr_param_t* func_param = &params[idx + 1];
+        uint16_t arg_count = (close_idx > idx + 2) ? (close_idx - idx - 2) : 0;
+        const s_expr_param_t* args = (arg_count > 0) ? &params[idx + 2] : NULL;
+        
+        return dispatch_main(inst, func_param, args, arg_count,
+                            SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    } else if (opcode == S_EXPR_PARAM_MAIN) {
+        // Bare function ref
+        return dispatch_main(inst, &params[idx], NULL, 0,
+                            SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    }
+    
+    return SE_TERMINATE;
+}
+
+// ============================================================================
+// PUBLIC: Invoke oneshot callable
+// ============================================================================
+
+void s_expr_invoke_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    if (!inst || !params) return;
+    
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        const s_expr_param_t* func_param = &params[idx + 1];
+        uint16_t arg_count = (close_idx > idx + 2) ? (close_idx - idx - 2) : 0;
+        const s_expr_param_t* args = (arg_count > 0) ? &params[idx + 2] : NULL;
+        
+        dispatch_oneshot(inst, func_param, args, arg_count,
+                        SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    } else if (opcode == S_EXPR_PARAM_ONESHOT) {
+        dispatch_oneshot(inst, &params[idx], NULL, 0,
+                        SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    }
+}
+
+// ============================================================================
+// PUBLIC: Invoke predicate callable
+// ============================================================================
+
+bool s_expr_invoke_pred(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    if (!inst || !params) return false;
+    
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        const s_expr_param_t* func_param = &params[idx + 1];
+        uint16_t arg_count = (close_idx > idx + 2) ? (close_idx - idx - 2) : 0;
+        const s_expr_param_t* args = (arg_count > 0) ? &params[idx + 2] : NULL;
+        
+        return dispatch_pred(inst, func_param, args, arg_count,
+                            SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    } else if (opcode == S_EXPR_PARAM_PRED) {
+        return dispatch_pred(inst, &params[idx], NULL, 0,
+                            SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    }
+    
+    return false;
+}
+
+// ============================================================================
+// PUBLIC: Invoke any callable
+// ============================================================================
+
+s_expr_result_t s_expr_invoke_any(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    if (!inst || !params) return SE_TERMINATE;
+    
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    
+    // For OPEN_CALL, check the function type inside
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        const s_expr_param_t* func_param = &params[idx + 1];
+        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+        
+        switch (func_opcode) {
+            case S_EXPR_PARAM_MAIN:
+                return s_expr_invoke_main(inst, params, idx);
+            case S_EXPR_PARAM_ONESHOT:
+                s_expr_invoke_oneshot(inst, params, idx);
+                return SE_CONTINUE;
+            case S_EXPR_PARAM_PRED:
+                return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
+            default:
+                return SE_TERMINATE;
         }
     }
+    
+    // Bare function ref
+    switch (opcode) {
+        case S_EXPR_PARAM_MAIN:
+            return s_expr_invoke_main(inst, params, idx);
+        case S_EXPR_PARAM_ONESHOT:
+            s_expr_invoke_oneshot(inst, params, idx);
+            return SE_CONTINUE;
+        case S_EXPR_PARAM_PRED:
+            return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
+        default:
+            return SE_TERMINATE;
+    }
+}
+
+// ============================================================================
+// PUBLIC: Count logical parameters
+// ============================================================================
+
+uint16_t s_expr_count_params(const s_expr_param_t* params, uint16_t count) {
+    if (!params || count == 0) return 0;
+    
+    uint16_t logical_count = 0;
+    uint16_t idx = 0;
+    
+    while (idx < count) {
+        logical_count++;
+        idx = s_expr_skip_param(params, idx);
+    }
+    
+    return logical_count;
+}
+
+// ============================================================================
+// PUBLIC: Find parameter by opcode
+// ============================================================================
+
+uint16_t s_expr_find_param(const s_expr_param_t* params, uint16_t count, uint8_t opcode) {
+    if (!params) return UINT16_MAX;
+    
+    for (uint16_t idx = 0; idx < count; ) {
+        if ((params[idx].type & S_EXPR_OPCODE_MASK) == opcode) {
+            return idx;
+        }
+        idx = s_expr_skip_param(params, idx);
+    }
+    
     return UINT16_MAX;
 }
 
-uint8_t s_expr_count_param_type(
-    const s_expr_param_t* params,
-    uint8_t param_count,
-    uint8_t param_type
-) {
-    if (!params) return 0;
-    
-    uint8_t count = 0;
-    for (uint8_t i = 0; i < param_count; i++) {
-        if (params[i].type == param_type) {
-            count++;
-        }
-    }
-    return count;
-}
+// ============================================================================
+// PUBLIC: Iterate parameters
+// ============================================================================
 
-uint8_t s_expr_count_logical_params(
+void s_expr_iterate_params(
     const s_expr_param_t* params,
-    uint8_t param_count
+    uint16_t count,
+    s_expr_param_iter_fn callback,
+    void* ctx
 ) {
-    if (!params || param_count == 0) return 0;
+    if (!params || !callback) return;
     
-    uint8_t count = 0;
     uint16_t idx = 0;
-    while (idx < param_count) {
-        count++;
+    while (idx < count) {
+        if (!callback(params, idx, ctx)) {
+            break;
+        }
         idx = s_expr_skip_param(params, idx);
     }
-    return count;
+}
+
+// ============================================================================
+// Runtime helper: Restart actions by walking params
+// Call from inside any function to terminate and re-enable callables
+// ============================================================================
+
+void s_expr_restart_actions(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count
+) {
+    for (uint16_t i = 0; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            const s_expr_param_t* func_param = &params[i + 1];
+            uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+            
+            if (func_opcode == S_EXPR_PARAM_MAIN) {
+                uint16_t node_idx = func_param->node_index;
+                
+                if (node_idx < inst->node_count) {
+                    s_expr_node_state_t* node_state = &inst->node_states[node_idx];
+                    
+                    // Terminate if initialized
+                    if (node_state->flags & S_EXPR_NODE_FLAG_INITIALIZED) {
+                        uint16_t func_idx = func_param->func_idx;
+                        s_expr_module_t* mod = inst->module;
+                        
+                        if (func_idx < mod->def->main_count && mod->main_fns[func_idx]) {
+                            uint16_t close_idx = i + params[i].brace_idx;
+                            uint16_t arg_count = (close_idx > i + 2) ? (close_idx - i - 2) : 0;
+                            const s_expr_param_t* args = (arg_count > 0) ? &params[i + 2] : NULL;
+                            
+                            uint16_t saved_node = inst->current_node_index;
+                            inst->current_node_index = node_idx;
+                            
+                            mod->main_fns[func_idx](inst, args, arg_count,
+                                                    SE_EVENT_TERMINATE, 0, NULL);
+                            
+                            inst->current_node_index = saved_node;
+                        }
+                    }
+                    
+                    // Reset: clear INITIALIZED, keep EVER_INIT, set ACTIVE
+                    uint8_t ever_init = node_state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
+                    node_state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+                    node_state->state = 0;
+                    node_state->user_data.u64 = 0;
+                }
+            }
+            
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
+        }
+    }
+}
+
+// Reset flags so actions get INIT event on next invoke (no TERMINATE sent)
+void s_expr_enable_actions(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count
+) {
+    for (uint16_t i = 0; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            const s_expr_param_t* func_param = &params[i + 1];
+            uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+            
+            if (func_opcode == S_EXPR_PARAM_MAIN) {
+                uint16_t node_idx = func_param->node_index;
+                
+                if (node_idx < inst->node_count) {
+                    s_expr_node_state_t* node_state = &inst->node_states[node_idx];
+                    
+                    // Clear INITIALIZED, keep EVER_INIT, set ACTIVE
+                    uint8_t ever_init = node_state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
+                    node_state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+                }
+            }
+            
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
+        }
+    }
 }

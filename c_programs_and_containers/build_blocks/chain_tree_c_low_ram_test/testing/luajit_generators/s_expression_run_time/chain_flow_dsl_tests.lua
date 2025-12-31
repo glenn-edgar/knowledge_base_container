@@ -5,15 +5,40 @@ dofile("s_expr_dsl.lua")
 -- ============================================================================
 local mod = start_module("chain_flow_dsl_tests", { is_64bit = false })
 
-defpool("node_state", "node_state_t")
-defslot("branch_1", "node_state")
+-- ============================================================================
+-- RECORD DEFINITIONS (Blackboard Schemas)
+-- ============================================================================
+
+-- Record for test 2 (no fields needed, but define for consistency)
+RECORD("test2_blackboard")
+    FIELD("placeholder", "int32")  -- unused but record can't be empty
+END_RECORD()
+
+-- Record for state machine tests
+RECORD("state_machine_blackboard")
+    FIELD("state", "int32")
+    FIELD("state_b", "int32")
+END_RECORD()
+
+-- Record for robot command dispatch
+RECORD("robot_blackboard")
+    FIELD("command", "int32")
+END_RECORD()
+
+-- Record for event dispatch with multiple fields
+RECORD("event_blackboard")
+    FIELD("timer_count", "int32")
+    FIELD("sensor_value", "int32")
+    FIELD("event_id", "int32")
+END_RECORD()
 
 -- ============================================================================
 -- TEST 2: Boolean logic with p_call
 -- ============================================================================
 
 start_tree("s_expression_test_2")
-
+    -- Note: This test doesn't actually use any blackboard fields
+    
     local c1 = o_call("CFL_DISABLE_CHILDREN")
     end_call(c1)
     
@@ -45,25 +70,22 @@ local SM_STATE_1 = 1
 local SM_STATE_2 = 2
 local SM_STATE_3 = 3
 
-defpool("state_machine_state", "state_machine_state_t")
-defslot("test_30_state_machine_state", "state_machine_state")
-defslot("test_30_state_machine_state_b", "state_machine_state")
-
 -- ============================================================================
 -- TEST 4: State Machine
 -- ============================================================================
 
 start_tree("s_expression_test_4")
+    use_record("state_machine_blackboard")
 
     -- Initialize state to 0
     local init = io_call("TEST_30_SET_STATE")
-        slot_ref("test_30_state_machine_state_b")
+        field_ref("state_b")
         int(0)
     end_call(init)
     
     -- State machine
     local sm = m_call("CFL_STATE_MACHINE")
-        slot_ref("test_30_state_machine_state_b")
+        field_ref("state_b")
         
         -- State 0
         local s0 = m_call("CFL_STATE_ACTIONS")
@@ -72,11 +94,11 @@ start_tree("s_expression_test_4")
             local a2 = o_call("CFL_ENABLE_CHILD")
                 int(0)
             end_call(a2)
-            local d1 = pt_m_call("CFL_TICK_DELAY")
+            local d1 = m_call("CFL_TICK_DELAY")
                 int(100)
             end_call(d1)
             local t1 = m_call("TEST_30_SET_STATE")
-                slot_ref("test_30_state_machine_state_b")
+                field_ref("state_b")
                 int(1)
             end_call(t1)
             int(SE_FUNCTION_RESET)
@@ -89,11 +111,11 @@ start_tree("s_expression_test_4")
             local b2 = o_call("CFL_ENABLE_CHILD")
                 int(1)
             end_call(b2)
-            local d2 = pt_m_call("CFL_TICK_DELAY")
+            local d2 = m_call("CFL_TICK_DELAY")
                 int(100)
             end_call(d2)
             local t2 = m_call("TEST_30_SET_STATE")
-                slot_ref("test_30_state_machine_state_b")
+                field_ref("state_b")
                 int(2)
             end_call(t2)
             int(SE_FUNCTION_RESET)
@@ -109,7 +131,7 @@ start_tree("s_expression_test_4")
             local c3 = o_call("CFL_ENABLE_CHILD")
                 int(3)
             end_call(c3)
-            local d3 = pt_m_call("CFL_TICK_DELAY")
+            local d3 = m_call("CFL_TICK_DELAY")
                 int(100)
             end_call(d3)
             int(SE_FUNCTION_TERMINATE)
@@ -136,9 +158,6 @@ local CMD_LEFT    = 3
 local CMD_RIGHT   = 4
 local CMD_STOP    = 5
 
-defpool("cmd_pool", "int32_t")
-defslot("robot_command", "cmd_pool")
-
 -- ============================================================================
 -- EVENT CONSTANTS
 -- ============================================================================
@@ -150,28 +169,22 @@ local EVT_SENSOR    = 0xEE03
 local EVT_ALARM     = 0xEE04
 local EVT_SHUTDOWN  = 0xEE05
 
-defpool("counter_pool", "int32_t")
-defslot("timer_count", "counter_pool")
-defpool("sensor_pool", "int32_t")
-defslot("sensor_value", "sensor_pool")
-defpool("event_pool", "int32_t")
-defslot("event_id", "event_pool")
-
 -- ============================================================================
--- TEST 7: Command Dispatch (slot-based)
+-- TEST 7: Command Dispatch (field-based)
 -- ============================================================================
 
 start_tree("s_expression_test_7")
+    use_record("robot_blackboard")
 
     -- Initialize state
     local init = io_call("TEST_31_SET_STATE")
-        slot_ref("robot_command")
+        field_ref("command")
         int(CMD_FORWARD)
     end_call(init)
     
     -- Dispatch on robot_command
     local disp = m_call("CFL_DISPATCH")
-        slot_ref("robot_command")
+        field_ref("command")
         
         -- CMD_FORWARD (1)
         local l1 = list_start("fwd")
@@ -188,11 +201,11 @@ start_tree("s_expression_test_7")
                     int(MOTOR_RIGHT)
                     int(100)
                 end_call(m2)
-                local d1 = pt_m_call("CFL_TICK_DELAY")
+                local d1 = m_call("CFL_TICK_DELAY")
                     int(50)
                 end_call(d1)
                 local ns1 = m_call("TEST_31_SET_STATE")
-                    slot_ref("robot_command")
+                    field_ref("command")
                     int(CMD_BACK)
                 end_call(ns1)
                 int(SE_FUNCTION_RESET)
@@ -214,11 +227,11 @@ start_tree("s_expression_test_7")
                     int(MOTOR_RIGHT)
                     int(-100)
                 end_call(m4)
-                local d2 = pt_m_call("CFL_TICK_DELAY")
+                local d2 = m_call("CFL_TICK_DELAY")
                     int(50)
                 end_call(d2)
                 local ns2 = m_call("TEST_31_SET_STATE")
-                    slot_ref("robot_command")
+                    field_ref("command")
                     int(CMD_LEFT)
                 end_call(ns2)
                 int(SE_FUNCTION_RESET)
@@ -240,11 +253,11 @@ start_tree("s_expression_test_7")
                     int(MOTOR_RIGHT)
                     int(50)
                 end_call(m6)
-                local d3 = pt_m_call("CFL_TICK_DELAY")
+                local d3 = m_call("CFL_TICK_DELAY")
                     int(25)
                 end_call(d3)
                 local ns3 = m_call("TEST_31_SET_STATE")
-                    slot_ref("robot_command")
+                    field_ref("command")
                     int(CMD_RIGHT)
                 end_call(ns3)
                 int(SE_FUNCTION_RESET)
@@ -266,11 +279,11 @@ start_tree("s_expression_test_7")
                     int(MOTOR_RIGHT)
                     int(-50)
                 end_call(m8)
-                local d4 = pt_m_call("CFL_TICK_DELAY")
+                local d4 = m_call("CFL_TICK_DELAY")
                     int(25)
                 end_call(d4)
                 local ns4 = m_call("TEST_31_SET_STATE")
-                    slot_ref("robot_command")
+                    field_ref("command")
                     int(CMD_STOP)
                 end_call(ns4)
                 int(SE_FUNCTION_RESET)
@@ -316,6 +329,7 @@ end_tree("s_expression_test_7")
 -- ============================================================================
 
 start_tree("s_expression_test_8")
+    use_record("event_blackboard")
 
     local evd = m_call("CFL_EVENT_DISPATCH")
         
@@ -340,7 +354,7 @@ start_tree("s_expression_test_8")
                     str("Button pressed")
                 end_call(log2)
                 local deb = m_call("TEST_32_DEBOUNCE")
-                    slot_ref("timer_count")
+                    field_ref("timer_count")
                     int(10)
                 end_call(deb)
                 local tog = o_call("TEST_32_TOGGLE_LED")
@@ -358,7 +372,7 @@ start_tree("s_expression_test_8")
                     str("Sensor reading")
                 end_call(log3)
                 local chk = m_call("TEST_32_CHECK_THRESHOLD")
-                    slot_ref("sensor_value")
+                    field_ref("sensor_value")
                     int(50)
                 end_call(chk)
                 int(SE_HALT)
@@ -412,7 +426,7 @@ start_tree("s_expression_test_8")
             int(0)
             local sa6 = m_call("CFL_STATE_ACTIONS")
                 local gen = m_call("TEST_32_GENERATE_INTERNAL_EVENTS")
-                    slot_ref("event_id")
+                    field_ref("event_id")
                 end_call(gen)
                 local bg = m_call("TEST_32_RUN_BACKGROUND_TASKS")
                 end_call(bg)

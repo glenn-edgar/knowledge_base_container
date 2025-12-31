@@ -2,102 +2,64 @@
 #include "cfl_common_functions.h"
 #include <stdio.h>
 #include <stdlib.h>
-static s_expr_result_t cfl_enable_children_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-     (void)node; (void)state; (void)event_data;
-    (void)params; (void)param_count;
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
 
-    if (event_id == S_EXPR_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
 
-        return SE_CONTINUE;
-    }
-    
-    cfl_enable_all_children(runtime_handle,inst->ct_node_id);
-    return SE_CONTINUE;
-}
-
-static s_expr_result_t cfl_disable_children_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-     (void)node; (void)state; (void)event_data;
-    (void)params; (void)param_count;
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
-
-    if (event_id == S_EXPR_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-
-        return SE_CONTINUE;
-    }
-
-    cfl_disable_all_children(runtime_handle,inst->ct_node_id);
-    return SE_CONTINUE;
-}
-
+s// ============================================================================
+// CFL_TICK_DELAY: Halt for N ticks, then disable
+// Params: [0] = tick count (int/uint)
+//
+// Returns:
+//   SE_HALT while counting down
+//   SE_DISABLE when complete
+// ============================================================================
 
 static s_expr_result_t cfl_tick_delay_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)event_data;
-    
-    // Use high bit of i32 as init flag
-    #define TICK_DELAY_INIT_FLAG (1 << 30)
+    (void)event_id; (void)event_data;
     
     // -------------------------------------------------------------------------
-    // INIT: Reset state (flow node context)
+    // INIT: Load counter from param
     // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_INIT) {
-        state->user_data.i32 = 0;
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // TERMINATE: Clean up
-    // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-        state->user_data.i32 = 0;
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // First call detection (works for both flow node AND m_call)
-    // -------------------------------------------------------------------------
-    bool initialized = (state->user_data.i32 & TICK_DELAY_INIT_FLAG) != 0;
-    
-    if (!initialized) {
+    if (event_type == SE_EVENT_INIT) {
         if (param_count < 1) {
-            EXCEPTION("CFL_TICK_DELAY: Missing count parameter");
+            // EXCEPTION("CFL_TICK_DELAY: Missing count parameter");
             return SE_DISABLE;
         }
         
-        int32_t count = (int32_t)s_expr_param_get_int(&params[0]);
-        state->user_data.i32 = count | TICK_DELAY_INIT_FLAG;
-        return SE_HALT;
+        uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+        if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+            // EXCEPTION("CFL_TICK_DELAY: param[0] must be INT or UINT");
+            return SE_DISABLE;
+        }
+        
+        int64_t count = (int64_t)s_expr_param_int(&params[0]);
+        s_expr_set_user_u64(inst, (uint64_t)count);
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Nothing to clean up
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
     }
     
     // -------------------------------------------------------------------------
     // TICK: Decrement counter
     // -------------------------------------------------------------------------
-    int32_t remaining = state->user_data.i32 & ~TICK_DELAY_INIT_FLAG;
+    int64_t remaining = (int64_t)s_expr_get_user_u64(inst);
     
     if (remaining <= 1) {
-        state->user_data.i32 = 0;  // Reset for next use
         return SE_DISABLE;
     }
     
-    state->user_data.i32 = (remaining - 1) | TICK_DELAY_INIT_FLAG;
+    s_expr_set_user_u64(inst, (uint64_t)(remaining - 1));
     return SE_HALT;
 }
 // ============================================================================
@@ -113,287 +75,700 @@ static s_expr_result_t cfl_tick_delay_main(
 //     Reached: return SE_DISABLE (done, deactivate)
 // ============================================================================
 
-static s_expr_result_t cfl_tick_delay_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+static s_expr_result_t cfl_time_delay_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)event_data;
+    (void)event_id; (void)event_data;
     
-    // Use high bit of i64 as init flag
-    #define TICK_DELAY_INIT_FLAG (1LL << 62)
-    
-    // -------------------------------------------------------------------------
-    // INIT: Reset state (flow node context)
-    // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_INIT) {
-      
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // TERMINATE: Clean up
-    // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-        state->user_data.i64 = 0;
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // First call detection (works for both flow node AND m_call)
-    // -------------------------------------------------------------------------
-    bool initialized = (state->user_data.i64 & TICK_DELAY_INIT_FLAG) != 0;
-    
-    if (!initialized) {
-        if (param_count < 1) {
-            EXCEPTION("CFL_TICK_DELAY: Missing count parameter");
-            return SE_DISABLE;
-        }
-        
-        int64_t count = (int64_t)s_expr_param_get_int(&params[0]);
-        state->user_data.i64 = count | TICK_DELAY_INIT_FLAG;
-        return SE_HALT;
-    }
-    
-    // -------------------------------------------------------------------------
-    // TICK: Decrement counter
-    // -------------------------------------------------------------------------
-    int64_t remaining = state->user_data.i64 & ~TICK_DELAY_INIT_FLAG;
-    
-    if (remaining <= 1) {
-        state->user_data.i64 = 0;
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
         return SE_DISABLE;
     }
     
-    state->user_data.i64 = (remaining - 1) | TICK_DELAY_INIT_FLAG;
+    // -------------------------------------------------------------------------
+    // INIT: Calculate and store end time
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 1) {
+            return SE_DISABLE;
+        }
+        
+        uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+        double delay;
+        
+        if (type0 == S_EXPR_PARAM_FLOAT) {
+            delay = (double)s_expr_param_float(&params[0]);
+        } else if (type0 == S_EXPR_PARAM_INT || type0 == S_EXPR_PARAM_UINT) {
+            delay = (double)s_expr_param_int(&params[0]);
+        } else {
+            return SE_DISABLE;
+        }
+        
+        double now = cfl_timer_get_timestamp(runtime_handle->timer_handle);
+        s_expr_set_user_f64(inst, now + delay);
+        
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Nothing to clean up
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Check if time elapsed
+    // -------------------------------------------------------------------------
+    double end_time = s_expr_get_user_f64(inst);
+    double now = cfl_timer_get_timestamp(runtime_handle->timer_handle);
+    
+    if (now >= end_time) {
+        return SE_DISABLE;
+    }
+    
     return SE_HALT;
 }
 
 
-static s_expr_result_t cfl_state_machine_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_STATE_MACHINE: Execute one branch based on state value
+// ============================================================================
+
+// Helper: Find param index for state N
+static bool cfl_sm_find_state_idx(
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    int32_t state_num,
+    uint16_t* out_idx
 ) {
-    (void)event_id; (void)event_data;
-    
-    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
-    if (!slot_ptr) return SE_TERMINATE;
-    
-    int current_state = *slot_ptr;
-    int block_idx = 0;
-    for (uint8_t i = 1; i < param_count; i++) {
-        
-        if (params[i].type == S_EXPR_PARAM_OPEN_CALL) {
-            
-            
-            if (block_idx == current_state) {
-                
-                s_expr_result_t r = s_expr_invoke_any(inst, node, state, params, i);
-                
-                
-                
-                return r;
+    int32_t block_idx = 0;
+    for (uint16_t i = 1; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            if (block_idx == state_num) {
+                *out_idx = i;
+                return true;
             }
-            i += params[i].brace_idx;
-            
+            i += params[i].brace_idx + 1;
             block_idx++;
+        } else {
+            i++;
         }
     }
-    
-    
-    return SE_TERMINATE;
-}
-static s_expr_result_t cfl_state_actions_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    bool oneshots_done = (state->flags & S_EXPR_NODE_FLAGS_USER) != 0;
-    
-    printf(">>> STATE_ACTIONS: oneshots_done=%d\n", oneshots_done);
-    
-    // Execute oneshots once per state entry
-    if (!oneshots_done) {
-        for (uint8_t i = 0; i < param_count; i++) {
-            if (params[i].type == S_EXPR_PARAM_OPEN_CALL &&
-                params[i + 1].type == S_EXPR_PARAM_ONESHOT) {
-                printf(">>> STATE_ACTIONS: calling oneshot at i=%d\n", i);
-                s_expr_invoke_any(inst, node, state, params, i);
-                i += params[i].brace_idx;
-            }
-        }
-        state->flags |= S_EXPR_NODE_FLAGS_USER;
-    }
-    
-    // Execute mains every tick
-    for (uint8_t i = 0; i < param_count; i++) {
-        if (params[i].type == S_EXPR_PARAM_OPEN_CALL &&
-            params[i + 1].type == S_EXPR_PARAM_MAIN) {
-            printf(">>> STATE_ACTIONS: calling main at i=%d, func_idx=%d\n", 
-                   i, params[i + 1].func_idx);
-            s_expr_result_t r = s_expr_invoke_any(inst, node, state, params, i);
-            printf(">>> STATE_ACTIONS: main returned %d\n", r);
-            if (r == SE_HALT) {
-                printf(">>> STATE_ACTIONS: returning SE_HALT\n");
-                return SE_HALT;
-            }
-            i += params[i].brace_idx;
-        }
-    }
-    
-    printf(">>> STATE_ACTIONS: all mains complete, finding return code\n");
-    
-    // Find return code (last INT/UINT)
-    for (int i = param_count - 1; i >= 0; i--) {
-        if (params[i].type == S_EXPR_PARAM_INT || params[i].type == S_EXPR_PARAM_UINT) {
-            int ret = (int)s_expr_param_get_int(&params[i]);
-            printf(">>> STATE_ACTIONS: found return code %d at i=%d\n", ret, i);
-            state->flags &= ~S_EXPR_NODE_FLAGS_USER;
-            return (s_expr_result_t)ret;
-        }
-    }
-    
-    state->flags &= ~S_EXPR_NODE_FLAGS_USER;
-    return SE_CONTINUE;
+    return false;
 }
 
-static s_expr_result_t s_internal_event(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// Helper: Count state branches
+static uint16_t cfl_sm_count_states(
+    const s_expr_param_t* params,
+    uint16_t param_count
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
-    if(event_id != S_EXPR_EVENT_INIT){
-        cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
-        if(param_count != 2){
-            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
-            return SE_TERMINATE;
+    uint16_t num_states = 0;
+    for (uint16_t i = 1; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            num_states++;
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
         }
-        if((params[0].type != S_EXPR_PARAM_INT) && (params[0].type != S_EXPR_PARAM_UINT)){
-            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
-            return SE_TERMINATE;
-        }
-        if((params[1].type != S_EXPR_PARAM_INT) && (params[1].type != S_EXPR_PARAM_UINT)){
-            EXCEPTION("Invalid parameters for CFL_INTERNAL_EVENT");
-            return SE_TERMINATE;
-        }
+    }
+    return num_states;
+}
+
+static void cfl_sm_init_branch(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        uint16_t inner_count = (close_idx > idx + 1) ? (close_idx - idx - 1) : 0;
+        const s_expr_param_t* inner_params = &params[idx + 1];
         
-        cfl_send_integer_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_LOW,inst->ct_node_id, (unsigned)params[0].i, (cfl_int_t)params[1].i);
-        return SE_CONTINUE;
+        // Reset all main functions in branch (clear INITIALIZED, set ACTIVE)
+        s_expr_enable_actions(inst, inner_params, inner_count);
     }
-    return SE_CONTINUE;
+}
+// Helper: Terminate branch contents
+static void cfl_sm_terminate_branch(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        uint16_t inner_count = (close_idx > idx + 1) ? (close_idx - idx - 1) : 0;
+        const s_expr_param_t* inner_params = &params[idx + 1];
+        s_expr_restart_actions(inst, inner_params, inner_count);
+    }
 }
 
-static s_expr_result_t cfl_dispatch_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+static s_expr_result_t cfl_state_machine_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
     (void)event_id; (void)event_data;
-    if (param_count < 1 || params[0].type != S_EXPR_PARAM_SLOT) {
+    
+    // Validate field_ref param
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    if (type0 != S_EXPR_PARAM_FIELD) {
         return SE_TERMINATE;
     }
     
-    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
-    if (!slot_ptr) return SE_TERMINATE;
+    // Get state pointer from blackboard
+    int32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!state_ptr) {
+        return SE_TERMINATE;
+    }
     
-    int32_t key = *slot_ptr;
-    uint8_t default_idx = 0;
+    uint16_t num_states = cfl_sm_count_states(params, param_count);
     
-    // Scan for matching case: list(int(case_val), m_call(...))
-    for (uint8_t i = 1; i < param_count; i++) {
-        printf(">>> DISPATCH: i=%d, param_type=0x%02X\n", i, params[i].type);
+    // -------------------------------------------------------------------------
+    // INIT: Store initial state, validate
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        int32_t initial_state = *state_ptr;
         
-        if (params[i].type == S_EXPR_PARAM_OPEN) {
-            uint8_t case_val_idx = i + 1;
-            printf(">>> DISPATCH: OPEN at i=%d, case_val_idx=%d, case_type=0x%02X\n", 
-                   i, case_val_idx, params[case_val_idx].type);
+        if (initial_state < 0 || initial_state >= (int32_t)num_states) {
+            EXCEPTION("CFL_STATE_MACHINE: invalid initial state");
+            return SE_TERMINATE;
+        }
+        
+        s_expr_set_state(inst, (uint8_t)initial_state);
+        
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Clean up current branch
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        uint8_t prev_state = s_expr_get_state(inst);
+        uint16_t prev_idx;
+        
+        if (cfl_sm_find_state_idx(params, param_count, prev_state, &prev_idx)) {
+            cfl_sm_terminate_branch(inst, params, prev_idx);
+        }
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Handle state changes, execute current branch
+    // -------------------------------------------------------------------------
+    int32_t current_state = *state_ptr;
+    uint8_t prev_state = s_expr_get_state(inst);
+    
+    if (current_state != (int32_t)prev_state) {
+        // Validate new state
+        if (current_state < 0 || current_state >= (int32_t)num_states) {
+            return SE_TERMINATE;
+        }
+        
+        // Terminate old branch
+        uint16_t prev_idx;
+        if (cfl_sm_find_state_idx(params, param_count, prev_state, &prev_idx)) {
+            cfl_sm_terminate_branch(inst, params, prev_idx);
+        }
+        
+        // Initialize new branch (reset flags so they get INIT event)
+        uint16_t new_idx;
+        if (cfl_sm_find_state_idx(params, param_count, current_state, &new_idx)) {
+            cfl_sm_init_branch(inst, params, new_idx);  // <-- ADD THIS
+        }
+        
+        // Update stored state
+        s_expr_set_state(inst, (uint8_t)current_state);
+    }
+    
+    // Find and execute current state branch
+    uint16_t current_idx;
+    if (!cfl_sm_find_state_idx(params, param_count, current_state, &current_idx)) {
+        EXCEPTION("CFL_STATE_MACHINE: invalid current state");
+        return SE_TERMINATE;
+    }
+    
+    return s_expr_invoke_any(inst, params, current_idx);
+}
+
+// ============================================================================
+// CFL_STATE_ACTIONS: Execute all actions in sequence, return code from last int
+// Params: list of actions (callables), optionally ending with int return code
+//
+// DSL usage:
+//   m_call("CFL_STATE_ACTIONS")
+//       m_call("action_1") ... end_call(...)
+//       m_call("action_2") ... end_call(...)
+//       int(SE_CONTINUE)  -- return code
+//   end_call(...)
+// ============================================================================
+
+static s_expr_result_t cfl_state_actions_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // -------------------------------------------------------------------------
+    // INIT: Nothing special
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Clean up child actions
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_restart_actions(inst, params, param_count);
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Execute all actions in sequence
+    // -------------------------------------------------------------------------
+    for (uint16_t i = 0; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            s_expr_result_t r = s_expr_invoke_any(inst, params, i);
             
-            if (params[case_val_idx].type == S_EXPR_PARAM_INT ||
-                params[case_val_idx].type == S_EXPR_PARAM_UINT) {
-                
-                int32_t case_val = (int32_t)s_expr_param_get_int(&params[case_val_idx]);
-                printf(">>> DISPATCH: case_val=%d, key=%d\n", case_val, key);
-                
-                if (case_val == 0) {
-                    default_idx = i + 2;
-                    printf(">>> DISPATCH: default case at m_call_idx=%d\n", default_idx);
-                }
-                else if (case_val == key) {
-                    printf(">>> DISPATCH: MATCH! invoking m_call at idx=%d\n", i + 2);
-                    return s_expr_invoke_any(inst, node, state, params, i + 2);
-                }
+            switch (r) {
+                case SE_DISABLE:
+                case SE_CONTINUE:
+                    break;  // keep going
+                    
+                case SE_HALT:
+                case SE_TERMINATE:
+                case SE_RESET:
+                case SE_FUNCTION_TERMINATE:
+                case SE_SKIP_CONTINUE:
+                case SE_FUNCTION_HALT:
+                case SE_FUNCTION_RESET:
+                    return r;  // propagate up (no restart yet)
+                    
+                default:
+                    // EXCEPTION("CFL_STATE_ACTIONS: invalid result");
+                    break;
             }
             
-            uint8_t skip = params[i].brace_idx;
-            printf(">>> DISPATCH: skipping %d params (i=%d -> i=%d)\n", skip, i, i + skip);
-            i += skip;
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
         }
     }
     
-    printf(">>> DISPATCH: no match, default_idx=%d\n", default_idx);
-    
-    // No match - try default
-    if (default_idx > 0) {
-        return s_expr_invoke_any(inst, node, state, params, default_idx);
+    // Find return code (last INT/UINT)
+    for (int16_t i = param_count - 1; i >= 0; i--) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+            s_expr_result_t ret = (s_expr_result_t)s_expr_param_int(&params[i]);
+            
+            
+            return ret;
+        }
     }
     
-    return SE_CONTINUE;
+    return SE_CONTINUE;  // No restart - still in this state
 }
 
-static s_expr_result_t cfl_event_dispatch_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_EVENT_DISPATCH: Switch/case on event_id
+// Params: list of cases, each case is: list(int(event_val), action)
+//         event_val = 0 is the default case
+//
+// DSL usage:
+//   m_call("CFL_EVENT_DISPATCH")
+//       list() int(CFL_TIMER_EVENT) m_call("handle_timer") end_call(...) end_list()
+//       list() int(CFL_BUTTON_EVENT) m_call("handle_button") end_call(...) end_list()
+//       list() int(0) m_call("handle_default") end_call(...) end_list()  -- default
+//   end_call(...)
+// ============================================================================
+
+static s_expr_result_t cfl_dispatch_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
     (void)event_data;
     
-    int32_t key = (int32_t)event_id;
-    uint8_t default_idx = 0;
+    // -------------------------------------------------------------------------
+    // INIT / TERMINATE: Nothing special
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
     
-    // Scan for matching case: list(int(event_val), m_call(...))
-    for (uint8_t i = 0; i < param_count; i++) {
-        if (params[i].type == S_EXPR_PARAM_OPEN) {
-            uint8_t case_val_idx = i + 1;
-            if (params[case_val_idx].type == S_EXPR_PARAM_INT ||
-                params[case_val_idx].type == S_EXPR_PARAM_UINT) {
-                
-                int32_t case_val = (int32_t)s_expr_param_get_int(&params[case_val_idx]);
+    // -------------------------------------------------------------------------
+    // TICK: Dispatch based on event_id
+    // -------------------------------------------------------------------------
+    int32_t key = (int32_t)event_id;
+    uint16_t default_idx = 0;
+    
+    // Scan for matching case: list(int(event_val), action)
+    for (uint16_t i = 0; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN) {
+            uint16_t case_val_idx = i + 1;
+            uint8_t val_opcode = params[case_val_idx].type & S_EXPR_OPCODE_MASK;
+            
+            if (val_opcode == S_EXPR_PARAM_INT || val_opcode == S_EXPR_PARAM_UINT) {
+                int32_t case_val = (int32_t)s_expr_param_int(&params[case_val_idx]);
+                uint16_t action_idx = i + 2;
                 
                 // 0 = default case
                 if (case_val == 0) {
-                    default_idx = i + 2;
+                    default_idx = action_idx;
                 }
                 // Match found
                 else if (case_val == key) {
-                    return s_expr_invoke_any(inst, node, state, params, i + 2);
+                    return s_expr_invoke_any(inst, params, action_idx);
                 }
             }
             
-            i += params[i].brace_idx;
+            // Skip to end of this list
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
         }
     }
     
     // No match - try default
     if (default_idx > 0) {
-        return s_expr_invoke_any(inst, node, state, params, default_idx);
+        return s_expr_invoke_any(inst, params, default_idx);
+    }
+    
+    return SE_CONTINUE;
+}
+// ============================================================================
+// CFL_EVENT_DISPATCH: Switch/case on event_id
+// Params: list of cases, each case is: list(int(event_val), action)
+//         event_val = 0 is the default case
+//
+// DSL usage:
+//   m_call("CFL_EVENT_DISPATCH")
+//       list() int(CFL_TIMER_EVENT) m_call("handle_timer") end_call(...) end_list()
+//       list() int(CFL_BUTTON_EVENT) m_call("handle_button") end_call(...) end_list()
+//       list() int(0) m_call("handle_default") end_call(...) end_list()  -- default
+//   end_call(...)
+// ============================================================================
+
+static s_expr_result_t cfl_event_dispatch_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_data;
+    
+    // -------------------------------------------------------------------------
+    // INIT / TERMINATE: Nothing special
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Dispatch based on event_id
+    // -------------------------------------------------------------------------
+    int32_t key = (int32_t)event_id;
+    uint16_t default_idx = 0;
+    
+    // Scan for matching case: list(int(event_val), action)
+    for (uint16_t i = 0; i < param_count; ) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN) {
+            uint16_t case_val_idx = i + 1;
+            uint8_t val_opcode = params[case_val_idx].type & S_EXPR_OPCODE_MASK;
+            
+            if (val_opcode == S_EXPR_PARAM_INT || val_opcode == S_EXPR_PARAM_UINT) {
+                int32_t case_val = (int32_t)s_expr_param_int(&params[case_val_idx]);
+                uint16_t action_idx = i + 2;
+                
+                // 0 = default case
+                if (case_val == 0) {
+                    default_idx = action_idx;
+                }
+                // Match found
+                else if (case_val == key) {
+                    return s_expr_invoke_any(inst, params, action_idx);
+                }
+            }
+            
+            // Skip to end of this list
+            i += params[i].brace_idx + 1;
+        } else {
+            i++;
+        }
+    }
+    
+    // No match - try default
+    if (default_idx > 0) {
+        return s_expr_invoke_any(inst, params, default_idx);
     }
     
     return SE_CONTINUE;
 }
 
+
+
+// ============================================================================
+// Named flag for state tracking
+// ============================================================================
+
+#define DF_CONTROL_FLAG_ACTIVE  0x80  // true branch was activated
+
+ 
+// ============================================================================
+// DF_CONTROL: if (pred) then_action else else_action
+// Params: [0] = predicate, [1] = then_action, [2] = else_action
+// ============================================================================
+
+// ============================================================================
+// CFL_TRIGGER_ON_CHANGE: Edge-triggered if-then-else
+// Params: [0] = initial_state (int: 0=inactive, non-zero=active)
+//         [1] = predicate
+//         [2] = then_action (called when pred becomes true)
+//         [3] = else_action (called when pred becomes false)
+//
+// Behavior: Tracks state transitions, fires actions only on change
+// ============================================================================
+
+#define CFL_TRIGGER_FLAG_ACTIVE  0x80  // bit 7: currently in active state
+
+// ============================================================================
+// Helper: Restart a single callable (terminate + re-enable)
+// ============================================================================
+
+static void cfl_restart_single_action(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        uint16_t inner_count = (close_idx > idx + 1) ? (close_idx - idx - 1) : 0;
+        const s_expr_param_t* inner_params = &params[idx + 1];
+        s_expr_restart_actions(inst, inner_params, inner_count);
+    }
+}
+
+
+static void cfl_restart_single_action(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t idx
+) {
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        uint16_t close_idx = idx + params[idx].brace_idx;
+        uint16_t inner_count = (close_idx > idx + 1) ? (close_idx - idx - 1) : 0;
+        const s_expr_param_t* inner_params = &params[idx + 1];
+        s_expr_restart_actions(inst, inner_params, inner_count);
+    }
+}
+// ============================================================================
+// CFL_TRIGGER_ON_CHANGE: Edge-triggered if-then-else with branch restart
+// Params: [0] = initial_state (int: 0=inactive, non-zero=active)
+//         [1] = predicate
+//         [2] = then_action (restarted + invoked when pred becomes true)
+//         [3] = else_action (invoked when pred becomes false)
+// ============================================================================
+
+#define CFL_TRIGGER_FLAG_ACTIVE  0x80  // bit 7: currently in active state
+
+static s_expr_result_t CFL_TRIGGER_ON_CHANGE(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // Calculate parameter positions once
+    const uint16_t init_idx = 0;
+    const uint16_t pred_idx = 1;
+    const uint16_t then_idx = s_expr_skip_param(params, pred_idx);
+    const uint16_t else_idx = s_expr_skip_param(params, then_idx);
+    
+    // -------------------------------------------------------------------------
+    // INIT: Validate parameters and set initial state
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        // Validate param count
+        if (s_expr_count_params(params, param_count) < 4) {
+            EXCEPTION("CFL_TRIGGER_ON_CHANGE requires 4 parameters: initial_state, pred, then, else");
+            return SE_DISABLE;
+        }
+        
+        // Validate initial_state type
+        uint8_t type0 = params[init_idx].type & S_EXPR_OPCODE_MASK;
+        if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_TRIGGER_ON_CHANGE param[0] must be INT or UINT");
+            return SE_DISABLE;
+        }
+        
+        // Validate predicate
+        if (!s_expr_param_is_predicate(&params[pred_idx])) {
+            EXCEPTION("CFL_TRIGGER_ON_CHANGE param[1] must be predicate");
+            return SE_DISABLE;
+        }
+        
+        // Validate then_action
+        if (!s_expr_param_is_action(&params[then_idx])) {
+            EXCEPTION("CFL_TRIGGER_ON_CHANGE param[2] must be action");
+            return SE_DISABLE;
+        }
+        
+        // Validate else_action
+        if (!s_expr_param_is_action(&params[else_idx])) {
+            EXCEPTION("CFL_TRIGGER_ON_CHANGE param[3] must be action");
+            return SE_DISABLE;
+        }
+        
+        // Set initial state from param[0]
+        int32_t initial_state = (int32_t)s_expr_param_int(&params[init_idx]);
+        if (initial_state != 0) {
+            s_expr_set_user_flags(inst, CFL_TRIGGER_FLAG_ACTIVE);
+        } else {
+            s_expr_set_user_flags(inst, 0);
+        }
+        
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Cleanup
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Evaluate predicate and dispatch on change
+    // -------------------------------------------------------------------------
+    bool pred_result = s_expr_invoke_pred(inst, params, pred_idx);
+    uint8_t flags = s_expr_get_user_flags(inst);
+    bool was_active = (flags & CFL_TRIGGER_FLAG_ACTIVE) != 0;
+    
+    if (pred_result) {
+        // Condition true - activate if not already active
+        if (!was_active) {
+            // Restart then branch (terminate + re-enable for fresh INIT)
+            cfl_restart_single_action(inst, params, then_idx);
+            // Now invoke it (will get INIT event)
+            s_expr_invoke_any(inst, params, then_idx);
+            s_expr_set_user_flags(inst, flags | CFL_TRIGGER_FLAG_ACTIVE);
+        }
+    } else {
+        // Condition false - deactivate if was active
+        if (was_active) {
+            cfl_restart_single_action(inst, params, else_idx);
+            s_expr_invoke_any(inst, params, else_idx);
+            s_expr_set_user_flags(inst, flags & ~CFL_TRIGGER_FLAG_ACTIVE);
+        }
+    }
+    
+    return SE_CONTINUE;
+}
+// ============================================================================
+// CFL_WAIT_CHILD_DISABLED: Wait until child node is disabled, then disable self
+// Params: [0] = child_node_index (int/uint)
+//
+// Returns:
+//   SE_HALT while child is enabled
+//   SE_DISABLE when child becomes disabled
+// ============================================================================
+
+static s_expr_result_t cfl_wait_child_disabled_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // -------------------------------------------------------------------------
+    // INIT: Validate parameters
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 1) {
+            EXCEPTION("CFL_WAIT_CHILD_DISABLED: requires child_node_index");
+            return SE_DISABLE;
+        }
+        
+        uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+        if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_WAIT_CHILD_DISABLED: param[0] must be INT or UINT");
+            return SE_DISABLE;
+        }
+        
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Nothing to clean up
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Check if child is still enabled
+    // -------------------------------------------------------------------------
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_WAIT_CHILD_DISABLED: no runtime handle");
+        return SE_TERMINATE;
+    }
+    
+    uint16_t child_node_index = (uint16_t)s_expr_param_uint(&params[0]);
+    
+    if (cfl_child_is_enabled(runtime_handle, inst->ct_node_id, child_node_index)) {
+        return SE_HALT;  // Still waiting
+    }
+    
+    return SE_DISABLE;  // Child disabled, we're done
+}
 static const s_expr_fn_entry_t user_main_entries[] = {
-    { "CFL_ENABLE_CHILDREN", (void*)cfl_enable_children_main },
-    { "CFL_DISABLE_CHILDREN", (void*)cfl_disable_children_main },
+
     { "CFL_TICK_DELAY", (void*)cfl_tick_delay_main },
     { "CFL_TIME_DELAY",(void*)cfl_time_delay_main },
     { "CFL_STATE_ACTIONS",(void*)cfl_state_actions_main },
     { "CFL_STATE_MACHINE",(void*)cfl_state_machine_main },
-    { "CFL_INTERNAL_EVENT",(void*)s_internal_event },
+    { "CFL_WAIT_CHILD_DISABLED",(void*)cfl_wait_child_disabled_main },
     { "CFL_DISPATCH",(void*)cfl_dispatch_main },
     { "CFL_EVENT_DISPATCH",(void*)cfl_event_dispatch_main },
+    { "CFL_TRIGGER_ON_CHANGE",(void*)cfl_trigger_on_change_main },
     // Add more user main functions here
 };
 

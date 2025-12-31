@@ -11,83 +11,66 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
-
-// Size configuration
+// Size configuration - must be defined before including s_engine_v3_types.h
+#ifndef MODULE_IS_64BIT
 #define MODULE_IS_64BIT 0
+#endif
 
-// Type aliases
-typedef int32_t ct_int_t;
-typedef uint32_t ct_uint_t;
-typedef float ct_float_t;
+#include "s_engine_types.h"
 
-// Parameter type opcodes (bits 3:0)
-#define S_EXPR_PARAM_INT         0x00
-#define S_EXPR_PARAM_UINT        0x01
-#define S_EXPR_PARAM_FLOAT       0x02
-#define S_EXPR_PARAM_STR_HASH    0x03
-#define S_EXPR_PARAM_SLOT        0x04
-#define S_EXPR_PARAM_OPEN        0x05
-#define S_EXPR_PARAM_CLOSE       0x06
-#define S_EXPR_PARAM_OPEN_CALL   0x07
-#define S_EXPR_PARAM_ONESHOT     0x08
-#define S_EXPR_PARAM_MAIN        0x09
-#define S_EXPR_PARAM_PRED        0x0A
+// ============================================================================
+// RECORD (BLACKBOARD) STRUCTURES
+// ============================================================================
 
-// Type flags
-#define S_EXPR_FLAG_SURVIVES_RESET 0x10
-#define S_EXPR_FLAG_POINTER        0x80
-#define S_EXPR_OPCODE_MASK         0x0F
-
-// Slot reference
+// Record: test2_blackboard
 typedef struct {
-    uint16_t pool_id;
-    uint16_t slot_index;
-} s_expr_slot_ref_t;
+    int32_t placeholder;  // offset=0 size=4
+} test2_blackboard_t;
 
-// Parameter structure
-typedef struct {
-    uint8_t  type;
-    uint8_t  index_to_pointer;
-    uint16_t node_index;
-    uint8_t  reserved[4];
-    union {
-        ct_int_t   i;
-        ct_uint_t  u;
-        ct_float_t f;
-        uint32_t   str_hash;
-        uint16_t   func_idx;
-        uint16_t   brace_idx;
-        s_expr_slot_ref_t slot;
-    };
-} s_expr_param_t;
+static const s_expr_field_desc_t chain_flow_dsl_tests_test2_blackboard_fields[] = {
+    { 0x7D0B279A, 0, 4 },  // placeholder
+};
 
-// Tree definition
+// Record: state_machine_blackboard
 typedef struct {
-    uint32_t name_hash;
-    const s_expr_param_t* params;
-    uint16_t param_count;
-    uint16_t func_node_count;
-    uint16_t pointer_count;
-} s_expr_tree_def_t;
+    int32_t state;  // offset=0 size=4
+    int32_t state_b;  // offset=4 size=4
+} state_machine_blackboard_t;
 
-// Module definition
+static const s_expr_field_desc_t chain_flow_dsl_tests_state_machine_blackboard_fields[] = {
+    { 0x783132F6, 0, 4 },  // state
+    { 0x97A4E54B, 4, 4 },  // state_b
+};
+
+// Record: robot_blackboard
 typedef struct {
-    uint32_t name_hash;
-    const s_expr_tree_def_t* trees;
-    uint16_t tree_count;
-    bool is_64bit;
-    const uint32_t* oneshot_hashes;
-    const uint32_t* main_hashes;
-    const uint32_t* pred_hashes;
-    uint16_t oneshot_count;
-    uint16_t main_count;
-    uint16_t pred_count;
-    uint16_t max_func_node_count;
-    uint16_t max_pointer_count;
-    uint16_t max_param_count;
-} s_expr_module_def_t;
+    int32_t command;  // offset=0 size=4
+} robot_blackboard_t;
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_robot_blackboard_fields[] = {
+    { 0x93594AB2, 0, 4 },  // command
+};
+
+// Record: event_blackboard
+typedef struct {
+    int32_t timer_count;  // offset=0 size=4
+    int32_t sensor_value;  // offset=4 size=4
+    int32_t event_id;  // offset=8 size=4
+} event_blackboard_t;
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_event_blackboard_fields[] = {
+    { 0x77B5277E, 0, 4 },  // timer_count
+    { 0xC4056E05, 4, 4 },  // sensor_value
+    { 0xA08B063D, 8, 4 },  // event_id
+};
+
+static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
+    { 0x1703AE37, 4, 1, chain_flow_dsl_tests_test2_blackboard_fields },  // test2_blackboard
+    { 0xC89D038C, 8, 2, chain_flow_dsl_tests_state_machine_blackboard_fields },  // state_machine_blackboard
+    { 0xA6A4A169, 4, 1, chain_flow_dsl_tests_robot_blackboard_fields },  // robot_blackboard
+    { 0xBC450029, 12, 3, chain_flow_dsl_tests_event_blackboard_fields },  // event_blackboard
+};
+#define CHAIN_FLOW_DSL_TESTS_RECORD_COUNT 4
 
 // ============================================================================
 // FUNCTION HASH TABLES
@@ -165,16 +148,16 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_2_params[] = 
 #define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_2_PARAM_COUNT 21
 
 // Tree: s_expression_test_4
-// func_node_count=17 pointer_count=3
+// func_node_count=17 pointer_count=0
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = {
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [0]
     { 0x18, 0, 0, {0}, .func_idx = 1 }, // TEST_30_SET_STATE  // [1]
-    { 0x04, 0, 0, {0}, .slot = { 1, 1 } }, // test_30_state_machine_state_b  // [2]
+    { 0x0B, 0, 0, {0}, .field = { 4, 4 } }, // state_b  // [2]
     { 0x00, 0, 0, {0}, .i = 0 },  // [3]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [4]
     { 0x07, 0, 0, {0}, .brace_idx = 62 }, // -> +62  // [5]
     { 0x09, 0, 1, {0}, .func_idx = 1 }, // CFL_STATE_MACHINE  // [6]
-    { 0x04, 0, 0, {0}, .slot = { 1, 1 } }, // test_30_state_machine_state_b  // [7]
+    { 0x0B, 0, 0, {0}, .field = { 4, 4 } }, // state_b  // [7]
     { 0x07, 0, 0, {0}, .brace_idx = 19 }, // -> +19  // [8]
     { 0x09, 0, 2, {0}, .func_idx = 2 }, // CFL_STATE_ACTIONS  // [9]
     { 0x07, 0, 0, {0}, .brace_idx = 2 }, // -> +2  // [10]
@@ -185,12 +168,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
     { 0x00, 0, 0, {0}, .i = 0 },  // [15]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [16]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [17]
-    { 0x89, 0, 5, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [18]
+    { 0x09, 0, 5, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [18]
     { 0x00, 0, 0, {0}, .i = 100 },  // [19]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [20]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [21]
     { 0x09, 0, 6, {0}, .func_idx = 4 }, // TEST_30_SET_STATE  // [22]
-    { 0x04, 0, 0, {0}, .slot = { 1, 1 } }, // test_30_state_machine_state_b  // [23]
+    { 0x0B, 0, 0, {0}, .field = { 4, 4 } }, // state_b  // [23]
     { 0x00, 0, 0, {0}, .i = 1 },  // [24]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [25]
     { 0x00, 0, 0, {0}, .i = 8 },  // [26]
@@ -205,12 +188,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
     { 0x00, 0, 0, {0}, .i = 1 },  // [35]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [36]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [37]
-    { 0x89, 1, 10, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [38]
+    { 0x09, 0, 10, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [38]
     { 0x00, 0, 0, {0}, .i = 100 },  // [39]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [40]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [41]
     { 0x09, 0, 11, {0}, .func_idx = 4 }, // TEST_30_SET_STATE  // [42]
-    { 0x04, 0, 0, {0}, .slot = { 1, 1 } }, // test_30_state_machine_state_b  // [43]
+    { 0x0B, 0, 0, {0}, .field = { 4, 4 } }, // state_b  // [43]
     { 0x00, 0, 0, {0}, .i = 2 },  // [44]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [45]
     { 0x00, 0, 0, {0}, .i = 8 },  // [46]
@@ -229,7 +212,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
     { 0x00, 0, 0, {0}, .i = 3 },  // [59]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [60]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [61]
-    { 0x89, 2, 16, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [62]
+    { 0x09, 0, 16, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [62]
     { 0x00, 0, 0, {0}, .i = 100 },  // [63]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [64]
     { 0x00, 0, 0, {0}, .i = 5 },  // [65]
@@ -239,16 +222,16 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
 #define CHAIN_FLOW_DSL_TESTS_S_EXPRESSION_TEST_4_PARAM_COUNT 68
 
 // Tree: s_expression_test_7
-// func_node_count=32 pointer_count=4
+// func_node_count=32 pointer_count=0
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = {
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [0]
     { 0x18, 0, 0, {0}, .func_idx = 3 }, // TEST_31_SET_STATE  // [1]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [2]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [2]
     { 0x00, 0, 0, {0}, .i = 1 },  // [3]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [4]
     { 0x07, 0, 0, {0}, .brace_idx = 155 }, // -> +155  // [5]
     { 0x09, 0, 1, {0}, .func_idx = 5 }, // CFL_DISPATCH  // [6]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [7]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [7]
     { 0x05, 0, 0, {0}, .brace_idx = 29 }, // -> +29  // [8]
     { 0x00, 0, 0, {0}, .i = 1 },  // [9]
     { 0x07, 0, 0, {0}, .brace_idx = 26 }, // -> +26  // [10]
@@ -268,12 +251,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { 0x00, 0, 0, {0}, .i = 100 },  // [24]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [25]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [26]
-    { 0x89, 0, 6, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [27]
+    { 0x09, 0, 6, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [27]
     { 0x00, 0, 0, {0}, .i = 50 },  // [28]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [29]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [30]
     { 0x09, 0, 7, {0}, .func_idx = 6 }, // TEST_31_SET_STATE  // [31]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [32]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [32]
     { 0x00, 0, 0, {0}, .i = 2 },  // [33]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [34]
     { 0x00, 0, 0, {0}, .i = 8 },  // [35]
@@ -298,12 +281,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { 0x00, 0, 0, {0}, .i = -100 },  // [54]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [55]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [56]
-    { 0x89, 1, 12, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [57]
+    { 0x09, 0, 12, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [57]
     { 0x00, 0, 0, {0}, .i = 50 },  // [58]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [59]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [60]
     { 0x09, 0, 13, {0}, .func_idx = 6 }, // TEST_31_SET_STATE  // [61]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [62]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [62]
     { 0x00, 0, 0, {0}, .i = 3 },  // [63]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [64]
     { 0x00, 0, 0, {0}, .i = 8 },  // [65]
@@ -328,12 +311,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { 0x00, 0, 0, {0}, .i = 50 },  // [84]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [85]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [86]
-    { 0x89, 2, 18, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [87]
+    { 0x09, 0, 18, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [87]
     { 0x00, 0, 0, {0}, .i = 25 },  // [88]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [89]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [90]
     { 0x09, 0, 19, {0}, .func_idx = 6 }, // TEST_31_SET_STATE  // [91]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [92]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [92]
     { 0x00, 0, 0, {0}, .i = 4 },  // [93]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [94]
     { 0x00, 0, 0, {0}, .i = 8 },  // [95]
@@ -358,12 +341,12 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { 0x00, 0, 0, {0}, .i = -50 },  // [114]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [115]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [116]
-    { 0x89, 3, 24, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [117]
+    { 0x09, 0, 24, {0}, .func_idx = 3 }, // CFL_TICK_DELAY  // [117]
     { 0x00, 0, 0, {0}, .i = 25 },  // [118]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [119]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [120]
     { 0x09, 0, 25, {0}, .func_idx = 6 }, // TEST_31_SET_STATE  // [121]
-    { 0x04, 0, 0, {0}, .slot = { 2, 0 } }, // robot_command  // [122]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // command  // [122]
     { 0x00, 0, 0, {0}, .i = 5 },  // [123]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [124]
     { 0x00, 0, 0, {0}, .i = 8 },  // [125]
@@ -434,7 +417,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [23]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [24]
     { 0x09, 0, 6, {0}, .func_idx = 9 }, // TEST_32_DEBOUNCE  // [25]
-    { 0x04, 0, 0, {0}, .slot = { 3, 0 } }, // timer_count  // [26]
+    { 0x0B, 0, 0, {0}, .field = { 0, 4 } }, // timer_count  // [26]
     { 0x00, 0, 0, {0}, .i = 10 },  // [27]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [28]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [29]
@@ -454,7 +437,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [43]
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [44]
     { 0x09, 0, 10, {0}, .func_idx = 10 }, // TEST_32_CHECK_THRESHOLD  // [45]
-    { 0x04, 0, 0, {0}, .slot = { 4, 0 } }, // sensor_value  // [46]
+    { 0x0B, 0, 0, {0}, .field = { 4, 4 } }, // sensor_value  // [46]
     { 0x00, 0, 0, {0}, .i = 50 },  // [47]
     { 0x06, 0, 0, {0}, .brace_idx = 4 }, // <- -4  // [48]
     { 0x00, 0, 0, {0}, .i = 1 },  // [49]
@@ -515,7 +498,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { 0x09, 0, 22, {0}, .func_idx = 2 }, // CFL_STATE_ACTIONS  // [104]
     { 0x07, 0, 0, {0}, .brace_idx = 3 }, // -> +3  // [105]
     { 0x09, 0, 23, {0}, .func_idx = 11 }, // TEST_32_GENERATE_INTERNAL_EVENTS  // [106]
-    { 0x04, 0, 0, {0}, .slot = { 5, 0 } }, // event_id  // [107]
+    { 0x0B, 0, 0, {0}, .field = { 8, 4 } }, // event_id  // [107]
     { 0x06, 0, 0, {0}, .brace_idx = 3 }, // <- -3  // [108]
     { 0x07, 0, 0, {0}, .brace_idx = 2 }, // -> +2  // [109]
     { 0x09, 0, 24, {0}, .func_idx = 12 }, // TEST_32_RUN_BACKGROUND_TASKS  // [110]
@@ -532,10 +515,10 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
 // ============================================================================
 
 static const s_expr_tree_def_t chain_flow_dsl_tests_trees[] = {
-    { 0x1BE41A2F, chain_flow_dsl_tests_s_expression_test_2_params, 21, 5, 0 },  // "s_expression_test_2"
-    { 0x19E41709, chain_flow_dsl_tests_s_expression_test_4_params, 68, 17, 3 },  // "s_expression_test_4"
-    { 0x16E41250, chain_flow_dsl_tests_s_expression_test_7_params, 161, 32, 4 },  // "s_expression_test_7"
-    { 0x25E429ED, chain_flow_dsl_tests_s_expression_test_8_params, 116, 25, 0 },  // "s_expression_test_8"
+    { 0x1BE41A2F, 0, chain_flow_dsl_tests_s_expression_test_2_params, 21, 5, 0 },  // "s_expression_test_2"
+    { 0x19E41709, 0xC89D038C, chain_flow_dsl_tests_s_expression_test_4_params, 68, 17, 0 },  // "s_expression_test_4"
+    { 0x16E41250, 0xA6A4A169, chain_flow_dsl_tests_s_expression_test_7_params, 161, 32, 0 },  // "s_expression_test_7"
+    { 0x25E429ED, 0xBC450029, chain_flow_dsl_tests_s_expression_test_8_params, 116, 25, 0 },  // "s_expression_test_8"
 };
 #define CHAIN_FLOW_DSL_TESTS_TREE_COUNT 4
 
@@ -555,7 +538,7 @@ static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .main_count = 13,
     .pred_count = 2,
     .max_func_node_count = 32,
-    .max_pointer_count = 4,
+    .max_pointer_count = 0,
     .max_param_count = 161,
 };
 

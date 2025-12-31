@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_IZNXH2DZ_NODE_COUNT 1559
+#define CT_I13S8UMN_NODE_COUNT 1533
 
-extern const chaintree_node_t ct_iznxh2dz_nodes[CT_IZNXH2DZ_NODE_COUNT];
+extern const chaintree_node_t ct_i13s8umn_nodes[CT_I13S8UMN_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */

@@ -13,63 +13,89 @@
 // BOOLEAN FUNCTION IMPLEMENTATIONS
 // ============================================================================
 
-static bool cfl_read_bit(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_READ_BIT: Read a bit from runtime bitmask
+// Params: [0] = bit index (int/uint, 0-31)
+// Returns: true if bit is set
+// ============================================================================
+
+static bool cfl_read_bit_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params;  // Add this line
+    (void)event_type; (void)event_id; (void)event_data;
     
-    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)inst->handle;
     if (param_count < 1) {
-        printf("  [?] READ_BIT: missing parameters\n");
-        EXCEPTION("cfl_read_bit: Invalid parameter count");
-    return false;
-    }
-    
-    if (params[0].type != S_EXPR_PARAM_INT && params[0].type != S_EXPR_PARAM_UINT) {
-        EXCEPTION("cfl_read_bit: Expected integer parameter");
+        EXCEPTION("CFL_READ_BIT: requires 1 parameter");
         return false;
     }
     
-    uint32_t bit_index = (uint32_t)s_expr_param_get_uint(&params[0]);
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+        EXCEPTION("CFL_READ_BIT: param[0] must be INT or UINT");
+        return false;
+    }
     
+    uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[0]);
     if (bit_index >= 32) {
-        EXCEPTION("cfl_read_bit: Bit index out of range");
+        EXCEPTION("CFL_READ_BIT: bit index out of range");
         return false;
     }
-    uint32_t bit_mask = 1U << bit_index;
-   
-    bool result = (runtime_handle->bitmask & bit_mask) != 0; 
     
-    return result;
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_READ_BIT: no runtime handle");
+        return false;
+    }
+    
+    uint32_t bit_mask = 1U << bit_index;
+    return (runtime_handle->bitmask & bit_mask) != 0;
 }
 
-static bool cfl_true(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_TRUE: Always returns true
+// Params: none
+// ============================================================================
+
+static bool cfl_true_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
     
     return true;
 }
 
-static bool cfl_false(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_FALSE: Always returns false
+// Params: none
+// ============================================================================
+
+static bool cfl_false_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
     
     return false;
 }
 
 // ============================================================================
-// Bit evaluation helpers
+// Bit operation modes
 // ============================================================================
 
 typedef enum {
@@ -80,44 +106,46 @@ typedef enum {
     BIT_OP_XOR    // True if odd number of true inputs
 } bit_op_mode_t;
 
+// ============================================================================
 // Evaluate a single parameter - returns true/false
+// ============================================================================
+
 static inline bool cfl_s_bit_eval_param(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
     uint16_t idx,
     uint32_t bitmask
 ) {
-    uint8_t type = params[idx].type;
+    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
-    if (type == S_EXPR_PARAM_INT || type == S_EXPR_PARAM_UINT) {
-        unsigned bit_index = (unsigned)s_expr_param_get_uint(&params[idx]);
+    if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+        unsigned bit_index = (unsigned)s_expr_param_uint(&params[idx]);
         return (bitmask & (1U << bit_index)) != 0;
     }
     
-    if (type == S_EXPR_PARAM_PRED || type == S_EXPR_PARAM_OPEN_CALL) {
-        return s_expr_invoke_any(inst, node, state, params, idx) == SE_CONTINUE;
+    if (opcode == S_EXPR_PARAM_PRED || opcode == S_EXPR_PARAM_OPEN_CALL) {
+        return s_expr_invoke_pred(inst, params, idx);
     }
     
     EXCEPTION("cfl_s_bit: Invalid parameter type");
     return false;
 }
 
+// ============================================================================
 // Validate all parameters during INIT
+// ============================================================================
+
 static inline bool cfl_s_bit_validate(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
-    uint8_t param_count
+    uint16_t param_count
 ) {
     uint16_t idx = 0;
     
     while (idx < param_count) {
-        uint8_t type = params[idx].type;
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
         
-        switch (type) {
+        switch (opcode) {
             case S_EXPR_PARAM_INT:
             case S_EXPR_PARAM_UINT:
                 // Valid - integer bit index
@@ -126,7 +154,7 @@ static inline bool cfl_s_bit_validate(
             case S_EXPR_PARAM_PRED:
             case S_EXPR_PARAM_OPEN_CALL:
                 // Valid - invoke to validate nested params
-                s_expr_invoke_any(inst, node, state, params, idx);
+                s_expr_invoke_pred(inst, params, idx);
                 break;
                 
             default:
@@ -138,22 +166,14 @@ static inline bool cfl_s_bit_validate(
     return true;
 }
 
+// ============================================================================
 // Generic bit operation evaluator
-// ============================================================================
-// Bit operation modes
-// ============================================================================
-
-
-// ============================================================================
-// Bit evaluation - extended for all operations
 // ============================================================================
 
 static inline bool cfl_s_bit_eval(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
-    uint8_t param_count,
+    uint16_t param_count,
     uint32_t bitmask,
     bit_op_mode_t mode
 ) {
@@ -161,7 +181,7 @@ static inline bool cfl_s_bit_eval(
     bool accumulator = false;  // For XOR
     
     while (idx < param_count) {
-        bool result = cfl_s_bit_eval_param(inst, node, state, params, idx, bitmask);
+        bool result = cfl_s_bit_eval_param(inst, params, idx, bitmask);
         
         switch (mode) {
             case BIT_OP_OR:
@@ -195,109 +215,167 @@ static inline bool cfl_s_bit_eval(
         case BIT_OP_AND:  return true;   // No false found
         case BIT_OP_NAND: return false;  // All were true
         case BIT_OP_XOR:  return accumulator;
-        default:          return false;
+        default:          {
+            EXCEPTION("cfl_s_bit: Invalid mode");
+            return false;
+        }
     }
 }
 
 // ============================================================================
-// Public functions
+// CFL_S_BIT_OR: Short-circuit OR on bits/predicates
 // ============================================================================
 
-static bool cfl_s_bit_or(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+static bool cfl_s_bit_or_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)event_data;
+    (void)event_id; (void)event_data;
     
-    if (event_id == S_EXPR_EVENT_INIT) {
-        cfl_s_bit_validate(inst, node, state, params, param_count);
+    if (event_type == SE_EVENT_INIT) {
+        cfl_s_bit_validate(inst, params, param_count);
         return true;
     }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
         return true;
     }
     
-    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)inst->handle;
-    return cfl_s_bit_eval(inst, node, state, params, param_count, runtime->bitmask, BIT_OP_OR);
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime) {
+        EXCEPTION("CFL_S_BIT_OR: no runtime handle");
+        return false;
+    }
+    
+    return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_OR);
 }
 
-static bool cfl_s_bit_and(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_S_BIT_AND: Short-circuit AND on bits/predicates
+// ============================================================================
+
+static bool cfl_s_bit_and_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)event_data;
+    (void)event_id; (void)event_data;
     
-    if (event_id == S_EXPR_EVENT_INIT) {
-        cfl_s_bit_validate(inst, node, state, params, param_count);
+    if (event_type == SE_EVENT_INIT) {
+        cfl_s_bit_validate(inst, params, param_count);
         return true;
     }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
         return true;
     }
     
-    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)inst->handle;
-    return cfl_s_bit_eval(inst, node, state, params, param_count, runtime->bitmask, BIT_OP_AND);
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime) {
+        EXCEPTION("CFL_S_BIT_AND: no runtime handle");
+        return false;
+    }
+    
+    return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_AND);
 }
 
-static bool cfl_s_bit_nor(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_S_BIT_NOR: NOR on bits/predicates (true only if all false)
+// ============================================================================
+
+static bool cfl_s_bit_nor_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)event_data;
+    (void)event_id; (void)event_data;
     
-    if (event_id == S_EXPR_EVENT_INIT) {
-        cfl_s_bit_validate(inst, node, state, params, param_count);
+    if (event_type == SE_EVENT_INIT) {
+        cfl_s_bit_validate(inst, params, param_count);
         return true;
     }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
         return true;
     }
     
-    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)inst->handle;
-    return cfl_s_bit_eval(inst, node, state, params, param_count, runtime->bitmask, BIT_OP_NOR);
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime) {
+        EXCEPTION("CFL_S_BIT_NOR: no runtime handle");
+        return false;
+    }
+    
+    return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_NOR);
 }
 
-static bool cfl_s_bit_nand(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_S_BIT_NAND: NAND on bits/predicates (false only if all true)
+// ============================================================================
+
+static bool cfl_s_bit_nand_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)event_data;
+    (void)event_id; (void)event_data;
     
-    if (event_id == S_EXPR_EVENT_INIT) {
-        cfl_s_bit_validate(inst, node, state, params, param_count);
+    if (event_type == SE_EVENT_INIT) {
+        cfl_s_bit_validate(inst, params, param_count);
         return true;
     }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
         return true;
     }
     
-    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)inst->handle;
-    return cfl_s_bit_eval(inst, node, state, params, param_count, runtime->bitmask, BIT_OP_NAND);
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime) {
+        EXCEPTION("CFL_S_BIT_NAND: no runtime handle");
+        return false;
+    }
+    
+    return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_NAND);
 }
 
-static bool cfl_s_bit_xor(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    (void)event_data;
-    
-    if (event_id == S_EXPR_EVENT_INIT) {
-        cfl_s_bit_validate(inst, node, state, params, param_count);
-        return true;
-    }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-        return true;
-    }
-    
-    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)inst->handle;
-    return cfl_s_bit_eval(inst, node, state, params, param_count, runtime->bitmask, BIT_OP_XOR);
-}
+// ============================================================================
+// CFL_S_BIT_XOR: XOR on bits/predicates (true if odd number true)
+// ============================================================================
 
+static bool cfl_s_bit_xor_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT) {
+        cfl_s_bit_validate(inst, params, param_count);
+        return true;
+    }
+    if (event_type == SE_EVENT_TERMINATE) {
+        return true;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime) {
+        EXCEPTION("CFL_S_BIT_XOR: no runtime handle");
+        return false;
+    }
+    
+    return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_XOR);
+}
 // ============================================================================
 // cfl_check_event - Check if event_id matches any parameter value
 //
@@ -307,21 +385,33 @@ static bool cfl_s_bit_xor(
 // Returns true if event_id matches any of the integer parameters
 // ============================================================================
 
-static bool cfl_check_event(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+// ============================================================================
+// CFL_CHECK_EVENT: Check if event_id matches any parameter value
+// Params: list of event IDs (int/uint)
+// Returns: true if current event_id matches any parameter
+//
+// DSL usage:
+//   p_call("CFL_CHECK_EVENT") int(1) int(2) int(10) end_call(...)
+// ============================================================================
+
+static bool cfl_check_event_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)inst; (void)node; (void)state; (void)event_data;
+    (void)inst; (void)event_data;
     
     // -------------------------------------------------------------------------
     // INIT: Validate all parameters are integers
     // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_INIT) {
+    if (event_type == SE_EVENT_INIT) {
         uint16_t idx = 0;
         while (idx < param_count) {
-            uint8_t type = params[idx].type;
-            if (type != S_EXPR_PARAM_INT && type != S_EXPR_PARAM_UINT) {
+            uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+            if (opcode != S_EXPR_PARAM_INT && opcode != S_EXPR_PARAM_UINT) {
                 EXCEPTION("CFL_CHECK_EVENT: All parameters must be INT or UINT");
                 return false;
             }
@@ -333,24 +423,16 @@ static bool cfl_check_event(
     // -------------------------------------------------------------------------
     // TERMINATE: Nothing to clean up
     // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
         return true;
     }
     
     // -------------------------------------------------------------------------
     // TICK: Check if event_id matches any parameter
     // -------------------------------------------------------------------------
-    
-
     uint16_t idx = 0;
     while (idx < param_count) {
-        uint32_t param_value;
-        
-        if (params[idx].type == S_EXPR_PARAM_INT) {
-            param_value = (uint32_t)s_expr_param_get_int(&params[idx]);
-        } else {
-            param_value = (uint32_t)s_expr_param_get_uint(&params[idx]);
-        }
+        uint32_t param_value = (uint32_t)s_expr_param_int(&params[idx]);
         
         if (event_id == param_value) {
             return true;  // Found match
@@ -361,7 +443,6 @@ static bool cfl_check_event(
     
     return false;  // No match found
 }
-
 // ============================================================================
 // FUNCTION TABLE
 // ============================================================================

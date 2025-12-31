@@ -188,3 +188,42 @@ void cfl_enable_child(cfl_runtime_handle_t *handle, uint16_t parent_node_index, 
     cfl_enable_node(handle, link_id);
     
 }
+
+void cfl_disable_child(cfl_runtime_handle_t *handle, uint16_t parent_node_index, uint16_t child_node_index)
+{
+    const chaintree_node_t *node = &handle->flash_handle->nodes[parent_node_index];
+    uint16_t link_start = node->link_start;
+    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    const uint16_t *link_table = handle->flash_handle->link_table;
+
+    if(child_node_index >= link_count){
+        EXCEPTION("cfl_enable_child: node_index out of bounds");
+        return;
+    }
+    
+    uint16_t link_id = link_table[link_start + child_node_index];
+    
+    cfl_enable_node(handle, link_id);
+    
+}
+
+
+bool cfl_child_is_enabled(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t child_node_index)
+{
+    const chaintree_node_t *node = &handle->flash_handle->nodes[parent_node_index];
+    uint16_t link_start = node->link_start;
+    uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
+    
+    const uint16_t *link_table = handle->flash_handle->link_table;
+
+    if(child_node_index >= link_count){
+        EXCEPTION("cfl_enable_child: node_index out of bounds");
+        return;
+    }
+    
+    uint16_t link_id = link_table[link_start + child_node_index];
+    
+    return cfl_engine_node_is_enabled(handle, link_id);
+    
+}

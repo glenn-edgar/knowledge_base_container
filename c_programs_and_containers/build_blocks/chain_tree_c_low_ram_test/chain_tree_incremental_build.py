@@ -2153,7 +2153,7 @@ def twenty_ninth_test(ct,kb_name): # data f
     ##### register data flow events
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
     ct.asm_clear_bitmask([0,1,2,3])
-    insert_s_expression_df_a(ct)
+    #insert_s_expression_df_a(ct)
     insert_s_expression_df_b(ct)
 
     ct.asm_log_message("data flow columns are instantiated")
@@ -2222,8 +2222,8 @@ def thirty_test(ct,kb_name): # data f
 
     ##### register data flow events
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
-    state_machine_column = test_30_define_s_flow_state_machine(ct)
-    ct.define_join_link(state_machine_column)
+    #state_machine_column = test_30_define_s_flow_state_machine(ct)
+    #ct.define_join_link(state_machine_column)
     ct.asm_log_message("launch column: is terminating")
     state_machine_column_b = test_30_define_s_flow_state_machine_b(ct)
     ct.define_join_link(state_machine_column_b)

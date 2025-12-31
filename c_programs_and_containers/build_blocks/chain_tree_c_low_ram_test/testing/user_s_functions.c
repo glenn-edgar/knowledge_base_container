@@ -13,342 +13,180 @@
 #include "s_engine_eval.h"
 #include "cfl_common_function_headers.h"
 
-#include "chain_flow_dsl_tests_pools.h"
+
+
+
+
+
 // ============================================================================
-// USER ONESHOT FUNCTIONS (@)
+// V3 TRANSLATIONS
 // ============================================================================
-static inline void s_expr_dump_params(
+
+// ----------------------------------------------------------------------------
+// ONESHOT: TEST_30_SET_STATE
+// DSL: io_call("TEST_30_SET_STATE") field_ref("state_b") int(0) end_call(...)
+// ----------------------------------------------------------------------------
+static void test_30_set_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
-    uint8_t param_count
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    printf("--- Parameter Dump (count=%d) ---\n", param_count);
+    (void)event_type; (void)event_id; (void)event_data;
     
-    for (uint8_t i = 0; i < param_count; i++) {
-        printf("[%2d] ", i);
-        
-        switch (params[i].type) {
-            case S_EXPR_PARAM_INT:
-                printf("INT          value=%d\n", (int)params[i].i);
-                break;
-                
-            case S_EXPR_PARAM_UINT:
-                printf("UINT         value=%u\n", (unsigned)params[i].u);
-                break;
-                
-            case S_EXPR_PARAM_FLOAT:
-                printf("FLOAT        value=%g\n", (double)params[i].f);
-                break;
-                
-            case S_EXPR_PARAM_STRING: {
-                const char* str = s_expr_module_get_string(inst->module, params[i].str_index);
-                printf("STRING       index=%d, value=\"%s\"\n", 
-                       params[i].str_index, str ? str : "(null)");
-                break;
-            }
-            
-            case S_EXPR_PARAM_SLOT: {
-                printf("SLOT         pool_id=%d, slot_index=%d", 
-                       params[i].slot.pool_id, params[i].slot.slot_index);
-                // Try to read the value
-                int32_t* ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[i], sizeof(int32_t));
-                if (ptr) {
-                    printf(", *value=%d", *ptr);
-                }
-                printf("\n");
-                break;
-            }
-            
-            case S_EXPR_PARAM_MAIN: {
-                const char* name = s_expr_module_get_main_name(inst->module, params[i].func_idx);
-                printf("MAIN_REF     index=%d, name=\"%s\"\n", 
-                       params[i].func_idx, name ? name : "(unknown)");
-                break;
-            }
-            
-            case S_EXPR_PARAM_ONESHOT: {
-                const char* name = s_expr_module_get_oneshot_name(inst->module, params[i].func_idx);
-                printf("ONESHOT_REF  index=%d, name=\"%s\"\n", 
-                       params[i].func_idx, name ? name : "(unknown)");
-                break;
-            }
-            
-            case S_EXPR_PARAM_PRED: {
-                const char* name = s_expr_module_get_boolean_name(inst->module, params[i].func_idx);
-                printf("PRED_REF     index=%d, name=\"%s\"\n", 
-                       params[i].func_idx, name ? name : "(unknown)");
-                break;
-            }
-            
-            case S_EXPR_PARAM_OPEN:
-                printf("OPEN         brace_idx=+%d (closes at [%d])\n", 
-                       params[i].brace_idx, i + params[i].brace_idx);
-                break;
-                
-            case S_EXPR_PARAM_OPEN_CALL:
-                printf("OPEN_CALL    brace_idx=+%d (closes at [%d])\n", 
-                       params[i].brace_idx, i + params[i].brace_idx);
-                break;
-                
-            case S_EXPR_PARAM_CLOSE:
-                printf("CLOSE        brace_idx=-%d (opens at [%d])\n", 
-                       params[i].brace_idx, i - params[i].brace_idx);
-                break;
-                
-            default:
-                printf("UNKNOWN      type=0x%02X\n", params[i].type);
-                break;
-        }
-    }
-    
-    printf("--- End Parameter Dump ---\n");
-}
-
-static void test_29_set_state_oneshot(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-   
-    if (param_count < 3 || 
-        params[1].type != S_EXPR_PARAM_SLOT || 
-        (params[2].type != S_EXPR_PARAM_INT && params[2].type != S_EXPR_PARAM_UINT)) {
-        EXCEPTION("Invalid parameters for TEST_29_SET_STATE_ONESHOT");
-        return;
-    }
-    
-    // Use helper macro (defined in s_engine_module.h)a
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
-
-    
-    data->children_active = params[1].i;
-}
-
-
-static void test_30_set_state_oneshot(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-   
     if (param_count < 2) {
-        EXCEPTION("CFL_SET_STATE: requires slot and value");
-        return;
-    }
-    if (params[0].type != S_EXPR_PARAM_SLOT) {
-        EXCEPTION("CFL_SET_STATE: param[0] must be SLOT");
-        return;
-    }
-    if (params[1].type != S_EXPR_PARAM_INT && params[1].type != S_EXPR_PARAM_UINT) {
-        EXCEPTION("CFL_SET_STATE: param[1] must be INT or UINT");
+        // EXCEPTION("TEST_30_SET_STATE: requires field and value");
         return;
     }
     
-    // Use int32_t* to match main functions
-    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
-    if (!slot_ptr) return;
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
     
-    *slot_ptr = (uint32_t)s_expr_param_get_int(&params[1]);
-   
+    if (type0 != S_EXPR_PARAM_FIELD) {
+        // EXCEPTION("TEST_30_SET_STATE: param[0] must be FIELD");
+        return;
+    }
+    if (type1 != S_EXPR_PARAM_INT && type1 != S_EXPR_PARAM_UINT) {
+        // EXCEPTION("TEST_30_SET_STATE: param[1] must be INT or UINT");
+        return;
+    }
+    
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!field_ptr) return;
+    
+    *field_ptr = (int32_t)s_expr_param_int(&params[1]);
 }
 
-// ============================================================================
-// USER BOOLEAN FUNCTIONS (?)
-// ============================================================================
-
+// ----------------------------------------------------------------------------
+// PREDICATE: TEST_29_READ_STATE
+// DSL: p_call("TEST_29_READ_STATE") field_ref("children_active") end_call(...)
+// ----------------------------------------------------------------------------
 static bool test_29_read_state_boolean(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
+    (void)event_type; (void)event_id; (void)event_data;
     
-    if (param_count < 2 || params[1].type != S_EXPR_PARAM_SLOT ) {
-        EXCEPTION("Invalid parameters for TEST_29_READ_STATE_BOOLEAN");
+    if (param_count < 1) {
+        // EXCEPTION("TEST_29_READ_STATE: requires field");
         return false;
     }
     
-    // Use helper macro (defined in s_engine_module.h)
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
     
-    return data->children_active;
-   
+    if (type0 != S_EXPR_PARAM_FIELD) {
+        // EXCEPTION("TEST_29_READ_STATE: param[0] must be FIELD");
+        return false;
+    }
+    
+    // Assuming field points to an int32 that holds bool-like value
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!field_ptr) return false;
+    
+    return *field_ptr != 0;
 }
- 
+
+// ----------------------------------------------------------------------------
+// PREDICATE: TEST_30_CHECK_STATE
+// DSL: p_call("TEST_30_CHECK_STATE") field_ref("state") int(1) end_call(...)
+// ----------------------------------------------------------------------------
 static bool test_30_check_state_boolean(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-   
+    (void)event_type; (void)event_id; (void)event_data;
+    
     if (param_count < 2) {
-        EXCEPTION("CFL_CHECK_STATE: requires slot and value");
-        return false;
-    }
-    if (params[0].type != S_EXPR_PARAM_SLOT) {
-        EXCEPTION("CFL_CHECK_STATE: param[0] must be SLOT");
-        return false;
-    }
-    if (params[1].type != S_EXPR_PARAM_INT && params[1].type != S_EXPR_PARAM_UINT) {
-        EXCEPTION("CFL_CHECK_STATE: param[1] must be INT or UINT");
+        // EXCEPTION("TEST_30_CHECK_STATE: requires field and value");
         return false;
     }
     
-    state_machine_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[0], state_machine_state_t);
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
     
-    return data->state == (uint32_t)s_expr_param_get_int(&params[1]);
+    if (type0 != S_EXPR_PARAM_FIELD) {
+        // EXCEPTION("TEST_30_CHECK_STATE: param[0] must be FIELD");
+        return false;
+    }
+    if (type1 != S_EXPR_PARAM_INT && type1 != S_EXPR_PARAM_UINT) {
+        // EXCEPTION("TEST_30_CHECK_STATE: param[1] must be INT or UINT");
+        return false;
+    }
+    
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!field_ptr) return false;
+    
+    return *field_ptr == (int32_t)s_expr_param_int(&params[1]);
 }
-// ============================================================================
-// USER MAIN FUNCTIONS (!)
-// ============================================================================
 
+// ----------------------------------------------------------------------------
+// MAIN: TEST_29_SET_STATE_MAIN
+// DSL: m_call("TEST_29_SET_STATE_MAIN") field_ref("children_active") int(1) end_call(...)
+// ----------------------------------------------------------------------------
 static s_expr_result_t test_29_set_state_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)node; (void)state; (void)event_data;
+    (void)event_id; (void)event_data;
     
-
-    if (param_count < 3 || params[1].type != S_EXPR_PARAM_SLOT || params[2].type != S_EXPR_PARAM_INT) {
-        EXCEPTION("Invalid parameters for TEST_29_SET_STATE_MAIN");
+    // Handle lifecycle events
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    if (event_type == SE_EVENT_TERMINATE) {
         return SE_CONTINUE;
     }
     
-    if (event_id == S_EXPR_EVENT_INIT) {
+    // Normal tick
+    if (param_count < 2) {
+        // EXCEPTION("TEST_29_SET_STATE_MAIN: requires field and value");
         return SE_CONTINUE;
     }
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
+    
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
+    
+    if (type0 != S_EXPR_PARAM_FIELD) {
+        // EXCEPTION("TEST_29_SET_STATE_MAIN: param[0] must be FIELD");
+        return SE_CONTINUE;
+    }
+    if (type1 != S_EXPR_PARAM_INT && type1 != S_EXPR_PARAM_UINT) {
+        // EXCEPTION("TEST_29_SET_STATE_MAIN: param[1] must be INT or UINT");
         return SE_CONTINUE;
     }
     
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!field_ptr) return SE_CONTINUE;
     
-    // Use helper macro (defined in s_engine_module.h)
-    node_state_t* data = S_EXPR_TREE_GET_SLOT(inst, &params[1], node_state_t);
-    
-    
-    data->children_active = params[2].i;
+    *field_ptr = (int32_t)s_expr_param_int(&params[1]);
     
     return SE_CONTINUE;
 }
 
-#if 0
-#define S_EXPR_PARAM_INT       0x00
-#define S_EXPR_PARAM_UINT      0x01
-#define S_EXPR_PARAM_FLOAT     0x02
-#define S_EXPR_PARAM_STRING    0x03
-#define S_EXPR_PARAM_MAIN      0x04
-#define S_EXPR_PARAM_ONESHOT   0x05
-#define S_EXPR_PARAM_PRED      0x06
-#define S_EXPR_PARAM_OPEN      0x07
-#define S_EXPR_PARAM_CLOSE     0x08
-#define S_EXPR_PARAM_OPEN_CALL 0x09
-#define S_EXPR_PARAM_SLOT      0x0A
-#endif
 
-// ============================================================================
-// Parameter type validation helpers (add to s_engine_eval.h or local)
-// ============================================================================
 
-static inline bool s_expr_param_is_predicate(const s_expr_param_t* p) {
-    return p->type == S_EXPR_PARAM_PRED || p->type == S_EXPR_PARAM_OPEN_CALL;
-}
 
-static inline bool s_expr_param_is_action(const s_expr_param_t* p) {
-    return p->type == S_EXPR_PARAM_MAIN || 
-           p->type == S_EXPR_PARAM_ONESHOT || 
-           p->type == S_EXPR_PARAM_OPEN_CALL;
-}
 
-// ============================================================================
-// Named flag for state tracking
-// ============================================================================
 
-#define DF_CONTROL_FLAG_ACTIVE  0x80  // true branch was activated
 
- 
-// ============================================================================
-// DF_CONTROL: if (pred) then_action else else_action
-// Params: [0] = predicate, [1] = then_action, [2] = else_action
-// ============================================================================
 
-static s_expr_result_t test_29_df_control_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    (void)event_data;
-    
-    // Calculate parameter positions once
-    const uint16_t pred_idx = 0;
-    const uint16_t then_idx = s_expr_skip_param(params, pred_idx);
-    const uint16_t else_idx = s_expr_skip_param(params, then_idx);
-    
-    // -------------------------------------------------------------------------
-    // INIT: Validate parameters
-    // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_INIT) {
-        // Validate param count
-        if (s_expr_count_logical_params(params, param_count) < 3) {
-            EXCEPTION("DF_CONTROL requires 3 parameters: pred, then, else");
-            state->flags |= S_EXPR_NODE_FLAG_ERROR;
-            return SE_CONTINUE;
-        }
-        
-        // Validate types
-        if (!s_expr_param_is_predicate(&params[pred_idx])) {
-            EXCEPTION("DF_CONTROL param[0] must be predicate");
-            state->flags |= S_EXPR_NODE_FLAG_ERROR;
-            return SE_CONTINUE;
-        }
-        if (!s_expr_param_is_action(&params[then_idx])) {
-            EXCEPTION("DF_CONTROL param[1] must be action");
-            state->flags |= S_EXPR_NODE_FLAG_ERROR;
-            return SE_CONTINUE;
-        }
-        if (!s_expr_param_is_action(&params[else_idx])) {
-            EXCEPTION("DF_CONTROL param[2] must be action");
-            state->flags |= S_EXPR_NODE_FLAG_ERROR;
-            return SE_CONTINUE;
-        }
-        
-        // Clear active flag
-        state->flags &= ~DF_CONTROL_FLAG_ACTIVE;
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // TERMINATE: Cleanup
-    // -------------------------------------------------------------------------
-    if (event_id == S_EXPR_EVENT_TERMINATE) {
-        return SE_CONTINUE;
-    }
-    
-    // -------------------------------------------------------------------------
-    // TICK: Evaluate and dispatch
-    // -------------------------------------------------------------------------
-    bool pred_result = (s_expr_invoke_any(inst, node, state, params, pred_idx) == SE_CONTINUE);
-    bool was_active = (state->flags & DF_CONTROL_FLAG_ACTIVE) != 0;
-    
-    if (pred_result) {
-        // Condition true - activate if not already active
-        if (!was_active) {
-            s_expr_invoke_any(inst, node, state, params, then_idx);
-            state->flags |= DF_CONTROL_FLAG_ACTIVE;
-        }
-    } else {
-        // Condition false - deactivate if was active
-        if (was_active) {
-            s_expr_invoke_any(inst, node, state, params, else_idx);
-            state->flags &= ~DF_CONTROL_FLAG_ACTIVE;
-        }
-    }
-    
-    return SE_CONTINUE;
-}
+
+
+
 static s_expr_result_t test_30_set_state_main(
     s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
     uint16_t event_id, void* event_data,

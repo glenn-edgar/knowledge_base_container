@@ -1,11 +1,11 @@
 // ============================================================================
-// s_engine_eval.h
-// S-Expression Evaluator API
-// Version 2.8 - Added braced callable invokers
+// s_engine_v3_eval.h
+// S-Expression Evaluator API - Version 3.0
+// Flat parameter walker, hash-based dispatch
 // ============================================================================
 
-#ifndef S_ENGINE_EVAL_H
-#define S_ENGINE_EVAL_H
+#ifndef S_ENGINE_V3_EVAL_H
+#define S_ENGINE_V3_EVAL_H
 
 #include "s_engine_types.h"
 
@@ -17,9 +17,8 @@ extern "C" {
 // MAIN ENTRY POINT
 // ============================================================================
 
-// Execute one tick of the tree instance
-// Sets execution context (event_id, event_data) and evaluates from root
-// Handles SE_RESET by terminating all nodes and resetting state
+// Execute one tick of the tree
+// Walks parameter array, dispatches functions, handles control flow
 s_expr_result_t s_expr_tree_tick(
     s_expr_tree_instance_t* inst,
     uint16_t event_id,
@@ -30,147 +29,97 @@ s_expr_result_t s_expr_tree_tick(
 // LIFECYCLE MANAGEMENT
 // ============================================================================
 
-// Terminate all active+initialized nodes in reverse order (children before parents)
-// Sends S_EXPR_EVENT_TERMINATE to each node, then clears all flags
-void s_expr_tree_terminate(s_expr_tree_instance_t* inst);
-
-// Reset tree: set all nodes to ACTIVE, clear INITIALIZED but PRESERVE EVER_INIT
-// Oneshots will NOT re-run after reset
+// Reset tree: clear INITIALIZED flags, preserve EVER_INIT
+// Oneshots (o_call) will re-run, init-once (io_call) will not
 void s_expr_tree_reset(s_expr_tree_instance_t* inst);
 
-// Full terminate: terminate all nodes, clear ALL flags including EVER_INIT
-// Use when completely restarting the tree from scratch
-void s_expr_tree_full_terminate(s_expr_tree_instance_t* inst);
+// Terminate tree: send TERMINATE event to all initialized main nodes
+// Then clear all flags
+void s_expr_tree_terminate(s_expr_tree_instance_t* inst);
 
-// Initialize tree state (all nodes ACTIVE, none INITIALIZED)
-// Called automatically during tree creation, can be called manually
+// Full reset: terminate + clear EVER_INIT
+// Everything re-runs including io_call
+void s_expr_tree_full_reset(s_expr_tree_instance_t* inst);
+
+// Initialize states (called automatically by create)
 void s_expr_tree_init_states(s_expr_tree_instance_t* inst);
 
 // ============================================================================
-// NODE EVALUATORS (exposed for testing/extension)
+// CALLABLE INVOKERS
+// For use by user functions to invoke nested callables in params
 // ============================================================================
 
-// Evaluate node at index, return control code
-s_expr_result_t s_expr_eval_node(
+// Invoke a main callable at params[idx]
+// idx can point to OPEN_CALL or bare MAIN ref
+s_expr_result_t s_expr_invoke_main(
     s_expr_tree_instance_t* inst,
-    uint16_t node_index
-);
-
-// Evaluate boolean node, return true/false
-// Handles: AND, OR, NOT, XOR, NAND, NOR
-bool s_expr_eval_bool(
-    s_expr_tree_instance_t* inst,
-    uint16_t node_index
-);
-
-// ============================================================================
-// BRACED CALLABLE INVOKERS
-// These evaluate S-expressions embedded in parameter arrays
-// open_idx points to PARAM_OPEN_CALL in params array
-// ============================================================================
-
-// Evaluate braced main callable: (main_ref args...)
-// Returns result code from invoked function
-s_expr_result_t s_expr_eval_sexpr(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
-    uint16_t open_idx
+    uint16_t idx
 );
 
-// Evaluate braced oneshot callable: (oneshot_ref args...)
-// No return value
-void s_expr_eval_sexpr_oneshot(
+// Invoke an oneshot callable at params[idx]
+void s_expr_invoke_oneshot(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
-    uint16_t open_idx
+    uint16_t idx
 );
 
-// Evaluate braced predicate callable: (pred_ref args...)
-// Returns boolean result
-bool s_expr_eval_sexpr_pred(
+// Invoke a predicate callable at params[idx]
+bool s_expr_invoke_pred(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
-    uint16_t open_idx
+    uint16_t idx
 );
 
-// Auto-dispatch based on function type inside braces
-// For oneshot: returns SE_CONTINUE
-// For predicate: returns SE_CONTINUE (true) or SE_HALT (false)
-// For main: returns function result
-s_expr_result_t s_expr_eval_sexpr_any(
-    s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
-    const s_expr_param_t* params,
-    uint16_t open_idx
-);
-
-// Universal invoker - handles both braced callables and bare function refs
-// For OPEN_CALL: dispatches to s_expr_eval_sexpr_any
-// For MAIN/ONESHOT/PRED: invokes directly with no args
-// Returns SE_CONTINUE for oneshot, SE_CONTINUE/SE_HALT for pred, result for main
+// Auto-dispatch based on function type
+// Returns SE_CONTINUE for oneshot, bool->result for pred, result for main
 s_expr_result_t s_expr_invoke_any(
     s_expr_tree_instance_t* inst,
-    const s_expr_node_t* node,
-    s_expr_node_state_t* state,
     const s_expr_param_t* params,
     uint16_t idx
 );
 
 // ============================================================================
-// PARAMETER NAVIGATION
+// PARAMETER ITERATION HELPERS
 // ============================================================================
-
-// Skip over a parameter (handles braces by jumping to close+1)
-// Returns index of next parameter after this one
-uint16_t s_expr_skip_param(
-    const s_expr_param_t* params,
-    uint16_t idx
-);
-
-// ============================================================================
-// PARAMETER SEARCH HELPERS
-// ============================================================================
-
-// Find first parameter of given type in params array
-// Returns index or UINT16_MAX if not found
-uint16_t s_expr_find_param_type(
-    const s_expr_param_t* params,
-    uint8_t param_count,
-    uint8_t param_type
-);
-
-// Find first slot parameter in params array
-// Returns index or UINT16_MAX if not found
-static inline uint16_t s_expr_find_slot_param(
-    const s_expr_param_t* params,
-    uint8_t param_count
-) {
-    return s_expr_find_param_type(params, param_count, S_EXPR_PARAM_SLOT);
-}
-
-// Count parameters of given type
-uint8_t s_expr_count_param_type(
-    const s_expr_param_t* params,
-    uint8_t param_count,
-    uint8_t param_type
-);
 
 // Count logical parameters (braced expressions count as 1)
-uint8_t s_expr_count_logical_params(
+uint16_t s_expr_count_params(const s_expr_param_t* params, uint16_t count);
+
+// Find first parameter of given opcode
+// Returns index or UINT16_MAX if not found
+uint16_t s_expr_find_param(const s_expr_param_t* params, uint16_t count, uint8_t opcode);
+
+// Iterate over params, calling callback for each logical param
+// Callback receives index of param start
+// Return false from callback to stop iteration
+typedef bool (*s_expr_param_iter_fn)(
     const s_expr_param_t* params,
-    uint8_t param_count
+    uint16_t idx,
+    void* ctx
 );
 
+void s_expr_iterate_params(
+    const s_expr_param_t* params,
+    uint16_t count,
+    s_expr_param_iter_fn callback,
+    void* ctx
+);
+
+void s_expr_restart_actions(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count
+);
+
+void s_expr_enable_actions(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count
+);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // S_ENGINE_EVAL_H
+#endif // S_ENGINE_V3_EVAL_H
