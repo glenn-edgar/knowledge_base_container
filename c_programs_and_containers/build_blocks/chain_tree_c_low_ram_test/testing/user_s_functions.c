@@ -130,10 +130,10 @@ static bool test_30_check_state_boolean(
 }
 
 // ----------------------------------------------------------------------------
-// MAIN: TEST_29_SET_STATE_MAIN
-// DSL: m_call("TEST_29_SET_STATE_MAIN") field_ref("children_active") int(1) end_call(...)
+// MAIN: TEST_29_SET_STATE_ONESHOT
+// DSL: m_call("TEST_29_SET_STATE_ONESHOT") field_ref("children_active") int(1) end_call(...)
 // ----------------------------------------------------------------------------
-static s_expr_result_t test_29_set_state_main(
+static s_expr_result_t test_29_set_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -187,22 +187,14 @@ static s_expr_result_t test_29_set_state_main(
 
 
 
-static s_expr_result_t test_30_set_state_main(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
-) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    
-    if (param_count < 2) return SE_CONTINUE;
-    
-    int32_t* slot_ptr = (int32_t*)s_expr_tree_get_pool_slot(inst, &params[0], sizeof(int32_t));
-        
-    
-    *slot_ptr = (int32_t)s_expr_param_get_int(&params[1]);
-    
-    return SE_DISABLE;
-}
+// ============================================================================
+// TEST_30_SET_STATE_MAIN: Set a field value and disable
+// Params: [0] = field_ref (target field in blackboard)
+//         [1] = value (int/uint)
+// Returns: SE_DISABLE after setting value
+// ============================================================================
+
+
 
  #include "user_s_test_31.h"
  #include "user_s_test_32.h"
@@ -210,89 +202,112 @@ static s_expr_result_t test_30_set_state_main(
 // FUNCTION TABLES
 // ============================================================================
 
-static const s_expr_fn_entry_t user_oneshot_entries[] = {
-    { "TEST_29_SET_STATE", (void*)test_29_set_state_oneshot },
-    { "TEST_30_SET_STATE", (void*)test_30_set_state_oneshot },
-    { "TEST_31_SET_MOTOR", (void*)test_31_set_motor_oneshot },
-    { "TEST_31_SET_STATE", (void*)test_31_set_state_oneshot },
-   
-    { "TEST_32_TOGGLE_LED", (void*)test_32_toggle_led_oneshot },
-    
-    { "TEST_32_ENABLE_BUZZER", (void*)test_32_enable_buzzer_oneshot },
-    { "TEST_32_SET_LED", (void*)test_32_set_led_oneshot },
-    { "TEST_32_DISABLE_ALL_OUTPUTS", (void*)test_32_disable_all_outputs_oneshot },
-    { "TEST_32_SAVE_STATE", (void*)test_32_save_state_oneshot },
-    
-    { "TEST_32_NOTIFY_SYSTEM",(void*)test_32_notify_system_oneshot },
+// ============================================================================
+// USER FUNCTION ENTRIES (named for readability)
+// ============================================================================
+
+static const s_expr_fn_entry_named_t user_oneshot_entries_named[] = {
+    { "TEST_29_SET_STATE",          (void*)test_29_set_state_oneshot },
+    { "TEST_30_SET_STATE",          (void*)test_30_set_state_oneshot },
+    { "TEST_31_SET_MOTOR",          (void*)test_31_set_motor_oneshot },
+    { "TEST_31_SET_STATE",          (void*)test_31_set_state_oneshot },
+    { "TEST_32_TOGGLE_LED",         (void*)test_32_toggle_led_oneshot },
+    { "TEST_32_ENABLE_BUZZER",      (void*)test_32_enable_buzzer_oneshot },
+    { "TEST_32_SET_LED",            (void*)test_32_set_led_oneshot },   
+    { "TEST_32_DISABLE_ALL_OUTPUTS",(void*)test_32_disable_all_outputs_oneshot },
+    { "TEST_32_SAVE_STATE",         (void*)test_32_save_state_oneshot },
+    { "TEST_32_NOTIFY_SYSTEM",      (void*)test_32_notify_system_oneshot },
     // Add more user oneshot functions here
 };
 
-static const s_expr_fn_entry_t user_boolean_entries[] = {
-    { "TEST_29_READ_STATE", (void*)test_29_read_state_boolean },
-    { "TEST_30_CHECK_STATE", (void*)test_30_check_state_boolean },
-    // Add more user boolean functions here
+static const s_expr_fn_entry_named_t user_pred_entries_named[] = {
+    { "TEST_29_READ_STATE",         (void*)test_29_read_state_boolean },
+    { "TEST_30_CHECK_STATE",        (void*)test_30_check_state_boolean },
+    // Add more user predicate functions here
 };
 
-static const s_expr_fn_entry_t user_main_entries[] = {
-    { "TEST_29_SET_STATE", (void*)test_29_set_state_main },
-    {"TEST_29_DF_CONTROL",(void*)test_29_df_control_main },
-    {"TEST_30_SET_STATE",(void*)test_30_set_state_main },
-    {"TEST_31_SET_MOTOR",(void*)test_31_set_motor_main },
-    {"TEST_31_SET_STATE",(void*)test_31_set_state_main },
-   
-    {"TEST_32_RUN_BACKGROUND_TASKS",(void*)test_32_run_background_tasks_main },
-    {"TEST_32_DEBOUNCE",(void*)test_32_debounce_main },
-    {"TEST_32_CHECK_THRESHOLD",(void*)test_32_check_threshold_main },
-    {"TEST_32_GENERATE_INTERNAL_EVENTS",(void*)test_32_generate_internal_events_main },
-    {"TEST_32_PROCESS_SCHEDULED_TASKS",(void*)test_32_process_scheduled_tasks_main },
+static const s_expr_fn_entry_named_t user_main_entries_named[] = {
+
+    { "TEST_32_RUN_BACKGROUND_TASKS",       (void*)test_32_run_background_tasks_main },
+    { "TEST_32_DEBOUNCE",                   (void*)test_32_debounce_main },
+    { "TEST_32_CHECK_THRESHOLD",            (void*)test_32_check_threshold_main },
+    { "TEST_32_GENERATE_INTERNAL_EVENTS",   (void*)test_32_generate_internal_events_main },
+    { "TEST_32_PROCESS_SCHEDULED_TASKS",    (void*)test_32_process_scheduled_tasks_main },
     // Add more user main functions here
 };
 
-static const s_expr_fn_table_t user_oneshot_table = {
-    .entries = user_oneshot_entries,
-    .count = sizeof(user_oneshot_entries) / sizeof(user_oneshot_entries[0])
-};
+// ============================================================================
+// HASH TABLES (populated at runtime)
+// ============================================================================
 
-static const s_expr_fn_table_t user_boolean_table = {
-    .entries = user_boolean_entries,
-    .count = sizeof(user_boolean_entries) / sizeof(user_boolean_entries[0])
-};
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-static const s_expr_fn_table_t user_main_table = {
-    .entries = user_main_entries,
-    .count = sizeof(user_main_entries) / sizeof(user_main_entries[0])
-};
+static s_expr_fn_entry_t user_oneshot_entries[ARRAY_COUNT(user_oneshot_entries_named)];
+static s_expr_fn_entry_t user_pred_entries[ARRAY_COUNT(user_pred_entries_named)];
+static s_expr_fn_entry_t user_main_entries[ARRAY_COUNT(user_main_entries_named)];
+
+static s_expr_fn_table_t user_oneshot_table;
+static s_expr_fn_table_t user_pred_table;
+static s_expr_fn_table_t user_main_table;
+
 
 // ============================================================================
-// LOAD FUNCTION
+// INITIALIZE FUNCTION TABLES (call once at startup)
 // ============================================================================
+
+static void init_user_function_tables(void) {
+    // Build hash tables from named tables
+    s_expr_build_fn_table(
+        user_oneshot_entries_named,
+        user_oneshot_entries,
+        ARRAY_COUNT(user_oneshot_entries_named)
+    );
+    s_expr_build_fn_table(
+        user_pred_entries_named,
+        user_pred_entries,
+        ARRAY_COUNT(user_pred_entries_named)
+    );
+    s_expr_build_fn_table(
+        user_main_entries_named,
+        user_main_entries,
+        ARRAY_COUNT(user_main_entries_named)
+    );
+    
+    // Setup table structs
+    user_oneshot_table.entries = user_oneshot_entries;
+    user_oneshot_table.count = ARRAY_COUNT(user_oneshot_entries);
+    
+    user_pred_table.entries = user_pred_entries;
+    user_pred_table.count = ARRAY_COUNT(user_pred_entries);
+    
+    user_main_table.entries = user_main_entries;
+    user_main_table.count = ARRAY_COUNT(user_main_entries);
+}
+
+// ============================================================================
+// LOAD FUNCTION (v3)
+// ============================================================================
+
+
 
 void load_user_s_functions(cfl_runtime_handle_t* handle) {
-    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
-    
-    if (!mod) {
-        printf("ERROR: load_user_s_functions called before module init\n");
+    if (!handle || !handle->s_expr_modules) {
+        printf("ERROR: load_user_s_functions called with NULL\n");
         return;
     }
     
-    uint16_t loaded_oneshot = s_expr_module_load_oneshot(mod, &user_oneshot_table);
-    uint16_t loaded_boolean = s_expr_module_load_boolean(mod, &user_boolean_table);
-    uint16_t loaded_main = s_expr_module_load_main(mod, &user_main_table);
+    // Initialize hash tables once
+
+    init_user_function_tables();
+        
     
-    printf("load_user_s_functions: %u oneshot, %u boolean, %u main\n",
-           loaded_oneshot, loaded_boolean, loaded_main);
+    // Register to all modules
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        s_expr_module_register_oneshot(modules[i], &user_oneshot_table);
+        s_expr_module_register_pred(modules[i], &user_pred_table);
+        s_expr_module_register_main(modules[i], &user_main_table);
+    }
+    
+    
 }
-
-#if 0
-// future reference
-uint16_t content_count;
-const s_expr_param_t* contents = s_expr_param_brace_contents(params, idx, &content_count);
-
-// Iterate contents
-uint16_t i = 0;
-while (i < content_count) {
-    // Process contents[i]
-    printf("type: %d\n", contents[i].type);
-    i = s_expr_skip_param(contents, i);
-}
-#endif

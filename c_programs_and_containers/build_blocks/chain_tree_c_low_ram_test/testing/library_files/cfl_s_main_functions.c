@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 
-s// ============================================================================
+// ============================================================================
 // CFL_TICK_DELAY: Halt for N ticks, then disable
 // Params: [0] = tick count (int/uint)
 //
@@ -564,19 +564,7 @@ static s_expr_result_t cfl_event_dispatch_main(
 // Helper: Restart a single callable (terminate + re-enable)
 // ============================================================================
 
-static void cfl_restart_single_action(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t idx
-) {
-    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-        uint16_t close_idx = idx + params[idx].brace_idx;
-        uint16_t inner_count = (close_idx > idx + 1) ? (close_idx - idx - 1) : 0;
-        const s_expr_param_t* inner_params = &params[idx + 1];
-        s_expr_restart_actions(inst, inner_params, inner_count);
-    }
-}
+
 
 
 static void cfl_restart_single_action(
@@ -602,7 +590,7 @@ static void cfl_restart_single_action(
 
 #define CFL_TRIGGER_FLAG_ACTIVE  0x80  // bit 7: currently in active state
 
-static s_expr_result_t CFL_TRIGGER_ON_CHANGE(
+static s_expr_result_t cfl_trigger_on_change_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -759,40 +747,131 @@ static s_expr_result_t cfl_wait_child_disabled_main(
     
     return SE_DISABLE;  // Child disabled, we're done
 }
-static const s_expr_fn_entry_t user_main_entries[] = {
 
-    { "CFL_TICK_DELAY", (void*)cfl_tick_delay_main },
-    { "CFL_TIME_DELAY",(void*)cfl_time_delay_main },
-    { "CFL_STATE_ACTIONS",(void*)cfl_state_actions_main },
-    { "CFL_STATE_MACHINE",(void*)cfl_state_machine_main },
-    { "CFL_WAIT_CHILD_DISABLED",(void*)cfl_wait_child_disabled_main },
-    { "CFL_DISPATCH",(void*)cfl_dispatch_main },
-    { "CFL_EVENT_DISPATCH",(void*)cfl_event_dispatch_main },
-    { "CFL_TRIGGER_ON_CHANGE",(void*)cfl_trigger_on_change_main },
-    // Add more user main functions here
+// ============================================================================
+// CFL_S_IF_THEN_ELSE: Conditional execution based on predicate
+// Params: [0] = predicate (bool)
+//         [1] = then_action (executed if predicate true)
+//         [2] = else_action (executed if predicate false)
+//
+// Evaluates predicate each tick and executes appropriate branch
+// ============================================================================
+
+static s_expr_result_t cfl_s_if_then_else_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // Calculate parameter positions once
+    const uint16_t pred_idx = 0;
+    const uint16_t then_idx = s_expr_skip_param(params, pred_idx);
+    const uint16_t else_idx = s_expr_skip_param(params, then_idx);
+    
+    // -------------------------------------------------------------------------
+    // INIT: Validate parameters
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        if (s_expr_count_params(params, param_count) < 3) {
+            EXCEPTION("CFL_S_IF_THEN_ELSE requires 3 parameters: pred, then, else");
+            return SE_DISABLE;
+        }
+        
+        if (!s_expr_param_is_predicate(&params[pred_idx])) {
+            EXCEPTION("CFL_S_IF_THEN_ELSE param[0] must be predicate");
+            return SE_DISABLE;
+        }
+        
+        if (!s_expr_param_is_action(&params[then_idx])) {
+            EXCEPTION("CFL_S_IF_THEN_ELSE param[1] must be action");
+            return SE_DISABLE;
+        }
+        
+        if (!s_expr_param_is_action(&params[else_idx])) {
+            EXCEPTION("CFL_S_IF_THEN_ELSE param[2] must be action");
+            return SE_DISABLE;
+        }
+        
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Nothing to clean up
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TICK: Evaluate predicate and execute appropriate branch
+    // -------------------------------------------------------------------------
+    bool pred_result = s_expr_invoke_pred(inst, params, pred_idx);
+    
+    if (pred_result) {
+        return s_expr_invoke_any(inst, params, then_idx);
+    } else {
+        return s_expr_invoke_any(inst, params, else_idx);
+    }
+}
+// ============================================================================
+// SYSTEM MAIN ENTRIES (named for readability)
+// ============================================================================
+
+static const s_expr_fn_entry_named_t system_main_entries_named[] = {
+    { "CFL_TICK_DELAY",           (void*)cfl_tick_delay_main },
+    { "CFL_TIME_DELAY",           (void*)cfl_time_delay_main },
+    { "CFL_STATE_ACTIONS",        (void*)cfl_state_actions_main },
+    { "CFL_STATE_MACHINE",        (void*)cfl_state_machine_main },
+    { "CFL_WAIT_CHILD_DISABLED",  (void*)cfl_wait_child_disabled_main },
+    { "CFL_DISPATCH",             (void*)cfl_dispatch_main },
+    { "CFL_EVENT_DISPATCH",       (void*)cfl_event_dispatch_main },
+    { "CFL_TRIGGER_ON_CHANGE",    (void*)cfl_trigger_on_change_main },
+    { "CFL_S_IF_THEN_ELSE",       (void*)cfl_s_if_then_else_main },
+    // Add more system main functions here
 };
 
+// ============================================================================
+// HASH TABLE (populated at runtime)
+// ============================================================================
 
-static const s_expr_fn_table_t user_main_table = {
-    .entries = user_main_entries,
-    .count = sizeof(user_main_entries) / sizeof(user_main_entries[0])
-};
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+static s_expr_fn_entry_t system_main_entries[ARRAY_COUNT(system_main_entries_named)];
+static s_expr_fn_table_t system_main_table;
 
 // ============================================================================
 // LOAD FUNCTION
 // ============================================================================
 
+static bool system_main_initialized = false;
+
 void cfl_load_main_s_functions(cfl_runtime_handle_t* handle) {
-    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
-    
-    if (!mod) {
-        printf("ERROR: load_user_s_functions called before module init\n");
+    if (!handle || !handle->s_expr_modules) {
+        printf("ERROR: cfl_load_main_s_functions called with invalid handle\n");
         return;
     }
     
+    // Initialize hash table once
+    if (!system_main_initialized) {
+        s_expr_build_fn_table(
+            system_main_entries_named,
+            system_main_entries,
+            ARRAY_COUNT(system_main_entries_named)
+        );
+        
+        system_main_table.entries = system_main_entries;
+        system_main_table.count = ARRAY_COUNT(system_main_entries);
+        
+        system_main_initialized = true;
+    }
     
-    s_expr_module_load_main(mod, &user_main_table);
-    
-    
-           
+    // Register to all modules
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        s_expr_module_register_main(modules[i], &system_main_table);
+    }
 }

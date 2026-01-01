@@ -9,27 +9,34 @@ dofile("s_expr_dsl.lua")
 local input_file = nil
 local output_bin = nil
 local output_header = nil
+local output_user_header = nil
+local output_user_reg = nil
 local base_name = nil
 local show_dump = false
 local show_stats = false
 
 local function print_usage()
-    print("ChainTree S-Expression Compiler v2.1")
+    print("ChainTree S-Expression Compiler v3.0")
     print("")
     print("Usage: luajit compile.lua <input.lua> [options]")
     print("")
     print("Options:")
-    print("  --bin=<file>      Generate binary file (.bin)")
-    print("  --header=<file>   Generate C header file (.h)")
-    print("  --name=<name>     Base name for generated symbols (default: from input)")
-    print("  --dump            Show tree structure")
-    print("  --stats           Show module statistics")
-    print("  --help            Show this help")
+    print("  --bin=<file>         Generate binary file (.bin)")
+    print("  --header=<file>      Generate C module header file (.h)")
+    print("  --user-header=<file> Generate user functions header (.h)")
+    print("  --user-reg=<file>    Generate user registration C file (.c)")
+    print("  --name=<name>        Base name for generated symbols (default: from input)")
+    print("  --dump               Show tree structure")
+    print("  --stats              Show module statistics")
+    print("  --help               Show this help")
     print("")
     print("Examples:")
-    print("  luajit compile.lua motor.lua --header=motor.h")
-    print("  luajit compile.lua motor.lua --bin=motor.bin --header=motor.h")
+    print("  luajit compile.lua motor.lua --header=motor_module.h")
+    print("  luajit compile.lua motor.lua --header=motor_module.h --user-header=motor_user.h --user-reg=motor_user.c")
     print("  luajit compile.lua motor.lua --dump --stats")
+    print("")
+    print("If --header is specified without --user-header and --user-reg,")
+    print("user files are auto-generated with _user_functions.h and _user_registration.c suffixes.")
     os.exit(0)
 end
 
@@ -44,6 +51,10 @@ for i, a in ipairs(arg) do
         output_bin = a:match("^--bin=(.+)$")
     elseif a:match("^--header=") then
         output_header = a:match("^--header=(.+)$")
+    elseif a:match("^--user%-header=") then
+        output_user_header = a:match("^--user%-header=(.+)$")
+    elseif a:match("^--user%-reg=") then
+        output_user_reg = a:match("^--user%-reg=(.+)$")
     elseif a:match("^--name=") then
         base_name = a:match("^--name=(.+)$")
     elseif a == "--dump" then
@@ -66,6 +77,14 @@ end
 -- Derive base name from input file if not specified
 if not base_name then
     base_name = input_file:match("([^/\\]+)%.lua$") or input_file:match("([^/\\]+)$") or "module"
+end
+
+-- Auto-generate user file names if header specified but user files not
+if output_header and not output_user_header then
+    output_user_header = base_name .. "_user_functions.h"
+end
+if output_header and not output_user_reg then
+    output_user_reg = base_name .. "_user_registration.c"
 end
 
 -- Load and execute the input file
@@ -91,7 +110,7 @@ if not gen then
 end
 
 print("Input: " .. input_file)
-print("Type: " .. (gen.tree_order and "Module" or "Single Tree"))
+print("Base name: " .. base_name)
 print("64-bit: " .. (gen.is_64bit and "yes" or "no"))
 
 -- Show dump
@@ -104,18 +123,33 @@ end
 if show_stats then
     print("")
     print("=== STATISTICS ===")
-    local t = gen.tables
-    print("  Oneshot functions (@): " .. #t.oneshot_fns)
-    print("  Boolean functions (?): " .. #t.boolean_fns)
-    print("  Main functions (!):    " .. #t.main_fns)
-    print("  Data strings:          " .. #t.strings)
-    if gen.tree_order then
-        print("  Trees:                 " .. #gen.tree_order)
-        print("  Max node count:        " .. gen:get_max_node_count())
+    print("  Oneshot functions: " .. #gen.oneshot_table.names)
+    print("  Main functions:    " .. #gen.main_table.names)
+    print("  Predicate functions: " .. #gen.pred_table.names)
+    print("  Trees:             " .. #gen.tree_order)
+    print("  Records:           " .. #gen.record_order)
+    print("  Max func_nodes:    " .. gen.max_func_node_count)
+    print("  Max pointers:      " .. gen.max_pointer_count)
+    print("  Max params:        " .. gen.max_param_count)
+    
+    -- Count user vs system functions
+    local user_oneshot, user_main, user_pred = 0, 0, 0
+    for _, name in ipairs(gen.oneshot_table.names) do
+        if not name:match("^CFL_") then user_oneshot = user_oneshot + 1 end
     end
+    for _, name in ipairs(gen.main_table.names) do
+        if not name:match("^CFL_") then user_main = user_main + 1 end
+    end
+    for _, name in ipairs(gen.pred_table.names) do
+        if not name:match("^CFL_") then user_pred = user_pred + 1 end
+    end
+    print("")
+    print("  User oneshot:      " .. user_oneshot)
+    print("  User main:         " .. user_main)
+    print("  User predicate:    " .. user_pred)
 end
 
--- Generate header file
+-- Generate module header file
 if output_header then
     local header = gen:to_c_header(base_name)
     local f = io.open(output_header, "w")
@@ -126,6 +160,36 @@ if output_header then
         print("Generated: " .. output_header)
     else
         print("Error: Could not write " .. output_header)
+        os.exit(1)
+    end
+end
+
+-- Generate user functions header file
+if output_user_header then
+    local header = gen:to_c_user_header(base_name)
+    local f = io.open(output_user_header, "w")
+    if f then
+        f:write(header)
+        f:write("\n")
+        f:close()
+        print("Generated: " .. output_user_header)
+    else
+        print("Error: Could not write " .. output_user_header)
+        os.exit(1)
+    end
+end
+
+-- Generate user registration C file
+if output_user_reg then
+    local reg = gen:to_c_user_registration(base_name)
+    local f = io.open(output_user_reg, "w")
+    if f then
+        f:write(reg)
+        f:write("\n")
+        f:close()
+        print("Generated: " .. output_user_reg)
+    else
+        print("Error: Could not write " .. output_user_reg)
         os.exit(1)
     end
 end

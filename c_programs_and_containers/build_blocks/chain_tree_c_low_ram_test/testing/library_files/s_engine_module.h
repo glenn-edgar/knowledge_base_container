@@ -54,10 +54,10 @@ s_expr_tree_instance_t* s_expr_tree_create(
     uint32_t ct_node_id    // <-- ADD THIS
 );
 
-// Create tree instance by name hash
 s_expr_tree_instance_t* s_expr_tree_create_by_hash(
     s_expr_module_t* mod,
-    uint32_t name_hash
+    uint32_t name_hash,
+    uint32_t ct_node_id
 );
 
 // Free tree instance
@@ -235,6 +235,11 @@ static inline uint16_t s_expr_tree_param_count(const s_expr_tree_instance_t* ins
     return (inst && inst->tree) ? inst->tree->param_count : 0;
 }
 
+void s_expr_build_fn_table(
+    const s_expr_fn_entry_named_t* named,
+    s_expr_fn_entry_t* out,
+    uint16_t count
+);
 #ifdef __cplusplus
 }
 #endif

@@ -376,14 +376,7 @@ static bool cfl_s_bit_xor_boolean(
     
     return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_XOR);
 }
-// ============================================================================
-// cfl_check_event - Check if event_id matches any parameter value
-//
-// Usage in DSL:
-//   bool_fn("CFL_CHECK_EVENT", 1, 2, 3, 10, 20)
-//
-// Returns true if event_id matches any of the integer parameters
-// ============================================================================
+
 
 // ============================================================================
 // CFL_CHECK_EVENT: Check if event_id matches any parameter value
@@ -447,32 +440,91 @@ static bool cfl_check_event_boolean(
 // FUNCTION TABLE
 // ============================================================================
 
-static const s_expr_fn_entry_t system_boolean_entries[] = {
-    { "CFL_READ_BIT", (void*)cfl_read_bit },
-    { "CFL_TRUE",     (void*)cfl_true },
-    { "CFL_FALSE",    (void*)cfl_false },
-    { "CFL_S_BIT_OR", (void*)cfl_s_bit_or },
-    { "CFL_S_BIT_AND", (void*)cfl_s_bit_and },
-    { "CFL_S_BIT_NOR", (void*)cfl_s_bit_nor },
-    { "CFL_S_BIT_NAND", (void*)cfl_s_bit_nand },
-    { "CFL_S_BIT_XOR", (void*)cfl_s_bit_xor },
-    { "CFL_CHECK_EVENT", (void*)cfl_check_event }
-    // Add more system boolean functions here
+// ============================================================================
+// SYSTEM PREDICATE ENTRIES (named for readability)
+// ============================================================================
+
+static const s_expr_fn_entry_named_t system_pred_entries_named[] = {
+    { "CFL_READ_BIT",       (void*)cfl_read_bit_boolean },
+    { "CFL_TRUE",           (void*)cfl_true_boolean },
+    { "CFL_FALSE",          (void*)cfl_false_boolean },
+    { "CFL_S_BIT_OR",       (void*)cfl_s_bit_or_boolean },
+    { "CFL_S_BIT_AND",      (void*)cfl_s_bit_and_boolean },
+    { "CFL_S_BIT_NOR",      (void*)cfl_s_bit_nor_boolean },
+    { "CFL_S_BIT_NAND",     (void*)cfl_s_bit_nand_boolean },
+    { "CFL_S_BIT_XOR",      (void*)cfl_s_bit_xor_boolean },
+    { "CFL_CHECK_EVENT",    (void*)cfl_check_event_boolean },
+    // Add more system predicate functions here
 };
 
-static const s_expr_fn_table_t system_boolean = {
-    .entries = system_boolean_entries,
-    .count = sizeof(system_boolean_entries) / sizeof(system_boolean_entries[0])
-};
+// ============================================================================
+// HASH TABLE (populated at runtime)
+// ============================================================================
 
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+static s_expr_fn_entry_t system_pred_entries[ARRAY_COUNT(system_pred_entries_named)];
+static s_expr_fn_table_t system_pred_table;
+
+// ============================================================================
+// INITIALIZE AND LOAD
+// ============================================================================
+
+#if 0
 void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
-    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
-    
-    if (!mod) {
-        printf("ERROR: load_boolean_s_functions called before module init\n");
+    if (!handle || !handle->s_expr_modules) {
+        EXCEPTION("ERROR: cfl_load_pred_s_functions called with NULL handle");
         return;
     }
     
-    s_expr_module_load_boolean(mod, &system_boolean);
+    // Initialize hash table once
+    static bool initialized = false;
+    if (!initialized) {
+        s_expr_build_fn_table(
+            system_pred_entries_named,
+            system_pred_entries,
+            ARRAY_COUNT(system_pred_entries_named)
+        );
+        
+        system_pred_table.entries = system_pred_entries;
+        system_pred_table.count = ARRAY_COUNT(system_pred_entries);
+        
+        initialized = true;
+    }
     
+    // Register to all modules
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {m
+        s_expr_module_register_pred(modules[i], &system_pred_table);
+    }
+}
+#endif
+
+void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
+    if (!handle || !handle->s_expr_modules) {
+        printf("ERROR: cfl_load_pred_s_functions called with invalid handle\n");
+        return;
+    }
+    
+// Initialize hash table once
+
+    s_expr_build_fn_table(
+        system_pred_entries_named,
+        system_pred_entries,
+        ARRAY_COUNT(system_pred_entries_named)
+    );
+    
+    system_pred_table.entries = system_pred_entries;
+    system_pred_table.count = ARRAY_COUNT(system_pred_entries);
+    
+    
+    
+   
+
+    
+    // Register to all modules
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        s_expr_module_register_pred(modules[i], &system_pred_table);
+    }
 }

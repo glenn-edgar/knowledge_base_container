@@ -77,39 +77,63 @@ static void cfl_enable_children_oneshot(
 }
 
 static void cfl_enable_child_oneshot(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
-    if ((param_count != 1) && ((params[0].type == S_EXPR_PARAM_INT)|| (params[0].type == S_EXPR_PARAM_UINT))) {
-        EXCEPTION("Invalid parameters for CFL_ENABLE_CHILD");
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 1) {
+        EXCEPTION("CFL_ENABLE_CHILD: requires 1 parameter (child_index)");
         return;
     }
     
-    cfl_enable_child(runtime_handle,inst->ct_node_id, (unsigned)params[0].i);
-
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+        EXCEPTION("CFL_ENABLE_CHILD: param[0] must be INT or UINT");
+        return;
+    }
     
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_ENABLE_CHILD: no runtime handle");
+        return;
+    }
+    
+    cfl_enable_child(runtime_handle, inst->ct_node_id, (unsigned)s_expr_param_uint(&params[0]));
 }
 
 static void cfl_disable_child_oneshot(
-    s_expr_tree_instance_t* inst, const s_expr_node_t* node, s_expr_node_state_t* state,
-    uint16_t event_id, void* event_data,
-    const s_expr_param_t* params, uint8_t param_count
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
 ) {
-    (void)node; (void)state; (void)event_id; (void)event_data;
-    (void)params; (void)param_count;
-    cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)inst->handle;
-    if ((param_count != 1) && ((params[0].type == S_EXPR_PARAM_INT)|| (params[0].type == S_EXPR_PARAM_UINT))) {
-        EXCEPTION("Invalid parameters for CFL_ENABLE_CHILD");
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 1) {
+        EXCEPTION("CFL_DISABLE_CHILD: requires 1 parameter (child_index)");
         return;
     }
     
-    cfl_terminate_node_tree(runtime_handle,inst->ct_node_id, (unsigned)params[0].i);
-
+    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+    if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+        EXCEPTION("CFL_DISABLE_CHILD: param[0] must be INT or UINT");
+        return;
+    }
     
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_DISABLE_CHILD: no runtime handle");
+        return;
+    }
+    
+    cfl_disable_child(runtime_handle, inst->ct_node_id, (unsigned)s_expr_param_uint(&params[0]));
 }
 
 
@@ -217,37 +241,63 @@ static void cfl_exception_handler_oneshot(
         EXCEPTION("CFL_EXCEPTION_HANDLER: param[0] must be STR_HASH");
         return;
     }
+    printf("CFL_EXCEPTION_HANDLER: 0x%08X\n", params[0].str_hash);
     
-    EXCEPTION("Exception: 0x%08X", params[0].str_hash);
+    EXCEPTION("Exception: \n");
 }
 // ============================================================================
-// FUNCTION TABLE
+// SYSTEM ONESHOT ENTRIES (named for readability)
 // ============================================================================
 
-static const s_expr_fn_entry_t system_oneshot_entries[] = {
+static const s_expr_fn_entry_named_t system_oneshot_entries_named[] = {
     { "CFL_LOG",              (void*)cfl_log_oneshot },
     { "CFL_ENABLE_CHILDREN",  (void*)cfl_enable_children_oneshot },
     { "CFL_DISABLE_CHILDREN", (void*)cfl_disable_children_oneshot },
-    { "CFL_ENABLE_CHILD", (void*)cfl_enable_child_oneshot },
-    {"CFL_INTERNAL_EVENT",(void*)cfl_internal_event_oneshot },
-    {"CFL_EXCEPTION",(void*)cfl_exception_handler_oneshot },
-
+    { "CFL_ENABLE_CHILD",     (void*)cfl_enable_child_oneshot },
+    { "CFL_DISABLE_CHILD",    (void*)cfl_disable_child_oneshot },
+    { "CFL_INTERNAL_EVENT",   (void*)cfl_internal_event_oneshot },
+    { "CFL_EXCEPTION",        (void*)cfl_exception_handler_oneshot },
     // Add more system oneshot functions here
 };
 
-static const s_expr_fn_table_t system_oneshot = {
-    .entries = system_oneshot_entries,
-    .count = sizeof(system_oneshot_entries) / sizeof(system_oneshot_entries[0])
-};
+// ============================================================================
+// HASH TABLE (populated at runtime)
+// ============================================================================
+
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+static s_expr_fn_entry_t system_oneshot_entries[ARRAY_COUNT(system_oneshot_entries_named)];
+static s_expr_fn_table_t system_oneshot_table;
+
+// ============================================================================
+// LOAD FUNCTION
+// ============================================================================
+
+static bool system_oneshot_initialized = false;
 
 void cfl_load_oneshot_s_functions(cfl_runtime_handle_t* handle) {
-    s_expr_module_t* mod = (s_expr_module_t*)handle->s_expr_modules;
-    
-    if (!mod) {
-        printf("ERROR: load_oneshot_s_functions called before module init\n");
+    if (!handle || !handle->s_expr_modules) {
+        printf("ERROR: cfl_load_oneshot_s_functions called with invalid handle\n");
         return;
     }
     
-    s_expr_module_load_oneshot(mod, &system_oneshot);
+    // Initialize hash table once
+    if (!system_oneshot_initialized) {
+        s_expr_build_fn_table(
+            system_oneshot_entries_named,
+            system_oneshot_entries,
+            ARRAY_COUNT(system_oneshot_entries_named)
+        );
+        
+        system_oneshot_table.entries = system_oneshot_entries;
+        system_oneshot_table.count = ARRAY_COUNT(system_oneshot_entries);
+        
+        system_oneshot_initialized = true;
+    }
     
+    // Register to all modules
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        s_expr_module_register_oneshot(modules[i], &system_oneshot_table);
+    }
 }

@@ -1,43 +1,512 @@
-ChainTree S-Expression Engine (v2.5)A high-performance, two-tier behavior engine for embedded systems. This system combines the structural rigidity of flow-based programming (Node-RED style) with the dynamic expressiveness of Lisp-style S-Expressions.1. System Architecture: The "Two-Tier" ModelThe engine resolves the "Rigidity vs. Control" trade-off common in embedded firmware by splitting logic into two distinct tiers.Tier 1: The Macro Path (Structural / Node-RED Style)Paradigm: Flow-based / Topological.Nodes: pipeline, if, cond, dispatch.Behavior: Linear execution. The engine follows static links (first_child -> next_sibling).Constraint: Strictly governed by Return Codes (CFL_CONTINUE, CFL_HALT). Any return code other than continue stops the flow. This provides safety for high-level state machines.Tier 2: The Micro Path (Functional / S-Expression)Paradigm: Functional / Recursive.Mechanism: main nodes with PARAM_OPEN_CALL parameters.Behavior: Recursive evaluation inside a single node.Capabilities: Fills the gap in Tier 1 by enabling Decorators, Higher-Order Functions, and Complex Sequencing (e.g., Retry logic, Mathematical evaluation) without bloating the visual tree structure.2. Function Types & Execution ModelsThe DSL distinguishes between three types of functions, each with a specific lifecycle and persistence model tailored for embedded control.1. Oneshot Functions (@)Symbol: oneshot("NAME")Lifecycle: Fire-and-Forget.Use: Atomic side effects that must happen exactly once per activation cycle. Examples: LOG, LED_ON, RESET_COUNTER, SEND_EVENT.Action:The engine checks if the node has already fired (S_EXPR_NODE_FLAG_ONESHOT_FIRED).If No: It executes the C function immediately and sets the FIRED flag.If Yes: It skips execution instantly.Note: The flag is only cleared when the parent node resets (e.g., a pipeline restarting).2. Boolean Functions (?)Symbol: bool_fn("NAME") or pred_ref("NAME")Lifecycle: Quasi-Persistent (Stateless).Use: Conditions, sensors, and logic gates. Examples: IS_READY, HAS_FAULT, BUTTON_PRESSED.Action:Executed every single tick the tree traverses this node.It does not maintain a "completed" state.Returns true or false immediately to direct the control flow (e.g., inside an if_then or cond).3. Main Functions (!)Symbol: main("NAME") or main_ref("NAME")Lifecycle: Quasi-Persistent (Stateful).Use: Long-running tasks, state machines, and sequential operations. Examples: DELAY, MOVE_MOTOR, WAIT_FOR_ACK.Action:Executed every tick the tree reaches this node.Persistence: The function controls its own lifecycle via return codes:CFL_HALT: "I am busy/waiting. Stop the tree here and call me again next tick." (Persists).CFL_CONTINUE: "I am done. Move to the next node." (Completes).Used to block a pipeline until a physical action completes.Comparison TableTypeSymbolBehaviorPersistenceTypical ReturnOneshot@Runs once, then disables self.None (Disabled after run)void (implicitly Continue)Boolean?Re-evaluated every tick.Quasi-Persistenttrue / falseMain!Runs every tick until task done.Quasi-PersistentCFL_HALT (Busy) / CFL_CONTINUE (Done)Execution ExampleConsider a pipeline with a DELAY (Main) and a LOG (Oneshot):Luapipeline("sequence")
-    oneshot("LOG_START")
-    main("DELAY", int(1000))
-    oneshot("LOG_DONE")
-end_pipeline()
-Tick 1:LOG_START: Runs. Sets FIRED flag.DELAY: Starts timer. Returns HALT.Result: Tree stops at DELAY.Tick 2...N:LOG_START: Skipped (Flag is set).DELAY: Checks timer. Returns HALT.Result: Tree stops at DELAY.Tick 100:LOG_START: Skipped.DELAY: Timer expired. Returns CONTINUE.LOG_DONE: Runs.Result: Tree completes.3. The DSL Generator (s_expr_dsl.lua)The DSL is a Lua-based compiler that generates optimized, read-only C data structures.Key Featuresgensym Support: Automatically generates unique names for structural nodes (e.g., pipeline()), reducing boilerplate and copy-paste errors.Static Validation: Tracks brace depth and context validity at compile time.Two-Pass Compilation: Automatically resolves forward jumps for braces and sibling links, enabling O(1) skipping at runtime.4. Comprehensive Test Suite (test_comprehensive.lua)The test program serves as both a validation suite and a reference manual for DSL patterns. Below is a breakdown of each test tree and the specific DSL capability it exercises.Basic Control FlowTreeNameDSL Concept TestedDescription1simple_pipelineSequencingVerifies basic pipeline behavior: execute children sequentially. Tests oneshot (@) firing and main (!) blocking (simulated DELAY).2if_then_testConditionalsTests the if_then composite node. Verifies that an action is only executed if the condition (boolean context) evaluates to true.3if_else_testBranchingTests if_then_else. Verifies execution of the "Else" path when the condition fails.14empty_pipelineEdge CasesEnsures the engine handles 0-child nodes gracefully without crashing.Boolean LogicTreeNameDSL Concept TestedDescription4bool_and_testShort-CircuitingTests bool_and. Verifies that evaluation stops at the first false result.5bool_or_testShort-CircuitingTests bool_or. Verifies that evaluation stops at the first true result.6bool_not_testInversionTests bool_not. Verifies boolean negation.7nested_boolComplexityTests deep nesting of boolean operators: (A AND (B OR (NOT C))).Advanced RoutingTreeNameDSL Concept TestedDescription8cond_testMulti-Way SwitchTests the cond node (Lisp style switch). It evaluates a list of clause nodes and executes the action of the first matching condition.9dispatch_testPattern MatchingTests the dispatch node. It routes execution based on a string key (e.g., event type) matching a case pattern.Functional Capabilities (Tier 2)TreeNameDSL Concept TestedDescription16data_listData StructuresTests open_brace() / close_brace() (PARAM_OPEN). Verifies the engine can pass arrays of data to a function.17sexpr_testCode-as-DataCritical Tier 2 Test. Tests PARAM_OPEN_CALL. It passes executable logic (e.g., (ADD 1 2)) as a parameter. The engine evaluates this S-Expression recursively before passing the result to the parent function.18func_refHigher-Order FnsTests passing function references (main_ref) as arguments. This allows creating generic "Decorator" nodes like REGISTER_CALLBACKS or RETRY.Engine FeaturesTreeNameDSL Concept TestedDescription10debug_testWrappersTests the dbg node, which acts as a transparent passthrough while logging messages.11oneshot_testState FlagsVerifies that oneshot nodes fire exactly once per activation lifecycle (checked via S_EXPR_NODE_FLAG_ONESHOT_FIRED).12main_returnAsync LogicVerifies that the engine respects CFL_HALT. The tree pauses execution until the leaf function returns CFL_CONTINUE.13param_typesMarshalingVerifies 32-bit/64-bit safe handling of int, uint, float, and string types.15deep_nestStack SafetyA stress test combining pipelines, conditionals, and booleans to ensure the non-recursive engine traversal handles depth correctly.5. The Runtime Environment (s_engine)The C runtime implements the Two-Tier Memory Architecture.1. The Module (ROM)Defined in s_engine_module.h. This is the read-only definition generated by the compiler.Storage: Flash / .rodata.Lifecycle: Initialized once via s_expr_module_init.Content: Function tables, string literals, and the flattened node topology.2. The Instance (RAM)Defined in s_engine_types.h. This is the mutable state for a specific execution context.Storage: Heap / Static Pool.Lifecycle: Created via s_expr_tree_create.Content: node_states array tracking flags (ACTIVE, FIRED) and user data.Integration (from main.c)C// 1. Initialize the Shared Module (ROM)
-// This resolves string names to function pointers in the registry
-s_expr_module_t* mod = s_expr_module_init(&test_comprehensive_module, &registry, &alloc);
+# ChainTree S-Expression DSL v3.0
 
-// 2. Create Execution Instances (RAM)
-// Multiple instances can run the same tree logic simultaneously
-s_expr_tree_instance_t* inst_a = s_expr_tree_create(mod, "simple_pipeline", NULL, 0);
-s_expr_tree_instance_t* inst_b = s_expr_tree_create(mod, "simple_pipeline", NULL, 1);
+A LuaJIT-based domain-specific language for defining behavior trees, state machines, and sequential control flows that compile to embedded C code. Designed for resource-constrained systems from 32KB ARM Cortex-M microcontrollers to 8GB+ servers.
 
-// 3. Tick Loop
-// The engine processes the logic based on the instance state
-s_expr_tree_tick(inst_a, EVENT_ID, NULL);
-s_expr_tree_tick(inst_b, EVENT_ID, NULL);
-6. Host Integration Example (main.c)The main.c file serves as both a comprehensive test harness and a reference implementation for integrating the S-Expression Engine into your firmware. It demonstrates the engine's dependency injection model and multi-instance capabilities.Key ComponentsThe harness mocks a hardware environment to validate behavior trees without actual peripherals.1. Simulation State (test_state_t)Instead of accessing physical registers, the test defines a struct to hold the state of virtual hardware.Fields: led_on, counter, is_ready, delay_remaining.Mechanism: An array g_states[MAX_INSTANCES] allows multiple tree instances to operate on separate "virtual hardware" simultaneously.2. Dependency InjectionThe engine is initialized with zero global state. The main() function injects dependencies manually:Allocator: test_malloc/test_free wrappers (can be replaced with FreeRTOS heap or static pools).Registry: Tables mapping string names (e.g., "LED_ON") to C function pointers (fn_led_on).3. Execution LifecycleThe test runner performs the complete lifecycle of an S-Expression application:Module Initialization:C// Resolves all function names in the generated header to pointers in the registry.
-// This happens ONCE.
-s_expr_module_t* mod = s_expr_module_init(&test_module, &registry, &alloc);
-Instance Creation:C// Creates a RAM context for a specific tree ("simple_pipeline_2").
-// 'ct_node_id' (0) links this instance to g_states[0].
-s_expr_tree_instance_t* inst = s_expr_tree_create(mod, "simple_pipeline_2", NULL, 0);
-The Tick Loop:C// Steps the behavior tree logic.
-// Returns CFL_HALT (waiting) or CFL_CONTINUE (done).
-cfl_code_t result = s_expr_tree_tick(inst, EVENT_ID, NULL);
-Function Implementation PatternsThe test implementations (fn_delay, fn_led_on) show how to interact with the engine API.Accessing Parameters:C// Robustly checking types before usage
-if (param_count > 0 && params[0].type == S_EXPR_PARAM_INT) {
-    delay_ms = params[0].i;
+## Overview
+
+The ChainTree DSL provides:
+
+- **Declarative tree definitions** using S-expression-style syntax in Lua
+- **Hash-based function dispatch** for efficient runtime lookup
+- **Blackboard records** with embedded structs and pointer fields
+- **Compile-time validation** catching errors before runtime
+- **Generated C code** with type-safe function signatures
+- **Debug/release builds** via conditional compilation
+
+## File Structure
+```
+project/
+├── s_expr_dsl.lua              # DSL library (DO NOT EDIT)
+├── s_compile.lua               # Compiler driver
+├── my_module.lua               # Your module definition
+│
+├── my_module_module.h          # Generated: trees, params, module def
+├── my_module_user_functions.h  # Generated: user function prototypes
+├── my_module_user_registration.c # Generated: registration tables
+│
+└── my_module_impl.c            # Your implementation (USER CREATES)
+```
+
+## Quick Start
+
+### 1. Create Module Definition
+```lua
+-- my_module.lua
+start_module("my_module")
+
+-- Optional: enable debug mode
+set_debug(false)
+
+-- Define blackboard structure
+RECORD("robot_state")
+    FIELD("position_x", "float")
+    FIELD("position_y", "float")
+    FIELD("speed", "float")
+    FIELD("state", "uint8")
+END_RECORD()
+
+-- Define behavior tree
+start_tree("main_control")
+    use_record("robot_state")
+    
+    local c = m_call("CFL_SEQUENCE")
+        local a = o_call("READ_SENSORS")
+        end_call(a)
+        
+        local b = m_call("PROCESS_INPUT")
+            field_ref("position_x")
+            field_ref("position_y")
+        end_call(b)
+        
+        -- Debug logging (only in debug builds)
+        if is_debug() then
+            local d = o_call("CFL_LOG")
+                str("Processing complete")
+            end_call(d)
+        end
+    end_call(c)
+    
+end_tree("main_control")
+
+return end_module("my_module")
+```
+
+### 2. Compile
+```bash
+luajit s_compile.lua my_module.lua --header=my_module_module.h
+```
+
+This generates three files:
+- `my_module_module.h` - Module definition, trees, parameters
+- `my_module_user_functions.h` - User function prototypes
+- `my_module_user_registration.c` - Registration tables and load function
+
+### 3. Implement User Functions
+
+Create `my_module_impl.c`:
+```c
+#include "my_module_user_functions.h"
+
+// DSL: READ_SENSORS  hash: 0x12345678
+void read_sensors_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data)
+{
+    robot_state_t* bb = (robot_state_t*)inst->blackboard;
+    // Read sensors into blackboard
+    bb->position_x = read_sensor_x();
+    bb->position_y = read_sensor_y();
 }
-Handling Async Logic (e.g., DELAY):The fn_delay implementation demonstrates state persistence across ticks:Checks state->state (RAM). If 0 (inactive), initializes the target delay.Decrements the remaining time in test_state_t.Returns CFL_HALT if time remains, or CFL_CONTINUE if finished.Multi-Instance DemonstrationThe run_multi_instance_test function is the critical proof of the Two-Tier Architecture.It creates two instances (inst_a, inst_b) of the same tree definition (simple_pipeline_2).It ticks them alternately in a loop.Result: You see two independent DELAY timers counting down and two independent LED states toggling, proving that the static tree definition is successfully decoupled from execution state.7. Building and RunningCompile the DSL:Bashluajit compile.lua test_comprehensive.lua
-# Output: test_module.h (ROM definition)
-Compile the C Engine:Bashgcc -o test_runner main.c s_engine_module.c s_engine_eval.c -I.
-Run:Bash./test_runner
-Expected Output:PlaintextInitializing shared module...
-Module: test_module_1
-...
---- Tick 1 ---
-  [inst_A @] LED_ON
-  [inst_A !] DELAY(500) starting
-Result: HALT
-...
+
+// DSL: PROCESS_INPUT  hash: 0x87654321
+s_expr_result_t process_input_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data)
+{
+    robot_state_t* bb = (robot_state_t*)inst->blackboard;
+    // Process and return result
+    return SE_CONTINUE;
+}
+```
+
+### 4. Initialize at Runtime
+```c
+#include "my_module_module.h"
+#include "my_module_user_functions.h"
+
+void init_system(cfl_runtime_handle_t* handle) {
+    // Load module
+    s_expr_module_t* mod = s_expr_module_create(&my_module_module, allocator);
+    
+    // Register CFL system functions
+    load_cfl_s_functions(handle);
+    
+    // Register user functions
+    load_user_s_functions(handle);
+}
+```
+
+## Compiler Usage
+```
+ChainTree S-Expression Compiler v3.0
+
+Usage: luajit s_compile.lua <input.lua> [options]
+
+Options:
+  --bin=<file>         Generate binary file (.bin)
+  --header=<file>      Generate C module header file (.h)
+  --user-header=<file> Generate user functions header (.h)
+  --user-reg=<file>    Generate user registration C file (.c)
+  --name=<name>        Base name for generated symbols (default: from input)
+  --dump               Show tree structure
+  --stats              Show module statistics
+  --help               Show this help
+
+Examples:
+  luajit s_compile.lua motor.lua --header=motor_module.h
+  luajit s_compile.lua motor.lua --header=motor_module.h --user-header=motor_user.h --user-reg=motor_user.c
+  luajit s_compile.lua motor.lua --dump --stats
+```
+
+If `--header` is specified without `--user-header` and `--user-reg`, user files are auto-generated with `_user_functions.h` and `_user_registration.c` suffixes.
+
+## DSL Reference
+
+### Module Structure
+```lua
+start_module("module_name")
+    -- Records, pools, trees
+return end_module("module_name")
+```
+
+### Debug Control
+```lua
+set_debug(true)   -- Enable debug mode
+set_debug(false)  -- Disable debug mode (default)
+
+if is_debug() then
+    -- Code only included in debug builds
+end
+```
+
+### Records (Blackboard Structures)
+
+#### Basic Fields
+```lua
+RECORD("my_record")
+    FIELD("name", "type")           -- Single field
+    FIELD("name", "type", count)    -- Array field
+END_RECORD()
+```
+
+**Supported Types:**
+
+| Type | C Type | Size | Alignment |
+|------|--------|------|-----------|
+| `int8` | `int8_t` | 1 | 1 |
+| `uint8` | `uint8_t` | 1 | 1 |
+| `int16` | `int16_t` | 2 | 2 |
+| `uint16` | `uint16_t` | 2 | 2 |
+| `int32` | `int32_t` | 4 | 4 |
+| `uint32` | `uint32_t` | 4 | 4 |
+| `int64` | `int64_t` | 8 | 8 |
+| `uint64` | `uint64_t` | 8 | 8 |
+| `float` | `float` | 4 | 4 |
+| `double` | `double` | 8 | 8 |
+| `bool` | `bool` | 1 | 1 |
+
+#### Embedded Records
+
+Records can contain other records as embedded (inline) fields:
+```lua
+RECORD("vector3")
+    FIELD("x", "float")
+    FIELD("y", "float")
+    FIELD("z", "float")
+END_RECORD()
+
+RECORD("transform")
+    FIELD("position", "vector3")      -- Embedded (12 bytes inline)
+    FIELD("rotation", "vector3")      -- Embedded (12 bytes inline)
+    FIELD("scale", "float")
+END_RECORD()
+
+RECORD("path")
+    FIELD("waypoints", "vector3", 10) -- Array of 10 embedded vector3
+    FIELD("count", "uint16")
+END_RECORD()
+```
+
+**Note:** Embedded records must be defined BEFORE they are used.
+
+#### Pointer Fields
+
+Use `PTR_FIELD` for pointers to other records:
+```lua
+RECORD("node")
+    FIELD("value", "int32")
+    PTR_FIELD("next", "node")         -- Pointer to node_t
+    PTR_FIELD("parent", "node")       -- Pointer to node_t
+END_RECORD()
+```
+
+**⚠️ Memory Management:** Pointer fields require user-managed memory. You must `malloc` and `free` the pointed-to memory yourself.
+```c
+node_t* node = get_blackboard(inst);
+node->next = (node_t*)malloc(sizeof(node_t));  // User allocates
+// ...
+free(node->next);  // User frees
+node->next = NULL;
+```
+
+### Trees
+```lua
+start_tree("tree_name")
+    use_record("record_name")  -- Optional: associate blackboard
+    
+    -- Tree content (calls, parameters)
+    
+end_tree("tree_name")
+```
+
+### Function Calls
+
+#### Oneshot Functions (void return, run once)
+```lua
+local c = o_call("FUNCTION_NAME")
+    -- parameters
+end_call(c)
+
+-- With SURVIVES_RESET flag (persists across tree reset)
+local c = io_call("INIT_FUNCTION")
+    -- parameters
+end_call(c)
+```
+
+#### Main Functions (s_expr_result_t return)
+```lua
+local c = m_call("FUNCTION_NAME")
+    -- parameters
+end_call(c)
+
+-- With pointer tracking
+local c = pt_m_call("FUNCTION_NAME")
+    -- parameters (tracked for resume)
+end_call(c)
+```
+
+#### Predicate Functions (bool return)
+```lua
+local c = p_call("FUNCTION_NAME")
+    -- parameters
+end_call(c)
+```
+
+### Parameters
+```lua
+int(42)              -- Signed integer
+uint(100)            -- Unsigned integer
+flt(3.14159)         -- Float
+str("hello")         -- String (stored as hash)
+slot_ref("slot_name") -- Pool slot reference
+field_ref("field")   -- Blackboard field reference
+nested_field_ref("pos.x")  -- Nested field in embedded record
+```
+
+### Lists
+```lua
+local l = list_start("items")
+    int(1)
+    int(2)
+    int(3)
+list_end(l)
+```
+
+### Pools and Slots
+```lua
+defpool("timers", "timer_t")
+defslot("main_timer", "timers")
+defslot("aux_timer", "timers")
+```
+
+### Platform Configuration
+```lua
+use_64bit()   -- 64-bit pointers (8 bytes)
+use_32bit()   -- 32-bit pointers (4 bytes, default)
+```
+
+## Function Types
+
+### System Functions (CFL_ prefix)
+
+Built-in control flow functions provided by the runtime:
+
+- `CFL_SEQUENCE` - Execute children in order, fail on first failure
+- `CFL_SELECTOR` - Execute children until first success
+- `CFL_PARALLEL` - Execute children concurrently
+- `CFL_REPEAT` - Repeat child N times
+- `CFL_WHILE` - Repeat while predicate is true
+- `CFL_IF` - Conditional execution
+- `CFL_LOG` - Debug logging
+- `CFL_NOP` - No operation
+
+### User Functions (no CFL_ prefix)
+
+Custom functions you implement. Named entries generate function prototypes:
+
+| DSL Name | Generated C Function |
+|----------|---------------------|
+| `MY_ACTION` (oneshot) | `my_action_oneshot(...)` |
+| `MY_BEHAVIOR` (main) | `my_behavior_main(...)` |
+| `MY_CHECK` (predicate) | `my_check_boolean(...)` |
+
+## Generated Files
+
+### Module Header (`*_module.h`)
+
+Contains:
+- Record structure definitions (C structs)
+- Field descriptor arrays
+- Function hash tables
+- Tree parameter arrays
+- Tree definitions
+- Module definition
+
+**DO NOT EDIT** - Regenerate from DSL.
+
+### User Functions Header (`*_user_functions.h`)
+
+Contains:
+- Function prototypes for all user functions
+- `load_user_s_functions()` declaration
+
+**DO NOT EDIT** - Regenerate from DSL.
+
+### User Registration (`*_user_registration.c`)
+
+Contains:
+- Named function entry tables
+- Hash-based lookup tables
+- `init_user_function_tables()` - Builds hash tables
+- `load_user_s_functions()` - Registers functions with modules
+
+**DO NOT EDIT** - Regenerate from DSL.
+
+### User Implementation (`*_impl.c`)
+
+**YOU CREATE THIS FILE.** Implements the user functions declared in the header.
+
+## Function Signatures
+
+### Oneshot Function
+```c
+void my_function_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+```
+
+### Main Function
+```c
+s_expr_result_t my_function_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+```
+
+**Return Values:**
+
+| Value | Meaning |
+|-------|---------|
+| `SE_CONTINUE` | Success, continue execution |
+| `SE_HALT` | Pause, resume next tick |
+| `SE_TERMINATE` | Terminate tree |
+| `SE_RESET` | Reset tree to initial state |
+| `SE_DISABLE` | Disable tree |
+| `SE_FUNCTION_TERMINATE` | Terminate current function |
+| `SE_SKIP_CONTINUE` | Skip remaining siblings |
+| `SE_FUNCTION_HALT` | Halt current function |
+| `SE_FUNCTION_RESET` | Reset current function |
+
+### Predicate Function
+```c
+bool my_function_boolean(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+```
+
+## Multi-Module Support
+
+The registration system supports multiple modules:
+```c
+void load_user_s_functions(cfl_runtime_handle_t* handle) {
+    // Iterates all modules and registers functions with each
+    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
+    for (int i = 0; i < handle->s_expr_module_count; i++) {
+        if (!modules[i]) continue;
+        s_expr_module_register_oneshot(modules[i], &user_oneshot_table);
+        s_expr_module_register_main(modules[i], &user_main_table);
+        s_expr_module_register_pred(modules[i], &user_pred_table);
+    }
+}
+```
+
+## Debug vs Release Builds
+
+Use `set_debug()` and `is_debug()` for conditional compilation:
+```lua
+start_module("my_module")
+
+set_debug(false)  -- Set to true for debug builds
+
+start_tree("control")
+    local c = m_call("CFL_SEQUENCE")
+        local a = m_call("DO_WORK")
+        end_call(a)
+        
+        if is_debug() then
+            local d = o_call("CFL_LOG")
+                str("Work completed")
+            end_call(d)
+        end
+    end_call(c)
+end_tree("control")
+
+return end_module("my_module")
+```
+
+Build scripts:
+```bash
+# Release build
+luajit s_compile.lua my_module.lua --header=my_module.h
+
+# Debug build (edit set_debug(true) in file)
+luajit s_compile.lua my_module.lua --header=my_module_debug.h
+```
+
+## Error Handling
+
+The DSL provides compile-time error detection:
+
+- **Mismatched start/end**: `end_call('x') does not match m_call('y')`
+- **Unclosed braces**: `unclosed: call('seq'), list('items')`
+- **Hash collisions**: `HASH COLLISION in main table: 'X' collides with 'Y'`
+- **Unknown types**: `Unknown field type: bad_type`
+- **Missing records**: `Unknown record: undefined_record`
+- **Duplicate definitions**: `Record already defined: my_record`
+
+## Best Practices
+
+1. **Define records before use** - Embedded records must exist before referencing
+2. **Use consistent naming** - `UPPER_CASE` for DSL names, generates `lower_case_suffix` in C
+3. **Manage pointer memory** - `PTR_FIELD` requires manual malloc/free
+4. **Use debug mode for development** - Conditional logging aids debugging
+5. **Validate with --dump** - Inspect tree structure before integration
+6. **Keep trees focused** - One responsibility per tree
+
+## Requirements
+
+- LuaJIT 2.0+
+- C99 compiler for generated code
+
+## License
+
+MIT License

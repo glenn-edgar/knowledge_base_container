@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 // System boolean function table (exported for module loading)
-void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle); 
+void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle);
 
 #ifdef __cplusplus
 }

@@ -305,6 +305,10 @@ typedef struct {
 // ============================================================================
 // FUNCTION REGISTRATION (hash -> function pointer)
 // ============================================================================
+typedef struct {
+    const char* name;
+    void*       fn_ptr;
+} s_expr_fn_entry_named_t;
 
 typedef struct {
     uint32_t hash;
@@ -349,7 +353,7 @@ struct s_expr_module {
 // TREE INSTANCE (created per-execution)
 // ============================================================================
 
-sstruct s_expr_tree_instance {
+struct s_expr_tree_instance {
     s_expr_module_t*          module;
     const s_expr_tree_def_t*  tree;
     uint16_t                  tree_index;
@@ -395,6 +399,78 @@ sstruct s_expr_tree_instance {
 #define S_EXPR_ERR_NOT_POINTER_CALL      8   // tried to access pointer in non-pt_m_call
 #define S_EXPR_ERR_POINTER_INDEX         9   // pointer index out of range
 #define S_EXPR_ERR_NO_BLACKBOARD         10  // field_ref but no blackboard bound
+
+
+static inline uint32_t s_expr_hash_string(const char* str) {
+    uint32_t hash = 0x811c9dc5;  // FNV1A_32_INIT
+    while (*str) {
+        hash ^= (uint8_t)*str++;
+        hash *= 0x01000193;      // FNV1A_32_PRIME
+    }
+    return hash;
+}
+
+// ============================================================================
+// Parameter type checking helpers
+// ============================================================================
+
+static inline bool s_expr_param_is_predicate(const s_expr_param_t* param) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    
+    // Direct predicate reference
+    if (opcode == S_EXPR_PARAM_PRED) {
+        return true;
+    }
+    
+    // Callable - check next param for function type
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        const s_expr_param_t* func_param = param + 1;
+        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+        return func_opcode == S_EXPR_PARAM_PRED;
+    }
+    
+    return false;
+}
+
+static inline bool s_expr_param_is_action(const s_expr_param_t* param) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    
+    // Direct function references
+    if (opcode == S_EXPR_PARAM_MAIN || opcode == S_EXPR_PARAM_ONESHOT) {
+        return true;
+    }
+    
+    // Callable - check next param for function type
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        const s_expr_param_t* func_param = param + 1;
+        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+        return func_opcode == S_EXPR_PARAM_MAIN || func_opcode == S_EXPR_PARAM_ONESHOT;
+    }
+    
+    return false;
+}
+
+static inline bool s_expr_param_is_callable(const s_expr_param_t* param) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    
+    // Any function type
+    if (opcode == S_EXPR_PARAM_MAIN || 
+        opcode == S_EXPR_PARAM_ONESHOT || 
+        opcode == S_EXPR_PARAM_PRED) {
+        return true;
+    }
+    
+    // Or wrapped in OPEN_CALL
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        const s_expr_param_t* func_param = param + 1;
+        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+        return func_opcode == S_EXPR_PARAM_MAIN || 
+               func_opcode == S_EXPR_PARAM_ONESHOT || 
+               func_opcode == S_EXPR_PARAM_PRED;
+    }
+    
+    return false;
+}
 
 #ifdef __cplusplus
 }

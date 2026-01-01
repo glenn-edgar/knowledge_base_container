@@ -5,6 +5,8 @@
 
 #include "s_engine_module.h"
 #include <string.h>
+#include <stdio.h>
+
 
 // ============================================================================
 // INTERNAL: Function registry storage
@@ -134,23 +136,55 @@ uint8_t s_expr_module_init(
 // ============================================================================
 
 void s_expr_module_register_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
-    (void)mod;
-    if (!table || oneshot_registry.count >= MAX_REGISTRY_TABLES) return;
-    oneshot_registry.tables[oneshot_registry.count++] = table;
+    if (!mod || !table || !mod->def || !mod->oneshot_fns) return;
+    if (!mod->def->oneshot_hashes || mod->def->oneshot_count == 0) return;
+    
+    for (uint16_t i = 0; i < mod->def->oneshot_count; i++) {
+        if (mod->oneshot_fns[i]) continue;
+        
+        uint32_t needed_hash = mod->def->oneshot_hashes[i];
+        for (uint16_t j = 0; j < table->count; j++) {
+            if (table->entries[j].hash == needed_hash) {
+                mod->oneshot_fns[i] = (s_expr_oneshot_fn_t)table->entries[j].fn_ptr;
+                break;
+            }
+        }
+    }
 }
 
 void s_expr_module_register_main(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
-    (void)mod;
-    if (!table || main_registry.count >= MAX_REGISTRY_TABLES) return;
-    main_registry.tables[main_registry.count++] = table;
+    if (!mod || !table || !mod->def || !mod->main_fns) return;
+    if (!mod->def->main_hashes || mod->def->main_count == 0) return;
+    
+    for (uint16_t i = 0; i < mod->def->main_count; i++) {
+        if (mod->main_fns[i]) continue;
+        
+        uint32_t needed_hash = mod->def->main_hashes[i];
+        for (uint16_t j = 0; j < table->count; j++) {
+            if (table->entries[j].hash == needed_hash) {
+                mod->main_fns[i] = (s_expr_main_fn_t)table->entries[j].fn_ptr;
+                break;
+            }
+        }
+    }
 }
 
 void s_expr_module_register_pred(s_expr_module_t* mod, const s_expr_fn_table_t* table) {
-    (void)mod;
-    if (!table || pred_registry.count >= MAX_REGISTRY_TABLES) return;
-    pred_registry.tables[pred_registry.count++] = table;
+    if (!mod || !table || !mod->def || !mod->pred_fns) return;
+    if (!mod->def->pred_hashes || mod->def->pred_count == 0) return;
+    
+    for (uint16_t i = 0; i < mod->def->pred_count; i++) {
+        if (mod->pred_fns[i]) continue;
+        
+        uint32_t needed_hash = mod->def->pred_hashes[i];
+        for (uint16_t j = 0; j < table->count; j++) {
+            if (table->entries[j].hash == needed_hash) {
+                mod->pred_fns[i] = (s_expr_pred_fn_t)table->entries[j].fn_ptr;
+                break;
+            }
+        }
+    }
 }
-
 // ============================================================================
 // MODULE VALIDATE
 // ============================================================================
@@ -315,7 +349,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
 s_expr_tree_instance_t* s_expr_tree_create_by_hash(
     s_expr_module_t* mod,
     uint32_t name_hash,
-    uint32_t ct_node_id;
+    uint32_t ct_node_id
 ) {
     if (!mod || !mod->def) return NULL;
     
@@ -327,6 +361,16 @@ s_expr_tree_instance_t* s_expr_tree_create_by_hash(
     return NULL;
 }
 
+void s_expr_build_fn_table(
+    const s_expr_fn_entry_named_t* named,
+    s_expr_fn_entry_t* out,
+    uint16_t count
+) {
+    for (uint16_t i = 0; i < count; i++) {
+        out[i].hash = s_expr_hash_string(named[i].name);
+        out[i].fn_ptr = named[i].fn_ptr;
+    }
+}
 // ============================================================================
 // TREE INSTANCE FREE
 // ============================================================================

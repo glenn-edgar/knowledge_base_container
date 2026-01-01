@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-// Size configuration - must be defined before including s_engine_v3_types.h
+// Size configuration - must be defined before including s_engine_types.h
 #ifndef MODULE_IS_64BIT
 #define MODULE_IS_64BIT 0
 #endif
@@ -19,44 +19,53 @@ extern "C" {
 #include "s_engine_types.h"
 
 // ============================================================================
+// RECORD FORWARD DECLARATIONS
+// ============================================================================
+
+typedef struct test2_blackboard_s test2_blackboard_t;
+typedef struct state_machine_blackboard_s state_machine_blackboard_t;
+typedef struct robot_blackboard_s robot_blackboard_t;
+typedef struct event_blackboard_s event_blackboard_t;
+
+// ============================================================================
 // RECORD (BLACKBOARD) STRUCTURES
 // ============================================================================
 
-// Record: test2_blackboard
-typedef struct {
+// Record: test2_blackboard (size=4 align=4)
+struct test2_blackboard_s {
     int32_t placeholder;  // offset=0 size=4
-} test2_blackboard_t;
+};
 
 static const s_expr_field_desc_t chain_flow_dsl_tests_test2_blackboard_fields[] = {
     { 0x7D0B279A, 0, 4 },  // placeholder
 };
 
-// Record: state_machine_blackboard
-typedef struct {
+// Record: state_machine_blackboard (size=8 align=4)
+struct state_machine_blackboard_s {
     int32_t state;  // offset=0 size=4
     int32_t state_b;  // offset=4 size=4
-} state_machine_blackboard_t;
+};
 
 static const s_expr_field_desc_t chain_flow_dsl_tests_state_machine_blackboard_fields[] = {
     { 0x783132F6, 0, 4 },  // state
     { 0x97A4E54B, 4, 4 },  // state_b
 };
 
-// Record: robot_blackboard
-typedef struct {
+// Record: robot_blackboard (size=4 align=4)
+struct robot_blackboard_s {
     int32_t command;  // offset=0 size=4
-} robot_blackboard_t;
+};
 
 static const s_expr_field_desc_t chain_flow_dsl_tests_robot_blackboard_fields[] = {
     { 0x93594AB2, 0, 4 },  // command
 };
 
-// Record: event_blackboard
-typedef struct {
+// Record: event_blackboard (size=12 align=4)
+struct event_blackboard_s {
     int32_t timer_count;  // offset=0 size=4
     int32_t sensor_value;  // offset=4 size=4
     int32_t event_id;  // offset=8 size=4
-} event_blackboard_t;
+};
 
 static const s_expr_field_desc_t chain_flow_dsl_tests_event_blackboard_fields[] = {
     { 0x77B5277E, 0, 4 },  // timer_count
@@ -149,6 +158,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_2_params[] = 
 
 // Tree: s_expression_test_4
 // func_node_count=17 pointer_count=0
+// record=state_machine_blackboard
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = {
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [0]
     { 0x18, 0, 0, {0}, .func_idx = 1 }, // TEST_30_SET_STATE  // [1]
@@ -223,6 +233,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
 
 // Tree: s_expression_test_7
 // func_node_count=32 pointer_count=0
+// record=robot_blackboard
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = {
     { 0x07, 0, 0, {0}, .brace_idx = 4 }, // -> +4  // [0]
     { 0x18, 0, 0, {0}, .func_idx = 3 }, // TEST_31_SET_STATE  // [1]
@@ -390,6 +401,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
 
 // Tree: s_expression_test_8
 // func_node_count=25 pointer_count=0
+// record=event_blackboard
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = {
     { 0x07, 0, 0, {0}, .brace_idx = 115 }, // -> +115  // [0]
     { 0x09, 0, 0, {0}, .func_idx = 7 }, // CFL_EVENT_DISPATCH  // [1]

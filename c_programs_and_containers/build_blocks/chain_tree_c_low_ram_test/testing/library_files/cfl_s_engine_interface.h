@@ -14,11 +14,6 @@ void cfl_initialize_s_engine(cfl_runtime_handle_t *handle,
     const s_expr_module_def_t* const* registry,
     int registry_count);
     
-void cfl_set_pool_table(cfl_runtime_handle_t *handle, 
-    const char* module_name,
-    void** pool_table, 
-    uint16_t pool_count);
-
 #ifdef __cplusplus
 }
 #endif
