@@ -3,7 +3,61 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
+static s_expr_result_t cfl_wait_event_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // -------------------------------------------------------------------------
+    // INIT: Load counter from param
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 2) {
+            EXCEPTION("CFL_WAIT_EVENT: Missing count parameter");
+            return SE_DISABLE;
+        }
+        
+        uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
+        if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_WAIT_EVENT: param[0] must be INT or UINT");
+            return SE_DISABLE;
+        }
+        uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
+        if (type1 != S_EXPR_PARAM_INT && type1 != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_WAIT_EVENT: param[1] must be INT or UINT");
+            return SE_DISABLE;
+        }        
+        int64_t count = (int64_t)s_expr_param_int(&params[1]);
+        s_expr_set_user_u64(inst, (uint64_t)count);
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // TERMINATE: Nothing to clean up
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    if (event_id != s_expr_param_int(&params[0])) {
+        return SE_HALT;
+    }
+    // -------------------------------------------------------------------------
+    // TICK: Decrement counter
+    // -------------------------------------------------------------------------
+    int64_t remaining = (int64_t)s_expr_get_user_u64(inst);
+    
+    if (remaining <= 1) {
+        return SE_DISABLE;
+    }
+    
+    s_expr_set_user_u64(inst, (uint64_t)(remaining - 1));
+    return SE_HALT;
+}
 // ============================================================================
 // CFL_TICK_DELAY: Halt for N ticks, then disable
 // Params: [0] = tick count (int/uint)
@@ -28,13 +82,13 @@ static s_expr_result_t cfl_tick_delay_main(
     // -------------------------------------------------------------------------
     if (event_type == SE_EVENT_INIT) {
         if (param_count < 1) {
-            // EXCEPTION("CFL_TICK_DELAY: Missing count parameter");
+            EXCEPTION("CFL_TICK_DELAY: Missing count parameter");
             return SE_DISABLE;
         }
         
         uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
         if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
-            // EXCEPTION("CFL_TICK_DELAY: param[0] must be INT or UINT");
+            EXCEPTION("CFL_TICK_DELAY: param[0] must be INT or UINT");
             return SE_DISABLE;
         }
         
@@ -49,7 +103,9 @@ static s_expr_result_t cfl_tick_delay_main(
     if (event_type == SE_EVENT_TERMINATE) {
         return SE_CONTINUE;
     }
-    
+    if (event_id != CFL_TIMER_EVENT) {
+        return SE_HALT;
+    }
     // -------------------------------------------------------------------------
     // TICK: Decrement counter
     // -------------------------------------------------------------------------
@@ -374,34 +430,31 @@ static s_expr_result_t cfl_state_actions_main(
         }
     }
     
-    // Find return code (last INT/UINT)
-    for (int16_t i = param_count - 1; i >= 0; i--) {
-        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
-        
-        if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
-            s_expr_result_t ret = (s_expr_result_t)s_expr_param_int(&params[i]);
-            
-            
-            return ret;
-        }
+   // In cfl_state_actions_main - find return code
+for (int16_t i = param_count - 1; i >= 0; i--) {
+    uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+    
+    // Look for RESULT type first
+    if (opcode == S_EXPR_PARAM_RESULT) {
+        return (s_expr_result_t)params[i].int_val;
     }
+}
+
+// Fallback to last INT/UINT for backwards compatibility
+for (int16_t i = param_count - 1; i >= 0; i--) {
+    uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+    
+    if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+        return (s_expr_result_t)s_expr_param_int(&params[i]);
+    }
+}
+
+return SE_CONTINUE;
     
     return SE_CONTINUE;  // No restart - still in this state
 }
 
-// ============================================================================
-// CFL_EVENT_DISPATCH: Switch/case on event_id
-// Params: list of cases, each case is: list(int(event_val), action)
-//         event_val = 0 is the default case
-//
-// DSL usage:
-//   m_call("CFL_EVENT_DISPATCH")
-//       list() int(CFL_TIMER_EVENT) m_call("handle_timer") end_call(...) end_list()
-//       list() int(CFL_BUTTON_EVENT) m_call("handle_button") end_call(...) end_list()
-//       list() int(0) m_call("handle_default") end_call(...) end_list()  -- default
-//   end_call(...)
-// ============================================================================
-
+// Store action_idx directly instead of case_num for faster lookup
 static s_expr_result_t cfl_dispatch_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -412,10 +465,24 @@ static s_expr_result_t cfl_dispatch_main(
 ) {
     (void)event_data;
     
+    // Use user_flags to store previous action_idx (16 bits)
+    uint16_t prev_action_idx = s_expr_get_user_flags(inst);
+    
     // -------------------------------------------------------------------------
-    // INIT / TERMINATE: Nothing special
+    // TERMINATE: Clean up current branch
     // -------------------------------------------------------------------------
-    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+    if (event_type == SE_EVENT_TERMINATE) {
+        if (prev_action_idx > 0) {
+            cfl_dispatch_terminate_branch(inst, params, prev_action_idx);
+        }
+        return SE_CONTINUE;
+    }
+    
+    // -------------------------------------------------------------------------
+    // INIT: Clear previous action index
+    // -------------------------------------------------------------------------
+    if (event_type == SE_EVENT_INIT) {
+        s_expr_set_user_flags(inst, 0);
         return SE_CONTINUE;
     }
     
@@ -423,9 +490,10 @@ static s_expr_result_t cfl_dispatch_main(
     // TICK: Dispatch based on event_id
     // -------------------------------------------------------------------------
     int32_t key = (int32_t)event_id;
-    uint16_t default_idx = 0;
+    uint16_t default_action_idx = 0;
+    uint16_t match_action_idx = 0;
     
-    // Scan for matching case: list(int(event_val), action)
+    // Scan for matching case
     for (uint16_t i = 0; i < param_count; ) {
         uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
         
@@ -437,29 +505,35 @@ static s_expr_result_t cfl_dispatch_main(
                 int32_t case_val = (int32_t)s_expr_param_int(&params[case_val_idx]);
                 uint16_t action_idx = i + 2;
                 
-                // 0 = default case
                 if (case_val == 0) {
-                    default_idx = action_idx;
-                }
-                // Match found
-                else if (case_val == key) {
-                    return s_expr_invoke_any(inst, params, action_idx);
+                    default_action_idx = action_idx;
+                } else if (case_val == key) {
+                    match_action_idx = action_idx;
+                    break;  // Found match, stop scanning
                 }
             }
-            
-            // Skip to end of this list
             i += params[i].brace_idx + 1;
         } else {
             i++;
         }
     }
     
-    // No match - try default
-    if (default_idx > 0) {
-        return s_expr_invoke_any(inst, params, default_idx);
+    // Use match or default
+    uint16_t action_idx = match_action_idx ? match_action_idx : default_action_idx;
+    if (action_idx == 0) {
+        return SE_CONTINUE;  // No case matched
     }
     
-    return SE_CONTINUE;
+    // Handle branch transition
+    if (action_idx != prev_action_idx) {
+        if (prev_action_idx > 0) {
+            cfl_dispatch_terminate_branch(inst, params, prev_action_idx);
+        }
+        cfl_dispatch_init_branch(inst, params, action_idx);
+        s_expr_set_user_flags(inst, action_idx);
+    }
+    
+    return s_expr_invoke_any(inst, params, action_idx);
 }
 // ============================================================================
 // CFL_EVENT_DISPATCH: Switch/case on event_id
@@ -536,11 +610,6 @@ static s_expr_result_t cfl_event_dispatch_main(
 
 
 
-// ============================================================================
-// Named flag for state tracking
-// ============================================================================
-
-#define DF_CONTROL_FLAG_ACTIVE  0x80  // true branch was activated
 
  
 // ============================================================================
@@ -831,6 +900,7 @@ static const s_expr_fn_entry_named_t system_main_entries_named[] = {
     { "CFL_EVENT_DISPATCH",       (void*)cfl_event_dispatch_main },
     { "CFL_TRIGGER_ON_CHANGE",    (void*)cfl_trigger_on_change_main },
     { "CFL_S_IF_THEN_ELSE",       (void*)cfl_s_if_then_else_main },
+    { "CFL_WAIT_EVENT",           (void*)cfl_wait_event_main },
     // Add more system main functions here
 };
 

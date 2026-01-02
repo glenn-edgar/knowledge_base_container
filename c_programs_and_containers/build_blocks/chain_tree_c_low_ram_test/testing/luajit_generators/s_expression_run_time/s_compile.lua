@@ -5,6 +5,10 @@
 -- Load the DSL
 dofile("s_expr_dsl.lua")
 
+dofile("s_cfl_functions.lua")
+
+
+
 -- Parse command line
 local input_file = nil
 local output_bin = nil
@@ -103,45 +107,39 @@ end
 
 -- The input file should return the generator
 local gen = result
-
 if not gen then
     print("Error: Input file must return a generator (return end_module(...))")
     os.exit(1)
 end
 
-print("Input: " .. input_file)
-print("Base name: " .. base_name)
-print("64-bit: " .. (gen.is_64bit and "yes" or "no"))
 
--- Show dump
-if show_dump then
-    print("")
-    gen:dump()
+local module_data = result
+if not module_data then
+    print("Error: Input file must return module data (return end_module(...))")
+    os.exit(1)
 end
 
--- Show stats
+local gen = ModuleGenerator.new(module_data)
+
 if show_stats then
     print("")
     print("=== STATISTICS ===")
-    print("  Oneshot functions: " .. #gen.oneshot_table.names)
-    print("  Main functions:    " .. #gen.main_table.names)
-    print("  Predicate functions: " .. #gen.pred_table.names)
-    print("  Trees:             " .. #gen.tree_order)
-    print("  Records:           " .. #gen.record_order)
-    print("  Max func_nodes:    " .. gen.max_func_node_count)
-    print("  Max pointers:      " .. gen.max_pointer_count)
-    print("  Max params:        " .. gen.max_param_count)
+    print("  Oneshot functions: " .. #gen.module.oneshot_funcs)
+    print("  Main functions:    " .. #gen.module.main_funcs)
+    print("  Predicate functions: " .. #gen.module.pred_funcs)
+    print("  Trees:             " .. #gen.module.tree_order)
+    print("  Records:           " .. #gen.module.record_order)
     
     -- Count user vs system functions
     local user_oneshot, user_main, user_pred = 0, 0, 0
-    for _, name in ipairs(gen.oneshot_table.names) do
-        if not name:match("^CFL_") then user_oneshot = user_oneshot + 1 end
+    for _, entry in ipairs(gen.module.oneshot_funcs) do
+        if not entry.name:match("^CFL_") then user_oneshot = user_oneshot + 1 end
     end
-    for _, name in ipairs(gen.main_table.names) do
-        if not name:match("^CFL_") then user_main = user_main + 1 end
+    for _, entry in ipairs(gen.module.main_funcs) do
+        if not entry.name:match("^CFL_") then user_main = user_main + 1 end
     end
-    for _, name in ipairs(gen.pred_table.names) do
-        if not name:match("^CFL_") then user_pred = user_pred + 1 end
+    for _, entry in ipairs(gen.module.pred_funcs) do
+        if not entry.name:match("^CFL_") then user_pred = user_pred + 1 end
     end
     print("")
     print("  User oneshot:      " .. user_oneshot)
@@ -151,7 +149,9 @@ end
 
 -- Generate module header file
 if output_header then
+    
     local header = gen:to_c_header(base_name)
+
     local f = io.open(output_header, "w")
     if f then
         f:write(header)

@@ -79,7 +79,7 @@ typedef enum {
 #define S_EXPR_PARAM_MAIN        0x09
 #define S_EXPR_PARAM_PRED        0x0A
 #define S_EXPR_PARAM_FIELD       0x0B
-
+#define S_EXPR_PARAM_RESULT      0x0C  // NEW: return code
 // ============================================================================
 // TYPE FLAGS (upper bits of type byte)
 // ============================================================================

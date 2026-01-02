@@ -1,10 +1,9 @@
-dofile("s_expr_dsl.lua")
 
 -- ============================================================================
 -- BEGIN MODULE
 -- ============================================================================
-local mod = start_module("chain_flow_dsl_tests", { is_64bit = false })
-
+local mod = start_module("chain_flow_dsl_tests")
+use_32bit()
 -- ============================================================================
 -- RECORD DEFINITIONS (Blackboard Schemas)
 -- ============================================================================
@@ -35,32 +34,30 @@ END_RECORD()
 -- ============================================================================
 -- TEST 2: Boolean logic with p_call
 -- ============================================================================
+local function pred_fn()
+    local p1 = cfl_s_bit_or_start()
+        local p2 = cfl_s_bit_and_start()
+            cfl_bit_entry(0,1)
+        end_call(p2)
+        local p3 = cfl_s_bit_and_start()
+            cfl_bit_entry(2, 3)
+        end_call(p3)
+    end_call(p1)
+end
 
 start_tree("s_expression_test_2")
     -- Note: This test doesn't actually use any blackboard fields
     
-    local c1 = o_call("CFL_DISABLE_CHILDREN")
+    local c1 = io_call("CFL_DISABLE_CHILDREN")
     end_call(c1)
     
-    local m1 = m_call("TEST_29_DF_CONTROL")
-        -- First param: nested boolean expression
-        local p1 = p_call("CFL_S_BIT_OR")
-            local p2 = p_call("CFL_S_BIT_AND")
-                int(0)
-                int(1)
-            end_call(p2)
-            local p3 = p_call("CFL_S_BIT_AND")
-                int(2)
-                int(3)
-            end_call(p3)
-        end_call(p1)
-        -- Second param: enable callback (function index)
-        uint(0)  -- CFL_ENABLE_CHILDREN index
-        -- Third param: disable callback (function index)  
-        uint(1)  -- CFL_DISABLE_CHILDREN index
-    end_call(m1)
+    cfl_trigger_on_change(0, pred_fn, cfl_enable_children, cfl_disable_children)
+    result(SE_CONTINUE)
+     
 
 end_tree("s_expression_test_2")
+
+
 
 -- ============================================================================
 -- STATE MACHINE CONSTANTS
@@ -83,61 +80,41 @@ start_tree("s_expression_test_4")
         int(0)
     end_call(init)
     
-    -- State machine
-    local sm = m_call("CFL_STATE_MACHINE")
-        field_ref("state_b")
-        
+    -- State machine using helper
+    cfl_state_machine("state_b", {
         -- State 0
-        local s0 = m_call("CFL_STATE_ACTIONS")
-            local a1 = o_call("CFL_DISABLE_CHILDREN")
-            end_call(a1)
-            local a2 = o_call("CFL_ENABLE_CHILD")
-                int(0)
-            end_call(a2)
-            local d1 = m_call("CFL_TICK_DELAY")
-                int(100)
-            end_call(d1)
-            local t1 = m_call("TEST_30_SET_STATE")
+        function()
+            cfl_disable_children()
+            cfl_enable_child(0)
+            cfl_tick_delay(100)
+            local t1 = o_call("TEST_30_SET_STATE")
                 field_ref("state_b")
                 int(1)
             end_call(t1)
-            int(SE_FUNCTION_RESET)
-        end_call(s0)
+            result(SE_CONTINUE)
+        end,
         
         -- State 1
-        local s1 = m_call("CFL_STATE_ACTIONS")
-            local b1 = o_call("CFL_DISABLE_CHILDREN")
-            end_call(b1)
-            local b2 = o_call("CFL_ENABLE_CHILD")
-                int(1)
-            end_call(b2)
-            local d2 = m_call("CFL_TICK_DELAY")
-                int(100)
-            end_call(d2)
-            local t2 = m_call("TEST_30_SET_STATE")
+        function()
+            cfl_disable_children()
+            cfl_enable_child(1)
+            cfl_tick_delay(100)
+            local t2 = o_call("TEST_30_SET_STATE")
                 field_ref("state_b")
                 int(2)
             end_call(t2)
-            int(SE_FUNCTION_RESET)
-        end_call(s1)
+            result(SE_CONTINUE)
+        end,
         
         -- State 2
-        local s2 = m_call("CFL_STATE_ACTIONS")
-            local c1 = o_call("CFL_DISABLE_CHILDREN")
-            end_call(c1)
-            local c2 = o_call("CFL_ENABLE_CHILD")
-                int(2)
-            end_call(c2)
-            local c3 = o_call("CFL_ENABLE_CHILD")
-                int(3)
-            end_call(c3)
-            local d3 = m_call("CFL_TICK_DELAY")
-                int(100)
-            end_call(d3)
-            int(SE_FUNCTION_TERMINATE)
-        end_call(s2)
-        
-    end_call(sm)
+        function()
+            cfl_disable_children()
+            cfl_enable_child(2)
+            cfl_enable_child(3)
+            cfl_tick_delay(100)
+            result(SE_FUNCTION_TERMINATE)
+        end,
+    })
 
 end_tree("s_expression_test_4")
 
@@ -148,9 +125,6 @@ end_tree("s_expression_test_4")
 local MOTOR_LEFT  = 0
 local MOTOR_RIGHT = 1
 
-local LED_STATUS = 0
-local LED_ALARM  = 1
-
 local CMD_IDLE    = 0
 local CMD_FORWARD = 1
 local CMD_BACK    = 2
@@ -159,15 +133,22 @@ local CMD_RIGHT   = 4
 local CMD_STOP    = 5
 
 -- ============================================================================
--- EVENT CONSTANTS
+-- Helper for user motor function
 -- ============================================================================
 
-local EVT_TICK      = 4
-local EVT_TIMER     = 0xEE01
-local EVT_BUTTON    = 0xEE02
-local EVT_SENSOR    = 0xEE03
-local EVT_ALARM     = 0xEE04
-local EVT_SHUTDOWN  = 0xEE05
+local function set_motor(motor_id, speed)
+    local c = o_call("TEST_31_SET_MOTOR")
+        int(motor_id)
+        int(speed)
+    end_call(c)
+end
+
+local function set_command(cmd)
+    local c = o_call("TEST_31_SET_STATE")
+        field_ref("command")
+        int(cmd)
+    end_call(c)
+end
 
 -- ============================================================================
 -- TEST 7: Command Dispatch (field-based)
@@ -182,147 +163,83 @@ start_tree("s_expression_test_7")
         int(CMD_FORWARD)
     end_call(init)
     
-    -- Dispatch on robot_command
-    local disp = m_call("CFL_DISPATCH")
-        field_ref("command")
-        
+    -- Dispatch on command field
+    cfl_field_dispatch("command", {
         -- CMD_FORWARD (1)
-        local l1 = list_start("fwd")
-            int(CMD_FORWARD)
-            local sa1 = m_call("CFL_STATE_ACTIONS")
-                local log1 = o_call("CFL_LOG")
-                    str("Moving forward")
-                end_call(log1)
-                local m1 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_LEFT)
-                    int(100)
-                end_call(m1)
-                local m2 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_RIGHT)
-                    int(100)
-                end_call(m2)
-                local d1 = m_call("CFL_TICK_DELAY")
-                    int(50)
-                end_call(d1)
-                local ns1 = m_call("TEST_31_SET_STATE")
-                    field_ref("command")
-                    int(CMD_BACK)
-                end_call(ns1)
-                int(SE_FUNCTION_RESET)
-            end_call(sa1)
-        list_end(l1)
+        { CMD_FORWARD, function()
+            cfl_log("Moving forward")
+            set_motor(MOTOR_LEFT, 100)
+            set_motor(MOTOR_RIGHT, 100)
+            cfl_tick_delay(50)
+            set_command(CMD_BACK)
+            result(SE_CONTINUE)
+        end },
         
         -- CMD_BACK (2)
-        local l2 = list_start("back")
-            int(CMD_BACK)
-            local sa2 = m_call("CFL_STATE_ACTIONS")
-                local log2 = o_call("CFL_LOG")
-                    str("Moving backward")
-                end_call(log2)
-                local m3 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_LEFT)
-                    int(-100)
-                end_call(m3)
-                local m4 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_RIGHT)
-                    int(-100)
-                end_call(m4)
-                local d2 = m_call("CFL_TICK_DELAY")
-                    int(50)
-                end_call(d2)
-                local ns2 = m_call("TEST_31_SET_STATE")
-                    field_ref("command")
-                    int(CMD_LEFT)
-                end_call(ns2)
-                int(SE_FUNCTION_RESET)
-            end_call(sa2)
-        list_end(l2)
+        { CMD_BACK, function()
+            cfl_log("Moving backward")
+            set_motor(MOTOR_LEFT, -100)
+            set_motor(MOTOR_RIGHT, -100)
+            cfl_tick_delay(50)
+            set_command(CMD_LEFT)
+            result(SE_CONTINUE)
+        end },
         
         -- CMD_LEFT (3)
-        local l3 = list_start("left")
-            int(CMD_LEFT)
-            local sa3 = m_call("CFL_STATE_ACTIONS")
-                local log3 = o_call("CFL_LOG")
-                    str("Turning left")
-                end_call(log3)
-                local m5 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_LEFT)
-                    int(-50)
-                end_call(m5)
-                local m6 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_RIGHT)
-                    int(50)
-                end_call(m6)
-                local d3 = m_call("CFL_TICK_DELAY")
-                    int(25)
-                end_call(d3)
-                local ns3 = m_call("TEST_31_SET_STATE")
-                    field_ref("command")
-                    int(CMD_RIGHT)
-                end_call(ns3)
-                int(SE_FUNCTION_RESET)
-            end_call(sa3)
-        list_end(l3)
+        { CMD_LEFT, function()
+            cfl_log("Turning left")
+            set_motor(MOTOR_LEFT, -50)
+            set_motor(MOTOR_RIGHT, 50)
+            cfl_tick_delay(25)
+            set_command(CMD_RIGHT)
+            result(SE_CONTINUE)
+        end },
         
         -- CMD_RIGHT (4)
-        local l4 = list_start("right")
-            int(CMD_RIGHT)
-            local sa4 = m_call("CFL_STATE_ACTIONS")
-                local log4 = o_call("CFL_LOG")
-                    str("Turning right")
-                end_call(log4)
-                local m7 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_LEFT)
-                    int(50)
-                end_call(m7)
-                local m8 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_RIGHT)
-                    int(-50)
-                end_call(m8)
-                local d4 = m_call("CFL_TICK_DELAY")
-                    int(25)
-                end_call(d4)
-                local ns4 = m_call("TEST_31_SET_STATE")
-                    field_ref("command")
-                    int(CMD_STOP)
-                end_call(ns4)
-                int(SE_FUNCTION_RESET)
-            end_call(sa4)
-        list_end(l4)
+        { CMD_RIGHT, function()
+            cfl_log("Turning right")
+            set_motor(MOTOR_LEFT, 50)
+            set_motor(MOTOR_RIGHT, -50)
+            cfl_tick_delay(25)
+            set_command(CMD_STOP)
+            result(SE_CONTINUE)
+        end },
         
         -- CMD_STOP (5)
-        local l5 = list_start("stop")
-            int(CMD_STOP)
-            local sa5 = m_call("CFL_STATE_ACTIONS")
-                local log5 = o_call("CFL_LOG")
-                    str("Stopping")
-                end_call(log5)
-                local m9 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_LEFT)
-                    int(0)
-                end_call(m9)
-                local m10 = o_call("TEST_31_SET_MOTOR")
-                    int(MOTOR_RIGHT)
-                    int(0)
-                end_call(m10)
-                int(SE_FUNCTION_TERMINATE)
-            end_call(sa5)
-        list_end(l5)
+        { CMD_STOP, function()
+            cfl_log("Stopping")
+            set_motor(MOTOR_LEFT, 0)
+            set_motor(MOTOR_RIGHT, 0)
+            result(SE_CONTINUE)
+        end },
         
         -- CMD_IDLE (0) - default
-        local l6 = list_start("idle")
-            int(CMD_IDLE)
-            local sa6 = m_call("CFL_STATE_ACTIONS")
-                local log6 = o_call("CFL_LOG")
-                    str("Idle - SHOULD NOT HAPPEN")
-                end_call(log6)
-                int(SE_FUNCTION_TERMINATE)
-            end_call(sa6)
-        list_end(l6)
-        
-    end_call(disp)
+        { CMD_IDLE, function()
+            cfl_log("Idle - SHOULD NOT HAPPEN")
+            result(SE_FUNCTION_TERMINATE)
+        end },
+    })
 
 end_tree("s_expression_test_7")
+
+
+-- ============================================================================
+-- TEST 8: Event Dispatch
+-- ============================================================================
+
+-- ============================================================================
+-- EVENT CONSTANTS
+-- ============================================================================
+
+local LED_STATUS  = 0
+local LED_ALARM   = 1
+
+local EVT_TICK      = 4
+local EVT_TIMER     = 0xEE01
+local EVT_BUTTON    = 0xEE02
+local EVT_SENSOR    = 0xEE03
+local EVT_ALARM     = 0xEE04
+local EVT_SHUTDOWN  = 0xEE05
 
 -- ============================================================================
 -- TEST 8: Event Dispatch
@@ -331,111 +248,75 @@ end_tree("s_expression_test_7")
 start_tree("s_expression_test_8")
     use_record("event_blackboard")
 
-    local evd = m_call("CFL_EVENT_DISPATCH")
-        
+    cfl_event_dispatch({
         -- EVT_TIMER (0xEE01)
-        local e1 = list_start("timer")
-            int(EVT_TIMER)
-            local sa1 = m_call("CFL_STATE_ACTIONS")
-                local log1 = o_call("CFL_LOG")
-                    str("Timer expired")
-                end_call(log1)
-                local proc1 = m_call("TEST_32_PROCESS_SCHEDULED_TASKS")
-                end_call(proc1)
-                int(SE_HALT)
-            end_call(sa1)
-        list_end(e1)
+        { EVT_TIMER, function()
+            cfl_log("Timer expired")
+            local proc = m_call("TEST_32_PROCESS_SCHEDULED_TASKS")
+            end_call(proc)
+            result(SE_CONTINUE)
+        end },
         
         -- EVT_BUTTON (0xEE02)
-        local e2 = list_start("button")
-            int(EVT_BUTTON)
-            local sa2 = m_call("CFL_STATE_ACTIONS")
-                local log2 = o_call("CFL_LOG")
-                    str("Button pressed")
-                end_call(log2)
-                local deb = m_call("TEST_32_DEBOUNCE")
-                    field_ref("timer_count")
-                    int(10)
-                end_call(deb)
-                local tog = o_call("TEST_32_TOGGLE_LED")
-                    int(LED_STATUS)
-                end_call(tog)
-                int(SE_HALT)
-            end_call(sa2)
-        list_end(e2)
+        { EVT_BUTTON, function()
+            cfl_log("Button pressed")
+            cfl_wait_event(EVT_BUTTON, 10)
+            local tog = o_call("TEST_32_TOGGLE_LED")
+                int(LED_STATUS)
+            end_call(tog)
+            result(SE_CONTINUE)
+        end },
         
         -- EVT_SENSOR (0xEE03)
-        local e3 = list_start("sensor")
-            int(EVT_SENSOR)
-            local sa3 = m_call("CFL_STATE_ACTIONS")
-                local log3 = o_call("CFL_LOG")
-                    str("Sensor reading")
-                end_call(log3)
-                local chk = m_call("TEST_32_CHECK_THRESHOLD")
-                    field_ref("sensor_value")
-                    int(50)
-                end_call(chk)
-                int(SE_HALT)
-            end_call(sa3)
-        list_end(e3)
+        { EVT_SENSOR, function()
+            cfl_log("Sensor reading")
+            local chk = m_call("TEST_32_CHECK_THRESHOLD")
+                field_ref("sensor_value")
+                int(50)
+            end_call(chk)
+            result(SE_CONTINUE)
+        end },
         
         -- EVT_ALARM (0xEE04)
-        local e4 = list_start("alarm")
-            int(EVT_ALARM)
-            local sa4 = m_call("CFL_STATE_ACTIONS")
-                local log4 = o_call("CFL_LOG")
-                    str("ALARM TRIGGERED")
-                end_call(log4)
-                local buzz = o_call("TEST_32_ENABLE_BUZZER")
-                end_call(buzz)
-                local led = o_call("TEST_32_SET_LED")
-                    int(LED_ALARM)
-                    int(1)
-                end_call(led)
-                local notify = o_call("TEST_32_NOTIFY_SYSTEM")
-                    str("ALARM")
-                end_call(notify)
-                local ievt = o_call("CFL_INTERNAL_EVENT")
-                    int(EVT_SHUTDOWN)
-                    int(1)
-                end_call(ievt)
-                local log5 = o_call("CFL_LOG")
-                    str("ALARM SETTING")
-                end_call(log5)
-                int(SE_HALT)
-            end_call(sa4)
-        list_end(e4)
+        { EVT_ALARM, function()
+            cfl_log("ALARM TRIGGERED")
+            local buzz = o_call("TEST_32_ENABLE_BUZZER")
+            end_call(buzz)
+            local led = o_call("TEST_32_SET_LED")
+                int(LED_ALARM)
+                int(1)
+            end_call(led)
+            local notify = o_call("TEST_32_NOTIFY_SYSTEM")
+                str("ALARM")
+            end_call(notify)
+            cfl_internal_event(EVT_SHUTDOWN, 1)
+            cfl_log("ALARM SETTING")
+            result(SE_CONTINUE)
+        end },
         
         -- EVT_SHUTDOWN (0xEE05)
-        local e5 = list_start("shutdown")
-            int(EVT_SHUTDOWN)
-            local sa5 = m_call("CFL_STATE_ACTIONS")
-                local log6 = o_call("CFL_LOG")
-                    str("Shutdown requested")
-                end_call(log6)
-                local dis = o_call("TEST_32_DISABLE_ALL_OUTPUTS")
-                end_call(dis)
-                local sav = o_call("TEST_32_SAVE_STATE")
-                end_call(sav)
-                int(SE_FUNCTION_TERMINATE)
-            end_call(sa5)
-        list_end(e5)
+        { EVT_SHUTDOWN, function()
+            cfl_log("Shutdown requested")
+            local dis = o_call("TEST_32_DISABLE_ALL_OUTPUTS")
+            end_call(dis)
+            local sav = o_call("TEST_32_SAVE_STATE")
+            end_call(sav)
+            result(SE_FUNCTION_TERMINATE)
+        end },
         
-        -- Default (EVT_TICK or unknown)
-        local e6 = list_start("default")
-            int(0)
-            local sa6 = m_call("CFL_STATE_ACTIONS")
-                local gen = m_call("TEST_32_GENERATE_INTERNAL_EVENTS")
-                    field_ref("event_id")
-                end_call(gen)
-                local bg = m_call("TEST_32_RUN_BACKGROUND_TASKS")
-                end_call(bg)
-                int(SE_HALT)
-            end_call(sa6)
-        list_end(e6)
-        
-    end_call(evd)
+        -- Default (EVT_TICK or unknown) - case 0
+        { 0, function()
+            local gen = m_call("TEST_32_GENERATE_INTERNAL_EVENTS")
+                field_ref("event_id")
+            end_call(gen)
+            local bg = m_call("TEST_32_RUN_BACKGROUND_TASKS")
+            end_call(bg)
+            result(SE_CONTINUE)
+        end },
+    })
 
 end_tree("s_expression_test_8")
 
-return end_module(mod)
+return_value = end_module(mod)
+print("DEBUG: return_value =", return_value)
+return return_value
