@@ -1,8 +1,3 @@
-
-
-
-
-
 --============================================================================
 -- CFL HELPER FUNCTIONS
 -- High-level DSL wrappers for CFL system functions
@@ -13,6 +8,12 @@
 --============================================================================
 -- MAIN FUNCTIONS
 --============================================================================
+function cfl_pipeline(actions_fn)
+    local c = m_call("CFL_PIPELINE")
+        actions_fn()
+    end_call(c)
+end
+
 
 function cfl_tick_delay(tick_count)
     local c = pt_m_call("CFL_TICK_DELAY")
@@ -132,22 +133,7 @@ function cfl_event_dispatch(cases)
             local action_fn = case[2]
             local l = list_start("case")
                 int(event_val)
-                local sa = m_call("CFL_STATE_ACTIONS")
-                    action_fn()
-                end_call(sa)
-            list_end(l)
-        end
-    end_call(c)
-end
-
-function cfl_event_dispatch(cases)
-    local c = m_call("CFL_EVENT_DISPATCH")
-        for _, case in ipairs(cases) do
-            local event_val = case[1]
-            local action_fn = case[2]
-            local l = list_start("case")
-                int(event_val)
-                action_fn()
+                cfl_pipeline(action_fn)  -- Auto-wrap in pipeline
             list_end(l)
         end
     end_call(c)

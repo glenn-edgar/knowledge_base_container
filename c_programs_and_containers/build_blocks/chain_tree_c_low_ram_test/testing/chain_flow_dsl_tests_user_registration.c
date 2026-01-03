@@ -5,6 +5,7 @@
 // ============================================================================
 
 #include "chain_flow_dsl_tests_user_functions.h"
+#include "s_engine_module.h"
 #include <stdio.h>
 
 // ============================================================================
@@ -34,12 +35,8 @@ static const s_expr_fn_entry_named_t user_main_entries_named[] = {
 };
 static s_expr_fn_entry_t user_main_entries[ARRAY_COUNT(user_main_entries_named)];
 
-static const s_expr_fn_entry_named_t* user_pred_entries_named = NULL;
-static s_expr_fn_entry_t* user_pred_entries = NULL;
-
 static s_expr_fn_table_t user_oneshot_table;
 static s_expr_fn_table_t user_main_table;
-static s_expr_fn_table_t user_pred_table;
 
 // ============================================================================
 // INITIALIZATION
@@ -62,8 +59,6 @@ static void init_user_function_tables(void) {
     user_main_table.entries = user_main_entries;
     user_main_table.count = ARRAY_COUNT(user_main_entries);
 
-    user_pred_table.entries = NULL;
-    user_pred_table.count = 0;
 }
 
 // ============================================================================
@@ -91,6 +86,6 @@ void load_user_s_functions(cfl_runtime_handle_t* handle) {
         if (!modules[i]) continue;
         s_expr_module_register_oneshot(modules[i], &user_oneshot_table);
         s_expr_module_register_main(modules[i], &user_main_table);
-        s_expr_module_register_pred(modules[i], &user_pred_table);
     }
 }
+

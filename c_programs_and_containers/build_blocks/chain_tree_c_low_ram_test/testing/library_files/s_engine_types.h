@@ -1,11 +1,11 @@
 // ============================================================================
-// s_engine_v3_types.h
-// S-Expression Engine Type Definitions - Version 3.0
+// s_engine_types.h
+// S-Expression Engine Type Definitions
 // Flat parameter model, hash-based function tables, record/field blackboards
 // ============================================================================
 
-#ifndef S_ENGINE_V3_TYPES_H
-#define S_ENGINE_V3_TYPES_H
+#ifndef S_ENGINE_TYPES_H
+#define S_ENGINE_TYPES_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -37,19 +37,41 @@ extern "C" {
 #endif
 
 // ============================================================================
+// HASH TYPE (32-bit or 64-bit based on MODULE_IS_64BIT)
+// ============================================================================
+
+#if MODULE_IS_64BIT
+    typedef uint64_t s_expr_hash_t;
+    #define S_EXPR_HASH_FMT "0x%016llX"
+    #define S_EXPR_HASH_SUFFIX ULL
+    
+    // FNV-1a 64-bit constants
+    #define FNV_PRIME  0x00000100000001B3ULL
+    #define FNV_OFFSET 0xCBF29CE484222325ULL
+#else
+    typedef uint32_t s_expr_hash_t;
+    #define S_EXPR_HASH_FMT "0x%08X"
+    #define S_EXPR_HASH_SUFFIX U
+    
+    // FNV-1a 32-bit constants
+    #define FNV_PRIME  0x01000193U
+    #define FNV_OFFSET 0x811C9DC5U
+#endif
+
+// ============================================================================
 // RESULT CODES (returned by main functions)
 // ============================================================================
 
 typedef enum {
-    SE_CONTINUE           = 0,  // Continue to next sibling
-    SE_HALT               = 1,  // Stop current sequence, return HALT to parent
-    SE_TERMINATE          = 2,  // Tree terminates
-    SE_RESET              = 3,  // Reset tree state
-    SE_DISABLE            = 4,  // Disable this node
-    SE_FUNCTION_TERMINATE = 5,  // Function requests tree termination
-    SE_SKIP_CONTINUE      = 6,  // Skip remaining siblings, return CONTINUE
-    SE_FUNCTION_HALT      = 7,  // Function-level halt
-    SE_FUNCTION_RESET     = 8,  // Function-level reset
+    SE_CONTINUE           = 0,
+    SE_HALT               = 1,
+    SE_TERMINATE          = 2,
+    SE_RESET              = 3,
+    SE_DISABLE            = 4,
+    SE_FUNCTION_TERMINATE = 5,
+    SE_SKIP_CONTINUE      = 6,
+    SE_FUNCTION_HALT      = 7,
+    SE_FUNCTION_RESET     = 8,
 } s_expr_result_t;
 
 // ============================================================================
@@ -57,10 +79,10 @@ typedef enum {
 // ============================================================================
 
 typedef enum {
-    SE_EVENT_TICK      = 0,     // Normal tick event
-    SE_EVENT_INIT      = 1,     // First execution of node
-    SE_EVENT_TERMINATE = 2,     // Node being terminated
-    SE_EVENT_USER      = 3,     // User-defined event (check event_id)
+    SE_EVENT_TICK      = 0,
+    SE_EVENT_INIT      = 1,
+    SE_EVENT_TERMINATE = 2,
+    SE_EVENT_USER      = 3,
 } s_expr_event_type_t;
 
 // ============================================================================
@@ -79,7 +101,8 @@ typedef enum {
 #define S_EXPR_PARAM_MAIN        0x09
 #define S_EXPR_PARAM_PRED        0x0A
 #define S_EXPR_PARAM_FIELD       0x0B
-#define S_EXPR_PARAM_RESULT      0x0C  // NEW: return code
+#define S_EXPR_PARAM_RESULT      0x0C
+
 // ============================================================================
 // TYPE FLAGS (upper bits of type byte)
 // ============================================================================
@@ -101,6 +124,7 @@ typedef enum {
 #define S_EXPR_PARAM_IS_CALLABLE(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_CALL)
 #define S_EXPR_PARAM_IS_SLOT(t)      (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_SLOT)
 #define S_EXPR_PARAM_IS_FIELD(t)     (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FIELD)
+#define S_EXPR_PARAM_IS_RESULT(t)    (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_RESULT)
 #define S_EXPR_PARAM_HAS_POINTER(t)  (((t) & S_EXPR_FLAG_POINTER) != 0)
 #define S_EXPR_PARAM_SURVIVES_RESET(t) (((t) & S_EXPR_FLAG_SURVIVES_RESET) != 0)
 
@@ -108,61 +132,97 @@ typedef enum {
 // NODE FLAGS (runtime state per func_node)
 // ============================================================================
 
-#define S_EXPR_NODE_FLAG_ACTIVE        0x01  // bit 0: node executes on tick
-#define S_EXPR_NODE_FLAG_INITIALIZED   0x02  // bit 1: init event sent
-#define S_EXPR_NODE_FLAG_EVER_INIT     0x04  // bit 2: survives reset (io_call)
-#define S_EXPR_NODE_FLAG_ERROR         0x08  // bit 3: node in error state
-
-// System-reserved flags (bits 0-3)
+#define S_EXPR_NODE_FLAG_ACTIVE        0x01
+#define S_EXPR_NODE_FLAG_INITIALIZED   0x02
+#define S_EXPR_NODE_FLAG_EVER_INIT     0x04
+#define S_EXPR_NODE_FLAG_ERROR         0x08
 #define S_EXPR_NODE_FLAGS_SYSTEM       0x0F
-// User-available flags (bits 4-7)
 #define S_EXPR_NODE_FLAGS_USER         0xF0
 
 // ============================================================================
-// SLOT REFERENCE STRUCTURE
-// ============================================================================
-
-typedef struct {
-    uint16_t pool_id;
-    uint16_t slot_index;
-} s_expr_slot_ref_t;
-
-// ============================================================================
-// FIELD REFERENCE STRUCTURE (for record/blackboard access)
-// ============================================================================
-
-typedef struct {
-    uint16_t offset;
-    uint16_t size;
-} s_expr_field_ref_t;
-
-// ============================================================================
 // PARAMETER STRUCTURE (matches DSL output)
+//
+// DSL output examples:
+//   { .type = 0x09, .index_to_pointer = 0, .node_index = 1, .func_index = 4 }
+//   { .type = 0x0B, .field_offset = 0, .field_size = 4 }
+//   { .type = 0x00, .int_val = 1 }
+//   { .type = 0x07, .brace_idx = 4 }
+//
+// Fields:
+//   node_index       -> index into node_states[] (flags/state)
+//   func_index       -> index into function table
+//   index_to_pointer -> index into pointer_array[] (for pt_m_call)
 // ============================================================================
 
 typedef struct {
     uint8_t  type;              // opcode + flags
-    uint8_t  index_to_pointer;  // base index into pointer array (for pt_m_call)
-    uint16_t node_index;        // func_node index (for function refs)
-    uint8_t  reserved[4];
+    uint8_t  index_to_pointer;  // pointer array index (for pt_m_call)
     union {
-        ct_int_t          i;
-        ct_uint_t         u;
-        ct_float_t        f;
-        uint32_t          str_hash;
-        uint16_t          func_idx;
-        uint16_t          brace_idx;    // relative offset to matching brace
-        s_expr_slot_ref_t slot;
-        s_expr_field_ref_t field;
+        // Function references (ONESHOT, MAIN, PRED)
+        struct {
+            uint16_t node_index;    // -> node_states[]
+            uint16_t func_index;    // -> function table
+        };
+        // Field references (FIELD)
+        struct {
+            uint16_t field_offset;
+            uint16_t field_size;
+        };
+        // Slot references (SLOT) - legacy
+        struct {
+            uint16_t pool_id;
+            uint16_t slot_index;
+        };
+        // Brace matching (OPEN, OPEN_CALL, CLOSE)
+        uint16_t brace_idx;
+        // Values (INT, UINT, FLOAT, STR_HASH, RESULT)
+        ct_int_t      int_val;
+        ct_uint_t     uint_val;
+        ct_float_t    float_val;
+        s_expr_hash_t str_hash;
     };
 } s_expr_param_t;
+
+// Verify sizes at compile time
+#if MODULE_IS_64BIT
+    _Static_assert(sizeof(s_expr_param_t) == 16, "64-bit param should be 16 bytes");
+#else
+    _Static_assert(sizeof(s_expr_param_t) == 8, "32-bit param should be 8 bytes");
+#endif
+
+// ============================================================================
+// NODE STATE (RAM - per func_node in tree instance)
+// Minimal structure - pointer/u64/f64 storage is in separate pointer_array
+// ============================================================================
+
+typedef struct {
+    uint8_t  flags;         // system (0-3) + user (4-7) flags
+    uint8_t  state;         // user state (0-255)
+    uint16_t user_data;     // 16 bits for dispatch tracking, etc.
+} s_expr_node_state_t;
+
+_Static_assert(sizeof(s_expr_node_state_t) == 4, "node state should be 4 bytes");
+
+// ============================================================================
+// POINTER SLOT (always 8 bytes for ptr/u64/i64/f64 storage)
+// Used by pt_m_call functions for persistent storage
+// ============================================================================
+
+typedef union {
+    void*    ptr;
+    uint64_t u64;
+    int64_t  i64;
+    double   f64;
+} s_expr_slot_t;
+
+_Static_assert(sizeof(s_expr_slot_t) == 8, "slot should be 8 bytes");
 
 // ============================================================================
 // FIELD DESCRIPTOR (for runtime field lookup)
 // ============================================================================
 
 typedef struct {
-    uint32_t name_hash;
+    s_expr_hash_t name_hash;
     uint16_t offset;
     uint16_t size;
 } s_expr_field_desc_t;
@@ -172,7 +232,7 @@ typedef struct {
 // ============================================================================
 
 typedef struct {
-    uint32_t name_hash;
+    s_expr_hash_t name_hash;
     uint16_t total_size;
     uint16_t field_count;
     const s_expr_field_desc_t* fields;
@@ -183,8 +243,8 @@ typedef struct {
 // ============================================================================
 
 typedef struct {
-    uint32_t name_hash;
-    uint32_t record_hash;           // bound blackboard record (0 if none)
+    s_expr_hash_t name_hash;
+    s_expr_hash_t record_hash;
     const s_expr_param_t* params;
     uint16_t param_count;
     uint16_t func_node_count;
@@ -196,14 +256,14 @@ typedef struct {
 // ============================================================================
 
 typedef struct {
-    uint32_t name_hash;
+    s_expr_hash_t name_hash;
     const s_expr_tree_def_t* trees;
     uint16_t tree_count;
     bool     is_64bit;
     
-    const uint32_t* oneshot_hashes;
-    const uint32_t* main_hashes;
-    const uint32_t* pred_hashes;
+    const s_expr_hash_t* oneshot_hashes;
+    const s_expr_hash_t* main_hashes;
+    const s_expr_hash_t* pred_hashes;
     
     uint16_t oneshot_count;
     uint16_t main_count;
@@ -213,26 +273,9 @@ typedef struct {
     uint16_t max_pointer_count;
     uint16_t max_param_count;
     
-    // Optional: record descriptors
     const s_expr_record_desc_t* records;
     uint16_t record_count;
 } s_expr_module_def_t;
-
-// ============================================================================
-// NODE STATE (RAM - per func_node in tree instance)
-// ============================================================================
-
-typedef struct {
-    uint8_t  flags;
-    uint8_t  state;         // user state (0-255)
-    uint8_t  reserved[6];
-    union {
-        void*    ptr;
-        uint64_t u64;
-        int64_t  i64;
-        double   f64;
-    } user_data;
-} s_expr_node_state_t;
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -243,10 +286,8 @@ typedef struct s_expr_tree_instance s_expr_tree_instance_t;
 
 // ============================================================================
 // FUNCTION SIGNATURES
-// All user functions receive same signature for consistency
 // ============================================================================
 
-// Main function: returns result code
 typedef s_expr_result_t (*s_expr_main_fn_t)(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t*   params,
@@ -256,7 +297,6 @@ typedef s_expr_result_t (*s_expr_main_fn_t)(
     void*                   event_data
 );
 
-// Oneshot function: no return (runs once)
 typedef void (*s_expr_oneshot_fn_t)(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t*   params,
@@ -266,7 +306,6 @@ typedef void (*s_expr_oneshot_fn_t)(
     void*                   event_data
 );
 
-// Predicate function: returns bool
 typedef bool (*s_expr_pred_fn_t)(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t*   params,
@@ -276,13 +315,11 @@ typedef bool (*s_expr_pred_fn_t)(
     void*                   event_data
 );
 
-// Debug callback
 typedef void (*s_expr_debug_fn_t)(
     s_expr_tree_instance_t* inst,
     const char* message
 );
 
-// Error callback (for pointer access violations, etc.)
 typedef void (*s_expr_error_fn_t)(
     s_expr_tree_instance_t* inst,
     uint8_t error_code,
@@ -305,14 +342,15 @@ typedef struct {
 // ============================================================================
 // FUNCTION REGISTRATION (hash -> function pointer)
 // ============================================================================
+
 typedef struct {
     const char* name;
     void*       fn_ptr;
 } s_expr_fn_entry_named_t;
 
 typedef struct {
-    uint32_t hash;
-    void*    fn_ptr;
+    s_expr_hash_t hash;
+    void*         fn_ptr;
 } s_expr_fn_entry_t;
 
 typedef struct {
@@ -327,26 +365,21 @@ typedef struct {
 struct s_expr_module {
     const s_expr_module_def_t* def;
     
-    // Resolved function pointers (indexed by func_idx)
     s_expr_oneshot_fn_t* oneshot_fns;
     s_expr_main_fn_t*    main_fns;
     s_expr_pred_fn_t*    pred_fns;
     
-    // Callbacks
     s_expr_debug_fn_t    debug_fn;
     s_expr_error_fn_t    error_fn;
     
-    // Allocator
     s_expr_allocator_t   alloc;
     
-    // Pool table (legacy support)
     void**               pool_table;
     uint16_t             pool_count;
     
-    // Error state
     uint8_t              error_code;
     uint16_t             error_index;
-    uint32_t             error_hash;
+    s_expr_hash_t        error_hash;
 };
 
 // ============================================================================
@@ -358,17 +391,18 @@ struct s_expr_tree_instance {
     const s_expr_tree_def_t*  tree;
     uint16_t                  tree_index;
     
-    // Per func_node state
+    // Per func_node state (flags/state/user_data)
     s_expr_node_state_t*      node_states;
     uint16_t                  node_count;
     
-    // Pointer array (for pt_m_call)
-    void**                    pointer_array;
+    // Pointer/value array (for pt_m_call - stores ptr, u64, i64, or f64)
+    s_expr_slot_t*            pointer_array;
     uint16_t                  pointer_count;
     
     // Blackboard (record binding)
     void*                     blackboard;
     uint16_t                  blackboard_size;
+    bool                      blackboard_owned;  // true if auto-allocated by engine
     
     // Current execution context
     uint16_t                  current_node_index;
@@ -378,7 +412,7 @@ struct s_expr_tree_instance {
     uint8_t                   pointer_base;
     
     // ChainTree node identifier
-    uint32_t                  ct_node_id;    // <-- ADD THIS
+    uint32_t                  ct_node_id;
     
     // User context
     void*                     user_ctx;
@@ -396,84 +430,105 @@ struct s_expr_tree_instance {
 #define S_EXPR_ERR_MAIN_NOT_FOUND        5
 #define S_EXPR_ERR_PRED_NOT_FOUND        6
 #define S_EXPR_ERR_INVALID_TREE          7
-#define S_EXPR_ERR_NOT_POINTER_CALL      8   // tried to access pointer in non-pt_m_call
-#define S_EXPR_ERR_POINTER_INDEX         9   // pointer index out of range
-#define S_EXPR_ERR_NO_BLACKBOARD         10  // field_ref but no blackboard bound
+#define S_EXPR_ERR_NOT_POINTER_CALL      8
+#define S_EXPR_ERR_POINTER_INDEX         9
+#define S_EXPR_ERR_NO_BLACKBOARD         10
 
+// ============================================================================
+// HASH FUNCTION (FNV-1a)
+// ============================================================================
 
-static inline uint32_t s_expr_hash_string(const char* str) {
-    uint32_t hash = 0x811c9dc5;  // FNV1A_32_INIT
+static inline s_expr_hash_t s_expr_hash(const char* str) {
+    s_expr_hash_t hash = FNV_OFFSET;
     while (*str) {
         hash ^= (uint8_t)*str++;
-        hash *= 0x01000193;      // FNV1A_32_PRIME
+        hash *= FNV_PRIME;
     }
     return hash;
 }
 
 // ============================================================================
-// Parameter type checking helpers
+// BLACKBOARD FIELD ACCESS MACRO
+// ============================================================================
+
+#define S_EXPR_GET_FIELD(inst, param, type) \
+    ((type*)((uint8_t*)(inst)->blackboard + (param)->field_offset))
+
+// ============================================================================
+// PARAMETER ACCESSORS
+// ============================================================================
+
+static inline ct_int_t s_expr_param_int(const s_expr_param_t* p) {
+    return p->int_val;
+}
+
+static inline ct_uint_t s_expr_param_uint(const s_expr_param_t* p) {
+    return p->uint_val;
+}
+
+static inline ct_float_t s_expr_param_float(const s_expr_param_t* p) {
+    return p->float_val;
+}
+
+static inline s_expr_hash_t s_expr_param_str_hash(const s_expr_param_t* p) {
+    return p->str_hash;
+}
+
+static inline uint8_t s_expr_param_opcode(const s_expr_param_t* p) {
+    return p->type & S_EXPR_OPCODE_MASK;
+}
+
+// ============================================================================
+// PARAMETER TYPE HELPERS
 // ============================================================================
 
 static inline bool s_expr_param_is_predicate(const s_expr_param_t* param) {
     uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
-    
-    // Direct predicate reference
-    if (opcode == S_EXPR_PARAM_PRED) {
-        return true;
-    }
-    
-    // Callable - check next param for function type
+    if (opcode == S_EXPR_PARAM_PRED) return true;
     if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-        const s_expr_param_t* func_param = param + 1;
-        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
-        return func_opcode == S_EXPR_PARAM_PRED;
+        return ((param + 1)->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_PRED;
     }
-    
     return false;
 }
 
 static inline bool s_expr_param_is_action(const s_expr_param_t* param) {
     uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
-    
-    // Direct function references
-    if (opcode == S_EXPR_PARAM_MAIN || opcode == S_EXPR_PARAM_ONESHOT) {
-        return true;
-    }
-    
-    // Callable - check next param for function type
+    if (opcode == S_EXPR_PARAM_MAIN || opcode == S_EXPR_PARAM_ONESHOT) return true;
     if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-        const s_expr_param_t* func_param = param + 1;
-        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
+        uint8_t func_opcode = (param + 1)->type & S_EXPR_OPCODE_MASK;
         return func_opcode == S_EXPR_PARAM_MAIN || func_opcode == S_EXPR_PARAM_ONESHOT;
     }
-    
     return false;
 }
 
-static inline bool s_expr_param_is_callable(const s_expr_param_t* param) {
-    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
-    
-    // Any function type
-    if (opcode == S_EXPR_PARAM_MAIN || 
-        opcode == S_EXPR_PARAM_ONESHOT || 
-        opcode == S_EXPR_PARAM_PRED) {
-        return true;
+static inline uint8_t s_expr_param_ptr_index(const s_expr_param_t* p) {
+    return p->index_to_pointer;
+}
+
+// ============================================================================
+// RESULT CODE FINDER
+// ============================================================================
+
+static inline s_expr_result_t s_expr_find_result(
+    const s_expr_param_t* params,
+    uint16_t param_count
+) {
+    for (int16_t i = param_count - 1; i >= 0; i--) {
+        if ((params[i].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_RESULT) {
+            return (s_expr_result_t)params[i].int_val;
+        }
     }
-    
-    // Or wrapped in OPEN_CALL
-    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-        const s_expr_param_t* func_param = param + 1;
-        uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
-        return func_opcode == S_EXPR_PARAM_MAIN || 
-               func_opcode == S_EXPR_PARAM_ONESHOT || 
-               func_opcode == S_EXPR_PARAM_PRED;
+    for (int16_t i = param_count - 1; i >= 0; i--) {
+        uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+            return (s_expr_result_t)params[i].int_val;
+        }
     }
-    
-    return false;
+    return SE_CONTINUE;
 }
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // S_ENGINE_V3_TYPES_H
+#endif // S_ENGINE_TYPES_H

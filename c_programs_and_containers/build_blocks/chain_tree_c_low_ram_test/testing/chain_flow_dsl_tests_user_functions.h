@@ -16,7 +16,7 @@
 // USER ONESHOT FUNCTION PROTOTYPES
 // ============================================================================
 
-// DSL: TEST_30_SET_STATE  hash: 0xFFFFFFFFD9DF85E7
+// DSL: TEST_30_SET_STATE  hash: 0xD04E313CU
 void test_30_set_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -25,7 +25,7 @@ void test_30_set_state_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_31_SET_STATE  hash: 0x0DE5642C
+// DSL: TEST_31_SET_STATE  hash: 0x4D385D9BU
 void test_31_set_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -34,7 +34,7 @@ void test_31_set_state_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_31_SET_MOTOR  hash: 0xFFFFFFFFF0C3831F
+// DSL: TEST_31_SET_MOTOR  hash: 0xCA568877U
 void test_31_set_motor_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -43,7 +43,7 @@ void test_31_set_motor_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_TOGGLE_LED  hash: 0xFFFFFFFFCA453200
+// DSL: TEST_32_TOGGLE_LED  hash: 0x8ACEDC6EU
 void test_32_toggle_led_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -52,7 +52,7 @@ void test_32_toggle_led_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_ENABLE_BUZZER  hash: 0xFFFFFFFFD13797E0
+// DSL: TEST_32_ENABLE_BUZZER  hash: 0x81B642F2U
 void test_32_enable_buzzer_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -61,7 +61,7 @@ void test_32_enable_buzzer_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_SET_LED  hash: 0x6469118C
+// DSL: TEST_32_SET_LED  hash: 0x8B9E28B2U
 void test_32_set_led_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -70,7 +70,7 @@ void test_32_set_led_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_NOTIFY_SYSTEM  hash: 0xFFFFFFFFD526B22C
+// DSL: TEST_32_NOTIFY_SYSTEM  hash: 0x1593B0BBU
 void test_32_notify_system_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -79,7 +79,7 @@ void test_32_notify_system_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_DISABLE_ALL_OUTPUTS  hash: 0xFFFFFFFFB44FA327
+// DSL: TEST_32_DISABLE_ALL_OUTPUTS  hash: 0x9BEEA78DU
 void test_32_disable_all_outputs_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -88,7 +88,7 @@ void test_32_disable_all_outputs_oneshot(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_SAVE_STATE  hash: 0x7BAF1574
+// DSL: TEST_32_SAVE_STATE  hash: 0x9B59F0CBU
 void test_32_save_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -101,7 +101,7 @@ void test_32_save_state_oneshot(
 // USER MAIN FUNCTION PROTOTYPES
 // ============================================================================
 
-// DSL: TEST_32_PROCESS_SCHEDULED_TASKS  hash: 0xFFFFFFFF9F3DA300
+// DSL: TEST_32_PROCESS_SCHEDULED_TASKS  hash: 0xE8D34100U
 s_expr_result_t test_32_process_scheduled_tasks_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -110,7 +110,7 @@ s_expr_result_t test_32_process_scheduled_tasks_main(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_CHECK_THRESHOLD  hash: 0x24D11DA8
+// DSL: TEST_32_CHECK_THRESHOLD  hash: 0x86573308U
 s_expr_result_t test_32_check_threshold_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -119,7 +119,7 @@ s_expr_result_t test_32_check_threshold_main(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_GENERATE_INTERNAL_EVENTS  hash: 0xFFFFFFFF852EC798
+// DSL: TEST_32_GENERATE_INTERNAL_EVENTS  hash: 0x18DDD46FU
 s_expr_result_t test_32_generate_internal_events_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -128,7 +128,7 @@ s_expr_result_t test_32_generate_internal_events_main(
     uint16_t event_id,
     void* event_data);
 
-// DSL: TEST_32_RUN_BACKGROUND_TASKS  hash: 0xFFFFFFFFCCAE740A
+// DSL: TEST_32_RUN_BACKGROUND_TASKS  hash: 0x7E0874DBU
 s_expr_result_t test_32_run_background_tasks_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,

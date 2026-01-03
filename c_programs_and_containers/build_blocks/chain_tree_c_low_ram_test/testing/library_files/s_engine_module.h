@@ -1,10 +1,10 @@
 // ============================================================================
-// s_engine_v3_module.h
-// S-Expression Module Management API - Version 3.0
+// s_engine_module.h
+// S-Expression Module Management API
 // ============================================================================
 
-#ifndef S_ENGINE_V3_MODULE_H
-#define S_ENGINE_V3_MODULE_H
+#ifndef S_ENGINE_MODULE_H
+#define S_ENGINE_MODULE_H
 
 #include "s_engine_types.h"
 
@@ -16,32 +16,23 @@ extern "C" {
 // MODULE LIFECYCLE
 // ============================================================================
 
-// Initialize module with definition and allocator
 uint8_t s_expr_module_init(
     s_expr_module_t* mod,
     const s_expr_module_def_t* def,
     s_expr_allocator_t alloc
 );
 
-// Register function tables (call before validate)
 void s_expr_module_register_oneshot(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 void s_expr_module_register_main(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 void s_expr_module_register_pred(s_expr_module_t* mod, const s_expr_fn_table_t* table);
 
-// Validate all functions are resolved
 uint8_t s_expr_module_validate(s_expr_module_t* mod);
-
-// Free module resources
 void s_expr_module_free(s_expr_module_t* mod);
 
-// Set callbacks
 void s_expr_module_set_debug(s_expr_module_t* mod, s_expr_debug_fn_t fn);
 void s_expr_module_set_error(s_expr_module_t* mod, s_expr_error_fn_t fn);
-
-// Set pool table (legacy support)
 void s_expr_module_set_pools(s_expr_module_t* mod, void** pools, uint16_t count);
 
-// Error info
 const char* s_expr_error_str(uint8_t error_code);
 
 // ============================================================================
@@ -51,81 +42,95 @@ const char* s_expr_error_str(uint8_t error_code);
 s_expr_tree_instance_t* s_expr_tree_create(
     s_expr_module_t* mod,
     uint16_t tree_index,
-    uint32_t ct_node_id    // <-- ADD THIS
+    uint32_t ct_node_id
 );
 
 s_expr_tree_instance_t* s_expr_tree_create_by_hash(
     s_expr_module_t* mod,
-    uint32_t name_hash,
+    s_expr_hash_t name_hash,
     uint32_t ct_node_id
 );
 
-// Free tree instance
 void s_expr_tree_free(s_expr_tree_instance_t* inst);
 
-// Bind blackboard (record) to tree
-// blackboard must remain valid for lifetime of tree instance
 void s_expr_tree_bind_blackboard(
     s_expr_tree_instance_t* inst,
     void* blackboard,
     uint16_t size
 );
 
-// Set user context
 void s_expr_tree_set_user_ctx(s_expr_tree_instance_t* inst, void* ctx);
 void* s_expr_tree_get_user_ctx(s_expr_tree_instance_t* inst);
 
 // ============================================================================
-// NODE STATE ACCESS (for use inside function callbacks)
-// These operate on the CURRENT node being executed
+// BLACKBOARD USER ACCESS APIs
+// For external entities to read/write blackboard fields
 // ============================================================================
 
-// Get/set user flags (bits 4-7 only, system bits protected)
-uint8_t s_expr_get_user_flags(s_expr_tree_instance_t* inst);
-void s_expr_set_user_flags(s_expr_tree_instance_t* inst, uint8_t flags);
+// Get raw pointer to blackboard
+void* s_expr_tree_get_blackboard(s_expr_tree_instance_t* inst);
+uint16_t s_expr_tree_get_blackboard_size(s_expr_tree_instance_t* inst);
 
-// Get/set user state byte
-uint8_t s_expr_get_state(s_expr_tree_instance_t* inst);
-void s_expr_set_state(s_expr_tree_instance_t* inst, uint8_t state);
+// Get field pointer by offset (from DSL field_offset)
+void* s_expr_blackboard_get_field_ptr(s_expr_tree_instance_t* inst, uint16_t field_offset);
 
-// Get/set user data (general purpose storage)
-void* s_expr_get_user_ptr(s_expr_tree_instance_t* inst);
-void s_expr_set_user_ptr(s_expr_tree_instance_t* inst, void* ptr);
-uint64_t s_expr_get_user_u64(s_expr_tree_instance_t* inst);
-void s_expr_set_user_u64(s_expr_tree_instance_t* inst, uint64_t val);
-double s_expr_get_user_f64(s_expr_tree_instance_t* inst);
-void s_expr_set_user_f64(s_expr_tree_instance_t* inst, double val);
+// Get field pointer by hash (runtime lookup)
+void* s_expr_blackboard_get_field_by_hash(s_expr_tree_instance_t* inst, s_expr_hash_t field_hash);
+
+// Typed accessors (by field hash)
+bool s_expr_blackboard_set_int(s_expr_tree_instance_t* inst, s_expr_hash_t field_hash, int32_t value);
+int32_t s_expr_blackboard_get_int(s_expr_tree_instance_t* inst, s_expr_hash_t field_hash, int32_t default_value);
+bool s_expr_blackboard_set_float(s_expr_tree_instance_t* inst, s_expr_hash_t field_hash, float value);
+float s_expr_blackboard_get_float(s_expr_tree_instance_t* inst, s_expr_hash_t field_hash, float default_value);
+
+// String-based accessors (calculates hash internally - convenience for external code)
+void* s_expr_blackboard_get_field_by_string(s_expr_tree_instance_t* inst, const char* field_name);
+bool s_expr_blackboard_set_int_by_string(s_expr_tree_instance_t* inst, const char* field_name, int32_t value);
+int32_t s_expr_blackboard_get_int_by_string(s_expr_tree_instance_t* inst, const char* field_name, int32_t default_value);
+bool s_expr_blackboard_set_float_by_string(s_expr_tree_instance_t* inst, const char* field_name, float value);
+float s_expr_blackboard_get_float_by_string(s_expr_tree_instance_t* inst, const char* field_name, float default_value);
+bool s_expr_blackboard_set_uint_by_string(s_expr_tree_instance_t* inst, const char* field_name, uint32_t value);
+uint32_t s_expr_blackboard_get_uint_by_string(s_expr_tree_instance_t* inst, const char* field_name, uint32_t default_value);
+
 // ============================================================================
-// POINTER ACCESS (for pt_m_call only)
+// NODE STATE ACCESS (current node during callback)
+// ============================================================================
+
+uint8_t s_expr_node_get_flags(s_expr_tree_instance_t* inst);
+void s_expr_node_set_user_flags(s_expr_tree_instance_t* inst, uint8_t flags);
+
+uint8_t s_expr_node_get_state(s_expr_tree_instance_t* inst);
+void s_expr_node_set_state(s_expr_tree_instance_t* inst, uint8_t state);
+
+uint16_t s_expr_node_get_user_data(s_expr_tree_instance_t* inst);
+void s_expr_node_set_user_data(s_expr_tree_instance_t* inst, uint16_t data);
+
+// ============================================================================
+// POINTER ARRAY ACCESS (for pt_m_call)
 // These error if called outside a pt_m_call context
 // ============================================================================
 
-// Get pointer slot for param at relative index (0 = first param after func ref)
-// Returns pointer to the slot (void**) so user can read/write
-void** s_expr_get_pointer_slot(s_expr_tree_instance_t* inst, uint16_t param_index);
-
-// Allocate memory and store in pointer slot
+bool s_expr_is_pointer_call(s_expr_tree_instance_t* inst);
+void* s_expr_get_field_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* field_param);
 void* s_expr_pointer_alloc(s_expr_tree_instance_t* inst, uint16_t param_index, size_t size);
-
-// Free memory in pointer slot (sets slot to NULL)
 void s_expr_pointer_free(s_expr_tree_instance_t* inst, uint16_t param_index);
 
-// Check if currently in a pointer-capable call
-bool s_expr_is_pointer_call(s_expr_tree_instance_t* inst);
+// Typed access to pointer slots (stores pointer, u64, or f64)
+void* s_expr_get_ptr(s_expr_tree_instance_t* inst, uint16_t param_index);
+void s_expr_set_ptr(s_expr_tree_instance_t* inst, uint16_t param_index, void* ptr);
+uint64_t s_expr_get_u64(s_expr_tree_instance_t* inst);
+void s_expr_set_u64(s_expr_tree_instance_t* inst, uint64_t val);
+double s_expr_get_f64(s_expr_tree_instance_t* inst);
+void s_expr_set_f64(s_expr_tree_instance_t* inst, double val);
+s_expr_slot_t* s_expr_get_pointer_slot(s_expr_tree_instance_t* inst, uint16_t param_index);
+// ============================================================================
+// BLACKBOARD ACCESS
+// ============================================================================
+
+
 
 // ============================================================================
-// BLACKBOARD ACCESS (for field_ref parameters)
-// ============================================================================
-
-// Get pointer to field in blackboard
-void* s_expr_get_field_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* field_param);
-
-// Type-safe field access macros
-#define S_EXPR_GET_FIELD(inst, param, type) \
-    ((type*)s_expr_get_field_ptr((inst), (param)))
-
-// ============================================================================
-// POOL ACCESS (legacy support)
+// POOL ACCESS (legacy)
 // ============================================================================
 
 void* s_expr_get_slot_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* slot_param, size_t elem_size);
@@ -134,36 +139,9 @@ void* s_expr_get_slot_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* sl
     ((type*)s_expr_get_slot_ptr((inst), (param), sizeof(type)))
 
 // ============================================================================
-// PARAMETER ACCESS HELPERS
-// ============================================================================
-
-// Get value from parameter
-static inline ct_int_t s_expr_param_int(const s_expr_param_t* p) { return p->i; }
-static inline ct_uint_t s_expr_param_uint(const s_expr_param_t* p) { return p->u; }
-static inline ct_float_t s_expr_param_float(const s_expr_param_t* p) { return p->f; }
-static inline uint32_t s_expr_param_str_hash(const s_expr_param_t* p) { return p->str_hash; }
-static inline uint16_t s_expr_param_func_idx(const s_expr_param_t* p) { return p->func_idx; }
-static inline uint16_t s_expr_param_brace_offset(const s_expr_param_t* p) { return p->brace_idx; }
-
-// Get opcode (lower 4 bits)
-static inline uint8_t s_expr_param_opcode(const s_expr_param_t* p) {
-    return p->type & S_EXPR_OPCODE_MASK;
-}
-
-// Check flags
-static inline bool s_expr_param_is_pointer(const s_expr_param_t* p) {
-    return (p->type & S_EXPR_FLAG_POINTER) != 0;
-}
-
-static inline bool s_expr_param_survives_reset(const s_expr_param_t* p) {
-    return (p->type & S_EXPR_FLAG_SURVIVES_RESET) != 0;
-}
-
-// ============================================================================
 // PARAMETER NAVIGATION
 // ============================================================================
 
-// Skip past a parameter (handles braces)
 static inline uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t idx) {
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     if (opcode == S_EXPR_PARAM_OPEN || opcode == S_EXPR_PARAM_OPEN_CALL) {
@@ -172,8 +150,6 @@ static inline uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t 
     return idx + 1;
 }
 
-// Get contents of braced expression
-// Returns pointer to first element inside braces, sets count
 static inline const s_expr_param_t* s_expr_brace_contents(
     const s_expr_param_t* params,
     uint16_t open_idx,
@@ -184,7 +160,6 @@ static inline const s_expr_param_t* s_expr_brace_contents(
     return &params[open_idx + 1];
 }
 
-// For OPEN_CALL: get function ref and args
 static inline const s_expr_param_t* s_expr_call_func(
     const s_expr_param_t* params,
     uint16_t open_idx
@@ -210,7 +185,7 @@ static inline uint16_t s_expr_module_tree_count(const s_expr_module_t* mod) {
     return (mod && mod->def) ? mod->def->tree_count : 0;
 }
 
-static inline uint32_t s_expr_module_tree_hash(const s_expr_module_t* mod, uint16_t idx) {
+static inline s_expr_hash_t s_expr_module_tree_hash(const s_expr_module_t* mod, uint16_t idx) {
     if (!mod || !mod->def || idx >= mod->def->tree_count) return 0;
     return mod->def->trees[idx].name_hash;
 }
@@ -219,7 +194,7 @@ static inline uint32_t s_expr_module_tree_hash(const s_expr_module_t* mod, uint1
 // TREE INSTANCE ACCESSORS
 // ============================================================================
 
-static inline uint32_t s_expr_tree_name_hash(const s_expr_tree_instance_t* inst) {
+static inline s_expr_hash_t s_expr_tree_name_hash(const s_expr_tree_instance_t* inst) {
     return (inst && inst->tree) ? inst->tree->name_hash : 0;
 }
 
@@ -235,13 +210,23 @@ static inline uint16_t s_expr_tree_param_count(const s_expr_tree_instance_t* ins
     return (inst && inst->tree) ? inst->tree->param_count : 0;
 }
 
+// ============================================================================
+// FUNCTION TABLE UTILITIES
+// ============================================================================
+
 void s_expr_build_fn_table(
     const s_expr_fn_entry_named_t* named,
     s_expr_fn_entry_t* out,
     uint16_t count
 );
+
+void* s_expr_lookup_func(
+    const s_expr_fn_table_t* table,
+    s_expr_hash_t hash
+);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // S_ENGINE_V3_MODULE_H
+#endif // S_ENGINE_MODULE_H

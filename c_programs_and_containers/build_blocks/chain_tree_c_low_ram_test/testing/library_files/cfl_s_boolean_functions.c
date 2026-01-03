@@ -19,7 +19,7 @@
 // Returns: true if bit is set
 // ============================================================================
 
-static bool cfl_read_bit_boolean(
+static bool cfl_read_bit_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -61,7 +61,7 @@ static bool cfl_read_bit_boolean(
 // Params: none
 // ============================================================================
 
-static bool cfl_true_boolean(
+static bool cfl_true_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -80,7 +80,7 @@ static bool cfl_true_boolean(
 // Params: none
 // ============================================================================
 
-static bool cfl_false_boolean(
+static bool cfl_false_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -210,23 +210,22 @@ static inline bool cfl_s_bit_eval(
     
     // Default returns
     switch (mode) {
-        case BIT_OP_OR:   return false;  // No true found
-        case BIT_OP_NOR:  return true;   // All were false
-        case BIT_OP_AND:  return true;   // No false found
-        case BIT_OP_NAND: return false;  // All were true
+        case BIT_OP_OR:   return false;       // No true found
+        case BIT_OP_NOR:  return true;        // All were false
+        case BIT_OP_AND:  return true;        // No false found
+        case BIT_OP_NAND: return false;       // All were true
         case BIT_OP_XOR:  return accumulator;
-        default:          {
-            EXCEPTION("cfl_s_bit: Invalid mode");
-            return false;
-        }
     }
+    
+    EXCEPTION("cfl_s_bit: Invalid mode");
+    return false;
 }
 
 // ============================================================================
 // CFL_S_BIT_OR: Short-circuit OR on bits/predicates
 // ============================================================================
 
-static bool cfl_s_bit_or_boolean(
+static bool cfl_s_bit_or_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -257,7 +256,7 @@ static bool cfl_s_bit_or_boolean(
 // CFL_S_BIT_AND: Short-circuit AND on bits/predicates
 // ============================================================================
 
-static bool cfl_s_bit_and_boolean(
+static bool cfl_s_bit_and_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -288,7 +287,7 @@ static bool cfl_s_bit_and_boolean(
 // CFL_S_BIT_NOR: NOR on bits/predicates (true only if all false)
 // ============================================================================
 
-static bool cfl_s_bit_nor_boolean(
+static bool cfl_s_bit_nor_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -319,7 +318,7 @@ static bool cfl_s_bit_nor_boolean(
 // CFL_S_BIT_NAND: NAND on bits/predicates (false only if all true)
 // ============================================================================
 
-static bool cfl_s_bit_nand_boolean(
+static bool cfl_s_bit_nand_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -350,7 +349,7 @@ static bool cfl_s_bit_nand_boolean(
 // CFL_S_BIT_XOR: XOR on bits/predicates (true if odd number true)
 // ============================================================================
 
-static bool cfl_s_bit_xor_boolean(
+static bool cfl_s_bit_xor_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -377,7 +376,6 @@ static bool cfl_s_bit_xor_boolean(
     return cfl_s_bit_eval(inst, params, param_count, runtime->bitmask, BIT_OP_XOR);
 }
 
-
 // ============================================================================
 // CFL_CHECK_EVENT: Check if event_id matches any parameter value
 // Params: list of event IDs (int/uint)
@@ -387,7 +385,7 @@ static bool cfl_s_bit_xor_boolean(
 //   p_call("CFL_CHECK_EVENT") int(1) int(2) int(10) end_call(...)
 // ============================================================================
 
-static bool cfl_check_event_boolean(
+static bool cfl_check_event_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -436,25 +434,21 @@ static bool cfl_check_event_boolean(
     
     return false;  // No match found
 }
-// ============================================================================
-// FUNCTION TABLE
-// ============================================================================
 
 // ============================================================================
 // SYSTEM PREDICATE ENTRIES (named for readability)
 // ============================================================================
 
 static const s_expr_fn_entry_named_t system_pred_entries_named[] = {
-    { "CFL_READ_BIT",       (void*)cfl_read_bit_boolean },
-    { "CFL_TRUE",           (void*)cfl_true_boolean },
-    { "CFL_FALSE",          (void*)cfl_false_boolean },
-    { "CFL_S_BIT_OR",       (void*)cfl_s_bit_or_boolean },
-    { "CFL_S_BIT_AND",      (void*)cfl_s_bit_and_boolean },
-    { "CFL_S_BIT_NOR",      (void*)cfl_s_bit_nor_boolean },
-    { "CFL_S_BIT_NAND",     (void*)cfl_s_bit_nand_boolean },
-    { "CFL_S_BIT_XOR",      (void*)cfl_s_bit_xor_boolean },
-    { "CFL_CHECK_EVENT",    (void*)cfl_check_event_boolean },
-    // Add more system predicate functions here
+    { "CFL_READ_BIT",       (void*)cfl_read_bit_pred },
+    { "CFL_TRUE",           (void*)cfl_true_pred },
+    { "CFL_FALSE",          (void*)cfl_false_pred },
+    { "CFL_S_BIT_OR",       (void*)cfl_s_bit_or_pred },
+    { "CFL_S_BIT_AND",      (void*)cfl_s_bit_and_pred },
+    { "CFL_S_BIT_NOR",      (void*)cfl_s_bit_nor_pred },
+    { "CFL_S_BIT_NAND",     (void*)cfl_s_bit_nand_pred },
+    { "CFL_S_BIT_XOR",      (void*)cfl_s_bit_xor_pred },
+    { "CFL_CHECK_EVENT",    (void*)cfl_check_event_pred },
 };
 
 // ============================================================================
@@ -470,44 +464,13 @@ static s_expr_fn_table_t system_pred_table;
 // INITIALIZE AND LOAD
 // ============================================================================
 
-#if 0
 void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
     if (!handle || !handle->s_expr_modules) {
-        EXCEPTION("ERROR: cfl_load_pred_s_functions called with NULL handle");
+        printf("ERROR: cfl_load_boolean_s_functions called with invalid handle\n");
         return;
     }
     
-    // Initialize hash table once
-    static bool initialized = false;
-    if (!initialized) {
-        s_expr_build_fn_table(
-            system_pred_entries_named,
-            system_pred_entries,
-            ARRAY_COUNT(system_pred_entries_named)
-        );
-        
-        system_pred_table.entries = system_pred_entries;
-        system_pred_table.count = ARRAY_COUNT(system_pred_entries);
-        
-        initialized = true;
-    }
-    
-    // Register to all modules
-    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
-    for (int i = 0; i < handle->s_expr_module_count; i++) {m
-        s_expr_module_register_pred(modules[i], &system_pred_table);
-    }
-}
-#endif
-
-void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
-    if (!handle || !handle->s_expr_modules) {
-        printf("ERROR: cfl_load_pred_s_functions called with invalid handle\n");
-        return;
-    }
-    
-// Initialize hash table once
-
+    // Build hash table
     s_expr_build_fn_table(
         system_pred_entries_named,
         system_pred_entries,
@@ -516,11 +479,6 @@ void cfl_load_boolean_s_functions(cfl_runtime_handle_t* handle) {
     
     system_pred_table.entries = system_pred_entries;
     system_pred_table.count = ARRAY_COUNT(system_pred_entries);
-    
-    
-    
-   
-
     
     // Register to all modules
     s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;

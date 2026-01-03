@@ -1,12 +1,19 @@
 // ============================================================================
-// s_engine_v3_eval.c
-// S-Expression Evaluator Implementation - Version 3.0
+// s_engine_eval.c
+// S-Expression Evaluator Implementation
 // Flat parameter walker
 // ============================================================================
 
 #include "s_engine_eval.h"
 #include "s_engine_module.h"
+#include "cfl_exception.h"
 #include <string.h>
+
+// ============================================================================
+// EXCEPTION MACRO (must be defined by application)
+// ============================================================================
+
+
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -21,6 +28,9 @@ static s_expr_result_t eval_params(
     void* event_data
 );
 
+void s_expr_tree_reset(s_expr_tree_instance_t* inst);
+void s_expr_tree_init_states(s_expr_tree_instance_t* inst);
+
 // ============================================================================
 // INTERNAL: Get node state by index
 // ============================================================================
@@ -29,7 +39,14 @@ static inline s_expr_node_state_t* get_node_state(
     s_expr_tree_instance_t* inst,
     uint16_t node_index
 ) {
-    if (!inst || node_index >= inst->node_count) return NULL;
+    if (!inst) {
+        EXCEPTION("get_node_state: NULL instance");
+        return NULL;
+    }
+    if (node_index >= inst->node_count) {
+        EXCEPTION("get_node_state: node_index out of range");
+        return NULL;
+    }
     return &inst->node_states[node_index];
 }
 
@@ -46,34 +63,49 @@ static void dispatch_oneshot(
     uint16_t event_id,
     void* event_data
 ) {
+    if (!inst) {
+        EXCEPTION("dispatch_oneshot: NULL instance");
+        return;
+    }
+    if (!func_param) {
+        EXCEPTION("dispatch_oneshot: NULL func_param");
+        return;
+    }
+    
     s_expr_module_t* mod = inst->module;
-    uint16_t func_idx = func_param->func_idx;
+    if (!mod) {
+        EXCEPTION("dispatch_oneshot: NULL module");
+        return;
+    }
+    
+    uint16_t func_idx = func_param->func_index;
     uint16_t node_idx = func_param->node_index;
     bool survives_reset = (func_param->type & S_EXPR_FLAG_SURVIVES_RESET) != 0;
     
-    // Get node state
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return;
+    if (!state) return;  // Exception already raised
     
-    // Check if already run
-    // io_call (survives_reset): check EVER_INIT
-    // o_call: check INITIALIZED
     uint8_t check_flag = survives_reset ? S_EXPR_NODE_FLAG_EVER_INIT : S_EXPR_NODE_FLAG_INITIALIZED;
     
     if (state->flags & check_flag) {
-        return;  // Already executed
+        return;  // Already executed - not an error
     }
     
-    // Mark as executed
     state->flags |= check_flag;
     
-    // Set current node for state access functions
     uint16_t saved_node = inst->current_node_index;
     inst->current_node_index = node_idx;
     
-    // Dispatch
-    if (func_idx < mod->def->oneshot_count && mod->oneshot_fns[func_idx]) {
+    if (func_idx >= mod->def->oneshot_count) {
+        EXCEPTION("dispatch_oneshot: func_index out of range");
+        inst->current_node_index = saved_node;
+        return;
+    }
+    
+    if (mod->oneshot_fns[func_idx]) {
         mod->oneshot_fns[func_idx](inst, args, arg_count, event_type, event_id, event_data);
+    } else {
+        EXCEPTION("dispatch_oneshot: NULL function pointer");
     }
     
     inst->current_node_index = saved_node;
@@ -92,17 +124,39 @@ static bool dispatch_pred(
     uint16_t event_id,
     void* event_data
 ) {
+    if (!inst) {
+        EXCEPTION("dispatch_pred: NULL instance");
+        return false;
+    }
+    if (!func_param) {
+        EXCEPTION("dispatch_pred: NULL func_param");
+        return false;
+    }
+    
     s_expr_module_t* mod = inst->module;
-    uint16_t func_idx = func_param->func_idx;
+    if (!mod) {
+        EXCEPTION("dispatch_pred: NULL module");
+        return false;
+    }
+    
+    uint16_t func_idx = func_param->func_index;
     uint16_t node_idx = func_param->node_index;
     
-    // Set current node
     uint16_t saved_node = inst->current_node_index;
     inst->current_node_index = node_idx;
     
     bool result = false;
-    if (func_idx < mod->def->pred_count && mod->pred_fns[func_idx]) {
+    
+    if (func_idx >= mod->def->pred_count) {
+        EXCEPTION("dispatch_pred: func_index out of range");
+        inst->current_node_index = saved_node;
+        return false;
+    }
+    
+    if (mod->pred_fns[func_idx]) {
         result = mod->pred_fns[func_idx](inst, args, arg_count, event_type, event_id, event_data);
+    } else {
+        EXCEPTION("dispatch_pred: NULL function pointer");
     }
     
     inst->current_node_index = saved_node;
@@ -122,27 +176,37 @@ static s_expr_result_t dispatch_main(
     uint16_t event_id,
     void* event_data
 ) {
+    if (!inst) {
+        EXCEPTION("dispatch_main: NULL instance");
+        return SE_TERMINATE;
+    }
+    if (!func_param) {
+        EXCEPTION("dispatch_main: NULL func_param");
+        return SE_TERMINATE;
+    }
+    
     s_expr_module_t* mod = inst->module;
-    uint16_t func_idx = func_param->func_idx;
+    if (!mod) {
+        EXCEPTION("dispatch_main: NULL module");
+        return SE_TERMINATE;
+    }
+    
+    uint16_t func_idx = func_param->func_index;
     uint16_t node_idx = func_param->node_index;
     bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
     uint8_t pointer_base = func_param->index_to_pointer;
     
-    // Get node state
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return SE_CONTINUE;
+    if (!state) return SE_TERMINATE;  // Exception already raised
     
-    // Skip if not active
     if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return SE_CONTINUE;
+        return SE_CONTINUE;  // Not active - skip silently
     }
     
-    // Save context
     uint16_t saved_node = inst->current_node_index;
     bool saved_in_ptr = inst->in_pointer_call;
     uint8_t saved_ptr_base = inst->pointer_base;
     
-    // Set context
     inst->current_node_index = node_idx;
     if (is_pointer_call) {
         inst->in_pointer_call = true;
@@ -150,27 +214,31 @@ static s_expr_result_t dispatch_main(
     }
     
     s_expr_result_t result = SE_CONTINUE;
-    s_expr_main_fn_t fn = NULL;
     
-    if (func_idx < mod->def->main_count) {
-        fn = mod->main_fns[func_idx];
-    }
-    
-    if (!fn) {
+    if (func_idx >= mod->def->main_count) {
+        EXCEPTION("dispatch_main: func_index out of range");
         inst->current_node_index = saved_node;
         inst->in_pointer_call = saved_in_ptr;
         inst->pointer_base = saved_ptr_base;
-        return SE_CONTINUE;
+        return SE_TERMINATE;
     }
     
-    // Check if INIT event needed
+    s_expr_main_fn_t fn = mod->main_fns[func_idx];
+    
+    if (!fn) {
+        EXCEPTION("dispatch_main: NULL function pointer");
+        inst->current_node_index = saved_node;
+        inst->in_pointer_call = saved_in_ptr;
+        inst->pointer_base = saved_ptr_base;
+        return SE_TERMINATE;
+    }
+    
     if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
         state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
         
         result = fn(inst, args, arg_count, SE_EVENT_INIT, event_id, event_data);
         
         if (result == SE_DISABLE) {
-            // Send terminate, deactivate
             fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
             state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
             
@@ -181,16 +249,13 @@ static s_expr_result_t dispatch_main(
         }
     }
     
-    // Normal tick
     result = fn(inst, args, arg_count, event_type, event_id, event_data);
     
-    // Handle disable
     if (result == SE_DISABLE) {
         fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
         state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
     }
     
-    // Restore context
     inst->current_node_index = saved_node;
     inst->in_pointer_call = saved_in_ptr;
     inst->pointer_base = saved_ptr_base;
@@ -200,7 +265,6 @@ static s_expr_result_t dispatch_main(
 
 // ============================================================================
 // INTERNAL: Evaluate a single callable (OPEN_CALL ... CLOSE)
-// Returns result and sets *out_skip to index after CLOSE
 // ============================================================================
 
 static s_expr_result_t eval_callable(
@@ -212,19 +276,30 @@ static s_expr_result_t eval_callable(
     void* event_data,
     uint16_t* out_skip
 ) {
-    // Get close index via relative offset
+    if (!inst) {
+        EXCEPTION("eval_callable: NULL instance");
+        *out_skip = open_idx + 1;
+        return SE_TERMINATE;
+    }
+    if (!params) {
+        EXCEPTION("eval_callable: NULL params");
+        *out_skip = open_idx + 1;
+        return SE_TERMINATE;
+    }
+    if (!out_skip) {
+        EXCEPTION("eval_callable: NULL out_skip");
+        return SE_TERMINATE;
+    }
+    
     uint16_t close_idx = open_idx + params[open_idx].brace_idx;
     *out_skip = close_idx + 1;
     
-    // Function ref is right after OPEN_CALL
     const s_expr_param_t* func_param = &params[open_idx + 1];
     uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
     
-    // Calculate args (between func_ref and CLOSE)
     uint16_t arg_count = (close_idx > open_idx + 2) ? (close_idx - open_idx - 2) : 0;
     const s_expr_param_t* args = (arg_count > 0) ? &params[open_idx + 2] : NULL;
     
-    // Dispatch based on function type
     switch (func_opcode) {
         case S_EXPR_PARAM_ONESHOT:
             dispatch_oneshot(inst, func_param, args, arg_count, event_type, event_id, event_data);
@@ -239,7 +314,8 @@ static s_expr_result_t eval_callable(
             return dispatch_main(inst, func_param, args, arg_count, event_type, event_id, event_data);
             
         default:
-            return SE_CONTINUE;
+            EXCEPTION("eval_callable: unknown function opcode");
+            return SE_TERMINATE;
     }
 }
 
@@ -255,23 +331,29 @@ static s_expr_result_t eval_params(
     uint16_t event_id,
     void* event_data
 ) {
+    if (!inst) {
+        EXCEPTION("eval_params: NULL instance");
+        return SE_TERMINATE;
+    }
+    if (!params && count > 0) {
+        EXCEPTION("eval_params: NULL params with non-zero count");
+        return SE_TERMINATE;
+    }
+    
     uint16_t idx = 0;
     
     while (idx < count) {
         uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
         
         if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-            // Callable expression
             uint16_t skip;
             s_expr_result_t result = eval_callable(
                 inst, params, idx, event_type, event_id, event_data, &skip
             );
             
-            // Handle control flow
             switch (result) {
                 case SE_CONTINUE:
                 case SE_DISABLE:
-                    // Continue to next
                     idx = skip;
                     break;
                     
@@ -281,11 +363,9 @@ static s_expr_result_t eval_params(
                 case SE_FUNCTION_TERMINATE:
                 case SE_FUNCTION_HALT:
                 case SE_FUNCTION_RESET:
-                    // Propagate up
                     return result;
                     
                 case SE_SKIP_CONTINUE:
-                    // Skip remaining, return CONTINUE
                     return SE_CONTINUE;
                     
                 default:
@@ -293,10 +373,8 @@ static s_expr_result_t eval_params(
                     break;
             }
         } else if (opcode == S_EXPR_PARAM_OPEN) {
-            // Plain list - skip it
             idx = idx + params[idx].brace_idx + 1;
         } else {
-            // Other param - skip
             idx++;
         }
     }
@@ -313,15 +391,22 @@ s_expr_result_t s_expr_tree_tick(
     uint16_t event_id,
     void* event_data
 ) {
-    if (!inst || !inst->tree || !inst->tree->params) {
+    if (!inst) {
+        EXCEPTION("s_expr_tree_tick: NULL instance");
+        return SE_TERMINATE;
+    }
+    if (!inst->tree) {
+        EXCEPTION("s_expr_tree_tick: NULL tree");
+        return SE_TERMINATE;
+    }
+    if (!inst->tree->params && inst->tree->param_count > 0) {
+        EXCEPTION("s_expr_tree_tick: NULL params with non-zero count");
         return SE_TERMINATE;
     }
     
-    // Store event context
     inst->current_event_id = event_id;
     inst->current_event_data = event_data;
     
-    // Evaluate all params
     s_expr_result_t result = eval_params(
         inst,
         inst->tree->params,
@@ -331,7 +416,6 @@ s_expr_result_t s_expr_tree_tick(
         event_data
     );
     
-    // Handle SE_RESET
     if (result == SE_RESET || result == SE_FUNCTION_RESET) {
         s_expr_tree_reset(inst);
         return SE_CONTINUE;
@@ -345,14 +429,20 @@ s_expr_result_t s_expr_tree_tick(
 // ============================================================================
 
 void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
-    if (!inst) return;
+    if (!inst) {
+        EXCEPTION("s_expr_tree_reset: NULL instance");
+        return;
+    }
+    if (!inst->node_states && inst->node_count > 0) {
+        EXCEPTION("s_expr_tree_reset: NULL node_states");
+        return;
+    }
     
     for (uint16_t i = 0; i < inst->node_count; i++) {
-        // Preserve EVER_INIT (for io_call), clear INITIALIZED
         uint8_t ever_init = inst->node_states[i].flags & S_EXPR_NODE_FLAG_EVER_INIT;
         inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
         inst->node_states[i].state = 0;
-        inst->node_states[i].user_data.u64 = 0;
+        inst->node_states[i].user_data = 0;
     }
 }
 
@@ -361,38 +451,74 @@ void s_expr_tree_reset(s_expr_tree_instance_t* inst) {
 // ============================================================================
 
 void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
-    if (!inst || !inst->tree) return;
+    if (!inst) {
+        EXCEPTION("s_expr_tree_terminate: NULL instance");
+        return;
+    }
+    if (!inst->tree) {
+        EXCEPTION("s_expr_tree_terminate: NULL tree");
+        return;
+    }
+    if (!inst->module) {
+        EXCEPTION("s_expr_tree_terminate: NULL module");
+        return;
+    }
     
-    // Walk params to find all main nodes and send TERMINATE
     const s_expr_param_t* params = inst->tree->params;
     uint16_t count = inst->tree->param_count;
     
-    for (uint16_t idx = 0; idx < count; idx++) {
+    for (uint16_t idx = 0; idx < count; ) {
         uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
         
-        if (opcode == S_EXPR_PARAM_MAIN) {
-            uint16_t node_idx = params[idx].node_index;
-            s_expr_node_state_t* state = get_node_state(inst, node_idx);
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            const s_expr_param_t* func_param = &params[idx + 1];
+            uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
             
-            if (state && (state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
-                uint16_t func_idx = params[idx].func_idx;
+            if (func_opcode == S_EXPR_PARAM_MAIN) {
+                uint16_t node_idx = func_param->node_index;
+                s_expr_node_state_t* state = get_node_state(inst, node_idx);
                 
-                if (func_idx < inst->module->def->main_count) {
-                    s_expr_main_fn_t fn = inst->module->main_fns[func_idx];
-                    if (fn) {
-                        inst->current_node_index = node_idx;
-                        fn(inst, NULL, 0, SE_EVENT_TERMINATE, 0, NULL);
+                if (state && (state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+                    uint16_t func_idx = func_param->func_index;
+                    bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
+                    uint8_t pointer_base = func_param->index_to_pointer;
+                    
+                    if (func_idx < inst->module->def->main_count) {
+                        s_expr_main_fn_t fn = inst->module->main_fns[func_idx];
+                        if (fn) {
+                            uint16_t close_idx = idx + params[idx].brace_idx;
+                            uint16_t arg_count = (close_idx > idx + 2) ? (close_idx - idx - 2) : 0;
+                            const s_expr_param_t* args = (arg_count > 0) ? &params[idx + 2] : NULL;
+                            
+                            inst->current_node_index = node_idx;
+                            if (is_pointer_call) {
+                                inst->in_pointer_call = true;
+                                inst->pointer_base = pointer_base;
+                            }
+                            
+                            fn(inst, args, arg_count, SE_EVENT_TERMINATE, 0, NULL);
+                            
+                            inst->in_pointer_call = false;
+                        }
                     }
                 }
             }
+            
+            idx += params[idx].brace_idx + 1;
+        } else {
+            idx++;
         }
     }
     
-    // Clear all states
+    if (!inst->node_states && inst->node_count > 0) {
+        EXCEPTION("s_expr_tree_terminate: NULL node_states");
+        return;
+    }
+    
     for (uint16_t i = 0; i < inst->node_count; i++) {
         inst->node_states[i].flags = 0;
         inst->node_states[i].state = 0;
-        inst->node_states[i].user_data.u64 = 0;
+        inst->node_states[i].user_data = 0;
     }
 }
 
@@ -401,6 +527,10 @@ void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
 // ============================================================================
 
 void s_expr_tree_full_reset(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_tree_full_reset: NULL instance");
+        return;
+    }
     s_expr_tree_terminate(inst);
     s_expr_tree_init_states(inst);
 }
@@ -410,13 +540,19 @@ void s_expr_tree_full_reset(s_expr_tree_instance_t* inst) {
 // ============================================================================
 
 void s_expr_tree_init_states(s_expr_tree_instance_t* inst) {
-    if (!inst) return;
+    if (!inst) {
+        EXCEPTION("s_expr_tree_init_states: NULL instance");
+        return;
+    }
+    if (!inst->node_states && inst->node_count > 0) {
+        EXCEPTION("s_expr_tree_init_states: NULL node_states");
+        return;
+    }
     
     for (uint16_t i = 0; i < inst->node_count; i++) {
         inst->node_states[i].flags = S_EXPR_NODE_FLAG_ACTIVE;
         inst->node_states[i].state = 0;
-        memset(inst->node_states[i].reserved, 0, sizeof(inst->node_states[i].reserved));
-        inst->node_states[i].user_data.u64 = 0;
+        inst->node_states[i].user_data = 0;
     }
 }
 
@@ -429,12 +565,18 @@ s_expr_result_t s_expr_invoke_main(
     const s_expr_param_t* params,
     uint16_t idx
 ) {
-    if (!inst || !params) return SE_TERMINATE;
+    if (!inst) {
+        EXCEPTION("s_expr_invoke_main: NULL instance");
+        return SE_TERMINATE;
+    }
+    if (!params) {
+        EXCEPTION("s_expr_invoke_main: NULL params");
+        return SE_TERMINATE;
+    }
     
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
     if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-        // Braced callable
         uint16_t close_idx = idx + params[idx].brace_idx;
         const s_expr_param_t* func_param = &params[idx + 1];
         uint16_t arg_count = (close_idx > idx + 2) ? (close_idx - idx - 2) : 0;
@@ -443,11 +585,11 @@ s_expr_result_t s_expr_invoke_main(
         return dispatch_main(inst, func_param, args, arg_count,
                             SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
     } else if (opcode == S_EXPR_PARAM_MAIN) {
-        // Bare function ref
         return dispatch_main(inst, &params[idx], NULL, 0,
                             SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
     }
     
+    EXCEPTION("s_expr_invoke_main: param is not MAIN or OPEN_CALL");
     return SE_TERMINATE;
 }
 
@@ -460,7 +602,14 @@ void s_expr_invoke_oneshot(
     const s_expr_param_t* params,
     uint16_t idx
 ) {
-    if (!inst || !params) return;
+    if (!inst) {
+        EXCEPTION("s_expr_invoke_oneshot: NULL instance");
+        return;
+    }
+    if (!params) {
+        EXCEPTION("s_expr_invoke_oneshot: NULL params");
+        return;
+    }
     
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
@@ -475,6 +624,8 @@ void s_expr_invoke_oneshot(
     } else if (opcode == S_EXPR_PARAM_ONESHOT) {
         dispatch_oneshot(inst, &params[idx], NULL, 0,
                         SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
+    } else {
+        EXCEPTION("s_expr_invoke_oneshot: param is not ONESHOT or OPEN_CALL");
     }
 }
 
@@ -487,7 +638,14 @@ bool s_expr_invoke_pred(
     const s_expr_param_t* params,
     uint16_t idx
 ) {
-    if (!inst || !params) return false;
+    if (!inst) {
+        EXCEPTION("s_expr_invoke_pred: NULL instance");
+        return false;
+    }
+    if (!params) {
+        EXCEPTION("s_expr_invoke_pred: NULL params");
+        return false;
+    }
     
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
@@ -504,6 +662,7 @@ bool s_expr_invoke_pred(
                             SE_EVENT_TICK, inst->current_event_id, inst->current_event_data);
     }
     
+    EXCEPTION("s_expr_invoke_pred: param is not PRED or OPEN_CALL");
     return false;
 }
 
@@ -516,11 +675,17 @@ s_expr_result_t s_expr_invoke_any(
     const s_expr_param_t* params,
     uint16_t idx
 ) {
-    if (!inst || !params) return SE_TERMINATE;
+    if (!inst) {
+        EXCEPTION("s_expr_invoke_any: NULL instance");
+        return SE_TERMINATE;
+    }
+    if (!params) {
+        EXCEPTION("s_expr_invoke_any: NULL params");
+        return SE_TERMINATE;
+    }
     
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
-    // For OPEN_CALL, check the function type inside
     if (opcode == S_EXPR_PARAM_OPEN_CALL) {
         const s_expr_param_t* func_param = &params[idx + 1];
         uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
@@ -534,11 +699,11 @@ s_expr_result_t s_expr_invoke_any(
             case S_EXPR_PARAM_PRED:
                 return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
             default:
+                EXCEPTION("s_expr_invoke_any: unknown function type in OPEN_CALL");
                 return SE_TERMINATE;
         }
     }
     
-    // Bare function ref
     switch (opcode) {
         case S_EXPR_PARAM_MAIN:
             return s_expr_invoke_main(inst, params, idx);
@@ -548,6 +713,7 @@ s_expr_result_t s_expr_invoke_any(
         case S_EXPR_PARAM_PRED:
             return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
         default:
+            EXCEPTION("s_expr_invoke_any: param is not a callable type");
             return SE_TERMINATE;
     }
 }
@@ -557,7 +723,12 @@ s_expr_result_t s_expr_invoke_any(
 // ============================================================================
 
 uint16_t s_expr_count_params(const s_expr_param_t* params, uint16_t count) {
-    if (!params || count == 0) return 0;
+    if (!params) {
+        if (count > 0) {
+            EXCEPTION("s_expr_count_params: NULL params with non-zero count");
+        }
+        return 0;
+    }
     
     uint16_t logical_count = 0;
     uint16_t idx = 0;
@@ -575,7 +746,12 @@ uint16_t s_expr_count_params(const s_expr_param_t* params, uint16_t count) {
 // ============================================================================
 
 uint16_t s_expr_find_param(const s_expr_param_t* params, uint16_t count, uint8_t opcode) {
-    if (!params) return UINT16_MAX;
+    if (!params) {
+        if (count > 0) {
+            EXCEPTION("s_expr_find_param: NULL params with non-zero count");
+        }
+        return UINT16_MAX;
+    }
     
     for (uint16_t idx = 0; idx < count; ) {
         if ((params[idx].type & S_EXPR_OPCODE_MASK) == opcode) {
@@ -584,7 +760,7 @@ uint16_t s_expr_find_param(const s_expr_param_t* params, uint16_t count, uint8_t
         idx = s_expr_skip_param(params, idx);
     }
     
-    return UINT16_MAX;
+    return UINT16_MAX;  // Not found is not an error
 }
 
 // ============================================================================
@@ -597,7 +773,16 @@ void s_expr_iterate_params(
     s_expr_param_iter_fn callback,
     void* ctx
 ) {
-    if (!params || !callback) return;
+    if (!callback) {
+        EXCEPTION("s_expr_iterate_params: NULL callback");
+        return;
+    }
+    if (!params) {
+        if (count > 0) {
+            EXCEPTION("s_expr_iterate_params: NULL params with non-zero count");
+        }
+        return;
+    }
     
     uint16_t idx = 0;
     while (idx < count) {
@@ -610,7 +795,6 @@ void s_expr_iterate_params(
 
 // ============================================================================
 // Runtime helper: Restart actions by walking params
-// Call from inside any function to terminate and re-enable callables
 // ============================================================================
 
 void s_expr_restart_actions(
@@ -618,6 +802,21 @@ void s_expr_restart_actions(
     const s_expr_param_t* params,
     uint16_t param_count
 ) {
+    if (!inst) {
+        EXCEPTION("s_expr_restart_actions: NULL instance");
+        return;
+    }
+    if (!params) {
+        if (param_count > 0) {
+            EXCEPTION("s_expr_restart_actions: NULL params with non-zero count");
+        }
+        return;
+    }
+    if (!inst->module) {
+        EXCEPTION("s_expr_restart_actions: NULL module");
+        return;
+    }
+    
     for (uint16_t i = 0; i < param_count; ) {
         uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
         
@@ -631,9 +830,8 @@ void s_expr_restart_actions(
                 if (node_idx < inst->node_count) {
                     s_expr_node_state_t* node_state = &inst->node_states[node_idx];
                     
-                    // Terminate if initialized
                     if (node_state->flags & S_EXPR_NODE_FLAG_INITIALIZED) {
-                        uint16_t func_idx = func_param->func_idx;
+                        uint16_t func_idx = func_param->func_index;
                         s_expr_module_t* mod = inst->module;
                         
                         if (func_idx < mod->def->main_count && mod->main_fns[func_idx]) {
@@ -642,20 +840,29 @@ void s_expr_restart_actions(
                             const s_expr_param_t* args = (arg_count > 0) ? &params[i + 2] : NULL;
                             
                             uint16_t saved_node = inst->current_node_index;
+                            bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
+                            uint8_t pointer_base = func_param->index_to_pointer;
+                            
                             inst->current_node_index = node_idx;
+                            if (is_pointer_call) {
+                                inst->in_pointer_call = true;
+                                inst->pointer_base = pointer_base;
+                            }
                             
                             mod->main_fns[func_idx](inst, args, arg_count,
                                                     SE_EVENT_TERMINATE, 0, NULL);
                             
                             inst->current_node_index = saved_node;
+                            inst->in_pointer_call = false;
                         }
                     }
                     
-                    // Reset: clear INITIALIZED, keep EVER_INIT, set ACTIVE
                     uint8_t ever_init = node_state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
                     node_state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
                     node_state->state = 0;
-                    node_state->user_data.u64 = 0;
+                    node_state->user_data = 0;
+                } else {
+                    EXCEPTION("s_expr_restart_actions: node_index out of range");
                 }
             }
             
@@ -666,12 +873,26 @@ void s_expr_restart_actions(
     }
 }
 
+// ============================================================================
 // Reset flags so actions get INIT event on next invoke (no TERMINATE sent)
+// ============================================================================
+
 void s_expr_enable_actions(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count
 ) {
+    if (!inst) {
+        EXCEPTION("s_expr_enable_actions: NULL instance");
+        return;
+    }
+    if (!params) {
+        if (param_count > 0) {
+            EXCEPTION("s_expr_enable_actions: NULL params with non-zero count");
+        }
+        return;
+    }
+    
     for (uint16_t i = 0; i < param_count; ) {
         uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
         
@@ -685,9 +906,10 @@ void s_expr_enable_actions(
                 if (node_idx < inst->node_count) {
                     s_expr_node_state_t* node_state = &inst->node_states[node_idx];
                     
-                    // Clear INITIALIZED, keep EVER_INIT, set ACTIVE
                     uint8_t ever_init = node_state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
                     node_state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+                } else {
+                    EXCEPTION("s_expr_enable_actions: node_index out of range");
                 }
             }
             
@@ -696,4 +918,223 @@ void s_expr_enable_actions(
             i++;
         }
     }
+}
+
+// ============================================================================
+// NODE STATE ACCESSORS
+// ============================================================================
+
+uint8_t s_expr_get_state(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_state: NULL instance");
+        return 0;
+    }
+    if (inst->current_node_index >= inst->node_count) {
+        EXCEPTION("s_expr_get_state: current_node_index out of range");
+        return 0;
+    }
+    return inst->node_states[inst->current_node_index].state;
+}
+
+void s_expr_set_state(s_expr_tree_instance_t* inst, uint8_t state) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_state: NULL instance");
+        return;
+    }
+    if (inst->current_node_index >= inst->node_count) {
+        EXCEPTION("s_expr_set_state: current_node_index out of range");
+        return;
+    }
+    inst->node_states[inst->current_node_index].state = state;
+}
+
+uint16_t s_expr_get_user_flags(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_user_flags: NULL instance");
+        return 0;
+    }
+    if (inst->current_node_index >= inst->node_count) {
+        EXCEPTION("s_expr_get_user_flags: current_node_index out of range");
+        return 0;
+    }
+    return inst->node_states[inst->current_node_index].user_data;
+}
+
+void s_expr_set_user_flags(s_expr_tree_instance_t* inst, uint16_t flags) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_user_flags: NULL instance");
+        return;
+    }
+    if (inst->current_node_index >= inst->node_count) {
+        EXCEPTION("s_expr_set_user_flags: current_node_index out of range");
+        return;
+    }
+    inst->node_states[inst->current_node_index].user_data = flags;
+}
+
+// ============================================================================
+// 64-BIT STORAGE ACCESSORS
+// Uses pointer_array indexed by pointer_base (set by pt_m_call dispatch)
+// NOTE: Only valid when called from pt_m_call functions
+// ============================================================================
+
+
+uint64_t s_expr_get_user_u64(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_user_u64: NULL instance");
+        return 0;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_get_user_u64: NULL pointer_array");
+        return 0;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_get_user_u64: called outside pt_m_call context");
+        return 0;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_get_user_u64: pointer_base out of range");
+        return 0;
+    }
+    return inst->pointer_array[inst->pointer_base].u64;
+}
+
+void s_expr_set_user_u64(s_expr_tree_instance_t* inst, uint64_t value) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_user_u64: NULL instance");
+        return;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_set_user_u64: NULL pointer_array");
+        return;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_set_user_u64: called outside pt_m_call context");
+        return;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_set_user_u64: pointer_base out of range");
+        return;
+    }
+    inst->pointer_array[inst->pointer_base].u64 = value;
+}
+
+double s_expr_get_user_f64(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_user_f64: NULL instance");
+        return 0.0;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_get_user_f64: NULL pointer_array");
+        return 0.0;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_get_user_f64: called outside pt_m_call context");
+        return 0.0;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_get_user_f64: pointer_base out of range");
+        return 0.0;
+    }
+    return inst->pointer_array[inst->pointer_base].f64;
+}
+
+void s_expr_set_user_f64(s_expr_tree_instance_t* inst, double value) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_user_f64: NULL instance");
+        return;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_set_user_f64: NULL pointer_array");
+        return;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_set_user_f64: called outside pt_m_call context");
+        return;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_set_user_f64: pointer_base out of range");
+        return;
+    }
+    inst->pointer_array[inst->pointer_base].f64 = value;
+}
+
+int64_t s_expr_get_user_i64(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_user_i64: NULL instance");
+        return 0;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_get_user_i64: NULL pointer_array");
+        return 0;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_get_user_i64: called outside pt_m_call context");
+        return 0;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_get_user_i64: pointer_base out of range");
+        return 0;
+    }
+    return (int64_t)inst->pointer_array[inst->pointer_base].u64;
+}
+
+void s_expr_set_user_i64(s_expr_tree_instance_t* inst, int64_t value) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_user_i64: NULL instance");
+        return;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_set_user_i64: NULL pointer_array");
+        return;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_set_user_i64: called outside pt_m_call context");
+        return;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_set_user_i64: pointer_base out of range");
+        return;
+    }
+    inst->pointer_array[inst->pointer_base].u64 = (uint64_t)value;
+}
+
+void* s_expr_get_user_ptr(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_user_ptr: NULL instance");
+        return NULL;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_get_user_ptr: NULL pointer_array");
+        return NULL;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_get_user_ptr: called outside pt_m_call context");
+        return NULL;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_get_user_ptr: pointer_base out of range");
+        return NULL;
+    }
+    return inst->pointer_array[inst->pointer_base].ptr;
+}
+
+void s_expr_set_user_ptr(s_expr_tree_instance_t* inst, void* value) {
+    if (!inst) {
+        EXCEPTION("s_expr_set_user_ptr: NULL instance");
+        return;
+    }
+    if (!inst->pointer_array) {
+        EXCEPTION("s_expr_set_user_ptr: NULL pointer_array");
+        return;
+    }
+    if (!inst->in_pointer_call) {
+        EXCEPTION("s_expr_set_user_ptr: called outside pt_m_call context");
+        return;
+    }
+    if (inst->pointer_base >= inst->pointer_count) {
+        EXCEPTION("s_expr_set_user_ptr: pointer_base out of range");
+        return;
+    }
+    inst->pointer_array[inst->pointer_base].ptr = value;
 }

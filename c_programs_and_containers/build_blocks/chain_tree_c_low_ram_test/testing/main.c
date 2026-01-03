@@ -8,7 +8,7 @@
 #include "s_engine_types.h"
 #include "chain_flow_dsl_registry.h"
 #include "cfl_s_engine_interface.h"
-#include "user_s_functions.h"
+#include "chain_flow_dsl_tests_user_functions.h"
 
 static cfl_perm_t perm;
 static char perm_buffer[0xffff];

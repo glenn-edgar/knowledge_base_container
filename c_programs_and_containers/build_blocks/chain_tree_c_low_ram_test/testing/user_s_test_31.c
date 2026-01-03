@@ -1,18 +1,17 @@
-#ifndef USER_TEST_31_H
-#define USER_TEST_31_H
-#ifdef __cplusplus
-extern "C" {
-#endif
+// ============================================================================
+// test_31_user_functions.c
+// Test User Functions for S-Expression Engine
+// Updated for new API
+// ============================================================================
 
 #include "cfl_runtime.h"
 #include "cfl_engine.h"
-#include "user_s_functions.h"
+
 #include "s_engine_types.h"
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
 #include "cfl_common_function_headers.h"
-
-
+#include <stdio.h>
 
 // ============================================================================
 // TEST_31_SET_MOTOR: Set motor speed
@@ -20,7 +19,7 @@ extern "C" {
 //         [1] = speed (int/uint)
 // ============================================================================
 
-static void test_31_set_motor_oneshot(
+void test_31_set_motor_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -35,8 +34,8 @@ static void test_31_set_motor_oneshot(
         return;
     }
     
-    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
-    uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
+    uint8_t type0 = s_expr_param_opcode(&params[0]);
+    uint8_t type1 = s_expr_param_opcode(&params[1]);
     
     if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
         EXCEPTION("TEST_31_SET_MOTOR: param[0] must be INT or UINT (motor_id)");
@@ -62,7 +61,7 @@ static void test_31_set_motor_oneshot(
 //         [1] = value (int/uint)
 // ============================================================================
 
-static void test_31_set_state_oneshot(
+void test_31_set_state_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -77,8 +76,8 @@ static void test_31_set_state_oneshot(
         return;
     }
     
-    uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
-    uint8_t type1 = params[1].type & S_EXPR_OPCODE_MASK;
+    uint8_t type0 = s_expr_param_opcode(&params[0]);
+    uint8_t type1 = s_expr_param_opcode(&params[1]);
     
     if (type0 != S_EXPR_PARAM_FIELD) {
         EXCEPTION("TEST_31_SET_STATE: param[0] must be FIELD");
@@ -96,15 +95,8 @@ static void test_31_set_state_oneshot(
     }
     
     int32_t value = (int32_t)s_expr_param_int(&params[1]);
+    printf("TEST_31_SET_STATE: value = %p, %d\n", (void*)field_ptr, value);
     *field_ptr = value;
     
     printf("TEST_31_SET_STATE: field_ptr: %p, value: %d\n", (void*)field_ptr, value);
 }
-
-
-#ifdef __cplusplus
-}
-#endif
-#endif
-
-

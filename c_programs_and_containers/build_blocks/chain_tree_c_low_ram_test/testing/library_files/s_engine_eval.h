@@ -1,11 +1,11 @@
 // ============================================================================
-// s_engine_v3_eval.h
-// S-Expression Evaluator API - Version 3.0
+// s_engine_eval.h
+// S-Expression Evaluator API
 // Flat parameter walker, hash-based dispatch
 // ============================================================================
 
-#ifndef S_ENGINE_V3_EVAL_H
-#define S_ENGINE_V3_EVAL_H
+#ifndef S_ENGINE_EVAL_H
+#define S_ENGINE_EVAL_H
 
 #include "s_engine_types.h"
 
@@ -106,20 +106,53 @@ void s_expr_iterate_params(
     void* ctx
 );
 
+// Restart actions: send TERMINATE, then reset flags so INIT fires again
 void s_expr_restart_actions(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count
 );
 
+// Enable actions: reset flags so INIT fires (no TERMINATE sent)
 void s_expr_enable_actions(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count
 );
 
+// ============================================================================
+// NODE STATE ACCESSORS
+// Access per-node state for the current executing node
+// ============================================================================
+
+// State value (8-bit, for state machines) - stored in node_states[]
+uint8_t s_expr_get_state(s_expr_tree_instance_t* inst);
+void s_expr_set_state(s_expr_tree_instance_t* inst, uint8_t state);
+
+// User flags (16-bit, for dispatch tracking) - stored in node_states[]
+uint16_t s_expr_get_user_flags(s_expr_tree_instance_t* inst);
+void s_expr_set_user_flags(s_expr_tree_instance_t* inst, uint16_t flags);
+
+// 64-bit storage - stored in pointer_array[]
+// IMPORTANT: These accessors ONLY work for pt_m_call functions!
+// Regular m_call functions do not have pointer storage allocated.
+// The DSL must declare functions using these as pt_m_call:
+//   pt_m_call("CFL_TIME_DELAY") flt(1.5) end_call(...)
+uint64_t s_expr_get_user_u64(s_expr_tree_instance_t* inst);
+void s_expr_set_user_u64(s_expr_tree_instance_t* inst, uint64_t value);
+
+double s_expr_get_user_f64(s_expr_tree_instance_t* inst);
+void s_expr_set_user_f64(s_expr_tree_instance_t* inst, double value);
+
+// ============================================================================
+// USER CONTEXT
+// ============================================================================
+
+void* s_expr_tree_get_user_ctx(s_expr_tree_instance_t* inst);
+void s_expr_tree_set_user_ctx(s_expr_tree_instance_t* inst, void* ctx);
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif // S_ENGINE_V3_EVAL_H
+#endif // S_ENGINE_EVAL_H

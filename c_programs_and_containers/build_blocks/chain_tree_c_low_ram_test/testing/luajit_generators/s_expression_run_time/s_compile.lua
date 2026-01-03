@@ -1,220 +1,231 @@
--- compile.lua
--- ChainTree S-Expression Compiler Driver
--- Usage: luajit compile.lua <input.lua> [options]
+#!/usr/bin/env luajit
+-- ============================================================================
+-- s_compile.lua
+-- ChainTree S-Expression DSL Compiler
+-- Usage: luajit s_compile.lua <input.lua> [options]
+--
+-- Options:
+--   --header=<file>    Generate main C header (default: <module_name>.h)
+--   --user=<file>      Generate user function header
+--   --reg=<file>       Generate user registration code
+--   --dump             Print debug dump of module
+--   --all              Generate all outputs (header, user, reg)
+--   --outdir=<dir>     Output directory (default: current)
+--   --32bit            Force 32-bit mode (default)
+--   --64bit            Force 64-bit mode
+-- ============================================================================
 
--- Load the DSL
-dofile("s_expr_dsl.lua")
+local ffi = require("ffi")
+local bit = require("bit")
 
-dofile("s_cfl_functions.lua")
-
-
-
--- Parse command line
-local input_file = nil
-local output_bin = nil
-local output_header = nil
-local output_user_header = nil
-local output_user_reg = nil
-local base_name = nil
-local show_dump = false
-local show_stats = false
+-- Parse command line arguments
+local function parse_args(args)
+    local opts = {
+        input = nil,
+        header = nil,
+        user_header = nil,
+        registration = nil,
+        dump = false,
+        all = false,
+        outdir = ".",
+        pointer_size = 4,  -- Default 32-bit
+    }
+    
+    for i, arg in ipairs(args) do
+        if arg:match("^%-%-header=") then
+            opts.header = arg:match("^%-%-header=(.+)$")
+        elseif arg:match("^%-%-user=") then
+            opts.user_header = arg:match("^%-%-user=(.+)$")
+        elseif arg:match("^%-%-reg=") then
+            opts.registration = arg:match("^%-%-reg=(.+)$")
+        elseif arg:match("^%-%-outdir=") then
+            opts.outdir = arg:match("^%-%-outdir=(.+)$")
+        elseif arg == "--dump" then
+            opts.dump = true
+        elseif arg == "--all" then
+            opts.all = true
+        elseif arg == "--32bit" then
+            opts.pointer_size = 4
+        elseif arg == "--64bit" then
+            opts.pointer_size = 8
+        elseif arg:match("^%-") then
+            io.stderr:write("Unknown option: " .. arg .. "\n")
+            os.exit(1)
+        else
+            if not opts.input then
+                opts.input = arg
+            else
+                io.stderr:write("Multiple input files not supported\n")
+                os.exit(1)
+            end
+        end
+    end
+    
+    return opts
+end
 
 local function print_usage()
-    print("ChainTree S-Expression Compiler v3.0")
-    print("")
-    print("Usage: luajit compile.lua <input.lua> [options]")
-    print("")
-    print("Options:")
-    print("  --bin=<file>         Generate binary file (.bin)")
-    print("  --header=<file>      Generate C module header file (.h)")
-    print("  --user-header=<file> Generate user functions header (.h)")
-    print("  --user-reg=<file>    Generate user registration C file (.c)")
-    print("  --name=<name>        Base name for generated symbols (default: from input)")
-    print("  --dump               Show tree structure")
-    print("  --stats              Show module statistics")
-    print("  --help               Show this help")
-    print("")
-    print("Examples:")
-    print("  luajit compile.lua motor.lua --header=motor_module.h")
-    print("  luajit compile.lua motor.lua --header=motor_module.h --user-header=motor_user.h --user-reg=motor_user.c")
-    print("  luajit compile.lua motor.lua --dump --stats")
-    print("")
-    print("If --header is specified without --user-header and --user-reg,")
-    print("user files are auto-generated with _user_functions.h and _user_registration.c suffixes.")
-    os.exit(0)
+    print([[
+Usage: luajit s_compile.lua <input.lua> [options]
+
+Options:
+  --header=<file>    Generate main C header (default: <module_name>.h)
+  --user=<file>      Generate user function header
+  --reg=<file>       Generate user registration code
+  --dump             Print debug dump of module
+  --all              Generate all outputs (header, user, reg)
+  --outdir=<dir>     Output directory (default: current)
+  --32bit            Force 32-bit mode (default)
+  --64bit            Force 64-bit mode
+
+Examples:
+  luajit s_compile.lua my_module.lua --header=my_module.h
+  luajit s_compile.lua my_module.lua --all --outdir=generated/
+]])
 end
 
-if not arg or #arg == 0 then
-    print_usage()
-end
-
-for i, a in ipairs(arg) do
-    if a == "--help" or a == "-h" then
+-- Main
+local function main()
+    local opts = parse_args(arg)
+    
+    if not opts.input then
         print_usage()
-    elseif a:match("^--bin=") then
-        output_bin = a:match("^--bin=(.+)$")
-    elseif a:match("^--header=") then
-        output_header = a:match("^--header=(.+)$")
-    elseif a:match("^--user%-header=") then
-        output_user_header = a:match("^--user%-header=(.+)$")
-    elseif a:match("^--user%-reg=") then
-        output_user_reg = a:match("^--user%-reg=(.+)$")
-    elseif a:match("^--name=") then
-        base_name = a:match("^--name=(.+)$")
-    elseif a == "--dump" then
-        show_dump = true
-    elseif a == "--stats" then
-        show_stats = true
-    elseif not a:match("^%-") then
-        input_file = a
-    else
-        print("Unknown option: " .. a)
         os.exit(1)
     end
-end
-
-if not input_file then
-    print("Error: No input file specified")
-    print_usage()
-end
-
--- Derive base name from input file if not specified
-if not base_name then
-    base_name = input_file:match("([^/\\]+)%.lua$") or input_file:match("([^/\\]+)$") or "module"
-end
-
--- Auto-generate user file names if header specified but user files not
-if output_header and not output_user_header then
-    output_user_header = base_name .. "_user_functions.h"
-end
-if output_header and not output_user_reg then
-    output_user_reg = base_name .. "_user_registration.c"
-end
-
--- Load and execute the input file
-local chunk, err = loadfile(input_file)
-if not chunk then
-    print("Error loading " .. input_file .. ": " .. err)
-    os.exit(1)
-end
-
-local ok, result = pcall(chunk)
-if not ok then
-    print("Error executing " .. input_file .. ":")
-    print(result)
-    os.exit(1)
-end
-
--- The input file should return the generator
-local gen = result
-if not gen then
-    print("Error: Input file must return a generator (return end_module(...))")
-    os.exit(1)
-end
-
-
-local module_data = result
-if not module_data then
-    print("Error: Input file must return module data (return end_module(...))")
-    os.exit(1)
-end
-
-local gen = ModuleGenerator.new(module_data)
-
-if show_stats then
-    print("")
-    print("=== STATISTICS ===")
-    print("  Oneshot functions: " .. #gen.module.oneshot_funcs)
-    print("  Main functions:    " .. #gen.module.main_funcs)
-    print("  Predicate functions: " .. #gen.module.pred_funcs)
-    print("  Trees:             " .. #gen.module.tree_order)
-    print("  Records:           " .. #gen.module.record_order)
     
-    -- Count user vs system functions
-    local user_oneshot, user_main, user_pred = 0, 0, 0
-    for _, entry in ipairs(gen.module.oneshot_funcs) do
-        if not entry.name:match("^CFL_") then user_oneshot = user_oneshot + 1 end
+    -- Determine script directory for relative requires
+    local script_path = arg[0]
+    local script_dir = script_path:match("(.*/)")
+    if not script_dir then
+        script_dir = "./"
     end
-    for _, entry in ipairs(gen.module.main_funcs) do
-        if not entry.name:match("^CFL_") then user_main = user_main + 1 end
-    end
-    for _, entry in ipairs(gen.module.pred_funcs) do
-        if not entry.name:match("^CFL_") then user_pred = user_pred + 1 end
-    end
-    print("")
-    print("  User oneshot:      " .. user_oneshot)
-    print("  User main:         " .. user_main)
-    print("  User predicate:    " .. user_pred)
-end
-
--- Generate module header file
-if output_header then
     
-    local header = gen:to_c_header(base_name)
-
-    local f = io.open(output_header, "w")
-    if f then
-        f:write(header)
-        f:write("\n")
-        f:close()
-        print("Generated: " .. output_header)
-    else
-        print("Error: Could not write " .. output_header)
-        os.exit(1)
-    end
-end
-
--- Generate user functions header file
-if output_user_header then
-    local header = gen:to_c_user_header(base_name)
-    local f = io.open(output_user_header, "w")
-    if f then
-        f:write(header)
-        f:write("\n")
-        f:close()
-        print("Generated: " .. output_user_header)
-    else
-        print("Error: Could not write " .. output_user_header)
-        os.exit(1)
-    end
-end
-
--- Generate user registration C file
-if output_user_reg then
-    local reg = gen:to_c_user_registration(base_name)
-    local f = io.open(output_user_reg, "w")
-    if f then
-        f:write(reg)
-        f:write("\n")
-        f:close()
-        print("Generated: " .. output_user_reg)
-    else
-        print("Error: Could not write " .. output_user_reg)
-        os.exit(1)
-    end
-end
-
--- Generate binary file
-if output_bin then
-    local bin = gen:to_bin()
-    local f = io.open(output_bin, "wb")
-    if f then
-        for _, b in ipairs(bin) do
-            f:write(string.char(b))
+    -- Set pointer size as global before loading DSL
+    _G._pointer_size = opts.pointer_size
+    
+    -- Load the DSL library - this sets up global functions
+    local dsl_file = script_dir .. "s_expr_dsl.lua"
+    
+    -- Check if DSL file exists
+    local f = io.open(dsl_file, "r")
+    if not f then
+        -- Try current directory
+        dsl_file = "s_expression_dsl.lua"
+        f = io.open(dsl_file, "r")
+        if not f then
+            io.stderr:write("Error: Cannot find s_expression_dsl.lua\n")
+            io.stderr:write("Looked in: " .. script_dir .. " and ./\n")
+            os.exit(1)
         end
-        f:close()
-        print("Generated: " .. output_bin .. " (" .. #bin .. " bytes)")
-    else
-        print("Error: Could not write " .. output_bin)
+    end
+    f:close()
+    
+    local dsl = dofile(dsl_file)
+    if not dsl or not dsl.ModuleGenerator then
+        io.stderr:write("Error: Failed to load DSL library\n")
         os.exit(1)
+    end
+    
+    -- Check if input file exists
+    f = io.open(opts.input, "r")
+    if not f then
+        io.stderr:write("Error: Cannot open input file: " .. opts.input .. "\n")
+        os.exit(1)
+    end
+    f:close()
+    
+    -- Run the input DSL file
+    -- The DSL file should:
+    -- 1. Call start_module(), defrecord(), start_tree(), etc.
+    -- 2. Call end_module() which returns the module data
+    -- 3. Return that module data
+    local module_data = dofile(opts.input)
+    
+    if not module_data then
+        io.stderr:write("Error: DSL file did not return module data\n")
+        io.stderr:write("Make sure your DSL file ends with:\n")
+        io.stderr:write("  return end_module(\"your_module_name\")\n")
+        os.exit(1)
+    end
+    
+    if type(module_data) ~= "table" or not module_data.name then
+        io.stderr:write("Error: Invalid module data returned\n")
+        io.stderr:write("Make sure your DSL file returns the result of end_module()\n")
+        os.exit(1)
+    end
+    
+    -- Create generator
+    local gen = dsl.ModuleGenerator.new(module_data)
+    
+    -- Determine base name from module name
+    local base_name = module_data.name:lower():gsub("[^%w_]", "_")
+    
+    -- Handle --all flag
+    if opts.all then
+        if not opts.header then
+            opts.header = base_name .. ".h"
+        end
+        if not opts.user_header then
+            opts.user_header = base_name .. "_user_functions.h"
+        end
+        if not opts.registration then
+            opts.registration = base_name .. "_user_registration.c"
+        end
+    end
+    
+    -- Generate requested outputs
+    local function write_file(filename, content)
+        -- Handle outdir properly
+        local path
+        if opts.outdir == "." then
+            path = filename
+        else
+            -- Create output directory if needed
+            os.execute("mkdir -p " .. opts.outdir)
+            path = opts.outdir .. "/" .. filename
+        end
+        
+        local f = io.open(path, "w")
+        if not f then
+            io.stderr:write("Error: Cannot write to " .. path .. "\n")
+            os.exit(1)
+        end
+        f:write(content)
+        f:write("\n")
+        f:close()
+        print("Generated: " .. path)
+    end
+    
+    if opts.header then
+        local content = gen:to_c_header(base_name)
+        write_file(opts.header, content)
+    end
+    
+    if opts.user_header then
+        local content = gen:to_c_user_header(base_name)
+        write_file(opts.user_header, content)
+    end
+    
+    if opts.registration then
+        local content = gen:to_c_user_registration(base_name)
+        write_file(opts.registration, content)
+    end
+    
+    if opts.dump then
+        print(gen:dump())
+    end
+    
+    -- If no output specified, just generate the main header
+    if not opts.header and not opts.user_header and not opts.registration and not opts.dump then
+        opts.header = base_name .. ".h"
+        local content = gen:to_c_header(base_name)
+        write_file(opts.header, content)
     end
 end
 
--- If no output options specified, show header to stdout
-if not output_bin and not output_header and not show_dump and not show_stats then
-    print("")
-    print(gen:to_c_header(base_name))
+-- Run main
+local ok, err = pcall(main)
+if not ok then
+    io.stderr:write("Error: " .. tostring(err) .. "\n")
+    os.exit(1)
 end
-
-print("")
-print("Done.")

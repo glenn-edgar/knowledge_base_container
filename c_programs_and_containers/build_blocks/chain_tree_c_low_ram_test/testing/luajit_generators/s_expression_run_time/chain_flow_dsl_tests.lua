@@ -91,7 +91,7 @@ start_tree("s_expression_test_4")
                 field_ref("state_b")
                 int(1)
             end_call(t1)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end,
         
         -- State 1
@@ -103,7 +103,7 @@ start_tree("s_expression_test_4")
                 field_ref("state_b")
                 int(2)
             end_call(t2)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end,
         
         -- State 2
@@ -172,7 +172,7 @@ start_tree("s_expression_test_7")
             set_motor(MOTOR_RIGHT, 100)
             cfl_tick_delay(50)
             set_command(CMD_BACK)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- CMD_BACK (2)
@@ -182,7 +182,7 @@ start_tree("s_expression_test_7")
             set_motor(MOTOR_RIGHT, -100)
             cfl_tick_delay(50)
             set_command(CMD_LEFT)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- CMD_LEFT (3)
@@ -192,7 +192,7 @@ start_tree("s_expression_test_7")
             set_motor(MOTOR_RIGHT, 50)
             cfl_tick_delay(25)
             set_command(CMD_RIGHT)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- CMD_RIGHT (4)
@@ -202,7 +202,7 @@ start_tree("s_expression_test_7")
             set_motor(MOTOR_RIGHT, -50)
             cfl_tick_delay(25)
             set_command(CMD_STOP)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- CMD_STOP (5)
@@ -210,7 +210,7 @@ start_tree("s_expression_test_7")
             cfl_log("Stopping")
             set_motor(MOTOR_LEFT, 0)
             set_motor(MOTOR_RIGHT, 0)
-            result(SE_CONTINUE)
+            result(SE_FUNCTION_TERMINATE)
         end },
         
         -- CMD_IDLE (0) - default
@@ -254,7 +254,7 @@ start_tree("s_expression_test_8")
             cfl_log("Timer expired")
             local proc = m_call("TEST_32_PROCESS_SCHEDULED_TASKS")
             end_call(proc)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- EVT_BUTTON (0xEE02)
@@ -264,7 +264,7 @@ start_tree("s_expression_test_8")
             local tog = o_call("TEST_32_TOGGLE_LED")
                 int(LED_STATUS)
             end_call(tog)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- EVT_SENSOR (0xEE03)
@@ -274,7 +274,7 @@ start_tree("s_expression_test_8")
                 field_ref("sensor_value")
                 int(50)
             end_call(chk)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- EVT_ALARM (0xEE04)
@@ -291,7 +291,7 @@ start_tree("s_expression_test_8")
             end_call(notify)
             cfl_internal_event(EVT_SHUTDOWN, 1)
             cfl_log("ALARM SETTING")
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
         
         -- EVT_SHUTDOWN (0xEE05)
@@ -304,14 +304,13 @@ start_tree("s_expression_test_8")
             result(SE_FUNCTION_TERMINATE)
         end },
         
-        -- Default (EVT_TICK or unknown) - case 0
-        { 0, function()
-            local gen = m_call("TEST_32_GENERATE_INTERNAL_EVENTS")
-                field_ref("event_id")
+        -- Default (EVT_TICK)
+        { EVT_TICK, function()
+            local gen = pt_m_call("TEST_32_GENERATE_INTERNAL_EVENTS")
             end_call(gen)
             local bg = m_call("TEST_32_RUN_BACKGROUND_TASKS")
             end_call(bg)
-            result(SE_CONTINUE)
+            result(SE_HALT)
         end },
     })
 

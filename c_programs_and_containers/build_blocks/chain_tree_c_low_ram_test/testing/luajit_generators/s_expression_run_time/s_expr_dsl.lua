@@ -4,21 +4,132 @@
 --============================================================================
 
 local bit = require("bit")
+local ffi = require("ffi")
+
+-- Load CFL helper functions (state machines, dispatchers, etc.)
+-- This file should be in the same directory as this DSL
+local cfl_path = debug.getinfo(1, "S").source:match("@?(.*/)")
+if cfl_path then
+    dofile(cfl_path .. "s_cfl_functions.lua")
+else
+    -- Fallback: try current directory
+    local ok, err = pcall(dofile, "s_cfl_functions.lua")
+    if not ok then
+        -- Not fatal - CFL functions just won't be available
+        -- print("Note: s_cfl_functions.lua not found - CFL helpers unavailable")
+    end
+end
+
+--============================================================================
+-- 64-BIT / 32-BIT MODE
+--============================================================================
+
+local _pointer_size = 4
+
+function use_64bit()
+    _pointer_size = 8
+end
+
+function use_32bit()
+    _pointer_size = 4
+end
+
+function get_pointer_size()
+    return _pointer_size
+end
 
 --============================================================================
 -- FNV-1a 32-bit HASH
+-- Pure Lua with explicit modular arithmetic to handle overflow correctly
 --============================================================================
 
-local FNV_PRIME = 0x01000193
-local FNV_OFFSET = 0x811c9dc5
+local FNV_PRIME_32 = 0x01000193
+local FNV_OFFSET_32 = 0x811c9dc5
 
 function hash32(str)
-    local h = FNV_OFFSET
+    local h = FNV_OFFSET_32
     for i = 1, #str do
         h = bit.bxor(h, str:byte(i))
-        h = bit.band(h * FNV_PRIME, 0xFFFFFFFF)
+        -- Keep positive after XOR (bit.bxor can return negative for high bit set)
+        if h < 0 then h = h + 0x100000000 end
+        -- Multiply in 16-bit parts to avoid double precision overflow
+        local h_lo = h % 0x10000
+        local h_hi = math.floor(h / 0x10000)
+        local p_lo = FNV_PRIME_32 % 0x10000
+        local p_hi = math.floor(FNV_PRIME_32 / 0x10000)
+        
+        local lo = h_lo * p_lo
+        local mid = h_lo * p_hi + h_hi * p_lo
+        -- Only keep lower 32 bits: lo + (mid_lo * 2^16), ignore mid_hi * 2^32
+        h = (lo + (mid % 0x10000) * 0x10000) % 0x100000000
+    end
+    if h < 0 then h = h + 0x100000000 end
+    return h
+end
+
+--============================================================================
+-- FNV-1a 64-bit HASH
+--============================================================================
+
+local FNV_PRIME_64 = ffi.new("uint64_t", 0x00000100000001B3ULL)
+local FNV_OFFSET_64 = ffi.new("uint64_t", 0xCBF29CE484222325ULL)
+
+function hash64(str)
+    local h = FNV_OFFSET_64
+    for i = 1, #str do
+        h = bit.bxor(h, str:byte(i))
+        h = h * FNV_PRIME_64
     end
     return h
+end
+
+--============================================================================
+-- AUTO-SELECT HASH BASED ON POINTER SIZE
+--============================================================================
+
+function hash_auto(str)
+    if _pointer_size == 8 then
+        return hash64(str)
+    else
+        return hash32(str)
+    end
+end
+
+--============================================================================
+-- FORMAT HELPERS
+--============================================================================
+
+function format_hash32(h)
+    if h < 0 then
+        return string.format("0x%08XU", h + 0x100000000)
+    else
+        return string.format("0x%08XU", h)
+    end
+end
+
+function format_hash64(h)
+    -- FFI uint64_t formatting
+    local lo = tonumber(bit.band(h, 0xFFFFFFFF))
+    local hi = tonumber(bit.rshift(h, 32))
+    if lo < 0 then lo = lo + 0x100000000 end
+    if hi < 0 then hi = hi + 0x100000000 end
+    return string.format("0x%08X%08XULL", hi, lo)
+end
+
+function format_hash(h)
+    if _pointer_size == 8 then
+        return format_hash64(h)
+    else
+        return format_hash32(h)
+    end
+end
+
+function get_hash_type()
+    if _pointer_size == 8 then
+        return "uint64_t"
+    else
+        return "uint32_t"
+    end
 end
 
 --============================================================================
@@ -27,18 +138,14 @@ end
 
 local _gensym_counter = 0
 
-local function gensym(prefix)
+function gensym(prefix)
     _gensym_counter = _gensym_counter + 1
     return string.format("%s_%d", prefix or "g", _gensym_counter)
 end
 
-local function gensym_reset()
+function gensym_reset()
     _gensym_counter = 0
 end
-
---============================================================================
--- PARAMETER OPCODES
---============================================================================
 
 --============================================================================
 -- PARAMETER OPCODES (must match C header)
@@ -57,13 +164,14 @@ local PARAM_OPCODES = {
     MAIN      = 0x09,
     PRED      = 0x0A,
     FIELD     = 0x0B,
-    RESULT    = 0x0C,  -- NEW: return code
+    RESULT    = 0x0C,
 }
 
 local TYPE_FLAGS = {
-    POINTER        = 0x40,
-    SURVIVES_RESET = 0x80,
+    SURVIVES_RESET = 0x10,  -- bit 4: io_call
+    POINTER        = 0x80,  -- bit 7: pt_m_call
 }
+
 --============================================================================
 -- RETURN CODE CONSTANTS (must match C enum)
 --============================================================================
@@ -77,6 +185,7 @@ SE_FUNCTION_TERMINATE = 5
 SE_SKIP_CONTINUE      = 6
 SE_FUNCTION_HALT      = 7
 SE_FUNCTION_RESET     = 8
+
 --============================================================================
 -- DEBUG FLAG
 --============================================================================
@@ -91,7 +200,7 @@ function is_debug()
     return _debug_enabled
 end
 
-local function debug_print(...)
+function debug_print(...)
     if _debug_enabled then
         print("[DSL DEBUG]", ...)
     end
@@ -103,11 +212,11 @@ end
 
 local _bit_block_depth = 0
 
-local function enter_bit_block()
+function enter_bit_block()
     _bit_block_depth = _bit_block_depth + 1
 end
 
-local function exit_bit_block()
+function exit_bit_block()
     if _bit_block_depth > 0 then
         _bit_block_depth = _bit_block_depth - 1
     end
@@ -158,13 +267,13 @@ end
 -- HASH TABLE MANAGEMENT
 --============================================================================
 
-local function add_to_hash_table(tbl, name, collision_tbl, table_name)
-    local h = hash32(name)
+function add_to_hash_table(tbl, name, collision_tbl, table_name)
+    local h = hash_auto(name)
     
     if collision_tbl[h] and collision_tbl[h] ~= name then
         dsl_error(string.format(
-            "HASH COLLISION in %s table: '%s' collides with '%s' (hash=0x%08X)",
-            table_name, name, collision_tbl[h], h
+            "HASH COLLISION in %s table: '%s' collides with '%s'",
+            table_name, name, collision_tbl[h]
         ))
     end
     
@@ -181,7 +290,7 @@ local function add_to_hash_table(tbl, name, collision_tbl, table_name)
     return idx
 end
 
-local function add_oneshot(name)
+function add_oneshot(name)
     return add_to_hash_table(
         _module.oneshot_funcs,
         name,
@@ -190,7 +299,7 @@ local function add_oneshot(name)
     )
 end
 
-local function add_main(name)
+function add_main(name)
     return add_to_hash_table(
         _module.main_funcs,
         name,
@@ -199,7 +308,7 @@ local function add_main(name)
     )
 end
 
-local function add_pred(name)
+function add_pred(name)
     return add_to_hash_table(
         _module.pred_funcs,
         name,
@@ -208,30 +317,11 @@ local function add_pred(name)
     )
 end
 
-local function add_string_hash(s)
-    local h = hash32(s)
+function add_string_hash(s)
+    local h = hash_auto(s)
     _module.string_hashes[h] = s
     return h
 end
-
---============================================================================
--- 64-BIT / 32-BIT MODE
---============================================================================
-
-local _pointer_size = 4
-
-function use_64bit()
-    _pointer_size = 8
-end
-
-function use_32bit()
-    _pointer_size = 4
-end
-
-function get_pointer_size()
-    return _pointer_size
-end
-
 
 --============================================================================
 -- POOL / SLOT DEFINITIONS
@@ -282,7 +372,7 @@ function defslot(slot_name, pool_name)
     debug_print("defslot:", slot_name, "pool=" .. pool_name, "index=" .. slot_index)
 end
 
-local function resolve_slot(slot_name)
+function resolve_slot(slot_name)
     local slot = _module.slots[slot_name]
     if not slot then
         dsl_error("Unknown slot: " .. slot_name)
@@ -321,7 +411,7 @@ local FIELD_ALIGNMENTS = {
     bool = 1,
 }
 
-local function align_to(offset, alignment)
+function align_to(offset, alignment)
     return math.floor((offset + alignment - 1) / alignment) * alignment
 end
 
@@ -468,9 +558,11 @@ function emit_param(param)
     table.insert(_module.params, param)
     return #_module.params
 end
+
 --============================================================================
 -- RESULT PARAMETER (return code)
 --============================================================================
+
 function result(value)
     check_in_tree("result")
     check_not_in_bit_block("result")
@@ -482,6 +574,7 @@ function result(value)
         value_type = "result",
     })
 end
+
 function int(value)
     check_in_tree("int")
     check_not_in_bit_block("int")
@@ -688,7 +781,7 @@ end
 -- CALL START/END
 --============================================================================
 
-local function start_call(call_type, prefix, func_name, survives_reset, is_bit_block)
+function start_call(call_type, prefix, func_name, survives_reset, is_bit_block)
     check_in_tree(call_type)
     
     if type(func_name) ~= "string" then
@@ -826,8 +919,8 @@ function end_call(name)
     end
     
     if top.is_pt_call then
-        local param_count = #_module.params - top.param_start + 1
-        _module.pointer_counter = _module.pointer_counter + param_count
+         _module.pointer_counter = _module.pointer_counter + 1  -- Always 1 slot now
+        
     end
     
     table.remove(_module.brace_stack)
@@ -972,6 +1065,10 @@ function end_module(name)
         dsl_error("end_module() while still in tree '" .. _module.current_tree .. "'")
     end
     
+    if _module.current_record then
+        dsl_error("end_module() while still in record '" .. _module.current_record .. "' - missing END_RECORD()?")
+    end
+    
     -- Validate pointer field references
     for _, ref in ipairs(_module.ptr_field_refs) do
         if not _module.records[ref.target_record] then
@@ -980,6 +1077,22 @@ function end_module(name)
                 ref.field_name, ref.record_name, ref.target_record
             ))
         end
+    end
+    
+    -- Validate all trees that use records reference defined records
+    for _, tree_name in ipairs(_module.tree_order) do
+        local tree = _module.trees[tree_name]
+        if tree.record_name and not _module.records[tree.record_name] then
+            dsl_error(string.format(
+                "Tree '%s' uses undefined record '%s' - define RECORD('%s') before use_record()",
+                tree_name, tree.record_name, tree.record_name
+            ))
+        end
+    end
+    
+    -- Warn if no records defined but trees exist (common oversight)
+    if #_module.tree_order > 0 and #_module.record_order == 0 then
+        debug_print("WARNING: Module has trees but no records defined")
     end
     
     debug_print("end_module:", name, 
@@ -1000,10 +1113,75 @@ ModuleGenerator = {}
 ModuleGenerator.__index = ModuleGenerator
 
 function ModuleGenerator.new(module_data)
-    
     local self = setmetatable({}, ModuleGenerator)
     self.module = module_data
     return self
+end
+
+--============================================================================
+-- PARAM TO C
+--============================================================================
+
+function ModuleGenerator:param_to_c(param)
+    local type_hex = string.format("0x%02X", param.type)
+    local struct, comment
+
+    if param.value_type == "int" then
+        struct = string.format("{ .type = %s, .int_val = %d }", type_hex, param.value)
+        comment = nil
+
+    elseif param.value_type == "uint" then
+        struct = string.format("{ .type = %s, .uint_val = %uU }", type_hex, param.value)
+        comment = nil
+
+    elseif param.value_type == "float" then
+        struct = string.format("{ .type = %s, .float_val = %ff }", type_hex, param.value)
+        comment = nil
+
+    elseif param.value_type == "hash" then
+        struct = string.format("{ .type = %s, .str_hash = %s }", type_hex, format_hash(param.value))
+        comment = param.str_content and ("\"" .. param.str_content .. "\"") or nil
+
+    elseif param.value_type == "slot" then
+        struct = string.format("{ .type = %s, .pool_id = %d, .slot_index = %d }",
+            type_hex, param.pool_id, param.slot_index)
+        comment = param.slot_name
+
+    elseif param.value_type == "field" then
+        struct = string.format("{ .type = %s, .field_offset = %d, .field_size = %d }",
+            type_hex, param.field_offset, param.field_size)
+        comment = param.field_name
+
+    elseif param.value_type == "brace" then
+        struct = string.format("{ .type = %s, .brace_idx = %d }", type_hex, param.value)
+        comment = nil
+
+    elseif param.value_type == "func" then
+        struct = string.format("{ .type = %s, .index_to_pointer = %d, .node_index = %d, .func_index = %d }",
+            type_hex, param.index_to_pointer, param.node_index, param.value)
+        comment = param.func_name
+
+    elseif param.value_type == "result" then
+        local names = {
+            [0] = "SE_CONTINUE",
+            [1] = "SE_HALT",
+            [2] = "SE_TERMINATE",
+            [3] = "SE_RESET",
+            [4] = "SE_DISABLE",
+            [5] = "SE_FUNCTION_TERMINATE",
+            [6] = "SE_SKIP_CONTINUE",
+            [7] = "SE_FUNCTION_HALT",
+            [8] = "SE_FUNCTION_RESET",
+        }
+        struct = string.format("{ .type = %s, .int_val = %d }", type_hex, param.value)
+        comment = names[param.value] or "?"
+
+    else
+        struct = string.format("{ .type = %s, .uint_val = 0 }", type_hex)
+        comment = "unknown"
+    end
+
+    return struct, comment
 end
 
 --============================================================================
@@ -1013,10 +1191,10 @@ end
 function ModuleGenerator:to_c_header(base_name)
     local lines = {}
     local mod = self.module
-    local guard = string.upper(base_name) .. "_MODULE_H"
+    local guard = string.upper(base_name) .. "_H"
     
     table.insert(lines, "// ============================================================================")
-    table.insert(lines, "// " .. base_name .. "_module.h")
+    table.insert(lines, "// " .. base_name .. ".h")
     table.insert(lines, "// Generated by ChainTree S-Expression DSL v3.0")
     table.insert(lines, "// DO NOT EDIT - regenerate from DSL")
     table.insert(lines, "// ============================================================================")
@@ -1088,12 +1266,15 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     
+    local hash_type = get_hash_type()
+    
     -- Oneshot hashes
     if #mod.oneshot_funcs > 0 then
-        table.insert(lines, "static const uint32_t " .. base_name .. "_oneshot_hashes[] = {")
+        table.insert(lines, "static const " .. hash_type .. " " .. base_name .. "_oneshot_hashes[] = {")
         for i, entry in ipairs(mod.oneshot_funcs) do
             local comma = (i < #mod.oneshot_funcs) and "," or ""
-            table.insert(lines, string.format("    0x%08X%s  // %s", entry.hash, comma, entry.name))
+            table.insert(lines, string.format("    %s%s  // %s", 
+                format_hash(entry.hash), comma, entry.name))
         end
         table.insert(lines, "};")
         table.insert(lines, "")
@@ -1101,10 +1282,11 @@ function ModuleGenerator:to_c_header(base_name)
     
     -- Main hashes
     if #mod.main_funcs > 0 then
-        table.insert(lines, "static const uint32_t " .. base_name .. "_main_hashes[] = {")
+        table.insert(lines, "static const " .. hash_type .. " " .. base_name .. "_main_hashes[] = {")
         for i, entry in ipairs(mod.main_funcs) do
             local comma = (i < #mod.main_funcs) and "," or ""
-            table.insert(lines, string.format("    0x%08X%s  // %s", entry.hash, comma, entry.name))
+            table.insert(lines, string.format("    %s%s  // %s", 
+                format_hash(entry.hash), comma, entry.name))
         end
         table.insert(lines, "};")
         table.insert(lines, "")
@@ -1112,10 +1294,59 @@ function ModuleGenerator:to_c_header(base_name)
     
     -- Pred hashes
     if #mod.pred_funcs > 0 then
-        table.insert(lines, "static const uint32_t " .. base_name .. "_pred_hashes[] = {")
+        table.insert(lines, "static const " .. hash_type .. " " .. base_name .. "_pred_hashes[] = {")
         for i, entry in ipairs(mod.pred_funcs) do
             local comma = (i < #mod.pred_funcs) and "," or ""
-            table.insert(lines, string.format("    0x%08X%s  // %s", entry.hash, comma, entry.name))
+            table.insert(lines, string.format("    %s%s  // %s", 
+                format_hash(entry.hash), comma, entry.name))
+        end
+        table.insert(lines, "};")
+        table.insert(lines, "")
+    end
+    
+    -- Record descriptors (field arrays + record array)
+    if #mod.record_order > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// RECORD DESCRIPTORS")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "")
+        
+        -- Generate field descriptor array for each record
+        for _, record_name in ipairs(mod.record_order) do
+            local record = mod.records[record_name]
+            local fields_array_name = base_name .. "_" .. record_name .. "_fields"
+            
+            if #record.field_order > 0 then
+                table.insert(lines, "static const s_expr_field_desc_t " .. fields_array_name .. "[] = {")
+                for i, field_name in ipairs(record.field_order) do
+                    local field = record.fields[field_name]
+                    local comma = (i < #record.field_order) and "," or ""
+                    local field_hash = hash_auto(field_name)
+                    table.insert(lines, string.format(
+                        "    { .name_hash = %s, .offset = %d, .size = %d }%s  // %s",
+                        format_hash(field_hash), field.offset, field.size, comma, field_name))
+                end
+                table.insert(lines, "};")
+                table.insert(lines, "")
+            end
+        end
+        
+        -- Generate record descriptor array
+        table.insert(lines, "static const s_expr_record_desc_t " .. base_name .. "_records[] = {")
+        for i, record_name in ipairs(mod.record_order) do
+            local record = mod.records[record_name]
+            local comma = (i < #mod.record_order) and "," or ""
+            local record_hash = hash_auto(record_name)
+            local fields_ptr = (#record.field_order > 0) and 
+                (base_name .. "_" .. record_name .. "_fields") or "NULL"
+            
+            table.insert(lines, "    {")
+            table.insert(lines, string.format("        .name_hash = %s,  // \"%s\"", 
+                format_hash(record_hash), record_name))
+            table.insert(lines, "        .total_size = " .. record.total_size .. ",")
+            table.insert(lines, "        .field_count = " .. #record.field_order .. ",")
+            table.insert(lines, "        .fields = " .. fields_ptr)
+            table.insert(lines, "    }" .. comma)
         end
         table.insert(lines, "};")
         table.insert(lines, "")
@@ -1134,9 +1365,12 @@ function ModuleGenerator:to_c_header(base_name)
         -- Parameter array
         table.insert(lines, "static const s_expr_param_t " .. param_array_name .. "[] = {")
         for i, param in ipairs(tree.params) do
+            local struct, comment = self:param_to_c(param)
             local comma = (i < #tree.params) and "," or ""
-        
-            local line = self:param_to_c(param) .. comma
+            local line = struct .. comma
+            if comment then
+                line = line .. "  // " .. comment
+            end
             table.insert(lines, "    " .. line)
         end
         table.insert(lines, "};")
@@ -1148,9 +1382,13 @@ function ModuleGenerator:to_c_header(base_name)
         local tree = mod.trees[tree_name]
         local param_array_name = base_name .. "_" .. tree_name .. "_params"
         local def_name = base_name .. "_" .. tree_name .. "_def"
+        local tree_hash = hash_auto(tree_name)
+        local record_hash = tree.record_name and hash_auto(tree.record_name) or 0
         
         table.insert(lines, "static const s_expr_tree_def_t " .. def_name .. " = {")
-        table.insert(lines, string.format("    .name_hash = 0x%08X,  // \"%s\"", hash32(tree_name), tree_name))
+        table.insert(lines, string.format("    .name_hash = %s,  // \"%s\"", 
+            format_hash(tree_hash), tree_name))
+        table.insert(lines, string.format("    .record_hash = %s,", format_hash(record_hash)))
         table.insert(lines, "    .params = " .. param_array_name .. ",")
         table.insert(lines, "    .param_count = " .. #tree.params .. ",")
         table.insert(lines, "    .func_node_count = " .. tree.func_node_count .. ",")
@@ -1165,20 +1403,25 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     
-    -- Tree definition array
-    table.insert(lines, "static const s_expr_tree_def_t* " .. base_name .. "_trees[] = {")
+    -- Tree definition array (values, not pointers)
+    table.insert(lines, "static const s_expr_tree_def_t " .. base_name .. "_trees[] = {")
     for i, tree_name in ipairs(mod.tree_order) do
         local comma = (i < #mod.tree_order) and "," or ""
-        table.insert(lines, "    &" .. base_name .. "_" .. tree_name .. "_def" .. comma)
+        table.insert(lines, "    " .. base_name .. "_" .. tree_name .. "_def" .. comma)
     end
     table.insert(lines, "};")
     table.insert(lines, "")
     
     -- Module struct
+    local module_hash = hash_auto(mod.name)
+    local is_64bit = (_pointer_size == 8) and "true" or "false"
+    
     table.insert(lines, "static const s_expr_module_def_t " .. base_name .. "_module = {")
-    table.insert(lines, string.format("    .name_hash = 0x%08X,  // \"%s\"", hash32(mod.name), mod.name))
+    table.insert(lines, string.format("    .name_hash = %s,  // \"%s\"", 
+        format_hash(module_hash), mod.name))
     table.insert(lines, "    .trees = " .. base_name .. "_trees,")
     table.insert(lines, "    .tree_count = " .. #mod.tree_order .. ",")
+    table.insert(lines, "    .is_64bit = " .. is_64bit .. ",")
     
     if #mod.oneshot_funcs > 0 then
         table.insert(lines, "    .oneshot_hashes = " .. base_name .. "_oneshot_hashes,")
@@ -1204,55 +1447,42 @@ function ModuleGenerator:to_c_header(base_name)
         table.insert(lines, "    .pred_count = 0,")
     end
     
+    -- Max counts for pre-allocation
+    local max_func_node = 0
+    local max_pointer = 0
+    local max_param = 0
+    for _, tree_name in ipairs(mod.tree_order) do
+        local tree = mod.trees[tree_name]
+        if tree.func_node_count > max_func_node then
+            max_func_node = tree.func_node_count
+        end
+        if tree.pointer_count > max_pointer then
+            max_pointer = tree.pointer_count
+        end
+        if #tree.params > max_param then
+            max_param = #tree.params
+        end
+    end
+    
+    table.insert(lines, "    .max_func_node_count = " .. max_func_node .. ",")
+    table.insert(lines, "    .max_pointer_count = " .. max_pointer .. ",")
+    table.insert(lines, "    .max_param_count = " .. max_param .. ",")
+    
+    -- Record descriptors (if any)
+    if #mod.record_order > 0 then
+        table.insert(lines, "    .records = " .. base_name .. "_records,")
+        table.insert(lines, "    .record_count = " .. #mod.record_order .. ",")
+    else
+        table.insert(lines, "    .records = NULL,")
+        table.insert(lines, "    .record_count = 0,")
+    end
+    
     table.insert(lines, "};")
     table.insert(lines, "")
     
     table.insert(lines, "#endif // " .. guard)
     
     return table.concat(lines, "\n")
-end
-
-function ModuleGenerator:param_to_c(param)
-    local type_hex = string.format("0x%02X", param.type)
-
-    if param.value_type == "int" then
-        return string.format("{ .type = %s, .int_val = %d }", type_hex, param.value)
-    elseif param.value_type == "uint" then
-        return string.format("{ .type = %s, .uint_val = %uU }", type_hex, param.value)
-    elseif param.value_type == "float" then
-        return string.format("{ .type = %s, .float_val = %ff }", type_hex, param.value)
-    elseif param.value_type == "hash" then
-        local comment = param.str_content and (" // \"" .. param.str_content .. "\"") or ""
-        return string.format("{ .type = %s, .str_hash = 0x%08X }%s", type_hex, param.value, comment)
-    elseif param.value_type == "slot" then
-        return string.format("{ .type = %s, .pool_id = %d, .slot_index = %d }  // %s",
-            type_hex, param.pool_id, param.slot_index, param.slot_name)
-    elseif param.value_type == "field" then
-        return string.format("{ .type = %s, .field_offset = %d, .field_size = %d }  // %s",
-            type_hex, param.field_offset, param.field_size, param.field_name)
-    elseif param.value_type == "brace" then
-        return string.format("{ .type = %s, .brace_idx = %d }", type_hex, param.value)
-    elseif param.value_type == "func" then
-        return string.format("{ .type = %s, .index_to_pointer = %d, .node_index = %d, .func_index = %d }  // %s",
-            type_hex, param.index_to_pointer, param.node_index, param.value, param.func_name)
-    elseif param.value_type == "result" then
-        local names = {
-            [0] = "SE_CONTINUE",
-            [1] = "SE_HALT",
-            [2] = "SE_TERMINATE",
-            [3] = "SE_RESET",
-            [4] = "SE_DISABLE",
-            [5] = "SE_FUNCTION_TERMINATE",
-            [6] = "SE_SKIP_CONTINUE",
-            [7] = "SE_FUNCTION_HALT",
-            [8] = "SE_FUNCTION_RESET",
-            }
-        
-        local name = names[param.value] or "?"
-        return string.format("{ .type = %s, .int_val = %d }  // %s", type_hex, param.value, name)
-    else
-        return string.format("{ .type = %s, .uint_val = 0 }  // unknown", type_hex)
-    end
 end
 
 --============================================================================
@@ -1311,7 +1541,7 @@ function ModuleGenerator:to_c_user_header(base_name)
         
         for _, entry in ipairs(user_oneshot) do
             local func_name = string.lower(entry.name) .. "_oneshot"
-            table.insert(lines, string.format("// DSL: %s  hash: 0x%08X", entry.name, entry.hash))
+            table.insert(lines, string.format("// DSL: %s  hash: %s", entry.name, format_hash(entry.hash)))
             table.insert(lines, "void " .. func_name .. "(")
             table.insert(lines, "    s_expr_tree_instance_t* inst,")
             table.insert(lines, "    const s_expr_param_t* params,")
@@ -1332,7 +1562,7 @@ function ModuleGenerator:to_c_user_header(base_name)
         
         for _, entry in ipairs(user_main) do
             local func_name = string.lower(entry.name) .. "_main"
-            table.insert(lines, string.format("// DSL: %s  hash: 0x%08X", entry.name, entry.hash))
+            table.insert(lines, string.format("// DSL: %s  hash: %s", entry.name, format_hash(entry.hash)))
             table.insert(lines, "s_expr_result_t " .. func_name .. "(")
             table.insert(lines, "    s_expr_tree_instance_t* inst,")
             table.insert(lines, "    const s_expr_param_t* params,")
@@ -1352,8 +1582,8 @@ function ModuleGenerator:to_c_user_header(base_name)
         table.insert(lines, "")
         
         for _, entry in ipairs(user_pred) do
-            local func_name = string.lower(entry.name) .. "_boolean"
-            table.insert(lines, string.format("// DSL: %s  hash: 0x%08X", entry.name, entry.hash))
+            local func_name = string.lower(entry.name) .. "_pred"
+            table.insert(lines, string.format("// DSL: %s  hash: %s", entry.name, format_hash(entry.hash)))
             table.insert(lines, "bool " .. func_name .. "(")
             table.insert(lines, "    s_expr_tree_instance_t* inst,")
             table.insert(lines, "    const s_expr_param_t* params,")
@@ -1381,7 +1611,6 @@ end
 --============================================================================
 -- USER REGISTRATION C FILE GENERATION
 --============================================================================
-
 function ModuleGenerator:to_c_user_registration(base_name)
     local lines = {}
     local mod = self.module
@@ -1393,6 +1622,7 @@ function ModuleGenerator:to_c_user_registration(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#include \"" .. base_name .. "_user_functions.h\"")
+    table.insert(lines, "#include \"s_engine_module.h\"")
     table.insert(lines, "#include <stdio.h>")
     table.insert(lines, "")
     
@@ -1419,6 +1649,20 @@ function ModuleGenerator:to_c_user_registration(base_name)
         end
     end
     
+    -- Check if any user functions exist
+    local has_user_funcs = #user_oneshot > 0 or #user_main > 0 or #user_pred > 0
+    
+    if not has_user_funcs then
+        -- Generate minimal stub file
+        table.insert(lines, "// No user functions defined - stub implementation")
+        table.insert(lines, "")
+        table.insert(lines, "void load_user_s_functions(cfl_runtime_handle_t* handle) {")
+        table.insert(lines, "    (void)handle;  // No user functions to register")
+        table.insert(lines, "}")
+        table.insert(lines, "")
+        return table.concat(lines, "\n")
+    end
+    
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// REGISTRATION TABLES")
     table.insert(lines, "// ============================================================================")
@@ -1426,7 +1670,7 @@ function ModuleGenerator:to_c_user_registration(base_name)
     table.insert(lines, "#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))")
     table.insert(lines, "")
     
-    -- Oneshot entries
+    -- Oneshot entries (only if any exist)
     if #user_oneshot > 0 then
         table.insert(lines, "static const s_expr_fn_entry_named_t user_oneshot_entries_named[] = {")
         for _, entry in ipairs(user_oneshot) do
@@ -1435,13 +1679,10 @@ function ModuleGenerator:to_c_user_registration(base_name)
         end
         table.insert(lines, "};")
         table.insert(lines, "static s_expr_fn_entry_t user_oneshot_entries[ARRAY_COUNT(user_oneshot_entries_named)];")
-    else
-        table.insert(lines, "static const s_expr_fn_entry_named_t* user_oneshot_entries_named = NULL;")
-        table.insert(lines, "static s_expr_fn_entry_t* user_oneshot_entries = NULL;")
+        table.insert(lines, "")
     end
-    table.insert(lines, "")
     
-    -- Main entries
+    -- Main entries (only if any exist)
     if #user_main > 0 then
         table.insert(lines, "static const s_expr_fn_entry_named_t user_main_entries_named[] = {")
         for _, entry in ipairs(user_main) do
@@ -1450,30 +1691,31 @@ function ModuleGenerator:to_c_user_registration(base_name)
         end
         table.insert(lines, "};")
         table.insert(lines, "static s_expr_fn_entry_t user_main_entries[ARRAY_COUNT(user_main_entries_named)];")
-    else
-        table.insert(lines, "static const s_expr_fn_entry_named_t* user_main_entries_named = NULL;")
-        table.insert(lines, "static s_expr_fn_entry_t* user_main_entries = NULL;")
+        table.insert(lines, "")
     end
-    table.insert(lines, "")
     
-    -- Pred entries
+    -- Pred entries (only if any exist)
     if #user_pred > 0 then
         table.insert(lines, "static const s_expr_fn_entry_named_t user_pred_entries_named[] = {")
         for _, entry in ipairs(user_pred) do
-            local func_name = string.lower(entry.name) .. "_boolean"
+            local func_name = string.lower(entry.name) .. "_pred"
             table.insert(lines, string.format('    { "%s", (void*)%s },', entry.name, func_name))
         end
         table.insert(lines, "};")
         table.insert(lines, "static s_expr_fn_entry_t user_pred_entries[ARRAY_COUNT(user_pred_entries_named)];")
-    else
-        table.insert(lines, "static const s_expr_fn_entry_named_t* user_pred_entries_named = NULL;")
-        table.insert(lines, "static s_expr_fn_entry_t* user_pred_entries = NULL;")
+        table.insert(lines, "")
     end
-    table.insert(lines, "")
     
-    table.insert(lines, "static s_expr_fn_table_t user_oneshot_table;")
-    table.insert(lines, "static s_expr_fn_table_t user_main_table;")
-    table.insert(lines, "static s_expr_fn_table_t user_pred_table;")
+    -- Only declare tables that will be used
+    if #user_oneshot > 0 then
+        table.insert(lines, "static s_expr_fn_table_t user_oneshot_table;")
+    end
+    if #user_main > 0 then
+        table.insert(lines, "static s_expr_fn_table_t user_main_table;")
+    end
+    if #user_pred > 0 then
+        table.insert(lines, "static s_expr_fn_table_t user_pred_table;")
+    end
     table.insert(lines, "")
     
     -- Init function
@@ -1491,11 +1733,8 @@ function ModuleGenerator:to_c_user_registration(base_name)
         table.insert(lines, "    );")
         table.insert(lines, "    user_oneshot_table.entries = user_oneshot_entries;")
         table.insert(lines, "    user_oneshot_table.count = ARRAY_COUNT(user_oneshot_entries);")
-    else
-        table.insert(lines, "    user_oneshot_table.entries = NULL;")
-        table.insert(lines, "    user_oneshot_table.count = 0;")
+        table.insert(lines, "")
     end
-    table.insert(lines, "")
     
     if #user_main > 0 then
         table.insert(lines, "    s_expr_build_fn_table(")
@@ -1505,11 +1744,8 @@ function ModuleGenerator:to_c_user_registration(base_name)
         table.insert(lines, "    );")
         table.insert(lines, "    user_main_table.entries = user_main_entries;")
         table.insert(lines, "    user_main_table.count = ARRAY_COUNT(user_main_entries);")
-    else
-        table.insert(lines, "    user_main_table.entries = NULL;")
-        table.insert(lines, "    user_main_table.count = 0;")
+        table.insert(lines, "")
     end
-    table.insert(lines, "")
     
     if #user_pred > 0 then
         table.insert(lines, "    s_expr_build_fn_table(")
@@ -1519,9 +1755,7 @@ function ModuleGenerator:to_c_user_registration(base_name)
         table.insert(lines, "    );")
         table.insert(lines, "    user_pred_table.entries = user_pred_entries;")
         table.insert(lines, "    user_pred_table.count = ARRAY_COUNT(user_pred_entries);")
-    else
-        table.insert(lines, "    user_pred_table.entries = NULL;")
-        table.insert(lines, "    user_pred_table.count = 0;")
+        table.insert(lines, "")
     end
     
     table.insert(lines, "}")
@@ -1551,15 +1785,23 @@ function ModuleGenerator:to_c_user_registration(base_name)
     table.insert(lines, "    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;")
     table.insert(lines, "    for (int i = 0; i < handle->s_expr_module_count; i++) {")
     table.insert(lines, "        if (!modules[i]) continue;")
-    table.insert(lines, "        s_expr_module_register_oneshot(modules[i], &user_oneshot_table);")
-    table.insert(lines, "        s_expr_module_register_main(modules[i], &user_main_table);")
-    table.insert(lines, "        s_expr_module_register_pred(modules[i], &user_pred_table);")
+    
+    if #user_oneshot > 0 then
+        table.insert(lines, "        s_expr_module_register_oneshot(modules[i], &user_oneshot_table);")
+    end
+    if #user_main > 0 then
+        table.insert(lines, "        s_expr_module_register_main(modules[i], &user_main_table);")
+    end
+    if #user_pred > 0 then
+        table.insert(lines, "        s_expr_module_register_pred(modules[i], &user_pred_table);")
+    end
+    
     table.insert(lines, "    }")
     table.insert(lines, "}")
+    table.insert(lines, "")
     
     return table.concat(lines, "\n")
 end
-
 --============================================================================
 -- DUMP FUNCTION
 --============================================================================
@@ -1598,19 +1840,19 @@ function ModuleGenerator:dump()
     -- Functions
     table.insert(lines, "ONESHOT FUNCTIONS:")
     for _, entry in ipairs(mod.oneshot_funcs) do
-        table.insert(lines, string.format("  %s (0x%08X)", entry.name, entry.hash))
+        table.insert(lines, string.format("  %s (%s)", entry.name, format_hash(entry.hash)))
     end
     table.insert(lines, "")
     
     table.insert(lines, "MAIN FUNCTIONS:")
     for _, entry in ipairs(mod.main_funcs) do
-        table.insert(lines, string.format("  %s (0x%08X)", entry.name, entry.hash))
+        table.insert(lines, string.format("  %s (%s)", entry.name, format_hash(entry.hash)))
     end
     table.insert(lines, "")
     
     table.insert(lines, "PRED FUNCTIONS:")
     for _, entry in ipairs(mod.pred_funcs) do
-        table.insert(lines, string.format("  %s (0x%08X)", entry.name, entry.hash))
+        table.insert(lines, string.format("  %s (%s)", entry.name, format_hash(entry.hash)))
     end
     table.insert(lines, "")
     
@@ -1635,6 +1877,5 @@ end
 --============================================================================
 
 return {
-    hash32 = hash32,
     ModuleGenerator = ModuleGenerator,
 }
