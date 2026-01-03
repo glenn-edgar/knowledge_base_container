@@ -66,7 +66,7 @@ static s_expr_result_t cfl_pipeline_main(
 //         [1] = count (int/uint)
 //
 // Returns:
-//   SE_HALT while waiting or wrong event
+//   SE_FUNCTION_HALT while waiting or wrong event
 //   SE_DISABLE when count reaches 0
 // ============================================================================
 
@@ -117,7 +117,7 @@ static s_expr_result_t cfl_wait_event_main(
     // TICK: Check event and decrement counter
     // -------------------------------------------------------------------------
     if (event_id != (uint16_t)s_expr_param_int(&params[0])) {
-        return SE_HALT;
+        return SE_FUNCTION_HALT;
     }
     
     int64_t remaining = (int64_t)s_expr_get_user_u64(inst);
@@ -127,7 +127,7 @@ static s_expr_result_t cfl_wait_event_main(
     }
     
     s_expr_set_user_u64(inst, (uint64_t)(remaining - 1));
-    return SE_HALT;
+    return SE_FUNCTION_HALT;
 }
 
 // ============================================================================
@@ -135,7 +135,7 @@ static s_expr_result_t cfl_wait_event_main(
 // Params: [0] = tick count (int/uint)
 //
 // Returns:
-//   SE_HALT while counting down
+//   SE_FUNCTION_HALT while counting down
 //   SE_DISABLE when complete
 // ============================================================================
 
@@ -181,7 +181,7 @@ static s_expr_result_t cfl_tick_delay_main(
     // TICK: Check event and decrement counter
     // -------------------------------------------------------------------------
     if (event_id != CFL_TIMER_EVENT) {
-        return SE_HALT;
+        return SE_FUNCTION_HALT;
     }
     
     int64_t remaining = (int64_t)s_expr_get_user_u64(inst);
@@ -191,7 +191,7 @@ static s_expr_result_t cfl_tick_delay_main(
     }
     
     s_expr_set_user_u64(inst, (uint64_t)(remaining - 1));
-    return SE_HALT;
+    return SE_FUNCTION_HALT;
 }
 
 // ============================================================================
@@ -199,7 +199,7 @@ static s_expr_result_t cfl_tick_delay_main(
 // Params: [0] = delay in seconds (float/int/uint)
 //
 // Returns:
-//   SE_HALT while waiting
+//   SE_FUNCTION_HALT while waiting
 //   SE_DISABLE when time elapsed
 // ============================================================================
 
@@ -263,7 +263,7 @@ static s_expr_result_t cfl_time_delay_main(
         return SE_DISABLE;
     }
     
-    return SE_HALT;
+    return SE_FUNCTION_HALT;
 }
 
 // ============================================================================
@@ -831,7 +831,7 @@ static s_expr_result_t cfl_trigger_on_change_main(
 // Params: [0] = child_node_index (int/uint)
 //
 // Returns:
-//   SE_HALT while child is enabled
+//   SE_FUNCTION_HALT while child is enabled
 //   SE_DISABLE when child becomes disabled
 // ============================================================================
 
@@ -882,7 +882,7 @@ static s_expr_result_t cfl_wait_child_disabled_main(
     uint16_t child_node_index = (uint16_t)s_expr_param_uint(&params[0]);
     
     if (cfl_child_is_enabled(runtime_handle, inst->ct_node_id, child_node_index)) {
-        return SE_HALT;
+        return SE_FUNCTION_HALT;
     }
     
     return SE_DISABLE;

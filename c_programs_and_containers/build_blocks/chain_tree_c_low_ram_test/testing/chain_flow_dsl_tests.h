@@ -135,12 +135,31 @@ static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
 };
 
 // ============================================================================
+// STRING TABLE
+// ============================================================================
+
+static const char* const chain_flow_dsl_tests_strings[] = {
+    "Moving forward",  // index 0
+    "Moving backward",  // index 1
+    "Turning left",  // index 2
+    "Turning right",  // index 3
+    "Stopping",  // index 4
+    "Idle - SHOULD NOT HAPPEN",  // index 5
+    "Timer expired",  // index 6
+    "Button pressed",  // index 7
+    "Sensor reading",  // index 8
+    "ALARM TRIGGERED",  // index 9
+    "ALARM SETTING",  // index 10
+    "Shutdown requested"  // index 11
+};
+
+// ============================================================================
 // TREE DEFINITIONS
 // ============================================================================
 
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_2_params[] = {
     { .type = 0x07, .brace_idx = 2 },
-    { .type = 0x18, .index_to_pointer = 0, .node_index = 0, .func_index = 0 },  // CFL_DISABLE_CHILDREN
+    { .type = 0x48, .index_to_pointer = 0, .node_index = 0, .func_index = 0 },  // CFL_DISABLE_CHILDREN
     { .type = 0x06, .brace_idx = 2 },
     { .type = 0x07, .brace_idx = 22 },
     { .type = 0x09, .index_to_pointer = 0, .node_index = 1, .func_index = 0 },  // CFL_TRIGGER_ON_CHANGE
@@ -170,7 +189,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_2_params[] = 
 
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = {
     { .type = 0x07, .brace_idx = 4 },
-    { .type = 0x18, .index_to_pointer = 0, .node_index = 0, .func_index = 2 },  // TEST_30_SET_STATE
+    { .type = 0x48, .index_to_pointer = 0, .node_index = 0, .func_index = 2 },  // TEST_30_SET_STATE
     { .type = 0x0B, .field_offset = 4, .field_size = 4 },  // state_b
     { .type = 0x00, .int_val = 0 },
     { .type = 0x06, .brace_idx = 4 },
@@ -241,7 +260,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_4_params[] = 
 
 static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = {
     { .type = 0x07, .brace_idx = 4 },
-    { .type = 0x18, .index_to_pointer = 0, .node_index = 0, .func_index = 4 },  // TEST_31_SET_STATE
+    { .type = 0x48, .index_to_pointer = 0, .node_index = 0, .func_index = 4 },  // TEST_31_SET_STATE
     { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // command
     { .type = 0x00, .int_val = 1 },
     { .type = 0x06, .brace_idx = 4 },
@@ -254,7 +273,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 2, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0xBC5F72FAU },  // "Moving forward"
+    { .type = 0x0D, .str_index = 0, .str_len = 14 },  // "Moving forward"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 6 },  // TEST_31_SET_MOTOR
@@ -284,7 +303,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 8, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x0261F824U },  // "Moving backward"
+    { .type = 0x0D, .str_index = 1, .str_len = 15 },  // "Moving backward"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 10, .func_index = 6 },  // TEST_31_SET_MOTOR
@@ -314,7 +333,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 14, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 15, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0xC83AEF1FU },  // "Turning left"
+    { .type = 0x0D, .str_index = 2, .str_len = 12 },  // "Turning left"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 16, .func_index = 6 },  // TEST_31_SET_MOTOR
@@ -344,7 +363,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 20, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 21, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x6CCB5950U },  // "Turning right"
+    { .type = 0x0D, .str_index = 3, .str_len = 13 },  // "Turning right"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 22, .func_index = 6 },  // TEST_31_SET_MOTOR
@@ -374,7 +393,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 26, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 27, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x3C1AB6C9U },  // "Stopping"
+    { .type = 0x0D, .str_index = 4, .str_len = 8 },  // "Stopping"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 28, .func_index = 6 },  // TEST_31_SET_MOTOR
@@ -395,7 +414,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_7_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 30, .func_index = 2 },  // CFL_STATE_ACTIONS
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 31, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x6E6AA42EU },  // "Idle - SHOULD NOT HAPPEN"
+    { .type = 0x0D, .str_index = 5, .str_len = 24 },  // "Idle - SHOULD NOT HAPPEN"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
     { .type = 0x06, .brace_idx = 7 },
@@ -412,7 +431,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 1, .func_index = 6 },  // CFL_PIPELINE
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x8B0D6367U },  // "Timer expired"
+    { .type = 0x0D, .str_index = 6, .str_len = 13 },  // "Timer expired"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 2 },
     { .type = 0x09, .index_to_pointer = 0, .node_index = 3, .func_index = 7 },  // TEST_32_PROCESS_SCHEDULED_TASKS
@@ -426,7 +445,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 4, .func_index = 6 },  // CFL_PIPELINE
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x7EBFD3EBU },  // "Button pressed"
+    { .type = 0x0D, .str_index = 7, .str_len = 14 },  // "Button pressed"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x89, .index_to_pointer = 0, .node_index = 6, .func_index = 8 },  // CFL_WAIT_EVENT
@@ -446,7 +465,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 8, .func_index = 6 },  // CFL_PIPELINE
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x9F9AB33FU },  // "Sensor reading"
+    { .type = 0x0D, .str_index = 8, .str_len = 14 },  // "Sensor reading"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 4 },
     { .type = 0x09, .index_to_pointer = 0, .node_index = 10, .func_index = 9 },  // TEST_32_CHECK_THRESHOLD
@@ -462,7 +481,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 11, .func_index = 6 },  // CFL_PIPELINE
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 12, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x5334FB77U },  // "ALARM TRIGGERED"
+    { .type = 0x0D, .str_index = 9, .str_len = 15 },  // "ALARM TRIGGERED"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 2 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 13, .func_index = 8 },  // TEST_32_ENABLE_BUZZER
@@ -483,7 +502,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x06, .brace_idx = 4 },
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 17, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0xE21AFEEAU },  // "ALARM SETTING"
+    { .type = 0x0D, .str_index = 10, .str_len = 13 },  // "ALARM SETTING"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x0C, .int_val = 1 },  // SE_HALT
     { .type = 0x06, .brace_idx = 28 },
@@ -494,7 +513,7 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x09, .index_to_pointer = 0, .node_index = 18, .func_index = 6 },  // CFL_PIPELINE
     { .type = 0x07, .brace_idx = 3 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 19, .func_index = 5 },  // CFL_LOG
-    { .type = 0x03, .str_hash = 0x2DFC4347U },  // "Shutdown requested"
+    { .type = 0x0D, .str_index = 11, .str_len = 18 },  // "Shutdown requested"
     { .type = 0x06, .brace_idx = 3 },
     { .type = 0x07, .brace_idx = 2 },
     { .type = 0x08, .index_to_pointer = 0, .node_index = 20, .func_index = 12 },  // TEST_32_DISABLE_ALL_OUTPUTS
@@ -584,6 +603,8 @@ static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .max_param_count = 161,
     .records = chain_flow_dsl_tests_records,
     .record_count = 4,
+    .string_table = chain_flow_dsl_tests_strings,
+    .string_count = 12,
 };
 
 #endif // CHAIN_FLOW_DSL_TESTS_H

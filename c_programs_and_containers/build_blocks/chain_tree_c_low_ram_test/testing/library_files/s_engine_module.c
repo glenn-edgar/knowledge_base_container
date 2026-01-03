@@ -1179,3 +1179,35 @@ void* s_expr_get_slot_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t* sl
     
     return pool + (slot_idx * elem_size);
 }
+
+// ============================================================================
+// STRING TABLE ACCESS
+// ============================================================================
+
+const char* s_expr_get_string(s_expr_tree_instance_t* inst, const s_expr_param_t* param) {
+    if (!inst) {
+        EXCEPTION("s_expr_get_string: NULL instance");
+        return NULL;
+    }
+    if (!param) {
+        EXCEPTION("s_expr_get_string: NULL param");
+        return NULL;
+    }
+    if ((param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("s_expr_get_string: param is not STR_IDX type");
+        return NULL;
+    }
+    if (!inst->module || !inst->module->def) {
+        EXCEPTION("s_expr_get_string: invalid module");
+        return NULL;
+    }
+    if (!inst->module->def->string_table) {
+        EXCEPTION("s_expr_get_string: no string table");
+        return NULL;
+    }
+    if (param->str_index >= inst->module->def->string_count) {
+        EXCEPTION("s_expr_get_string: string index out of range");
+        return NULL;
+    }
+    return inst->module->def->string_table[param->str_index];
+}

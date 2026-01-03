@@ -310,7 +310,7 @@ start_tree("s_expression_test_8")
             end_call(gen)
             local bg = m_call("TEST_32_RUN_BACKGROUND_TASKS")
             end_call(bg)
-            result(SE_HALT)
+            result(SE_CONTINUE)
         end },
     })
 

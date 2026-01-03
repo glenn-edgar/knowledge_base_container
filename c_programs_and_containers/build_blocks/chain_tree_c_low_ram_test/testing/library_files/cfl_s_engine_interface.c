@@ -407,7 +407,7 @@ unsigned cfl_s_expression_node_main_main_fn(
             return CFL_DISABLE;
             
         case SE_HALT:
-            return CFL_CONTINUE;
+            return CFL_HALT;
 
         case SE_SKIP_CONTINUE:
             return CFL_SKIP_CONTINUE;
@@ -446,8 +446,8 @@ void cfl_s_expression_link_init_one_shot_fn(cfl_runtime_handle_t* handle, uint16
     
     const char* module_name;
     const char* tree_name;
-    json_extract_string_runtime(handle, "node_dict.module_name", &module_name);
-    json_extract_string_runtime(handle, "node_dict.tree_name", &tree_name);
+    json_extract_string_runtime(handle, "node_dict.column_data.module_name", &module_name);
+    json_extract_string_runtime(handle, "node_dict.column_data.tree_name", &tree_name);
 
     // Find the module by name (computes hash internally)
     s_expr_module_t* mod = cfl_find_module(handle, module_name);
@@ -549,15 +549,15 @@ unsigned cfl_s_expression_link_main_main_fn(
             return CFL_HALT;
 
         case SE_SKIP_CONTINUE:
-            return CFL_HALT;
+            return CFL_SKIP_CONTINUE;
 
         case SE_FUNCTION_HALT:
-            return CFL_HALT;
+            return CFL_CONTINUE;
 
         case SE_FUNCTION_RESET:
             // Keep EVER_INIT flags, clear INITIALIZED
             s_expr_tree_reset(tree_inst);
-            return CFL_HALT;
+            return CFL_CONTINUE;
 
         case SE_FUNCTION_TERMINATE:
             return CFL_DISABLE;

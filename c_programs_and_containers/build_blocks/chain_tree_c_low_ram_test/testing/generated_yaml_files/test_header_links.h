@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_CDIXYQGN_LINK_TABLE_SIZE 1344
+#define CT_R1TS0KHL_LINK_TABLE_SIZE 1344
 
-extern const uint16_t ct_cdixyqgn_link_table[CT_CDIXYQGN_LINK_TABLE_SIZE];
+extern const uint16_t ct_r1ts0khl_link_table[CT_R1TS0KHL_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

@@ -3,7 +3,7 @@
 
 /* Node array with complete initialization */
 /* NOTE: Array preserves original YAML indices - filtered nodes leave gaps */
-const chaintree_node_t ct_cdixyqgn_nodes[1535] = {
+const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
     /* [0] _0 */
     {
         .node_index = 0,

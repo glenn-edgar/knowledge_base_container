@@ -124,6 +124,11 @@ double s_expr_get_f64(s_expr_tree_instance_t* inst);
 void s_expr_set_f64(s_expr_tree_instance_t* inst, double val);
 s_expr_slot_t* s_expr_get_pointer_slot(s_expr_tree_instance_t* inst, uint16_t param_index);
 // ============================================================================
+// STRING TABLE ACCESS
+// ============================================================================
+
+const char* s_expr_get_string(s_expr_tree_instance_t* inst, const s_expr_param_t* param);
+// ============================================================================
 // BLACKBOARD ACCESS
 // ============================================================================
 

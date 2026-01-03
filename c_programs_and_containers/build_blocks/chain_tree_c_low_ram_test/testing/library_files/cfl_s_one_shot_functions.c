@@ -33,8 +33,14 @@ static void cfl_log_oneshot(
     }
     
     uint8_t type0 = params[0].type & S_EXPR_OPCODE_MASK;
-    if (type0 != S_EXPR_PARAM_STR_HASH) {
-        EXCEPTION("CFL_LOG: param[0] must be STR_HASH");
+    if (type0 != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_LOG: param[0] must be STR_IDX");
+        return;
+    }
+    
+    const char* message = s_expr_get_string(inst, &params[0]);
+    if (!message) {
+        EXCEPTION("CFL_LOG: failed to get string");
         return;
     }
     
@@ -45,8 +51,8 @@ static void cfl_log_oneshot(
     }
     
     double timestamp = cfl_timer_get_timestamp(runtime_handle->timer_handle);
-    printf("Timestamp: %f, Node ID: %u, Message: 0x%llX\n", 
-           timestamp, inst->ct_node_id, (unsigned long long)params[0].str_hash);
+    printf("Timestamp: %f, Node ID: %u, Message: %s\n", 
+           timestamp, inst->ct_node_id, message);
 }
 
 // ============================================================================

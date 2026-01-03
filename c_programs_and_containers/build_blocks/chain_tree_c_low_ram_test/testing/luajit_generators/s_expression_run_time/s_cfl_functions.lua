@@ -145,7 +145,7 @@ end
 
 function cfl_log(message)
     local c = o_call("CFL_LOG")
-        str(message)
+        str_ptr(message) -- string pointer index
     end_call(c)
 end
 

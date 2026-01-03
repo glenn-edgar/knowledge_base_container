@@ -102,15 +102,14 @@ typedef enum {
 #define S_EXPR_PARAM_PRED        0x0A
 #define S_EXPR_PARAM_FIELD       0x0B
 #define S_EXPR_PARAM_RESULT      0x0C
-
+#define S_EXPR_PARAM_STR_IDX     0x0D   // String table index
 // ============================================================================
 // TYPE FLAGS (upper bits of type byte)
 // ============================================================================
 
-#define S_EXPR_FLAG_SURVIVES_RESET 0x10  // bit 4: io_call (survives reset)
+#define S_EXPR_FLAG_SURVIVES_RESET 0x40  // bit 6: io_call (survives reset)
 #define S_EXPR_FLAG_POINTER        0x80  // bit 7: pt_m_call (pointer-capable)
-#define S_EXPR_OPCODE_MASK         0x0F  // bits 3:0
-
+#define S_EXPR_OPCODE_MASK         0x3F  // bits 5:0 (allows 64 opcodes)
 // ============================================================================
 // PARAMETER TYPE PREDICATES
 // ============================================================================
@@ -127,6 +126,7 @@ typedef enum {
 #define S_EXPR_PARAM_IS_RESULT(t)    (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_RESULT)
 #define S_EXPR_PARAM_HAS_POINTER(t)  (((t) & S_EXPR_FLAG_POINTER) != 0)
 #define S_EXPR_PARAM_SURVIVES_RESET(t) (((t) & S_EXPR_FLAG_SURVIVES_RESET) != 0)
+#define S_EXPR_PARAM_IS_STR_IDX(t)   (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_STR_IDX)
 
 // ============================================================================
 // NODE FLAGS (runtime state per func_node)
@@ -172,6 +172,11 @@ typedef struct {
         struct {
             uint16_t pool_id;
             uint16_t slot_index;
+        };
+        // String table reference (STR_IDX)
+        struct {
+            uint16_t str_index;     // -> string_table[]
+            uint16_t str_len;       // string length (informational)
         };
         // Brace matching (OPEN, OPEN_CALL, CLOSE)
         uint16_t brace_idx;
@@ -275,6 +280,10 @@ typedef struct {
     
     const s_expr_record_desc_t* records;
     uint16_t record_count;
+    
+    // String table (interned strings)
+    const char* const* string_table;
+    uint16_t string_count;
 } s_expr_module_def_t;
 
 // ============================================================================
@@ -525,6 +534,16 @@ static inline s_expr_result_t s_expr_find_result(
         }
     }
     return SE_CONTINUE;
+}
+
+static inline const char* s_expr_param_string(
+    const s_expr_module_def_t* def,
+    const s_expr_param_t* p
+) {
+    if (!def || !def->string_table) return NULL;
+    if ((p->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) return NULL;
+    if (p->str_index >= def->string_count) return NULL;
+    return def->string_table[p->str_index];
 }
 
 #ifdef __cplusplus

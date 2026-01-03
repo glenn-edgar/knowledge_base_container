@@ -21422,9 +21422,10 @@ kb.thirty_one_test.GATE_root._0.COL_laun._0.S_EXP_LINK_NODE._6:
     ltree_name: kb.thirty_one_test.GATE_root._0.COL_laun._0.S_EXP_LINK_NODE._6
     array_index: 1363
   node_dict:
-    module_name: chain_flow_dsl_tests
-    tree_name: s_expression_test_7
-    user_data: {}
+    column_data:
+      module_name: chain_flow_dsl_tests
+      tree_name: s_expression_test_7
+      user_data: {}
 kb.thirty_one_test.GATE_root._0.COL_laun._0.LEAF._7:
   label: LEAF
   node_name: _7
@@ -21480,9 +21481,10 @@ kb.thirty_one_test.GATE_root._0.COL_laun._0.S_EXP_LINK_NODE._10:
     ltree_name: kb.thirty_one_test.GATE_root._0.COL_laun._0.S_EXP_LINK_NODE._10
     array_index: 1367
   node_dict:
-    module_name: chain_flow_dsl_tests
-    tree_name: s_expression_test_8
-    user_data: {}
+    column_data:
+      module_name: chain_flow_dsl_tests
+      tree_name: s_expression_test_8
+      user_data: {}
 kb.thirty_one_test.GATE_root._0.COL_laun._0.LEAF._11:
   label: LEAF
   node_name: _11

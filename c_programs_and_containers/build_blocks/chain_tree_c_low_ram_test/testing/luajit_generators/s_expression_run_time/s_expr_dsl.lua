@@ -165,10 +165,11 @@ local PARAM_OPCODES = {
     PRED      = 0x0A,
     FIELD     = 0x0B,
     RESULT    = 0x0C,
+    STR_IDX   = 0x0D,   -- NEW: String table index
 }
 
 local TYPE_FLAGS = {
-    SURVIVES_RESET = 0x10,  -- bit 4: io_call
+    SURVIVES_RESET = 0x40,  -- bit 4: io_call
     POINTER        = 0x80,  -- bit 7: pt_m_call
 }
 
@@ -886,6 +887,31 @@ function pt_m_call(func_name, prefix)
     return start_call("pt_m_call", prefix, func_name, false, false)
 end
 
+function str_ptr(value)
+    check_in_tree("str_ptr")
+    check_not_in_bit_block("str_ptr")
+    
+    local s = tostring(value)
+    
+    -- Lookup existing string or add new one
+    local idx = _module.string_table_map[s]
+    if not idx then
+        idx = #_module.string_table
+        table.insert(_module.string_table, s)
+        _module.string_table_map[s] = idx
+    end
+    
+    emit_param({
+        type = PARAM_OPCODES.STR_IDX,
+        index_to_pointer = 0,
+        node_index = 0,
+        str_index = idx,
+        str_len = #s,
+        value_type = "str_idx",
+        str_content = s,
+    })
+end
+
 function p_call(func_name, prefix)
     check_not_in_bit_block("p_call")
     return start_call("p_call", prefix, func_name, false, false)
@@ -975,6 +1001,10 @@ function start_module(name)
         m_call_funcs = {},
         pt_m_call_funcs = {},
         ptr_field_refs = {},
+        string_hashes = {},
+        string_table = {},           -- NEW: array of unique strings
+        string_table_map = {},       -- NEW: string content -> index lookup
+        tree_record = nil,
     }
     
     return name
@@ -1176,6 +1206,10 @@ function ModuleGenerator:param_to_c(param)
         struct = string.format("{ .type = %s, .int_val = %d }", type_hex, param.value)
         comment = names[param.value] or "?"
 
+    elseif param.value_type == "str_idx" then
+        struct = string.format("{ .type = %s, .str_index = %d, .str_len = %d }",
+            type_hex, param.str_index, param.str_len)
+        comment = "\"" .. param.str_content .. "\""
     else
         struct = string.format("{ .type = %s, .uint_val = 0 }", type_hex)
         comment = "unknown"
@@ -1183,6 +1217,10 @@ function ModuleGenerator:param_to_c(param)
 
     return struct, comment
 end
+
+--============================================================================
+-- C HEADER GENERATION
+--============================================================================
 
 --============================================================================
 -- C HEADER GENERATION
@@ -1352,6 +1390,23 @@ function ModuleGenerator:to_c_header(base_name)
         table.insert(lines, "")
     end
     
+    -- String table (if any strings used)
+    if #mod.string_table > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// STRING TABLE")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "")
+        table.insert(lines, "static const char* const " .. base_name .. "_strings[] = {")
+        for i, s in ipairs(mod.string_table) do
+            local comma = (i < #mod.string_table) and "," or ""
+            -- Escape the string for C
+            local escaped = s:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
+            table.insert(lines, string.format('    "%s"%s  // index %d', escaped, comma, i - 1))
+        end
+        table.insert(lines, "};")
+        table.insert(lines, "")
+    end
+    
     -- Tree parameters and definitions
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// TREE DEFINITIONS")
@@ -1475,6 +1530,15 @@ function ModuleGenerator:to_c_header(base_name)
     else
         table.insert(lines, "    .records = NULL,")
         table.insert(lines, "    .record_count = 0,")
+    end
+    
+    -- String table (if any)
+    if #mod.string_table > 0 then
+        table.insert(lines, "    .string_table = " .. base_name .. "_strings,")
+        table.insert(lines, "    .string_count = " .. #mod.string_table .. ",")
+    else
+        table.insert(lines, "    .string_table = NULL,")
+        table.insert(lines, "    .string_count = 0,")
     end
     
     table.insert(lines, "};")
