@@ -3,7 +3,7 @@
 
 /* Node array with complete initialization */
 /* NOTE: Array preserves original YAML indices - filtered nodes leave gaps */
-const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
+const chaintree_node_t ct_2mjftu0j_nodes[1556] = {
     /* [0] _0 */
     {
         .node_index = 0,
@@ -17840,213 +17840,213 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [1372] first_test */
+    /* [1372] _0 */
     {
         .node_index = 1372,
         .parent_index = 65535,
         .depth = 0,
         .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_count = 0x0001,  /* count=1, auto_start=False */
+        .main_function_index = 13,
+        .init_function_index = 29,
+        .aux_function_index = 4,
+        .term_function_index = 30,
+        .node_data_id = 975
     },
-    /* [1373] FILTERED - Gap in array */
+    /* [1373] _0 [AUTO_START] */
     {
         .node_index = 1373,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1372,
+        .depth = 1,
+        .link_start = 1345,
+        .link_count = 0x800D,  /* count=13, auto_start=True */
+        .main_function_index = 3,
+        .init_function_index = 9,
+        .aux_function_index = 3,
+        .term_function_index = 10,
+        .node_data_id = 65535
     },
-    /* [1374] FILTERED - Gap in array */
+    /* [1374] _0 */
     {
         .node_index = 1374,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 7,
+        .init_function_index = 38,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 976
     },
-    /* [1375] FILTERED - Gap in array */
+    /* [1375] _1 */
     {
         .node_index = 1375,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 7,
+        .init_function_index = 38,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 977
     },
-    /* [1376] FILTERED - Gap in array */
+    /* [1376] _2 */
     {
         .node_index = 1376,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 31,
+        .init_function_index = 72,
+        .aux_function_index = 0,
+        .term_function_index = 73,
+        .node_data_id = 978
     },
-    /* [1377] FILTERED - Gap in array */
+    /* [1377] _3 */
     {
         .node_index = 1377,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 15,
+        .init_function_index = 32,
+        .aux_function_index = 0,
+        .term_function_index = 35,
+        .node_data_id = 979
     },
-    /* [1378] second_test */
+    /* [1378] _4 */
     {
         .node_index = 1378,
-        .parent_index = 65535,
-        .depth = 0,
-        .link_start = 1344,
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
         .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
+        .main_function_index = 31,
+        .init_function_index = 72,
         .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .term_function_index = 73,
+        .node_data_id = 980
     },
-    /* [1379] FILTERED - Gap in array */
+    /* [1379] _5 */
     {
         .node_index = 1379,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 15,
+        .init_function_index = 32,
+        .aux_function_index = 0,
+        .term_function_index = 35,
+        .node_data_id = 981
     },
-    /* [1380] FILTERED - Gap in array */
+    /* [1380] _6 */
     {
         .node_index = 1380,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 31,
+        .init_function_index = 72,
+        .aux_function_index = 0,
+        .term_function_index = 73,
+        .node_data_id = 982
     },
-    /* [1381] FILTERED - Gap in array */
+    /* [1381] _7 */
     {
         .node_index = 1381,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 15,
+        .init_function_index = 32,
+        .aux_function_index = 0,
+        .term_function_index = 35,
+        .node_data_id = 983
     },
-    /* [1382] FILTERED - Gap in array */
+    /* [1382] _8 */
     {
         .node_index = 1382,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 31,
+        .init_function_index = 72,
+        .aux_function_index = 0,
+        .term_function_index = 73,
+        .node_data_id = 984
     },
-    /* [1383] FILTERED - Gap in array */
+    /* [1383] _9 */
     {
         .node_index = 1383,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 15,
+        .init_function_index = 32,
+        .aux_function_index = 0,
+        .term_function_index = 35,
+        .node_data_id = 985
     },
-    /* [1384] fourth_test */
+    /* [1384] _10 */
     {
         .node_index = 1384,
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 7,
+        .init_function_index = 38,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 986
+    },
+    /* [1385] _11 */
+    {
+        .node_index = 1385,
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 7,
+        .init_function_index = 38,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 987
+    },
+    /* [1386] _12 */
+    {
+        .node_index = 1386,
+        .parent_index = 1373,
+        .depth = 2,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 33,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [1387] first_test */
+    {
+        .node_index = 1387,
         .parent_index = 65535,
         .depth = 0,
-        .link_start = 1344,
+        .link_start = 1358,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 0,
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 65535
-    },
-    /* [1385] FILTERED - Gap in array */
-    {
-        .node_index = 1385,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
-    },
-    /* [1386] FILTERED - Gap in array */
-    {
-        .node_index = 1386,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
-    },
-    /* [1387] FILTERED - Gap in array */
-    {
-        .node_index = 1387,
-        .parent_index = 0xFFFF,
-        .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
     },
     /* [1388] FILTERED - Gap in array */
     {
@@ -18074,18 +18074,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1390] fifth_test */
+    /* [1390] FILTERED - Gap in array */
     {
         .node_index = 1390,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1391] FILTERED - Gap in array */
     {
@@ -18113,18 +18113,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1393] FILTERED - Gap in array */
+    /* [1393] second_test */
     {
         .node_index = 1393,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1394] FILTERED - Gap in array */
     {
@@ -18152,18 +18152,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1396] sixth_test */
+    /* [1396] FILTERED - Gap in array */
     {
         .node_index = 1396,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1397] FILTERED - Gap in array */
     {
@@ -18191,18 +18191,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1399] FILTERED - Gap in array */
+    /* [1399] fourth_test */
     {
         .node_index = 1399,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1400] FILTERED - Gap in array */
     {
@@ -18230,18 +18230,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1402] seventh_test */
+    /* [1402] FILTERED - Gap in array */
     {
         .node_index = 1402,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1403] FILTERED - Gap in array */
     {
@@ -18269,18 +18269,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1405] FILTERED - Gap in array */
+    /* [1405] fifth_test */
     {
         .node_index = 1405,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1406] FILTERED - Gap in array */
     {
@@ -18308,18 +18308,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1408] eighth_test */
+    /* [1408] FILTERED - Gap in array */
     {
         .node_index = 1408,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1409] FILTERED - Gap in array */
     {
@@ -18347,18 +18347,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1411] FILTERED - Gap in array */
+    /* [1411] sixth_test */
     {
         .node_index = 1411,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1412] FILTERED - Gap in array */
     {
@@ -18386,18 +18386,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1414] ninth_test */
+    /* [1414] FILTERED - Gap in array */
     {
         .node_index = 1414,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1415] FILTERED - Gap in array */
     {
@@ -18425,18 +18425,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1417] FILTERED - Gap in array */
+    /* [1417] seventh_test */
     {
         .node_index = 1417,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1418] FILTERED - Gap in array */
     {
@@ -18464,18 +18464,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1420] tenth_test */
+    /* [1420] FILTERED - Gap in array */
     {
         .node_index = 1420,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1421] FILTERED - Gap in array */
     {
@@ -18503,18 +18503,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1423] FILTERED - Gap in array */
+    /* [1423] eighth_test */
     {
         .node_index = 1423,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1424] FILTERED - Gap in array */
     {
@@ -18542,18 +18542,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1426] eleventh_test */
+    /* [1426] FILTERED - Gap in array */
     {
         .node_index = 1426,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1427] FILTERED - Gap in array */
     {
@@ -18581,18 +18581,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1429] FILTERED - Gap in array */
+    /* [1429] ninth_test */
     {
         .node_index = 1429,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1430] FILTERED - Gap in array */
     {
@@ -18620,18 +18620,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1432] twelfth_test */
+    /* [1432] FILTERED - Gap in array */
     {
         .node_index = 1432,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1433] FILTERED - Gap in array */
     {
@@ -18659,18 +18659,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1435] FILTERED - Gap in array */
+    /* [1435] tenth_test */
     {
         .node_index = 1435,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1436] FILTERED - Gap in array */
     {
@@ -18698,18 +18698,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1438] thirteenth_test */
+    /* [1438] FILTERED - Gap in array */
     {
         .node_index = 1438,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1439] FILTERED - Gap in array */
     {
@@ -18737,18 +18737,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1441] FILTERED - Gap in array */
+    /* [1441] eleventh_test */
     {
         .node_index = 1441,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1442] FILTERED - Gap in array */
     {
@@ -18776,18 +18776,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1444] fourteenth_test */
+    /* [1444] FILTERED - Gap in array */
     {
         .node_index = 1444,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1445] FILTERED - Gap in array */
     {
@@ -18815,18 +18815,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1447] FILTERED - Gap in array */
+    /* [1447] twelfth_test */
     {
         .node_index = 1447,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1448] FILTERED - Gap in array */
     {
@@ -18854,18 +18854,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1450] seventeenth_test */
+    /* [1450] FILTERED - Gap in array */
     {
         .node_index = 1450,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1451] FILTERED - Gap in array */
     {
@@ -18893,18 +18893,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1453] FILTERED - Gap in array */
+    /* [1453] thirteenth_test */
     {
         .node_index = 1453,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1454] FILTERED - Gap in array */
     {
@@ -18932,18 +18932,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1456] eighteenth_test */
+    /* [1456] FILTERED - Gap in array */
     {
         .node_index = 1456,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1457] FILTERED - Gap in array */
     {
@@ -18971,18 +18971,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1459] FILTERED - Gap in array */
+    /* [1459] fourteenth_test */
     {
         .node_index = 1459,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1460] FILTERED - Gap in array */
     {
@@ -19010,18 +19010,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1462] ninteenth_test */
+    /* [1462] FILTERED - Gap in array */
     {
         .node_index = 1462,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1463] FILTERED - Gap in array */
     {
@@ -19049,18 +19049,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1465] FILTERED - Gap in array */
+    /* [1465] seventeenth_test */
     {
         .node_index = 1465,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1466] FILTERED - Gap in array */
     {
@@ -19088,18 +19088,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1468] twentieth_test */
+    /* [1468] FILTERED - Gap in array */
     {
         .node_index = 1468,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1469] FILTERED - Gap in array */
     {
@@ -19127,18 +19127,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1471] FILTERED - Gap in array */
+    /* [1471] eighteenth_test */
     {
         .node_index = 1471,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1472] FILTERED - Gap in array */
     {
@@ -19166,18 +19166,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1474] twenty_first_test */
+    /* [1474] FILTERED - Gap in array */
     {
         .node_index = 1474,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1475] FILTERED - Gap in array */
     {
@@ -19205,18 +19205,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1477] FILTERED - Gap in array */
+    /* [1477] ninteenth_test */
     {
         .node_index = 1477,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1478] FILTERED - Gap in array */
     {
@@ -19244,18 +19244,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1480] twenty_second_test */
+    /* [1480] FILTERED - Gap in array */
     {
         .node_index = 1480,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1481] FILTERED - Gap in array */
     {
@@ -19283,18 +19283,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1483] FILTERED - Gap in array */
+    /* [1483] twentieth_test */
     {
         .node_index = 1483,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1484] FILTERED - Gap in array */
     {
@@ -19322,18 +19322,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1486] twenty_third_test */
+    /* [1486] FILTERED - Gap in array */
     {
         .node_index = 1486,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1487] FILTERED - Gap in array */
     {
@@ -19361,18 +19361,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1489] FILTERED - Gap in array */
+    /* [1489] twenty_first_test */
     {
         .node_index = 1489,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1490] FILTERED - Gap in array */
     {
@@ -19400,18 +19400,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1492] twenty_fourth_test */
+    /* [1492] FILTERED - Gap in array */
     {
         .node_index = 1492,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1493] FILTERED - Gap in array */
     {
@@ -19439,18 +19439,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1495] FILTERED - Gap in array */
+    /* [1495] twenty_second_test */
     {
         .node_index = 1495,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1496] FILTERED - Gap in array */
     {
@@ -19478,18 +19478,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1498] twenty_fifth_test */
+    /* [1498] FILTERED - Gap in array */
     {
         .node_index = 1498,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1499] FILTERED - Gap in array */
     {
@@ -19517,18 +19517,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1501] FILTERED - Gap in array */
+    /* [1501] twenty_third_test */
     {
         .node_index = 1501,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1502] FILTERED - Gap in array */
     {
@@ -19556,18 +19556,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1504] twenty_sixth_test */
+    /* [1504] FILTERED - Gap in array */
     {
         .node_index = 1504,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1505] FILTERED - Gap in array */
     {
@@ -19595,18 +19595,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1507] FILTERED - Gap in array */
+    /* [1507] twenty_fourth_test */
     {
         .node_index = 1507,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1508] FILTERED - Gap in array */
     {
@@ -19634,18 +19634,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1510] twenty_seventh_test */
+    /* [1510] FILTERED - Gap in array */
     {
         .node_index = 1510,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1511] FILTERED - Gap in array */
     {
@@ -19673,18 +19673,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1513] FILTERED - Gap in array */
+    /* [1513] twenty_fifth_test */
     {
         .node_index = 1513,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1514] FILTERED - Gap in array */
     {
@@ -19712,18 +19712,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1516] twenty_eighth_test */
+    /* [1516] FILTERED - Gap in array */
     {
         .node_index = 1516,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1517] FILTERED - Gap in array */
     {
@@ -19751,18 +19751,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1519] FILTERED - Gap in array */
+    /* [1519] twenty_sixth_test */
     {
         .node_index = 1519,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1520] FILTERED - Gap in array */
     {
@@ -19790,18 +19790,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1522] twenty_ninth_test */
+    /* [1522] FILTERED - Gap in array */
     {
         .node_index = 1522,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1523] FILTERED - Gap in array */
     {
@@ -19829,18 +19829,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1525] FILTERED - Gap in array */
+    /* [1525] twenty_seventh_test */
     {
         .node_index = 1525,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1526] FILTERED - Gap in array */
     {
@@ -19868,18 +19868,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1528] thirty_test */
+    /* [1528] FILTERED - Gap in array */
     {
         .node_index = 1528,
-        .parent_index = 65535,
+        .parent_index = 0xFFFF,
         .depth = 0,
-        .link_start = 1344,
-        .link_count = 0x0000,  /* count=0, auto_start=False */
-        .main_function_index = 0,
-        .init_function_index = 0,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
     },
     /* [1529] FILTERED - Gap in array */
     {
@@ -19907,18 +19907,18 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1531] FILTERED - Gap in array */
+    /* [1531] twenty_eighth_test */
     {
         .node_index = 1531,
-        .parent_index = 0xFFFF,
+        .parent_index = 65535,
         .depth = 0,
-        .link_start = 0,
-        .link_count = 0,
-        .main_function_index = 0,  /* CFL_NULL */
-        .init_function_index = 0,  /* CFL_NULL */
-        .aux_function_index = 0,   /* CFL_NULL */
-        .term_function_index = 0,  /* CFL_NULL */
-        .node_data_id = 0xFFFF
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [1532] FILTERED - Gap in array */
     {
@@ -19946,12 +19946,285 @@ const chaintree_node_t ct_r1ts0khl_nodes[1535] = {
         .term_function_index = 0,  /* CFL_NULL */
         .node_data_id = 0xFFFF
     },
-    /* [1534] thirty_one_test */
+    /* [1534] FILTERED - Gap in array */
     {
         .node_index = 1534,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1535] FILTERED - Gap in array */
+    {
+        .node_index = 1535,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1536] FILTERED - Gap in array */
+    {
+        .node_index = 1536,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1537] twenty_ninth_test */
+    {
+        .node_index = 1537,
         .parent_index = 65535,
         .depth = 0,
-        .link_start = 1344,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [1538] FILTERED - Gap in array */
+    {
+        .node_index = 1538,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1539] FILTERED - Gap in array */
+    {
+        .node_index = 1539,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1540] FILTERED - Gap in array */
+    {
+        .node_index = 1540,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1541] FILTERED - Gap in array */
+    {
+        .node_index = 1541,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1542] FILTERED - Gap in array */
+    {
+        .node_index = 1542,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1543] thirty_test */
+    {
+        .node_index = 1543,
+        .parent_index = 65535,
+        .depth = 0,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [1544] FILTERED - Gap in array */
+    {
+        .node_index = 1544,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1545] FILTERED - Gap in array */
+    {
+        .node_index = 1545,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1546] FILTERED - Gap in array */
+    {
+        .node_index = 1546,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1547] FILTERED - Gap in array */
+    {
+        .node_index = 1547,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1548] FILTERED - Gap in array */
+    {
+        .node_index = 1548,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1549] thirty_one_test */
+    {
+        .node_index = 1549,
+        .parent_index = 65535,
+        .depth = 0,
+        .link_start = 1358,
+        .link_count = 0x0000,  /* count=0, auto_start=False */
+        .main_function_index = 0,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [1550] FILTERED - Gap in array */
+    {
+        .node_index = 1550,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1551] FILTERED - Gap in array */
+    {
+        .node_index = 1551,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1552] FILTERED - Gap in array */
+    {
+        .node_index = 1552,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1553] FILTERED - Gap in array */
+    {
+        .node_index = 1553,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1554] FILTERED - Gap in array */
+    {
+        .node_index = 1554,
+        .parent_index = 0xFFFF,
+        .depth = 0,
+        .link_start = 0,
+        .link_count = 0,
+        .main_function_index = 0,  /* CFL_NULL */
+        .init_function_index = 0,  /* CFL_NULL */
+        .aux_function_index = 0,   /* CFL_NULL */
+        .term_function_index = 0,  /* CFL_NULL */
+        .node_data_id = 0xFFFF
+    },
+    /* [1555] thirty_two_test */
+    {
+        .node_index = 1555,
+        .parent_index = 65535,
+        .depth = 0,
+        .link_start = 1358,
         .link_count = 0x0000,  /* count=0, auto_start=False */
         .main_function_index = 0,
         .init_function_index = 0,

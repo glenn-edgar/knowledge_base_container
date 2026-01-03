@@ -2,7 +2,7 @@
 #include "test_header_kb_info.h"
 
 /* Node aliases for KB: twenty_seventh_test */
-const node_alias_t ct_r1ts0khl_kb_23_aliases[4] = {
+const node_alias_t ct_2mjftu0j_kb_23_aliases[4] = {
     {"drone_control_fly_straight", 1218},
     {"drone_control_fly_arc", 1224},
     {"drone_control_fly_up", 1230},
@@ -10,7 +10,7 @@ const node_alias_t ct_r1ts0khl_kb_23_aliases[4] = {
 };
 
 /* Node aliases for KB: twenty_eighth_test */
-const node_alias_t ct_r1ts0khl_kb_24_aliases[4] = {
+const node_alias_t ct_2mjftu0j_kb_24_aliases[4] = {
     {"drone_control_fly_straight", 1263},
     {"drone_control_fly_arc", 1270},
     {"drone_control_fly_up", 1276},
@@ -18,7 +18,7 @@ const node_alias_t ct_r1ts0khl_kb_24_aliases[4] = {
 };
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_r1ts0khl_kb_table[28] = {
+const chaintree_kb_info_t ct_2mjftu0j_kb_table[29] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -256,7 +256,7 @@ const chaintree_kb_info_t ct_r1ts0khl_kb_table[28] = {
         .node_count = 45,
         .max_depth = 3,
         .memory_factor = 50,
-        .aliases = ct_r1ts0khl_kb_23_aliases,
+        .aliases = ct_2mjftu0j_kb_23_aliases,
         .alias_count = 4
     },
     {
@@ -266,7 +266,7 @@ const chaintree_kb_info_t ct_r1ts0khl_kb_table[28] = {
         .node_count = 46,
         .max_depth = 3,
         .memory_factor = 50,
-        .aliases = ct_r1ts0khl_kb_24_aliases,
+        .aliases = ct_2mjftu0j_kb_24_aliases,
         .alias_count = 4
     },
     {
@@ -294,6 +294,16 @@ const chaintree_kb_info_t ct_r1ts0khl_kb_table[28] = {
         .root_node_index = 1355,
         .start_index = 1355,
         .node_count = 17,
+        .max_depth = 2,
+        .memory_factor = 10,
+        .aliases = NULL,
+        .alias_count = 0
+    },
+    {
+        .kb_name = "thirty_two_test",
+        .root_node_index = 1372,
+        .start_index = 1372,
+        .node_count = 15,
         .max_depth = 2,
         .memory_factor = 10,
         .aliases = NULL,

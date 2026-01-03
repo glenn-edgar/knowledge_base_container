@@ -316,6 +316,411 @@ start_tree("s_expression_test_8")
 
 end_tree("s_expression_test_8")
 
+-- Inner record: 3D Vector
+RECORD("vector3d")
+    FIELD("x", "float")
+    FIELD("y", "float")
+    FIELD("z", "float")
+END_RECORD()
+
+-- Inner record: PID gains
+RECORD("pid_gains")
+    FIELD("kp", "float")
+    FIELD("ki", "float")
+    FIELD("kd", "float")
+END_RECORD()
+
+-- Mid-level record: Motor state (contains vector3d)
+RECORD("motor_state")
+    FIELD("position", "vector3d")      -- embedded vector3d
+    FIELD("velocity", "vector3d")      -- embedded vector3d
+    FIELD("torque", "float")
+    FIELD("enabled", "bool")
+END_RECORD()
+
+-- Top-level record: Complete system state
+RECORD("system_state")
+    FIELD("motor", "motor_state")      -- embedded motor_state
+    FIELD("pid", "pid_gains")          -- embedded pid_gains
+    FIELD("system_time", "uint32")
+    FIELD("error_code", "uint16")
+END_RECORD()
+
+-- ============================================================================
+-- TREE 1: Test nested field access
+-- ============================================================================
+
+start_tree("s_expression_test_10")
+    use_record("system_state")
+    local p1 = m_call("CFL_PIPELINE")
+    -- Initialize motor position (3 levels deep: motor.position.x)
+        local c1 = o_call("CFL_LOG")
+            str_ptr("Setting motor position")
+        end_call(c1)
+        
+        local c2 = o_call("TEST_33_SET_VECTOR")
+            nested_field_ref("motor.position.x")
+            nested_field_ref("motor.position.y")
+            nested_field_ref("motor.position.z")
+            flt(100.0)
+            flt(200.0)
+            flt(300.0)
+        end_call(c2)
+        
+        -- Initialize motor velocity
+        local c3 = o_call("TEST_33_SET_VECTOR")
+            nested_field_ref("motor.velocity.x")
+            nested_field_ref("motor.velocity.y")
+            nested_field_ref("motor.velocity.z")
+            flt(1.5)
+            flt(2.5)
+            flt(3.5)
+        end_call(c3)
+        
+        -- Set PID gains (2 levels deep: pid.kp)
+        local c4 = o_call("TEST_33_SET_PID")
+            nested_field_ref("pid.kp")
+            nested_field_ref("pid.ki")
+            nested_field_ref("pid.kd")
+            flt(1.0)
+            flt(0.1)
+            flt(0.01)
+        end_call(c4)
+        
+        -- Set top-level fields (no nesting)
+        local c5 = o_call("TEST_33_SET_SYSTEM")
+            field_ref("system_time")
+            field_ref("error_code")
+            uint(12345678)
+            uint(0)
+        end_call(c5)
+
+        local c6 = o_call("CFL_LOG")
+        str_ptr("Reading motor position")
+    end_call(c6)
+    
+    local c7 = o_call("TEST_33_READ_VECTOR")
+        nested_field_ref("motor.position.x")
+        nested_field_ref("motor.position.y")
+        nested_field_ref("motor.position.z")
+        flt(100.0)
+        flt(200.0)
+        flt(300.0)
+    end_call(c7)
+    
+    -- Initialize motor velocity
+    local c8 = o_call("TEST_33_READ_VECTOR")
+        nested_field_ref("motor.velocity.x")
+        nested_field_ref("motor.velocity.y")
+        nested_field_ref("motor.velocity.z")
+        flt(1.5)
+        flt(2.5)
+        flt(3.5)
+    end_call(c8)
+    
+    -- Set PID gains (2 levels deep: pid.kp)
+    local c9 = o_call("TEST_33_READ_PID")
+        nested_field_ref("pid.kp")
+        nested_field_ref("pid.ki")
+        nested_field_ref("pid.kd")
+        flt(1.0)
+        flt(0.1)
+        flt(0.01)
+    end_call(c9)
+    
+    -- Set top-level fields (no nesting)
+    local c10 = o_call("TEST_33_READ_SYSTEM")
+        field_ref("system_time")
+        field_ref("error_code")
+        uint(12345678)
+        uint(0)
+    end_call(c10)
+        result(SE_FUNCTION_TERMINATE)
+    end_call(p1)
+end_tree("s_expression_test_10")
+-- ============================================================================
+-- test_ptr_field.lua
+-- DSL test demonstrating PTR_FIELD (pointer to record) usage
+-- ============================================================================
+
+
+-- ============================================================================
+-- RECORD DEFINITIONS WITH POINTER FIELDS
+-- ============================================================================
+
+-- Target record: Node data (what we point to)
+RECORD("node_data")
+    FIELD("id", "uint32")
+    FIELD("value", "float")
+    FIELD("flags", "uint8")
+END_RECORD()
+
+-- Target record: Linked list node
+RECORD("list_node")
+    FIELD("data", "int32")
+    PTR_FIELD("next", "list_node")  -- pointer to next node (self-referential)
+END_RECORD()
+
+-- Target record: Sensor reading
+RECORD("sensor_reading")
+    FIELD("timestamp", "uint32")
+    FIELD("temperature", "float")
+    FIELD("pressure", "float")
+    FIELD("humidity", "float")
+END_RECORD()
+
+-- Main record with pointer fields
+RECORD("system_context")
+    FIELD("system_id", "uint32")
+    PTR_FIELD("primary_node", "node_data")      -- pointer to node_data
+    PTR_FIELD("backup_node", "node_data")       -- another pointer to node_data
+    PTR_FIELD("sensor", "sensor_reading")       -- pointer to sensor_reading
+    PTR_FIELD("task_list", "list_node")         -- pointer to linked list head
+    FIELD("node_count", "uint16")
+END_RECORD()
+
+-- ============================================================================
+-- TREE 1: Test pointer field set/get
+-- ============================================================================
+
+start_tree("s_expression_test_11")
+    use_record("system_context")
+    p1 = m_call("CFL_PIPELINE")
+        -- Log start
+        local c1 = o_call("CFL_LOG")
+            str_ptr("Test 34: Pointer field test starting")
+        end_call(c1)
+        
+        -- Set system_id first
+        local c2 = o_call("TEST_34_SET_UINT32")
+            field_ref("system_id")
+            uint(0x12345678)
+        end_call(c2)
+        
+        -- Allocate and set primary_node
+        local c3 = o_call("TEST_34_ALLOC_NODE")
+            field_ref("primary_node")       -- pointer field to set
+            uint(100)                        -- id
+            flt(3.14159)                     -- value
+            uint(0x0F)                       -- flags
+        end_call(c3)
+        
+        -- Allocate and set backup_node
+        local c4 = o_call("TEST_34_ALLOC_NODE")
+            field_ref("backup_node")
+            uint(200)
+            flt(2.71828)
+            uint(0xF0)
+        end_call(c4)
+        
+        -- Allocate and set sensor reading
+        local c5 = o_call("TEST_34_ALLOC_SENSOR")
+            field_ref("sensor")
+            uint(1000000)                    -- timestamp
+            flt(25.5)                        -- temperature
+            flt(1013.25)                     -- pressure
+            flt(65.0)                        -- humidity
+        end_call(c5)
+        
+        -- Set node_count
+        local c6 = o_call("TEST_34_SET_UINT16")
+            field_ref("node_count")
+            uint(2)
+        end_call(c6)
+        
+        -- Now verify everything
+        local c7 = o_call("CFL_LOG")
+            str_ptr("Verifying pointer fields...")
+        end_call(c7)
+        
+        -- Read and verify primary_node
+        local c8 = o_call("TEST_34_READ_NODE")
+            field_ref("primary_node")
+            uint(100)                        -- expected id
+            flt(3.14159)                     -- expected value
+            uint(0x0F)                       -- expected flags
+        end_call(c8)
+        
+        -- Read and verify backup_node
+        local c9 = o_call("TEST_34_READ_NODE")
+            field_ref("backup_node")
+            uint(200)
+            flt(2.71828)
+            uint(0xF0)
+        end_call(c9)
+        
+        -- Read and verify sensor
+        local c10 = o_call("TEST_34_READ_SENSOR")
+            field_ref("sensor")
+            uint(1000000)
+            flt(25.5)
+            flt(1013.25)
+            flt(65.0)
+        end_call(c10)
+        
+        -- Verify system_id and node_count
+        local c11 = o_call("TEST_34_READ_UINT32")
+            field_ref("system_id")
+            uint(0x12345678)
+        end_call(c11)
+        
+        local c12 = o_call("TEST_34_READ_UINT16")
+            field_ref("node_count")
+            uint(2)
+        end_call(c12)
+        
+        -- Test NULL pointer check
+        local c13 = o_call("CFL_LOG")
+            str_ptr("Testing NULL pointer handling...")
+        end_call(c13)
+        
+        -- task_list should be NULL (not set)
+        local c14 = o_call("TEST_34_CHECK_NULL")
+            field_ref("task_list")
+            uint(1)                          -- expect NULL (1=true)
+        end_call(c14)
+        
+        -- primary_node should NOT be NULL
+        local c15 = o_call("TEST_34_CHECK_NULL")
+            field_ref("primary_node")
+            uint(0)                          -- expect NOT NULL (0=false)
+        end_call(c15)
+        
+        -- Free allocated memory
+        local c16 = o_call("CFL_LOG")
+            str_ptr("Freeing allocated nodes...")
+        end_call(c16)
+        
+        local c17 = o_call("TEST_34_FREE_PTR")
+            field_ref("primary_node")
+        end_call(c17)
+        
+        local c18 = o_call("TEST_34_FREE_PTR")
+            field_ref("backup_node")
+        end_call(c18)
+        
+        local c19 = o_call("TEST_34_FREE_PTR")
+            field_ref("sensor")
+        end_call(c19)
+        
+        local c20 = o_call("CFL_LOG")
+            str_ptr("Test 34: PASSED")
+        end_call(c20)
+        result(SE_FUNCTION_TERMINATE)
+    end_call(p1)
+end_tree("s_expression_test_11")
+
+-- ============================================================================
+-- TREE 2: Test linked list with pointer fields
+-- ============================================================================
+
+start_tree("s_expression_test_12")
+    use_record("system_context")
+    p1 = m_call("CFL_PIPELINE")
+        local c1 = o_call("CFL_LOG")
+            str_ptr("Test 35: Linked list test starting")
+        end_call(c1)
+        
+        -- Build a linked list: head -> node1 -> node2 -> NULL
+        local c2 = o_call("TEST_35_BUILD_LIST")
+            field_ref("task_list")           -- pointer to head
+            uint(3)                          -- number of nodes to create
+        end_call(c2)
+        
+        -- Traverse and verify the list
+        local c3 = o_call("TEST_35_TRAVERSE_LIST")
+            field_ref("task_list")
+            uint(3)                          -- expected node count
+        end_call(c3)
+        
+        -- Free the entire list
+        local c4 = o_call("TEST_35_FREE_LIST")
+            field_ref("task_list")
+        end_call(c4)
+        
+        -- Verify list is now NULL
+        local c5 = o_call("TEST_34_CHECK_NULL")
+            field_ref("task_list")
+            uint(1)                          -- expect NULL
+        end_call(c5)
+        
+        local c6 = o_call("CFL_LOG")
+            str_ptr("Test 35: PASSED")
+        end_call(c6)
+        result(SE_FUNCTION_TERMINATE)
+    end_call(p1)
+end_tree("s_expression_test_12")
+
+-- ============================================================================
+-- TREE 3: Test pointer sharing (two fields point to same data)
+-- ============================================================================
+
+start_tree("s_expression_test_13")
+    use_record("system_context")
+    p1 = m_call("CFL_PIPELINE")
+        local c1 = o_call("CFL_LOG")
+            str_ptr("Test 36: Pointer sharing test starting")
+        end_call(c1)
+        
+        -- Allocate primary_node
+        local c2 = o_call("TEST_34_ALLOC_NODE")
+            field_ref("primary_node")
+            uint(999)
+            flt(42.0)
+            uint(0xAB)
+        end_call(c2)
+        
+        -- Make backup_node point to the SAME node as primary_node
+        local c3 = o_call("TEST_36_COPY_PTR")
+            field_ref("backup_node")         -- destination
+            field_ref("primary_node")        -- source
+        end_call(c3)
+        
+        -- Verify both point to same data
+        local c4 = o_call("TEST_36_VERIFY_SAME_PTR")
+            field_ref("primary_node")
+            field_ref("backup_node")
+        end_call(c4)
+        
+        -- Modify through backup_node
+        local c5 = o_call("TEST_36_MODIFY_NODE_VALUE")
+            field_ref("backup_node")
+            flt(99.99)                       -- new value
+        end_call(c5)
+        
+        -- Verify change visible through primary_node (proves sharing)
+        local c6 = o_call("TEST_34_READ_NODE")
+            field_ref("primary_node")
+            uint(999)                        -- id unchanged
+            flt(99.99)                       -- value changed!
+            uint(0xAB)                       -- flags unchanged
+        end_call(c6)
+        
+        -- Free only once (shared pointer)
+        local c7 = o_call("TEST_34_FREE_PTR")
+            field_ref("primary_node")
+        end_call(c7)
+        
+        -- Clear backup_node to avoid dangling pointer
+        local c8 = o_call("TEST_36_CLEAR_PTR")
+            field_ref("backup_node")
+        end_call(c8)
+        
+        local c9 = o_call("CFL_LOG")
+            str_ptr("Test 36: PASSED")
+        end_call(c9)
+        result(SE_FUNCTION_TERMINATE)
+    end_call(p1)
+end_tree("s_expression_test_13")
+
+-- ============================================================================
+-- END MODULE
+-- ============================================================================
+
+
+
+
+
 return_value = end_module(mod)
 print("DEBUG: return_value =", return_value)
 return return_value

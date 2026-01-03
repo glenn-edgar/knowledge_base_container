@@ -110,9 +110,10 @@ int main(void) {
     //cfl_add_test_by_index(handle, 22); //twenty-sixth test
     //cfl_add_test_by_index(handle, 23); //twenty-seventh test
     //cfl_add_test_by_index(handle, 24); //twenty-eighth test
-    cfl_add_test_by_index(handle, 25); //twenty-ninth test
+    //cfl_add_test_by_index(handle, 25); //twenty-ninth test
    //cfl_add_test_by_index(handle, 26); //thirty test
     //cfl_add_test_by_index(handle, 27); //thirty-one test
+    cfl_add_test_by_index(handle, 28); //thirty-two test
     printf("heap used bytes: %d\n", cfl_heap_used_bytes(handle->heap));
     printf("heap free bytes: %d\n", cfl_heap_free_bytes(handle->heap));
     

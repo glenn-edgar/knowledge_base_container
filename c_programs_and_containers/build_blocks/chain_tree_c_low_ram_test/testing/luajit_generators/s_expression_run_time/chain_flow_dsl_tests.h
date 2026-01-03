@@ -10,38 +10,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "s_engine_types.h"
-
-// ============================================================================
-// FORWARD DECLARATIONS
-// ============================================================================
-
-typedef struct test2_blackboard_s test2_blackboard_t;
-typedef struct state_machine_blackboard_s state_machine_blackboard_t;
-typedef struct robot_blackboard_s robot_blackboard_t;
-typedef struct event_blackboard_s event_blackboard_t;
-
-// ============================================================================
-// RECORD STRUCTURES
-// ============================================================================
-
-struct test2_blackboard_s {
-    int32_t placeholder;  // offset=0, size=4
-};  // total_size=4, align=4
-
-struct state_machine_blackboard_s {
-    int32_t state;  // offset=0, size=4
-    int32_t state_b;  // offset=4, size=4
-};  // total_size=8, align=4
-
-struct robot_blackboard_s {
-    int32_t command;  // offset=0, size=4
-};  // total_size=4, align=4
-
-struct event_blackboard_s {
-    int32_t timer_count;  // offset=0, size=4
-    int32_t sensor_value;  // offset=4, size=4
-    int32_t event_id;  // offset=8, size=4
-};  // total_size=12, align=4
+#include "chain_flow_dsl_tests_records.h"
 
 // ============================================================================
 // FUNCTION HASH TABLES
@@ -61,7 +30,30 @@ static const uint32_t chain_flow_dsl_tests_oneshot_hashes[] = {
     0x1593B0BBU,  // TEST_32_NOTIFY_SYSTEM
     0x66EC2A1FU,  // CFL_INTERNAL_EVENT
     0x9BEEA78DU,  // TEST_32_DISABLE_ALL_OUTPUTS
-    0x9B59F0CBU  // TEST_32_SAVE_STATE
+    0x9B59F0CBU,  // TEST_32_SAVE_STATE
+    0x4A7CE19FU,  // TEST_33_SET_VECTOR
+    0xD58736DDU,  // TEST_33_SET_PID
+    0x25590D31U,  // TEST_33_SET_SYSTEM
+    0x88F549D9U,  // TEST_33_READ_VECTOR
+    0xC12BB41BU,  // TEST_33_READ_PID
+    0xCC1D9E5BU,  // TEST_33_READ_SYSTEM
+    0x3C4C5B4AU,  // TEST_34_SET_UINT32
+    0xF88A0240U,  // TEST_34_ALLOC_NODE
+    0x5A022D1AU,  // TEST_34_ALLOC_SENSOR
+    0xA851827CU,  // TEST_34_SET_UINT16
+    0xA29AE36FU,  // TEST_34_READ_NODE
+    0x5334E5D1U,  // TEST_34_READ_SENSOR
+    0xA446E0E2U,  // TEST_34_READ_UINT32
+    0x304C3A74U,  // TEST_34_READ_UINT16
+    0x3311CA8AU,  // TEST_34_CHECK_NULL
+    0xD354D8E9U,  // TEST_34_FREE_PTR
+    0xEE44D556U,  // TEST_35_BUILD_LIST
+    0xABB0C6FEU,  // TEST_35_TRAVERSE_LIST
+    0x05F01006U,  // TEST_35_FREE_LIST
+    0x1E3246ECU,  // TEST_36_COPY_PTR
+    0x285D86ADU,  // TEST_36_VERIFY_SAME_PTR
+    0x09440419U,  // TEST_36_MODIFY_NODE_VALUE
+    0x689DAB3CU  // TEST_36_CLEAR_PTR
 };
 
 static const uint32_t chain_flow_dsl_tests_main_hashes[] = {
@@ -107,6 +99,59 @@ static const s_expr_field_desc_t chain_flow_dsl_tests_event_blackboard_fields[] 
     { .name_hash = 0xA08B063DU, .offset = 8, .size = 4 }  // event_id
 };
 
+static const s_expr_field_desc_t chain_flow_dsl_tests_vector3d_fields[] = {
+    { .name_hash = 0xFD0C5087U, .offset = 0, .size = 4 },  // x
+    { .name_hash = 0xFC0C4EF4U, .offset = 4, .size = 4 },  // y
+    { .name_hash = 0xFF0C53ADU, .offset = 8, .size = 4 }  // z
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_pid_gains_fields[] = {
+    { .name_hash = 0x573D1A6EU, .offset = 0, .size = 4 },  // kp
+    { .name_hash = 0x403CF639U, .offset = 4, .size = 4 },  // ki
+    { .name_hash = 0x4B3D078AU, .offset = 8, .size = 4 }  // kd
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_motor_state_fields[] = {
+    { .name_hash = 0x934F4E0AU, .offset = 0, .size = 12 },  // position
+    { .name_hash = 0x32741C32U, .offset = 12, .size = 12 },  // velocity
+    { .name_hash = 0x473F6463U, .offset = 24, .size = 4 },  // torque
+    { .name_hash = 0x02F3B39EU, .offset = 28, .size = 1 }  // enabled
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_system_state_fields[] = {
+    { .name_hash = 0xCAF08472U, .offset = 0, .size = 32 },  // motor
+    { .name_hash = 0x6940FD22U, .offset = 32, .size = 12 },  // pid
+    { .name_hash = 0x967B9630U, .offset = 44, .size = 4 },  // system_time
+    { .name_hash = 0x14FC1187U, .offset = 48, .size = 2 }  // error_code
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_node_data_fields[] = {
+    { .name_hash = 0x37386AE0U, .offset = 0, .size = 4 },  // id
+    { .name_hash = 0x425ED3CAU, .offset = 4, .size = 4 },  // value
+    { .name_hash = 0x9C677A2CU, .offset = 8, .size = 1 }  // flags
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_list_node_fields[] = {
+    { .name_hash = 0xD872E2A5U, .offset = 0, .size = 4 },  // data
+    { .name_hash = 0x5CB68DE8U, .offset = 8, .size = 8 }  // next
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_sensor_reading_fields[] = {
+    { .name_hash = 0xB283D523U, .offset = 0, .size = 4 },  // timestamp
+    { .name_hash = 0xE9F2A935U, .offset = 4, .size = 4 },  // temperature
+    { .name_hash = 0xCFA8A3A2U, .offset = 8, .size = 4 },  // pressure
+    { .name_hash = 0x25C5B9A0U, .offset = 12, .size = 4 }  // humidity
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_system_context_fields[] = {
+    { .name_hash = 0xDF8183BCU, .offset = 0, .size = 4 },  // system_id
+    { .name_hash = 0x9589A68EU, .offset = 8, .size = 8 },  // primary_node
+    { .name_hash = 0xD1B58A8CU, .offset = 16, .size = 8 },  // backup_node
+    { .name_hash = 0x83B6367BU, .offset = 24, .size = 8 },  // sensor
+    { .name_hash = 0x4A035315U, .offset = 32, .size = 8 },  // task_list
+    { .name_hash = 0xF6DA5425U, .offset = 40, .size = 2 }  // node_count
+};
+
 static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
     {
         .name_hash = 0x1703AE37U,  // "test2_blackboard"
@@ -131,6 +176,54 @@ static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
         .total_size = 12,
         .field_count = 3,
         .fields = chain_flow_dsl_tests_event_blackboard_fields
+    },
+    {
+        .name_hash = 0xD299CEC5U,  // "vector3d"
+        .total_size = 12,
+        .field_count = 3,
+        .fields = chain_flow_dsl_tests_vector3d_fields
+    },
+    {
+        .name_hash = 0x76017CA9U,  // "pid_gains"
+        .total_size = 12,
+        .field_count = 3,
+        .fields = chain_flow_dsl_tests_pid_gains_fields
+    },
+    {
+        .name_hash = 0x7EFCE2D8U,  // "motor_state"
+        .total_size = 32,
+        .field_count = 4,
+        .fields = chain_flow_dsl_tests_motor_state_fields
+    },
+    {
+        .name_hash = 0x941691FAU,  // "system_state"
+        .total_size = 52,
+        .field_count = 4,
+        .fields = chain_flow_dsl_tests_system_state_fields
+    },
+    {
+        .name_hash = 0xA5DD10B6U,  // "node_data"
+        .total_size = 12,
+        .field_count = 3,
+        .fields = chain_flow_dsl_tests_node_data_fields
+    },
+    {
+        .name_hash = 0x79C6FBD6U,  // "list_node"
+        .total_size = 16,
+        .field_count = 2,
+        .fields = chain_flow_dsl_tests_list_node_fields
+    },
+    {
+        .name_hash = 0x296647E8U,  // "sensor_reading"
+        .total_size = 16,
+        .field_count = 4,
+        .fields = chain_flow_dsl_tests_sensor_reading_fields
+    },
+    {
+        .name_hash = 0xDB109A00U,  // "system_context"
+        .total_size = 48,
+        .field_count = 6,
+        .fields = chain_flow_dsl_tests_system_context_fields
     }
 };
 
@@ -150,7 +243,18 @@ static const char* const chain_flow_dsl_tests_strings[] = {
     "Sensor reading",  // index 8
     "ALARM TRIGGERED",  // index 9
     "ALARM SETTING",  // index 10
-    "Shutdown requested"  // index 11
+    "Shutdown requested",  // index 11
+    "Setting motor position",  // index 12
+    "Reading motor position",  // index 13
+    "Test 34: Pointer field test starting",  // index 14
+    "Verifying pointer fields...",  // index 15
+    "Testing NULL pointer handling...",  // index 16
+    "Freeing allocated nodes...",  // index 17
+    "Test 34: PASSED",  // index 18
+    "Test 35: Linked list test starting",  // index 19
+    "Test 35: PASSED",  // index 20
+    "Test 36: Pointer sharing test starting",  // index 21
+    "Test 36: PASSED"  // index 22
 };
 
 // ============================================================================
@@ -534,10 +638,292 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_8_params[] = 
     { .type = 0x07, .brace_idx = 2 },
     { .type = 0x09, .index_to_pointer = 0, .node_index = 24, .func_index = 11 },  // TEST_32_RUN_BACKGROUND_TASKS
     { .type = 0x06, .brace_idx = 2 },
-    { .type = 0x0C, .int_val = 1 },  // SE_HALT
+    { .type = 0x0C, .int_val = 0 },  // SE_CONTINUE
     { .type = 0x06, .brace_idx = 9 },
     { .type = 0x06, .brace_idx = 12 },
     { .type = 0x06, .brace_idx = 114 }
+};
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_10_params[] = {
+    { .type = 0x07, .brace_idx = 79 },
+    { .type = 0x09, .index_to_pointer = 0, .node_index = 0, .func_index = 6 },  // CFL_PIPELINE
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 1, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 12, .str_len = 22 },  // "Setting motor position"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 14 },  // TEST_33_SET_VECTOR
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // motor.position.x
+    { .type = 0x0B, .field_offset = 4, .field_size = 4 },  // motor.position.y
+    { .type = 0x0B, .field_offset = 8, .field_size = 4 },  // motor.position.z
+    { .type = 0x02, .float_val = 100.000000f },
+    { .type = 0x02, .float_val = 200.000000f },
+    { .type = 0x02, .float_val = 300.000000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 14 },  // TEST_33_SET_VECTOR
+    { .type = 0x0B, .field_offset = 12, .field_size = 4 },  // motor.velocity.x
+    { .type = 0x0B, .field_offset = 16, .field_size = 4 },  // motor.velocity.y
+    { .type = 0x0B, .field_offset = 20, .field_size = 4 },  // motor.velocity.z
+    { .type = 0x02, .float_val = 1.500000f },
+    { .type = 0x02, .float_val = 2.500000f },
+    { .type = 0x02, .float_val = 3.500000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 15 },  // TEST_33_SET_PID
+    { .type = 0x0B, .field_offset = 32, .field_size = 4 },  // pid.kp
+    { .type = 0x0B, .field_offset = 36, .field_size = 4 },  // pid.ki
+    { .type = 0x0B, .field_offset = 40, .field_size = 4 },  // pid.kd
+    { .type = 0x02, .float_val = 1.000000f },
+    { .type = 0x02, .float_val = 0.100000f },
+    { .type = 0x02, .float_val = 0.010000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 16 },  // TEST_33_SET_SYSTEM
+    { .type = 0x0B, .field_offset = 44, .field_size = 4 },  // system_time
+    { .type = 0x0B, .field_offset = 48, .field_size = 2 },  // error_code
+    { .type = 0x01, .uint_val = 12345678U },
+    { .type = 0x01, .uint_val = 0U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 6, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 13, .str_len = 22 },  // "Reading motor position"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 7, .func_index = 17 },  // TEST_33_READ_VECTOR
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // motor.position.x
+    { .type = 0x0B, .field_offset = 4, .field_size = 4 },  // motor.position.y
+    { .type = 0x0B, .field_offset = 8, .field_size = 4 },  // motor.position.z
+    { .type = 0x02, .float_val = 100.000000f },
+    { .type = 0x02, .float_val = 200.000000f },
+    { .type = 0x02, .float_val = 300.000000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 8, .func_index = 17 },  // TEST_33_READ_VECTOR
+    { .type = 0x0B, .field_offset = 12, .field_size = 4 },  // motor.velocity.x
+    { .type = 0x0B, .field_offset = 16, .field_size = 4 },  // motor.velocity.y
+    { .type = 0x0B, .field_offset = 20, .field_size = 4 },  // motor.velocity.z
+    { .type = 0x02, .float_val = 1.500000f },
+    { .type = 0x02, .float_val = 2.500000f },
+    { .type = 0x02, .float_val = 3.500000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 18 },  // TEST_33_READ_PID
+    { .type = 0x0B, .field_offset = 32, .field_size = 4 },  // pid.kp
+    { .type = 0x0B, .field_offset = 36, .field_size = 4 },  // pid.ki
+    { .type = 0x0B, .field_offset = 40, .field_size = 4 },  // pid.kd
+    { .type = 0x02, .float_val = 1.000000f },
+    { .type = 0x02, .float_val = 0.100000f },
+    { .type = 0x02, .float_val = 0.010000f },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 10, .func_index = 19 },  // TEST_33_READ_SYSTEM
+    { .type = 0x0B, .field_offset = 44, .field_size = 4 },  // system_time
+    { .type = 0x0B, .field_offset = 48, .field_size = 2 },  // error_code
+    { .type = 0x01, .uint_val = 12345678U },
+    { .type = 0x01, .uint_val = 0U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
+    { .type = 0x06, .brace_idx = 79 }
+};
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_11_params[] = {
+    { .type = 0x07, .brace_idx = 109 },
+    { .type = 0x09, .index_to_pointer = 0, .node_index = 0, .func_index = 6 },  // CFL_PIPELINE
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 1, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 14, .str_len = 36 },  // "Test 34: Pointer field test starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 20 },  // TEST_34_SET_UINT32
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // system_id
+    { .type = 0x01, .uint_val = 305419896U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 21 },  // TEST_34_ALLOC_NODE
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x01, .uint_val = 100U },
+    { .type = 0x02, .float_val = 3.141590f },
+    { .type = 0x01, .uint_val = 15U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 21 },  // TEST_34_ALLOC_NODE
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x01, .uint_val = 200U },
+    { .type = 0x02, .float_val = 2.718280f },
+    { .type = 0x01, .uint_val = 240U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 7 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 22 },  // TEST_34_ALLOC_SENSOR
+    { .type = 0x0B, .field_offset = 24, .field_size = 8 },  // sensor
+    { .type = 0x01, .uint_val = 1000000U },
+    { .type = 0x02, .float_val = 25.500000f },
+    { .type = 0x02, .float_val = 1013.250000f },
+    { .type = 0x02, .float_val = 65.000000f },
+    { .type = 0x06, .brace_idx = 7 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 6, .func_index = 23 },  // TEST_34_SET_UINT16
+    { .type = 0x0B, .field_offset = 40, .field_size = 2 },  // node_count
+    { .type = 0x01, .uint_val = 2U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 7, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 15, .str_len = 27 },  // "Verifying pointer fields..."
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 8, .func_index = 24 },  // TEST_34_READ_NODE
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x01, .uint_val = 100U },
+    { .type = 0x02, .float_val = 3.141590f },
+    { .type = 0x01, .uint_val = 15U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 24 },  // TEST_34_READ_NODE
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x01, .uint_val = 200U },
+    { .type = 0x02, .float_val = 2.718280f },
+    { .type = 0x01, .uint_val = 240U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 7 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 10, .func_index = 25 },  // TEST_34_READ_SENSOR
+    { .type = 0x0B, .field_offset = 24, .field_size = 8 },  // sensor
+    { .type = 0x01, .uint_val = 1000000U },
+    { .type = 0x02, .float_val = 25.500000f },
+    { .type = 0x02, .float_val = 1013.250000f },
+    { .type = 0x02, .float_val = 65.000000f },
+    { .type = 0x06, .brace_idx = 7 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 11, .func_index = 26 },  // TEST_34_READ_UINT32
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // system_id
+    { .type = 0x01, .uint_val = 305419896U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 12, .func_index = 27 },  // TEST_34_READ_UINT16
+    { .type = 0x0B, .field_offset = 40, .field_size = 2 },  // node_count
+    { .type = 0x01, .uint_val = 2U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 13, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 16, .str_len = 32 },  // "Testing NULL pointer handling..."
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 14, .func_index = 28 },  // TEST_34_CHECK_NULL
+    { .type = 0x0B, .field_offset = 32, .field_size = 8 },  // task_list
+    { .type = 0x01, .uint_val = 1U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 15, .func_index = 28 },  // TEST_34_CHECK_NULL
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x01, .uint_val = 0U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 16, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 17, .str_len = 26 },  // "Freeing allocated nodes..."
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 17, .func_index = 29 },  // TEST_34_FREE_PTR
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 18, .func_index = 29 },  // TEST_34_FREE_PTR
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 19, .func_index = 29 },  // TEST_34_FREE_PTR
+    { .type = 0x0B, .field_offset = 24, .field_size = 8 },  // sensor
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 20, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 18, .str_len = 15 },  // "Test 34: PASSED"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
+    { .type = 0x06, .brace_idx = 109 }
+};
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_12_params[] = {
+    { .type = 0x07, .brace_idx = 30 },
+    { .type = 0x09, .index_to_pointer = 0, .node_index = 0, .func_index = 6 },  // CFL_PIPELINE
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 1, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 19, .str_len = 34 },  // "Test 35: Linked list test starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 30 },  // TEST_35_BUILD_LIST
+    { .type = 0x0B, .field_offset = 32, .field_size = 8 },  // task_list
+    { .type = 0x01, .uint_val = 3U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 31 },  // TEST_35_TRAVERSE_LIST
+    { .type = 0x0B, .field_offset = 32, .field_size = 8 },  // task_list
+    { .type = 0x01, .uint_val = 3U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 32 },  // TEST_35_FREE_LIST
+    { .type = 0x0B, .field_offset = 32, .field_size = 8 },  // task_list
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 28 },  // TEST_34_CHECK_NULL
+    { .type = 0x0B, .field_offset = 32, .field_size = 8 },  // task_list
+    { .type = 0x01, .uint_val = 1U },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 6, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 20, .str_len = 15 },  // "Test 35: PASSED"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
+    { .type = 0x06, .brace_idx = 30 }
+};
+
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_13_params[] = {
+    { .type = 0x07, .brace_idx = 48 },
+    { .type = 0x09, .index_to_pointer = 0, .node_index = 0, .func_index = 6 },  // CFL_PIPELINE
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 1, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 21, .str_len = 38 },  // "Test 36: Pointer sharing test starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 21 },  // TEST_34_ALLOC_NODE
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x01, .uint_val = 999U },
+    { .type = 0x02, .float_val = 42.000000f },
+    { .type = 0x01, .uint_val = 171U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 33 },  // TEST_36_COPY_PTR
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 34 },  // TEST_36_VERIFY_SAME_PTR
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 35 },  // TEST_36_MODIFY_NODE_VALUE
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x02, .float_val = 99.990000f },
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 6, .func_index = 24 },  // TEST_34_READ_NODE
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x01, .uint_val = 999U },
+    { .type = 0x02, .float_val = 99.990000f },
+    { .type = 0x01, .uint_val = 171U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 7, .func_index = 29 },  // TEST_34_FREE_PTR
+    { .type = 0x0B, .field_offset = 8, .field_size = 8 },  // primary_node
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 8, .func_index = 36 },  // TEST_36_CLEAR_PTR
+    { .type = 0x0B, .field_offset = 16, .field_size = 8 },  // backup_node
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 22, .str_len = 15 },  // "Test 36: PASSED"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
+    { .type = 0x06, .brace_idx = 48 }
 };
 
 static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_2_def = {
@@ -576,6 +962,42 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_8_def = {
     .pointer_count = 2,
 };
 
+static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_10_def = {
+    .name_hash = 0x6D17FDF6U,  // "s_expression_test_10"
+    .record_hash = 0x941691FAU,
+    .params = chain_flow_dsl_tests_s_expression_test_10_params,
+    .param_count = 80,
+    .func_node_count = 11,
+    .pointer_count = 0,
+};
+
+static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_11_def = {
+    .name_hash = 0x6E17FF89U,  // "s_expression_test_11"
+    .record_hash = 0xDB109A00U,
+    .params = chain_flow_dsl_tests_s_expression_test_11_params,
+    .param_count = 110,
+    .func_node_count = 21,
+    .pointer_count = 0,
+};
+
+static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_12_def = {
+    .name_hash = 0x6B17FAD0U,  // "s_expression_test_12"
+    .record_hash = 0xDB109A00U,
+    .params = chain_flow_dsl_tests_s_expression_test_12_params,
+    .param_count = 31,
+    .func_node_count = 7,
+    .pointer_count = 0,
+};
+
+static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_13_def = {
+    .name_hash = 0x6C17FC63U,  // "s_expression_test_13"
+    .record_hash = 0xDB109A00U,
+    .params = chain_flow_dsl_tests_s_expression_test_13_params,
+    .param_count = 49,
+    .func_node_count = 10,
+    .pointer_count = 0,
+};
+
 // ============================================================================
 // MODULE DEFINITION
 // ============================================================================
@@ -584,16 +1006,20 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_trees[] = {
     chain_flow_dsl_tests_s_expression_test_2_def,
     chain_flow_dsl_tests_s_expression_test_4_def,
     chain_flow_dsl_tests_s_expression_test_7_def,
-    chain_flow_dsl_tests_s_expression_test_8_def
+    chain_flow_dsl_tests_s_expression_test_8_def,
+    chain_flow_dsl_tests_s_expression_test_10_def,
+    chain_flow_dsl_tests_s_expression_test_11_def,
+    chain_flow_dsl_tests_s_expression_test_12_def,
+    chain_flow_dsl_tests_s_expression_test_13_def
 };
 
 static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .name_hash = 0xE6318EC1U,  // "chain_flow_dsl_tests"
     .trees = chain_flow_dsl_tests_trees,
-    .tree_count = 4,
+    .tree_count = 8,
     .is_64bit = false,
     .oneshot_hashes = chain_flow_dsl_tests_oneshot_hashes,
-    .oneshot_count = 14,
+    .oneshot_count = 37,
     .main_hashes = chain_flow_dsl_tests_main_hashes,
     .main_count = 12,
     .pred_hashes = chain_flow_dsl_tests_pred_hashes,
@@ -602,9 +1028,9 @@ static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .max_pointer_count = 4,
     .max_param_count = 161,
     .records = chain_flow_dsl_tests_records,
-    .record_count = 4,
+    .record_count = 12,
     .string_table = chain_flow_dsl_tests_strings,
-    .string_count = 12,
+    .string_count = 23,
 };
 
 #endif // CHAIN_FLOW_DSL_TESTS_H

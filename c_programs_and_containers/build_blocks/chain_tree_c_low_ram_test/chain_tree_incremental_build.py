@@ -2256,6 +2256,24 @@ def thirty_one_test(ct,kb_name): # data f
     ct.end_column(column_name=launch_column)
     ct.end_test() 
     
+def thirty_two_test(ct,kb_name): # data f
+    ct.start_test(test_name=kb_name)
+    launch_column = ct.define_column(column_name="launch_column",auto_start=True)
+    ct.asm_log_message("launch column: is terminating")
+    ct.asm_log_message("s expression node test 10 is active")
+    node_id_a = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_10",user_data={})
+    ct.define_join_link(node_id_a)
+    node_id_b = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_11",user_data={})
+    ct.define_join_link(node_id_b)
+    node_id_c = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_12",user_data={})
+    ct.define_join_link(node_id_c)
+    node_id_d = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_13",user_data={})
+    ct.define_join_link(node_id_d)
+    ct.asm_log_message("s expression link node test 10 is not active")
+    ct.asm_log_message("launch column: is terminating")
+    ct.asm_terminate()
+    ct.end_column(column_name=launch_column)
+    ct.end_test() 
     
 def add_header(yaml_file):
     yaml_file = Path(yaml_file)
@@ -2273,7 +2291,7 @@ if __name__ == "__main__":
                  "tenth_test","eleventh_test","twelfth_test","thirteenth_test","fourteenth_test","seventeenth_test","eighteenth_test",
                  "ninteenth_test","twentieth_test","twenty_first_test","twenty_second_test",
                  "twenty_third_test","twenty_fourth_test","twenty_fifth_test","twenty_sixth_test",
-                 "twenty_seventh_test","twenty_eighth_test","twenty_ninth_test","thirty_test","thirty_one_test"]
+                 "twenty_seventh_test","twenty_eighth_test","twenty_ninth_test","thirty_test","thirty_one_test","thirty_two_test"]
                 
     test_dict = { "first_test": first_test}
     test_dict = { "first_test": first_test,
@@ -2303,7 +2321,8 @@ if __name__ == "__main__":
                  "twenty_eighth_test": twenty_eighth_test,
                  "twenty_ninth_test": twenty_ninth_test,
                  "thirty_test": thirty_test,
-                 "thirty_one_test": thirty_one_test}
+                 "thirty_one_test": thirty_one_test,
+                 "thirty_two_test": thirty_two_test}
     import sys
     if len(sys.argv) != 2:
         print("Usage: python chain_tree_incremental_build.py <yaml_file>")

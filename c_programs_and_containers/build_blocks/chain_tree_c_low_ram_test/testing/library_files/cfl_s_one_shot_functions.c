@@ -262,7 +262,81 @@ static void cfl_exception_oneshot(
     printf("CFL_EXCEPTION: 0x%llX\n", (unsigned long long)params[0].str_hash);
     EXCEPTION("CFL_EXCEPTION triggered");
 }
+static void cfl_set_bits_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 1) {
+        EXCEPTION("CFL_SET_BITS: requires at least 1 parameter");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_SET_BITS: no runtime handle");
+        return;
+    }
+    
+    for (uint16_t i = 0; i < param_count; i++) {
+        uint8_t type_i = params[i].type & S_EXPR_OPCODE_MASK;
+        if (type_i != S_EXPR_PARAM_INT && type_i != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_SET_BITS: param must be INT or UINT");
+            return;
+        }
+        
+        uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[i]);
+        if (bit_index >= 32) {
+            EXCEPTION("CFL_SET_BITS: bit index out of range");
+            return;
+        }
+        
+        runtime_handle->bitmask |= (1U << bit_index);
+    }
+}
 
+static void cfl_clear_bits_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 1) {
+        EXCEPTION("CFL_CLEAR_BITS: requires at least 1 parameter");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime_handle = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime_handle) {
+        EXCEPTION("CFL_CLEAR_BITS: no runtime handle");
+        return;
+    }
+    
+    for (uint16_t i = 0; i < param_count; i++) {
+        uint8_t type_i = params[i].type & S_EXPR_OPCODE_MASK;
+        if (type_i != S_EXPR_PARAM_INT && type_i != S_EXPR_PARAM_UINT) {
+            EXCEPTION("CFL_CLEAR_BITS: param must be INT or UINT");
+            return;
+        }
+        
+        uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[i]);
+        if (bit_index >= 32) {
+            EXCEPTION("CFL_CLEAR_BITS: bit index out of range");
+            return;
+        }
+        
+        runtime_handle->bitmask &= ~(1U << bit_index);
+    }
+}
 // ============================================================================
 // SYSTEM ONESHOT ENTRIES (named for readability)
 // ============================================================================
@@ -275,6 +349,8 @@ static const s_expr_fn_entry_named_t system_oneshot_entries_named[] = {
     { "CFL_DISABLE_CHILD",    (void*)cfl_disable_child_oneshot },
     { "CFL_INTERNAL_EVENT",   (void*)cfl_internal_event_oneshot },
     { "CFL_EXCEPTION",        (void*)cfl_exception_oneshot },
+    { "CFL_SET_BITS",         (void*)cfl_set_bits_oneshot },
+    { "CFL_CLEAR_BITS",       (void*)cfl_clear_bits_oneshot },
 };
 
 // ============================================================================

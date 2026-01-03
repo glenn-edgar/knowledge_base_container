@@ -312,5 +312,51 @@ function cfl_init_disable_child(child_index)
         int(child_index)
     end_call(c)
 end
+--============================================================================
+-- CFL_SET_BITS - Set one or more bits in the runtime bitmask
+-- Usage: cfl_set_bits(0, 5, 12)  -- sets bits 0, 5, and 12
+--============================================================================
 
+function cfl_set_bits(...)
+    local bits = {...}
+    if #bits == 0 then
+        dsl_error("cfl_set_bits() requires at least one bit index")
+    end
+    
+    local c = o_call("CFL_SET_BITS")
+        for _, bit_index in ipairs(bits) do
+            if type(bit_index) ~= "number" then
+                dsl_error("cfl_set_bits() bit index must be a number")
+            end
+            if bit_index < 0 or bit_index > 31 then
+                dsl_error("cfl_set_bits() bit index must be 0-31")
+            end
+            uint(bit_index)
+        end
+    end_call(c)
+end
+
+--============================================================================
+-- CFL_CLEAR_BITS - Clear one or more bits in the runtime bitmask
+-- Usage: cfl_clear_bits(0, 5, 12)  -- clears bits 0, 5, and 12
+--============================================================================
+
+function cfl_clear_bits(...)
+    local bits = {...}
+    if #bits == 0 then
+        dsl_error("cfl_clear_bits() requires at least one bit index")
+    end
+    
+    local c = o_call("CFL_CLEAR_BITS")
+        for _, bit_index in ipairs(bits) do
+            if type(bit_index) ~= "number" then
+                dsl_error("cfl_clear_bits() bit index must be a number")
+            end
+            if bit_index < 0 or bit_index > 31 then
+                dsl_error("cfl_clear_bits() bit index must be 0-31")
+            end
+            uint(bit_index)
+        end
+    end_call(c)
+end
 print("CFL helper functions loaded")

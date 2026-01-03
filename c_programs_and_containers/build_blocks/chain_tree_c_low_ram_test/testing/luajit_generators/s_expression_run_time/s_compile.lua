@@ -8,8 +8,9 @@
 --   --header=<file>    Generate main C header (default: <module_name>.h)
 --   --user=<file>      Generate user function header
 --   --reg=<file>       Generate user registration code
+--   --records=<file>   Generate records header (standalone structures)
 --   --dump             Print debug dump of module
---   --all              Generate all outputs (header, user, reg)
+--   --all              Generate all outputs (header, user, reg, records)
 --   --outdir=<dir>     Output directory (default: current)
 --   --32bit            Force 32-bit mode (default)
 --   --64bit            Force 64-bit mode
@@ -25,6 +26,7 @@ local function parse_args(args)
         header = nil,
         user_header = nil,
         registration = nil,
+        records_header = nil,
         dump = false,
         all = false,
         outdir = ".",
@@ -38,6 +40,8 @@ local function parse_args(args)
             opts.user_header = arg:match("^%-%-user=(.+)$")
         elseif arg:match("^%-%-reg=") then
             opts.registration = arg:match("^%-%-reg=(.+)$")
+        elseif arg:match("^%-%-records=") then
+            opts.records_header = arg:match("^%-%-records=(.+)$")
         elseif arg:match("^%-%-outdir=") then
             opts.outdir = arg:match("^%-%-outdir=(.+)$")
         elseif arg == "--dump" then
@@ -48,6 +52,8 @@ local function parse_args(args)
             opts.pointer_size = 4
         elseif arg == "--64bit" then
             opts.pointer_size = 8
+        elseif arg == "--help" or arg == "-h" then
+            return nil  -- Signal to print help
         elseif arg:match("^%-") then
             io.stderr:write("Unknown option: " .. arg .. "\n")
             os.exit(1)
@@ -66,27 +72,43 @@ end
 
 local function print_usage()
     print([[
+ChainTree S-Expression DSL Compiler v3.0
+
 Usage: luajit s_compile.lua <input.lua> [options]
 
 Options:
   --header=<file>    Generate main C header (default: <module_name>.h)
   --user=<file>      Generate user function header
   --reg=<file>       Generate user registration code
+  --records=<file>   Generate records header (standalone structures)
   --dump             Print debug dump of module
-  --all              Generate all outputs (header, user, reg)
+  --all              Generate all outputs (header, user, reg, records)
   --outdir=<dir>     Output directory (default: current)
   --32bit            Force 32-bit mode (default)
   --64bit            Force 64-bit mode
+  --help, -h         Show this help
+
+Generated files with --all:
+  <base>_records.h           - Standalone record structures (for user code)
+  <base>.h                   - DSL internals (includes _records.h)
+  <base>_user_functions.h    - User function prototypes
+  <base>_user_registration.c - Function registration code
 
 Examples:
   luajit s_compile.lua my_module.lua --header=my_module.h
   luajit s_compile.lua my_module.lua --all --outdir=generated/
+  luajit s_compile.lua my_module.lua --all --64bit
 ]])
 end
 
 -- Main
 local function main()
     local opts = parse_args(arg)
+    
+    if not opts then
+        print_usage()
+        os.exit(0)
+    end
     
     if not opts.input then
         print_usage()
@@ -110,10 +132,10 @@ local function main()
     local f = io.open(dsl_file, "r")
     if not f then
         -- Try current directory
-        dsl_file = "s_expression_dsl.lua"
+        dsl_file = "s_expr_dsl.lua"
         f = io.open(dsl_file, "r")
         if not f then
-            io.stderr:write("Error: Cannot find s_expression_dsl.lua\n")
+            io.stderr:write("Error: Cannot find s_expr_dsl.lua\n")
             io.stderr:write("Looked in: " .. script_dir .. " and ./\n")
             os.exit(1)
         end
@@ -171,6 +193,9 @@ local function main()
         if not opts.registration then
             opts.registration = base_name .. "_user_registration.c"
         end
+        if not opts.records_header then
+            opts.records_header = base_name .. "_records.h"
+        end
     end
     
     -- Generate requested outputs
@@ -196,6 +221,12 @@ local function main()
         print("Generated: " .. path)
     end
     
+    -- Generate records header first (if records exist and requested)
+    if opts.records_header and #module_data.record_order > 0 then
+        local content = gen:to_c_records_header(base_name)
+        write_file(opts.records_header, content)
+    end
+    
     if opts.header then
         local content = gen:to_c_header(base_name)
         write_file(opts.header, content)
@@ -216,11 +247,31 @@ local function main()
     end
     
     -- If no output specified, just generate the main header
-    if not opts.header and not opts.user_header and not opts.registration and not opts.dump then
+    if not opts.header and not opts.user_header and not opts.registration and not opts.records_header and not opts.dump then
+        -- Generate records header if records exist
+        if #module_data.record_order > 0 then
+            opts.records_header = base_name .. "_records.h"
+            local content = gen:to_c_records_header(base_name)
+            write_file(opts.records_header, content)
+        end
+        
         opts.header = base_name .. ".h"
         local content = gen:to_c_header(base_name)
         write_file(opts.header, content)
     end
+    
+    -- Print summary
+    print("")
+    print("Module: " .. module_data.name)
+    print("  Trees: " .. #module_data.tree_order)
+    print("  Records: " .. #module_data.record_order)
+    print("  Oneshot functions: " .. #module_data.oneshot_funcs)
+    print("  Main functions: " .. #module_data.main_funcs)
+    print("  Pred functions: " .. #module_data.pred_funcs)
+    if #module_data.string_table > 0 then
+        print("  Strings: " .. #module_data.string_table)
+    end
+    print("  Mode: " .. (opts.pointer_size == 8 and "64-bit" or "32-bit"))
 end
 
 -- Run main

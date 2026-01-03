@@ -97,6 +97,213 @@ void test_32_save_state_oneshot(
     uint16_t event_id,
     void* event_data);
 
+// DSL: TEST_33_SET_VECTOR  hash: 0x4A7CE19FU
+void test_33_set_vector_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_33_SET_PID  hash: 0xD58736DDU
+void test_33_set_pid_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_33_SET_SYSTEM  hash: 0x25590D31U
+void test_33_set_system_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_33_READ_VECTOR  hash: 0x88F549D9U
+void test_33_read_vector_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_33_READ_PID  hash: 0xC12BB41BU
+void test_33_read_pid_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_33_READ_SYSTEM  hash: 0xCC1D9E5BU
+void test_33_read_system_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_SET_UINT32  hash: 0x3C4C5B4AU
+void test_34_set_uint32_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_ALLOC_NODE  hash: 0xF88A0240U
+void test_34_alloc_node_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_ALLOC_SENSOR  hash: 0x5A022D1AU
+void test_34_alloc_sensor_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_SET_UINT16  hash: 0xA851827CU
+void test_34_set_uint16_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_READ_NODE  hash: 0xA29AE36FU
+void test_34_read_node_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_READ_SENSOR  hash: 0x5334E5D1U
+void test_34_read_sensor_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_READ_UINT32  hash: 0xA446E0E2U
+void test_34_read_uint32_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_READ_UINT16  hash: 0x304C3A74U
+void test_34_read_uint16_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_CHECK_NULL  hash: 0x3311CA8AU
+void test_34_check_null_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_34_FREE_PTR  hash: 0xD354D8E9U
+void test_34_free_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_35_BUILD_LIST  hash: 0xEE44D556U
+void test_35_build_list_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_35_TRAVERSE_LIST  hash: 0xABB0C6FEU
+void test_35_traverse_list_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_35_FREE_LIST  hash: 0x05F01006U
+void test_35_free_list_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_36_COPY_PTR  hash: 0x1E3246ECU
+void test_36_copy_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_36_VERIFY_SAME_PTR  hash: 0x285D86ADU
+void test_36_verify_same_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_36_MODIFY_NODE_VALUE  hash: 0x09440419U
+void test_36_modify_node_value_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_36_CLEAR_PTR  hash: 0x689DAB3CU
+void test_36_clear_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
 // ============================================================================
 // USER MAIN FUNCTION PROTOTYPES
 // ============================================================================
