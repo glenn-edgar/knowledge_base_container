@@ -5,6 +5,7 @@
 #include "cfl_runtime.h"
 #include "cfl_engine.h"
 #include "cfl_common_functions.h"
+#include "json_node_decoder.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -337,6 +338,420 @@ static void cfl_clear_bits_oneshot(
         runtime_handle->bitmask &= ~(1U << bit_index);
     }
 }
+
+
+
+// ============================================================================
+// CFL_JSON_READ_INT
+// Params: field_ref, str_ptr(json_path)
+// Field types: int8, int16, int32, int64
+// ============================================================================
+
+static void cfl_json_read_int_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_INT: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_INT: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_INT: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_INT: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_INT: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime ) {
+        EXCEPTION("CFL_JSON_READ_INT: no JSON buffer");
+        return;
+    }
+    
+    void* field_ptr = (uint8_t*)bb + params[0].field_offset;
+    uint16_t field_size = params[0].field_size;
+    
+    
+    
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+   
+    int32_t temp_value = 0;
+    json_extract_int32_runtime(runtime, json_path, &temp_value);
+    
+    
+    uint64_t value = (uint64_t)temp_value;
+    switch (field_size) {
+        case 1: *(int8_t*)field_ptr  = (int8_t)value;  break;
+        case 2: *(int16_t*)field_ptr = (int16_t)value; break;
+        case 4: *(int32_t*)field_ptr = (int32_t)value; break;
+        case 8: *(int64_t*)field_ptr = (int64_t)value; break;
+        default:
+            printf("CFL_JSON_READ_INT: unsupported field_size %d\n", field_size);
+            EXCEPTION("CFL_JSON_READ_INT: unsupported field_size \n");
+            return;
+    }
+}
+
+// ============================================================================
+// CFL_JSON_READ_UINT
+// Params: field_ref, str_ptr(json_path)
+// Field types: uint8, uint16, uint32, uint64
+// ============================================================================
+
+static void cfl_json_read_uint_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_UINT: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_UINT: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_UINT: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_UINT: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_UINT: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime || !runtime) {
+        EXCEPTION("CFL_JSON_READ_UINT: no JSON buffer");
+        return;
+    }
+    
+    void* field_ptr = (uint8_t*)bb + params[0].field_offset;
+    uint16_t field_size = params[0].field_size;
+        
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+   
+    
+
+    int32_t temp_value = 0;
+    json_extract_int32_runtime(runtime, json_path, &temp_value);
+    
+    
+    uint64_t value = (uint64_t)temp_value;
+    // << END JSON PARSING >>
+    
+    switch (field_size) {
+        case 1: *(uint8_t*)field_ptr  = (uint8_t)value;  break;
+        case 2: *(uint16_t*)field_ptr = (uint16_t)value; break;
+        case 4: *(uint32_t*)field_ptr = (uint32_t)value; break;
+        case 8: *(uint64_t*)field_ptr = (uint64_t)value; break;
+        default:
+            printf("CFL_JSON_READ_UINT: unsupported field_size %d\n", field_size);
+            EXCEPTION("CFL_JSON_READ_UINT: unsupported field_size \n");
+            return;
+    }
+}
+
+// ============================================================================
+// CFL_JSON_READ_FLOAT
+// Params: field_ref, str_ptr(json_path)
+// Field type: float (32-bit)
+// ============================================================================
+
+static void cfl_json_read_float_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime ) {
+        EXCEPTION("CFL_JSON_READ_FLOAT: no JSON buffer");
+        return;
+    }
+    
+    float* field_ptr = (float*)((uint8_t*)bb + params[0].field_offset);
+    
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+    printf("CFL_JSON_READ_FLOAT: json_path: %s\n", json_path);
+    float value = 0.0f;
+    json_extract_float32_runtime(runtime, json_path, &value);
+    
+    // << END JSON PARSING >>
+    *field_ptr = value;
+    
+}
+
+
+
+
+
+// ============================================================================
+// CFL_JSON_READ_BOOL
+// Params: field_ref, str_ptr(json_path)
+// Field type: bool
+// ============================================================================
+
+static void cfl_json_read_bool_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_BOOL: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_BOOL: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_BOOL: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_BOOL: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_BOOL: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime ) {
+        EXCEPTION("CFL_JSON_READ_BOOL: no JSON buffer");
+        return;
+    }
+    
+    bool* field_ptr = (bool*)((uint8_t*)bb + params[0].field_offset);
+    
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+    bool value = false;
+    json_extract_bool_runtime(runtime, json_path, &value);
+
+    
+    
+    *field_ptr = value;
+}
+
+// ============================================================================
+// CFL_JSON_READ_STRING_PTR
+// Params: field_ref, str_ptr(json_path)
+// 
+// ============================================================================
+
+static void cfl_json_read_string_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime ) {
+        EXCEPTION("CFL_JSON_READ_STRING_PTR: no JSON buffer");
+        return;
+    }
+    
+    char** field_ptr = (char**)((uint8_t*)bb + params[0].field_offset);
+    
+    
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+   
+    const char* value = NULL;
+    json_extract_string_runtime(runtime, json_path, &value);
+   
+    // << END JSON PARSING >>
+    
+    *field_ptr = (char*)value;
+}
+
+// ============================================================================
+// CFL_JSON_READ_STRING_BUF
+// Params: field_ref, str_ptr(json_path)
+// Field type: char[N] (fixed buffer, uses field_size for max length)
+// ============================================================================
+
+static void cfl_json_read_string_buf_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 2) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: requires 2 parameters");
+        return;
+    }
+    
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: param[0] must be FIELD");
+        return;
+    }
+    
+    if ((params[1].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_IDX) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: param[1] must be STR_IDX");
+        return;
+    }
+    
+    void* bb = s_expr_tree_get_blackboard(inst);
+    if (!bb) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: no blackboard");
+        return;
+    }
+    
+    const char* json_path = s_expr_get_string(inst, &params[1]);
+    if (!json_path) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: failed to get json_path");
+        return;
+    }
+    
+    cfl_runtime_handle_t* runtime = (cfl_runtime_handle_t*)s_expr_tree_get_user_ctx(inst);
+    if (!runtime ) {
+        EXCEPTION("CFL_JSON_READ_STRING_BUF: no JSON buffer");
+        return;
+    }
+    
+    char* field_ptr = (char*)((uint8_t*)bb + params[0].field_offset);
+    uint16_t buf_size = params[0].field_size;
+    
+    // Clear buffer first
+    memset(field_ptr, 0, buf_size);
+    const char* value = NULL;
+    json_decoder_init_from_runtime(runtime, inst->ct_node_id);
+    json_extract_string_runtime(runtime, json_path, &value);
+   
+
+    size_t value_len = strlen(value)+1;
+    // << END JSON PARSING >>
+    
+    if (value && value_len > 0) {
+        size_t copy_len = (value_len < (size_t)(buf_size - 1)) ? value_len : (size_t)(buf_size - 1);
+        memcpy(field_ptr, value, copy_len);
+        field_ptr[copy_len] = '\0';
+    }
+}
+
+// ============================================================================
+// REGISTRATION TABLE
+// ============================================================================
+
+/*
+
+*/
 // ============================================================================
 // SYSTEM ONESHOT ENTRIES (named for readability)
 // ============================================================================
@@ -351,6 +766,12 @@ static const s_expr_fn_entry_named_t system_oneshot_entries_named[] = {
     { "CFL_EXCEPTION",        (void*)cfl_exception_oneshot },
     { "CFL_SET_BITS",         (void*)cfl_set_bits_oneshot },
     { "CFL_CLEAR_BITS",       (void*)cfl_clear_bits_oneshot },
+    { "CFL_JSON_READ_INT",        (void*)cfl_json_read_int_oneshot },
+    { "CFL_JSON_READ_UINT",       (void*)cfl_json_read_uint_oneshot },
+    { "CFL_JSON_READ_FLOAT",      (void*)cfl_json_read_float_oneshot },
+    { "CFL_JSON_READ_BOOL",       (void*)cfl_json_read_bool_oneshot },
+    { "CFL_JSON_READ_STRING_PTR", (void*)cfl_json_read_string_ptr_oneshot },
+    { "CFL_JSON_READ_STRING_BUF", (void*)cfl_json_read_string_buf_oneshot },
 };
 
 // ============================================================================

@@ -111,7 +111,7 @@
   * @param node_id Node data control index (typically from chaintree_node_t->node_data_id)
   * Uses EXCEPTION for all errors
   */
- void json_decoder_init_from_runtime(
+ void  json_decoder_init_from_runtime(
      cfl_runtime_handle_t *runtime,
      uint32_t node_id
  );

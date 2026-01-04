@@ -53,7 +53,21 @@ static const uint32_t chain_flow_dsl_tests_oneshot_hashes[] = {
     0x1E3246ECU,  // TEST_36_COPY_PTR
     0x285D86ADU,  // TEST_36_VERIFY_SAME_PTR
     0x09440419U,  // TEST_36_MODIFY_NODE_VALUE
-    0x689DAB3CU  // TEST_36_CLEAR_PTR
+    0x689DAB3CU,  // TEST_36_CLEAR_PTR
+    0x8DBF50B6U,  // TEST_37_COPY_STATIC_NETWORK
+    0x9D921679U,  // TEST_37_VERIFY_NETWORK
+    0x304488EDU,  // CFL_JSON_READ_FLOAT
+    0x133608F9U,  // CFL_JSON_READ_UINT
+    0x116ACB0CU,  // TEST_37_VERIFY_SENSORS
+    0x59B8CE0AU,  // CFL_JSON_READ_STRING_BUF
+    0xC3A017A5U,  // CFL_JSON_READ_BOOL
+    0x2F23BFFBU,  // TEST_37_VERIFY_DEVICE_NAME
+    0x7293A0CCU,  // TEST_37_VERIFY_DEVICE_SERIAL
+    0xADB946C4U,  // TEST_37_VERIFY_DEVICE_INFO
+    0x25ED98CDU,  // TEST_37_VERIFY_TOP_LEVEL
+    0x85E37965U,  // TEST_37_DUMP_STATE
+    0xBF340A11U,  // CFL_JSON_READ_STRING_PTR
+    0x3A2C8535U  // TEST_37_VERIFY_STRING_PTR
 };
 
 static const uint32_t chain_flow_dsl_tests_main_hashes[] = {
@@ -152,6 +166,35 @@ static const s_expr_field_desc_t chain_flow_dsl_tests_system_context_fields[] = 
     { .name_hash = 0xF6DA5425U, .offset = 40, .size = 2 }  // node_count
 };
 
+static const s_expr_field_desc_t chain_flow_dsl_tests_network_config_a_fields[] = {
+    { .name_hash = 0xF6AAEE16U, .offset = 0, .size = 4 },  // ip_addr
+    { .name_hash = 0x7BE412A6U, .offset = 4, .size = 2 },  // port
+    { .name_hash = 0x8CAB6861U, .offset = 6, .size = 2 }  // timeout_ms
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_sensor_data_a_fields[] = {
+    { .name_hash = 0xE9F2A935U, .offset = 0, .size = 4 },  // temperature
+    { .name_hash = 0xCFA8A3A2U, .offset = 4, .size = 4 },  // pressure
+    { .name_hash = 0x25C5B9A0U, .offset = 8, .size = 4 },  // humidity
+    { .name_hash = 0xB283D523U, .offset = 12, .size = 4 }  // timestamp
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_device_info_a_fields[] = {
+    { .name_hash = 0x8D39BDE6U, .offset = 0, .size = 32 },  // name
+    { .name_hash = 0xDBCDCD79U, .offset = 32, .size = 16 },  // serial
+    { .name_hash = 0x4671AE97U, .offset = 48, .size = 2 },  // version
+    { .name_hash = 0x02F3B39EU, .offset = 50, .size = 1 }  // enabled
+};
+
+static const s_expr_field_desc_t chain_flow_dsl_tests_system_state_a_fields[] = {
+    { .name_hash = 0x521886C5U, .offset = 0, .size = 8 },  // network
+    { .name_hash = 0x5FD70E98U, .offset = 8, .size = 16 },  // sensors
+    { .name_hash = 0xD07076F3U, .offset = 24, .size = 52 },  // device
+    { .name_hash = 0x14FC1187U, .offset = 76, .size = 4 },  // error_code
+    { .name_hash = 0xCFECE176U, .offset = 80, .size = 4 },  // run_count
+    { .name_hash = 0x954F763EU, .offset = 88, .size = 8 }  // device_ptr
+};
+
 static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
     {
         .name_hash = 0x1703AE37U,  // "test2_blackboard"
@@ -224,6 +267,30 @@ static const s_expr_record_desc_t chain_flow_dsl_tests_records[] = {
         .total_size = 48,
         .field_count = 6,
         .fields = chain_flow_dsl_tests_system_context_fields
+    },
+    {
+        .name_hash = 0xC2D7E62CU,  // "network_config_a"
+        .total_size = 8,
+        .field_count = 3,
+        .fields = chain_flow_dsl_tests_network_config_a_fields
+    },
+    {
+        .name_hash = 0x64388D70U,  // "sensor_data_a"
+        .total_size = 16,
+        .field_count = 4,
+        .fields = chain_flow_dsl_tests_sensor_data_a_fields
+    },
+    {
+        .name_hash = 0x546A972CU,  // "device_info_a"
+        .total_size = 52,
+        .field_count = 4,
+        .fields = chain_flow_dsl_tests_device_info_a_fields
+    },
+    {
+        .name_hash = 0x3EF48F7AU,  // "system_state_a"
+        .total_size = 96,
+        .field_count = 6,
+        .fields = chain_flow_dsl_tests_system_state_a_fields
     }
 };
 
@@ -254,7 +321,30 @@ static const char* const chain_flow_dsl_tests_strings[] = {
     "Test 35: Linked list test starting",  // index 19
     "Test 35: PASSED",  // index 20
     "Test 36: Pointer sharing test starting",  // index 21
-    "Test 36: PASSED"  // index 22
+    "Test 36: PASSED",  // index 22
+    "Test 37: Static buffer copy starting",  // index 23
+    "Static buffer copy verified",  // index 24
+    "Test 37: JSON sensor reads starting",  // index 25
+    "node_dict.column_data.user_data.sensors.temperature",  // index 26
+    "node_dict.column_data.user_data.sensors.pressure",  // index 27
+    "node_dict.column_data.user_data.sensors.humidity",  // index 28
+    "node_dict.column_data.user_data.sensors.timestamp",  // index 29
+    "JSON sensor reads verified",  // index 30
+    "Test 37: JSON device reads starting",  // index 31
+    "node_dict.column_data.user_data.device.name",  // index 32
+    "node_dict.column_data.user_data.device.serial",  // index 33
+    "node_dict.column_data.user_data.device.version",  // index 34
+    "node_dict.column_data.user_data.device.enabled",  // index 35
+    "TestDevice",  // index 36
+    "SN12345",  // index 37
+    "JSON device reads verified",  // index 38
+    "Test 37: JSON top-level reads starting",  // index 39
+    "node_dict.column_data.user_data.error_code",  // index 40
+    "node_dict.column_data.user_data.run_count",  // index 41
+    "JSON top-level reads verified",  // index 42
+    "Test 37: Final state dump",  // index 43
+    "Test 37: PASSED",  // index 44
+    "Test 37: String pointer read starting"  // index 45
 };
 
 // ============================================================================
@@ -926,6 +1016,175 @@ static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_13_params[] =
     { .type = 0x06, .brace_idx = 48 }
 };
 
+static const s_expr_param_t chain_flow_dsl_tests_s_expression_test_14_params[] = {
+    { .type = 0x07, .brace_idx = 165 },
+    { .type = 0x09, .index_to_pointer = 0, .node_index = 0, .func_index = 6 },  // CFL_PIPELINE
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 1, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 23, .str_len = 36 },  // "Test 37: Static buffer copy starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 5 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 2, .func_index = 37 },  // TEST_37_COPY_STATIC_NETWORK
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // network.ip_addr
+    { .type = 0x0B, .field_offset = 4, .field_size = 2 },  // network.port
+    { .type = 0x0B, .field_offset = 6, .field_size = 2 },  // network.timeout_ms
+    { .type = 0x06, .brace_idx = 5 },
+    { .type = 0x07, .brace_idx = 8 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 3, .func_index = 38 },  // TEST_37_VERIFY_NETWORK
+    { .type = 0x0B, .field_offset = 0, .field_size = 4 },  // network.ip_addr
+    { .type = 0x0B, .field_offset = 4, .field_size = 2 },  // network.port
+    { .type = 0x0B, .field_offset = 6, .field_size = 2 },  // network.timeout_ms
+    { .type = 0x01, .uint_val = 3232235521U },
+    { .type = 0x01, .uint_val = 8080U },
+    { .type = 0x01, .uint_val = 5000U },
+    { .type = 0x06, .brace_idx = 8 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 4, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 24, .str_len = 27 },  // "Static buffer copy verified"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 5, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 25, .str_len = 35 },  // "Test 37: JSON sensor reads starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 6, .func_index = 39 },  // CFL_JSON_READ_FLOAT
+    { .type = 0x0B, .field_offset = 8, .field_size = 4 },  // sensors.temperature
+    { .type = 0x0D, .str_index = 26, .str_len = 51 },  // "node_dict.column_data.user_data.sensors.temperature"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 7, .func_index = 39 },  // CFL_JSON_READ_FLOAT
+    { .type = 0x0B, .field_offset = 12, .field_size = 4 },  // sensors.pressure
+    { .type = 0x0D, .str_index = 27, .str_len = 48 },  // "node_dict.column_data.user_data.sensors.pressure"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 8, .func_index = 39 },  // CFL_JSON_READ_FLOAT
+    { .type = 0x0B, .field_offset = 16, .field_size = 4 },  // sensors.humidity
+    { .type = 0x0D, .str_index = 28, .str_len = 48 },  // "node_dict.column_data.user_data.sensors.humidity"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 9, .func_index = 40 },  // CFL_JSON_READ_UINT
+    { .type = 0x0B, .field_offset = 20, .field_size = 4 },  // sensors.timestamp
+    { .type = 0x0D, .str_index = 29, .str_len = 49 },  // "node_dict.column_data.user_data.sensors.timestamp"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 10 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 10, .func_index = 41 },  // TEST_37_VERIFY_SENSORS
+    { .type = 0x0B, .field_offset = 8, .field_size = 4 },  // sensors.temperature
+    { .type = 0x0B, .field_offset = 12, .field_size = 4 },  // sensors.pressure
+    { .type = 0x0B, .field_offset = 16, .field_size = 4 },  // sensors.humidity
+    { .type = 0x0B, .field_offset = 20, .field_size = 4 },  // sensors.timestamp
+    { .type = 0x02, .float_val = 25.500000f },
+    { .type = 0x02, .float_val = 1013.250000f },
+    { .type = 0x02, .float_val = 65.000000f },
+    { .type = 0x01, .uint_val = 1000000U },
+    { .type = 0x06, .brace_idx = 10 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 11, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 30, .str_len = 26 },  // "JSON sensor reads verified"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 12, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 31, .str_len = 35 },  // "Test 37: JSON device reads starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 13, .func_index = 42 },  // CFL_JSON_READ_STRING_BUF
+    { .type = 0x0B, .field_offset = 24, .field_size = 32 },  // device.name
+    { .type = 0x0D, .str_index = 32, .str_len = 43 },  // "node_dict.column_data.user_data.device.name"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 14, .func_index = 42 },  // CFL_JSON_READ_STRING_BUF
+    { .type = 0x0B, .field_offset = 56, .field_size = 16 },  // device.serial
+    { .type = 0x0D, .str_index = 33, .str_len = 45 },  // "node_dict.column_data.user_data.device.serial"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 15, .func_index = 40 },  // CFL_JSON_READ_UINT
+    { .type = 0x0B, .field_offset = 72, .field_size = 2 },  // device.version
+    { .type = 0x0D, .str_index = 34, .str_len = 46 },  // "node_dict.column_data.user_data.device.version"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 16, .func_index = 43 },  // CFL_JSON_READ_BOOL
+    { .type = 0x0B, .field_offset = 74, .field_size = 1 },  // device.enabled
+    { .type = 0x0D, .str_index = 35, .str_len = 46 },  // "node_dict.column_data.user_data.device.enabled"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 17, .func_index = 44 },  // TEST_37_VERIFY_DEVICE_NAME
+    { .type = 0x0B, .field_offset = 24, .field_size = 32 },  // device.name
+    { .type = 0x0D, .str_index = 36, .str_len = 10 },  // "TestDevice"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 18, .func_index = 45 },  // TEST_37_VERIFY_DEVICE_SERIAL
+    { .type = 0x0B, .field_offset = 56, .field_size = 16 },  // device.serial
+    { .type = 0x0D, .str_index = 37, .str_len = 7 },  // "SN12345"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 19, .func_index = 46 },  // TEST_37_VERIFY_DEVICE_INFO
+    { .type = 0x0B, .field_offset = 72, .field_size = 2 },  // device.version
+    { .type = 0x0B, .field_offset = 74, .field_size = 1 },  // device.enabled
+    { .type = 0x01, .uint_val = 258U },
+    { .type = 0x01, .uint_val = 1U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 20, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 38, .str_len = 26 },  // "JSON device reads verified"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 21, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 39, .str_len = 38 },  // "Test 37: JSON top-level reads starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 22, .func_index = 40 },  // CFL_JSON_READ_UINT
+    { .type = 0x0B, .field_offset = 76, .field_size = 4 },  // error_code
+    { .type = 0x0D, .str_index = 40, .str_len = 42 },  // "node_dict.column_data.user_data.error_code"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 23, .func_index = 40 },  // CFL_JSON_READ_UINT
+    { .type = 0x0B, .field_offset = 80, .field_size = 4 },  // run_count
+    { .type = 0x0D, .str_index = 41, .str_len = 41 },  // "node_dict.column_data.user_data.run_count"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 6 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 24, .func_index = 47 },  // TEST_37_VERIFY_TOP_LEVEL
+    { .type = 0x0B, .field_offset = 76, .field_size = 4 },  // error_code
+    { .type = 0x0B, .field_offset = 80, .field_size = 4 },  // run_count
+    { .type = 0x01, .uint_val = 0U },
+    { .type = 0x01, .uint_val = 42U },
+    { .type = 0x06, .brace_idx = 6 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 25, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 42, .str_len = 29 },  // "JSON top-level reads verified"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 26, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 43, .str_len = 25 },  // "Test 37: Final state dump"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 7 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 27, .func_index = 48 },  // TEST_37_DUMP_STATE
+    { .type = 0x0B, .field_offset = 0, .field_size = 8 },  // network
+    { .type = 0x0B, .field_offset = 8, .field_size = 16 },  // sensors
+    { .type = 0x0B, .field_offset = 24, .field_size = 52 },  // device
+    { .type = 0x0B, .field_offset = 76, .field_size = 4 },  // error_code
+    { .type = 0x0B, .field_offset = 80, .field_size = 4 },  // run_count
+    { .type = 0x06, .brace_idx = 7 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 28, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 44, .str_len = 15 },  // "Test 37: PASSED"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 3 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 29, .func_index = 5 },  // CFL_LOG
+    { .type = 0x0D, .str_index = 45, .str_len = 37 },  // "Test 37: String pointer read starting"
+    { .type = 0x06, .brace_idx = 3 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 30, .func_index = 49 },  // CFL_JSON_READ_STRING_PTR
+    { .type = 0x0B, .field_offset = 88, .field_size = 8 },  // device_ptr
+    { .type = 0x0D, .str_index = 32, .str_len = 43 },  // "node_dict.column_data.user_data.device.name"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x07, .brace_idx = 4 },
+    { .type = 0x08, .index_to_pointer = 0, .node_index = 31, .func_index = 50 },  // TEST_37_VERIFY_STRING_PTR
+    { .type = 0x0B, .field_offset = 88, .field_size = 8 },  // device_ptr
+    { .type = 0x0D, .str_index = 36, .str_len = 10 },  // "TestDevice"
+    { .type = 0x06, .brace_idx = 4 },
+    { .type = 0x0C, .int_val = 5 },  // SE_FUNCTION_TERMINATE
+    { .type = 0x06, .brace_idx = 165 }
+};
+
 static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_2_def = {
     .name_hash = 0x1BE41A2FU,  // "s_expression_test_2"
     .record_hash = 0x00000000U,
@@ -998,6 +1257,15 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_13_def = {
     .pointer_count = 0,
 };
 
+static const s_expr_tree_def_t chain_flow_dsl_tests_s_expression_test_14_def = {
+    .name_hash = 0x71180442U,  // "s_expression_test_14"
+    .record_hash = 0x3EF48F7AU,
+    .params = chain_flow_dsl_tests_s_expression_test_14_params,
+    .param_count = 166,
+    .func_node_count = 32,
+    .pointer_count = 0,
+};
+
 // ============================================================================
 // MODULE DEFINITION
 // ============================================================================
@@ -1010,27 +1278,28 @@ static const s_expr_tree_def_t chain_flow_dsl_tests_trees[] = {
     chain_flow_dsl_tests_s_expression_test_10_def,
     chain_flow_dsl_tests_s_expression_test_11_def,
     chain_flow_dsl_tests_s_expression_test_12_def,
-    chain_flow_dsl_tests_s_expression_test_13_def
+    chain_flow_dsl_tests_s_expression_test_13_def,
+    chain_flow_dsl_tests_s_expression_test_14_def
 };
 
 static const s_expr_module_def_t chain_flow_dsl_tests_module = {
     .name_hash = 0xE6318EC1U,  // "chain_flow_dsl_tests"
     .trees = chain_flow_dsl_tests_trees,
-    .tree_count = 8,
+    .tree_count = 9,
     .is_64bit = false,
     .oneshot_hashes = chain_flow_dsl_tests_oneshot_hashes,
-    .oneshot_count = 37,
+    .oneshot_count = 51,
     .main_hashes = chain_flow_dsl_tests_main_hashes,
     .main_count = 12,
     .pred_hashes = chain_flow_dsl_tests_pred_hashes,
     .pred_count = 2,
     .max_func_node_count = 32,
     .max_pointer_count = 4,
-    .max_param_count = 161,
+    .max_param_count = 166,
     .records = chain_flow_dsl_tests_records,
-    .record_count = 12,
+    .record_count = 16,
     .string_table = chain_flow_dsl_tests_strings,
-    .string_count = 23,
+    .string_count = 46,
 };
 
 #endif // CHAIN_FLOW_DSL_TESTS_H

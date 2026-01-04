@@ -714,6 +714,210 @@ start_tree("s_expression_test_13")
 end_tree("s_expression_test_13")
 
 -- ============================================================================
+-- test_static_and_json.lua
+-- Test: Static buffer copy + JSON reads with verification
+-- ============================================================================
+
+
+
+-- ============================================================================
+-- RECORD DEFINITIONS
+-- ============================================================================
+
+RECORD("network_config_a")
+    FIELD("ip_addr", "uint32")
+    FIELD("port", "uint16")
+    FIELD("timeout_ms", "uint16")
+END_RECORD()
+
+RECORD("sensor_data_a")
+    FIELD("temperature", "float")
+    FIELD("pressure", "float")
+    FIELD("humidity", "float")
+    FIELD("timestamp", "uint32")
+END_RECORD()
+
+RECORD("device_info_a")
+    CHAR_ARRAY("name", 32)
+    CHAR_ARRAY("serial", 16)
+    FIELD("version", "uint16")
+    FIELD("enabled", "bool")
+END_RECORD()
+
+RECORD("system_state_a")
+    FIELD("network", "network_config_a")      -- embedded
+    FIELD("sensors", "sensor_data_a")         -- embedded
+    FIELD("device", "device_info_a")          -- embedded
+    FIELD("error_code", "uint32")
+    FIELD("run_count", "uint32")
+    PTR_FIELD("device_ptr","char")
+END_RECORD()
+
+-- ============================================================================
+-- TEST TREE: Static buffer copy + JSON reads
+-- ============================================================================
+
+start_tree("s_expression_test_14")
+    use_record("system_state_a")
+    p1 = m_call("CFL_PIPELINE")
+    -- ========================================================================
+        -- PART 1: Static buffer copy
+        -- ========================================================================
+        
+        local c1 = o_call("CFL_LOG")
+            str_ptr("Test 37: Static buffer copy starting")
+        end_call(c1)
+        
+        -- Copy static network config into record
+        local c2 = o_call("TEST_37_COPY_STATIC_NETWORK")
+            nested_field_ref("network.ip_addr")
+            nested_field_ref("network.port")
+            nested_field_ref("network.timeout_ms")
+        end_call(c2)
+        
+        -- Verify static copy
+        local c3 = o_call("TEST_37_VERIFY_NETWORK")
+            nested_field_ref("network.ip_addr")
+            nested_field_ref("network.port")
+            nested_field_ref("network.timeout_ms")
+            uint(0xC0A80001)    -- expected: 192.168.0.1
+            uint(8080)          -- expected port
+            uint(5000)          -- expected timeout
+        end_call(c3)
+        
+        local c4 = o_call("CFL_LOG")
+            str_ptr("Static buffer copy verified")
+        end_call(c4)
+        
+        -- ========================================================================
+        -- PART 2: JSON reads - Sensor data
+        -- ========================================================================
+        
+        local c5 = o_call("CFL_LOG")
+            str_ptr("Test 37: JSON sensor reads starting")
+        end_call(c5)
+        
+        cfl_json_read_float("sensors.temperature", "node_dict.column_data.user_data.sensors.temperature")
+        cfl_json_read_float("sensors.pressure", "node_dict.column_data.user_data.sensors.pressure")
+        cfl_json_read_float("sensors.humidity", "node_dict.column_data.user_data.sensors.humidity")
+        cfl_json_read_uint("sensors.timestamp", "node_dict.column_data.user_data.sensors.timestamp")
+        
+        -- Verify sensor reads
+        local c6 = o_call("TEST_37_VERIFY_SENSORS")
+            nested_field_ref("sensors.temperature")
+            nested_field_ref("sensors.pressure")
+            nested_field_ref("sensors.humidity")
+            nested_field_ref("sensors.timestamp")
+            flt(25.5)           -- expected temperature
+            flt(1013.25)        -- expected pressure
+            flt(65.0)           -- expected humidity
+            uint(1000000)       -- expected timestamp
+        end_call(c6)
+        
+        local c7 = o_call("CFL_LOG")
+            str_ptr("JSON sensor reads verified")
+        end_call(c7)
+        
+        -- ========================================================================
+        -- PART 3: JSON reads - Device info
+        -- ========================================================================
+        
+        local c8 = o_call("CFL_LOG")
+            str_ptr("Test 37: JSON device reads starting")
+        end_call(c8)
+        
+        cfl_json_read_string_buf("device.name", "node_dict.column_data.user_data.device.name")
+        cfl_json_read_string_buf("device.serial", "node_dict.column_data.user_data.device.serial")
+        cfl_json_read_uint("device.version", "node_dict.column_data.user_data.device.version")
+        cfl_json_read_bool("device.enabled", "node_dict.column_data.user_data.device.enabled")
+        
+        -- Verify device reads
+        local c9 = o_call("TEST_37_VERIFY_DEVICE_NAME")
+            nested_field_ref("device.name")
+            str_ptr("TestDevice")   -- expected name
+        end_call(c9)
+        
+        local c10 = o_call("TEST_37_VERIFY_DEVICE_SERIAL")
+            nested_field_ref("device.serial")
+            str_ptr("SN12345")      -- expected serial
+        end_call(c10)
+        
+        local c11 = o_call("TEST_37_VERIFY_DEVICE_INFO")
+            nested_field_ref("device.version")
+            nested_field_ref("device.enabled")
+            uint(0x0102)        -- expected version (1.2)
+            uint(1)             -- expected enabled (true)
+        end_call(c11)
+        
+        local c12 = o_call("CFL_LOG")
+            str_ptr("JSON device reads verified")
+        end_call(c12)
+        
+        -- ========================================================================
+        -- PART 4: JSON reads - Top level fields
+        -- ========================================================================
+        
+        local c13 = o_call("CFL_LOG")
+            str_ptr("Test 37: JSON top-level reads starting")
+        end_call(c13)
+        
+        cfl_json_read_uint("error_code", "node_dict.column_data.user_data.error_code")
+        cfl_json_read_uint("run_count", "node_dict.column_data.user_data.run_count")
+        
+        -- Verify top level reads
+        local c14 = o_call("TEST_37_VERIFY_TOP_LEVEL")
+            field_ref("error_code")
+            field_ref("run_count")
+            uint(0)             -- expected error_code
+            uint(42)            -- expected run_count
+        end_call(c14)
+        
+        local c15 = o_call("CFL_LOG")
+            str_ptr("JSON top-level reads verified")
+        end_call(c15)
+        
+        -- ========================================================================
+        -- PART 5: Final verification - dump all values
+        -- ========================================================================
+        
+        local c16 = o_call("CFL_LOG")
+            str_ptr("Test 37: Final state dump")
+        end_call(c16)
+        
+        local c17 = o_call("TEST_37_DUMP_STATE")
+            field_ref("network")
+            field_ref("sensors")
+            field_ref("device")
+            field_ref("error_code")
+            field_ref("run_count")
+        end_call(c17)
+        
+        local c18 = o_call("CFL_LOG")
+            str_ptr("Test 37: PASSED")
+        end_call(c18)
+
+        local c19 = o_call("CFL_LOG")
+            str_ptr("Test 37: String pointer read starting")
+        end_call(c19)
+        -- Read device.name into device_ptr (char*)
+        cfl_json_read_string_ptr("device_ptr", "node_dict.column_data.user_data.device.name")
+
+        -- Verify string pointer
+        local c20 = o_call("TEST_37_VERIFY_STRING_PTR")
+            field_ref("device_ptr")
+            str_ptr("TestDevice")   -- expected value
+        end_call(c20)
+        -- ========================================================================
+        -- END: Terminate
+        -- ========================================================================
+        
+        result(SE_FUNCTION_TERMINATE)
+     p1=end_call(p1)   
+end_tree("s_expression_test_14")
+
+
+
+-- ============================================================================
 -- END MODULE
 -- ============================================================================
 

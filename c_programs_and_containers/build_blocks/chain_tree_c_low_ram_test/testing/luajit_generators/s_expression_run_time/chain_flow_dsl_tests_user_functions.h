@@ -304,6 +304,87 @@ void test_36_clear_ptr_oneshot(
     uint16_t event_id,
     void* event_data);
 
+// DSL: TEST_37_COPY_STATIC_NETWORK  hash: 0x8DBF50B6U
+void test_37_copy_static_network_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_NETWORK  hash: 0x9D921679U
+void test_37_verify_network_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_SENSORS  hash: 0x116ACB0CU
+void test_37_verify_sensors_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_DEVICE_NAME  hash: 0x2F23BFFBU
+void test_37_verify_device_name_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_DEVICE_SERIAL  hash: 0x7293A0CCU
+void test_37_verify_device_serial_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_DEVICE_INFO  hash: 0xADB946C4U
+void test_37_verify_device_info_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_TOP_LEVEL  hash: 0x25ED98CDU
+void test_37_verify_top_level_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_DUMP_STATE  hash: 0x85E37965U
+void test_37_dump_state_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
+// DSL: TEST_37_VERIFY_STRING_PTR  hash: 0x3A2C8535U
+void test_37_verify_string_ptr_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data);
+
 // ============================================================================
 // USER MAIN FUNCTION PROTOTYPES
 // ============================================================================

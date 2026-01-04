@@ -2,7 +2,7 @@
 #include "test_header_node_data.h"
 
 /* JSON records array */
-const json_record_t ct_2mjftu0j_node_data_records[6639] = {
+const json_record_t ct_8ai98oeg_node_data_records[6679] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6635,8 +6635,48 @@ const json_record_t ct_2mjftu0j_node_data_records[6639] = {
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
-    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 35 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 898 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 6 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6339 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6351 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 6372 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7246 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 1754 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 8 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7267 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 8 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7275 } },
+    { .object_type = JSON_TYPE_FLOAT32, .value = { .f32_value = 25.5f } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7287 } },
+    { .object_type = JSON_TYPE_FLOAT32, .value = { .f32_value = 1013.25f } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7296 } },
+    { .object_type = JSON_TYPE_FLOAT32, .value = { .f32_value = 65.0f } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7305 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 1000000 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7315 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 8 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7322 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7327 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7338 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7345 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 10 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 258 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7353 } },
+    { .object_type = JSON_TYPE_BOOL, .value = { .bool_value = 1 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7361 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 0 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7372 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 42 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 1567 } },
+    { .object_type = JSON_TYPE_INT32, .value = { .i32_value = 1384 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
+    { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 35 } },
+    { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 7382 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
     { .object_type = JSON_TYPE_STRING, .value = { .string_offset = 0 } },
     { .object_type = JSON_TYPE_OBJECT, .value = { .container_count = 2 } },
@@ -6645,7 +6685,7 @@ const json_record_t ct_2mjftu0j_node_data_records[6639] = {
 };
 
 /* String data buffer */
-const char ct_2mjftu0j_node_data_strings[7291] = {
+const char ct_8ai98oeg_node_data_strings[7427] = {
     0x6e, 0x6f, 0x64, 0x65, 0x5f, 0x64, 0x69, 0x63, 0x74, 0x00, 0x76, 0x65, 0x72, 0x73, 0x69, 0x6f,
     0x6e, 0x00, 0x31, 0x2e, 0x30, 0x2e, 0x30, 0x00, 0x73, 0x74, 0x61, 0x74, 0x65, 0x00, 0x6f, 0x70,
     0x65, 0x6e, 0x00, 0x6d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x00, 0x56, 0x61, 0x6c, 0x76, 0x65,
@@ -7098,14 +7138,23 @@ const char ct_2mjftu0j_node_data_strings[7291] = {
     0x5f, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x65, 0x73, 0x74,
     0x5f, 0x31, 0x31, 0x00, 0x73, 0x5f, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e,
     0x5f, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x31, 0x32, 0x00, 0x73, 0x5f, 0x65, 0x78, 0x70, 0x72, 0x65,
-    0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x31, 0x33, 0x00, 0x73, 0x20,
-    0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x20, 0x6c, 0x69, 0x6e, 0x6b, 0x20,
-    0x6e, 0x6f, 0x64, 0x65, 0x20, 0x74, 0x65, 0x73, 0x74, 0x20, 0x31, 0x30, 0x20, 0x69, 0x73, 0x20,
-    0x6e, 0x6f, 0x74, 0x20, 0x61, 0x63, 0x74, 0x69, 0x76, 0x65, 0x00
+    0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x31, 0x33, 0x00, 0x73, 0x5f,
+    0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69, 0x6f, 0x6e, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x5f,
+    0x31, 0x34, 0x00, 0x73, 0x65, 0x6e, 0x73, 0x6f, 0x72, 0x73, 0x00, 0x74, 0x65, 0x6d, 0x70, 0x65,
+    0x72, 0x61, 0x74, 0x75, 0x72, 0x65, 0x00, 0x70, 0x72, 0x65, 0x73, 0x73, 0x75, 0x72, 0x65, 0x00,
+    0x68, 0x75, 0x6d, 0x69, 0x64, 0x69, 0x74, 0x79, 0x00, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61,
+    0x6d, 0x70, 0x00, 0x64, 0x65, 0x76, 0x69, 0x63, 0x65, 0x00, 0x6e, 0x61, 0x6d, 0x65, 0x00, 0x54,
+    0x65, 0x73, 0x74, 0x44, 0x65, 0x76, 0x69, 0x63, 0x65, 0x00, 0x73, 0x65, 0x72, 0x69, 0x61, 0x6c,
+    0x00, 0x53, 0x4e, 0x31, 0x32, 0x33, 0x34, 0x35, 0x00, 0x65, 0x6e, 0x61, 0x62, 0x6c, 0x65, 0x64,
+    0x00, 0x65, 0x72, 0x72, 0x6f, 0x72, 0x5f, 0x63, 0x6f, 0x64, 0x65, 0x00, 0x72, 0x75, 0x6e, 0x5f,
+    0x63, 0x6f, 0x75, 0x6e, 0x74, 0x00, 0x73, 0x20, 0x65, 0x78, 0x70, 0x72, 0x65, 0x73, 0x73, 0x69,
+    0x6f, 0x6e, 0x20, 0x6c, 0x69, 0x6e, 0x6b, 0x20, 0x6e, 0x6f, 0x64, 0x65, 0x20, 0x74, 0x65, 0x73,
+    0x74, 0x20, 0x31, 0x30, 0x20, 0x69, 0x73, 0x20, 0x6e, 0x6f, 0x74, 0x20, 0x61, 0x63, 0x74, 0x69,
+    0x76, 0x65, 0x00
 };
 
 /* Record control array (maps node data IDs to record ranges) */
-const record_control_t ct_2mjftu0j_node_data_controls[988] = {
+const record_control_t ct_8ai98oeg_node_data_controls[990] = {
     { .start_position = 0, .num_records = 5 },
     { .start_position = 5, .num_records = 5 },
     { .start_position = 10, .num_records = 5 },
@@ -8092,6 +8141,8 @@ const record_control_t ct_2mjftu0j_node_data_controls[988] = {
     { .start_position = 6608, .num_records = 5 },
     { .start_position = 6613, .num_records = 11 },
     { .start_position = 6624, .num_records = 5 },
-    { .start_position = 6629, .num_records = 5 },
-    { .start_position = 6634, .num_records = 5 }
+    { .start_position = 6629, .num_records = 35 },
+    { .start_position = 6664, .num_records = 5 },
+    { .start_position = 6669, .num_records = 5 },
+    { .start_position = 6674, .num_records = 5 }
 };

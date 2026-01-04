@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_2MJFTU0J_LINK_TABLE_SIZE 1358
+#define CT_8AI98OEG_LINK_TABLE_SIZE 1360
 
-extern const uint16_t ct_2mjftu0j_link_table[CT_2MJFTU0J_LINK_TABLE_SIZE];
+extern const uint16_t ct_8ai98oeg_link_table[CT_8AI98OEG_LINK_TABLE_SIZE];
 
 #endif /* TEST_HEADER_LINKS_H */

@@ -359,4 +359,139 @@ function cfl_clear_bits(...)
         end
     end_call(c)
 end
+
+
+--============================================================================
+-- s_cfl_json.lua
+-- JSON Read Functions for ChainTree S-Expression DSL
+--============================================================================
+
+-- ============================================================================
+-- INTEGER TYPES
+-- ============================================================================
+
+function cfl_json_read_int(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_int() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_int() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_INT")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
+
+function cfl_json_read_uint(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_uint() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_uint() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_UINT")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
+
+-- ============================================================================
+-- FLOATING POINT
+-- ============================================================================
+
+function cfl_json_read_float(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_float() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_float() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_FLOAT")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
+
+
+-- ============================================================================
+-- BOOLEAN
+-- ============================================================================
+
+function cfl_json_read_bool(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_bool() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_bool() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_BOOL")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
+
+-- ============================================================================
+-- STRING - Pointer (dynamically allocated, user frees)
+-- ============================================================================
+
+function cfl_json_read_string_ptr(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_string_ptr() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_string_ptr() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_STRING_PTR")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
+
+-- ============================================================================
+-- STRING - Fixed buffer (copies into char array, truncates if needed)
+-- ============================================================================
+
+function cfl_json_read_string_buf(field_path, json_path)
+    if type(field_path) ~= "string" then
+        dsl_error("cfl_json_read_string_buf() field_path must be a string")
+    end
+    if type(json_path) ~= "string" then
+        dsl_error("cfl_json_read_string_buf() json_path must be a string")
+    end
+    
+    local c = o_call("CFL_JSON_READ_STRING_BUF")
+        if field_path:find("%.") then
+            nested_field_ref(field_path)
+        else
+            field_ref(field_path)
+        end
+        str_ptr(json_path)
+    end_call(c)
+end
 print("CFL helper functions loaded")

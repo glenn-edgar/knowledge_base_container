@@ -47,6 +47,15 @@ static const s_expr_fn_entry_named_t user_oneshot_entries_named[] = {
     { "TEST_36_VERIFY_SAME_PTR", (void*)test_36_verify_same_ptr_oneshot },
     { "TEST_36_MODIFY_NODE_VALUE", (void*)test_36_modify_node_value_oneshot },
     { "TEST_36_CLEAR_PTR", (void*)test_36_clear_ptr_oneshot },
+    { "TEST_37_COPY_STATIC_NETWORK", (void*)test_37_copy_static_network_oneshot },
+    { "TEST_37_VERIFY_NETWORK", (void*)test_37_verify_network_oneshot },
+    { "TEST_37_VERIFY_SENSORS", (void*)test_37_verify_sensors_oneshot },
+    { "TEST_37_VERIFY_DEVICE_NAME", (void*)test_37_verify_device_name_oneshot },
+    { "TEST_37_VERIFY_DEVICE_SERIAL", (void*)test_37_verify_device_serial_oneshot },
+    { "TEST_37_VERIFY_DEVICE_INFO", (void*)test_37_verify_device_info_oneshot },
+    { "TEST_37_VERIFY_TOP_LEVEL", (void*)test_37_verify_top_level_oneshot },
+    { "TEST_37_DUMP_STATE", (void*)test_37_dump_state_oneshot },
+    { "TEST_37_VERIFY_STRING_PTR", (void*)test_37_verify_string_ptr_oneshot },
 };
 static s_expr_fn_entry_t user_oneshot_entries[ARRAY_COUNT(user_oneshot_entries_named)];
 

@@ -493,8 +493,43 @@ function FIELD(name, type_name, count)
             "offset=" .. offset, "size=" .. total_size)
     end
 end
+-- ============================================================================
+-- CHAR_ARRAY - Fixed-size character array field
+-- Usage: CHAR_ARRAY("name", 32)  -- char[32]
+-- ============================================================================
 
-function PTR_FIELD(name, record_type)
+function CHAR_ARRAY(name, size)
+    check_in_module("CHAR_ARRAY")
+    
+    if not _module.current_record then
+        dsl_error("CHAR_ARRAY() must be inside RECORD()")
+    end
+    
+    if type(size) ~= "number" or size < 1 then
+        dsl_error("CHAR_ARRAY() size must be a positive number")
+    end
+    
+    local record = _module.records[_module.current_record]
+    local offset = record.current_offset  -- char has 1-byte alignment
+    
+    record.fields[name] = {
+        name = name,
+        type_name = "char",
+        offset = offset,
+        size = size,           -- total size of array
+        count = size,          -- number of elements
+        total_size = size,
+        c_type = "char",
+        is_char_array = true,
+    }
+    table.insert(record.field_order, name)
+    
+    record.current_offset = offset + size
+    
+    debug_print("  CHAR_ARRAY:", name, "[" .. size .. "]", "offset=" .. offset)
+end
+
+function PTR_FIELD(name, target_type)
     check_in_module("PTR_FIELD")
     
     if not _module.current_record then
@@ -502,21 +537,41 @@ function PTR_FIELD(name, record_type)
     end
     
     local record = _module.records[_module.current_record]
+    
     local size = 8
     local alignment = 8
-    
     local offset = align_to(record.current_offset, alignment)
+    
+    local c_type
+    local is_string_ptr = false
+    
+    if target_type == "char" or target_type == "string" then
+        c_type = "char*"
+        is_string_ptr = true
+    else
+        -- Existing behavior: pointer to record
+        if not _module.records[target_type] then
+            -- Allow forward references
+            table.insert(_module.ptr_field_refs, {
+                record_name = _module.current_record,
+                field_name = name,
+                target_record = target_type,
+            })
+        end
+        c_type = target_type .. "_t*"
+    end
     
     record.fields[name] = {
         name = name,
-        type_name = record_type,
+        type_name = target_type,
         offset = offset,
         size = size,
         count = 1,
         total_size = size,
-        c_type = record_type .. "_t*",
+        c_type = c_type,
         is_pointer = true,
-        target_record = record_type,
+        is_string_ptr = is_string_ptr,
+        target_record = is_string_ptr and nil or target_type,
     }
     table.insert(record.field_order, name)
     
@@ -525,16 +580,8 @@ function PTR_FIELD(name, record_type)
         record.max_align = alignment
     end
     
-    table.insert(_module.ptr_field_refs, {
-        record_name = _module.current_record,
-        field_name = name,
-        target_record = record_type,
-    })
-    
-    debug_print("  PTR_FIELD:", name, "-> " .. record_type, 
-        "offset=" .. offset, "size=" .. size)
+    debug_print("  PTR_FIELD:", name, "-> " .. c_type, "offset=" .. offset)
 end
-
 function END_RECORD()
     check_in_module("END_RECORD")
     
@@ -1204,19 +1251,28 @@ function ModuleGenerator:to_c_records_header(base_name)
                 
                 if field.is_pointer then
                     comment = string.format("  // offset=%d (ptr to %s)", 
-                        field.offset, field.target_record)
+                        field.offset, field.target_record or "char")
                 elseif field.is_embedded then
                     comment = string.format("  // offset=%d, size=%d (embedded)", 
+                        field.offset, field.total_size)
+                elseif field.is_char_array then
+                    comment = string.format("  // offset=%d, size=%d (char array)",
                         field.offset, field.total_size)
                 else
                     comment = string.format("  // offset=%d, size=%d", 
                         field.offset, field.total_size)
                 end
                 
-                if field.count > 1 then
+                if field.is_char_array then
+                    -- char name[32];
+                    table.insert(lines, string.format("    %s %s[%d];%s",
+                        field.c_type, field_name, field.count, comment))
+                elseif field.count > 1 then
+                    -- other arrays
                     table.insert(lines, string.format("    %s %s[%d];%s",
                         field.c_type, field_name, field.count, comment))
                 else
+                    -- single field
                     table.insert(lines, string.format("    %s %s;%s",
                         field.c_type, field_name, comment))
                 end

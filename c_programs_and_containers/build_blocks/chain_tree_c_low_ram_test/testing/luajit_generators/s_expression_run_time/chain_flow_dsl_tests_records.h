@@ -27,6 +27,10 @@ typedef struct node_data_s node_data_t;
 typedef struct list_node_s list_node_t;
 typedef struct sensor_reading_s sensor_reading_t;
 typedef struct system_context_s system_context_t;
+typedef struct network_config_a_s network_config_a_t;
+typedef struct sensor_data_a_s sensor_data_a_t;
+typedef struct device_info_a_s device_info_a_t;
+typedef struct system_state_a_s system_state_a_t;
 
 // ============================================================================
 // RECORD STRUCTURES
@@ -103,5 +107,34 @@ struct system_context_s {
     list_node_t* task_list;  // offset=32 (ptr to list_node)
     uint16_t node_count;  // offset=40, size=2
 };  // total_size=48, align=8
+
+struct network_config_a_s {
+    uint32_t ip_addr;  // offset=0, size=4
+    uint16_t port;  // offset=4, size=2
+    uint16_t timeout_ms;  // offset=6, size=2
+};  // total_size=8, align=4
+
+struct sensor_data_a_s {
+    float temperature;  // offset=0, size=4
+    float pressure;  // offset=4, size=4
+    float humidity;  // offset=8, size=4
+    uint32_t timestamp;  // offset=12, size=4
+};  // total_size=16, align=4
+
+struct device_info_a_s {
+    char name[32];  // offset=0, size=32 (char array)
+    char serial[16];  // offset=32, size=16 (char array)
+    uint16_t version;  // offset=48, size=2
+    bool enabled;  // offset=50, size=1
+};  // total_size=52, align=2
+
+struct system_state_a_s {
+    network_config_a_t network;  // offset=0, size=8 (embedded)
+    sensor_data_a_t sensors;  // offset=8, size=16 (embedded)
+    device_info_a_t device;  // offset=24, size=52 (embedded)
+    uint32_t error_code;  // offset=76, size=4
+    uint32_t run_count;  // offset=80, size=4
+    char* device_ptr;  // offset=88 (ptr to char)
+};  // total_size=96, align=8
 
 #endif // CHAIN_FLOW_DSL_TESTS_RECORDS_H

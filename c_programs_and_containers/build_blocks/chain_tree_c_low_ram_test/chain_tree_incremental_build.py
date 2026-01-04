@@ -2269,6 +2269,24 @@ def thirty_two_test(ct,kb_name): # data f
     ct.define_join_link(node_id_c)
     node_id_d = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_13",user_data={})
     ct.define_join_link(node_id_d)
+    user_data = {
+        "sensors": {
+            "temperature": 25.5,
+            "pressure": 1013.25,
+            "humidity": 65.0,
+            "timestamp": 1000000
+        },
+        "device": {
+            "name": "TestDevice",
+            "serial": "SN12345",
+            "version": 0x0102,      # 258 decimal (version 1.2)
+            "enabled": True
+        },
+        "error_code": 0,
+        "run_count": 42
+    }
+    node_id_e = ct.define_s_expression_link(module_name="chain_flow_dsl_tests",tree_name="s_expression_test_14",user_data=user_data)
+    ct.define_join_link(node_id_e)
     ct.asm_log_message("s expression link node test 10 is not active")
     ct.asm_log_message("launch column: is terminating")
     ct.asm_terminate()
