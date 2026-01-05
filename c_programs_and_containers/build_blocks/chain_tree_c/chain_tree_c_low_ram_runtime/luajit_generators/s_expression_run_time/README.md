@@ -1,512 +1,345 @@
-# ChainTree S-Expression DSL v3.0
+````markdown
+# ChainTree S-Expression DSL v3.1
 
-A LuaJIT-based domain-specific language for defining behavior trees, state machines, and sequential control flows that compile to embedded C code. Designed for resource-constrained systems from 32KB ARM Cortex-M microcontrollers to 8GB+ servers.
+**A LuaJIT-based domain-specific language for defining behavior trees, state machines, and sequential control flows that compile to embedded C code.**
 
-## Overview
+Designed for resource-constrained systems ranging from **32KB ARM Cortex-M microcontrollers** to **8GB+ servers**.
 
-The ChainTree DSL provides:
+---
 
-- **Declarative tree definitions** using S-expression-style syntax in Lua
-- **Hash-based function dispatch** for efficient runtime lookup
-- **Blackboard records** with embedded structs and pointer fields
-- **Compile-time validation** catching errors before runtime
-- **Generated C code** with type-safe function signatures
-- **Debug/release builds** via conditional compilation
+## 📋 Overview
 
-## File Structure
-```
+The **ChainTree S-Expression Engine (S-Engine)** is a lightweight execution core that acts as the bridge between high-level logic design and low-level embedded constraints. While fully integrated into the ChainTree ecosystem, the S-Engine is designed as a standalone runtime capable of driving logic for any embedded application.
+
+### Why S-Expressions?
+
+The S-Engine was engineered to solve the **“component explosion”** problem common in embedded state machines. Traditional approaches require a new C function for every small logic variation, quickly leading to brittle, unmaintainable “spaghetti code.”
+
+#### The S-Engine adopts a *Microcode Philosophy*
+
+- **Composition vs. Implementation**  
+  Instead of monolithic nodes, behaviors are composed from a small, orthogonal set of primitives:
+  * Sequences
+  * Delays
+  * State Machines
+  * Event Dispatch
+
+- **DSL Abstraction**  
+  The Lua-based DSL manages composition and nesting, eliminating “brace hell” in raw C.
+
+- **Event Director (Not a Calculator)**  
+  Unlike classic Lisps that compute symbolic results (e.g. `(+ 1 2)`), the S-Engine **directs event flow**.  
+  Its job is to evaluate the tree and route system events (ticks, messages, interrupts) to user-defined C functions.
+
+---
+
+## 🌟 Key Features
+
+- **Declarative Definitions**  
+  Write behavior trees using intuitive S-expression-style syntax in Lua.
+
+- **Zero-Overhead Abstraction**  
+  Logic is authored in Lua but executed as compiled C.  
+  **No Lua interpreter exists on the target device.**
+
+- **Ultra-Low Footprint**
+  - Standard function nodes: **4 bytes** overhead (32-bit)
+  - Stateful nodes (pointer capability): **8 bytes** overhead
+
+- **Hash-Based Dispatch**  
+  O(1) runtime lookup using compile-time-generated hashes.
+
+- **Hybrid Blackboard**
+  - Embedded structs for fast local data
+  - `PTR_FIELD` for external data references
+
+- **Persistent State**
+  - Dedicated `pt_m_call` slots for functions that must survive across ticks
+  - Ideal for timers, async waits, and edge-triggered logic
+
+- **Compile-Time Safety**
+  - Detects type mismatches
+  - Detects unclosed tags
+  - Detects hash collisions
+  - Fails *before* C code is generated
+
+---
+
+## 📂 File Structure
+
+The system cleanly separates **definition**, **compilation**, and **implementation**.
+
+```text
 project/
-├── s_expr_dsl.lua              # DSL library (DO NOT EDIT)
-├── s_compile.lua               # Compiler driver
-├── my_module.lua               # Your module definition
+├── s_expr_dsl.lua                  # Core DSL Library (DO NOT EDIT)
+├── s_compile.lua                   # Compiler Driver
 │
-├── my_module_module.h          # Generated: trees, params, module def
-├── my_module_user_functions.h  # Generated: user function prototypes
-├── my_module_user_registration.c # Generated: registration tables
+├── my_module.lua                   # [INPUT] Your Behavior Definition
 │
-└── my_module_impl.c            # Your implementation (USER CREATES)
-```
+├── my_module_module.h              # [OUTPUT] Generated: Trees, params, module def
+├── my_module_user_functions.h      # [OUTPUT] Generated: Function prototypes
+├── my_module_user_registration.c   # [OUTPUT] Generated: Registration tables
+│
+└── my_module_impl.c                # [USER] Your C Implementation
+````
 
-## Quick Start
+---
 
-### 1. Create Module Definition
+## 🚀 Quick Start
+
+### 1. Create Module Definition (`my_module.lua`)
+
+Define your data structures (blackboard) and behavior tree logic.
+
 ```lua
--- my_module.lua
 start_module("my_module")
 
--- Optional: enable debug mode
-set_debug(false)
-
--- Define blackboard structure
+-- 1. Define Data Structure (Blackboard)
 RECORD("robot_state")
     FIELD("position_x", "float")
     FIELD("position_y", "float")
-    FIELD("speed", "float")
     FIELD("state", "uint8")
 END_RECORD()
 
--- Define behavior tree
+-- 2. Define Behavior Tree
 start_tree("main_control")
     use_record("robot_state")
-    
+
+    -- Execute sequence: Read Sensors -> Process Input
     local c = m_call("CFL_SEQUENCE")
+
         local a = o_call("READ_SENSORS")
         end_call(a)
-        
+
         local b = m_call("PROCESS_INPUT")
             field_ref("position_x")
             field_ref("position_y")
         end_call(b)
-        
-        -- Debug logging (only in debug builds)
-        if is_debug() then
-            local d = o_call("CFL_LOG")
-                str("Processing complete")
-            end_call(d)
-        end
+
     end_call(c)
-    
 end_tree("main_control")
 
 return end_module("my_module")
 ```
 
+---
+
 ### 2. Compile
+
+Run the LuaJIT compiler to generate C headers and source files.
+
 ```bash
 luajit s_compile.lua my_module.lua --header=my_module_module.h
 ```
 
-This generates three files:
-- `my_module_module.h` - Module definition, trees, parameters
-- `my_module_user_functions.h` - User function prototypes
-- `my_module_user_registration.c` - Registration tables and load function
+Automatically generates:
 
-### 3. Implement User Functions
+* `_user_functions.h`
+* `_user_registration.c`
 
-Create `my_module_impl.c`:
+if not explicitly specified.
+
+---
+
+### 3. Implement User Functions (`my_module_impl.c`)
+
+Provide implementations for the functions declared by the DSL.
+
 ```c
 #include "my_module_user_functions.h"
 
-// DSL: READ_SENSORS  hash: 0x12345678
+// DSL: READ_SENSORS | Hash: 0x12345678
 void read_sensors_oneshot(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data)
-{
+    ...
+) {
     robot_state_t* bb = (robot_state_t*)inst->blackboard;
-    // Read sensors into blackboard
-    bb->position_x = read_sensor_x();
-    bb->position_y = read_sensor_y();
+    bb->position_x = hardware_read_x();
+    bb->position_y = hardware_read_y();
 }
 
-// DSL: PROCESS_INPUT  hash: 0x87654321
+// DSL: PROCESS_INPUT | Hash: 0x87654321
 s_expr_result_t process_input_main(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data)
-{
-    robot_state_t* bb = (robot_state_t*)inst->blackboard;
-    // Process and return result
+    ...
+) {
     return SE_CONTINUE;
 }
 ```
 
-### 4. Initialize at Runtime
+---
+
+### 4. Runtime Initialization
+
+Load the module in your embedded `main.c`.
+
 ```c
 #include "my_module_module.h"
-#include "my_module_user_functions.h"
 
 void init_system(cfl_runtime_handle_t* handle) {
-    // Load module
-    s_expr_module_t* mod = s_expr_module_create(&my_module_module, allocator);
-    
-    // Register CFL system functions
-    load_cfl_s_functions(handle);
-    
-    // Register user functions
-    load_user_s_functions(handle);
+    // 1. Create Module
+    s_expr_module_t* mod =
+        s_expr_module_create(&my_module_module, allocator);
+
+    // 2. Register Functions
+    load_cfl_s_functions(handle);   // System primitives
+    load_user_s_functions(handle);  // User logic
 }
 ```
 
-## Compiler Usage
-```
-ChainTree S-Expression Compiler v3.0
+---
 
-Usage: luajit s_compile.lua <input.lua> [options]
+## 📘 DSL Reference
 
-Options:
-  --bin=<file>         Generate binary file (.bin)
-  --header=<file>      Generate C module header file (.h)
-  --user-header=<file> Generate user functions header (.h)
-  --user-reg=<file>    Generate user registration C file (.c)
-  --name=<name>        Base name for generated symbols (default: from input)
-  --dump               Show tree structure
-  --stats              Show module statistics
-  --help               Show this help
+### Records (Blackboard)
 
-Examples:
-  luajit s_compile.lua motor.lua --header=motor_module.h
-  luajit s_compile.lua motor.lua --header=motor_module.h --user-header=motor_user.h --user-reg=motor_user.c
-  luajit s_compile.lua motor.lua --dump --stats
-```
+Records define the memory layout of the tree’s local storage.
 
-If `--header` is specified without `--user-header` and `--user-reg`, user files are auto-generated with `_user_functions.h` and `_user_registration.c` suffixes.
+#### Basic Types
 
-## DSL Reference
+| Type           | C Type             | Size |
+| -------------- | ------------------ | ---- |
+| int8 / uint8   | int8_t / uint8_t   | 1 B  |
+| int16 / uint16 | int16_t / uint16_t | 2 B  |
+| int32 / uint32 | int32_t / uint32_t | 4 B  |
+| float          | float              | 4 B  |
+| double         | double             | 8 B  |
 
-### Module Structure
+---
+
+### Embedded vs Pointer Fields
+
 ```lua
-start_module("module_name")
-    -- Records, pools, trees
-return end_module("module_name")
-```
+RECORD("pid_config")
+    FIELD("kP", "float")
+END_RECORD()
 
-### Debug Control
-```lua
-set_debug(true)   -- Enable debug mode
-set_debug(false)  -- Disable debug mode (default)
+RECORD("controller")
+    -- Embedded: bytes exist inside controller
+    FIELD("internal_pid", "pid_config")
 
-if is_debug() then
-    -- Code only included in debug builds
-end
-```
-
-### Records (Blackboard Structures)
-
-#### Basic Fields
-```lua
-RECORD("my_record")
-    FIELD("name", "type")           -- Single field
-    FIELD("name", "type", count)    -- Array field
+    -- Pointer: controller holds an address
+    PTR_FIELD("external_pid_ptr", "pid_config")
 END_RECORD()
 ```
 
-**Supported Types:**
+---
 
-| Type | C Type | Size | Alignment |
-|------|--------|------|-----------|
-| `int8` | `int8_t` | 1 | 1 |
-| `uint8` | `uint8_t` | 1 | 1 |
-| `int16` | `int16_t` | 2 | 2 |
-| `uint16` | `uint16_t` | 2 | 2 |
-| `int32` | `int32_t` | 4 | 4 |
-| `uint32` | `uint32_t` | 4 | 4 |
-| `int64` | `int64_t` | 8 | 8 |
-| `uint64` | `uint64_t` | 8 | 8 |
-| `float` | `float` | 4 | 4 |
-| `double` | `double` | 8 | 8 |
-| `bool` | `bool` | 1 | 1 |
+### Tree Slot Pointers (`pt_m_call`) vs Blackboard Pointers
 
-#### Embedded Records
+| Feature     | PTR_FIELD (Blackboard)     | pt_m_call (Tree Slots)        |
+| ----------- | -------------------------- | ----------------------------- |
+| Location    | Inside blackboard struct   | Tree pointer array            |
+| Syntax      | `PTR_FIELD("name","type")` | `pt_m_call("FUNC")`           |
+| Use Case    | Share data with C          | Save per-node execution state |
+| Persistence | User managed               | Engine managed                |
 
-Records can contain other records as embedded (inline) fields:
+Example:
+
 ```lua
-RECORD("vector3")
-    FIELD("x", "float")
-    FIELD("y", "float")
-    FIELD("z", "float")
-END_RECORD()
-
-RECORD("transform")
-    FIELD("position", "vector3")      -- Embedded (12 bytes inline)
-    FIELD("rotation", "vector3")      -- Embedded (12 bytes inline)
-    FIELD("scale", "float")
-END_RECORD()
-
-RECORD("path")
-    FIELD("waypoints", "vector3", 10) -- Array of 10 embedded vector3
-    FIELD("count", "uint16")
-END_RECORD()
-```
-
-**Note:** Embedded records must be defined BEFORE they are used.
-
-#### Pointer Fields
-
-Use `PTR_FIELD` for pointers to other records:
-```lua
-RECORD("node")
-    FIELD("value", "int32")
-    PTR_FIELD("next", "node")         -- Pointer to node_t
-    PTR_FIELD("parent", "node")       -- Pointer to node_t
-END_RECORD()
-```
-
-**⚠️ Memory Management:** Pointer fields require user-managed memory. You must `malloc` and `free` the pointed-to memory yourself.
-```c
-node_t* node = get_blackboard(inst);
-node->next = (node_t*)malloc(sizeof(node_t));  // User allocates
-// ...
-free(node->next);  // User frees
-node->next = NULL;
-```
-
-### Trees
-```lua
-start_tree("tree_name")
-    use_record("record_name")  -- Optional: associate blackboard
-    
-    -- Tree content (calls, parameters)
-    
-end_tree("tree_name")
-```
-
-### Function Calls
-
-#### Oneshot Functions (void return, run once)
-```lua
-local c = o_call("FUNCTION_NAME")
-    -- parameters
-end_call(c)
-
--- With SURVIVES_RESET flag (persists across tree reset)
-local c = io_call("INIT_FUNCTION")
-    -- parameters
+local c = pt_m_call("TIMER_WAIT")
+    flt(5.0)
 end_call(c)
 ```
 
-#### Main Functions (s_expr_result_t return)
-```lua
-local c = m_call("FUNCTION_NAME")
-    -- parameters
-end_call(c)
+---
 
--- With pointer tracking
-local c = pt_m_call("FUNCTION_NAME")
-    -- parameters (tracked for resume)
-end_call(c)
-```
+### Function Call Types
 
-#### Predicate Functions (bool return)
-```lua
-local c = p_call("FUNCTION_NAME")
-    -- parameters
-end_call(c)
-```
+| Call Type  | DSL Syntax  | C Signature                 | Usage            |
+| ---------- | ----------- | --------------------------- | ---------------- |
+| OneShot    | `o_call`    | `void func(...)`            | Fire once        |
+| Main       | `m_call`    | `s_expr_result_t func(...)` | Stateful logic   |
+| Predicate  | `p_call`    | `bool func(...)`            | Condition checks |
+| Persistent | `pt_m_call` | `s_expr_result_t func(...)` | Timers / async   |
+| Init       | `i_call`    | `void func(...)`            | Initialization   |
 
-### Parameters
-```lua
-int(42)              -- Signed integer
-uint(100)            -- Unsigned integer
-flt(3.14159)         -- Float
-str("hello")         -- String (stored as hash)
-slot_ref("slot_name") -- Pool slot reference
-field_ref("field")   -- Blackboard field reference
-nested_field_ref("pos.x")  -- Nested field in embedded record
-```
+---
 
-### Lists
-```lua
-local l = list_start("items")
-    int(1)
-    int(2)
-    int(3)
-list_end(l)
-```
+## 🛠 C Integration API
 
-### Pools and Slots
-```lua
-defpool("timers", "timer_t")
-defslot("main_timer", "timers")
-defslot("aux_timer", "timers")
-```
+### Blackboard Access
 
-### Platform Configuration
-```lua
-use_64bit()   -- 64-bit pointers (8 bytes)
-use_32bit()   -- 32-bit pointers (4 bytes, default)
-```
+#### 1. By String (Flexible, slower)
 
-## Function Types
-
-### System Functions (CFL_ prefix)
-
-Built-in control flow functions provided by the runtime:
-
-- `CFL_SEQUENCE` - Execute children in order, fail on first failure
-- `CFL_SELECTOR` - Execute children until first success
-- `CFL_PARALLEL` - Execute children concurrently
-- `CFL_REPEAT` - Repeat child N times
-- `CFL_WHILE` - Repeat while predicate is true
-- `CFL_IF` - Conditional execution
-- `CFL_LOG` - Debug logging
-- `CFL_NOP` - No operation
-
-### User Functions (no CFL_ prefix)
-
-Custom functions you implement. Named entries generate function prototypes:
-
-| DSL Name | Generated C Function |
-|----------|---------------------|
-| `MY_ACTION` (oneshot) | `my_action_oneshot(...)` |
-| `MY_BEHAVIOR` (main) | `my_behavior_main(...)` |
-| `MY_CHECK` (predicate) | `my_check_boolean(...)` |
-
-## Generated Files
-
-### Module Header (`*_module.h`)
-
-Contains:
-- Record structure definitions (C structs)
-- Field descriptor arrays
-- Function hash tables
-- Tree parameter arrays
-- Tree definitions
-- Module definition
-
-**DO NOT EDIT** - Regenerate from DSL.
-
-### User Functions Header (`*_user_functions.h`)
-
-Contains:
-- Function prototypes for all user functions
-- `load_user_s_functions()` declaration
-
-**DO NOT EDIT** - Regenerate from DSL.
-
-### User Registration (`*_user_registration.c`)
-
-Contains:
-- Named function entry tables
-- Hash-based lookup tables
-- `init_user_function_tables()` - Builds hash tables
-- `load_user_s_functions()` - Registers functions with modules
-
-**DO NOT EDIT** - Regenerate from DSL.
-
-### User Implementation (`*_impl.c`)
-
-**YOU CREATE THIS FILE.** Implements the user functions declared in the header.
-
-## Function Signatures
-
-### Oneshot Function
 ```c
-void my_function_oneshot(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data);
+s_expr_blackboard_set_int_by_string(inst, "speed", 100);
+float v = s_expr_blackboard_get_float_by_string(inst, "voltage", 0.0f);
 ```
 
-### Main Function
+#### 2. Direct Cast (Fastest, zero overhead)
+
 ```c
-s_expr_result_t my_function_main(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data);
+my_record_t* bb = (my_record_t*)inst->blackboard;
+bb->speed = 100;
+bb->voltage = 12.5f;
 ```
 
-**Return Values:**
+---
 
-| Value | Meaning |
-|-------|---------|
-| `SE_CONTINUE` | Success, continue execution |
-| `SE_HALT` | Pause, resume next tick |
-| `SE_TERMINATE` | Terminate tree |
-| `SE_RESET` | Reset tree to initial state |
-| `SE_DISABLE` | Disable tree |
-| `SE_FUNCTION_TERMINATE` | Terminate current function |
-| `SE_SKIP_CONTINUE` | Skip remaining siblings |
-| `SE_FUNCTION_HALT` | Halt current function |
-| `SE_FUNCTION_RESET` | Reset current function |
+## 🔁 Tree Lifecycle & Tick
 
-### Predicate Function
 ```c
-bool my_function_boolean(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data);
-```
+void my_tree_init(s_expr_tree_instance_t* inst) {
+    my_bb_t* bb = (my_bb_t*)inst->blackboard;
+    bb->hardware_ptr = &global_driver;
+}
 
-## Multi-Module Support
+while (system_running) {
+    s_expr_result_t res =
+        s_expr_tree_tick(inst, event_id, event_data);
 
-The registration system supports multiple modules:
-```c
-void load_user_s_functions(cfl_runtime_handle_t* handle) {
-    // Iterates all modules and registers functions with each
-    s_expr_module_t** modules = (s_expr_module_t**)handle->s_expr_modules;
-    for (int i = 0; i < handle->s_expr_module_count; i++) {
-        if (!modules[i]) continue;
-        s_expr_module_register_oneshot(modules[i], &user_oneshot_table);
-        s_expr_module_register_main(modules[i], &user_main_table);
-        s_expr_module_register_pred(modules[i], &user_pred_table);
+    if (res == SE_FUNCTION_TERMINATE) {
+        // Tree completed
     }
 }
 ```
 
-## Debug vs Release Builds
+---
 
-Use `set_debug()` and `is_debug()` for conditional compilation:
-```lua
-start_module("my_module")
+## ⚙️ Compiler Options
 
-set_debug(false)  -- Set to true for debug builds
+```text
+Usage: luajit s_compile.lua <input.lua> [options]
 
-start_tree("control")
-    local c = m_call("CFL_SEQUENCE")
-        local a = m_call("DO_WORK")
-        end_call(a)
-        
-        if is_debug() then
-            local d = o_call("CFL_LOG")
-                str("Work completed")
-            end_call(d)
-        end
-    end_call(c)
-end_tree("control")
-
-return end_module("my_module")
+  --header=<file>       Generate C module header
+  --user-header=<file>  Generate user function prototypes
+  --user-reg=<file>     Generate user registration C file
+  --dump                Dump tree structure
+  --stats               Show memory usage
+  --debug               Enable debug logging
 ```
 
-Build scripts:
-```bash
-# Release build
-luajit s_compile.lua my_module.lua --header=my_module.h
+---
 
-# Debug build (edit set_debug(true) in file)
-luajit s_compile.lua my_module.lua --header=my_module_debug.h
+## 💡 Best Practices
+
+* **Initialization**
+  Always initialize `PTR_FIELD` values in C immediately after tree creation.
+
+* **Naming**
+
+  * DSL function names: `UPPER_CASE`
+  * Lua variables: `snake_case`
+
+* **Embed vs Point**
+
+  * Embed for hot paths
+  * Pointer for large configs or drivers
+
+* **Debugging**
+  Guard logging with `is_debug()` in Lua to avoid string overhead.
+
+* **Validation**
+  Use `--dump` to visually inspect tree structure before code generation.
+
+---
+
+## 📄 License
+
+**MIT License**
+
 ```
-
-## Error Handling
-
-The DSL provides compile-time error detection:
-
-- **Mismatched start/end**: `end_call('x') does not match m_call('y')`
-- **Unclosed braces**: `unclosed: call('seq'), list('items')`
-- **Hash collisions**: `HASH COLLISION in main table: 'X' collides with 'Y'`
-- **Unknown types**: `Unknown field type: bad_type`
-- **Missing records**: `Unknown record: undefined_record`
-- **Duplicate definitions**: `Record already defined: my_record`
-
-## Best Practices
-
-1. **Define records before use** - Embedded records must exist before referencing
-2. **Use consistent naming** - `UPPER_CASE` for DSL names, generates `lower_case_suffix` in C
-3. **Manage pointer memory** - `PTR_FIELD` requires manual malloc/free
-4. **Use debug mode for development** - Conditional logging aids debugging
-5. **Validate with --dump** - Inspect tree structure before integration
-6. **Keep trees focused** - One responsibility per tree
-
-## Requirements
-
-- LuaJIT 2.0+
-- C99 compiler for generated code
-
-## License
-
-MIT License
+```

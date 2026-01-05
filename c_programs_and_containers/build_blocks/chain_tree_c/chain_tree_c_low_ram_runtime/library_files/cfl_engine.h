@@ -100,7 +100,8 @@ struct CFL_RUNTIME_HANDLE {
      cfl_heap_allocator_id_t *kb_allocator_ids;      // Arena ID for each test (indexed by kb_idx)
      uint8_t *test_has_arena;  
      CT_TreeWalker* walker;
-     int32_t bitmask;
+     uint64_t shaddow_bitmask;
+     uint64_t bitmask;
      CFL_EVENT_DATA_T *event_data_ptr;
     bool cfl_engine_flag;
     unsigned cfl_node_execution_count;

@@ -15,8 +15,7 @@
 
 // ============================================================================
 // CFL_READ_BIT: Read a bit from runtime bitmask
-// Params: [0] = bit index (int/uint, 0-31)
-// Returns: true if bit is set
+// Params: [0] = bit index (int/uint, 0-63/ Returns: true if bit is set
 // ============================================================================
 
 static bool cfl_read_bit_pred(
@@ -41,7 +40,7 @@ static bool cfl_read_bit_pred(
     }
     
     uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[0]);
-    if (bit_index >= 32) {
+    if (bit_index >= 64) {
         EXCEPTION("CFL_READ_BIT: bit index out of range");
         return false;
     }
@@ -114,7 +113,7 @@ static inline bool cfl_s_bit_eval_param(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t idx,
-    uint32_t bitmask
+    uint64_t bitmask
 ) {
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
     
@@ -174,7 +173,7 @@ static inline bool cfl_s_bit_eval(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
-    uint32_t bitmask,
+    uint64_t bitmask,
     bit_op_mode_t mode
 ) {
     uint16_t idx = 0;

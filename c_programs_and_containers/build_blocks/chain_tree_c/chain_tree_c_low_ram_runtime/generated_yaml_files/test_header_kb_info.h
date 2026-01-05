@@ -4,11 +4,11 @@
 
 #include "chaintree_support.h"
 
-#define CT_NW2F1PC5_KB_COUNT 29
+#define CT_U38T90RD_KB_COUNT 29
 
-extern const node_alias_t ct_nw2f1pc5_kb_23_aliases[4];
-extern const node_alias_t ct_nw2f1pc5_kb_24_aliases[4];
+extern const node_alias_t ct_u38t90rd_kb_23_aliases[4];
+extern const node_alias_t ct_u38t90rd_kb_24_aliases[4];
 
-extern const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29];
+extern const chaintree_kb_info_t ct_u38t90rd_kb_table[29];
 
 #endif /* TEST_HEADER_KB_INFO_H */

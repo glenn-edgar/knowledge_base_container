@@ -57,21 +57,27 @@ class WaitCfLinks(ColumnFlow):
                             termination_function_name="CFL_NULL",
                             node_data=element_data)
  
-    def asm_wait_for_bitmask(self,bitmask_event_list,reset_flag = False,timeout=None,
+    def asm_wait_for_bitmask(self,required_bitmask_list,excluded_bitmask_list,reset_flag = False,timeout=None,
                            error_fn = "CFL_NULL",time_out_event ="CF_TIMER_EVENT",error_data = None):
         element_data = {}
-        if not isinstance(bitmask_event_list, list):
+        if not isinstance(required_bitmask_list, list):
             raise TypeError("Event list must be a list")
         bit_position_list = []
-        for event in bitmask_event_list:
+        for event in required_bitmask_list:
             bit_position = self.ctb.register_bitmask(event)
             bit_position_list.append(bit_position)
         bit_mask = 0
         for bit_position in bit_position_list:
             bit_mask |= 1 << bit_position
-        bitmask_data = {"bit_mask": bit_mask}
+        excluded_bit_mask = 0
+        for event in excluded_bitmask_list:
+            bit_position = self.ctb.register_bitmask(event)
+            bit_position_list.append(bit_position)
+            excluded_bit_mask |= 1 << bit_position
+        required_bitmask = bit_mask
+        bitmask_data = {"required_bitmask": required_bitmask, "excluded_bitmask": excluded_bit_mask}
         element_data["bitmask_data"] = bitmask_data
-        return self.asm_wait("CFL_WAIT_FOR_BITMASK",element_data,reset_flag,timeout,time_out_event,error_fn,error_data)
+        return self.asm_wait("CFL_WAIT_FOR_BITMASK",bitmask_data,reset_flag,timeout,time_out_event,error_fn,error_data)
     
     
    

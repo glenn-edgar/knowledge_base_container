@@ -205,20 +205,31 @@ bool cfl_sm_event_sync_boolean_fn(void *handle, unsigned node_index, unsigned ev
 
 
 bool cfl_verify_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data){
-    (void)event_data;
     (void)event_type;
+    (void)event_data;
     cfl_runtime_handle_t *runtime_handle = (cfl_runtime_handle_t *)handle;
-    cfl_verify_fn_data_t* ptr = (cfl_verify_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
+    cfl_wait_fn_data_t *ptr = (cfl_wait_fn_data_t *)cfl_heap_arena_get_node_ptr(runtime_handle->arena_system, node_index);
     if (!ptr) {
         EXCEPTION("cfl_wait_for_bitmask_boolean_fn: failed to get node pointer");
         return false;
     }
     if(event_id == CFL_INIT_EVENT){
         if(ptr->auxiliary_data == NULL){
-            int32_t bit_mask;
+            int32_t required_bitmask;
+            int32_t excluded_bitmask;
             json_decoder_init_from_runtime(runtime_handle, node_index);
-            json_extract_int32_runtime(runtime_handle, "node_dict.fn_data.bit_mask", &bit_mask);
-            ptr->auxiliary_data = (void *)((size_t)bit_mask);
+           
+            json_extract_int32_runtime(runtime_handle, "node_dict.fn_data.required_bitmask", &required_bitmask);
+            json_extract_int32_runtime(runtime_handle, "node_dict.fn_data.excluded_bitmask", &excluded_bitmask);
+            ptr->auxiliary_data = (void *)(cfl_df_mask_fn_data_t *)cfl_heap_malloc_pointer(runtime_handle->heap, sizeof(cfl_df_mask_fn_data_t));
+            if (!ptr->auxiliary_data) {
+                EXCEPTION("cfl_wait_for_bitmask_boolean_fn: failed to allocate auxiliary_data");
+                return false;
+            }
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->required_bitmask = required_bitmask;
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->excluded_bitmask = excluded_bitmask;
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->node_state = false;
+            return false;
         }
     }
     if(event_id == CFL_TERMINATE_EVENT){
@@ -227,10 +238,16 @@ bool cfl_verify_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned e
     if(event_id != CFL_TIMER_EVENT){
         return true;
     }
-    uint32_t test_bitmask = (uint32_t)(size_t)ptr->auxiliary_data;
-    if((runtime_handle->bitmask & test_bitmask)==test_bitmask){
+    cfl_df_mask_fn_data_t *auxiliary_data = (cfl_df_mask_fn_data_t *)ptr->auxiliary_data;
+    
+    // Required bits must all be set, excluded bits must all be clear
+    bool required_met = ((uint64_t)auxiliary_data->required_bitmask & runtime_handle->bitmask) == (uint64_t)auxiliary_data->required_bitmask;
+    bool excluded_clear = ((uint64_t)auxiliary_data->excluded_bitmask & runtime_handle->bitmask) == 0;
+    
+    if (required_met && excluded_clear) {
         return true;
     }
+    
     return false;
 }
 
@@ -249,10 +266,21 @@ bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned
     }
     if(event_id == CFL_INIT_EVENT){
         if(ptr->auxiliary_data == NULL){
-            int32_t bit_mask;
+            int32_t required_bitmask;
+            int32_t excluded_bitmask;
             json_decoder_init_from_runtime(runtime_handle, node_index);
-            json_extract_int32_runtime(runtime_handle, "node_dict.wait_fn_data.bitmask_data.bit_mask", &bit_mask);
-            ptr->auxiliary_data = (void *)((size_t)bit_mask);
+           
+            json_extract_int32_runtime(runtime_handle, "node_dict.wait_fn_data.required_bitmask", &required_bitmask);
+            json_extract_int32_runtime(runtime_handle, "node_dict.wait_fn_data.excluded_bitmask", &excluded_bitmask);
+            ptr->auxiliary_data = (void *)(cfl_df_mask_fn_data_t *)cfl_heap_malloc_pointer(runtime_handle->heap, sizeof(cfl_df_mask_fn_data_t));
+            if (!ptr->auxiliary_data) {
+                EXCEPTION("cfl_wait_for_bitmask_boolean_fn: failed to allocate auxiliary_data");
+                return false;
+            }
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->required_bitmask = required_bitmask;
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->excluded_bitmask = excluded_bitmask;
+            ((cfl_df_mask_fn_data_t *)ptr->auxiliary_data)->node_state = false;
+            return false;
         }
     }
     if(event_id == CFL_TERMINATE_EVENT){
@@ -261,10 +289,16 @@ bool cfl_wait_for_bitmask_boolean_fn(void *handle, unsigned node_index, unsigned
     if(event_id != CFL_TIMER_EVENT){
         return false;
     }
-    uint32_t test_bitmask = (uint32_t)(size_t)ptr->auxiliary_data;
-    if((runtime_handle->bitmask & test_bitmask)==test_bitmask){
+    cfl_df_mask_fn_data_t *auxiliary_data = (cfl_df_mask_fn_data_t *)ptr->auxiliary_data;
+    
+    // Required bits must all be set, excluded bits must all be clear
+    bool required_met = ((uint64_t)auxiliary_data->required_bitmask & runtime_handle->bitmask) == (uint64_t)auxiliary_data->required_bitmask;
+    bool excluded_clear = ((uint64_t)auxiliary_data->excluded_bitmask & runtime_handle->bitmask) == 0;
+    
+    if (required_met && excluded_clear) {
         return true;
     }
+    
     return false;
 }
 

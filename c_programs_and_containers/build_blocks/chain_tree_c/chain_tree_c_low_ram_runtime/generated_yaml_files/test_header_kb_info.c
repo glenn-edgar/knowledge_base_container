@@ -2,23 +2,23 @@
 #include "test_header_kb_info.h"
 
 /* Node aliases for KB: twenty_seventh_test */
-const node_alias_t ct_nw2f1pc5_kb_23_aliases[4] = {
-    {"drone_control_fly_straight", 1218},
-    {"drone_control_fly_arc", 1224},
-    {"drone_control_fly_up", 1230},
-    {"drone_control_fly_down", 1236},
+const node_alias_t ct_u38t90rd_kb_23_aliases[4] = {
+    {"drone_control_fly_straight", 1220},
+    {"drone_control_fly_arc", 1226},
+    {"drone_control_fly_up", 1232},
+    {"drone_control_fly_down", 1238},
 };
 
 /* Node aliases for KB: twenty_eighth_test */
-const node_alias_t ct_nw2f1pc5_kb_24_aliases[4] = {
-    {"drone_control_fly_straight", 1263},
-    {"drone_control_fly_arc", 1270},
-    {"drone_control_fly_up", 1276},
-    {"drone_control_fly_down", 1282},
+const node_alias_t ct_u38t90rd_kb_24_aliases[4] = {
+    {"drone_control_fly_straight", 1265},
+    {"drone_control_fly_arc", 1272},
+    {"drone_control_fly_up", 1278},
+    {"drone_control_fly_down", 1284},
 };
 
 /* Knowledge base information table */
-const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
+const chaintree_kb_info_t ct_u38t90rd_kb_table[29] = {
     {
         .kb_name = "first_test",
         .root_node_index = 0,
@@ -143,7 +143,7 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
         .kb_name = "fourteenth_test",
         .root_node_index = 412,
         .start_index = 412,
-        .node_count = 25,
+        .node_count = 26,
         .max_depth = 3,
         .memory_factor = 10,
         .aliases = NULL,
@@ -151,8 +151,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "seventeenth_test",
-        .root_node_index = 437,
-        .start_index = 437,
+        .root_node_index = 438,
+        .start_index = 438,
         .node_count = 221,
         .max_depth = 6,
         .memory_factor = 10,
@@ -161,8 +161,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "eighteenth_test",
-        .root_node_index = 658,
-        .start_index = 658,
+        .root_node_index = 659,
+        .start_index = 659,
         .node_count = 187,
         .max_depth = 6,
         .memory_factor = 10,
@@ -171,8 +171,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "ninteenth_test",
-        .root_node_index = 845,
-        .start_index = 845,
+        .root_node_index = 846,
+        .start_index = 846,
         .node_count = 234,
         .max_depth = 10,
         .memory_factor = 10,
@@ -181,9 +181,9 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twentieth_test",
-        .root_node_index = 1079,
-        .start_index = 1079,
-        .node_count = 18,
+        .root_node_index = 1080,
+        .start_index = 1080,
+        .node_count = 19,
         .max_depth = 3,
         .memory_factor = 10,
         .aliases = NULL,
@@ -191,8 +191,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_first_test",
-        .root_node_index = 1097,
-        .start_index = 1097,
+        .root_node_index = 1099,
+        .start_index = 1099,
         .node_count = 17,
         .max_depth = 2,
         .memory_factor = 40,
@@ -201,8 +201,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_second_test",
-        .root_node_index = 1114,
-        .start_index = 1114,
+        .root_node_index = 1116,
+        .start_index = 1116,
         .node_count = 29,
         .max_depth = 5,
         .memory_factor = 10,
@@ -211,8 +211,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_third_test",
-        .root_node_index = 1143,
-        .start_index = 1143,
+        .root_node_index = 1145,
+        .start_index = 1145,
         .node_count = 6,
         .max_depth = 2,
         .memory_factor = 10,
@@ -221,8 +221,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_fourth_test",
-        .root_node_index = 1149,
-        .start_index = 1149,
+        .root_node_index = 1151,
+        .start_index = 1151,
         .node_count = 20,
         .max_depth = 3,
         .memory_factor = 50,
@@ -231,8 +231,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_fifth_test",
-        .root_node_index = 1169,
-        .start_index = 1169,
+        .root_node_index = 1171,
+        .start_index = 1171,
         .node_count = 28,
         .max_depth = 3,
         .memory_factor = 50,
@@ -241,8 +241,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_sixth_test",
-        .root_node_index = 1197,
-        .start_index = 1197,
+        .root_node_index = 1199,
+        .start_index = 1199,
         .node_count = 19,
         .max_depth = 3,
         .memory_factor = 50,
@@ -251,28 +251,28 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "twenty_seventh_test",
-        .root_node_index = 1216,
-        .start_index = 1216,
+        .root_node_index = 1218,
+        .start_index = 1218,
         .node_count = 45,
         .max_depth = 3,
         .memory_factor = 50,
-        .aliases = ct_nw2f1pc5_kb_23_aliases,
+        .aliases = ct_u38t90rd_kb_23_aliases,
         .alias_count = 4
     },
     {
         .kb_name = "twenty_eighth_test",
-        .root_node_index = 1261,
-        .start_index = 1261,
+        .root_node_index = 1263,
+        .start_index = 1263,
         .node_count = 46,
         .max_depth = 3,
         .memory_factor = 50,
-        .aliases = ct_nw2f1pc5_kb_24_aliases,
+        .aliases = ct_u38t90rd_kb_24_aliases,
         .alias_count = 4
     },
     {
         .kb_name = "twenty_ninth_test",
-        .root_node_index = 1307,
-        .start_index = 1307,
+        .root_node_index = 1309,
+        .start_index = 1309,
         .node_count = 22,
         .max_depth = 3,
         .memory_factor = 10,
@@ -281,8 +281,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "thirty_test",
-        .root_node_index = 1329,
-        .start_index = 1329,
+        .root_node_index = 1331,
+        .start_index = 1331,
         .node_count = 26,
         .max_depth = 4,
         .memory_factor = 10,
@@ -291,8 +291,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "thirty_one_test",
-        .root_node_index = 1355,
-        .start_index = 1355,
+        .root_node_index = 1357,
+        .start_index = 1357,
         .node_count = 17,
         .max_depth = 2,
         .memory_factor = 10,
@@ -301,8 +301,8 @@ const chaintree_kb_info_t ct_nw2f1pc5_kb_table[29] = {
     },
     {
         .kb_name = "thirty_two_test",
-        .root_node_index = 1372,
-        .start_index = 1372,
+        .root_node_index = 1374,
+        .start_index = 1374,
         .node_count = 23,
         .max_depth = 2,
         .memory_factor = 10,

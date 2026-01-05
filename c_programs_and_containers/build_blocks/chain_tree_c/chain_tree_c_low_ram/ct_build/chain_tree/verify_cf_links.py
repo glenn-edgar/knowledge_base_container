@@ -42,15 +42,21 @@ class VerifyCfLinks(ColumnFlow):
         return self.asm_verify("CFL_VERIFY_TIME_OUT",fn_data, reset_flag, error_fn, error_data )
         
        
-    def asm_verify_bitmask(self,bitmask_event_list,reset_flag = False,error_fn = "CFL_NULL",error_data = None):
+    def asm_verify_bitmask(self,required_bitmask_list,excluded_bitmask_list,reset_flag = False,error_fn = "CFL_NULL",error_data = None):
         bit_position_list = []
-        for event in bitmask_event_list:
+        for event in required_bitmask_list:
             bit_position = self.ctb.register_bitmask(event)
             bit_position_list.append(bit_position)
         bit_mask = 0
         for bit_position in bit_position_list:
             bit_mask |= 1 << bit_position
-        fn_data = {"bit_mask": bit_mask}
+        required_bitmask = bit_mask
+        excluded_bit_mask = 0
+        for event in excluded_bitmask_list:
+            bit_position = self.ctb.register_bitmask(event)
+            bit_position_list.append(bit_position)
+            excluded_bit_mask |= 1 << bit_position
+        fn_data = {"required_bitmask": required_bitmask, "excluded_bitmask": excluded_bit_mask}
         self.ctb.add_one_shot_function(error_fn)
         return self.asm_verify("CFL_VERIFY_BITMASK",fn_data, reset_flag, error_fn, error_data )
     

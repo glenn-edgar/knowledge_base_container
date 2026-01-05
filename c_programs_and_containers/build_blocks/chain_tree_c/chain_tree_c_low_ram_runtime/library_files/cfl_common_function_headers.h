@@ -112,7 +112,8 @@ typedef struct {
 } cfl_watch_dog_fn_data_t;
   
 typedef struct {
-  int32_t bitmask;
+  int32_t required_bitmask;
+  int32_t excluded_bitmask;
   bool node_state;
 } cfl_df_mask_fn_data_t;
 

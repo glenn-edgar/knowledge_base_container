@@ -2,8 +2,11 @@
 #include "test_header_bitmasks.h"
 
 /* Bitmask names indexed by bit position */
-const char *ct_nw2f1pc5_bitmask_names[3] = {
+const char *ct_u38t90rd_bitmask_names[6] = {
     "a",
-    "c",
     "b",
+    "c",
+    "d",
+    "e",
+    "f",
 };

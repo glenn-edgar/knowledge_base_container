@@ -110,6 +110,7 @@ void cfl_runtime_reset(cfl_runtime_handle_t* handle) {
     cfl_heap_arena_system_reset(handle->arena_system);
     cfl_clear_queue(handle->event_queue);
     handle->bitmask = 0;
+    handle->shaddow_bitmask = 0;
     cfl_engine_init(handle);
     memset((void*)handle->flags, 0, handle->flash_handle->node_count);
     
@@ -141,7 +142,8 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
            cfl_heap_arena_free_bytes(handle->arena_system,0 ));
     
     cfl_set_timer_reference(handle);
-    
+    handle->shaddow_bitmask = 0;
+    handle->bitmask = 0;
     bool loop_flag = true;
     while(loop_flag) {
         // Wait for timer once per cycle - OUTSIDE the test loop
@@ -150,7 +152,7 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
         cfl_timer_wait(handle->timer_handle, delta_time, &tick_result);
         loop_flag = false;
         for(uint16_t kb_idx = 0; kb_idx < handle->flash_handle->kb_count; kb_idx++) {
-    
+            
             if (!TEST_IS_ACTIVE(handle, kb_idx)) continue;
             loop_flag = true;
             handle->current_kb_idx = kb_idx;
@@ -159,7 +161,7 @@ bool cfl_runtime_run(cfl_runtime_handle_t* handle) {
             handle->kb_max_level = handle->flash_handle->kb_table[kb_idx].max_depth+1;
             
             cfl_generate_timer_events(handle, kb_idx, &tick_result);
-        
+            handle->bitmask = handle->shaddow_bitmask;
             while(cfl_total_event_count(handle->event_queue) > 0) {
                
                 

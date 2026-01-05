@@ -292,12 +292,12 @@ static void cfl_set_bits_oneshot(
         }
         
         uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[i]);
-        if (bit_index >= 32) {
+        if (bit_index >= 64) {
             EXCEPTION("CFL_SET_BITS: bit index out of range");
             return;
         }
         
-        runtime_handle->bitmask |= (1U << bit_index);
+        runtime_handle->shaddow_bitmask |= (1ULL << bit_index);
     }
 }
 
@@ -330,12 +330,12 @@ static void cfl_clear_bits_oneshot(
         }
         
         uint32_t bit_index = (uint32_t)s_expr_param_uint(&params[i]);
-        if (bit_index >= 32) {
+        if (bit_index >= 64) {
             EXCEPTION("CFL_CLEAR_BITS: bit index out of range");
             return;
         }
         
-        runtime_handle->bitmask &= ~(1U << bit_index);
+        runtime_handle->shaddow_bitmask &= ~(1ULL << bit_index);
     }
 }
 

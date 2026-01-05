@@ -727,7 +727,7 @@ def thirteenth_test(ct,kb_name): # watch dog
 def insert_event_mask_df_a(ct):
     
     
-    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",event_list=["a","c"])
+    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",required_bitmask=["a","c"],excluded_bitmask=["d","e","f"])
                                                            
     ct.asm_log_message("data flow expression column df_a is active")
     ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
@@ -738,7 +738,7 @@ def insert_event_mask_df_a(ct):
 def insert_event_mask_df_b(ct):
     
     
-    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",event_list=["b","c"])
+    data_flow_mask_column = ct.define_data_flow_event_mask("df_mask",aux_function="CFL_NULL",required_bitmask=["b","c"],excluded_bitmask=["d","e","f"])
                                                            
     ct.asm_log_message("data flow expression column df_b is active")
     ct.asm_event_logger("----------->  displaying data flow mask events",["CFL_SECOND_EVENT"])
@@ -754,7 +754,7 @@ def fourteenth_test(ct,kb_name): # data f
     ct.start_test(test_name=kb_name)
 
 
-    ##### register data flow events
+    ct.asm_clear_bitmask(["a","b","c","d","e","f"])
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
     insert_event_mask_df_a(ct)
     insert_event_mask_df_b(ct)
@@ -1546,12 +1546,12 @@ def ninteenth_test(ct,kb_name): # state machine
 def twentieth_test(ct,kb_name): # state machine
     ct.start_test(test_name=kb_name)
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
-    ct.asm_clear_bitmask(["a","b","c"])
+    ct.asm_clear_bitmask(["a","b","c","d","e","f"])
     bitmask_column = ct.define_column(column_name="bitmask_column",auto_start=True)
     ct.asm_log_message("waiting for bitmask")
-    ct.asm_wait_for_bitmask(["a","b","c"],reset_flag=False,timeout=10,error_fn="WHILE_BITMASK_FAILURE",error_data={})
+    ct.asm_wait_for_bitmask(["a","b","c"],["d","e","f"],reset_flag=False,timeout=10,error_fn="WHILE_BITMASK_FAILURE",error_data={})
     ct.asm_log_message("bitmask received")
-    ct.asm_verify_bitmask(["a","b","c"],reset_flag=False,error_fn="VERIFY_BITMASK_FAILURE",error_data={})
+    ct.asm_verify_bitmask(["a","b","c"],["d","e","f"],reset_flag=False,error_fn="VERIFY_BITMASK_FAILURE",error_data={})
     ct.asm_log_message("bitmask verified")
     ct.asm_halt()
     ct.end_column(column_name=bitmask_column)
@@ -1562,6 +1562,7 @@ def twentieth_test(ct,kb_name): # state machine
     ct.asm_log_message("clearing bitmask")
     ct.asm_clear_bitmask(["a","b","c"])
     ct.define_join_link(bitmask_column)
+    ct.asm_log_message("verify test has failed")
     ct.asm_terminate()
     ct.end_column(column_name=launch_column)
     ct.end_test()

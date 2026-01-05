@@ -328,8 +328,8 @@ function cfl_set_bits(...)
             if type(bit_index) ~= "number" then
                 dsl_error("cfl_set_bits() bit index must be a number")
             end
-            if bit_index < 0 or bit_index > 31 then
-                dsl_error("cfl_set_bits() bit index must be 0-31")
+            if bit_index < 0 or bit_index > 63 then
+                dsl_error("cfl_set_bits() bit index must be 0-63")
             end
             uint(bit_index)
         end
@@ -352,8 +352,8 @@ function cfl_clear_bits(...)
             if type(bit_index) ~= "number" then
                 dsl_error("cfl_clear_bits() bit index must be a number")
             end
-            if bit_index < 0 or bit_index > 31 then
-                dsl_error("cfl_clear_bits() bit index must be 0-31")
+            if bit_index < 0 or bit_index > 63 then
+                dsl_error("cfl_clear_bits() bit index must be 0-63")
             end
             uint(bit_index)
         end

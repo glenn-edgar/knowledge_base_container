@@ -591,7 +591,7 @@ void cfl_clear_bitmask_one_shot_fn(void *handle, uint16_t node_index){
      
     int32_t bitmask;
     json_extract_int32_runtime(runtime_handle, "node_dict.bit_mask", &bitmask);
-    runtime_handle->bitmask &= ~bitmask;
+    runtime_handle->shaddow_bitmask &= ~bitmask;
 }
 
 void cfl_df_mask_init_one_shot_fn(void *handle, uint16_t node_index){
@@ -605,7 +605,10 @@ void cfl_df_mask_init_one_shot_fn(void *handle, uint16_t node_index){
     } else {
         ptr = (cfl_df_mask_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_df_mask_fn_data_t));
         json_decoder_init_from_runtime(runtime_handle, node_index);
-        json_extract_int32_runtime(runtime_handle, "node_dict.column_data.bit_mask", &ptr->bitmask);
+        
+        json_extract_int32_runtime(runtime_handle, "node_dict.column_data.required_bitmask", &ptr->required_bitmask);
+        json_extract_int32_runtime(runtime_handle, "node_dict.column_data.excluded_bitmask", &ptr->excluded_bitmask);
+        
     }
     
     ptr->node_state = false;
@@ -622,7 +625,7 @@ void cfl_set_bitmask_one_shot_fn(void *handle, uint16_t node_index){
     
     int32_t bitmask;
     json_extract_int32_runtime(runtime_handle, "node_dict.bit_mask", &bitmask);
-    runtime_handle->bitmask |= bitmask;
+    runtime_handle->shaddow_bitmask |= (uint64_t)bitmask;
 }
 
 

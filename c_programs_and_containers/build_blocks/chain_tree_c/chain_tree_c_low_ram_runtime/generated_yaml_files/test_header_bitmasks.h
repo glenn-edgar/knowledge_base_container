@@ -8,17 +8,23 @@
 
 /* Bitmask bit positions */
 #define BIT_A                               0  /* 0x00000001 */
-#define BIT_C                               1  /* 0x00000002 */
-#define BIT_B                               2  /* 0x00000004 */
+#define BIT_B                               1  /* 0x00000002 */
+#define BIT_C                               2  /* 0x00000004 */
+#define BIT_D                               3  /* 0x00000008 */
+#define BIT_E                               4  /* 0x00000010 */
+#define BIT_F                               5  /* 0x00000020 */
 
 /* Bitmask values */
 #define MASK_A                             (1U << BIT_A)
-#define MASK_C                             (1U << BIT_C)
 #define MASK_B                             (1U << BIT_B)
+#define MASK_C                             (1U << BIT_C)
+#define MASK_D                             (1U << BIT_D)
+#define MASK_E                             (1U << BIT_E)
+#define MASK_F                             (1U << BIT_F)
 
-#define CT_NW2F1PC5_BITMASK_COUNT 3
+#define CT_U38T90RD_BITMASK_COUNT 6
 
 /* Bitmask name array for debugging/lookup */
-extern const char *ct_nw2f1pc5_bitmask_names[3];
+extern const char *ct_u38t90rd_bitmask_names[6];
 
 #endif /* TEST_HEADER_BITMASKS_H */

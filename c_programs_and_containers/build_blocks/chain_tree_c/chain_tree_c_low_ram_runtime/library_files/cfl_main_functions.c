@@ -508,24 +508,26 @@ unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, un
     }
     
     if (event_id == CFL_TIMER_EVENT) {
+        // Check mask conditions
+        bool required_met = ((uint64_t)ptr->required_bitmask & runtime_handle->bitmask) == (uint64_t)ptr->required_bitmask;
+        bool excluded_clear = ((uint64_t)ptr->excluded_bitmask & runtime_handle->bitmask) == 0;
+        bool conditions_met = required_met && excluded_clear;
+       
         if (ptr->node_state == false) {
-            if ((ptr->bitmask & runtime_handle->bitmask) == ptr->bitmask) {
-                
+            // Currently disabled, check if we should enable
+            if (conditions_met) {
                 const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
                 uint16_t link_start = node->link_start;
                 uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
                 for (unsigned i = 0; i < link_count; i++) {
                     uint16_t link_id = runtime_handle->flash_handle->link_table[link_start + i];
                     cfl_enable_node(runtime_handle, link_id);
-                    
                 }
                 ptr->node_state = true;
-    
             }
-        
-        }else{
-            if ((ptr->bitmask & runtime_handle->bitmask) != ptr->bitmask) {
-
+        } else {
+            // Currently enabled, check if we should disable
+            if (!conditions_met) {
                 const chaintree_node_t *node = &runtime_handle->flash_handle->nodes[node_index];
                 uint16_t link_start = node->link_start;
                 uint16_t link_count = (node->link_count & LINK_COUNT_MASK);
@@ -536,15 +538,13 @@ unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, un
                 ptr->node_state = false;
             }
         }
-        
     }
+    
     if (ptr->node_state == false) {
         return CFL_SKIP_CONTINUE;
     }
     return CFL_CONTINUE;
 }
-
-
 
 
 

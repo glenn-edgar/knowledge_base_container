@@ -10,7 +10,8 @@ class DataFlow(ColumnFlow):
         column_name: str,
         aux_function: str = "CFL_NULL",
         user_data: dict = None,
-        event_list: list[str | int] = None,
+        required_bitmask: list[str | int] = None,
+        excluded_bitmask: list[str | int] = None,
         auto_start: bool = False
     ):
         """
@@ -19,11 +20,28 @@ class DataFlow(ColumnFlow):
         """
         if user_data is None:
             user_data = {}
-        if event_list is None:
-            event_list = []
-
+        if required_bitmask is None:
+            required_bitmask = []
+        if excluded_bitmask is None:
+            excluded_bitmask = []
+        
         bit_mask = 0
-        for event in event_list:
+        for event in required_bitmask:
+            if isinstance(event, str):
+                bit_pos = self.ctb.register_bitmask(event)
+            elif isinstance(event, int):
+                bit_pos = event
+                # Optional: verify that the bit is already allocated
+                # (uncomment if you want strict enforcement)
+                # if bit_pos not in [v for v in self.ctb.bitmask_table.values()]:
+                #     raise ValueError(f"Bit position {bit_pos} has not been allocated")
+            else:
+                raise TypeError(f"Event must be str or int, got {type(event).__name__}: {event}")
+
+            bit_mask |= (1 << bit_pos)
+        user_data["required_bitmask"] = bit_mask
+        bit_mask = 0
+        for event in excluded_bitmask:
             if isinstance(event, str):
                 bit_pos = self.ctb.register_bitmask(event)
             elif isinstance(event, int):
@@ -37,7 +55,7 @@ class DataFlow(ColumnFlow):
 
             bit_mask |= (1 << bit_pos)
 
-        user_data["bit_mask"] = bit_mask
+        user_data["excluded_bitmask"] = bit_mask
 
         self.ctb.add_boolean_function(aux_function)
 
@@ -47,7 +65,7 @@ class DataFlow(ColumnFlow):
             initialization_function="CFL_DF_MASK_INIT",
             termination_function="CFL_DF_MASK_TERM",
             aux_function=aux_function,
-            column_data={"bit_mask": bit_mask},
+            column_data=user_data,
             auto_start=auto_start,
             label="CFL_DF_MASK"
         )

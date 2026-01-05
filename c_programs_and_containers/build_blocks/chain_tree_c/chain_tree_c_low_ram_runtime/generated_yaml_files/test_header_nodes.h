@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_NW2F1PC5_NODE_COUNT 1564
+#define CT_U38T90RD_NODE_COUNT 1566
 
-extern const chaintree_node_t ct_nw2f1pc5_nodes[CT_NW2F1PC5_NODE_COUNT];
+extern const chaintree_node_t ct_u38t90rd_nodes[CT_U38T90RD_NODE_COUNT];
 
 #endif /* TEST_HEADER_NODES_H */
