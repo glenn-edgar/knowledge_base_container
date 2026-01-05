@@ -30,7 +30,14 @@ void cfl_disable_all_children(cfl_runtime_handle_t *handle, uint16_t node_index)
 void cfl_enable_child(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t child_node_index);
 void cfl_disable_child(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t child_node_index);
 bool cfl_child_is_enabled(cfl_runtime_handle_t *handle, uint16_t node_index, uint16_t child_node_index);
+static inline void cfl_change_bitmask(cfl_runtime_handle_t *handle, uint64_t bitmask){
+    
+    handle->shaddow_bitmask = bitmask;
+}
 
+static inline uint64_t cfl_get_bitmask(cfl_runtime_handle_t *handle){
+    return handle->bitmask;
+}
 #ifdef __cplusplus
 }
 #endif
