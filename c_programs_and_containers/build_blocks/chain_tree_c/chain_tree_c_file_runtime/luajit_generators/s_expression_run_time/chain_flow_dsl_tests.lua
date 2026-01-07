@@ -1017,6 +1017,4 @@ end_tree("s_expression_test_16")
 
 
 
-return_value = end_module(mod)
-print("DEBUG: return_value =", return_value)
-return return_value
+return end_module(mod)

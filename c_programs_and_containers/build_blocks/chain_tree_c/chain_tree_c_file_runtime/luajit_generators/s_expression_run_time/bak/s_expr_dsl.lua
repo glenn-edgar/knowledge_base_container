@@ -13,6 +13,7 @@
 local ffi = require("ffi")
 local bit = require("bit")
 
+dofile("s_cfl_functions.lua")
 local M = {}
 
 -- ============================================================================
@@ -31,10 +32,6 @@ function M.fnv1a_32(str)
     return bit.band(hash, 0xFFFFFFFF)
 end
 
--- JIT warmup - force compilation before real use
-for i = 1, 10 do
-    M.fnv1a_32("warmup_string_" .. i)
-end
 -- Format hash as proper 32-bit hex (avoids 64-bit sign extension in LuaJIT)
 function M.fmt_hash(h)
     local u32 = ffi.new("uint32_t", h)
@@ -529,7 +526,7 @@ local function start_call(func_name, call_type)
         param_count = 0,
     }
     
-    -- Register function in correct table
+    -- Register function
     local func_list = nil
     if call_type == "o_call" or call_type == "io_call" then
         func_list = current_module.oneshot_funcs
@@ -1310,10 +1307,8 @@ function BinaryEmitter:emit_string(s)
     for i = 1, len do
         self:emit_u8(s:byte(i))
     end
-    -- Add null terminator
-    self:emit_u8(0)
     -- Pad to 4-byte boundary
-    local total = 2 + len + 1  -- length + string + null
+    local total = 2 + len
     local padding = (4 - (total % 4)) % 4
     for i = 1, padding do
         self:emit_u8(0)

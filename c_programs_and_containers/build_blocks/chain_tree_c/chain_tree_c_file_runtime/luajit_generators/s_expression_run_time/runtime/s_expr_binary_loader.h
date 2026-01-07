@@ -5,7 +5,6 @@
 // Loads binary modules from:
 //   - ROM (flash) - zero-copy, in-place
 //   - RAM (malloc'd) - copy + resolve
-//   - Socket/File - allocate + load + resolve
 //
 // ARM32/ARM64 compatible
 // ============================================================================
@@ -21,10 +20,9 @@ extern "C" {
 #endif
 
 // ============================================================================
-// LOADER CONFIGURATION
+// CONFIGURATION
 // ============================================================================
 
-// Define to use custom allocator
 #ifndef SEXB_MALLOC
 #define SEXB_MALLOC(size) malloc(size)
 #endif
@@ -61,7 +59,6 @@ typedef struct {
 static inline sexb_load_result_t sexb_load_rom(const void* data, size_t size) {
     sexb_load_result_t result = {0};
     
-    // Validate
     result.error = sexb_validate(data, size);
     if (result.error != SEXB_OK) {
         return result;
@@ -132,7 +129,7 @@ static inline sexb_load_result_t sexb_load_rom(const void* data, size_t size) {
         
         const sexb_record_def_t* rec_defs = (const sexb_record_def_t*)(base + dir->record_table_offset);
         
-        // Count total fields for allocation
+        // Count total fields
         uint32_t total_fields = 0;
         for (uint16_t i = 0; i < mod->record_count; i++) {
             total_fields += rec_defs[i].field_count;
@@ -160,7 +157,6 @@ static inline sexb_load_result_t sexb_load_rom(const void* data, size_t size) {
             records[i].size = rec_defs[i].size;
             records[i].fields = field_ptr;
             
-            // Copy field definitions
             const sexb_field_def_t* field_defs = (const sexb_field_def_t*)(base + rec_defs[i].field_table_offset);
             for (uint16_t j = 0; j < rec_defs[i].field_count; j++) {
                 field_ptr->name_hash = field_defs[j].name_hash;
@@ -202,9 +198,8 @@ static inline sexb_load_result_t sexb_load_rom(const void* data, size_t size) {
         mod->constants = constants;
     }
     
-    // String blob (direct pointer, length-prefixed)
+    // String blob (direct pointer)
     mod->string_blob = base + dir->string_blob_offset;
-    // Calculate string blob size (to const_table or next section)
     mod->string_blob_size = dir->const_table_offset - dir->string_blob_offset;
     
     // Function hash tables (direct pointers)
@@ -234,13 +229,11 @@ static inline void sexb_free(sexb_load_result_t* result) {
 static inline sexb_load_result_t sexb_load_copy(const void* data, size_t size) {
     sexb_load_result_t result = {0};
     
-    // Validate first
     result.error = sexb_validate(data, size);
     if (result.error != SEXB_OK) {
         return result;
     }
     
-    // Allocate and copy
     uint8_t* copy = (uint8_t*)SEXB_MALLOC(size);
     if (!copy) {
         result.error = SEXB_ERR_ALLOC_FAILED;
@@ -248,11 +241,8 @@ static inline sexb_load_result_t sexb_load_copy(const void* data, size_t size) {
     }
     memcpy(copy, data, size);
     
-    // Load from the copy
     result = sexb_load_rom(copy, size);
-    
-    // Note: The copy is now owned by the module (via raw_data)
-    // Caller should free via sexb_free_copy()
+    // Note: copy is now owned by module (via raw_data)
     
     return result;
 }
@@ -261,7 +251,6 @@ static inline sexb_load_result_t sexb_load_copy(const void* data, size_t size) {
 static inline void sexb_free_copy(sexb_load_result_t* result) {
     if (!result || !result->module) return;
     
-    // Free the copied raw data
     if (result->module->raw_data) {
         SEXB_FREE((void*)result->module->raw_data);
     }
@@ -270,18 +259,16 @@ static inline void sexb_free_copy(sexb_load_result_t* result) {
 }
 
 // ============================================================================
-// CONVENIENCE MACROS FOR STATIC ROM DATA
+// CONVENIENCE MACROS
 // ============================================================================
 
-// Load a static ROM module (from _bin.h header)
 #define SEXB_LOAD_STATIC(bin_array) \
     sexb_load_rom(bin_array, sizeof(bin_array))
 
 // ============================================================================
-// BYTECODE INTERPRETER HELPERS
+// BYTECODE PARAMETER READER
 // ============================================================================
 
-// Read parameter from bytecode
 typedef struct {
     uint8_t opcode;
     union {
@@ -339,7 +326,6 @@ static inline bool sexb_read_param(sexb_bytecode_reader_t* r, sexb_param_t* para
         case SEXB_OP_LIST_END:
         case SEXB_OP_CALL_START:
         case SEXB_OP_CALL_END:
-            // No data
             break;
         default:
             return false;
@@ -348,9 +334,10 @@ static inline bool sexb_read_param(sexb_bytecode_reader_t* r, sexb_param_t* para
     return true;
 }
 
-// Get field offset from record using nested path hash
-// The nested path is pre-hashed (e.g., "motor.position.x" -> hash)
-// For runtime resolution, use the field_table from the record
+// ============================================================================
+// FIELD RESOLUTION HELPERS
+// ============================================================================
+
 static inline int32_t sexb_resolve_field_offset(
     const sexb_module_t* mod,
     uint16_t record_index,
@@ -361,14 +348,9 @@ static inline int32_t sexb_resolve_field_offset(
     const sexb_record_t* rec = &mod->records[record_index];
     const sexb_field_t* field = sexb_find_field(rec, field_hash);
     
-    if (field) {
-        return field->offset;
-    }
-    
-    return -1;  // Not found
+    return field ? field->offset : -1;
 }
 
-// Get field pointer from blackboard
 static inline void* sexb_get_field_ptr(
     void* blackboard,
     const sexb_module_t* mod,
@@ -377,11 +359,9 @@ static inline void* sexb_get_field_ptr(
 ) {
     int32_t offset = sexb_resolve_field_offset(mod, record_index, field_hash);
     if (offset < 0) return NULL;
-    
     return (uint8_t*)blackboard + offset;
 }
 
-// Copy constant to blackboard field
 static inline bool sexb_copy_const_to_field(
     void* blackboard,
     const sexb_module_t* mod,
@@ -389,20 +369,16 @@ static inline bool sexb_copy_const_to_field(
     uint32_t field_hash,
     uint32_t const_hash
 ) {
-    // Find field
     void* field_ptr = sexb_get_field_ptr(blackboard, mod, record_index, field_hash);
     if (!field_ptr) return false;
     
-    // Find constant
     const sexb_const_t* cnst = sexb_find_const(mod, const_hash);
     if (!cnst || !cnst->data) return false;
     
-    // Copy data
     memcpy(field_ptr, cnst->data, cnst->data_size);
     return true;
 }
 
-// Copy constant to full blackboard
 static inline bool sexb_copy_const_full(
     void* blackboard,
     size_t bb_size,
@@ -422,4 +398,3 @@ static inline bool sexb_copy_const_full(
 #endif
 
 #endif // S_EXPR_BINARY_LOADER_H
-

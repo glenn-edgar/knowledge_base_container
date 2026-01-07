@@ -1,17 +1,12 @@
 #!/usr/bin/env luajit
 -- ============================================================================
--- s_binary_dump.lua
--- Utility to dump and validate ChainTree binary module files
--- Usage: luajit s_binary_dump.lua <file.bin> [--verbose]
+-- dump_binary_full.lua
+-- Full dump of binary module showing hash table contents vs bytecode usage
 -- ============================================================================
 
 local ffi = require("ffi")
 local bit = require("bit")
 
-local SEXB_MAGIC = 0x42584553  -- "SEXB"
-local SEXB_VERSION = 0x0100
-
--- Read helpers
 local function read_u8(data, pos)
     return data:byte(pos + 1), pos + 1
 end
@@ -26,392 +21,252 @@ local function read_u32(data, pos)
     return b1 + b2 * 256 + b3 * 65536 + b4 * 16777216, pos + 4
 end
 
-local function read_f32(data, pos)
-    local buf = ffi.new("uint8_t[4]")
-    for i = 0, 3 do
-        buf[i] = data:byte(pos + 1 + i)
-    end
-    local f = ffi.cast("float*", buf)[0]
-    return f, pos + 4
-end
-
 local function hex(v)
-    return string.format("0x%08X", v)
+    local u32 = ffi.new("uint32_t", v)
+    return string.format("0x%08X", tonumber(u32))
 end
 
--- Type names
-local type_names = {
-    [0x01] = "int8",
-    [0x02] = "int16",
-    [0x03] = "int32",
-    [0x04] = "int64",
-    [0x05] = "uint8",
-    [0x06] = "uint16",
-    [0x07] = "uint32",
-    [0x08] = "uint64",
-    [0x09] = "float",
-    [0x0A] = "double",
-    [0x0B] = "bool",
-    [0x0C] = "char",
-    [0x0D] = "char[]",
-    [0x0E] = "ptr",
-    [0x0F] = "embedded",
+local FUNC_TYPE_INFO = {
+    [1] = { name = "ONESHOT",   table = "oneshot" },
+    [2] = { name = "MAIN",      table = "main" },
+    [3] = { name = "PRED",      table = "pred" },
+    [4] = { name = "PT_MAIN",   table = "main" },
+    [5] = { name = "INIT_ONE",  table = "oneshot" },
+    [6] = { name = "BIT_PRED",  table = "pred" },
 }
 
-local opcode_names = {
-    [0x01] = "INT",
-    [0x02] = "UINT",
-    [0x03] = "FLOAT",
-    [0x04] = "STR_IDX",
-    [0x05] = "FIELD_REF",
-    [0x06] = "NESTED_REF",
-    [0x07] = "CONST_REF",
-    [0x08] = "RESULT",
-    [0x09] = "LIST_START",
-    [0x0A] = "LIST_END",
-    [0x0B] = "CALL_START",
-    [0x0C] = "CALL_END",
-    [0x0D] = "INT64",
-    [0x0E] = "UINT64",
-    [0x0F] = "DOUBLE",
-}
-
-local func_type_names = {
-    [0x01] = "ONESHOT",
-    [0x02] = "MAIN",
-    [0x03] = "PRED",
-    [0x04] = "PT_MAIN",
-    [0x05] = "INIT_ONE",
-    [0x06] = "BIT_PRED",
-}
-
-local function dump_binary(filename, verbose)
-    -- Read file
+local function analyze_binary(filename)
     local f = io.open(filename, "rb")
     if not f then
-        print("Error: Cannot open file: " .. filename)
-        os.exit(1)
+        print("Error: Cannot open " .. filename)
+        return
     end
     local data = f:read("*a")
     f:close()
     
-    print("============================================================================")
-    print("Binary Module Dump: " .. filename)
-    print("File size: " .. #data .. " bytes")
-    print("============================================================================")
+    print("=" .. string.rep("=", 78))
+    print("FULL BINARY ANALYSIS: " .. filename)
+    print("=" .. string.rep("=", 78))
     print()
     
+    -- Read header
     local pos = 0
+    local magic, version, flags, name_hash
+    magic, pos = read_u32(data, pos)
+    version, pos = read_u16(data, pos)
+    flags, pos = read_u16(data, pos)
+    name_hash, pos = read_u32(data, pos)
     
-    -- Header
-    print("HEADER (32 bytes)")
-    print("--------------------------------------------------------------------------------")
+    local tree_count, record_count, string_count, const_count
+    tree_count, pos = read_u16(data, pos)
+    record_count, pos = read_u16(data, pos)
+    string_count, pos = read_u16(data, pos)
+    const_count, pos = read_u16(data, pos)
     
-    local magic, pos = read_u32(data, pos)
-    if magic ~= SEXB_MAGIC then
-        print("ERROR: Invalid magic: " .. hex(magic) .. " (expected " .. hex(SEXB_MAGIC) .. ")")
-        os.exit(1)
-    end
-    print("  Magic:           " .. hex(magic) .. " (SEXB) ✓")
+    local oneshot_count, main_count, pred_count, reserved
+    oneshot_count, pos = read_u16(data, pos)
+    main_count, pos = read_u16(data, pos)
+    pred_count, pos = read_u16(data, pos)
+    reserved, pos = read_u16(data, pos)
     
-    local version, pos = read_u16(data, pos)
-    print("  Version:         " .. string.format("0x%04X", version) .. 
-          (version == SEXB_VERSION and " ✓" or " (WARNING: expected " .. string.format("0x%04X", SEXB_VERSION) .. ")"))
+    local total_size
+    total_size, pos = read_u32(data, pos)
     
-    local flags, pos = read_u16(data, pos)
-    local mode = bit.band(flags, 1) == 1 and "64-bit" or "32-bit"
-    local debug = bit.band(flags, 2) == 2 and ", DEBUG" or ""
-    print("  Flags:           " .. string.format("0x%04X", flags) .. " (" .. mode .. debug .. ")")
-    
-    local name_hash, pos = read_u32(data, pos)
-    print("  Module hash:     " .. hex(name_hash))
-    
-    local tree_count, pos = read_u16(data, pos)
-    print("  Tree count:      " .. tree_count)
-    
-    local record_count, pos = read_u16(data, pos)
-    print("  Record count:    " .. record_count)
-    
-    local string_count, pos = read_u16(data, pos)
-    print("  String count:    " .. string_count)
-    
-    local const_count, pos = read_u16(data, pos)
-    print("  Const count:     " .. const_count)
-    
-    local oneshot_count, pos = read_u16(data, pos)
-    print("  Oneshot count:   " .. oneshot_count)
-    
-    local main_count, pos = read_u16(data, pos)
-    print("  Main count:      " .. main_count)
-    
-    local pred_count, pos = read_u16(data, pos)
-    print("  Pred count:      " .. pred_count)
-    
-    local reserved, pos = read_u16(data, pos)
-    
-    local total_size, pos = read_u32(data, pos)
-    print("  Total size:      " .. total_size .. " bytes" .. 
-          (total_size == #data and " ✓" or " (WARNING: file is " .. #data .. " bytes)"))
-    
+    print(string.format("Module hash: %s", hex(name_hash)))
+    print(string.format("Counts: trees=%d records=%d strings=%d consts=%d", 
+                        tree_count, record_count, string_count, const_count))
+    print(string.format("Functions: oneshot=%d main=%d pred=%d", 
+                        oneshot_count, main_count, pred_count))
     print()
     
-    -- Directory
-    print("DIRECTORY (32 bytes)")
-    print("--------------------------------------------------------------------------------")
+    -- Read directory
+    local tree_offset, record_offset, field_offset, string_offset
+    local const_offset, const_data_offset, func_offset, bytecode_offset
     
-    local tree_offset, pos = read_u32(data, pos)
-    print("  Tree table:      @" .. tree_offset)
+    tree_offset, pos = read_u32(data, pos)
+    record_offset, pos = read_u32(data, pos)
+    field_offset, pos = read_u32(data, pos)
+    string_offset, pos = read_u32(data, pos)
+    const_offset, pos = read_u32(data, pos)
+    const_data_offset, pos = read_u32(data, pos)
+    func_offset, pos = read_u32(data, pos)
+    bytecode_offset, pos = read_u32(data, pos)
     
-    local record_offset, pos = read_u32(data, pos)
-    print("  Record table:    @" .. record_offset)
+    -- Read function hash tables
+    local oneshot_hashes = {}
+    local main_hashes = {}
+    local pred_hashes = {}
     
-    local field_offset, pos = read_u32(data, pos)
-    print("  Field table:     @" .. field_offset)
-    
-    local string_offset, pos = read_u32(data, pos)
-    print("  String blob:     @" .. string_offset)
-    
-    local const_offset, pos = read_u32(data, pos)
-    print("  Const table:     @" .. const_offset)
-    
-    local const_data_offset, pos = read_u32(data, pos)
-    print("  Const data:      @" .. const_data_offset)
-    
-    local func_offset, pos = read_u32(data, pos)
-    print("  Func table:      @" .. func_offset)
-    
-    local bytecode_offset, pos = read_u32(data, pos)
-    print("  Bytecode:        @" .. bytecode_offset)
-    
+    pos = func_offset
+    print("-" .. string.rep("-", 78))
+    print("ONESHOT HASH TABLE (" .. oneshot_count .. " entries):")
+    print("-" .. string.rep("-", 78))
+    for i = 1, oneshot_count do
+        local h
+        h, pos = read_u32(data, pos)
+        oneshot_hashes[h] = i - 1
+        print(string.format("  [%2d] %s", i - 1, hex(h)))
+    end
     print()
     
-    -- Trees
-    if tree_count > 0 then
-        print("TREES (" .. tree_count .. " entries, 16 bytes each)")
-        print("--------------------------------------------------------------------------------")
-        
-        pos = tree_offset
-        for i = 1, tree_count do
-            local t_hash
-            t_hash, pos = read_u32(data, pos)
-            local t_rec_idx
-            t_rec_idx, pos = read_u16(data, pos)
-            local t_node_count
-            t_node_count, pos = read_u16(data, pos)
-            local t_bc_offset
-            t_bc_offset, pos = read_u32(data, pos)
-            local t_bc_size
-            t_bc_size, pos = read_u32(data, pos)
-            
-            print(string.format("  [%d] hash=%s rec=%d nodes=%d bytecode=@%d (%d bytes)",
-                i - 1, hex(t_hash), t_rec_idx, t_node_count, t_bc_offset, t_bc_size))
-        end
-        print()
+    print("-" .. string.rep("-", 78))
+    print("MAIN HASH TABLE (" .. main_count .. " entries):")
+    print("-" .. string.rep("-", 78))
+    for i = 1, main_count do
+        local h
+        h, pos = read_u32(data, pos)
+        main_hashes[h] = i - 1
+        print(string.format("  [%2d] %s", i - 1, hex(h)))
+    end
+    print()
+    
+    print("-" .. string.rep("-", 78))
+    print("PRED HASH TABLE (" .. pred_count .. " entries):")
+    print("-" .. string.rep("-", 78))
+    for i = 1, pred_count do
+        local h
+        h, pos = read_u32(data, pos)
+        pred_hashes[h] = i - 1
+        print(string.format("  [%2d] %s", i - 1, hex(h)))
+    end
+    print()
+    
+    -- Read tree info
+    local trees = {}
+    pos = tree_offset
+    for i = 1, tree_count do
+        local t = {}
+        t.hash, pos = read_u32(data, pos)
+        t.rec_idx, pos = read_u16(data, pos)
+        t.node_count, pos = read_u16(data, pos)
+        t.bc_offset, pos = read_u32(data, pos)
+        t.bc_size, pos = read_u32(data, pos)
+        table.insert(trees, t)
     end
     
-    -- Records
-    if record_count > 0 then
-        print("RECORDS (" .. record_count .. " entries, 12 bytes each)")
-        print("--------------------------------------------------------------------------------")
-        
-        pos = record_offset
-        local records = {}
-        for i = 1, record_count do
-            local r_hash
-            r_hash, pos = read_u32(data, pos)
-            local r_field_count
-            r_field_count, pos = read_u16(data, pos)
-            local r_size
-            r_size, pos = read_u16(data, pos)
-            local r_field_offset
-            r_field_offset, pos = read_u32(data, pos)
-            
-            records[i] = {
-                hash = r_hash,
-                field_count = r_field_count,
-                size = r_size,
-                field_offset = r_field_offset
-            }
-            
-            print(string.format("  [%d] hash=%s fields=%d size=%d bytes field_table=@%d",
-                i - 1, hex(r_hash), r_field_count, r_size, r_field_offset))
-        end
-        print()
-        
-        -- Fields (if verbose)
-        if verbose then
-            print("FIELDS (12 bytes each)")
-            print("--------------------------------------------------------------------------------")
-            
-            for i, rec in ipairs(records) do
-                if rec.field_count > 0 then
-                    print(string.format("  Record [%d] (hash=%s):", i - 1, hex(rec.hash)))
-                    pos = rec.field_offset
-                    
-                    for j = 1, rec.field_count do
-                        local f_hash
-                        f_hash, pos = read_u32(data, pos)
-                        local f_type
-                        f_type, pos = read_u8(data, pos)
-                        local f_flags
-                        f_flags, pos = read_u8(data, pos)
-                        local f_offset
-                        f_offset, pos = read_u16(data, pos)
-                        local f_size
-                        f_size, pos = read_u16(data, pos)
-                        local f_aux
-                        f_aux, pos = read_u16(data, pos)
-                        
-                        local type_str = type_names[f_type] or string.format("0x%02X", f_type)
-                        local flags_str = ""
-                        if bit.band(f_flags, 1) ~= 0 then flags_str = flags_str .. "PTR " end
-                        if bit.band(f_flags, 2) ~= 0 then flags_str = flags_str .. "ARR " end
-                        if bit.band(f_flags, 4) ~= 0 then flags_str = flags_str .. "EMB " end
-                        
-                        print(string.format("    [%d] hash=%s type=%s flags=[%s] offset=%d size=%d aux=%d",
-                            j - 1, hex(f_hash), type_str, flags_str, f_offset, f_size, f_aux))
-                    end
-                end
-            end
-            print()
-        end
-    end
+    -- Analyze bytecode and collect all function hashes used
+    print("-" .. string.rep("-", 78))
+    print("BYTECODE FUNCTION USAGE:")
+    print("-" .. string.rep("-", 78))
     
-    -- Strings
-    if string_count > 0 then
-        print("STRINGS (" .. string_count .. " entries)")
-        print("--------------------------------------------------------------------------------")
-        
-        pos = string_offset
-        for i = 1, string_count do
-            local s_len
-            s_len, pos = read_u16(data, pos)
-            local s_data = data:sub(pos + 1, pos + s_len)
-            
-            -- Skip padding
-            local total = 2 + s_len
-            local padding = (4 - (total % 4)) % 4
-            pos = pos + s_len + padding
-            
-            local display = s_data:gsub("[%c]", ".")
-            if #display > 50 then
-                display = display:sub(1, 47) .. "..."
-            end
-            print(string.format("  [%d] len=%d \"%s\"", i - 1, s_len, display))
-        end
-        print()
-    end
+    local missing_oneshot = {}
+    local missing_main = {}
+    local missing_pred = {}
+    local all_used = {}
     
-    -- Constants
-    if const_count > 0 then
-        print("CONSTANTS (" .. const_count .. " entries, 12 bytes each)")
-        print("--------------------------------------------------------------------------------")
+    for tree_idx, tree in ipairs(trees) do
+        print(string.format("\nTree[%d] %s (%d nodes):", tree_idx-1, hex(tree.hash), tree.node_count))
         
-        pos = const_offset
-        for i = 1, const_count do
-            local c_hash
-            c_hash, pos = read_u32(data, pos)
-            local c_rec_idx
-            c_rec_idx, pos = read_u16(data, pos)
-            local c_size
-            c_size, pos = read_u16(data, pos)
-            local c_data_off
-            c_data_off, pos = read_u32(data, pos)
+        pos = tree.bc_offset
+        local end_pos = tree.bc_offset + tree.bc_size
+        local node_idx = 0
+        
+        while pos < end_pos do
+            local func_hash, func_type, param_count, node_size
+            func_hash, pos = read_u32(data, pos)
+            func_type, pos = read_u8(data, pos)
+            param_count, pos = read_u8(data, pos)
+            node_size, pos = read_u16(data, pos)
             
-            print(string.format("  [%d] hash=%s record=%d size=%d data=@%d",
-                i - 1, hex(c_hash), c_rec_idx, c_size, c_data_off))
-        end
-        print()
-    end
-    
-    -- Function tables
-    local func_count = oneshot_count + main_count + pred_count
-    if func_count > 0 then
-        print("FUNCTION HASHES (" .. func_count .. " total)")
-        print("--------------------------------------------------------------------------------")
-        
-        pos = func_offset
-        
-        if oneshot_count > 0 then
-            print("  Oneshot (" .. oneshot_count .. "):")
-            for i = 1, oneshot_count do
-                local h
-                h, pos = read_u32(data, pos)
-                print(string.format("    [%d] %s", i - 1, hex(h)))
-            end
-        end
-        
-        if main_count > 0 then
-            print("  Main (" .. main_count .. "):")
-            for i = 1, main_count do
-                local h
-                h, pos = read_u32(data, pos)
-                print(string.format("    [%d] %s", i - 1, hex(h)))
-            end
-        end
-        
-        if pred_count > 0 then
-            print("  Pred (" .. pred_count .. "):")
-            for i = 1, pred_count do
-                local h
-                h, pos = read_u32(data, pos)
-                print(string.format("    [%d] %s", i - 1, hex(h)))
-            end
-        end
-        print()
-    end
-    
-    -- Bytecode summary
-    local bc_size = total_size - bytecode_offset
-    print("BYTECODE (" .. bc_size .. " bytes)")
-    print("--------------------------------------------------------------------------------")
-    print("  Starts at offset " .. bytecode_offset)
-    
-    if verbose and bc_size > 0 then
-        -- Dump first part of bytecode as hex
-        local dump_size = math.min(bc_size, 256)
-        print("  First " .. dump_size .. " bytes:")
-        
-        pos = bytecode_offset
-        for row = 0, math.floor((dump_size - 1) / 16) do
-            local hex_str = ""
-            local ascii_str = ""
+            local type_info = FUNC_TYPE_INFO[func_type] or { name = "???", table = "???" }
+            local target_table = type_info.table
             
-            for col = 0, 15 do
-                local byte_pos = row * 16 + col
-                if byte_pos < dump_size then
-                    local b = data:byte(pos + byte_pos + 1)
-                    hex_str = hex_str .. string.format("%02X ", b)
-                    if b >= 32 and b < 127 then
-                        ascii_str = ascii_str .. string.char(b)
-                    else
-                        ascii_str = ascii_str .. "."
-                    end
-                else
-                    hex_str = hex_str .. "   "
+            -- Check if hash exists in correct table
+            local lookup_table, found
+            if target_table == "oneshot" then
+                lookup_table = oneshot_hashes
+            elseif target_table == "main" then
+                lookup_table = main_hashes
+            elseif target_table == "pred" then
+                lookup_table = pred_hashes
+            end
+            
+            found = lookup_table and lookup_table[func_hash]
+            local status = found and "OK" or "MISSING!"
+            
+            -- Track missing
+            if not found then
+                if target_table == "oneshot" then
+                    missing_oneshot[func_hash] = true
+                elseif target_table == "main" then
+                    missing_main[func_hash] = true
+                elseif target_table == "pred" then
+                    missing_pred[func_hash] = true
                 end
             end
             
-            print(string.format("    %04X: %s |%s|", bytecode_offset + row * 16, hex_str, ascii_str))
+            -- Track all used
+            local key = target_table .. ":" .. hex(func_hash)
+            all_used[key] = (all_used[key] or 0) + 1
+            
+            print(string.format("  [%2d] %s type=%d(%s) -> %s [%s]",
+                               node_idx, hex(func_hash), func_type, type_info.name,
+                               target_table, status))
+            
+            -- Skip to next node
+            pos = pos + (node_size - 8)
+            node_idx = node_idx + 1
         end
     end
     
+    -- Summary
     print()
-    print("============================================================================")
-    print("Validation: PASSED")
-    print("============================================================================")
+    print("=" .. string.rep("=", 78))
+    print("SUMMARY")
+    print("=" .. string.rep("=", 78))
+    
+    local count_missing_oneshot = 0
+    local count_missing_main = 0
+    local count_missing_pred = 0
+    
+    for _ in pairs(missing_oneshot) do count_missing_oneshot = count_missing_oneshot + 1 end
+    for _ in pairs(missing_main) do count_missing_main = count_missing_main + 1 end
+    for _ in pairs(missing_pred) do count_missing_pred = count_missing_pred + 1 end
+    
+    if count_missing_oneshot > 0 then
+        print()
+        print("MISSING FROM ONESHOT TABLE (" .. count_missing_oneshot .. "):")
+        for h in pairs(missing_oneshot) do
+            print("  " .. hex(h) .. "  <- This function uses io_call() but wasn't registered!")
+        end
+    end
+    
+    if count_missing_main > 0 then
+        print()
+        print("MISSING FROM MAIN TABLE (" .. count_missing_main .. "):")
+        for h in pairs(missing_main) do
+            print("  " .. hex(h))
+        end
+    end
+    
+    if count_missing_pred > 0 then
+        print()
+        print("MISSING FROM PRED TABLE (" .. count_missing_pred .. "):")
+        for h in pairs(missing_pred) do
+            print("  " .. hex(h))
+        end
+    end
+    
+    local total_missing = count_missing_oneshot + count_missing_main + count_missing_pred
+    print()
+    if total_missing == 0 then
+        print("RESULT: ALL HASHES FOUND - Binary is valid!")
+    else
+        print("RESULT: " .. total_missing .. " HASHES MISSING - Binary has registration bugs!")
+        print()
+        print("FIX: In your Lua DSL generator, ensure that:")
+        print("  - io_call(func) registers func in oneshot_funcs")
+        print("  - pt_m_call(func) registers func in main_funcs")
+        print("  - p_call_bit(func) registers func in pred_funcs")
+    end
+    print("=" .. string.rep("=", 78))
 end
 
 -- Main
 local filename = arg[1]
-local verbose = arg[2] == "--verbose" or arg[2] == "-v"
-
 if not filename then
-    print("Usage: luajit s_binary_dump.lua <file.bin> [--verbose]")
-    print()
-    print("Options:")
-    print("  --verbose, -v    Show detailed field and bytecode dumps")
+    print("Usage: luajit dump_binary_full.lua <file.bin>")
     os.exit(1)
 end
 
-dump_binary(filename, verbose)
+analyze_binary(filename)

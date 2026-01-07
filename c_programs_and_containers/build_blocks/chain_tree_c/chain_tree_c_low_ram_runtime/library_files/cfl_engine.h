@@ -121,6 +121,7 @@ struct CFL_RUNTIME_HANDLE {
     const chaintree_handle_t* flash_handle;
     s_expr_module_t **s_expr_modules;
     int s_expr_module_count;
+    void *user_handle;
 };
 
 void cfl_engine_create(cfl_runtime_handle_t *handle);
@@ -136,6 +137,14 @@ void cfl_terminate_node_tree(cfl_runtime_handle_t *handle, unsigned node_id);
 void cfl_find_try_node_indexes(cfl_runtime_handle_t *handle, unsigned node_index, sequence_aggregate_data_t *sequence_aggregate_data);
 void cfl_terminate_all_nodes_in_kb(cfl_runtime_handle_t *handle, unsigned start_node, unsigned node_count);
 void cfl_memory_allocator_assignment(cfl_runtime_handle_t *handle, unsigned node_index, cfl_heap_allocator_id_t allocator_id);
+
+static inline void cfl_set_user_handle(cfl_runtime_handle_t *handle, void *user_handle) {
+    handle->user_handle = user_handle;
+}
+
+static inline void *cfl_get_user_handle(cfl_runtime_handle_t *handle) {
+    return handle->user_handle;
+}
 
 #ifdef __cplusplus
 }

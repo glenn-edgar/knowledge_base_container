@@ -80,15 +80,51 @@ typedef enum {
     SEXB_OP_DOUBLE      = 0x0F,         // 64-bit float
 } sexb_opcode_t;
 
-// Function type tags
+// ============================================================================
+// FUNCTION TYPE TAGS
+// 
+// CRITICAL: The Lua generator uses 6 types but only 3 hash tables:
+//   Types 1,5 -> oneshot_hashes (o_call, io_call)
+//   Types 2,4 -> main_hashes    (m_call, pt_m_call)
+//   Types 3,6 -> pred_hashes    (p_call, p_call_bit)
+// ============================================================================
+
 typedef enum {
-    SEXB_FUNC_ONESHOT   = 0x01,         // o_call
-    SEXB_FUNC_MAIN      = 0x02,         // m_call
-    SEXB_FUNC_PRED      = 0x03,         // p_call
-    SEXB_FUNC_PT_MAIN   = 0x04,         // pt_m_call (protothread)
-    SEXB_FUNC_INIT_ONE  = 0x05,         // io_call (init oneshot)
-    SEXB_FUNC_BIT_PRED  = 0x06,         // p_call_bit (bit block)
+    SEXB_FUNC_ONESHOT   = 0x01,         // o_call    -> oneshot_hashes
+    SEXB_FUNC_MAIN      = 0x02,         // m_call    -> main_hashes
+    SEXB_FUNC_PRED      = 0x03,         // p_call    -> pred_hashes
+    SEXB_FUNC_PT_MAIN   = 0x04,         // pt_m_call -> main_hashes (protothread)
+    SEXB_FUNC_INIT_ONE  = 0x05,         // io_call   -> oneshot_hashes (init)
+    SEXB_FUNC_BIT_PRED  = 0x06,         // p_call_bit-> pred_hashes (bit block)
 } sexb_func_type_t;
+
+// ============================================================================
+// FUNCTION CATEGORY (which hash table to use)
+// ============================================================================
+
+typedef enum {
+    SEXB_CAT_ONESHOT = 0,   // Use oneshot_hashes
+    SEXB_CAT_MAIN    = 1,   // Use main_hashes
+    SEXB_CAT_PRED    = 2,   // Use pred_hashes
+    SEXB_CAT_INVALID = 255
+} sexb_func_category_t;
+
+// Map func_type (1-6) to hash table category
+static inline sexb_func_category_t sexb_get_func_category(uint8_t func_type) {
+    switch (func_type) {
+        case SEXB_FUNC_ONESHOT:
+        case SEXB_FUNC_INIT_ONE:
+            return SEXB_CAT_ONESHOT;
+        case SEXB_FUNC_MAIN:
+        case SEXB_FUNC_PT_MAIN:
+            return SEXB_CAT_MAIN;
+        case SEXB_FUNC_PRED:
+        case SEXB_FUNC_BIT_PRED:
+            return SEXB_CAT_PRED;
+        default:
+            return SEXB_CAT_INVALID;
+    }
+}
 
 // ============================================================================
 // BINARY FILE STRUCTURES (packed, little-endian)
@@ -182,69 +218,53 @@ typedef struct {
 
 _Static_assert(sizeof(sexb_node_header_t) == 8, "Node header must be 8 bytes");
 
-// Bytecode parameter (variable size)
-// Format: [opcode:u8][data:variable]
-// Data sizes:
-//   INT/UINT/FLOAT/STR_IDX/FIELD_REF/RESULT: 4 bytes
-//   INT64/UINT64/DOUBLE: 8 bytes
-//   NESTED_REF: 4 bytes (path_hash) + 2 bytes (depth)
-//   CALL_START: 4 bytes (func_hash) + 1 byte (func_type)
-//   LIST_START/END, CALL_END: 0 bytes
-
 #pragma pack(pop)
 
 // ============================================================================
 // RUNTIME STRUCTURES (for loaded module in RAM)
 // ============================================================================
 
-// Forward declarations
 typedef struct sexb_module sexb_module_t;
 typedef struct sexb_tree sexb_tree_t;
 typedef struct sexb_record sexb_record_t;
 typedef struct sexb_field sexb_field_t;
 typedef struct sexb_const sexb_const_t;
 
-// Loaded field (resolved pointers)
 struct sexb_field {
     uint32_t name_hash;
     uint8_t  type_tag;
     uint8_t  flags;
     uint16_t offset;
     uint16_t size;
-    uint16_t aux;                       // Array len or target record index
+    uint16_t aux;
 };
 
-// Loaded record (resolved pointers)
 struct sexb_record {
     uint32_t name_hash;
     uint16_t field_count;
     uint16_t size;
-    const sexb_field_t* fields;         // Pointer to field array
+    const sexb_field_t* fields;
 };
 
-// Loaded tree (resolved pointers)
 struct sexb_tree {
     uint32_t name_hash;
     uint16_t record_index;
     uint16_t node_count;
-    const uint8_t* bytecode;            // Pointer to bytecode
+    const uint8_t* bytecode;
     uint32_t bytecode_size;
 };
 
-// Loaded constant (resolved pointers)
 struct sexb_const {
     uint32_t name_hash;
     uint16_t record_index;
     uint16_t data_size;
-    const void* data;                   // Pointer to constant data
+    const void* data;
 };
 
-// Loaded module (master structure)
 struct sexb_module {
     uint32_t name_hash;
     uint16_t flags;
     
-    // Counts
     uint16_t tree_count;
     uint16_t record_count;
     uint16_t string_count;
@@ -253,30 +273,25 @@ struct sexb_module {
     uint16_t main_count;
     uint16_t pred_count;
     
-    // Resolved tables
     const sexb_tree_t* trees;
     const sexb_record_t* records;
     const sexb_const_t* constants;
     
-    // String blob (length-prefixed strings)
     const uint8_t* string_blob;
     uint32_t string_blob_size;
     
-    // Function hash tables
     const uint32_t* oneshot_hashes;
     const uint32_t* main_hashes;
     const uint32_t* pred_hashes;
     
-    // Raw binary (for reference)
     const uint8_t* raw_data;
     uint32_t raw_size;
 };
 
 // ============================================================================
-// LOADER API
+// ERROR CODES
 // ============================================================================
 
-// Validation result
 typedef enum {
     SEXB_OK = 0,
     SEXB_ERR_NULL_PTR,
@@ -286,9 +301,14 @@ typedef enum {
     SEXB_ERR_BAD_SIZE,
     SEXB_ERR_BAD_OFFSET,
     SEXB_ERR_ALLOC_FAILED,
+    SEXB_ERR_INVALID_HEADER,
+    SEXB_ERR_INVALID_BYTECODE,
 } sexb_error_t;
 
-// Validate binary data without loading
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
 static inline sexb_error_t sexb_validate(const void* data, size_t size) {
     if (!data) return SEXB_ERR_NULL_PTR;
     if (size < sizeof(sexb_header_t) + sizeof(sexb_directory_t)) {
@@ -304,36 +324,35 @@ static inline sexb_error_t sexb_validate(const void* data, size_t size) {
     return SEXB_OK;
 }
 
-// Get module name hash without full load
 static inline uint32_t sexb_get_name_hash(const void* data) {
     const sexb_header_t* hdr = (const sexb_header_t*)data;
     return hdr->module_name_hash;
 }
 
-// Get string from string blob by index
+// ============================================================================
+// STRING ACCESS
+// Format: u16 length, string data, null terminator, padding to 4-byte
+// ============================================================================
+
 static inline const char* sexb_get_string(const sexb_module_t* mod, uint16_t index) {
     if (!mod || !mod->string_blob || index >= mod->string_count) {
         return NULL;
     }
     
-    // Walk through length-prefixed strings
     const uint8_t* ptr = mod->string_blob;
     const uint8_t* end = ptr + mod->string_blob_size;
     
     for (uint16_t i = 0; i < index && ptr < end; i++) {
         uint16_t len = ptr[0] | (ptr[1] << 8);
-        ptr += 2 + len;
-        // Align to 4 bytes
-        ptr += (4 - ((uintptr_t)ptr & 3)) & 3;
+        size_t total = 2 + len + 1;  // length + data + null
+        total = (total + 3) & ~3;    // align to 4
+        ptr += total;
     }
     
     if (ptr >= end) return NULL;
-    
-    // Return pointer to string data (skip length)
-    return (const char*)(ptr + 2);
+    return (const char*)(ptr + 2);  // skip length
 }
 
-// Get string length
 static inline uint16_t sexb_get_string_len(const sexb_module_t* mod, uint16_t index) {
     if (!mod || !mod->string_blob || index >= mod->string_count) {
         return 0;
@@ -344,19 +363,21 @@ static inline uint16_t sexb_get_string_len(const sexb_module_t* mod, uint16_t in
     
     for (uint16_t i = 0; i < index && ptr < end; i++) {
         uint16_t len = ptr[0] | (ptr[1] << 8);
-        ptr += 2 + len;
-        ptr += (4 - ((uintptr_t)ptr & 3)) & 3;
+        size_t total = 2 + len + 1;
+        total = (total + 3) & ~3;
+        ptr += total;
     }
     
     if (ptr >= end) return 0;
-    
     return ptr[0] | (ptr[1] << 8);
 }
 
-// Find tree by hash
+// ============================================================================
+// LOOKUP FUNCTIONS
+// ============================================================================
+
 static inline const sexb_tree_t* sexb_find_tree(const sexb_module_t* mod, uint32_t name_hash) {
     if (!mod || !mod->trees) return NULL;
-    
     for (uint16_t i = 0; i < mod->tree_count; i++) {
         if (mod->trees[i].name_hash == name_hash) {
             return &mod->trees[i];
@@ -365,10 +386,8 @@ static inline const sexb_tree_t* sexb_find_tree(const sexb_module_t* mod, uint32
     return NULL;
 }
 
-// Find record by hash
 static inline const sexb_record_t* sexb_find_record(const sexb_module_t* mod, uint32_t name_hash) {
     if (!mod || !mod->records) return NULL;
-    
     for (uint16_t i = 0; i < mod->record_count; i++) {
         if (mod->records[i].name_hash == name_hash) {
             return &mod->records[i];
@@ -377,10 +396,8 @@ static inline const sexb_record_t* sexb_find_record(const sexb_module_t* mod, ui
     return NULL;
 }
 
-// Find field in record by hash
 static inline const sexb_field_t* sexb_find_field(const sexb_record_t* rec, uint32_t name_hash) {
     if (!rec || !rec->fields) return NULL;
-    
     for (uint16_t i = 0; i < rec->field_count; i++) {
         if (rec->fields[i].name_hash == name_hash) {
             return &rec->fields[i];
@@ -389,10 +406,8 @@ static inline const sexb_field_t* sexb_find_field(const sexb_record_t* rec, uint
     return NULL;
 }
 
-// Find constant by hash
 static inline const sexb_const_t* sexb_find_const(const sexb_module_t* mod, uint32_t name_hash) {
     if (!mod || !mod->constants) return NULL;
-    
     for (uint16_t i = 0; i < mod->const_count; i++) {
         if (mod->constants[i].name_hash == name_hash) {
             return &mod->constants[i];
@@ -401,35 +416,60 @@ static inline const sexb_const_t* sexb_find_const(const sexb_module_t* mod, uint
     return NULL;
 }
 
-// Check if function hash is in oneshot table
-static inline bool sexb_is_oneshot(const sexb_module_t* mod, uint32_t func_hash) {
-    if (!mod || !mod->oneshot_hashes) return false;
-    for (uint16_t i = 0; i < mod->oneshot_count; i++) {
-        if (mod->oneshot_hashes[i] == func_hash) return true;
+// ============================================================================
+// FUNCTION LOOKUP - Uses func_type to select correct hash table
+// ============================================================================
+
+static inline uint16_t sexb_find_func_index(
+    const uint32_t* hashes,
+    uint16_t count,
+    uint32_t target_hash
+) {
+    for (uint16_t i = 0; i < count; i++) {
+        if (hashes[i] == target_hash) {
+            return i;
+        }
     }
-    return false;
+    return 0xFFFF;
 }
 
-// Check if function hash is in main table
-static inline bool sexb_is_main(const sexb_module_t* mod, uint32_t func_hash) {
-    if (!mod || !mod->main_hashes) return false;
-    for (uint16_t i = 0; i < mod->main_count; i++) {
-        if (mod->main_hashes[i] == func_hash) return true;
+// Find function using func_type directly (CRITICAL for correct table selection)
+static inline uint16_t sexb_find_func_by_type(
+    const sexb_module_t* mod,
+    uint8_t func_type,
+    uint32_t func_hash
+) {
+    if (!mod) return 0xFFFF;
+    
+    const uint32_t* hashes = NULL;
+    uint16_t count = 0;
+    
+    switch (func_type) {
+        case SEXB_FUNC_ONESHOT:
+        case SEXB_FUNC_INIT_ONE:
+            hashes = mod->oneshot_hashes;
+            count = mod->oneshot_count;
+            break;
+        case SEXB_FUNC_MAIN:
+        case SEXB_FUNC_PT_MAIN:
+            hashes = mod->main_hashes;
+            count = mod->main_count;
+            break;
+        case SEXB_FUNC_PRED:
+        case SEXB_FUNC_BIT_PRED:
+            hashes = mod->pred_hashes;
+            count = mod->pred_count;
+            break;
+        default:
+            return 0xFFFF;
     }
-    return false;
-}
-
-// Check if function hash is in pred table
-static inline bool sexb_is_pred(const sexb_module_t* mod, uint32_t func_hash) {
-    if (!mod || !mod->pred_hashes) return false;
-    for (uint16_t i = 0; i < mod->pred_count; i++) {
-        if (mod->pred_hashes[i] == func_hash) return true;
-    }
-    return false;
+    
+    if (!hashes) return 0xFFFF;
+    return sexb_find_func_index(hashes, count, func_hash);
 }
 
 // ============================================================================
-// BYTECODE READER API
+// BYTECODE READER
 // ============================================================================
 
 typedef struct {
@@ -498,7 +538,6 @@ static inline double sexb_read_f64(sexb_bytecode_reader_t* r) {
     return d;
 }
 
-// Read node header
 static inline bool sexb_read_node_header(sexb_bytecode_reader_t* r, sexb_node_header_t* hdr) {
     if (r->pos + sizeof(sexb_node_header_t) > r->size) return false;
     hdr->func_hash = sexb_read_u32(r);
@@ -508,13 +547,12 @@ static inline bool sexb_read_node_header(sexb_bytecode_reader_t* r, sexb_node_he
     return true;
 }
 
-// Skip node (after reading header)
 static inline void sexb_skip_node(sexb_bytecode_reader_t* r, const sexb_node_header_t* hdr) {
     r->pos += hdr->bytecode_size - sizeof(sexb_node_header_t);
 }
 
 // ============================================================================
-// HASH FUNCTION (FNV-1a 32-bit, same as DSL)
+// HASH FUNCTION (FNV-1a 32-bit)
 // ============================================================================
 
 #define SEXB_FNV_OFFSET_BASIS 0x811c9dc5
@@ -543,5 +581,3 @@ static inline uint32_t sexb_hash32_n(const char* str, size_t len) {
 #endif
 
 #endif // S_EXPR_BINARY_H
-
-
