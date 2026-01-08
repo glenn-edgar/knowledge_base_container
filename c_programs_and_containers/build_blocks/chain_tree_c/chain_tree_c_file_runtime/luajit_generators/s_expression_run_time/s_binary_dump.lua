@@ -6,7 +6,7 @@
 
 local ffi = require("ffi")
 local bit = require("bit")
-
+jit.off()
 local function read_u8(data, pos)
     return data:byte(pos + 1), pos + 1
 end

@@ -1,0 +1,21 @@
+#include "s_expr_binary_v5.h"
+#include "s_expr_binary_file.h"
+
+// Load file
+sexb_file_t file;
+if (sexb_file_load(&file, "module_32.bin", my_alloc, heap_ctx)) {
+    
+    // Parse
+    sexb_module_t mod;
+    sexb_load(&mod, file.data, file.size);
+    
+    // Build def
+    s_expr_module_def_t* def = sexb_build_module_def(&mod, my_alloc, my_free, heap_ctx);
+    
+    // Use...
+    cfl_initialize_s_engine(handle, &def, 1);
+    
+    // Cleanup
+    sexb_free_module_def(def, my_free, heap_ctx);
+    sexb_file_unload(&file, my_free, heap_ctx);
+}

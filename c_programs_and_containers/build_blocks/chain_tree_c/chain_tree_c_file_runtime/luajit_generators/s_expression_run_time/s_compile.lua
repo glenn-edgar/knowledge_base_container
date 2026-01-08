@@ -1,19 +1,25 @@
 #!/usr/bin/env luajit
 -- ============================================================================
 -- s_compile.lua
--- ChainTree S-Expression DSL Compiler - Version 4.0
+-- ChainTree S-Expression DSL Compiler - Version 5.0
 -- 
 -- Generates:
 --   - C headers (.h) for records, module, user functions
 --   - C registration code (.c)
---   - Binary module files (.bin)
+--   - Binary module files (.bin) - direct s_expr_param_t, zero-copy
 --   - Binary as C header (_bin.h)
+--
+-- VERSION 5.0 CHANGES:
+--   - Binary format emits direct s_expr_param_t structs (no bytecode)
+--   - Two binary formats: 32-bit (8-byte params) and 64-bit (16-byte params)
+--   - Generates _32.bin/_64.bin or _bin_32.h/_bin_64.h based on mode
 --
 -- Usage: luajit s_compile.lua <input.lua> [options]
 -- ============================================================================
 
 local ffi = require("ffi")
 local bit = require("bit")
+jit.off()
 
 -- ============================================================================
 -- ARGUMENT PARSING
@@ -26,6 +32,7 @@ local function parse_args(args)
         user_header = nil,
         registration = nil,
         records_header = nil,
+        debug_header = nil,
         binary_file = nil,
         binary_header = nil,
         dump = false,
@@ -45,6 +52,8 @@ local function parse_args(args)
             opts.registration = arg:match("^%-%-reg=(.+)$")
         elseif arg:match("^%-%-records=") then
             opts.records_header = arg:match("^%-%-records=(.+)$")
+        elseif arg:match("^%-%-debug=") then
+            opts.debug_header = arg:match("^%-%-debug=(.+)$")
         elseif arg:match("^%-%-binary=") then
             opts.binary_file = arg:match("^%-%-binary=(.+)$")
         elseif arg:match("^%-%-binary%-h=") then
@@ -84,7 +93,7 @@ end
 
 local function print_usage()
     print([[
-ChainTree S-Expression DSL Compiler v4.0
+ChainTree S-Expression DSL Compiler v5.0
 
 Usage: luajit s_compile.lua <input.lua> [options]
 
@@ -93,6 +102,7 @@ Options:
   --user=<file>        Generate user function header
   --reg=<file>         Generate user registration code
   --records=<file>     Generate records header (standalone structures)
+  --debug=<file>       Generate debug header with hash->name mappings
   --binary=<file>      Generate binary module file (.bin)
   --binary-h=<file>    Generate binary header (const uint8_t array)
   --helpers=<file>     Load helper functions (can specify multiple times)
@@ -107,17 +117,23 @@ Options:
 Generated files with --all:
   <base>_records.h           - Standalone record structures
   <base>.h                   - Module header (includes records)
+  <base>_debug.h             - Debug hash reference
   <base>_user_functions.h    - User function prototypes
   <base>_user_registration.c - Function registration code
 
 Generated files with --all-bin (includes --all plus):
-  <base>.bin                 - Binary module for runtime loading
-  <base>_bin.h               - Binary as C array for ROM embedding
+  <base>_32.bin or <base>_64.bin   - Binary module for runtime loading
+  <base>_bin_32.h or <base>_bin_64.h - Binary as C array for ROM embedding
+
+Version 5.0 Features:
+  - Binary format contains direct s_expr_param_t structs
+  - Zero-copy loading: cast pointer directly from ROM
+  - Two binary formats: 32-bit (8-byte params) and 64-bit (16-byte params)
 
 Examples:
   luajit s_compile.lua my_module.lua --all --outdir=generated/
   luajit s_compile.lua my_module.lua --all-bin --64bit
-  luajit s_compile.lua my_module.lua --binary=my_module.bin
+  luajit s_compile.lua my_module.lua --binary=my_module_32.bin --32bit
   luajit s_compile.lua my_module.lua --helpers=s_cfl_helpers.lua --all
 ]])
 end
@@ -211,10 +227,14 @@ local function main()
     -- Set pointer size before loading DSL
     _G._pointer_size = opts.pointer_size
     
-    -- Load the DSL library
-    local dsl_file = find_file("s_expr_dsl.lua", search_paths)
+    -- Load the DSL library (v5)
+    local dsl_file = find_file("s_expr_dsl_v5.lua", search_paths)
     if not dsl_file then
-        io.stderr:write("Error: Cannot find s_expr_dsl.lua\n")
+        -- Fall back to original name
+        dsl_file = find_file("s_expr_dsl.lua", search_paths)
+    end
+    if not dsl_file then
+        io.stderr:write("Error: Cannot find s_expr_dsl_v5.lua or s_expr_dsl.lua\n")
         io.stderr:write("Searched in: " .. table.concat(search_paths, ", ") .. "\n")
         os.exit(1)
     end
@@ -288,19 +308,23 @@ local function main()
     -- Determine base name
     local base_name = module_data.name:lower():gsub("[^%w_]", "_")
     
+    -- Mode suffix for binary files
+    local mode_suffix = (opts.pointer_size == 8) and "_64" or "_32"
+    
     -- Handle --all flags
     if opts.all or opts.all_bin then
         if not opts.header then opts.header = base_name .. ".h" end
         if not opts.user_header then opts.user_header = base_name .. "_user_functions.h" end
         if not opts.registration then opts.registration = base_name .. "_user_registration.c" end
+        if not opts.debug_header then opts.debug_header = base_name .. "_debug.h" end
         if not opts.records_header and #module_data.record_order > 0 then
             opts.records_header = base_name .. "_records.h"
         end
     end
     
     if opts.all_bin then
-        if not opts.binary_file then opts.binary_file = base_name .. ".bin" end
-        if not opts.binary_header then opts.binary_header = base_name .. "_bin.h" end
+        if not opts.binary_file then opts.binary_file = base_name .. mode_suffix .. ".bin" end
+        if not opts.binary_header then opts.binary_header = base_name .. "_bin" .. mode_suffix .. ".h" end
     end
     
     -- Generate outputs
@@ -312,6 +336,11 @@ local function main()
     if opts.header then
         local content = gen:to_c_header(base_name)
         write_file(make_path(opts.outdir, opts.header), content)
+    end
+    
+    if opts.debug_header then
+        local content = gen:to_c_debug_header(base_name)
+        write_file(make_path(opts.outdir, opts.debug_header), content)
     end
     
     if opts.user_header then
@@ -340,7 +369,8 @@ local function main()
     
     -- Default output if nothing specified
     if not opts.header and not opts.user_header and not opts.registration and
-       not opts.records_header and not opts.binary_file and not opts.binary_header and not opts.dump then
+       not opts.records_header and not opts.binary_file and not opts.binary_header and 
+       not opts.debug_header and not opts.dump then
         if #module_data.record_order > 0 then
             local content = gen:to_c_records_header(base_name)
             write_file(make_path(opts.outdir, base_name .. "_records.h"), content)
@@ -361,6 +391,7 @@ local function main()
     print("  Main functions: " .. #module_data.main_funcs)
     print("  Pred functions: " .. #module_data.pred_funcs)
     print("  Mode: " .. (opts.pointer_size == 8 and "64-bit" or "32-bit"))
+    print("  Binary format: v5.0 (direct s_expr_param_t, zero-copy)")
 end
 
 -- Run

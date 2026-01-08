@@ -1,15 +1,10 @@
 // ============================================================================
 // chain_flow_dsl_tests_user_functions.h
 // User function prototypes for chain_flow_dsl_tests
-// DO NOT EDIT
 // ============================================================================
 
 #ifndef CHAIN_FLOW_DSL_TESTS_USER_FUNCTIONS_H
 #define CHAIN_FLOW_DSL_TESTS_USER_FUNCTIONS_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "s_engine_types.h"
 
@@ -89,9 +84,5 @@ s_result_t TEST_32_RUN_BACKGROUND_TASKS(s_engine_ctx_t* ctx);
 // Predicate functions
 bool CFL_S_BIT_OR(s_engine_ctx_t* ctx);
 bool CFL_S_BIT_AND(s_engine_ctx_t* ctx);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // CHAIN_FLOW_DSL_TESTS_USER_FUNCTIONS_H
