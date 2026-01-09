@@ -1,0 +1,183 @@
+{
+  "bitspace_count": 13,
+  "bitspaces": [
+    {
+      "hash": "0xE09A6F96",
+      "latch": false,
+      "merge": "PRIORITY",
+      "name": "STATE"
+    },
+    {
+      "hash": "0x6B3DA4FA",
+      "latch": false,
+      "merge": "OR",
+      "name": "ALARM"
+    },
+    {
+      "hash": "0x67B866D6",
+      "latch": true,
+      "merge": "OR",
+      "name": "ALARM_LATCHED"
+    },
+    {
+      "hash": "0xB738B875",
+      "latch": true,
+      "merge": "OR",
+      "name": "SAFETY_ALARM"
+    },
+    {
+      "hash": "0xB01D1EB0",
+      "latch": false,
+      "merge": "MASK",
+      "name": "ALARM_ACK"
+    },
+    {
+      "hash": "0x2789D84C",
+      "latch": true,
+      "merge": "MASK",
+      "name": "ALARM_ACK_LATCHED"
+    },
+    {
+      "hash": "0xCDDA2CD4",
+      "latch": false,
+      "merge": "AND",
+      "name": "READY"
+    },
+    {
+      "hash": "0xD830BE88",
+      "latch": true,
+      "merge": "AND",
+      "name": "READY_LATCHED"
+    },
+    {
+      "hash": "0xE4C7007C",
+      "latch": false,
+      "merge": "OR",
+      "name": "INHIBIT"
+    },
+    {
+      "hash": "0x411707D6",
+      "latch": false,
+      "merge": "AND",
+      "name": "PERMIT"
+    },
+    {
+      "hash": "0x37DE2244",
+      "latch": false,
+      "merge": "OR",
+      "name": "CMD_REQ"
+    },
+    {
+      "hash": "0x448CE145",
+      "latch": false,
+      "merge": "OR",
+      "name": "CMD_ACK"
+    },
+    {
+      "hash": "0x9DF6AAC2",
+      "latch": true,
+      "merge": "PRIORITY",
+      "name": "WORST_STATE"
+    }
+  ],
+  "class_count": 6,
+  "config": {
+    "Plant.Line1.Cell1.Robot1": {
+      "Config.Comm.Enabled": true,
+      "Config.Motion.MaxAccel": 4,
+      "Config.Motion.MaxSpeed": 1500,
+      "Config.Name": "Welder_01",
+      "Config.Safety.Enabled": true,
+      "Config.Safety.LimitSwitch": "LS-001"
+    },
+    "Plant.Line1.Cell1.Robot2": {
+      "Name": "Welder_02"
+    },
+    "Plant.Line1.Cell2.Robot1": {
+      "Name": "Painter_01"
+    }
+  },
+  "node_count": 13,
+  "nodes": [
+    {
+      "class": "Plant",
+      "depth": 0,
+      "hash": "0x8DC56832",
+      "path": "Plant"
+    },
+    {
+      "class": "Line",
+      "depth": 1,
+      "hash": "0x65714B35",
+      "path": "Plant.Line1"
+    },
+    {
+      "class": "Cell",
+      "depth": 2,
+      "hash": "0xD5CB98F8",
+      "path": "Plant.Line1.Cell1"
+    },
+    {
+      "class": "RobotArm",
+      "depth": 3,
+      "hash": "0x84924135",
+      "path": "Plant.Line1.Cell1.Robot1"
+    },
+    {
+      "class": "RobotArm",
+      "depth": 3,
+      "hash": "0x81923C7C",
+      "path": "Plant.Line1.Cell1.Robot2"
+    },
+    {
+      "class": "Sensor",
+      "depth": 3,
+      "hash": "0x6841C70F",
+      "path": "Plant.Line1.Cell1.Sensor1"
+    },
+    {
+      "class": "Conveyor",
+      "depth": 3,
+      "hash": "0x12939132",
+      "path": "Plant.Line1.Cell1.Conveyor1"
+    },
+    {
+      "class": "Cell",
+      "depth": 2,
+      "hash": "0xD8CB9DB1",
+      "path": "Plant.Line1.Cell2"
+    },
+    {
+      "class": "RobotArm",
+      "depth": 3,
+      "hash": "0x9358F3F2",
+      "path": "Plant.Line1.Cell2.Robot1"
+    },
+    {
+      "class": "Sensor",
+      "depth": 3,
+      "hash": "0x45D0D476",
+      "path": "Plant.Line1.Cell2.Sensor1"
+    },
+    {
+      "class": "Cell",
+      "depth": 2,
+      "hash": "0xD7CB9C1E",
+      "path": "Plant.Line1.Cell3"
+    },
+    {
+      "class": "Conveyor",
+      "depth": 3,
+      "hash": "0xF4328364",
+      "path": "Plant.Line1.Cell3.Conveyor1"
+    },
+    {
+      "class": "Sensor",
+      "depth": 3,
+      "hash": "0x8800B99D",
+      "path": "Plant.Line1.Cell3.Sensor1"
+    }
+  ],
+  "schema_name": "ChainBitTreeDemo",
+  "version": "1.0.0"
+}
