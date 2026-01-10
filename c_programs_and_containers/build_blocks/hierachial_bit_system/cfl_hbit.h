@@ -1,29 +1,26 @@
 /**
- * @file cfl_hbit.h
- * @brief ChainTree Hierarchical Bit Map Runtime
- * 
- * Zero-copy, deterministic bit propagation engine for embedded systems.
- * Supports OR, AND, PRIORITY, and MASK merge operations with optional
- * latching and shadow/current double-buffering.
+ * @file cfl_hbit2_api.h
+ * @brief ChainTree Hierarchical Bit Map - Clean API v2
  *
- * Usage:
- *   #include "cfl_hbit.h"
- *   #include "generated_MySchema.bin.h"
+ * Self-contained header - do NOT include cfl_hbit.h
  *
- *   cfl_hbit_t tree;
- *   cfl_hbit_init(&tree, MySchema_descriptor, MySchema_descriptor_size);
- *   cfl_hbit_set_bit(&tree, BS_ALARM, 0, true, "Plant.Line1.Robot1");
- *   cfl_hbit_sync(&tree);
+ * Design:
+ *   1. cfl_hbit2_node() - ONE path lookup, returns node_id
+ *   2. cfl_hbit2_bitspace() - lookup bitspace by name, returns bs_id  
+ *   3. All operations use (tree, node, bs_id, ...) pattern
+ *
+ * Node types:
+ *   - Leaf: actual devices, can read/write bits
+ *   - Aggregate: virtual groupings, read-only (computed by propagate)
  */
 
- #ifndef CFL_HBIT_H
- #define CFL_HBIT_H
+ #ifndef CFL_HBIT2_API_H
+ #define CFL_HBIT2_API_H
  
  #include <stdint.h>
  #include <stdbool.h>
  #include <stddef.h>
  #include <stdarg.h>
- #include "cfl_exception.h"
  
  #ifdef __cplusplus
  extern "C" {
@@ -42,57 +39,17 @@
  #endif
  
  /* ============================================ */
- /* Custom Allocator Types                       */
+ /* Internal Types (needed for tree structure)   */
  /* ============================================ */
  
+ /* Custom allocator */
  typedef void* (*cfl_hbit_alloc_fn)(void* handle, size_t size);
  typedef void  (*cfl_hbit_free_fn)(void* handle, void* ptr);
  
- typedef struct {
-     void* handle;
-     cfl_hbit_alloc_fn alloc;
-     cfl_hbit_free_fn free;
- } cfl_hbit_allocator_t;
- 
- /* ============================================ */
- /* Status Codes                                 */
- /* ============================================ */
- 
- typedef enum {
-     CFL_HBIT_OK = 0,
-     CFL_HBIT_ERR_NULL_PTR,
-     CFL_HBIT_ERR_NOT_INITIALIZED,
-     CFL_HBIT_ERR_INVALID_DESCRIPTOR,
-     CFL_HBIT_ERR_PATH_NOT_FOUND,
-     CFL_HBIT_ERR_BITSPACE_INVALID,
-     CFL_HBIT_ERR_BIT_OUT_OF_RANGE,
-     CFL_HBIT_ERR_NO_MEMORY,
-     CFL_HBIT_ERR_SOURCE_ACTIVE,
-     CFL_HBIT_ERR_CALLBACK_FULL,
- } cfl_hbit_status_t;
- 
- /* ============================================ */
- /* Merge Types                                  */
- /* ============================================ */
- 
- #ifndef CFL_HBIT_MERGE_DEFINED
- #define CFL_HBIT_MERGE_DEFINED
- typedef enum {
-     CFL_HBIT_MERGE_OR = 0,
-     CFL_HBIT_MERGE_AND = 1,
-     CFL_HBIT_MERGE_PRIORITY = 2,
-     CFL_HBIT_MERGE_MASK = 3,
- } cfl_hbit_merge_t;
- #endif
- 
- /* ============================================ */
- /* Binary Format Structures (ROM)               */
- /* ============================================ */
- 
- /* Binary header - first 48 bytes of descriptor */
+ /* Binary header */
  typedef struct __attribute__((packed)) {
-     uint32_t magic;              /* 0x54494248 "HBIT" */
-     uint32_t version;            /* Format version */
+     uint32_t magic;
+     uint32_t version;
      uint16_t bitspace_count;
      uint16_t class_count;
      uint16_t node_count;
@@ -107,7 +64,7 @@
      uint32_t strings_offset;
  } cfl_hbit_header_t;
  
- /* Bitspace descriptor - 48 bytes each */
+ /* Bitspace descriptor */
  typedef struct __attribute__((packed)) {
      uint32_t name_hash;
      uint8_t  merge_type;
@@ -119,16 +76,23 @@
      uint32_t priority_hashes[8];
  } cfl_hbit_bitspace_desc_t;
  
- /* Node descriptor in binary - variable size based on bitspace count */
+ /* Node descriptor */
  typedef struct __attribute__((packed)) {
      uint32_t path_hash;
      uint16_t class_index;
      uint16_t depth;
-     int32_t  parent_index;       /* -1 if root */
-     uint16_t child_count;        /* 0 = leaf node */
+     int32_t  parent_index;
+     uint16_t child_count;
      uint16_t reserved;
-     /* Note: masks removed from binary - now runtime-only for leaf nodes */
  } cfl_hbit_node_desc_t;
+ 
+ /* Config entry */
+ typedef struct __attribute__((packed)) {
+     uint32_t path_hash;
+     uint8_t  value_type;
+     uint8_t  reserved[3];
+     uint32_t value;
+ } cfl_hbit_config_entry_t;
  
  /* Arena descriptor in binary */
  typedef struct __attribute__((packed)) {
@@ -137,31 +101,11 @@
      /* Followed by: uint32_t node_offsets[node_count] */
  } cfl_hbit_arena_desc_t;
  
- /* Config entry in binary */
- typedef struct __attribute__((packed)) {
-     uint32_t path_hash;
-     uint8_t  value_type;
-     uint8_t  reserved[3];
-     uint32_t value;              /* int32, float bits, bool, or string offset */
- } cfl_hbit_config_entry_t;
- 
- /* Config value types */
- typedef enum {
-     CFL_HBIT_CONFIG_NULL = 0,
-     CFL_HBIT_CONFIG_INT = 1,
-     CFL_HBIT_CONFIG_FLOAT = 2,
-     CFL_HBIT_CONFIG_BOOL = 3,
-     CFL_HBIT_CONFIG_STRING = 4,
- } cfl_hbit_config_type_t;
- 
- /* ============================================ */
- /* Runtime Structures (RAM)                     */
- /* ============================================ */
- 
- /* Forward declaration */
+ /* Forward declarations */
  typedef struct cfl_hbit cfl_hbit_t;
+ typedef struct cfl_hbit2_tree cfl_hbit2_tree_t;
  
- /* Change callback signature */
+ /* Internal callback type (not part of public API) */
  typedef void (*cfl_hbit_change_cb_t)(
      cfl_hbit_t* tree,
      uint16_t bitspace_id,
@@ -172,36 +116,32 @@
      void* user_data
  );
  
- /* Callback registration */
  typedef struct {
      cfl_hbit_change_cb_t callback;
      void* user_data;
-     int16_t bitspace_id;         /* -1 for all bitspaces */
+     int16_t bitspace_id;
      uint16_t reserved;
  } cfl_hbit_callback_t;
  
  /* Per-bitspace runtime state */
  typedef struct {
-     uint8_t* shadow;             /* Write buffer */
-     uint8_t* current;            /* Read buffer (stable) */
-     uint8_t* latch;              /* Latched state (if latch enabled) */
-     uint8_t* live;               /* Live state before latch (if latch enabled) */
-     uint8_t* prev;               /* Previous state for change detection */
-     uint32_t size;               /* Bytes per arena */
+     uint8_t* shadow;
+     uint8_t* current;
+     uint8_t* latch;
+     uint8_t* live;
+     uint8_t* prev;
+     uint32_t size;
  } cfl_hbit_arena_t;
  
- /* Main runtime structure */
+ /* Main internal runtime structure */
  struct cfl_hbit {
-     /* Custom allocator (NULL = use stdlib malloc/free) */
      void* alloc_handle;
      cfl_hbit_alloc_fn alloc_fn;
      cfl_hbit_free_fn free_fn;
      
-     /* Descriptor pointer (ROM) */
      const uint8_t* descriptor;
      uint32_t descriptor_size;
      
-     /* Parsed header info */
      const cfl_hbit_header_t* header;
      const cfl_hbit_bitspace_desc_t* bitspaces;
      const uint8_t* classes_base;
@@ -210,660 +150,262 @@
      const cfl_hbit_config_entry_t* config;
      const char* strings;
      
-     /* Runtime arenas (dynamically allocated, count = bitspace_count) */
      cfl_hbit_arena_t* arenas;
      
-     /* Callbacks (dynamically allocated) */
      cfl_hbit_callback_t* callbacks;
      uint8_t callback_count;
      uint8_t callback_capacity;
      
-     /* Leaf node masks (shadow/current, sized to bank, only for leaf nodes) */
-     uint8_t* leaf_shadow_masks;   /* All leaf masks (shadow buffer) */
-     uint8_t* leaf_current_masks;  /* All leaf masks (current buffer) */
-     uint32_t* leaf_mask_offsets;  /* Offset into mask buffer per leaf node */
-     uint16_t* leaf_node_indices;  /* Map leaf index -> node index */
-     uint16_t leaf_count;          /* Number of leaf nodes */
-     uint32_t leaf_mask_total_bytes; /* Total mask bytes per buffer */
+     uint8_t* leaf_shadow_masks;
+     uint8_t* leaf_current_masks;
+     uint32_t* leaf_mask_offsets;
+     uint16_t* leaf_node_indices;
+     uint16_t leaf_count;
+     uint32_t leaf_mask_total_bytes;
      
-     /* Memory block (single allocation for all runtime data) */
      void* memory_block;
      uint32_t memory_block_size;
      
-     /* State flags */
      uint8_t initialized;
-     uint8_t dirty;               /* Shadow modified since last sync */
-     uint8_t owns_descriptor;     /* True if descriptor was loaded from file */
+     uint8_t dirty;
+     uint8_t owns_descriptor;
  };
  
  /* ============================================ */
- /* Initialization and Lifecycle                 */
+ /* Public API Types                             */
+ /* ============================================ */
+ 
+ /* Tree wraps internal cfl_hbit_t - can be stack allocated */
+ typedef struct cfl_hbit2_tree {
+     cfl_hbit_t impl;
+ } cfl_hbit2_tree_t;
+ 
+ /* Status codes */
+ typedef enum {
+     CFL_HBIT2_OK = 0,
+     CFL_HBIT2_ERR_NULL,
+     CFL_HBIT2_ERR_NOT_INIT,
+     CFL_HBIT2_ERR_BAD_NODE,
+     CFL_HBIT2_ERR_BAD_BITSPACE,
+     CFL_HBIT2_ERR_BAD_BIT,
+     CFL_HBIT2_ERR_NOT_LEAF,
+     CFL_HBIT2_ERR_SIZE_MISMATCH,
+     CFL_HBIT2_ERR_SOURCE_ACTIVE,
+     CFL_HBIT2_ERR_NO_MEMORY,
+     CFL_HBIT2_ERR_BAD_DESCRIPTOR,
+ } cfl_hbit2_status_t;
+ 
+ /* Memory info */
+ typedef struct {
+     uint32_t descriptor_size;
+     uint32_t arena_size;
+     uint32_t mask_size;
+     uint32_t total_ram;
+     uint16_t node_count;
+     uint16_t leaf_count;
+     uint16_t bitspace_count;
+ } cfl_hbit2_mem_t;
+ 
+ /* ============================================ */
+ /* Initialization                               */
  /* ============================================ */
  
  /**
-  * Initialize with custom allocator.
-  *
-  * @param tree      Output tree instance
-  * @param desc      Binary descriptor data (from generated .bin.h)
-  * @param desc_size Size of descriptor in bytes
-  * @param allocator Custom allocator (NULL = use stdlib malloc/free)
-  * @return CFL_HBIT_OK on success
+  * Initialize tree from descriptor.
   */
- cfl_hbit_status_t cfl_hbit_init(
-     cfl_hbit_t* tree,
-     const uint8_t* desc,
-     uint32_t desc_size,
-     const cfl_hbit_allocator_t* allocator
- );
- 
- /**
-  * Initialize with external memory pool (no allocation).
-  *
-  * @param tree      Output tree instance
-  * @param desc      Binary descriptor data
-  * @param desc_size Size of descriptor
-  * @param pool      External memory pool
-  * @param pool_size Size of memory pool
-  * @return CFL_HBIT_OK on success
-  */
- cfl_hbit_status_t cfl_hbit_init_static(
-     cfl_hbit_t* tree,
-     const uint8_t* desc,
-     uint32_t desc_size,
-     uint8_t* pool,
-     uint32_t pool_size
- );
- 
- /**
-  * Get required memory size for static initialization.
-  *
-  * @param desc      Binary descriptor data
-  * @param desc_size Size of descriptor
-  * @return Required bytes, or 0 on error
-  */
- uint32_t cfl_hbit_required_memory(
+ cfl_hbit2_status_t cfl_hbit2_init(
+     cfl_hbit2_tree_t* tree,
      const uint8_t* desc,
      uint32_t desc_size
  );
  
  /**
-  * Load binary descriptor from file.
-  * Uses the tree's allocator if set, otherwise stdlib malloc.
-  * Caller must free with cfl_hbit_free_descriptor().
-  *
-  * @param tree      Tree instance (for allocator, can be partially initialized)
-  * @param path      File path to .bin file
-  * @param out_data  Output pointer to loaded data
-  * @param out_size  Output size in bytes
-  * @return CFL_HBIT_OK on success
+  * Initialize from file.
   */
- cfl_hbit_status_t cfl_hbit_load_descriptor(
-     cfl_hbit_t* tree,
-     const char* path,
-     uint8_t** out_data,
-     uint32_t* out_size
+ cfl_hbit2_status_t cfl_hbit2_init_file(
+     cfl_hbit2_tree_t* tree,
+     const char* path
  );
  
  /**
-  * Free descriptor loaded with cfl_hbit_load_descriptor().
-  *
-  * @param tree      Tree instance (for allocator)
-  * @param data      Data pointer returned by cfl_hbit_load_descriptor()
+  * Destroy tree, free resources.
   */
- void cfl_hbit_free_descriptor(
-     cfl_hbit_t* tree,
-     uint8_t* data
- );
- 
- /**
-  * Initialize from file path (convenience wrapper).
-  * Loads descriptor and initializes tree in one call.
-  * The descriptor is stored in memory_block and freed on destroy.
-  *
-  * @param tree      Output tree instance
-  * @param path      File path to .bin file
-  * @param allocator Custom allocator (NULL = use stdlib)
-  * @return CFL_HBIT_OK on success
-  */
- cfl_hbit_status_t cfl_hbit_init_from_file(
-     cfl_hbit_t* tree,
-     const char* path,
-     const cfl_hbit_allocator_t* allocator
- );
- 
- /**
-  * Destroy tree and free memory.
-  */
- void cfl_hbit_destroy(cfl_hbit_t* tree);
+ void cfl_hbit2_destroy(cfl_hbit2_tree_t* tree);
  
  /**
   * Reset all bits to zero.
   */
- void cfl_hbit_reset(cfl_hbit_t* tree);
+ void cfl_hbit2_reset(cfl_hbit2_tree_t* tree);
  
  /**
-  * Reset a specific bitspace only.
+  * Get memory info.
   */
- void cfl_hbit_reset_bitspace(cfl_hbit_t* tree, uint16_t bitspace_id);
+ void cfl_hbit2_mem(cfl_hbit2_tree_t* tree, cfl_hbit2_mem_t* info);
  
  /* ============================================ */
- /* Node Lookup                                  */
+ /* Lookup                                       */
  /* ============================================ */
  
  /**
-  * Find node index by path string.
-  * Use returned index with _n suffix functions for faster access.
-  *
-  * @param tree     Tree instance
-  * @param path_fmt Printf-style path format
-  * @return Node index (>= 0) on success, -1 if not found
+  * Find node by path. This is THE path lookup function.
+  * @return node_id >= 0 on success, -1 if not found
   */
- int32_t cfl_hbit_find_node_path(
-     cfl_hbit_t* tree,
+ int32_t cfl_hbit2_node(
+     cfl_hbit2_tree_t* tree,
      const char* path_fmt,
      ...
  );
  
  /**
-  * Get parent node index.
-  *
-  * @param tree     Tree instance
-  * @param node_idx Node index
-  * @return Parent node index (>= 0), -1 if root or error
+  * Find bitspace by name.
+  * @return bs_id >= 0 on success, -1 if not found
   */
- int32_t cfl_hbit_get_parent_n(
-     cfl_hbit_t* tree,
-     int32_t node_idx
- );
- 
- /**
-  * Get children of a node.
-  * Scans node list for nodes with this node as parent.
-  *
-  * @param tree         Tree instance
-  * @param node_idx     Parent node index
-  * @param children     OUT: array to fill with child indices
-  * @param max_children Size of children array
-  * @return Number of children found (may be less than actual if array too small)
-  */
- int cfl_hbit_get_children_n(
-     cfl_hbit_t* tree,
-     int32_t node_idx,
-     int32_t* children,
-     int max_children
- );
- 
- /**
-  * Get child count for a node (from descriptor, no scan needed).
-  *
-  * @param tree     Tree instance
-  * @param node_idx Node index
-  * @return Number of children, 0 if leaf or error
-  */
- int cfl_hbit_get_child_count_n(
-     cfl_hbit_t* tree,
-     int32_t node_idx
+ int16_t cfl_hbit2_bitspace(
+     cfl_hbit2_tree_t* tree,
+     const char* name
  );
  
  /* ============================================ */
- /* Bit Operations - Node-indexed (_n suffix)    */
+ /* Node Info                                    */
+ /* ============================================ */
+ 
+ bool cfl_hbit2_info_is_leaf(cfl_hbit2_tree_t* tree, int32_t node);
+ int cfl_hbit2_info_bits(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id);
+ int cfl_hbit2_info_bytes(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id);
+ int cfl_hbit2_info_node_count(cfl_hbit2_tree_t* tree);
+ int cfl_hbit2_info_bitspace_count(cfl_hbit2_tree_t* tree);
+ 
+ /* ============================================ */
+ /* Tree Navigation                              */
+ /* ============================================ */
+ 
+ int32_t cfl_hbit2_nav_parent(cfl_hbit2_tree_t* tree, int32_t node);
+ int cfl_hbit2_nav_children(cfl_hbit2_tree_t* tree, int32_t node, int32_t* out, int max);
+ int cfl_hbit2_nav_child_count(cfl_hbit2_tree_t* tree, int32_t node);
+ 
+ /* ============================================ */
+ /* Bit-Level Access                             */
  /* ============================================ */
  
  /**
-  * Set a single bit using pre-resolved node index.
+  * Set a single bit. LEAF ONLY.
   */
- cfl_hbit_status_t cfl_hbit_set_bit_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     bool value,
-     int32_t node_idx
+ cfl_hbit2_status_t cfl_hbit2_bit_set(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit,
+     bool value
  );
  
  /**
-  * Get a single bit using pre-resolved node index.
-  * @return 1 if set, 0 if clear, -1 on error
+  * Get a single bit. Works on any node.
+  * @return 1=set, 0=clear, -1=error
   */
- int cfl_hbit_get_bit_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     int32_t node_idx
+ int cfl_hbit2_bit_get(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit
  );
  
  /**
-  * Get pointer to bit bank using pre-resolved node index.
+  * Get bit edge since last sync.
+  * @return 1=rising, -1=falling, 0=no change
   */
- const uint8_t* cfl_hbit_get_bits_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     int32_t node_idx
- );
- 
- /**
-  * Get edge transition for a single bit using pre-resolved node index.
-  * @return 1 = rising, -1 = falling, 0 = no change
-  */
- int cfl_hbit_get_bit_edge_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     int32_t node_idx
- );
- 
- /**
-  * Clear latch using pre-resolved node index (leaf nodes only).
-  * EXCEPTION if called on non-leaf node.
-  */
- cfl_hbit_status_t cfl_hbit_clear_latch_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     int32_t node_idx
- );
- 
- /**
-  * Clear latch bits using pre-resolved node index (leaf nodes only).
-  * EXCEPTION if called on non-leaf node.
-  */
- cfl_hbit_status_t cfl_hbit_clear_latch_bits_n(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint32_t bit_mask,
-     int32_t node_idx
+ int cfl_hbit2_bit_edge(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit
  );
  
  /* ============================================ */
- /* Bit Operations - Path-based (Write to Shadow)*/
+ /* Byte-Level Access                            */
  /* ============================================ */
  
- /**
-  * Set a single bit in the shadow buffer.
-  * Changes become visible after cfl_hbit_sync().
-  *
-  * @param tree        Tree instance
-  * @param bitspace_id Bitspace index
-  * @param bit_index   Bit position within the bank
-  * @param value       true=set, false=clear
-  * @param path_fmt    Printf-style path format
-  * @return CFL_HBIT_OK on success
-  */
- cfl_hbit_status_t cfl_hbit_set_bit(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     bool value,
-     const char* path_fmt,
-     ...
+ cfl_hbit2_status_t cfl_hbit2_bank_set(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     const uint8_t* data,
+     int len
  );
  
- /**
-  * Clear a single bit (convenience wrapper).
-  */
- cfl_hbit_status_t cfl_hbit_clear_bit(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     const char* path_fmt,
-     ...
+ const uint8_t* cfl_hbit2_bank_get(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
- /**
-  * Set multiple bits from a mask.
-  */
- cfl_hbit_status_t cfl_hbit_set_bits_mask(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint32_t mask,
-     uint32_t value,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Clear all bits in a node's bank.
-  */
- cfl_hbit_status_t cfl_hbit_clear_bank(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Bulk clear entire bitspace (all nodes).
-  */
- void cfl_hbit_clear_bitspace(cfl_hbit_t* tree, uint16_t bitspace_id);
- 
- /* ============================================ */
- /* Bit Operations (Read from Current)           */
- /* ============================================ */
- 
- /**
-  * Get pointer to a node's bit bank (read-only).
-  * Returns NULL if path not found.
-  */
- const uint8_t* cfl_hbit_get_bits(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get a single bit value.
-  * Returns -1 if path not found, 0 or 1 otherwise.
-  */
- int cfl_hbit_get_bit(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get bank size in bytes for a node.
-  */
- int cfl_hbit_get_bank_size(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
+ cfl_hbit2_status_t cfl_hbit2_bank_clear(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
  /* ============================================ */
- /* Mask Operations (leaf nodes only)            */
+ /* Mask Operations (LEAF ONLY)                  */
  /* ============================================ */
  
- /**
-  * Set mask for a leaf node (controls which bits propagate upward).
-  * Bits set to 1 will propagate, bits set to 0 are blocked.
-  * Writes to shadow buffer - takes effect after swap().
-  * 
-  * EXCEPTION if called on non-leaf node.
-  *
-  * @param tree        Tree instance
-  * @param bitspace_id Bitspace to set mask for
-  * @param mask        Byte array of mask bits (sized to bank)
-  * @param mask_bytes  Size of mask array in bytes
-  * @param path_fmt    Printf-style path to node
-  */
- cfl_hbit_status_t cfl_hbit_set_mask(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
+ cfl_hbit2_status_t cfl_hbit2_mask_set(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
      const uint8_t* mask,
-     uint16_t mask_bytes,
-     const char* path_fmt,
-     ...
+     int len
  );
  
- /**
-  * Clear mask (restore to all 0xFF, all bits propagate).
-  * Writes to shadow buffer - takes effect after swap().
-  *
-  * EXCEPTION if called on non-leaf node.
-  */
- cfl_hbit_status_t cfl_hbit_clear_mask(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
+ cfl_hbit2_status_t cfl_hbit2_mask_clear(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
- /**
-  * Get current mask for a leaf node.
-  * Returns pointer to current mask buffer (read-only).
-  *
-  * @return Pointer to mask bytes, or NULL if not a leaf or not found
-  */
- const uint8_t* cfl_hbit_get_mask(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t* out_mask_bytes,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Check if a node is a leaf (has no children).
-  */
- bool cfl_hbit_is_leaf(
-     cfl_hbit_t* tree,
-     const char* path_fmt,
-     ...
+ const uint8_t* cfl_hbit2_mask_get(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
  /* ============================================ */
- /* Latch Operations                             */
+ /* Latch Operations (LEAF ONLY)                 */
  /* ============================================ */
  
- /**
-  * Clear latch for a leaf node.
-  * If clear_requires_inactive is set, returns CFL_HBIT_ERR_SOURCE_ACTIVE
-  * if the source bit is still active.
-  *
-  * EXCEPTION if called on non-leaf node.
-  */
- cfl_hbit_status_t cfl_hbit_clear_latch(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
+ cfl_hbit2_status_t cfl_hbit2_latch_clear(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
- /**
-  * Clear latch for specific bits only (leaf nodes only).
-  *
-  * EXCEPTION if called on non-leaf node.
-  */
- cfl_hbit_status_t cfl_hbit_clear_latch_bits(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint32_t bit_mask,
-     const char* path_fmt,
-     ...
+ cfl_hbit2_status_t cfl_hbit2_latch_clear_bits(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     uint32_t bits
  );
  
- /**
-  * Clear all latches in entire bitspace (all nodes).
-  */
- void cfl_hbit_clear_all_latches(cfl_hbit_t* tree, uint16_t bitspace_id);
- 
- /**
-  * Get latched state (bits that were set and held).
-  */
- const uint8_t* cfl_hbit_get_latched(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
+ void cfl_hbit2_latch_clear_all(
+     cfl_hbit2_tree_t* tree,
+     int16_t bs_id
  );
  
- /**
-  * Get live state (current source bits before latching).
-  */
- const uint8_t* cfl_hbit_get_live(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     const char* path_fmt,
-     ...
+ const uint8_t* cfl_hbit2_latch_get(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id
  );
  
  /* ============================================ */
  /* Synchronization                              */
  /* ============================================ */
  
- /**
-  * Swap shadow and current buffers.
-  * O(1) pointer swap, interrupt-safe.
-  */
- void cfl_hbit_swap(cfl_hbit_t* tree);
- 
- /**
-  * Run bubble-up propagation on current buffer.
-  * Must be called after swap to update parent states.
-  */
- void cfl_hbit_propagate(cfl_hbit_t* tree);
- 
- /**
-  * Combined swap + propagate (convenience).
-  */
- void cfl_hbit_sync(cfl_hbit_t* tree);
- 
- /* ============================================ */
- /* Change Detection                             */
- /* ============================================ */
- 
- /**
-  * Register a change callback.
-  *
-  * @param bitspace_id -1 for all bitspaces
-  */
- cfl_hbit_status_t cfl_hbit_register_callback(
-     cfl_hbit_t* tree,
-     int16_t bitspace_id,
-     cfl_hbit_change_cb_t callback,
-     void* user_data
- );
- 
- /**
-  * Process changes and fire callbacks.
-  * Call after cfl_hbit_propagate().
-  */
- void cfl_hbit_notify_changes(cfl_hbit_t* tree);
- 
- /**
-  * Get edge transition for a single bit since last sync.
-  *
-  * @param tree        Tree instance
-  * @param bitspace_id Bitspace to check
-  * @param bit_index   Bit position within the bank
-  * @param path_fmt    Printf-style path to node
-  * @return 1 = rising edge (0→1), -1 = falling edge (1→0), 0 = no change
-  */
- int cfl_hbit_get_bit_edge(
-     cfl_hbit_t* tree,
-     uint16_t bitspace_id,
-     uint16_t bit_index,
-     const char* path_fmt,
-     ...
- );
- 
- /* ============================================ */
- /* Configuration Access                         */
- /* ============================================ */
- 
- /**
-  * Get integer config value.
-  */
- int32_t cfl_hbit_config_get_int(
-     cfl_hbit_t* tree,
-     int32_t default_val,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get float config value.
-  */
- float cfl_hbit_config_get_float(
-     cfl_hbit_t* tree,
-     float default_val,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get boolean config value.
-  */
- bool cfl_hbit_config_get_bool(
-     cfl_hbit_t* tree,
-     bool default_val,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get string config value (returns pointer to ROM).
-  */
- const char* cfl_hbit_config_get_string(
-     cfl_hbit_t* tree,
-     const char* default_val,
-     const char* path_fmt,
-     ...
- );
- 
- /* ============================================ */
- /* Introspection                                */
- /* ============================================ */
- 
- /**
-  * Get node count in tree.
-  */
- uint16_t cfl_hbit_node_count(cfl_hbit_t* tree);
- 
- /**
-  * Get bitspace count.
-  */
- uint16_t cfl_hbit_bitspace_count(cfl_hbit_t* tree);
- 
- /**
-  * Check if a path exists.
-  */
- bool cfl_hbit_path_exists(
-     cfl_hbit_t* tree,
-     const char* path_fmt,
-     ...
- );
- 
- /**
-  * Get node index from path hash.
-  * Returns -1 if not found.
-  */
- int32_t cfl_hbit_find_node(cfl_hbit_t* tree, uint32_t path_hash);
- 
- /* ============================================ */
- /* Hash Utilities                               */
- /* ============================================ */
- 
- /**
-  * Compute FNV-1a hash of a string.
-  */
- uint32_t cfl_hbit_hash_string(const char* str);
- 
- /**
-  * Compute FNV-1a hash with printf-style formatting.
-  * No temporary buffer allocation.
-  */
- uint32_t cfl_hbit_hash_vprintf(const char* fmt, va_list args);
- 
- /**
-  * Compute FNV-1a hash with printf-style formatting.
-  */
- uint32_t cfl_hbit_hash_printf(const char* fmt, ...);
- 
- /* ============================================ */
- /* Memory Info                                  */
- /* ============================================ */
- 
- typedef struct {
-     uint32_t descriptor_size;    /* ROM usage */
-     uint32_t arena_size;         /* Total arena RAM */
-     uint32_t leaf_masks_size;    /* Leaf mask buffers RAM (shadow + current) */
-     uint32_t total_ram;          /* Total RAM usage */
-     uint16_t node_count;
-     uint16_t leaf_count;
-     uint16_t bitspace_count;
-     uint16_t max_depth;
- } cfl_hbit_mem_info_t;
- 
- /**
-  * Get memory usage information.
-  */
- void cfl_hbit_get_mem_info(cfl_hbit_t* tree, cfl_hbit_mem_info_t* info);
+ void cfl_hbit2_sync(cfl_hbit2_tree_t* tree);
+ void cfl_hbit2_swap(cfl_hbit2_tree_t* tree);
+ void cfl_hbit2_propagate(cfl_hbit2_tree_t* tree);
  
  #ifdef __cplusplus
  }
  #endif
  
- #endif /* CFL_HBIT_H */
+ #endif /* CFL_HBIT2_API_H */

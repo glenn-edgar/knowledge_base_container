@@ -1,0 +1,63 @@
+local S = require("schema_builder")
+
+-- Schema header
+local schema = S.start_schema("schema", "Irrigation_Example", "1.0.0")
+
+S.options("max_ram", 8192, "max_rom", 16384, "max_depth", 5)
+
+local bs = S.start_bitspaces("bs")
+  S.bitspace_or_latch("ALARM_LATCHED")
+S.end_(bs)
+
+local classes = S.start_classes("classes")
+
+  local agg = S.start_class("agg", "Valve_Aggregate", "ALARM_LATCHED", 8)
+  S.end_(agg)
+
+  local leaf = S.start_class("leaf", "Valve_Bank_Leaf", "ALARM_LATCHED", 8)
+  S.end_(leaf)
+
+S.end_(classes)
+
+local nodes = S.start_nodes("nodes")
+   local valve_status = S.start_node("VALVE_STATUS", "Overall_Valve_Status", "Valve_Aggregate")
+
+         local station_1_valve_status = S.start_node("STATION_1_VALVE_STATUS", "Station_1_Valve_Status", "Valve_Aggregate")
+            local bank_1_valve_status = S.start_node("BANK_1_VALVE_STATUS", "Bank_1_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_1_valve_status)
+            local bank_2_valve_status = S.start_node("BANK_2_VALVE_STATUS", "Bank_2_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_2_valve_status)
+            local bank_3_valve_status = S.start_node("BANK_3_VALVE_STATUS", "Bank_3_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_3_valve_status)
+            local bank_4_valve_status = S.start_node("BANK_4_VALVE_STATUS", "Bank_4_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_4_valve_status)
+        S.end_(station_1_valve_status)
+        local station_2_valve_status = S.start_node("STATION_2_VALVE_STATUS", "Station_2_Valve_Status", "Valve_Aggregate")
+            local bank_1_valve_status = S.start_node("BANK_1_VALVE_STATUS", "Bank_1_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_1_valve_status)
+            local bank_2_valve_status = S.start_node("BANK_2_VALVE_STATUS", "Bank_2_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_2_valve_status)
+            local bank_3_valve_status = S.start_node("BANK_3_VALVE_STATUS", "Bank_3_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_3_valve_status)
+        S.end_(station_2_valve_status)
+        local station_3_valve_status = S.start_node("STATION_3_VALVE_STATUS", "Station_3_Valve_Status", "Valve_Aggregate")
+            local bank_1_valve_status = S.start_node("BANK_1_VALVE_STATUS", "Bank_1_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_1_valve_status)
+            local bank_2_valve_status = S.start_node("BANK_2_VALVE_STATUS", "Bank_2_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_2_valve_status)
+            local bank_3_valve_status = S.start_node("BANK_3_VALVE_STATUS", "Bank_3_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_3_valve_status)
+        S.end_(station_3_valve_status)
+        local station_4_valve_status = S.start_node("STATION_4_VALVE_STATUS", "Station_4_Valve_Status", "Valve_Aggregate")
+            local bank_1_valve_status = S.start_node("BANK_1_VALVE_STATUS", "Bank_1_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_1_valve_status)
+            local bank_2_valve_status = S.start_node("BANK_2_VALVE_STATUS", "Bank_2_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_2_valve_status)
+            local bank_3_valve_status = S.start_node("BANK_3_VALVE_STATUS", "Bank_3_Valve_Status", "Valve_Bank_Leaf")
+            S.end_(bank_3_valve_status)
+        S.end_(station_4_valve_status)
+    S.end_(valve_status)
+S.end_(nodes)
+
+S.end_(schema)
+return S.build()
