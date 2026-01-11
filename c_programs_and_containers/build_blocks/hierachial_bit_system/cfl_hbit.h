@@ -206,29 +206,58 @@
      uint16_t bitspace_count;
  } cfl_hbit2_mem_t;
  
+ /* Allocator function types */
+ typedef void* (*cfl_hbit2_alloc_fn)(void* handle, size_t size);
+ typedef void (*cfl_hbit2_free_fn)(void* handle, void* ptr);
+ 
  /* ============================================ */
  /* Initialization                               */
  /* ============================================ */
  
  /**
-  * Initialize tree from descriptor.
+  * Create tree from descriptor using default allocator (malloc/free).
+  * @return Allocated tree, or NULL on error
   */
- cfl_hbit2_status_t cfl_hbit2_init(
-     cfl_hbit2_tree_t* tree,
+ cfl_hbit2_tree_t* cfl_hbit2_create(
      const uint8_t* desc,
      uint32_t desc_size
  );
  
  /**
-  * Initialize from file.
+  * Create tree from descriptor with custom allocator.
+  * @param desc Binary descriptor
+  * @param desc_size Descriptor size in bytes
+  * @param alloc_fn Allocation function (NULL for malloc)
+  * @param free_fn Free function (NULL for free)
+  * @param alloc_handle User data passed to alloc/free
+  * @return Allocated tree, or NULL on error
   */
- cfl_hbit2_status_t cfl_hbit2_init_file(
-     cfl_hbit2_tree_t* tree,
-     const char* path
+ cfl_hbit2_tree_t* cfl_hbit2_create_with_allocator(
+     const uint8_t* desc,
+     uint32_t desc_size,
+     cfl_hbit2_alloc_fn alloc_fn,
+     cfl_hbit2_free_fn free_fn,
+     void* alloc_handle
  );
  
  /**
-  * Destroy tree, free resources.
+  * Create tree from file using default allocator.
+  * @return Allocated tree, or NULL on error
+  */
+ cfl_hbit2_tree_t* cfl_hbit2_create_file(const char* path);
+ 
+ /**
+  * Create tree from file with custom allocator.
+  */
+ cfl_hbit2_tree_t* cfl_hbit2_create_file_with_allocator(
+     const char* path,
+     cfl_hbit2_alloc_fn alloc_fn,
+     cfl_hbit2_free_fn free_fn,
+     void* alloc_handle
+ );
+ 
+ /**
+  * Destroy tree, free all resources including tree itself.
   */
  void cfl_hbit2_destroy(cfl_hbit2_tree_t* tree);
  
@@ -274,6 +303,7 @@
  int cfl_hbit2_info_bytes(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id);
  int cfl_hbit2_info_node_count(cfl_hbit2_tree_t* tree);
  int cfl_hbit2_info_bitspace_count(cfl_hbit2_tree_t* tree);
+ uint8_t cfl_hbit2_info_merge_type(cfl_hbit2_tree_t* tree, int16_t bs_id);
  
  /* ============================================ */
  /* Tree Navigation                              */
@@ -344,6 +374,16 @@
      int16_t bs_id
  );
  
+ /**
+  * Fill bank with a value (0x00 or 0xFF typically).
+  */
+ cfl_hbit2_status_t cfl_hbit2_bank_fill(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     uint8_t value
+ );
+ 
  /* ============================================ */
  /* Mask Operations (LEAF ONLY)                  */
  /* ============================================ */
@@ -396,6 +436,37 @@
      int16_t bs_id
  );
  
+ /**
+  * Get single latch bit value.
+  * @return 1 if latched, 0 if not, -1 on error
+  */
+ int cfl_hbit2_latch_get_bit(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit
+ );
+ 
+ /**
+  * Set single latch bit (force latch on).
+  */
+ cfl_hbit2_status_t cfl_hbit2_latch_set_bit(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit
+ );
+ 
+ /**
+  * Clear single latch bit.
+  */
+ cfl_hbit2_status_t cfl_hbit2_latch_clear_bit(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int16_t bs_id,
+     int bit
+ );
+ 
  /* ============================================ */
  /* Synchronization                              */
  /* ============================================ */
@@ -403,6 +474,114 @@
  void cfl_hbit2_sync(cfl_hbit2_tree_t* tree);
  void cfl_hbit2_swap(cfl_hbit2_tree_t* tree);
  void cfl_hbit2_propagate(cfl_hbit2_tree_t* tree);
+ 
+ /* ============================================ */
+ /* Tree Walkers                                 */
+ /* ============================================ */
+ 
+ /**
+  * Visitor function for tree walkers.
+  * @return true to continue, false to prune (preorder) or stop (postorder)
+  */
+ typedef bool (*cfl_hbit2_visitor_fn)(
+     cfl_hbit2_tree_t* tree,
+     int32_t node,
+     int depth,
+     void* user
+ );
+ 
+ /**
+  * Pre-order DFS walk: visit node, then children.
+  * Return false from visitor to skip children of that node.
+  */
+ void cfl_hbit2_walk_preorder(
+     cfl_hbit2_tree_t* tree,
+     int32_t root,
+     cfl_hbit2_visitor_fn visit,
+     void* user
+ );
+ 
+ /**
+  * Post-order DFS walk: visit children, then node.
+  * Return false from visitor to stop walk entirely.
+  */
+ void cfl_hbit2_walk_postorder(
+     cfl_hbit2_tree_t* tree,
+     int32_t root,
+     cfl_hbit2_visitor_fn visit,
+     void* user
+ );
+ 
+ /* ============================================ */
+ /* Child Controller                             */
+ /* ============================================ */
+ 
+ /**
+  * Describes a child node and its leaf range
+  */
+ typedef struct {
+     uint16_t node_id;              /* Node index */
+     uint16_t leaf_node_start_index; /* Start index into leaf array */
+     uint16_t leaf_count;           /* Number of leaves under this child */
+ } cfl_hbit2_child_t;
+ 
+ /**
+  * Controller for mapping flat bit indices to tree nodes
+  */
+ typedef struct {
+     cfl_hbit2_tree_t* tree;        /* Reference to tree */
+     int32_t root_node;             /* Root node of this controller */
+     uint16_t child_count;          /* Number of direct children */
+     cfl_hbit2_child_t* children;   /* Array of child descriptors */
+     uint16_t leaf_count;           /* Total leaf count */
+     uint16_t* leaf_nodes;          /* Array of leaf node IDs */
+     uint16_t bits_per_leaf;        /* Bits per leaf (bank width) */
+     int16_t bs_id;                 /* Bitspace ID */
+ } cfl_hbit2_controller_t;
+ 
+ /**
+  * Create controller from a root node.
+  * Builds mapping of children and leaves for fast indexed access.
+  * @return Allocated controller, or NULL on error
+  */
+ cfl_hbit2_controller_t* cfl_hbit2_controller_create(
+     cfl_hbit2_tree_t* tree,
+     int32_t root_node,
+     int16_t bs_id
+ );
+ 
+ /**
+  * Destroy controller, free all resources including controller itself.
+  */
+ void cfl_hbit2_controller_destroy(cfl_hbit2_controller_t* ctrl);
+ 
+ /**
+  * Get leaf node and bit index from child index + bit within child.
+  * @param ctrl Controller
+  * @param child_index Index of child (0..child_count-1)
+  * @param child_bit_index Bit index within that child's leaf range
+  * @param bit_index Output: bit index within the leaf
+  * @return Node ID of leaf, or -1 on error
+  */
+ int32_t cfl_hbit2_controller_get_node_bit(
+     cfl_hbit2_controller_t* ctrl,
+     uint16_t child_index,
+     uint16_t child_bit_index,
+     uint16_t* bit_index
+ );
+ 
+ /**
+  * Get leaf node and bit index from flat bitmap index.
+  * @param ctrl Controller
+  * @param bitmap_index Flat index (0..total_bits-1)
+  * @param bit_index Output: bit index within the leaf
+  * @return Node ID of leaf, or -1 on error
+  */
+ int32_t cfl_hbit2_controller_get_bitmap_node(
+     cfl_hbit2_controller_t* ctrl,
+     uint16_t bitmap_index,
+     uint16_t* bit_index
+ );
  
  #ifdef __cplusplus
  }

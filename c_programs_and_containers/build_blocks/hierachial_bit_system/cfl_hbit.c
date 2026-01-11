@@ -322,6 +322,9 @@
  /* Initialization                               */
  /* ============================================ */
  
+ /* Forward declaration */
+ static void hbit_reset_internal(cfl_hbit_t* tree);
+ 
  static hbit_internal_status_t hbit_init_internal(cfl_hbit_t* tree, const uint8_t* desc, uint32_t desc_size) {
      hbit_internal_status_t s = validate_descriptor(desc, desc_size);
      if (s != HBIT_OK) return s;
@@ -340,6 +343,10 @@
      if (s != HBIT_OK) return s;
      
      tree->initialized = 1;
+     
+     /* Initialize all buffers to proper values */
+     hbit_reset_internal(tree);
+     
      return HBIT_OK;
  }
  
@@ -386,9 +393,17 @@
      if (!tree || !tree->initialized) return;
      for (uint16_t bs = 0; bs < tree->header->bitspace_count; bs++) {
          cfl_hbit_arena_t* ar = &tree->arenas[bs];
+         const cfl_hbit_bitspace_desc_t* bsd = &tree->bitspaces[bs];
          memset(ar->shadow, 0, ar->size);
          memset(ar->current, 0, ar->size);
-         if (ar->latch) memset(ar->latch, 0, ar->size);
+         if (ar->latch) {
+             /* AND latches start at 0xFF (all OK), OR latches start at 0x00 */
+             if (bsd->merge_type == 1) { /* AND */
+                 memset(ar->latch, 0xFF, ar->size);
+             } else {
+                 memset(ar->latch, 0, ar->size);
+             }
+         }
          if (ar->live) memset(ar->live, 0, ar->size);
          if (ar->prev) memset(ar->prev, 0, ar->size);
      }
@@ -536,7 +551,12 @@
          }
      }
      
-     memset(ar->latch + offset, 0, bytes);
+     /* AND latches reset to 0xFF, OR latches reset to 0x00 */
+     if (bs->merge_type == 1) { /* AND */
+         memset(ar->latch + offset, 0xFF, bytes);
+     } else {
+         memset(ar->latch + offset, 0, bytes);
+     }
      return HBIT_OK;
  }
  
@@ -625,25 +645,17 @@
          cfl_hbit_arena_t* ar = &tree->arenas[bs];
          const cfl_hbit_bitspace_desc_t* bsd = &tree->bitspaces[bs];
          
-         /* Apply latching at leaf level before propagation */
-         if (ar->latch) {
+         /* Save live state before any modifications */
+         if (ar->latch && ar->live) {
              for (uint16_t li = 0; li < tree->leaf_count; li++) {
                  int32_t node = tree->leaf_node_indices[li];
                  uint32_t offset = get_node_offset(tree, bs, node);
                  uint16_t bytes = (get_bank_bits(tree, node, bs) + 7) / 8;
-                 
-                 /* Save live state */
                  memcpy(ar->live + offset, ar->current + offset, bytes);
-                 
-                 /* Apply latch: current |= latch */
-                 for (uint16_t i = 0; i < bytes; i++) {
-                     ar->latch[offset + i] |= ar->current[offset + i];
-                     ar->current[offset + i] = ar->latch[offset + i];
-                 }
              }
          }
          
-         /* Apply masks at leaf level */
+         /* Apply masks at leaf level FIRST */
          for (uint16_t li = 0; li < tree->leaf_count; li++) {
              int32_t node = tree->leaf_node_indices[li];
              uint32_t offset = get_node_offset(tree, bs, node);
@@ -652,17 +664,37 @@
              /* Calculate mask offset for this leaf/bitspace */
              uint32_t mask_off = tree->leaf_mask_offsets[li];
              for (uint16_t b = 0; b < bs; b++) {
-                 mask_off += (get_bank_bits(tree, node, b) + 7) / 8;
-             }
-             mask_off = tree->leaf_mask_offsets[li];
-             for (uint16_t b = 0; b < bs; b++) {
                  uint16_t bbits = get_bank_bits(tree, tree->leaf_node_indices[li], b);
                  mask_off += (bbits + 7) / 8;
              }
              
-             /* Apply mask */
+             /* Apply mask based on merge type */
              for (uint16_t i = 0; i < bytes; i++) {
-                 ar->current[offset + i] &= tree->leaf_current_masks[mask_off + i];
+                 if (bsd->merge_type == 1) { /* AND: masked bits → 1 (don't block) */
+                     ar->current[offset + i] |= ~tree->leaf_current_masks[mask_off + i];
+                 } else { /* OR and others: masked bits → 0 (don't contribute) */
+                     ar->current[offset + i] &= tree->leaf_current_masks[mask_off + i];
+                 }
+             }
+         }
+         
+         /* Apply latching at leaf level AFTER mask - latch wins */
+         if (ar->latch) {
+             for (uint16_t li = 0; li < tree->leaf_count; li++) {
+                 int32_t node = tree->leaf_node_indices[li];
+                 uint32_t offset = get_node_offset(tree, bs, node);
+                 uint16_t bytes = (get_bank_bits(tree, node, bs) + 7) / 8;
+                 
+                 /* Apply latch based on merge type */
+                 for (uint16_t i = 0; i < bytes; i++) {
+                     if (bsd->merge_type == 1) { /* AND: latch captures 0s */
+                         ar->latch[offset + i] &= ar->current[offset + i];
+                         ar->current[offset + i] = ar->latch[offset + i];
+                     } else { /* OR and others: latch captures 1s */
+                         ar->latch[offset + i] |= ar->current[offset + i];
+                         ar->current[offset + i] = ar->latch[offset + i];
+                     }
+                 }
              }
          }
          
@@ -726,34 +758,104 @@
  /* PUBLIC API IMPLEMENTATION                    */
  /* ============================================ */
  
- cfl_hbit2_status_t cfl_hbit2_init(cfl_hbit2_tree_t* tree, const uint8_t* desc, uint32_t desc_size) {
-     if (!tree || !desc) return CFL_HBIT2_ERR_NULL;
+ cfl_hbit2_tree_t* cfl_hbit2_create_with_allocator(
+     const uint8_t* desc,
+     uint32_t desc_size,
+     cfl_hbit2_alloc_fn alloc_fn,
+     cfl_hbit2_free_fn free_fn,
+     void* alloc_handle
+ ) {
+     if (!desc) return NULL;
+     
+     /* Allocate tree struct */
+     cfl_hbit2_tree_t* tree;
+     if (alloc_fn) {
+         tree = (cfl_hbit2_tree_t*)alloc_fn(alloc_handle, sizeof(*tree));
+     } else {
+         tree = (cfl_hbit2_tree_t*)malloc(sizeof(*tree));
+     }
+     if (!tree) return NULL;
+     
      memset(tree, 0, sizeof(*tree));
+     
+     /* Set allocator before init so internal allocations use it */
+     tree->impl.alloc_fn = (cfl_hbit_alloc_fn)alloc_fn;
+     tree->impl.free_fn = (cfl_hbit_free_fn)free_fn;
+     tree->impl.alloc_handle = alloc_handle;
      
      hbit_internal_status_t s = hbit_init_internal(&tree->impl, desc, desc_size);
-     switch (s) {
-         case HBIT_OK: return CFL_HBIT2_OK;
-         case HBIT_ERR_NO_MEMORY: return CFL_HBIT2_ERR_NO_MEMORY;
-         case HBIT_ERR_INVALID_DESCRIPTOR: return CFL_HBIT2_ERR_BAD_DESCRIPTOR;
-         default: return CFL_HBIT2_ERR_NOT_INIT;
+     if (s != HBIT_OK) {
+         if (alloc_fn) {
+             free_fn(alloc_handle, tree);
+         } else {
+             free(tree);
+         }
+         return NULL;
      }
+     
+     return tree;
  }
  
- cfl_hbit2_status_t cfl_hbit2_init_file(cfl_hbit2_tree_t* tree, const char* path) {
-     if (!tree || !path) return CFL_HBIT2_ERR_NULL;
+ cfl_hbit2_tree_t* cfl_hbit2_create(const uint8_t* desc, uint32_t desc_size) {
+     return cfl_hbit2_create_with_allocator(desc, desc_size, NULL, NULL, NULL);
+ }
+ 
+ cfl_hbit2_tree_t* cfl_hbit2_create_file_with_allocator(
+     const char* path,
+     cfl_hbit2_alloc_fn alloc_fn,
+     cfl_hbit2_free_fn free_fn,
+     void* alloc_handle
+ ) {
+     if (!path) return NULL;
+     
+     /* Allocate tree struct */
+     cfl_hbit2_tree_t* tree;
+     if (alloc_fn) {
+         tree = (cfl_hbit2_tree_t*)alloc_fn(alloc_handle, sizeof(*tree));
+     } else {
+         tree = (cfl_hbit2_tree_t*)malloc(sizeof(*tree));
+     }
+     if (!tree) return NULL;
+     
      memset(tree, 0, sizeof(*tree));
      
+     /* Set allocator before init so internal allocations use it */
+     tree->impl.alloc_fn = (cfl_hbit_alloc_fn)alloc_fn;
+     tree->impl.free_fn = (cfl_hbit_free_fn)free_fn;
+     tree->impl.alloc_handle = alloc_handle;
+     
      hbit_internal_status_t s = hbit_init_from_file_internal(&tree->impl, path);
-     switch (s) {
-         case HBIT_OK: return CFL_HBIT2_OK;
-         case HBIT_ERR_NO_MEMORY: return CFL_HBIT2_ERR_NO_MEMORY;
-         case HBIT_ERR_INVALID_DESCRIPTOR: return CFL_HBIT2_ERR_BAD_DESCRIPTOR;
-         default: return CFL_HBIT2_ERR_NOT_INIT;
+     if (s != HBIT_OK) {
+         if (alloc_fn) {
+             free_fn(alloc_handle, tree);
+         } else {
+             free(tree);
+         }
+         return NULL;
      }
+     
+     return tree;
+ }
+ 
+ cfl_hbit2_tree_t* cfl_hbit2_create_file(const char* path) {
+     return cfl_hbit2_create_file_with_allocator(path, NULL, NULL, NULL);
  }
  
  void cfl_hbit2_destroy(cfl_hbit2_tree_t* tree) {
-     if (tree) hbit_destroy_internal(&tree->impl);
+     if (!tree) return;
+     
+     /* Save allocator info before destroy clears it */
+     cfl_hbit_free_fn free_fn = tree->impl.free_fn;
+     void* alloc_handle = tree->impl.alloc_handle;
+     
+     hbit_destroy_internal(&tree->impl);
+     
+     /* Free tree struct itself */
+     if (free_fn) {
+         free_fn(alloc_handle, tree);
+     } else {
+         free(tree);
+     }
  }
  
  void cfl_hbit2_reset(cfl_hbit2_tree_t* tree) {
@@ -825,6 +927,12 @@
      return tree->impl.header->bitspace_count;
  }
  
+ uint8_t cfl_hbit2_info_merge_type(cfl_hbit2_tree_t* tree, int16_t bs_id) {
+     if (!tree || !tree->impl.initialized) return 0;
+     if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return 0;
+     return tree->impl.bitspaces[bs_id].merge_type;
+ }
+ 
  int32_t cfl_hbit2_nav_parent(cfl_hbit2_tree_t* tree, int32_t node) {
      if (!tree) return -1;
      return hbit_get_parent_n(&tree->impl, node);
@@ -880,16 +988,22 @@
  }
  
  cfl_hbit2_status_t cfl_hbit2_bank_clear(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id) {
+     return cfl_hbit2_bank_fill(tree, node, bs_id, 0x00);
+ }
+ 
+ cfl_hbit2_status_t cfl_hbit2_bank_fill(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id, uint8_t value) {
      if (!tree) return CFL_HBIT2_ERR_NULL;
      if (!tree->impl.initialized) return CFL_HBIT2_ERR_NOT_INIT;
      if (node < 0 || node >= tree->impl.header->node_count) return CFL_HBIT2_ERR_BAD_NODE;
      if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return CFL_HBIT2_ERR_BAD_BITSPACE;
      if (!is_leaf_node(&tree->impl, node)) return CFL_HBIT2_ERR_NOT_LEAF;
      
-     int bits = cfl_hbit2_info_bits(tree, node, bs_id);
-     for (int i = 0; i < bits; i++) {
-         hbit_set_bit_n(&tree->impl, bs_id, i, false, node);
-     }
+     uint32_t offset = get_node_offset(&tree->impl, bs_id, node);
+     uint16_t bytes = (get_bank_bits(&tree->impl, node, bs_id) + 7) / 8;
+     
+     memset(tree->impl.arenas[bs_id].shadow + offset, value, bytes);
+     tree->impl.dirty = 1;
+     
      return CFL_HBIT2_OK;
  }
  
@@ -976,8 +1090,14 @@
      if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return;
      
      cfl_hbit_arena_t* arena = &tree->impl.arenas[bs_id];
+     const cfl_hbit_bitspace_desc_t* bsd = &tree->impl.bitspaces[bs_id];
      if (arena->latch) {
-         memset(arena->latch, 0, arena->size);
+         /* AND latches reset to 0xFF, OR latches reset to 0x00 */
+         if (bsd->merge_type == 1) { /* AND */
+             memset(arena->latch, 0xFF, arena->size);
+         } else {
+             memset(arena->latch, 0, arena->size);
+         }
      }
  }
  
@@ -994,6 +1114,62 @@
      return arena->latch + offset;
  }
  
+ int cfl_hbit2_latch_get_bit(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id, int bit) {
+     const uint8_t* latch = cfl_hbit2_latch_get(tree, node, bs_id);
+     if (!latch) return -1;
+     
+     uint16_t bits = get_bank_bits(&tree->impl, node, bs_id);
+     if (bit < 0 || bit >= bits) return -1;
+     
+     return (latch[bit / 8] >> (bit % 8)) & 1;
+ }
+ 
+ /**
+  * Set latch bit to 1.
+  * For OR bitspaces: forces alarm latched
+  * For AND bitspaces: resets to OK state
+  */
+ cfl_hbit2_status_t cfl_hbit2_latch_set_bit(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id, int bit) {
+     if (!tree || !tree->impl.initialized) return CFL_HBIT2_ERR_NULL;
+     if (node < 0 || node >= tree->impl.header->node_count) return CFL_HBIT2_ERR_BAD_NODE;
+     if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return CFL_HBIT2_ERR_BAD_BITSPACE;
+     if (!is_leaf_node(&tree->impl, node)) return CFL_HBIT2_ERR_NOT_LEAF;
+     
+     cfl_hbit_arena_t* arena = &tree->impl.arenas[bs_id];
+     if (!arena->latch) return CFL_HBIT2_OK;
+     
+     uint16_t bits = get_bank_bits(&tree->impl, node, bs_id);
+     if (bit < 0 || bit >= bits) return CFL_HBIT2_ERR_BAD_NODE;
+     
+     uint32_t offset = get_node_offset(&tree->impl, bs_id, node);
+     arena->latch[offset + bit / 8] |= (1 << (bit % 8));
+     
+     return CFL_HBIT2_OK;
+ }
+ 
+ /**
+  * Set latch bit to 0.
+  * For OR bitspaces: acknowledges/clears alarm
+  * For AND bitspaces: forces failure latched
+  */
+ cfl_hbit2_status_t cfl_hbit2_latch_clear_bit(cfl_hbit2_tree_t* tree, int32_t node, int16_t bs_id, int bit) {
+     if (!tree || !tree->impl.initialized) return CFL_HBIT2_ERR_NULL;
+     if (node < 0 || node >= tree->impl.header->node_count) return CFL_HBIT2_ERR_BAD_NODE;
+     if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return CFL_HBIT2_ERR_BAD_BITSPACE;
+     if (!is_leaf_node(&tree->impl, node)) return CFL_HBIT2_ERR_NOT_LEAF;
+     
+     cfl_hbit_arena_t* arena = &tree->impl.arenas[bs_id];
+     if (!arena->latch) return CFL_HBIT2_OK;
+     
+     uint16_t bits = get_bank_bits(&tree->impl, node, bs_id);
+     if (bit < 0 || bit >= bits) return CFL_HBIT2_ERR_BAD_NODE;
+     
+     uint32_t offset = get_node_offset(&tree->impl, bs_id, node);
+     arena->latch[offset + bit / 8] &= ~(1 << (bit % 8));
+     
+     return CFL_HBIT2_OK;
+ }
+ 
  /* Sync operations */
  void cfl_hbit2_sync(cfl_hbit2_tree_t* tree) {
      if (tree) hbit_sync_internal(&tree->impl);
@@ -1005,4 +1181,249 @@
  
  void cfl_hbit2_propagate(cfl_hbit2_tree_t* tree) {
      if (tree) hbit_propagate_internal(&tree->impl);
+ }
+ 
+ /* ============================================ */
+ /* Tree Walkers                                 */
+ /* ============================================ */
+ 
+ static void walk_preorder_internal(cfl_hbit2_tree_t* tree, int32_t node, int depth,
+                                    cfl_hbit2_visitor_fn visit, void* user) {
+     if (!visit(tree, node, depth, user)) {
+         return;  /* prune this branch */
+     }
+     
+     int32_t children[16];
+     int count = cfl_hbit2_nav_children(tree, node, children, 16);
+     for (int i = 0; i < count; i++) {
+         walk_preorder_internal(tree, children[i], depth + 1, visit, user);
+     }
+ }
+ 
+ void cfl_hbit2_walk_preorder(cfl_hbit2_tree_t* tree, int32_t root,
+                              cfl_hbit2_visitor_fn visit, void* user) {
+     if (!tree || !visit || root < 0) return;
+     walk_preorder_internal(tree, root, 0, visit, user);
+ }
+ 
+ static bool walk_postorder_internal(cfl_hbit2_tree_t* tree, int32_t node, int depth,
+                                     cfl_hbit2_visitor_fn visit, void* user) {
+     int32_t children[16];
+     int count = cfl_hbit2_nav_children(tree, node, children, 16);
+     
+     for (int i = 0; i < count; i++) {
+         if (!walk_postorder_internal(tree, children[i], depth + 1, visit, user)) {
+             return false;  /* stop walk */
+         }
+     }
+     
+     return visit(tree, node, depth, user);
+ }
+ 
+ void cfl_hbit2_walk_postorder(cfl_hbit2_tree_t* tree, int32_t root,
+                               cfl_hbit2_visitor_fn visit, void* user) {
+     if (!tree || !visit || root < 0) return;
+     walk_postorder_internal(tree, root, 0, visit, user);
+ }
+ 
+ /* ============================================ */
+ /* Child Controller                             */
+ /* ============================================ */
+ 
+ /* Context for counting pass */
+ typedef struct {
+     uint16_t child_count;
+     uint16_t leaf_count;
+     int target_depth;
+ } ctrl_count_ctx_t;
+ 
+ /* Context for populate pass */
+ typedef struct {
+     cfl_hbit2_controller_t* ctrl;
+     uint16_t child_idx;
+     uint16_t leaf_idx;
+     int target_depth;
+ } ctrl_populate_ctx_t;
+ 
+ /* Pass 1: Count children and leaves */
+ static bool ctrl_count_visitor(cfl_hbit2_tree_t* tree, int32_t node, int depth, void* user) {
+     ctrl_count_ctx_t* ctx = (ctrl_count_ctx_t*)user;
+     
+     if (depth == ctx->target_depth) {
+         ctx->child_count++;
+     }
+     
+     if (cfl_hbit2_info_is_leaf(tree, node)) {
+         ctx->leaf_count++;
+     }
+     
+     return true;
+ }
+ 
+ /* Pass 2b: Populate leaves array and update child leaf counts */
+ static bool ctrl_populate_leaves(cfl_hbit2_tree_t* tree, int32_t node, int depth, void* user) {
+     ctrl_populate_ctx_t* ctx = (ctrl_populate_ctx_t*)user;
+     (void)depth;
+     
+     if (cfl_hbit2_info_is_leaf(tree, node)) {
+         ctx->ctrl->leaf_nodes[ctx->leaf_idx] = (uint16_t)node;
+         ctx->leaf_idx++;
+         
+         /* Update leaf count for current child */
+         if (ctx->child_idx > 0) {
+             ctx->ctrl->children[ctx->child_idx - 1].leaf_count++;
+         }
+     }
+     
+     return true;
+ }
+ 
+ /* Helper: count leaves under a specific node */
+ typedef struct {
+     uint16_t count;
+ } leaf_counter_t;
+ 
+ static bool count_leaves_visitor(cfl_hbit2_tree_t* tree, int32_t node, int depth, void* user) {
+     (void)depth;
+     leaf_counter_t* ctx = (leaf_counter_t*)user;
+     if (cfl_hbit2_info_is_leaf(tree, node)) {
+         ctx->count++;
+     }
+     return true;
+ }
+ 
+ cfl_hbit2_controller_t* cfl_hbit2_controller_create(
+     cfl_hbit2_tree_t* tree,
+     int32_t root_node,
+     int16_t bs_id
+ ) {
+     if (!tree) return NULL;
+     if (!tree->impl.initialized) return NULL;
+     if (root_node < 0 || root_node >= tree->impl.header->node_count) return NULL;
+     if (bs_id < 0 || bs_id >= tree->impl.header->bitspace_count) return NULL;
+     
+     /* Allocate controller struct */
+     cfl_hbit2_controller_t* ctrl;
+     if (tree->impl.alloc_fn) {
+         ctrl = (cfl_hbit2_controller_t*)tree->impl.alloc_fn(tree->impl.alloc_handle, sizeof(*ctrl));
+     } else {
+         ctrl = (cfl_hbit2_controller_t*)malloc(sizeof(*ctrl));
+     }
+     if (!ctrl) return NULL;
+     
+     memset(ctrl, 0, sizeof(*ctrl));
+     ctrl->tree = tree;
+     ctrl->root_node = root_node;
+     ctrl->bs_id = bs_id;
+     
+     /* Pass 1: Count children (depth 1) and total leaves */
+     ctrl_count_ctx_t count_ctx = { 0, 0, 1 };
+     cfl_hbit2_walk_preorder(tree, root_node, ctrl_count_visitor, &count_ctx);
+     
+     ctrl->child_count = count_ctx.child_count;
+     ctrl->leaf_count = count_ctx.leaf_count;
+     
+     /* Get bits per leaf from first leaf */
+     ctrl->bits_per_leaf = 0;
+     for (int32_t i = 0; i < tree->impl.header->node_count; i++) {
+         if (cfl_hbit2_info_is_leaf(tree, i)) {
+             ctrl->bits_per_leaf = cfl_hbit2_info_bits(tree, i, bs_id);
+             break;
+         }
+     }
+     
+     /* Allocate arrays */
+     size_t children_size = ctrl->child_count * sizeof(cfl_hbit2_child_t);
+     size_t leaves_size = ctrl->leaf_count * sizeof(uint16_t);
+     
+     if (tree->impl.alloc_fn) {
+         ctrl->children = (cfl_hbit2_child_t*)tree->impl.alloc_fn(tree->impl.alloc_handle, children_size);
+         ctrl->leaf_nodes = (uint16_t*)tree->impl.alloc_fn(tree->impl.alloc_handle, leaves_size);
+     } else {
+         ctrl->children = (cfl_hbit2_child_t*)malloc(children_size);
+         ctrl->leaf_nodes = (uint16_t*)malloc(leaves_size);
+     }
+     
+     if (!ctrl->children || !ctrl->leaf_nodes) {
+         cfl_hbit2_controller_destroy(ctrl);
+         return NULL;
+     }
+     
+     /* Pass 2: Populate children with leaf counts */
+     int32_t direct_children[64];
+     int num_children = cfl_hbit2_nav_children(tree, root_node, direct_children, 64);
+     
+     uint16_t leaf_offset = 0;
+     for (int c = 0; c < num_children && c < ctrl->child_count; c++) {
+         ctrl->children[c].node_id = (uint16_t)direct_children[c];
+         ctrl->children[c].leaf_node_start_index = leaf_offset;
+         
+         /* Count leaves under this child */
+         leaf_counter_t lc = { 0 };
+         cfl_hbit2_walk_preorder(tree, direct_children[c], count_leaves_visitor, &lc);
+         ctrl->children[c].leaf_count = lc.count;
+         
+         /* Populate leaf_nodes for this child */
+         ctrl_populate_ctx_t pop_ctx = { ctrl, 0, leaf_offset, 1 };
+         cfl_hbit2_walk_preorder(tree, direct_children[c], ctrl_populate_leaves, &pop_ctx);
+         
+         leaf_offset += lc.count;
+     }
+     
+     return ctrl;
+ }
+ 
+ void cfl_hbit2_controller_destroy(cfl_hbit2_controller_t* ctrl) {
+     if (!ctrl) return;
+     
+     cfl_hbit2_tree_t* tree = ctrl->tree;
+     
+     if (tree && tree->impl.free_fn) {
+         if (ctrl->children) tree->impl.free_fn(tree->impl.alloc_handle, ctrl->children);
+         if (ctrl->leaf_nodes) tree->impl.free_fn(tree->impl.alloc_handle, ctrl->leaf_nodes);
+         tree->impl.free_fn(tree->impl.alloc_handle, ctrl);
+     } else {
+         free(ctrl->children);
+         free(ctrl->leaf_nodes);
+         free(ctrl);
+     }
+ }
+ 
+ int32_t cfl_hbit2_controller_get_node_bit(
+     cfl_hbit2_controller_t* ctrl,
+     uint16_t child_index,
+     uint16_t child_bit_index,
+     uint16_t* bit_index
+ ) {
+     if (!ctrl || !bit_index) return -1;
+     if (child_index >= ctrl->child_count) return -1;
+     
+     cfl_hbit2_child_t* child = &ctrl->children[child_index];
+     
+     /* Calculate which leaf and bit within leaf */
+     uint16_t leaf_offset = child_bit_index / ctrl->bits_per_leaf;
+     *bit_index = child_bit_index % ctrl->bits_per_leaf;
+     
+     if (leaf_offset >= child->leaf_count) return -1;
+     
+     uint16_t leaf_array_idx = child->leaf_node_start_index + leaf_offset;
+     if (leaf_array_idx >= ctrl->leaf_count) return -1;
+     
+     return ctrl->leaf_nodes[leaf_array_idx];
+ }
+ 
+ int32_t cfl_hbit2_controller_get_bitmap_node(
+     cfl_hbit2_controller_t* ctrl,
+     uint16_t bitmap_index,
+     uint16_t* bit_index
+ ) {
+     if (!ctrl || !bit_index) return -1;
+     
+     /* Calculate which leaf and bit within leaf */
+     uint16_t leaf_index = bitmap_index / ctrl->bits_per_leaf;
+     *bit_index = bitmap_index % ctrl->bits_per_leaf;
+     
+     if (leaf_index >= ctrl->leaf_count) return -1;
+     
+     return ctrl->leaf_nodes[leaf_index];
  }

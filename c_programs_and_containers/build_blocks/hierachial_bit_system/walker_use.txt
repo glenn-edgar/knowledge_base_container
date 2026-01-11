@@ -1,0 +1,277 @@
+#include "cfl_hbit2_error_walker.h"
+
+// Iterator pattern
+cfl_hbit2_error_walker_t walker;
+cfl_hbit2_error_walker_init(&walker, tree, root, BS_ALARM, true);
+
+int32_t node;
+int bit;
+while (cfl_hbit2_error_walker_next(&walker, &node, &bit) == CFL_HBIT2_WALK_OK) {
+    printf("Error: node=%d bit=%d\n", node, bit);
+}
+
+// Callback pattern with count
+bool print_err(cfl_hbit2_tree_t* t, int32_t n, int b, void* u) {
+    printf("Error: node=%d bit=%d\n", n, b);
+    return true;
+}
+
+cfl_hbit2_error_walker_reset(&walker);
+int count = cfl_hbit2_error_walker_foreach(&walker, print_err, NULL);
+printf("Total: %d errors\n", count);
+
+// Count only
+cfl_hbit2_error_walker_reset(&walker);
+int count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+
+/**
+ * Error Walker Use Case Template
+ * 
+ * Demonstrates common patterns for using cfl_hbit2_error_walker
+ */
+
+#include <stdio.h>
+#include <stdbool.h>
+#include "cfl_hbit2_api.h"
+#include "cfl_hbit2_error_walker.h"
+
+/* ============================================ */
+/* Example 1: Simple Iterator                   */
+/* ============================================ */
+
+void example_iterator(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id) {
+    printf("=== Iterator Pattern ===\n");
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);  /* use_mask=true */
+    
+    int32_t node;
+    int bit;
+    
+    while (cfl_hbit2_error_walker_next(&walker, &node, &bit) == CFL_HBIT2_WALK_OK) {
+        const char* name = cfl_hbit2_info_name(tree, node);
+        printf("  Error: %s (node %d) bit %d\n", name ? name : "?", node, bit);
+    }
+    
+    printf("\n");
+}
+
+/* ============================================ */
+/* Example 2: Callback with Count               */
+/* ============================================ */
+
+static bool print_error_cb(cfl_hbit2_tree_t* tree, int32_t node, int bit, void* user) {
+    (void)user;
+    const char* name = cfl_hbit2_info_name(tree, node);
+    printf("  [CB] Error: %s bit %d\n", name ? name : "?", bit);
+    return true;  /* continue */
+}
+
+void example_callback(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id) {
+    printf("=== Callback Pattern ===\n");
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);
+    
+    int count = cfl_hbit2_error_walker_foreach(&walker, print_error_cb, NULL);
+    printf("  Total errors: %d\n\n", count);
+}
+
+/* ============================================ */
+/* Example 3: Count Only (No Callback)          */
+/* ============================================ */
+
+void example_count_only(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id) {
+    printf("=== Count Only ===\n");
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);
+    
+    int count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+    printf("  Error count: %d\n\n", count);
+}
+
+/* ============================================ */
+/* Example 4: Collect Errors Into Array         */
+/* ============================================ */
+
+typedef struct {
+    int32_t node;
+    int bit;
+} error_entry_t;
+
+typedef struct {
+    error_entry_t* entries;
+    int count;
+    int max;
+} error_list_t;
+
+static bool collect_error_cb(cfl_hbit2_tree_t* tree, int32_t node, int bit, void* user) {
+    (void)tree;
+    error_list_t* list = (error_list_t*)user;
+    
+    if (list->count < list->max) {
+        list->entries[list->count].node = node;
+        list->entries[list->count].bit = bit;
+        list->count++;
+        return true;  /* continue */
+    }
+    return false;  /* stop, array full */
+}
+
+void example_collect(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id) {
+    printf("=== Collect Into Array ===\n");
+    
+    error_entry_t entries[32];
+    error_list_t list = { entries, 0, 32 };
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);
+    cfl_hbit2_error_walker_foreach(&walker, collect_error_cb, &list);
+    
+    printf("  Collected %d errors:\n", list.count);
+    for (int i = 0; i < list.count; i++) {
+        const char* name = cfl_hbit2_info_name(tree, list.entries[i].node);
+        printf("    [%d] %s bit %d\n", i, name ? name : "?", list.entries[i].bit);
+    }
+    printf("\n");
+}
+
+/* ============================================ */
+/* Example 5: Stop After First N Errors         */
+/* ============================================ */
+
+typedef struct {
+    int max_errors;
+    int found;
+} limit_ctx_t;
+
+static bool limit_error_cb(cfl_hbit2_tree_t* tree, int32_t node, int bit, void* user) {
+    limit_ctx_t* ctx = (limit_ctx_t*)user;
+    const char* name = cfl_hbit2_info_name(tree, node);
+    
+    printf("  Error %d: %s bit %d\n", ctx->found + 1, name ? name : "?", bit);
+    ctx->found++;
+    
+    return (ctx->found < ctx->max_errors);  /* stop after max */
+}
+
+void example_limit(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id, int max) {
+    printf("=== First %d Errors ===\n", max);
+    
+    limit_ctx_t ctx = { max, 0 };
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);
+    cfl_hbit2_error_walker_foreach(&walker, limit_error_cb, &ctx);
+    
+    printf("  Showed %d errors\n\n", ctx.found);
+}
+
+/* ============================================ */
+/* Example 6: Check Subtree Only                */
+/* ============================================ */
+
+void example_subtree(cfl_hbit2_tree_t* tree, int16_t bs_id) {
+    printf("=== Subtree Check ===\n");
+    
+    /* Check only Station 1 */
+    int32_t station1 = cfl_hbit2_node(tree, "Station_1_Valve_Status");
+    if (station1 < 0) {
+        printf("  Station 1 not found\n\n");
+        return;
+    }
+    
+    cfl_hbit2_error_walker_t walker;
+    cfl_hbit2_error_walker_init(&walker, tree, station1, bs_id, true);
+    
+    int count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+    printf("  Station 1 has %d errors\n\n", count);
+}
+
+/* ============================================ */
+/* Example 7: Compare Masked vs Unmasked        */
+/* ============================================ */
+
+void example_masked_vs_unmasked(cfl_hbit2_tree_t* tree, int32_t root, int16_t bs_id) {
+    printf("=== Masked vs Unmasked ===\n");
+    
+    cfl_hbit2_error_walker_t walker;
+    
+    /* Count with mask */
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, true);
+    int masked_count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+    
+    /* Count without mask */
+    cfl_hbit2_error_walker_init(&walker, tree, root, bs_id, false);
+    int unmasked_count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+    
+    printf("  Active errors (unmasked): %d\n", masked_count);
+    printf("  Total errors (all):       %d\n", unmasked_count);
+    printf("  Suppressed by mask:       %d\n\n", unmasked_count - masked_count);
+}
+
+/* ============================================ */
+/* Example 8: Walk Both OR and AND Bitspaces    */
+/* ============================================ */
+
+void example_both_bitspaces(cfl_hbit2_tree_t* tree) {
+    printf("=== Both Bitspaces ===\n");
+    
+    int32_t or_root = cfl_hbit2_node(tree, "Overall_Valve_Status");
+    int32_t and_root = cfl_hbit2_node(tree, "Overall_Valve_State");
+    
+    cfl_hbit2_error_walker_t walker;
+    
+    /* OR bitspace (alarms) */
+    if (or_root >= 0) {
+        cfl_hbit2_error_walker_init(&walker, tree, or_root, 0, true);
+        int count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+        printf("  OR bitspace (alarms):     %d errors\n", count);
+    }
+    
+    /* AND bitspace (ready) */
+    if (and_root >= 0) {
+        cfl_hbit2_error_walker_init(&walker, tree, and_root, 1, true);
+        int count = cfl_hbit2_error_walker_foreach(&walker, NULL, NULL);
+        printf("  AND bitspace (not ready): %d errors\n", count);
+    }
+    
+    printf("\n");
+}
+
+/* ============================================ */
+/* Main - Run All Examples                      */
+/* ============================================ */
+
+#if 0  /* Enable to compile as standalone test */
+
+int main(void) {
+    /* Load tree */
+    cfl_hbit2_tree_t* tree = cfl_hbit2_create_file("irrigation.bin");
+    if (!tree) {
+        printf("Failed to load tree\n");
+        return 1;
+    }
+    
+    int32_t or_root = cfl_hbit2_node(tree, "Overall_Valve_Status");
+    int32_t and_root = cfl_hbit2_node(tree, "Overall_Valve_State");
+    
+    /* Set some test errors */
+    /* ... your setup code ... */
+    
+    /* Run examples */
+    example_iterator(tree, or_root, 0);
+    example_callback(tree, or_root, 0);
+    example_count_only(tree, or_root, 0);
+    example_collect(tree, or_root, 0);
+    example_limit(tree, or_root, 0, 3);
+    example_subtree(tree, 0);
+    example_masked_vs_unmasked(tree, or_root, 0);
+    example_both_bitspaces(tree);
+    
+    cfl_hbit2_destroy(tree);
+    return 0;
+}
+
+#endif

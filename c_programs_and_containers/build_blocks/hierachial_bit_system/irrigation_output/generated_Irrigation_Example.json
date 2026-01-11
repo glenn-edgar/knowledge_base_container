@@ -1,18 +1,24 @@
 {
-  "bitspace_count": 1,
+  "bitspace_count": 2,
   "bitspaces": [
     {
       "hash": "0x67B866D6",
       "latch": true,
       "merge": "OR",
       "name": "ALARM_LATCHED"
+    },
+    {
+      "hash": "0x7FD46D6A",
+      "latch": true,
+      "merge": "AND",
+      "name": "AND_LATCHED"
     }
   ],
-  "class_count": 2,
+  "class_count": 4,
   "config": {
     
   },
-  "node_count": 18,
+  "node_count": 36,
   "nodes": [
     {
       "class": "Valve_Aggregate",
@@ -121,6 +127,114 @@
       "depth": 2,
       "hash": "0x1B61FF63",
       "path": "Overall_Valve_Status.Station_4_Valve_Status.Bank_3_Valve_Status"
+    },
+    {
+      "class": "AND_Valve_Aggregate",
+      "depth": 0,
+      "hash": "0xB83F82F5",
+      "path": "Overall_Valve_State"
+    },
+    {
+      "class": "AND_Valve_Aggregate",
+      "depth": 1,
+      "hash": "0xD2D93DD4",
+      "path": "Overall_Valve_State.Station_1_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x8A01A62B",
+      "path": "Overall_Valve_State.Station_1_Valve_state.Bank_1_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x7FFBD922",
+      "path": "Overall_Valve_State.Station_1_Valve_state.Bank_2_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xC61209CD",
+      "path": "Overall_Valve_State.Station_1_Valve_state.Bank_3_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x086A1B9C",
+      "path": "Overall_Valve_State.Station_1_Valve_state.Bank_4_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Aggregate",
+      "depth": 1,
+      "hash": "0x946A4E71",
+      "path": "Overall_Valve_State.Station_2_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x873CE05C",
+      "path": "Overall_Valve_State.Station_2_Valve_state.Bank_1_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xE496F0F9",
+      "path": "Overall_Valve_State.Station_2_Valve_state.Bank_2_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x1D552A4E",
+      "path": "Overall_Valve_State.Station_2_Valve_state.Bank_3_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Aggregate",
+      "depth": 1,
+      "hash": "0x8852ABC6",
+      "path": "Overall_Valve_State.Station_3_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xF599E8F1",
+      "path": "Overall_Valve_State.Station_3_Valve_state.Bank_1_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x3408D854",
+      "path": "Overall_Valve_State.Station_3_Valve_state.Bank_2_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xCD5ECC0F",
+      "path": "Overall_Valve_State.Station_3_Valve_state.Bank_3_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Aggregate",
+      "depth": 1,
+      "hash": "0x5522C903",
+      "path": "Overall_Valve_State.Station_4_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xEEDE814A",
+      "path": "Overall_Valve_State.Station_4_Valve_state.Bank_1_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0x1074BD33",
+      "path": "Overall_Valve_State.Station_4_Valve_state.Bank_2_Valve_state"
+    },
+    {
+      "class": "AND_Valve_Bank_Leaf",
+      "depth": 2,
+      "hash": "0xA01DD208",
+      "path": "Overall_Valve_State.Station_4_Valve_state.Bank_3_Valve_state"
     }
   ],
   "schema_name": "Irrigation_Example",

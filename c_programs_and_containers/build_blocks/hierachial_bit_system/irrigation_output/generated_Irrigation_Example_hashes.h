@@ -22,20 +22,39 @@
 /* Schema Info                                  */
 /* ============================================ */
 
-#define IRRIGATION_EXAMPLE_NODE_COUNT 18
-#define IRRIGATION_EXAMPLE_BITSPACE_COUNT 1
-#define IRRIGATION_EXAMPLE_CLASS_COUNT 2
+#define IRRIGATION_EXAMPLE_NODE_COUNT 36
+#define IRRIGATION_EXAMPLE_BITSPACE_COUNT 2
+#define IRRIGATION_EXAMPLE_CLASS_COUNT 4
 
 /* ============================================ */
 /* Bitspace IDs (indices)                       */
 /* ============================================ */
 
 #define IRRIGATION_EXAMPLE_BS_ALARM_LATCHED 0
+#define IRRIGATION_EXAMPLE_BS_AND_LATCHED 1
 
 /* ============================================ */
 /* Node Indices                                 */
 /* ============================================ */
 
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE 18
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE 19
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_1_VALVE_STATE 20
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_2_VALVE_STATE 21
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_3_VALVE_STATE 22
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_4_VALVE_STATE 23
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE 24
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_1_VALVE_STATE 25
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_2_VALVE_STATE 26
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_3_VALVE_STATE 27
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE 28
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_1_VALVE_STATE 29
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_2_VALVE_STATE 30
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_3_VALVE_STATE 31
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE 32
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_1_VALVE_STATE 33
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_2_VALVE_STATE 34
+#define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_3_VALVE_STATE 35
 #define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATUS 0
 #define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATUS_STATION_1_VALVE_STATUS 1
 #define IRRIGATION_EXAMPLE_NODE_OVERALL_VALVE_STATUS_STATION_1_VALVE_STATUS_BANK_1_VALVE_STATUS 2
@@ -69,10 +88,34 @@
 /* Valve_Bank_Leaf */
 #define IRRIGATION_EXAMPLE_BANK_VALVE_BANK_LEAF_ALARM_LATCHED 8
 
+/* AND_Valve_Aggregate */
+#define IRRIGATION_EXAMPLE_BANK_AND_VALVE_AGGREGATE_AND_LATCHED 8
+
+/* AND_Valve_Bank_Leaf */
+#define IRRIGATION_EXAMPLE_BANK_AND_VALVE_BANK_LEAF_AND_LATCHED 8
+
 /* ============================================ */
 /* Node Path Hashes                             */
 /* ============================================ */
 
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE 0xB83F82F5U  /* "Overall_Valve_State" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE 0xD2D93DD4U  /* "Overall_Valve_State.Station_1_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_1_VALVE_STATE 0x8A01A62BU  /* "Overall_Valve_State.Station_1_Valve_state.Bank_1_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_2_VALVE_STATE 0x7FFBD922U  /* "Overall_Valve_State.Station_1_Valve_state.Bank_2_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_3_VALVE_STATE 0xC61209CDU  /* "Overall_Valve_State.Station_1_Valve_state.Bank_3_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_1_VALVE_STATE_BANK_4_VALVE_STATE 0x086A1B9CU  /* "Overall_Valve_State.Station_1_Valve_state.Bank_4_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE 0x946A4E71U  /* "Overall_Valve_State.Station_2_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_1_VALVE_STATE 0x873CE05CU  /* "Overall_Valve_State.Station_2_Valve_state.Bank_1_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_2_VALVE_STATE 0xE496F0F9U  /* "Overall_Valve_State.Station_2_Valve_state.Bank_2_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_2_VALVE_STATE_BANK_3_VALVE_STATE 0x1D552A4EU  /* "Overall_Valve_State.Station_2_Valve_state.Bank_3_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE 0x8852ABC6U  /* "Overall_Valve_State.Station_3_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_1_VALVE_STATE 0xF599E8F1U  /* "Overall_Valve_State.Station_3_Valve_state.Bank_1_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_2_VALVE_STATE 0x3408D854U  /* "Overall_Valve_State.Station_3_Valve_state.Bank_2_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_3_VALVE_STATE_BANK_3_VALVE_STATE 0xCD5ECC0FU  /* "Overall_Valve_State.Station_3_Valve_state.Bank_3_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE 0x5522C903U  /* "Overall_Valve_State.Station_4_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_1_VALVE_STATE 0xEEDE814AU  /* "Overall_Valve_State.Station_4_Valve_state.Bank_1_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_2_VALVE_STATE 0x1074BD33U  /* "Overall_Valve_State.Station_4_Valve_state.Bank_2_Valve_state" */
+#define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATE_STATION_4_VALVE_STATE_BANK_3_VALVE_STATE 0xA01DD208U  /* "Overall_Valve_State.Station_4_Valve_state.Bank_3_Valve_state" */
 #define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATUS 0x91D36982U  /* "Overall_Valve_Status" */
 #define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATUS_STATION_1_VALVE_STATUS 0x68E75B48U  /* "Overall_Valve_Status.Station_1_Valve_Status" */
 #define IRRIGATION_EXAMPLE_HASH_OVERALL_VALVE_STATUS_STATION_1_VALVE_STATUS_BANK_1_VALVE_STATUS 0x44CEE9ACU  /* "Overall_Valve_Status.Station_1_Valve_Status.Bank_1_Valve_Status" */
@@ -97,6 +140,7 @@
 /* ============================================ */
 
 #define IRRIGATION_EXAMPLE_HASH_BS_ALARM_LATCHED 0x67B866D6U  /* "ALARM_LATCHED" */
+#define IRRIGATION_EXAMPLE_HASH_BS_AND_LATCHED 0x7FD46D6AU  /* "AND_LATCHED" */
 
 /* ============================================ */
 /* Class Name Hashes                            */
@@ -104,6 +148,8 @@
 
 #define IRRIGATION_EXAMPLE_HASH_CLASS_VALVE_AGGREGATE 0x990ACCF9U  /* "Valve_Aggregate" */
 #define IRRIGATION_EXAMPLE_HASH_CLASS_VALVE_BANK_LEAF 0x69B47611U  /* "Valve_Bank_Leaf" */
+#define IRRIGATION_EXAMPLE_HASH_CLASS_AND_VALVE_AGGREGATE 0x69284E8FU  /* "AND_Valve_Aggregate" */
+#define IRRIGATION_EXAMPLE_HASH_CLASS_AND_VALVE_BANK_LEAF 0x8227849BU  /* "AND_Valve_Bank_Leaf" */
 
 /* ============================================ */
 /* Config Path Hashes                           */
@@ -122,30 +168,51 @@ typedef struct {
 } Irrigation_Example_hash_entry_t;
 
 static const Irrigation_Example_hash_entry_t Irrigation_Example_hash_table[] = {
+    { 0x086A1B9CU, "Overall_Valve_State.Station_1_Valve_state.Bank_4_Valve_state" },
     { 0x0C73C69DU, "Overall_Valve_Status.Station_4_Valve_Status" },
+    { 0x1074BD33U, "Overall_Valve_State.Station_4_Valve_state.Bank_2_Valve_state" },
     { 0x1B61FF63U, "Overall_Valve_Status.Station_4_Valve_Status.Bank_3_Valve_Status" },
+    { 0x1D552A4EU, "Overall_Valve_State.Station_2_Valve_state.Bank_3_Valve_state" },
     { 0x280299E3U, "Overall_Valve_Status.Station_2_Valve_Status" },
     { 0x2E34BB79U, "Overall_Valve_Status.Station_3_Valve_Status.Bank_2_Valve_Status" },
+    { 0x3408D854U, "Overall_Valve_State.Station_3_Valve_state.Bank_2_Valve_state" },
     { 0x44CEE9ACU, "Overall_Valve_Status.Station_1_Valve_Status.Bank_1_Valve_Status" },
     { 0x52B40EFAU, "Overall_Valve_Status.Station_4_Valve_Status.Bank_2_Valve_Status" },
+    { 0x5522C903U, "Overall_Valve_State.Station_4_Valve_state" },
     { 0x5F54A97AU, "Overall_Valve_Status.Station_3_Valve_Status" },
     { 0x67B866D6U, "ALARM_LATCHED" },
     { 0x68E75B48U, "Overall_Valve_Status.Station_1_Valve_Status" },
+    { 0x69284E8FU, "AND_Valve_Aggregate" },
     { 0x69B47611U, "Valve_Bank_Leaf" },
     { 0x6CF16F3EU, "Overall_Valve_Status.Station_1_Valve_Status.Bank_3_Valve_Status" },
+    { 0x7FD46D6AU, "AND_LATCHED" },
+    { 0x7FFBD922U, "Overall_Valve_State.Station_1_Valve_state.Bank_2_Valve_state" },
+    { 0x8227849BU, "AND_Valve_Bank_Leaf" },
+    { 0x873CE05CU, "Overall_Valve_State.Station_2_Valve_state.Bank_1_Valve_state" },
+    { 0x8852ABC6U, "Overall_Valve_State.Station_3_Valve_state" },
+    { 0x8A01A62BU, "Overall_Valve_State.Station_1_Valve_state.Bank_1_Valve_state" },
     { 0x91D36982U, "Overall_Valve_Status" },
+    { 0x946A4E71U, "Overall_Valve_State.Station_2_Valve_state" },
     { 0x990ACCF9U, "Valve_Aggregate" },
     { 0x9A197367U, "Overall_Valve_Status.Station_1_Valve_Status.Bank_2_Valve_Status" },
+    { 0xA01DD208U, "Overall_Valve_State.Station_4_Valve_state.Bank_3_Valve_state" },
+    { 0xB83F82F5U, "Overall_Valve_State" },
     { 0xC57A7709U, "Overall_Valve_Status.Station_4_Valve_Status.Bank_1_Valve_Status" },
+    { 0xC61209CDU, "Overall_Valve_State.Station_1_Valve_state.Bank_3_Valve_state" },
+    { 0xCD5ECC0FU, "Overall_Valve_State.Station_3_Valve_state.Bank_3_Valve_state" },
     { 0xCE7CEF70U, "Overall_Valve_Status.Station_2_Valve_Status.Bank_2_Valve_Status" },
     { 0xD0755E89U, "Overall_Valve_Status.Station_1_Valve_Status.Bank_4_Valve_Status" },
+    { 0xD2D93DD4U, "Overall_Valve_State.Station_1_Valve_state" },
     { 0xDE0CA2ABU, "Overall_Valve_Status.Station_2_Valve_Status.Bank_1_Valve_Status" },
+    { 0xE496F0F9U, "Overall_Valve_State.Station_2_Valve_state.Bank_2_Valve_state" },
     { 0xEE815FB1U, "Overall_Valve_Status.Station_2_Valve_Status.Bank_3_Valve_Status" },
+    { 0xEEDE814AU, "Overall_Valve_State.Station_4_Valve_state.Bank_1_Valve_state" },
     { 0xF4BC6AAAU, "Overall_Valve_Status.Station_3_Valve_Status.Bank_1_Valve_Status" },
+    { 0xF599E8F1U, "Overall_Valve_State.Station_3_Valve_state.Bank_1_Valve_state" },
     { 0xFD54BAF8U, "Overall_Valve_Status.Station_3_Valve_Status.Bank_3_Valve_Status" }
 };
 
-static const uint32_t Irrigation_Example_hash_table_size = 21;
+static const uint32_t Irrigation_Example_hash_table_size = 42;
 
 #endif /* IRRIGATION_EXAMPLE_INCLUDE_DEBUG_STRINGS */
 
