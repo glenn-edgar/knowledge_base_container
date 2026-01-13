@@ -101,70 +101,6 @@
  }
  
  /* ============================================ */
- /* Shadow Buffer Operations                     */
- /* ============================================ */
- 
- cfl_hbit_error_t cfl_hbit_shadow_set_bit(
-     cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit)
- {
-     if (!inst) return CFL_HBIT_ERR_NULL_PTR;
-     if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
-     if (node >= inst->config->node_count) return CFL_HBIT_ERR_INVALID_NODE;
-     if (!inst->config->nodes[node].is_leaf) return CFL_HBIT_ERR_NOT_LEAF;
-     
-     const cfl_hbit_buffer_config_t* bc = &inst->config->buffer_configs[buf];
-     uint8_t sz = bc->arena_info[node].size;
-     if (sz == 0) return CFL_HBIT_OK;
-     if (bit >= sz * 8) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     
-     uint16_t off = bc->arena_info[node].offset;
-     cfl_hbit_set_bit(inst->shadow[buf] + off, bit);
-     cfl_hbit_mark_dirty(inst, node);
-     
-     return CFL_HBIT_OK;
- }
- 
- cfl_hbit_error_t cfl_hbit_shadow_clear_bit(
-     cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit)
- {
-     if (!inst) return CFL_HBIT_ERR_NULL_PTR;
-     if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
-     if (node >= inst->config->node_count) return CFL_HBIT_ERR_INVALID_NODE;
-     if (!inst->config->nodes[node].is_leaf) return CFL_HBIT_ERR_NOT_LEAF;
-     
-     const cfl_hbit_buffer_config_t* bc = &inst->config->buffer_configs[buf];
-     uint8_t sz = bc->arena_info[node].size;
-     if (sz == 0) return CFL_HBIT_OK;
-     if (bit >= sz * 8) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     
-     uint16_t off = bc->arena_info[node].offset;
-     cfl_hbit_clear_bit(inst->shadow[buf] + off, bit);
-     cfl_hbit_mark_dirty(inst, node);
-     
-     return CFL_HBIT_OK;
- }
- 
- cfl_hbit_error_t cfl_hbit_shadow_write(
-     cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* data, uint8_t len)
- {
-     if (!inst) return CFL_HBIT_ERR_NULL_PTR;
-     if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
-     if (node >= inst->config->node_count) return CFL_HBIT_ERR_INVALID_NODE;
-     if (!inst->config->nodes[node].is_leaf) return CFL_HBIT_ERR_NOT_LEAF;
-     
-     const cfl_hbit_buffer_config_t* bc = &inst->config->buffer_configs[buf];
-     uint8_t sz = bc->arena_info[node].size;
-     if (sz == 0) return CFL_HBIT_OK;
-     if (len > sz) len = sz;
-     
-     uint16_t off = bc->arena_info[node].offset;
-     memcpy(inst->shadow[buf] + off, data, len);
-     cfl_hbit_mark_dirty(inst, node);
-     
-     return CFL_HBIT_OK;
- }
- 
- /* ============================================ */
  /* Sync (Shadow -> Current)                     */
  /* ============================================ */
  
@@ -292,7 +228,17 @@
  /* Leaf Operations                              */
  /* ============================================ */
  
- cfl_hbit_error_t cfl_hbit_leaf_set_bit(
+ /* ============================================ */
+ /* Shadow Write Operations                      */
+ /* ============================================ */
+ 
+ static inline uint8_t* shadow_ptr(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node)
+ {
+     uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
+     return inst->shadow[buf] + off;
+ }
+ 
+ cfl_hbit_error_t cfl_hbit_shadow_set_bit(
      cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit)
  {
      if (!inst) return CFL_HBIT_ERR_NULL_PTR;
@@ -304,18 +250,12 @@
      if (sz == 0) return CFL_HBIT_OK;
      if (bit >= sz * 8) return CFL_HBIT_ERR_OUT_OF_RANGE;
      
-     cfl_hbit_set_bit(node_ptr(inst, buf, node), bit);
-     
-     if (inst->config->buffer_configs[buf].type == CFL_HBIT_BUF_OR_LATCH && inst->latched[buf]) {
-         uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
-         cfl_hbit_set_bit(inst->latched[buf] + off, bit);
-     }
-     
-     mark_ancestors(inst, node);
+     cfl_hbit_set_bit(shadow_ptr(inst, buf, node), bit);
+     cfl_hbit_mark_dirty(inst, node);
      return CFL_HBIT_OK;
  }
  
- cfl_hbit_error_t cfl_hbit_leaf_clear_bit(
+ cfl_hbit_error_t cfl_hbit_shadow_clear_bit(
      cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit)
  {
      if (!inst) return CFL_HBIT_ERR_NULL_PTR;
@@ -327,12 +267,12 @@
      if (sz == 0) return CFL_HBIT_OK;
      if (bit >= sz * 8) return CFL_HBIT_ERR_OUT_OF_RANGE;
      
-     cfl_hbit_clear_bit(node_ptr(inst, buf, node), bit);
-     mark_ancestors(inst, node);
+     cfl_hbit_clear_bit(shadow_ptr(inst, buf, node), bit);
+     cfl_hbit_mark_dirty(inst, node);
      return CFL_HBIT_OK;
  }
  
- cfl_hbit_error_t cfl_hbit_leaf_write(
+ cfl_hbit_error_t cfl_hbit_shadow_write(
      cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* data, uint8_t len)
  {
      if (!inst) return CFL_HBIT_ERR_NULL_PTR;
@@ -344,19 +284,12 @@
      if (sz == 0) return CFL_HBIT_OK;
      if (len > sz) len = sz;
      
-     memcpy(node_ptr(inst, buf, node), data, len);
-     
-     if (inst->config->buffer_configs[buf].type == CFL_HBIT_BUF_OR_LATCH && inst->latched[buf]) {
-         uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
-         uint8_t* lp = inst->latched[buf] + off;
-         for (uint8_t i = 0; i < len; i++) lp[i] |= data[i];
-     }
-     
-     mark_ancestors(inst, node);
+     memcpy(shadow_ptr(inst, buf, node), data, len);
+     cfl_hbit_mark_dirty(inst, node);
      return CFL_HBIT_OK;
  }
  
- cfl_hbit_error_t cfl_hbit_leaf_clear(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node)
+ cfl_hbit_error_t cfl_hbit_shadow_clear(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node)
  {
      if (!inst) return CFL_HBIT_ERR_NULL_PTR;
      if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
@@ -366,12 +299,12 @@
      uint8_t sz = node_size(inst, buf, node);
      if (sz == 0) return CFL_HBIT_OK;
      
-     memset(node_ptr(inst, buf, node), 0, sz);
-     mark_ancestors(inst, node);
+     memset(shadow_ptr(inst, buf, node), 0, sz);
+     cfl_hbit_mark_dirty(inst, node);
      return CFL_HBIT_OK;
  }
  
- cfl_hbit_error_t cfl_hbit_leaf_fill(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t value)
+ cfl_hbit_error_t cfl_hbit_shadow_fill(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t value)
  {
      if (!inst) return CFL_HBIT_ERR_NULL_PTR;
      if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
@@ -381,36 +314,29 @@
      uint8_t sz = node_size(inst, buf, node);
      if (sz == 0) return CFL_HBIT_OK;
      
-     memset(node_ptr(inst, buf, node), value, sz);
-     
-     if (inst->config->buffer_configs[buf].type == CFL_HBIT_BUF_OR_LATCH && inst->latched[buf]) {
-         uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
-         uint8_t* lp = inst->latched[buf] + off;
-         for (uint8_t i = 0; i < sz; i++) lp[i] |= value;
-     }
-     
-     mark_ancestors(inst, node);
+     memset(shadow_ptr(inst, buf, node), value, sz);
+     cfl_hbit_mark_dirty(inst, node);
      return CFL_HBIT_OK;
  }
  
- void cfl_hbit_clear_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf)
+ void cfl_hbit_shadow_clear_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf)
  {
      if (!inst || buf >= inst->config->buffer_count) return;
      
      for (uint16_t i = 0; i < inst->config->node_count; i++) {
          if (inst->config->nodes[i].is_leaf) {
-             cfl_hbit_leaf_clear(inst, buf, i);
+             cfl_hbit_shadow_clear(inst, buf, i);
          }
      }
  }
  
- void cfl_hbit_fill_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf, uint8_t value)
+ void cfl_hbit_shadow_fill_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf, uint8_t value)
  {
      if (!inst || buf >= inst->config->buffer_count) return;
      
      for (uint16_t i = 0; i < inst->config->node_count; i++) {
          if (inst->config->nodes[i].is_leaf) {
-             cfl_hbit_leaf_fill(inst, buf, i, value);
+             cfl_hbit_shadow_fill(inst, buf, i, value);
          }
      }
  }
@@ -448,9 +374,56 @@
      return sz;
  }
  
+ uint8_t cfl_hbit_read_latched_node(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t* data, uint8_t max_len)
+ {
+     if (!inst || buf >= inst->config->buffer_count || node >= inst->config->node_count) return 0;
+     if (inst->config->buffer_configs[buf].type != CFL_HBIT_BUF_OR_LATCH || !inst->latched[buf]) return 0;
+     uint8_t sz = node_size(inst, buf, node);
+     if (sz > max_len) sz = max_len;
+     uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
+     memcpy(data, inst->latched[buf] + off, sz);
+     return sz;
+ }
+ 
+ bool cfl_hbit_read_mask_bit(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit)
+ {
+     if (!inst || buf >= inst->config->buffer_count || node >= inst->config->node_count) return false;
+     if (inst->config->buffer_configs[buf].type != CFL_HBIT_BUF_OR_MASK || !inst->mask[buf]) return false;
+     uint8_t sz = node_size(inst, buf, node);
+     if (sz == 0 || bit >= sz * 8) return false;
+     uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
+     return cfl_hbit_get_bit(inst->mask[buf] + off, bit);
+ }
+ 
+ uint8_t cfl_hbit_read_mask_node(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t* data, uint8_t max_len)
+ {
+     if (!inst || buf >= inst->config->buffer_count || node >= inst->config->node_count) return 0;
+     if (inst->config->buffer_configs[buf].type != CFL_HBIT_BUF_OR_MASK || !inst->mask[buf]) return 0;
+     uint8_t sz = node_size(inst, buf, node);
+     if (sz > max_len) sz = max_len;
+     uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
+     memcpy(data, inst->mask[buf] + off, sz);
+     return sz;
+ }
+ 
  /* ============================================ */
  /* Mask Operations                              */
  /* ============================================ */
+ cfl_hbit_error_t cfl_hbit_clear_mask_all(
+    cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node)
+{
+    if (!inst) return CFL_HBIT_ERR_NULL_PTR;
+    if (buf >= inst->config->buffer_count) return CFL_HBIT_ERR_INVALID_BUFFER;
+    if (node >= inst->config->node_count) return CFL_HBIT_ERR_INVALID_NODE;
+    if (inst->config->buffer_configs[buf].type != CFL_HBIT_BUF_OR_MASK || !inst->mask[buf])
+        return CFL_HBIT_ERR_INVALID_BUFFER;
+    
+    uint8_t sz = node_size(inst, buf, node);
+    uint16_t off = inst->config->buffer_configs[buf].arena_info[node].offset;
+    memset(inst->mask[buf] + off, 0, sz);
+    mark_ancestors(inst, node);
+    return CFL_HBIT_OK;
+};
  
  cfl_hbit_error_t cfl_hbit_set_mask(
      cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* mask, uint8_t len)
@@ -540,7 +513,15 @@
      
      uint8_t* dst = inst->current[buf] + off;
      
+     /* Initialize parent based on buffer type */
      memset(dst, (bc->type == CFL_HBIT_BUF_AND) ? 0xFF : 0x00, sz);
+     
+     /* Also clear parent latch for recalculation */
+     uint8_t* latch_dst = NULL;
+     if (bc->type == CFL_HBIT_BUF_OR_LATCH && inst->latched[buf]) {
+         latch_dst = inst->latched[buf] + off;
+         memset(latch_dst, 0x00, sz);
+     }
      
      for (uint16_t i = 0; i < inst->config->node_count; i++) {
          if (inst->config->nodes[i].parent_index != (int16_t)node) continue;
@@ -555,10 +536,9 @@
          switch (bc->type) {
          case CFL_HBIT_BUF_OR_LATCH:
              for (uint8_t j = 0; j < msz; j++) dst[j] |= src[j];
-             if (inst->latched[buf]) {
+             if (latch_dst) {
                  const uint8_t* ls = inst->latched[buf] + c_off;
-                 uint8_t* ld = inst->latched[buf] + off;
-                 for (uint8_t j = 0; j < msz; j++) ld[j] |= ls[j];
+                 for (uint8_t j = 0; j < msz; j++) latch_dst[j] |= ls[j];
              }
              break;
          case CFL_HBIT_BUF_OR_MASK:
@@ -767,7 +747,7 @@
      if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
      uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
      if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     return cfl_hbit_leaf_set_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+     return cfl_hbit_shadow_set_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
  }
  
  cfl_hbit_error_t cfl_hbit_controller_clear_bit(cfl_hbit_controller_t* ctrl, uint16_t idx)
@@ -775,7 +755,7 @@
      if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
      uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
      if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     return cfl_hbit_leaf_clear_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+     return cfl_hbit_shadow_clear_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
  }
  
  bool cfl_hbit_controller_read_bit(cfl_hbit_controller_t* ctrl, uint16_t idx)
@@ -791,7 +771,7 @@
      if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
      uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
      if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     return cfl_hbit_leaf_set_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+     return cfl_hbit_shadow_set_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
  }
  
  cfl_hbit_error_t cfl_hbit_controller_clear_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit)
@@ -799,7 +779,7 @@
      if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
      uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
      if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
-     return cfl_hbit_leaf_clear_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+     return cfl_hbit_shadow_clear_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
  }
  
  bool cfl_hbit_controller_read_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit)
@@ -814,7 +794,7 @@
  {
      if (!ctrl) return;
      for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
-         cfl_hbit_leaf_clear(ctrl->inst, ctrl->buffer_idx, ctrl->leaf_nodes[i]);
+         cfl_hbit_shadow_clear(ctrl->inst, ctrl->buffer_idx, ctrl->leaf_nodes[i]);
      }
  }
  
@@ -822,6 +802,82 @@
  {
      if (!ctrl) return;
      for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
-         cfl_hbit_leaf_fill(ctrl->inst, ctrl->buffer_idx, ctrl->leaf_nodes[i], value);
+         cfl_hbit_shadow_fill(ctrl->inst, ctrl->buffer_idx, ctrl->leaf_nodes[i], value);
      }
+ }
+ 
+ /* Controller latched buffer access */
+ 
+ bool cfl_hbit_controller_read_latched_bit(cfl_hbit_controller_t* ctrl, uint16_t idx)
+ {
+     if (!ctrl) return false;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
+     if (n < 0) return false;
+     return cfl_hbit_read_latched_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ bool cfl_hbit_controller_read_latched_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit)
+ {
+     if (!ctrl) return false;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
+     if (n < 0) return false;
+     return cfl_hbit_read_latched_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ cfl_hbit_error_t cfl_hbit_controller_clear_latch_bit(cfl_hbit_controller_t* ctrl, uint16_t idx)
+ {
+     if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
+     if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
+     return cfl_hbit_clear_latch_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ cfl_hbit_error_t cfl_hbit_controller_clear_latch_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit)
+ {
+     if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
+     if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
+     return cfl_hbit_clear_latch_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ void cfl_hbit_controller_clear_all_latches(cfl_hbit_controller_t* ctrl)
+ {
+     if (!ctrl) return;
+     for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
+         cfl_hbit_clear_latch_all(ctrl->inst, ctrl->buffer_idx, ctrl->leaf_nodes[i]);
+     }
+ }
+ 
+ /* Controller mask buffer access */
+ 
+ bool cfl_hbit_controller_read_mask_bit(cfl_hbit_controller_t* ctrl, uint16_t idx)
+ {
+     if (!ctrl) return false;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
+     if (n < 0) return false;
+     return cfl_hbit_read_mask_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ bool cfl_hbit_controller_read_mask_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit)
+ {
+     if (!ctrl) return false;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
+     if (n < 0) return false;
+     return cfl_hbit_read_mask_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b);
+ }
+ 
+ cfl_hbit_error_t cfl_hbit_controller_set_mask_bit(cfl_hbit_controller_t* ctrl, uint16_t idx, bool enabled)
+ {
+     if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_bitmap_node(ctrl, idx, &b);
+     if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
+     return cfl_hbit_set_mask_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b, enabled);
+ }
+ 
+ cfl_hbit_error_t cfl_hbit_controller_set_mask_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t cbit, bool enabled)
+ {
+     if (!ctrl) return CFL_HBIT_ERR_NULL_PTR;
+     uint8_t b; int16_t n = cfl_hbit_controller_get_node_bit(ctrl, child, cbit, &b);
+     if (n < 0) return CFL_HBIT_ERR_OUT_OF_RANGE;
+     return cfl_hbit_set_mask_bit(ctrl->inst, ctrl->buffer_idx, (uint16_t)n, b, enabled);
  }

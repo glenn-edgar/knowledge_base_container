@@ -206,25 +206,38 @@
  /* Compute FNV-1a hash of string (for bit name lookup) */
  uint32_t cfl_hbit_hash_string(const char* str);
  
- cfl_hbit_error_t cfl_hbit_leaf_set_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
- cfl_hbit_error_t cfl_hbit_leaf_clear_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
- cfl_hbit_error_t cfl_hbit_leaf_write(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* data, uint8_t len);
- cfl_hbit_error_t cfl_hbit_leaf_clear(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node);
- cfl_hbit_error_t cfl_hbit_leaf_fill(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t value);
+ /* Shadow buffer operations - all writes go through shadow */
+ cfl_hbit_error_t cfl_hbit_shadow_set_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
+ cfl_hbit_error_t cfl_hbit_shadow_clear_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
+ cfl_hbit_error_t cfl_hbit_shadow_write(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* data, uint8_t len);
+ cfl_hbit_error_t cfl_hbit_shadow_clear(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node);
+ cfl_hbit_error_t cfl_hbit_shadow_fill(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t value);
  
- /* Clear/fill all leaves in a buffer */
- void cfl_hbit_clear_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf);
- void cfl_hbit_fill_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf, uint8_t value);
+ /* Clear/fill all leaves in shadow buffer */
+ void cfl_hbit_shadow_clear_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf);
+ void cfl_hbit_shadow_fill_all_leaves(cfl_hbit_instance_t* inst, uint16_t buf, uint8_t value);
  
+ /* Read current buffer */
  bool cfl_hbit_read_bit(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
- bool cfl_hbit_read_latched_bit(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
  uint8_t cfl_hbit_read_node(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t* data, uint8_t max_len);
  
- cfl_hbit_error_t cfl_hbit_set_mask(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* mask, uint8_t len);
- cfl_hbit_error_t cfl_hbit_set_mask_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit, bool enabled);
+ /* Read latched buffer */
+ bool cfl_hbit_read_latched_bit(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
+ uint8_t cfl_hbit_read_latched_node(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t* data, uint8_t max_len);
  
+ /* Clear latched buffer */
  cfl_hbit_error_t cfl_hbit_clear_latch_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
  cfl_hbit_error_t cfl_hbit_clear_latch_all(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node);
+ 
+ /* Clear mask buffer */
+cfl_hbit_error_t cfl_hbit_clear_mask_all(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node);
+ /* Read mask buffer */
+ bool cfl_hbit_read_mask_bit(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit);
+ uint8_t cfl_hbit_read_mask_node(const cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t* data, uint8_t max_len);
+ 
+ /* Set mask buffer */
+ cfl_hbit_error_t cfl_hbit_set_mask(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, const uint8_t* mask, uint8_t len);
+ cfl_hbit_error_t cfl_hbit_set_mask_bit(cfl_hbit_instance_t* inst, uint16_t buf, uint16_t node, uint8_t bit, bool enabled);
  
  void cfl_hbit_propagate(cfl_hbit_instance_t* inst);
  void cfl_hbit_propagate_tree(cfl_hbit_instance_t* inst, uint16_t root_idx);
@@ -267,17 +280,36 @@
  int16_t cfl_hbit_controller_get_node_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t child_bit, uint8_t* bit);
  int16_t cfl_hbit_controller_get_bitmap_node(cfl_hbit_controller_t* ctrl, uint16_t flat_idx, uint8_t* bit);
  
+ /* Shadow write operations (use sync_and_propagate after) */
  cfl_hbit_error_t cfl_hbit_controller_set_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
  cfl_hbit_error_t cfl_hbit_controller_clear_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
- bool cfl_hbit_controller_read_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
- 
  cfl_hbit_error_t cfl_hbit_controller_set_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
  cfl_hbit_error_t cfl_hbit_controller_clear_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
- bool cfl_hbit_controller_read_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
  
- /* Clear/fill all leaves under a controller */
+ /* Clear/fill all leaves in shadow under controller */
  void cfl_hbit_controller_clear_all(cfl_hbit_controller_t* ctrl);
  void cfl_hbit_controller_fill_all(cfl_hbit_controller_t* ctrl, uint8_t value);
+ 
+ /* Read current buffer */
+ bool cfl_hbit_controller_read_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
+ bool cfl_hbit_controller_read_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
+ 
+ /* Read latched buffer */
+ bool cfl_hbit_controller_read_latched_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
+ bool cfl_hbit_controller_read_latched_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
+ 
+ /* Clear latched buffer */
+ cfl_hbit_error_t cfl_hbit_controller_clear_latch_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
+ cfl_hbit_error_t cfl_hbit_controller_clear_latch_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
+ void cfl_hbit_controller_clear_all_latches(cfl_hbit_controller_t* ctrl);
+ 
+ /* Read mask buffer */
+ bool cfl_hbit_controller_read_mask_bit(cfl_hbit_controller_t* ctrl, uint16_t idx);
+ bool cfl_hbit_controller_read_mask_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit);
+ 
+ /* Set mask buffer */
+ cfl_hbit_error_t cfl_hbit_controller_set_mask_bit(cfl_hbit_controller_t* ctrl, uint16_t idx, bool enabled);
+ cfl_hbit_error_t cfl_hbit_controller_set_mask_child_bit(cfl_hbit_controller_t* ctrl, uint16_t child, uint16_t bit, bool enabled);
  
  #ifdef __cplusplus
  }

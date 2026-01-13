@@ -37,80 +37,225 @@
     cfl_hbit_controller_clear_all(ctrl);
     cfl_hbit_clear_controller_latches(ctrl);
     cfl_hbit_sync_and_propagate(inst);
-    exit(0);
-#if 0
-    printf("Controller: %d children, %d leaves, %d bits/leaf, %d total bits\n",
-           ctrl->child_count, ctrl->leaf_count, ctrl->bits_per_leaf, ctrl->total_bits);
+    printf("\nInitial state:\n");
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
     
-    /* Fill leaf banks with 0 (clear current values) */
-    uint8_t zeros[1] = {0x00};
-    for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
-        uint16_t leaf_node = ctrl->leaf_nodes[i];
-        cfl_hbit_leaf_write(inst, buf_id, leaf_node, zeros, 1);
-    }
-    cfl_hbit_propagate(inst);
-    printf("Cleared all leaf current values\n");
+
+    printf("\nSetting child bits:\n");
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_set_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_set_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_set_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    printf("\nClearing child bits:\n");
+    cfl_hbit_controller_clear_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_clear_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_clear_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_clear_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
     
-    /* Clear leaf node latches */
-    for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
-        uint16_t leaf_node = ctrl->leaf_nodes[i];
-        cfl_hbit_clear_latch_all(inst, buf_id, leaf_node);
-    }
-    cfl_hbit_propagate(inst);
-    printf("Cleared all leaf latches\n");
-    
-    /* Verify everything is cleared */
-    bool all_clear = true;
-    for (uint16_t i = 0; i < ctrl->leaf_count; i++) {
-        uint16_t leaf_node = ctrl->leaf_nodes[i];
-        uint8_t data[1] = {0xFF};
-        cfl_hbit_read_node(inst, buf_id, leaf_node, data, 1);
-        if (data[0] != 0) all_clear = false;
-        
-        bool latched = cfl_hbit_read_latched_bit(inst, buf_id, leaf_node, bit_id);
-        if (latched) all_clear = false;
-    }
-    printf("All leaves cleared: %s\n", all_clear ? "YES" : "NO");
-    
-    /* Now do your test - e.g., set a bit, verify latch behavior */
-    printf("\nSetting LEAK alarm on leaf 0 (node %d)...\n", ctrl->leaf_nodes[0]);
-    cfl_hbit_leaf_set_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    cfl_hbit_propagate(inst);
-    
-    /* Check current and latched at leaf, parent, root */
-    bool leaf_cur = cfl_hbit_read_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    bool leaf_lat = cfl_hbit_read_latched_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    bool root_cur = cfl_hbit_read_bit(inst, buf_id, (uint16_t)top_node, bit_id);
-    bool root_lat = cfl_hbit_read_latched_bit(inst, buf_id, (uint16_t)top_node, bit_id);
-    
-    printf("  Leaf: current=%d, latched=%d\n", leaf_cur, leaf_lat);
-    printf("  Root: current=%d, latched=%d\n", root_cur, root_lat);
-    
-    /* Clear current, verify latch remains */
-    printf("\nClearing current (alarm goes away)...\n");
-    cfl_hbit_leaf_clear_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    cfl_hbit_propagate(inst);
-    
-    leaf_cur = cfl_hbit_read_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    leaf_lat = cfl_hbit_read_latched_bit(inst, buf_id, ctrl->leaf_nodes[0], bit_id);
-    root_cur = cfl_hbit_read_bit(inst, buf_id, (uint16_t)top_node, bit_id);
-    root_lat = cfl_hbit_read_latched_bit(inst, buf_id, (uint16_t)top_node, bit_id);
-    
-    printf("  Leaf: current=%d, latched=%d\n", leaf_cur, leaf_lat);
-    printf("  Root: current=%d, latched=%d\n", root_cur, root_lat);
-    
-    cfl_hbit_controller_destroy(ctrl);
-    printf("\nOR Latch Test Complete\n");
-#endif
+    printf("\nClearing latch child bits:\n");
+    cfl_hbit_controller_clear_latch_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_clear_latch_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_clear_latch_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_clear_latch_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_sync_and_propagate(inst);
+    printf("\n\nreading bit top node %d bit index %d value %d expected 1 \n", top_node, 0, cfl_hbit_controller_read_bit(ctrl, 0));
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
 }
 
 void test_or_mask_test(cfl_hbit_instance_t* inst) {
-    printf("\n\nTesting OR Mask Test\n\n");
+    printf("\n\nTesting OR MASK Test\n\n");
+    uint16_t bit_space_id = IRRIGATION_VALVES_BUF_OR_MASK;
+    printf("Found OR_MASK bitspace at %d\n", bit_space_id);
+    
+    /* Look up nodes by hash */
+    int16_t top_node = cfl_hbit_find_node_path(inst, "VALVE_STATUS");
+    if (top_node < 0) {
+        printf("ERROR: could not find VALVE_STATUS node\n");
+        return;
+    }
+
+    
+    /* Setup controller for flat access to leaves */
+    cfl_hbit_controller_t* ctrl = cfl_hbit_controller_create(inst, (uint16_t)top_node, bit_space_id);
+    if (!ctrl) {
+        printf("ERROR: controller create failed\n");
+        return;
+    }
+    cfl_hbit_controller_clear_all(ctrl);
+    cfl_hbit_clear_controller_masks(ctrl);
+    cfl_hbit_sync_and_propagate(inst);
+    printf("\nInitial state:\n");
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+    
+    printf("\nSetting child bits:\n");
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_set_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_set_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_set_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    printf("\nClearing mask child bits:\n");
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 0, 0,false);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 1, 1,false);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 2, 2,false);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 3, 3,false);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+  
+      
+    printf("\nSetting mask child bits:\n");
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 0, 0,true);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 1, 1,true);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 2, 2,true);
+    cfl_hbit_controller_set_mask_child_bit(ctrl, 3, 3,true);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    printf("\nClearing child bits:\n");
+    cfl_hbit_controller_clear_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_clear_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_clear_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_clear_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_sync_and_propagate(inst);
+    
+    printf("\n\nreading bit top node %d bit index %d value %d expected 1 \n", top_node, 0, cfl_hbit_controller_read_bit(ctrl, 0));
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
 }
 
-void test_and_mask_test(cfl_hbit_instance_t* inst) {
+void test_and_test(cfl_hbit_instance_t* inst) {
     printf("\n\nTesting AND Mask Test\n\n");
+    
+    uint16_t bit_space_id = IRRIGATION_VALVES_BUF_AND_LATCHED;
+    printf("Found AND_LATCHED bitspace at %d\n", bit_space_id);
+    
+    /* Look up nodes by hash */
+    int16_t top_node = cfl_hbit_find_node_path(inst, "VALVE_STATE");
+    if (top_node < 0) {
+        printf("ERROR: could not find VALVE_STATUS node\n");
+        return;
+    }
+
+    
+    /* Setup controller for flat access to leaves */
+    cfl_hbit_controller_t* ctrl = cfl_hbit_controller_create(inst, (uint16_t)top_node, bit_space_id);
+    if (!ctrl) {
+        printf("ERROR: controller create failed\n");
+        return;
+    }
+    cfl_hbit_controller_fill_all(ctrl,0xff);
+    
+    cfl_hbit_sync_and_propagate(inst);
+    printf("\nInitial state:\n");
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+    
+
+    printf("\nSetting child bits:\n");
+    cfl_hbit_controller_clear_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_clear_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_clear_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_clear_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    printf("\nClearing child bits:\n");
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_set_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_set_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_set_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+    
+    
+
+    cfl_hbit_controller_clear_child_bit(ctrl, 0, 0);
+    cfl_hbit_sync_and_propagate(inst);
+    printf("\n\nreading bit top node %d bit index %d value %d expected 0 \n", top_node, 0, cfl_hbit_controller_read_bit(ctrl, 0));
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
 }
+
+void test_simple_walker_based_error_handling(cfl_hbit_instance_t* inst) {
+    printf("\n\nTesting Simple Walker Based Error Handling\n\n");
+    //uint16_t bit_space_id = IRRIGATION_VALVES_BUF_OR_LATCH;
+    uint16_t bit_space_id = irrigation_valves_find_buffer("ALARM_LATCHED");
+    printf("Found OR_LATCH bitspace at %d\n", bit_space_id);
+    
+    /* Look up nodes by hash */
+    int16_t top_node = cfl_hbit_find_node_path(inst, "VALVE_STATUS");
+    if (top_node < 0) {
+        printf("ERROR: could not find VALVE_STATUS node\n");
+        return;
+    }
+
+    /* Setup controller for flat access to leaves */
+    cfl_hbit_controller_t* ctrl = cfl_hbit_controller_create(inst, (uint16_t)top_node, bit_space_id);
+    if (!ctrl) {
+        printf("ERROR: controller create failed\n");
+        return;
+    }
+    cfl_hbit_controller_clear_all(ctrl);
+    cfl_hbit_clear_controller_latches(ctrl);
+    cfl_hbit_sync_and_propagate(inst);
+    printf("\nInitial state:\n");
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    printf("\nSetting child bits:\n");
+    cfl_hbit_controller_set_child_bit(ctrl, 0, 0);
+    cfl_hbit_controller_set_child_bit(ctrl, 1, 1);
+    cfl_hbit_controller_set_child_bit(ctrl, 2, 2);
+    cfl_hbit_controller_set_child_bit(ctrl, 3, 3);
+    cfl_hbit_sync_and_propagate(inst);
+    cfl_hbit_print_node_state(inst,bit_space_id,top_node,NULL);
+
+    uint8_t temp_bit_index = 0;
+    uint16_t monitoring_nodes[4];
+    monitoring_nodes[0] = cfl_hbit_controller_get_node_bit(ctrl, 0, 0, &temp_bit_index);
+    monitoring_nodes[1] = cfl_hbit_controller_get_node_bit(ctrl, 1, 1, &temp_bit_index);
+    monitoring_nodes[2] = cfl_hbit_controller_get_node_bit(ctrl, 2, 2, &temp_bit_index);
+    monitoring_nodes[3] = cfl_hbit_controller_get_node_bit(ctrl, 3, 3, &temp_bit_index);
+
+
+    uint32_t error_bits = cfl_hbit_count_error_bits(inst, top_node, bit_space_id,false);
+    printf("\n\nNumber of error bits: %d\n", error_bits);
+    // Collect all error bits
+    cfl_hbit_error_bits_t* errors = 
+    cfl_hbit_count_error_bits_and_get_bits(inst, top_node, bit_space_id, sizeof(monitoring_nodes)/sizeof(monitoring_nodes[0]), monitoring_nodes, true);
+
+    if (errors) {
+        printf("Found %u error bits:\n", errors->count);
+
+        for (uint32_t i = 0; i < errors->count; i++) {
+            cfl_hbit_error_bit_t* err = &errors->error_bits[i];
+            const cfl_hbit_node_t* node = &inst->config->nodes[err->node];
+            
+            printf("  Error at node %u (hash 0x%08X), bit %u monitoring node %u\n",
+                err->node, node->path_hash, err->index, err->monitoring_node);
+            
+           
+        }
+
+        // Propagate the clears
+        
+        cfl_hbit_print_error_bits_by_node(inst, errors);
+        // Free the error list
+        cfl_hbit_error_bits_destroy(inst, errors);
+    }
+    
+}
+
+
 
 static void* my_alloc(size_t size, void* ctx) {
     (void)ctx;
@@ -141,7 +286,9 @@ int main(void) {
     }
     test_or_latch_test(inst);
     test_or_mask_test(inst);
-    test_and_mask_test(inst);
+    test_and_test(inst);
+    test_simple_walker_based_error_handling(inst);
+    
 
     cfl_hbit_destroy(inst);
     return 0;
