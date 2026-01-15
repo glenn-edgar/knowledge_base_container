@@ -9,7 +9,7 @@
 #include "cfl_exception.h"
 #include <string.h>
 #include <stdio.h>
-
+#include <stdlib.h>
 // ============================================================================
 // FORWARD DECLARATIONS
 // ============================================================================
@@ -38,7 +38,16 @@ static s_expr_result_t se_state_actions(s_expr_tree_instance_t* inst, const s_ex
 static s_expr_result_t se_field_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_event_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-
+// main Result code functions
+static s_expr_result_t se_return_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_halt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_terminate(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_reset(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_disable(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_skip_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_function_halt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_function_reset(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_return_function_terminate(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Oneshots
 static void se_log(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
@@ -47,7 +56,44 @@ static void se_log(s_expr_tree_instance_t* inst, const s_expr_param_t* params, u
 // ============================================================================
 
 static s_expr_fn_entry_t builtin_oneshot_entries[] = {
-    { 0xF8B9F88C, (void*)se_log },  // SE_LOG
+    { SE_LOG_HASH, (void*)se_log },
+};
+
+static s_expr_fn_entry_t builtin_main_entries[] = {
+    { SE_PIPELINE_HASH, (void*)se_pipeline },
+    { SE_TICK_DELAY_HASH, (void*)se_tick_delay },
+    { SE_TIME_DELAY_HASH, (void*)se_time_delay },
+    { SE_WAIT_EVENT_HASH, (void*)se_wait_event },
+    { SE_NOP_HASH, (void*)se_nop },
+    { SE_IF_THEN_ELSE_HASH, (void*)se_if_then_else },
+    { SE_TRIGGER_ON_CHANGE_HASH, (void*)se_trigger_on_change },
+    { SE_STATE_MACHINE_HASH, (void*)se_state_machine },
+    { SE_STATE_ACTIONS_HASH, (void*)se_state_actions },
+    { SE_FIELD_DISPATCH_HASH, (void*)se_field_dispatch },
+    { SE_EVENT_DISPATCH_HASH, (void*)se_event_dispatch },
+    { SE_DISPATCH_HASH, (void*)se_dispatch },
+    // Result code functions
+    { SE_RETURN_CONTINUE_HASH, (void*)se_return_continue },
+    { SE_RETURN_HALT_HASH, (void*)se_return_halt },
+    { SE_RETURN_TERMINATE_HASH, (void*)se_return_terminate },
+    { SE_RETURN_RESET_HASH, (void*)se_return_reset },
+    { SE_RETURN_DISABLE_HASH, (void*)se_return_disable },
+    { SE_RETURN_SKIP_CONTINUE_HASH, (void*)se_return_skip_continue },
+    { SE_RETURN_FUNCTION_HALT_HASH, (void*)se_return_function_halt },
+    { SE_RETURN_FUNCTION_RESET_HASH, (void*)se_return_function_reset },
+    { SE_RETURN_FUNCTION_TERMINATE_HASH, (void*)se_return_function_terminate },
+};
+
+static s_expr_fn_entry_t builtin_pred_entries[] = {
+    { SE_PRED_AND_HASH, (void*)se_pred_and },
+    { SE_PRED_OR_HASH, (void*)se_pred_or },
+    { SE_PRED_NOT_HASH, (void*)se_pred_not },
+    { SE_PRED_NOR_HASH, (void*)se_pred_nor },
+    { SE_PRED_NAND_HASH, (void*)se_pred_nand },
+    { SE_PRED_XOR_HASH, (void*)se_pred_xor },
+    { SE_TRUE_HASH, (void*)se_true },
+    { SE_FALSE_HASH, (void*)se_false },
+    { SE_CHECK_EVENT_HASH, (void*)se_check_event },
 };
 
 static const s_expr_fn_table_t builtin_oneshot_table = {
@@ -55,36 +101,9 @@ static const s_expr_fn_table_t builtin_oneshot_table = {
     .count = sizeof(builtin_oneshot_entries) / sizeof(builtin_oneshot_entries[0])
 };
 
-static s_expr_fn_entry_t builtin_main_entries[] = {
-    { 0xA5C6D765, (void*)se_pipeline },          // SE_PIPELINE
-    { 0x7993CB40, (void*)se_tick_delay },        // SE_TICK_DELAY
-    { 0xBCB79496, (void*)se_time_delay },        // SE_TIME_DELAY
-    { 0x9D1FAA68, (void*)se_wait_event },        // SE_WAIT_EVENT
-    { 0x5E060980, (void*)se_nop },               // SE_NOP
-    { 0xA6284BB4, (void*)se_if_then_else },      // SE_IF_THEN_ELSE
-    { 0x3CB1927D, (void*)se_trigger_on_change }, // SE_TRIGGER_ON_CHANGE
-    { 0x089EE5C4, (void*)se_state_machine },     // SE_STATE_MACHINE
-    { 0x07F1C252, (void*)se_state_actions },     // SE_STATE_ACTIONS
-    { 0x05A99203, (void*)se_field_dispatch },    // SE_FIELD_DISPATCH
-    { 0x6F3FBC5A, (void*)se_event_dispatch },    // SE_EVENT_DISPATCH
-    { 0xE85A6F31, (void*)se_dispatch },          // SE_DISPATCH
-};
-
 static const s_expr_fn_table_t builtin_main_table = {
     .entries = builtin_main_entries,
     .count = sizeof(builtin_main_entries) / sizeof(builtin_main_entries[0])
-};
-
-static s_expr_fn_entry_t builtin_pred_entries[] = {
-    { 0xA0B17002, (void*)se_pred_and },    // SE_PRED_AND
-    { 0x28413C60, (void*)se_pred_or },     // SE_PRED_OR
-    { 0x2D165022, (void*)se_pred_not },    // SE_PRED_NOT
-    { 0x2B964DC6, (void*)se_pred_nor },    // SE_PRED_NOR
-    { 0xCA1E2562, (void*)se_pred_nand },   // SE_PRED_NAND
-    { 0x13A71924, (void*)se_pred_xor },    // SE_PRED_XOR
-    { 0xF1B76220, (void*)se_true },        // SE_TRUE
-    { 0x11057CC6, (void*)se_false },       // SE_FALSE
-    { 0x84401D18, (void*)se_check_event }, // SE_CHECK_EVENT
 };
 
 static const s_expr_fn_table_t builtin_pred_table = {
@@ -107,7 +126,6 @@ const s_expr_fn_table_t* s_engine_builtin_main_table(void) {
 const s_expr_fn_table_t* s_engine_builtin_pred_table(void) {
     return &builtin_pred_table;
 }
-
 
 // ============================================================================
 // PREDICATE IMPLEMENTATIONS
@@ -318,6 +336,7 @@ static s_expr_result_t se_pipeline(
     (void)event_data;
     
     for (uint16_t i = 0; i < param_count; ) {
+        printf("param[%d] = %d\n", i, params[i].type);
         if (s_expr_param_is_action(&params[i])) {
             s_expr_result_t r = s_expr_invoke_any(inst, params, i);
             if (r != SE_CONTINUE) {
@@ -326,6 +345,8 @@ static s_expr_result_t se_pipeline(
         }
         i = s_expr_skip_param(params, i);
     }
+    
+
     
     return s_expr_find_result(params, param_count);
 }
@@ -831,4 +852,174 @@ static void se_log(
         printf("[SE_LOG] %s\n", msg);
         #endif
     }
+}
+
+// ============================================================================
+// RESULT CODE FUNCTION IMPLEMENTATIONS
+// ============================================================================
+
+// ============================================================================
+// RESULT CODE FUNCTION IMPLEMENTATIONS
+// ============================================================================
+
+static s_expr_result_t se_return_continue(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_continue: %d\n", SE_CONTINUE);
+    return SE_CONTINUE;
+}
+
+static s_expr_result_t se_return_halt(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_halt: %d\n", SE_HALT);
+    return SE_HALT;
+}
+
+static s_expr_result_t se_return_terminate(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_terminate: %d\n", SE_TERMINATE);
+    return SE_TERMINATE;
+}
+
+static s_expr_result_t se_return_reset(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_reset: %d\n", SE_RESET);
+    return SE_RESET;
+}
+
+static s_expr_result_t se_return_disable(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_disable: %d\n", SE_DISABLE);
+    return SE_DISABLE;
+}
+
+static s_expr_result_t se_return_skip_continue(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_skip_continue: %d\n", SE_SKIP_CONTINUE);
+    return SE_SKIP_CONTINUE;
+}
+
+static s_expr_result_t se_return_function_halt(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_function_halt: %d\n", SE_FUNCTION_HALT);
+    return SE_FUNCTION_HALT;
+}
+
+static s_expr_result_t se_return_function_reset(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_function_reset: %d\n", SE_FUNCTION_RESET);
+    return SE_FUNCTION_RESET;
+}
+
+static s_expr_result_t se_return_function_terminate(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst;
+    (void)params;
+    (void)param_count;
+    (void)event_type;
+    (void)event_id;
+    (void)event_data;
+    printf("se_return_function_terminate: %d\n", SE_FUNCTION_TERMINATE);
+    return SE_FUNCTION_TERMINATE;
 }

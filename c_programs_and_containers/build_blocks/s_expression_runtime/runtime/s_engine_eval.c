@@ -8,7 +8,7 @@
 #include "s_engine_module.h"
 #include "cfl_exception.h"
 #include <string.h>
-
+#include <stdio.h>
 // ============================================================================
 // EXCEPTION MACRO (must be defined by application)
 // ============================================================================
@@ -195,7 +195,7 @@ static s_expr_result_t dispatch_main(
     uint16_t node_idx = func_param->node_index;
     bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
     uint8_t pointer_base = func_param->index_to_pointer;
-    
+   
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
     if (!state) return SE_TERMINATE;  // Exception already raised
     

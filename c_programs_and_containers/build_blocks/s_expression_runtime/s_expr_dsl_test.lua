@@ -24,7 +24,7 @@
 -- ============================================================================
 -- BEGIN MODULE
 -- ============================================================================
-
+local M = require("s_expr_dsl")
 local mod = start_module("s_expr_dsl_test")
 use_32bit()
 set_debug(true)
@@ -257,51 +257,15 @@ end_tree()
 start_tree("test_result_codes")
     use_record("test_blackboard")
     
-    -- Test SE_CONTINUE
-    local c1 = m_call("TEST_CONTINUE")
-        result(SE_CONTINUE)
-    end_call(c1)
-    
-    -- Test SE_TERMINATE
-    local c2 = m_call("TEST_TERMINATE")
-        result(SE_TERMINATE)
-    end_call(c2)
-    
-    -- Test SE_RESET
-    local c3 = m_call("TEST_RESET")
-        result(SE_RESET)
-    end_call(c3)
-    
-    -- Test SE_DISABLE
-    local c4 = m_call("TEST_DISABLE")
-        result(SE_DISABLE)
-    end_call(c4)
-    
-    -- Test SE_HALT
-    local c5 = m_call("TEST_HALT")
-        result(SE_HALT)
-    end_call(c5)
-    
-    -- Test SE_SKIP_CONTINUE
-    local c6 = m_call("TEST_SKIP_CONTINUE")
-        result(SE_SKIP_CONTINUE)
-    end_call(c6)
-    
-    -- Test SE_FUNCTION_HALT
-    local c7 = m_call("TEST_FUNCTION_HALT")
-        result(SE_FUNCTION_HALT)
-    end_call(c7)
-    
-    -- Test SE_FUNCTION_RESET
-    local c8 = m_call("TEST_FUNCTION_RESET")
-        result(SE_FUNCTION_RESET)
-    end_call(c8)
-    
-    -- Test SE_FUNCTION_TERMINATE
-    local c9 = m_call("TEST_FUNCTION_TERMINATE")
-        result(SE_FUNCTION_TERMINATE)
-    end_call(c9)
-    
+    local c1 = m_call("SE_RETURN_CONTINUE") end_call(c1)
+    local c2 = m_call("SE_RETURN_TERMINATE") end_call(c2)
+    local c3 = m_call("SE_RETURN_RESET") end_call(c3)
+    local c4 = m_call("SE_RETURN_DISABLE") end_call(c4)
+    local c5 = m_call("SE_RETURN_HALT") end_call(c5)
+    local c6 = m_call("SE_RETURN_SKIP_CONTINUE") end_call(c6)
+    local c7 = m_call("SE_RETURN_FUNCTION_HALT") end_call(c7)
+    local c8 = m_call("SE_RETURN_FUNCTION_RESET") end_call(c8)
+    local c9 = m_call("SE_RETURN_FUNCTION_TERMINATE") end_call(c9)
 end_tree()
 
 -- ============================================================================
@@ -766,5 +730,22 @@ print("  Strings: " .. #result.string_table)
 print("  Oneshot functions: " .. #result.oneshot_funcs)
 print("  Main functions: " .. #result.main_funcs)
 print("  Pred functions: " .. #result.pred_funcs)
+-- Debug: Print actual structure
+print("\n=== DEBUG: Module structure ===")
+print("record_order type: " .. type(result.record_order))
+if result.record_order then
+    for i, rec in ipairs(result.record_order) do
+        print(string.format("  [%d] type=%s", i, type(rec)))
+        if type(rec) == "table" then
+            for k, v in pairs(rec) do
+                print(string.format("      %s = %s", tostring(k), tostring(v)))
+            end
+        else
+            print("      value = " .. tostring(rec))
+        end
+    end
+end
+print("=== END DEBUG ===\n")
 
+print(M.write_debug_header(result))
 return result

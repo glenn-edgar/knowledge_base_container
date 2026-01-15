@@ -6,6 +6,7 @@
 #include "s_engine_module.h"
 #include "cfl_exception.h"
 #include <string.h>
+#include <stdio.h>
 
 // ============================================================================
 // INTERNAL: Function registry storage
@@ -317,10 +318,6 @@ void s_expr_module_register_pred(s_expr_module_t* mod, const s_expr_fn_table_t* 
     }
 }
 
-// ============================================================================
-// MODULE VALIDATE
-// ============================================================================
-
 uint8_t s_expr_module_validate(s_expr_module_t* mod) {
     if (!mod) {
         EXCEPTION("s_expr_module_validate: NULL module");
@@ -332,47 +329,68 @@ uint8_t s_expr_module_validate(s_expr_module_t* mod) {
     }
     
     const s_expr_module_def_t* def = mod->def;
+    uint16_t missing_count = 0;
+    uint8_t first_error = S_EXPR_ERR_OK;
     
+    // Check oneshot functions
     for (uint16_t i = 0; i < def->oneshot_count; i++) {
         if (!mod->oneshot_fns[i]) {
             s_expr_hash_t hash = def->oneshot_hashes[i];
             mod->oneshot_fns[i] = (s_expr_oneshot_fn_t)lookup_by_hash(&oneshot_registry, hash);
             if (!mod->oneshot_fns[i]) {
-                EXCEPTION("s_expr_module_validate: oneshot function not found");
-                mod->error_code = S_EXPR_ERR_ONESHOT_NOT_FOUND;
-                mod->error_index = i;
-                mod->error_hash = hash;
-                return S_EXPR_ERR_ONESHOT_NOT_FOUND;
+                printf("Missing oneshot function: hash=0x%08X index=%d\n", (uint32_t)hash, i);
+                if (first_error == S_EXPR_ERR_OK) {
+                    first_error = S_EXPR_ERR_ONESHOT_NOT_FOUND;
+                    mod->error_code = S_EXPR_ERR_ONESHOT_NOT_FOUND;
+                    mod->error_index = i;
+                    mod->error_hash = hash;
+                }
+                missing_count++;
             }
         }
     }
     
+    // Check main functions
     for (uint16_t i = 0; i < def->main_count; i++) {
         if (!mod->main_fns[i]) {
             s_expr_hash_t hash = def->main_hashes[i];
             mod->main_fns[i] = (s_expr_main_fn_t)lookup_by_hash(&main_registry, hash);
             if (!mod->main_fns[i]) {
-                EXCEPTION("s_expr_module_validate: main function not found");
-                mod->error_code = S_EXPR_ERR_MAIN_NOT_FOUND;
-                mod->error_index = i;
-                mod->error_hash = hash;
-                return S_EXPR_ERR_MAIN_NOT_FOUND;
+                printf("Missing main function: hash=0x%08X index=%d\n", (uint32_t)hash, i);
+                if (first_error == S_EXPR_ERR_OK) {
+                    first_error = S_EXPR_ERR_MAIN_NOT_FOUND;
+                    mod->error_code = S_EXPR_ERR_MAIN_NOT_FOUND;
+                    mod->error_index = i;
+                    mod->error_hash = hash;
+                }
+                missing_count++;
             }
         }
     }
     
+    // Check predicate functions
     for (uint16_t i = 0; i < def->pred_count; i++) {
         if (!mod->pred_fns[i]) {
             s_expr_hash_t hash = def->pred_hashes[i];
             mod->pred_fns[i] = (s_expr_pred_fn_t)lookup_by_hash(&pred_registry, hash);
             if (!mod->pred_fns[i]) {
-                EXCEPTION("s_expr_module_validate: predicate function not found");
-                mod->error_code = S_EXPR_ERR_PRED_NOT_FOUND;
-                mod->error_index = i;
-                mod->error_hash = hash;
-                return S_EXPR_ERR_PRED_NOT_FOUND;
+                printf("Missing predicate function: hash=0x%08X index=%d\n", (uint32_t)hash, i);
+                if (first_error == S_EXPR_ERR_OK) {
+                    first_error = S_EXPR_ERR_PRED_NOT_FOUND;
+                    mod->error_code = S_EXPR_ERR_PRED_NOT_FOUND;
+                    mod->error_index = i;
+                    mod->error_hash = hash;
+                }
+                missing_count++;
             }
         }
+    }
+    
+    // Report summary and throw exception if errors
+    if (missing_count > 0) {
+        printf("Validation failed: %d missing function(s)\n", missing_count);
+        EXCEPTION("s_expr_module_validate: missing functions");
+        return first_error;
     }
     
     mod->error_code = S_EXPR_ERR_OK;
@@ -465,6 +483,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
         return NULL;
     }
     
+    // Allocate instance structure
     s_expr_tree_instance_t* inst = (s_expr_tree_instance_t*)alloc->malloc(
         alloc->ctx, sizeof(s_expr_tree_instance_t)
     );
@@ -498,7 +517,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
         }
     }
     
-    // Allocate pointer/slot array (8 bytes per slot)
+    // Allocate pointer/slot array and flags (single allocation block)
     if (tree_def->pointer_count > 0) {
         size_t slot_size = tree_def->pointer_count * sizeof(s_expr_slot_t);
         inst->pointer_array = (s_expr_slot_t*)alloc->malloc(alloc->ctx, slot_size);
@@ -509,6 +528,17 @@ s_expr_tree_instance_t* s_expr_tree_create(
             return NULL;
         }
         memset(inst->pointer_array, 0, slot_size);
+        
+        // Allocate parallel flags array
+        inst->slot_flags = (uint8_t*)alloc->malloc(alloc->ctx, tree_def->pointer_count);
+        if (!inst->slot_flags) {
+            EXCEPTION("s_expr_tree_create: failed to allocate slot_flags");
+            alloc->free(alloc->ctx, inst->pointer_array);
+            if (inst->node_states) alloc->free(alloc->ctx, inst->node_states);
+            alloc->free(alloc->ctx, inst);
+            return NULL;
+        }
+        memset(inst->slot_flags, S_EXPR_SLOT_FLAG_NONE, tree_def->pointer_count);
     }
     
     // Auto-allocate blackboard if tree uses a record
@@ -518,6 +548,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
             inst->blackboard = alloc->malloc(alloc->ctx, record->total_size);
             if (!inst->blackboard) {
                 EXCEPTION("s_expr_tree_create: failed to allocate blackboard");
+                if (inst->slot_flags) alloc->free(alloc->ctx, inst->slot_flags);
                 if (inst->pointer_array) alloc->free(alloc->ctx, inst->pointer_array);
                 if (inst->node_states) alloc->free(alloc->ctx, inst->node_states);
                 alloc->free(alloc->ctx, inst);
@@ -528,29 +559,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
             inst->blackboard_owned = true;
         }
     }
-    // Allocate pointer/slot array (8 bytes per slot)
-if (tree_def->pointer_count > 0) {
-    size_t slot_size = tree_def->pointer_count * sizeof(s_expr_slot_t);
-    inst->pointer_array = (s_expr_slot_t*)alloc->malloc(alloc->ctx, slot_size);
-    if (!inst->pointer_array) {
-        EXCEPTION("s_expr_tree_create: failed to allocate pointer_array");
-        if (inst->node_states) alloc->free(alloc->ctx, inst->node_states);
-        alloc->free(alloc->ctx, inst);
-        return NULL;
-    }
-    memset(inst->pointer_array, 0, slot_size);
     
-    // Allocate parallel flags array
-    inst->slot_flags = (uint8_t*)alloc->malloc(alloc->ctx, tree_def->pointer_count);
-    if (!inst->slot_flags) {
-        EXCEPTION("s_expr_tree_create: failed to allocate slot_flags");
-        alloc->free(alloc->ctx, inst->pointer_array);
-        if (inst->node_states) alloc->free(alloc->ctx, inst->node_states);
-        alloc->free(alloc->ctx, inst);
-        return NULL;
-    }
-    memset(inst->slot_flags, S_EXPR_SLOT_FLAG_NONE, tree_def->pointer_count);
-}
     return inst;
 }
 
@@ -625,6 +634,7 @@ void s_expr_tree_free(s_expr_tree_instance_t* inst) {
     
     alloc->free(alloc->ctx, inst);
 }
+
 // ============================================================================
 // BLACKBOARD BINDING
 // ============================================================================
@@ -979,14 +989,22 @@ void* s_expr_pointer_alloc(s_expr_tree_instance_t* inst, uint16_t param_index, s
         return NULL;
     }
     
-    if (slot->ptr) {
+    uint16_t ptr_idx = inst->pointer_base + param_index;
+    
+    // Free existing allocated pointer
+    if ((inst->slot_flags[ptr_idx] & S_EXPR_SLOT_FLAG_ALLOCATED) && slot->ptr) {
         inst->module->alloc.free(inst->module->alloc.ctx, slot->ptr);
     }
     
     slot->ptr = inst->module->alloc.malloc(inst->module->alloc.ctx, size);
     if (!slot->ptr) {
         EXCEPTION("s_expr_pointer_alloc: allocation failed");
+        inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_NONE;
+        return NULL;
     }
+    
+    memset(slot->ptr, 0, size);
+    inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_ALLOCATED;
     return slot->ptr;
 }
 
@@ -999,8 +1017,15 @@ void s_expr_pointer_free(s_expr_tree_instance_t* inst, uint16_t param_index) {
         return;
     }
     
+    uint16_t ptr_idx = inst->pointer_base + param_index;
+    
+    if (!(inst->slot_flags[ptr_idx] & S_EXPR_SLOT_FLAG_ALLOCATED)) {
+        return;  // Not allocated by us - don't free
+    }
+    
     inst->module->alloc.free(inst->module->alloc.ctx, slot->ptr);
     slot->ptr = NULL;
+    inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_NONE;
 }
 
 void* s_expr_get_ptr(s_expr_tree_instance_t* inst, uint16_t param_index) {
@@ -1010,7 +1035,17 @@ void* s_expr_get_ptr(s_expr_tree_instance_t* inst, uint16_t param_index) {
 
 void s_expr_set_ptr(s_expr_tree_instance_t* inst, uint16_t param_index, void* ptr) {
     s_expr_slot_t* slot = s_expr_get_pointer_slot(inst, param_index);
-    if (slot) slot->ptr = ptr;
+    if (slot) {
+        uint16_t ptr_idx = inst->pointer_base + param_index;
+        
+        // Free existing allocated pointer
+        if ((inst->slot_flags[ptr_idx] & S_EXPR_SLOT_FLAG_ALLOCATED) && slot->ptr) {
+            inst->module->alloc.free(inst->module->alloc.ctx, slot->ptr);
+        }
+        
+        slot->ptr = ptr;
+        inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_EXTERNAL;
+    }
 }
 
 // ============================================================================
@@ -1302,12 +1337,18 @@ void s_expr_tree_slot_set_ptr(s_expr_tree_instance_t* inst, uint16_t index, void
         EXCEPTION("s_expr_tree_slot_set_ptr: invalid index");
         return;
     }
+    if (!inst->pointer_array || !inst->slot_flags) {
+        EXCEPTION("s_expr_tree_slot_set_ptr: NULL pointer_array or slot_flags");
+        return;
+    }
     
     s_expr_slot_t* slot = &inst->pointer_array[index];
     
     // Free existing allocated pointer
     if ((inst->slot_flags[index] & S_EXPR_SLOT_FLAG_ALLOCATED) && slot->ptr) {
-        inst->module->alloc.free(inst->module->alloc.ctx, slot->ptr);
+        if (inst->module && inst->module->alloc.free) {
+            inst->module->alloc.free(inst->module->alloc.ctx, slot->ptr);
+        }
     }
     
     slot->ptr = ptr;
@@ -1321,6 +1362,10 @@ void* s_expr_tree_slot_alloc(s_expr_tree_instance_t* inst, uint16_t index, size_
     }
     if (!inst->module) {
         EXCEPTION("s_expr_tree_slot_alloc: NULL module");
+        return NULL;
+    }
+    if (!inst->pointer_array || !inst->slot_flags) {
+        EXCEPTION("s_expr_tree_slot_alloc: NULL pointer_array or slot_flags");
         return NULL;
     }
     
@@ -1348,13 +1393,19 @@ void s_expr_tree_slot_free(s_expr_tree_instance_t* inst, uint16_t index) {
         EXCEPTION("s_expr_tree_slot_free: invalid index");
         return;
     }
+    if (!inst->slot_flags) {
+        EXCEPTION("s_expr_tree_slot_free: NULL slot_flags");
+        return;
+    }
     
     if (!(inst->slot_flags[index] & S_EXPR_SLOT_FLAG_ALLOCATED)) {
         return;  // Not allocated - nothing to free
     }
     
     if (inst->pointer_array[index].ptr) {
-        inst->module->alloc.free(inst->module->alloc.ctx, inst->pointer_array[index].ptr);
+        if (inst->module && inst->module->alloc.free) {
+            inst->module->alloc.free(inst->module->alloc.ctx, inst->pointer_array[index].ptr);
+        }
         inst->pointer_array[index].ptr = NULL;
     }
     

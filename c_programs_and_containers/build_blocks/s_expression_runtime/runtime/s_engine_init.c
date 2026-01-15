@@ -23,6 +23,14 @@ uint8_t s_engine_init_from_rom(
         EXCEPTION("s_engine_init_from_rom: NULL handle");
         return S_EXPR_ERR_ALLOC;
     }
+    if (!binary_data || binary_size == 0) {
+        EXCEPTION("s_engine_init_from_rom: invalid binary data");
+        return S_EXPR_ERR_NULL_DEF;
+    }
+    if (!alloc.malloc || !alloc.free) {
+        EXCEPTION("s_engine_init_from_rom: invalid allocator");
+        return S_EXPR_ERR_ALLOC;
+    }
     
     memset(handle, 0, sizeof(*handle));
     handle->alloc = alloc;
@@ -49,6 +57,7 @@ uint8_t s_engine_init_from_rom(
         EXCEPTION("s_engine_init_from_rom: module init failed");
         s_expr_unload_module(handle->loaded);
         handle->loaded = NULL;
+        handle->error_code = err;
         return err;
     }
     
@@ -67,6 +76,14 @@ uint8_t s_engine_init_from_file(
 ) {
     if (!handle) {
         EXCEPTION("s_engine_init_from_file: NULL handle");
+        return S_EXPR_ERR_ALLOC;
+    }
+    if (!filepath) {
+        EXCEPTION("s_engine_init_from_file: NULL filepath");
+        return S_EXPR_ERR_NULL_DEF;
+    }
+    if (!alloc.malloc || !alloc.free) {
+        EXCEPTION("s_engine_init_from_file: invalid allocator");
         return S_EXPR_ERR_ALLOC;
     }
     
@@ -95,6 +112,46 @@ uint8_t s_engine_init_from_file(
         EXCEPTION("s_engine_init_from_file: module init failed");
         s_expr_unload_module(handle->loaded);
         handle->loaded = NULL;
+        handle->error_code = err;
+        return err;
+    }
+    
+    return S_EXPR_ERR_OK;
+}
+
+// ============================================================================
+// INIT FROM COMPILE-TIME DEFINITION
+// ============================================================================
+
+uint8_t s_engine_init_from_def(
+    s_engine_handle_t* handle,
+    const s_expr_module_def_t* def,
+    s_expr_allocator_t alloc,
+    void* user_ctx
+) {
+    if (!handle) {
+        EXCEPTION("s_engine_init_from_def: NULL handle");
+        return S_EXPR_ERR_ALLOC;
+    }
+    if (!def) {
+        EXCEPTION("s_engine_init_from_def: NULL definition");
+        return S_EXPR_ERR_NULL_DEF;
+    }
+    if (!alloc.malloc || !alloc.free) {
+        EXCEPTION("s_engine_init_from_def: invalid allocator");
+        return S_EXPR_ERR_ALLOC;
+    }
+    
+    memset(handle, 0, sizeof(*handle));
+    handle->alloc = alloc;
+    handle->user_ctx = user_ctx;
+    handle->loaded = NULL;  // Not from binary
+    
+    // Initialize module directly from definition
+    uint8_t err = s_expr_module_init(&handle->module, def, alloc);
+    if (err != S_EXPR_ERR_OK) {
+        EXCEPTION("s_engine_init_from_def: module init failed");
+        handle->error_code = err;
         return err;
     }
     
@@ -106,27 +163,47 @@ uint8_t s_engine_init_from_file(
 // ============================================================================
 
 void s_engine_register_oneshot(s_engine_handle_t* handle, const s_expr_fn_table_t* table) {
-    if (handle && table) {
-        s_expr_module_register_oneshot(&handle->module, table);
+    if (!handle) {
+        EXCEPTION("s_engine_register_oneshot: NULL handle");
+        return;
     }
+    if (!table) {
+        EXCEPTION("s_engine_register_oneshot: NULL table");
+        return;
+    }
+    s_expr_module_register_oneshot(&handle->module, table);
 }
 
 void s_engine_register_main(s_engine_handle_t* handle, const s_expr_fn_table_t* table) {
-    if (handle && table) {
-        s_expr_module_register_main(&handle->module, table);
+    if (!handle) {
+        EXCEPTION("s_engine_register_main: NULL handle");
+        return;
     }
+    if (!table) {
+        EXCEPTION("s_engine_register_main: NULL table");
+        return;
+    }
+    s_expr_module_register_main(&handle->module, table);
 }
 
 void s_engine_register_pred(s_engine_handle_t* handle, const s_expr_fn_table_t* table) {
-    if (handle && table) {
-        s_expr_module_register_pred(&handle->module, table);
+    if (!handle) {
+        EXCEPTION("s_engine_register_pred: NULL handle");
+        return;
     }
+    if (!table) {
+        EXCEPTION("s_engine_register_pred: NULL table");
+        return;
+    }
+    s_expr_module_register_pred(&handle->module, table);
 }
 
 void s_engine_register_builtins(s_engine_handle_t* handle) {
-    if (!handle) return;
+    if (!handle) {
+        EXCEPTION("s_engine_register_builtins: NULL handle");
+        return;
+    }
     
-    // Register built-in function tables
     const s_expr_fn_table_t* oneshot_table = s_engine_builtin_oneshot_table();
     const s_expr_fn_table_t* main_table = s_engine_builtin_main_table();
     const s_expr_fn_table_t* pred_table = s_engine_builtin_pred_table();
@@ -147,11 +224,16 @@ uint8_t s_engine_validate(s_engine_handle_t* handle) {
         EXCEPTION("s_engine_validate: NULL handle");
         return S_EXPR_ERR_NULL_DEF;
     }
-    return s_expr_module_validate(&handle->module);
+    
+    uint8_t err = s_expr_module_validate(&handle->module);
+    if (err != S_EXPR_ERR_OK) {
+        handle->error_code = err;
+    }
+    return err;
 }
 
 // ============================================================================
-// TREE MANAGEMENT
+// TREE CREATION - Caller owns the returned tree
 // ============================================================================
 
 s_expr_tree_instance_t* s_engine_create_tree(
@@ -169,15 +251,9 @@ s_expr_tree_instance_t* s_engine_create_tree(
     );
     
     if (tree) {
-        // Pass user context to tree
+        // Pass external user context to tree
+        // Main functions retrieve this via s_expr_tree_get_user_ctx()
         s_expr_tree_set_user_ctx(tree, handle->user_ctx);
-        
-        // Track tree
-        if (handle->tree_count < S_ENGINE_MAX_TREES) {
-            handle->trees[handle->tree_count++] = tree;
-        } else {
-            EXCEPTION("s_engine_create_tree: max trees exceeded");
-        }
     }
     
     return tree;
@@ -199,31 +275,9 @@ s_expr_tree_instance_t* s_engine_create_tree_by_hash(
     
     if (tree) {
         s_expr_tree_set_user_ctx(tree, handle->user_ctx);
-        
-        if (handle->tree_count < S_ENGINE_MAX_TREES) {
-            handle->trees[handle->tree_count++] = tree;
-        } else {
-            EXCEPTION("s_engine_create_tree_by_hash: max trees exceeded");
-        }
     }
     
     return tree;
-}
-
-s_expr_tree_instance_t* s_engine_find_tree(
-    s_engine_handle_t* handle,
-    s_expr_hash_t name_hash
-) {
-    if (!handle) return NULL;
-    
-    for (uint16_t i = 0; i < handle->tree_count; i++) {
-        if (handle->trees[i] && 
-            s_expr_tree_name_hash(handle->trees[i]) == name_hash) {
-            return handle->trees[i];
-        }
-    }
-    
-    return NULL;
 }
 
 // ============================================================================
@@ -233,21 +287,16 @@ s_expr_tree_instance_t* s_engine_find_tree(
 void s_engine_free(s_engine_handle_t* handle) {
     if (!handle) return;
     
-    // Free all trees
-    for (uint16_t i = 0; i < handle->tree_count; i++) {
-        if (handle->trees[i]) {
-            s_expr_tree_free(handle->trees[i]);
-            handle->trees[i] = NULL;
-        }
-    }
-    handle->tree_count = 0;
-    
-    // Free module
+    // Free module (function tables)
     s_expr_module_free(&handle->module);
     
-    // Free loaded binary
+    // Free loaded binary (if from file/ROM)
     if (handle->loaded) {
         s_expr_unload_module(handle->loaded);
         handle->loaded = NULL;
     }
+    
+    // Clear handle
+    handle->user_ctx = NULL;
+    handle->error_code = 0;
 }

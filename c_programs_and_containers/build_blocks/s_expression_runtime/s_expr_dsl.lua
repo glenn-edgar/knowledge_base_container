@@ -24,16 +24,30 @@ local M = {}
 -- FNV-1a 32-bit HASH
 -- ============================================================================
 
-local FNV_OFFSET_BASIS = 0x811c9dc5
-local FNV_PRIME = 0x01000193
-
 function M.fnv1a_32(str)
-    local hash = FNV_OFFSET_BASIS
-    for i = 1, #str do
-        hash = bit.bxor(hash, str:byte(i))
-        hash = bit.band(hash * FNV_PRIME, 0xFFFFFFFF)
-    end
-    return bit.band(hash, 0xFFFFFFFF)
+local hash = 0x811c9dc5
+
+for i = 1, #str do
+    hash = bit.bxor(hash, str:byte(i))
+    
+    -- Split into 16-bit halves to avoid double precision overflow
+    local lo = bit.band(hash, 0xFFFF)
+    local hi = bit.band(bit.rshift(hash, 16), 0xFFFF)
+    
+    -- Multiply by FNV_PRIME (0x01000193 = 16777619)
+    -- (hi*65536 + lo) * prime mod 2^32
+    local prime = 0x01000193
+    local lo_prod = lo * prime
+    local hi_prod = hi * prime
+    
+    -- Combine: only lower 16 bits of hi_prod matter (shifted left 16)
+    hash = lo_prod + bit.lshift(bit.band(hi_prod, 0xFFFF), 16)
+    hash = bit.tobit(hash)  -- Wrap to signed 32-bit
+end
+
+-- Convert to unsigned for return
+local u32 = ffi.new("uint32_t", hash)
+return tonumber(u32)
 end
 
 -- JIT warmup - force compilation before real use
@@ -128,6 +142,16 @@ local BUILTIN_FUNCTIONS = {
     "SE_FIELD_DISPATCH",
     "SE_EVENT_DISPATCH",
     "SE_DISPATCH",
+    -- Result code functions
+    "SE_RETURN_CONTINUE",
+    "SE_RETURN_HALT",
+    "SE_RETURN_TERMINATE",
+    "SE_RETURN_RESET",
+    "SE_RETURN_DISABLE",
+    "SE_RETURN_SKIP_CONTINUE",
+    "SE_RETURN_FUNCTION_HALT",
+    "SE_RETURN_FUNCTION_RESET",
+    "SE_RETURN_FUNCTION_TERMINATE",
     -- Oneshots
     "SE_LOG",
 }
@@ -1602,9 +1626,6 @@ function BinaryModuleGenerator:build_lookups()
     end
 end
 
--- Emit a single s_expr_param_t struct
--- 32-bit layout: [type:1][idx_to_ptr:1][pad:2][union:4] = 8 bytes
--- 64-bit layout: [type:1][idx_to_ptr:1][pad:6][union:8] = 16 bytes
 function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer, u16_a, u16_b, value_32_or_64)
     -- Byte 0: type
     e:emit_u8(param_type)
@@ -1613,12 +1634,10 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
     e:emit_u8(index_to_pointer or 0)
     
     if self.is_64bit then
-        -- Bytes 2-7: padding (6 bytes)
+        -- 64-bit layout: [type:1][idx:1][pad:6][union:8] = 16 bytes
         for i = 1, 6 do e:emit_u8(0) end
         
-        -- Bytes 8-15: union (8 bytes)
         if value_32_or_64 then
-            -- 64-bit value (int64/uint64/double/hash64)
             if type(value_32_or_64) == "number" then
                 if param_type == S_EXPR_PARAM.FLOAT then
                     e:emit_f64(value_32_or_64)
@@ -1631,18 +1650,14 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
                 e:emit_u64(0)
             end
         else
-            -- Two uint16_t values at offset 8 and 10, rest padding
             e:emit_u16(u16_a or 0)
             e:emit_u16(u16_b or 0)
             e:emit_u32(0)  -- padding
         end
     else
-        -- Bytes 2-3: padding (2 bytes)
-        e:emit_u16(0)
-        
-        -- Bytes 4-7: union (4 bytes)
+        -- 32-bit layout: [type:1][idx:1][union:4][pad:2] = 8 bytes
+        -- Union starts at byte 2 (NO padding between idx and union!)
         if value_32_or_64 then
-            -- 32-bit value (int32/uint32/float/hash32)
             if type(value_32_or_64) == "number" then
                 if param_type == S_EXPR_PARAM.FLOAT then
                     e:emit_f32(value_32_or_64)
@@ -1654,11 +1669,343 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
             else
                 e:emit_u32(0)
             end
+            e:emit_u16(0)  -- struct end padding (bytes 6-7)
         else
-            -- Two uint16_t values at offset 4 and 6
-            e:emit_u16(u16_a or 0)
-            e:emit_u16(u16_b or 0)
+            e:emit_u16(u16_a or 0)  -- bytes 2-3 (node_index or brace_idx)
+            e:emit_u16(u16_b or 0)  -- bytes 4-5 (func_index)
+            e:emit_u16(0)           -- bytes 6-7 (struct end padding)
         end
+    end
+end
+-- ============================================================================
+-- ============================================================================
+-- DEBUG HEADER GENERATOR
+-- Call after finalize_module()
+-- ============================================================================
+
+-- ============================================================================
+-- DEBUG HEADER GENERATOR
+-- Call after end_module()
+-- ============================================================================
+
+function M.generate_debug_header(module)
+    local lines = {}
+    
+    local guard = string.upper(module.name) .. "_DEBUG_H"
+    local prefix = string.upper(module.name)
+    
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// " .. module.name .. "_debug.h")
+    table.insert(lines, "// DEBUG INFORMATION - Auto-generated by s_expr_dsl.lua")
+    table.insert(lines, "// Module: " .. module.name)
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "#ifndef " .. guard)
+    table.insert(lines, "#define " .. guard)
+    table.insert(lines, "")
+    table.insert(lines, "#include <stdint.h>")
+    table.insert(lines, "#include <stdio.h>")
+    table.insert(lines, "")
+    
+    -- Get the actual arrays (handle both naming conventions)
+    local tree_order = module.tree_order or {}
+    local trees = module.trees or {}
+    local record_order = module.record_order or {}
+    local records = module.records or {}
+    local oneshot_funcs = module.oneshot_funcs or {}
+    local main_funcs = module.main_funcs or {}
+    local pred_funcs = module.pred_funcs or {}
+    
+    -- ========================================================================
+    -- Tree name table
+    -- ========================================================================
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// TREE DEBUG INFO")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "typedef struct {")
+    table.insert(lines, "    uint32_t    hash;")
+    table.insert(lines, "    const char* name;")
+    table.insert(lines, "    uint16_t    node_count;")
+    table.insert(lines, "    uint16_t    pointer_count;")
+    table.insert(lines, "    uint16_t    param_count;")
+    table.insert(lines, "} " .. module.name .. "_tree_debug_t;")
+    table.insert(lines, "")
+    
+    table.insert(lines, "static const " .. module.name .. "_tree_debug_t " .. module.name .. "_tree_debug[] = {")
+    if #tree_order > 0 then
+        for i, tree_name in ipairs(tree_order) do
+            local tree = trees[tree_name] or {}
+            local name_hash = tree.name_hash or M.fnv1a_32(tree_name)
+            local node_count = tree.node_count or 0
+            local pointer_count = tree.pointer_count or 0
+            local param_count = tree.params and #tree.params or 0
+            table.insert(lines, string.format(
+                '    { 0x%08X, "%s", %d, %d, %d },',
+                name_hash,
+                tree_name,
+                node_count,
+                pointer_count,
+                param_count
+            ))
+        end
+    else
+        table.insert(lines, '    { 0, "", 0, 0, 0 },  // Empty placeholder')
+    end
+    table.insert(lines, "};")
+    table.insert(lines, string.format("#define %s_TREE_DEBUG_COUNT %d", prefix, math.max(1, #tree_order)))
+    table.insert(lines, "")
+    
+    -- ========================================================================
+    -- Function hash tables
+    -- ========================================================================
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// FUNCTION DEBUG INFO")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "typedef struct {")
+    table.insert(lines, "    uint32_t    hash;")
+    table.insert(lines, "    const char* name;")
+    table.insert(lines, "    uint16_t    index;")
+    table.insert(lines, "} " .. module.name .. "_func_debug_t;")
+    table.insert(lines, "")
+    
+    -- Helper to emit function table
+    local function emit_func_table(func_list, table_name, count_name)
+        table.insert(lines, "static const " .. module.name .. "_func_debug_t " .. module.name .. "_" .. table_name .. "[] = {")
+        if #func_list > 0 then
+            for i, name in ipairs(func_list) do
+                local hash = M.fnv1a_32(name)
+                table.insert(lines, string.format(
+                    '    { 0x%08X, "%s", %d },',
+                    hash,
+                    name,
+                    i - 1
+                ))
+            end
+        else
+            table.insert(lines, '    { 0, "", 0 },  // Empty placeholder')
+        end
+        table.insert(lines, "};")
+        table.insert(lines, string.format("#define %s_%s %d", prefix, count_name, math.max(1, #func_list)))
+        table.insert(lines, "")
+    end
+    
+    table.insert(lines, "// Oneshot functions")
+    emit_func_table(oneshot_funcs, "oneshot_debug", "ONESHOT_DEBUG_COUNT")
+    
+    table.insert(lines, "// Main functions")
+    emit_func_table(main_funcs, "main_debug", "MAIN_DEBUG_COUNT")
+    
+    table.insert(lines, "// Predicate functions")
+    emit_func_table(pred_funcs, "pred_debug", "PRED_DEBUG_COUNT")
+    
+    -- ========================================================================
+    -- Record debug info
+    -- ========================================================================
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// RECORD DEBUG INFO")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "typedef struct {")
+    table.insert(lines, "    uint32_t    hash;")
+    table.insert(lines, "    const char* name;")
+    table.insert(lines, "    uint16_t    offset;")
+    table.insert(lines, "    uint16_t    size;")
+    table.insert(lines, "} " .. module.name .. "_field_debug_t;")
+    table.insert(lines, "")
+    table.insert(lines, "typedef struct {")
+    table.insert(lines, "    uint32_t    hash;")
+    table.insert(lines, "    const char* name;")
+    table.insert(lines, "    uint16_t    size;")
+    table.insert(lines, "    uint16_t    field_count;")
+    table.insert(lines, "    const " .. module.name .. "_field_debug_t* fields;")
+    table.insert(lines, "} " .. module.name .. "_record_debug_t;")
+    table.insert(lines, "")
+    
+    -- Emit field tables for each record
+    for _, record_name in ipairs(record_order) do
+        local record = records[record_name] or {}
+        local record_fields = record.fields or {}
+        local field_table_name = module.name .. "_" .. string.lower(record_name) .. "_fields_debug"
+        table.insert(lines, "static const " .. module.name .. "_field_debug_t " .. field_table_name .. "[] = {")
+        if #record_fields > 0 then
+            for _, field in ipairs(record_fields) do
+                local field_name = field.name or "unknown"
+                table.insert(lines, string.format(
+                    '    { 0x%08X, "%s", %d, %d },',
+                    M.fnv1a_32(field_name),
+                    field_name,
+                    field.offset or 0,
+                    field.size or 0
+                ))
+            end
+        else
+            table.insert(lines, '    { 0, "", 0, 0 },  // Empty placeholder')
+        end
+        table.insert(lines, "};")
+        table.insert(lines, "")
+    end
+    
+    -- Emit record table
+    table.insert(lines, "static const " .. module.name .. "_record_debug_t " .. module.name .. "_record_debug[] = {")
+    if #record_order > 0 then
+        for _, record_name in ipairs(record_order) do
+            local record = records[record_name] or {}
+            local record_fields = record.fields or {}
+            local field_table_name = module.name .. "_" .. string.lower(record_name) .. "_fields_debug"
+            table.insert(lines, string.format(
+                '    { 0x%08X, "%s", %d, %d, %s },',
+                M.fnv1a_32(record_name),
+                record_name,
+                record.size or 0,
+                #record_fields,
+                field_table_name
+            ))
+        end
+    else
+        table.insert(lines, '    { 0, "", 0, 0, NULL },  // Empty placeholder')
+    end
+    table.insert(lines, "};")
+    table.insert(lines, string.format("#define %s_RECORD_DEBUG_COUNT %d", prefix, math.max(1, #record_order)))
+    table.insert(lines, "")
+    
+    -- ========================================================================
+    -- Lookup functions
+    -- ========================================================================
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// DEBUG LOOKUP FUNCTIONS")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    
+    -- Tree lookup
+    table.insert(lines, "static inline const char* " .. module.name .. "_find_tree_name(uint32_t hash) {")
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_TREE_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        if (" .. module.name .. "_tree_debug[i].hash == hash) {")
+    table.insert(lines, "            return " .. module.name .. "_tree_debug[i].name;")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, '    return "UNKNOWN";')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Main function lookup
+    table.insert(lines, "static inline const char* " .. module.name .. "_find_main_name(uint32_t hash) {")
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_MAIN_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        if (" .. module.name .. "_main_debug[i].hash == hash) {")
+    table.insert(lines, "            return " .. module.name .. "_main_debug[i].name;")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, '    return "UNKNOWN";')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Oneshot function lookup
+    table.insert(lines, "static inline const char* " .. module.name .. "_find_oneshot_name(uint32_t hash) {")
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_ONESHOT_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        if (" .. module.name .. "_oneshot_debug[i].hash == hash) {")
+    table.insert(lines, "            return " .. module.name .. "_oneshot_debug[i].name;")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, '    return "UNKNOWN";')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Predicate function lookup
+    table.insert(lines, "static inline const char* " .. module.name .. "_find_pred_name(uint32_t hash) {")
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_PRED_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        if (" .. module.name .. "_pred_debug[i].hash == hash) {")
+    table.insert(lines, "            return " .. module.name .. "_pred_debug[i].name;")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, '    return "UNKNOWN";')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Record lookup
+    table.insert(lines, "static inline const char* " .. module.name .. "_find_record_name(uint32_t hash) {")
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_RECORD_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        if (" .. module.name .. "_record_debug[i].hash == hash) {")
+    table.insert(lines, "            return " .. module.name .. "_record_debug[i].name;")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, '    return "UNKNOWN";')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Print all trees
+    table.insert(lines, "static inline void " .. module.name .. "_print_trees(void) {")
+    table.insert(lines, '    printf("' .. module.name .. ' Trees (%d):\\n", ' .. prefix .. '_TREE_DEBUG_COUNT);')
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_TREE_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        const " .. module.name .. "_tree_debug_t* t = &" .. module.name .. "_tree_debug[i];")
+    table.insert(lines, '        printf("  [%2d] 0x%08X %-32s nodes=%d ptrs=%d params=%d\\n",')
+    table.insert(lines, "               i, t->hash, t->name, t->node_count, t->pointer_count, t->param_count);")
+    table.insert(lines, "    }")
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Print all functions
+    table.insert(lines, "static inline void " .. module.name .. "_print_functions(void) {")
+    table.insert(lines, '    printf("' .. module.name .. ' Main Functions (%d):\\n", ' .. prefix .. '_MAIN_DEBUG_COUNT);')
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_MAIN_DEBUG_COUNT; i++) {")
+    table.insert(lines, '        printf("  [%2d] 0x%08X %s\\n", i, ' .. module.name .. '_main_debug[i].hash, ' .. module.name .. '_main_debug[i].name);')
+    table.insert(lines, "    }")
+    table.insert(lines, '    printf("' .. module.name .. ' Oneshot Functions (%d):\\n", ' .. prefix .. '_ONESHOT_DEBUG_COUNT);')
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_ONESHOT_DEBUG_COUNT; i++) {")
+    table.insert(lines, '        printf("  [%2d] 0x%08X %s\\n", i, ' .. module.name .. '_oneshot_debug[i].hash, ' .. module.name .. '_oneshot_debug[i].name);')
+    table.insert(lines, "    }")
+    table.insert(lines, '    printf("' .. module.name .. ' Predicate Functions (%d):\\n", ' .. prefix .. '_PRED_DEBUG_COUNT);')
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_PRED_DEBUG_COUNT; i++) {")
+    table.insert(lines, '        printf("  [%2d] 0x%08X %s\\n", i, ' .. module.name .. '_pred_debug[i].hash, ' .. module.name .. '_pred_debug[i].name);')
+    table.insert(lines, "    }")
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Print all records
+    table.insert(lines, "static inline void " .. module.name .. "_print_records(void) {")
+    table.insert(lines, '    printf("' .. module.name .. ' Records (%d):\\n", ' .. prefix .. '_RECORD_DEBUG_COUNT);')
+    table.insert(lines, "    for (int i = 0; i < " .. prefix .. "_RECORD_DEBUG_COUNT; i++) {")
+    table.insert(lines, "        const " .. module.name .. "_record_debug_t* r = &" .. module.name .. "_record_debug[i];")
+    table.insert(lines, '        printf("  [%2d] 0x%08X %-24s size=%d fields=%d\\n",')
+    table.insert(lines, "               i, r->hash, r->name, r->size, r->field_count);")
+    table.insert(lines, "        for (int j = 0; j < r->field_count; j++) {")
+    table.insert(lines, "            const " .. module.name .. "_field_debug_t* f = &r->fields[j];")
+    table.insert(lines, '            printf("       [%2d] 0x%08X %-20s offset=%d size=%d\\n",')
+    table.insert(lines, "                   j, f->hash, f->name, f->offset, f->size);")
+    table.insert(lines, "        }")
+    table.insert(lines, "    }")
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    -- Print all debug info
+    table.insert(lines, "static inline void " .. module.name .. "_print_debug_all(void) {")
+    table.insert(lines, '    printf("\\n========== ' .. string.upper(module.name) .. ' DEBUG INFO ==========\\n\\n");')
+    table.insert(lines, "    " .. module.name .. "_print_trees();")
+    table.insert(lines, '    printf("\\n");')
+    table.insert(lines, "    " .. module.name .. "_print_functions();")
+    table.insert(lines, '    printf("\\n");')
+    table.insert(lines, "    " .. module.name .. "_print_records();")
+    table.insert(lines, '    printf("\\n");')
+    table.insert(lines, "}")
+    table.insert(lines, "")
+    
+    table.insert(lines, "#endif // " .. guard)
+    table.insert(lines, "")
+    
+    return table.concat(lines, "\n")
+end
+
+-- Write debug header to file
+function M.write_debug_header(module, output_dir)
+    local content = M.generate_debug_header(module)
+    local path = output_dir or "./" .. module.name .. "_debug.h"
+    local f = io.open(path, "w")
+    if f then
+        f:write(content)
+        f:close()
+        print("Generated: " .. path)
+    else
+        error("Failed to write: " .. path)
     end
 end
 
@@ -1868,9 +2215,9 @@ function BinaryModuleGenerator:generate()
     return e:to_bytes(), e:get_pos()
 end
 
--- Flatten tree structure into linear s_expr_param_t array
 function BinaryModuleGenerator:emit_tree_params(e, tree)
     local param_count = 0
+    local current_node_idx = 0  -- Track node index as we emit
     
     local function emit_node(node)
         -- Determine opcode and func_index based on call_type
@@ -1899,8 +2246,10 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
             func_index = 0
         end
         
-        -- Emit OPEN_CALL: type, index_to_pointer, node_index, func_index
-        local node_index = tree.node_count  -- Will be assigned by walker
+        -- Assign node index and increment
+        local node_index = current_node_idx
+        current_node_idx = current_node_idx + 1
+        
         local idx_to_ptr = node.pointer_index or 0
         
         -- Calculate total params for brace matching
@@ -1910,8 +2259,8 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
         self:emit_param_struct(e, S_EXPR_PARAM.OPEN_CALL, idx_to_ptr, content_count, 0)
         param_count = param_count + 1
         
-        -- Function reference param (ONESHOT/MAIN/PRED with func_index)
-        self:emit_param_struct(e, opcode, idx_to_ptr, func_index, 0)
+        -- Function reference param: node_index first, then func_index (matches struct layout)
+        self:emit_param_struct(e, opcode, idx_to_ptr, node_index, func_index)
         param_count = param_count + 1
         
         -- Emit parameters
