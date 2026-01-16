@@ -823,7 +823,7 @@ static s_expr_result_t se_dispatch(
 // ONESHOT IMPLEMENTATIONS
 // ============================================================================
 
-// SE_LOG - log a message
+// SE_LOG - log a message with timestamp
 // params: [str_ptr]
 static void se_log(
     s_expr_tree_instance_t* inst,
@@ -842,18 +842,26 @@ static void se_log(
     const char* msg = s_expr_get_string(inst, &params[0]);
     if (!msg) return;
     
-    // Use module's debug callback if available
+    // Get timestamp
+    double timestamp = 0.0;
     s_expr_module_t* mod = inst->module;
+    if (mod && mod->alloc.get_time) {
+        timestamp = mod->alloc.get_time(mod->alloc.ctx);
+    }
+    
+    // Use module's debug callback if available
     if (mod && mod->debug_fn) {
-        mod->debug_fn(inst, msg);
+        // Format with timestamp into buffer
+        char buf[256];
+        snprintf(buf, sizeof(buf), "[%.6f] %s", timestamp, msg);
+        mod->debug_fn(inst, buf);
     } else {
         // Fallback to printf if available
         #ifndef S_ENGINE_NO_STDIO
-        printf("[SE_LOG] %s\n", msg);
+        printf("[SE_LOG %.6f] %s\n", timestamp, msg);
         #endif
     }
 }
-
 // ============================================================================
 // RESULT CODE FUNCTION IMPLEMENTATIONS
 // ============================================================================
@@ -876,7 +884,7 @@ static s_expr_result_t se_return_continue(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_continue: %d\n", SE_CONTINUE);
+    //printf("se_return_continue: %d\n", SE_CONTINUE);
     return SE_CONTINUE;
 }
 
@@ -894,7 +902,7 @@ static s_expr_result_t se_return_halt(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_halt: %d\n", SE_HALT);
+    //printf("se_return_halt: %d\n", SE_HALT);
     return SE_HALT;
 }
 
@@ -912,7 +920,7 @@ static s_expr_result_t se_return_terminate(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_terminate: %d\n", SE_TERMINATE);
+    //printf("se_return_terminate: %d\n", SE_TERMINATE);
     return SE_TERMINATE;
 }
 
@@ -930,7 +938,7 @@ static s_expr_result_t se_return_reset(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_reset: %d\n", SE_RESET);
+    //printf("se_return_reset: %d\n", SE_RESET);
     return SE_RESET;
 }
 
@@ -948,7 +956,7 @@ static s_expr_result_t se_return_disable(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_disable: %d\n", SE_DISABLE);
+    //printf("se_return_disable: %d\n", SE_DISABLE);
     return SE_DISABLE;
 }
 
@@ -966,7 +974,7 @@ static s_expr_result_t se_return_skip_continue(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_skip_continue: %d\n", SE_SKIP_CONTINUE);
+    //printf("se_return_skip_continue: %d\n", SE_SKIP_CONTINUE);
     return SE_SKIP_CONTINUE;
 }
 
@@ -984,7 +992,7 @@ static s_expr_result_t se_return_function_halt(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_function_halt: %d\n", SE_FUNCTION_HALT);
+    //printf("se_return_function_halt: %d\n", SE_FUNCTION_HALT);
     return SE_FUNCTION_HALT;
 }
 
@@ -1002,7 +1010,7 @@ static s_expr_result_t se_return_function_reset(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_function_reset: %d\n", SE_FUNCTION_RESET);
+    //printf("se_return_function_reset: %d\n", SE_FUNCTION_RESET);
     return SE_FUNCTION_RESET;
 }
 
@@ -1020,6 +1028,6 @@ static s_expr_result_t se_return_function_terminate(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    printf("se_return_function_terminate: %d\n", SE_FUNCTION_TERMINATE);
+   // printf("se_return_function_terminate: %d\n", SE_FUNCTION_TERMINATE);
     return SE_FUNCTION_TERMINATE;
 }

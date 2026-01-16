@@ -882,18 +882,15 @@ end
 -- ============================================================================
 
 -- Propagate to caller - caller decides action
-_G.SE_CONTINUE = 0           -- Continue execution, return CONTINUE to caller
-_G.SE_TERMINATE = 1          -- Terminate, return TERMINATE to caller
-_G.SE_RESET = 2              -- Reset, return RESET to caller
-_G.SE_DISABLE = 3            -- Disable, return DISABLE to caller
-_G.SE_HALT = 4               -- Halt, return HALT to caller
-_G.SE_SKIP_CONTINUE = 5      -- Skip children, return CONTINUE to caller
-
--- Function-level - handled internally, mapped to caller codes
-_G.SE_FUNCTION_HALT = 6      -- Halt this function, caller sees CONTINUE
-_G.SE_FUNCTION_RESET = 7     -- Reset tree internally, caller sees CONTINUE
-_G.SE_FUNCTION_TERMINATE = 8 -- Terminate function, caller sees DISABLE
-
+_G.SE_CONTINUE           = 0
+_G.SE_HALT               = 1
+_G.SE_TERMINATE          = 2
+_G.SE_RESET              = 3
+_G.SE_DISABLE            = 4
+_G.SE_FUNCTION_TERMINATE = 5
+_G.SE_SKIP_CONTINUE      = 6
+_G.SE_FUNCTION_HALT      = 7
+_G.SE_FUNCTION_RESET     = 8
 -- ============================================================================
 -- MODULE GENERATOR CLASS (for C headers)
 -- ============================================================================
@@ -1655,8 +1652,10 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
             e:emit_u32(0)  -- padding
         end
     else
-        -- 32-bit layout: [type:1][idx:1][union:4][pad:2] = 8 bytes
-        -- Union starts at byte 2 (NO padding between idx and union!)
+        -- 32-bit layout: [type:1][idx:1][pad:2][union:4] = 8 bytes
+        -- Union is 4-byte aligned due to ct_int_t/ct_uint_t/ct_float_t members
+        e:emit_u16(0)  -- bytes 2-3: padding to align union to 4-byte boundary
+        
         if value_32_or_64 then
             if type(value_32_or_64) == "number" then
                 if param_type == S_EXPR_PARAM.FLOAT then
@@ -1669,11 +1668,9 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
             else
                 e:emit_u32(0)
             end
-            e:emit_u16(0)  -- struct end padding (bytes 6-7)
         else
-            e:emit_u16(u16_a or 0)  -- bytes 2-3 (node_index or brace_idx)
-            e:emit_u16(u16_b or 0)  -- bytes 4-5 (func_index)
-            e:emit_u16(0)           -- bytes 6-7 (struct end padding)
+            e:emit_u16(u16_a or 0)  -- bytes 4-5 (node_index or brace_idx)
+            e:emit_u16(u16_b or 0)  -- bytes 6-7 (func_index)
         end
     end
 end

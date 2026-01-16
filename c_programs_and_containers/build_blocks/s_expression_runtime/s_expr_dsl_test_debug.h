@@ -25,7 +25,15 @@ typedef struct {
 static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0x0F2D298C, "test_all_call_types", 6, 1, 0 },
     { 0x0C2D6F09, "test_all_param_types", 1, 0, 0 },
-    { 0x282398FA, "test_result_codes", 9, 0, 0 },
+    { 0xEBA1F08A, "test_result_codes_1", 1, 0, 0 },
+    { 0xEAA1EEF7, "test_result_codes_2", 1, 0, 0 },
+    { 0xE9A1ED64, "test_result_codes_3", 1, 0, 0 },
+    { 0xE8A1EBD1, "test_result_codes_4", 1, 0, 0 },
+    { 0xE7A1EA3E, "test_result_codes_5", 1, 0, 0 },
+    { 0xE6A1E8AB, "test_result_codes_6", 1, 0, 0 },
+    { 0xE5A1E718, "test_result_codes_7", 1, 0, 0 },
+    { 0xE4A1E585, "test_result_codes_8", 1, 0, 0 },
+    { 0xE3A1E3F2, "test_result_codes_9", 1, 0, 0 },
     { 0x2B0C43E2, "test_composable_predicates", 32, 0, 0 },
     { 0xAE7550EB, "test_pipeline_and_delays", 8, 4, 0 },
     { 0x6764DEAF, "test_conditionals", 20, 0, 0 },
@@ -36,7 +44,7 @@ static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0xD1E84F15, "test_pointer_slots", 5, 4, 0 },
     { 0x0153499F, "test_complex_nesting", 11, 1, 0 },
 };
-#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 12
+#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 20
 
 // ============================================================================
 // FUNCTION DEBUG INFO

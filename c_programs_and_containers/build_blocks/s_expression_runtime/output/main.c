@@ -203,6 +203,12 @@ static bool load_from_file(s_engine_handle_t* engine, s_expr_allocator_t* alloc,
 // MAIN FUNCTION
 // ============================================================================
 
+
+static void return_code_tests(s_engine_handle_t* engine);
+static void test_parameter_types(s_engine_handle_t* engine);
+static void test_all_call_types(s_engine_handle_t* engine);
+static void test_composable_predicates(s_engine_handle_t* engine);
+
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -234,6 +240,11 @@ int main(int argc, char* argv[]) {
         printf("❌ FATAL: Failed to load module\n");
         return 1;
     }
+
+    return_code_tests(&engine);
+    test_parameter_types(&engine);
+    test_all_call_types(&engine);
+    test_composable_predicates(&engine);
     s_engine_free(&engine);
     // ========================================================================
     // INITIALIZE ENGINE
@@ -241,4 +252,258 @@ int main(int argc, char* argv[]) {
     
    
    return 0;
+}
+
+
+static void return_code_tests(s_engine_handle_t* engine) {
+
+    s_expr_tree_instance_t* continue_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_1_HASH,
+        0
+    );
+    if (!continue_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_1_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    s_expr_result_t last_result = s_expr_tree_tick(continue_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_CONTINUE) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(continue_tree);
+
+    s_expr_tree_instance_t* terminate_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_2_HASH,
+        0
+    );
+    if (!terminate_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_2_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(terminate_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_TERMINATE) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(terminate_tree);
+
+    s_expr_tree_instance_t* reset_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_3_HASH,
+        0
+    );
+    if (!reset_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_3_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(reset_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_RESET) {
+        printf("  ❌ FAILED: Expected SE_RESET, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(reset_tree);
+
+    s_expr_tree_instance_t* disable_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_4_HASH,
+        0
+    );
+    if (!disable_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_4_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(disable_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_CONTINUE) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_HALT, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(disable_tree);
+
+    s_expr_tree_instance_t* halt_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_5_HASH,
+        0
+    );
+    if (!halt_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_5_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(halt_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_HALT) {
+        printf("  ❌ FAILED: Expected SE_HALT, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_HALT, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(halt_tree);
+
+    s_expr_tree_instance_t* skip_continue_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_6_HASH,
+        0
+    );
+    if (!skip_continue_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_6_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(halt_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_SKIP_CONTINUE) {
+        printf("  ❌ FAILED: Expected SE_SKIP_CONTINUE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_SKIP_CONTINUE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(skip_continue_tree);
+
+    s_expr_tree_instance_t* function_halt_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_7_HASH,
+        0
+    );
+    if (!function_halt_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_5_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(function_halt_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_FUNCTION_HALT) {
+        printf("  ❌ FAILED: Expected SE_FUNCTION_HALT, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_FUNCTION_HALT, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(function_halt_tree);
+
+    s_expr_tree_instance_t* function_reset_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_8_HASH,
+        0
+    );
+    if (!function_reset_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_5_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(function_reset_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_FUNCTION_RESET) {
+        printf("  ❌ FAILED: Expected SE_HALT, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_FUNCTION_RESET, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(function_reset_tree);
+
+  
+
+    s_expr_tree_instance_t* function_terminate_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_RESULT_CODES_9_HASH,
+        0
+    );
+    if (!function_terminate_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_RESULT_CODES_5_HASH);
+        exit(1);
+    }
+    
+    // Dump params to see node_index values
+
+    last_result = s_expr_tree_tick(function_reset_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_FUNCTION_TERMINATE) {
+        printf("  ❌ FAILED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(function_terminate_tree);
+}
+    
+
+static void test_parameter_types(s_engine_handle_t* engine) {
+    s_expr_tree_instance_t* test_params_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_ALL_PARAM_TYPES_HASH,
+        0
+    );
+    if (!test_params_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_PARAMS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_params_tree, SE_EVENT_TICK, NULL);
+    if (last_result != SE_CONTINUE) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(test_params_tree);
+}
+
+
+static void test_all_call_types(s_engine_handle_t* engine) {
+    s_expr_tree_instance_t* test_all_call_types_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_ALL_CALL_TYPES_HASH,
+        0
+    );
+    if (!test_all_call_types_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_ALL_CALL_TYPES_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 10; i++) {
+        s_expr_result_t last_result = s_expr_tree_tick(test_all_call_types_tree, SE_EVENT_TICK, NULL);
+        if (last_result == SE_CONTINUE) {
+            break;
+        }
+        printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
+    }
+    s_expr_result_t result = s_expr_tree_tick(test_all_call_types_tree, 42,NULL);
+    if (result != SE_CONTINUE) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(result));
+    
+    s_expr_tree_free(test_all_call_types_tree);
+}
+
+static void test_composable_predicates(s_engine_handle_t* engine) {
+    s_expr_tree_instance_t* test_composable_predicates_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_COMPOSABLE_PREDICATES_HASH,
+        0
+    );
+    if (!test_composable_predicates_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_COMPOSABLE_PREDICATES_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_composable_predicates_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    if ((last_result != SE_CONTINUE) && (last_result != SE_HALT)) {
+        printf("  ❌ FAILED: Expected SE_CONTINUE or SE_HALT, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_CONTINUE or SE_HALT, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(test_composable_predicates_tree);
 }

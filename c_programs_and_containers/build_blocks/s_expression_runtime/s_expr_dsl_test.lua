@@ -176,10 +176,8 @@ start_tree("test_all_call_types")
         int(0)
     end_call(init)
     
-    -- o_call: Regular oneshot
-    local log = o_call("SE_LOG")
-        str_ptr("System initialized")
-    end_call(log)
+   
+    se_log("System initialized")
     
     -- p_call: Predicate
     local pred = p_call("CHECK_ENABLED")
@@ -254,20 +252,50 @@ end_tree()
 --        SE_SKIP_CONTINUE, SE_FUNCTION_HALT, SE_FUNCTION_RESET, SE_FUNCTION_TERMINATE
 -- ============================================================================
 
-start_tree("test_result_codes")
+start_tree("test_result_codes_1")
     use_record("test_blackboard")
-    
-    local c1 = m_call("SE_RETURN_CONTINUE") end_call(c1)
-    local c2 = m_call("SE_RETURN_TERMINATE") end_call(c2)
-    local c3 = m_call("SE_RETURN_RESET") end_call(c3)
-    local c4 = m_call("SE_RETURN_DISABLE") end_call(c4)
-    local c5 = m_call("SE_RETURN_HALT") end_call(c5)
-    local c6 = m_call("SE_RETURN_SKIP_CONTINUE") end_call(c6)
-    local c7 = m_call("SE_RETURN_FUNCTION_HALT") end_call(c7)
-    local c8 = m_call("SE_RETURN_FUNCTION_RESET") end_call(c8)
-    local c9 = m_call("SE_RETURN_FUNCTION_TERMINATE") end_call(c9)
+    se_return_continue()
 end_tree()
 
+start_tree("test_result_codes_2")
+    use_record("test_blackboard")
+    se_return_terminate()
+end_tree()
+
+start_tree("test_result_codes_3")
+    use_record("test_blackboard")
+    se_return_reset()
+end_tree()
+
+start_tree("test_result_codes_4")
+    use_record("test_blackboard")
+    se_return_disable()
+end_tree()
+
+start_tree("test_result_codes_5")
+    use_record("test_blackboard")
+    se_return_halt()
+end_tree()
+
+start_tree("test_result_codes_6")
+    use_record("test_blackboard")
+    se_return_skip_continue()
+end_tree()
+
+start_tree("test_result_codes_7")
+    use_record("test_blackboard")
+    se_return_function_halt()
+end_tree()
+
+start_tree("test_result_codes_8")
+    use_record("test_blackboard")
+    se_return_function_reset()
+end_tree()
+
+start_tree("test_result_codes_9")
+    use_record("test_blackboard")
+    se_return_function_terminate()
+end_tree()
 -- ============================================================================
 -- TEST TREE 4: Composable Predicates
 -- Tests: se_pred_and, se_pred_or, se_pred_not, se_pred_nor, se_pred_nand, se_pred_xor
@@ -277,67 +305,67 @@ end_tree()
 start_tree("test_composable_predicates")
     use_record("test_blackboard")
     
-    -- Simple AND
-    local p1 = se_pred_and()
-        local a = p_call("PRED_A") end_call(a)
-        local b = p_call("PRED_B") end_call(b)
-    end_call(p1)
-    
-    -- Simple OR
-    local p2 = se_pred_or()
-        local c = p_call("PRED_C") end_call(c)
-        local d = p_call("PRED_D") end_call(d)
-    end_call(p2)
-    
-    -- NOT (single child)
-    local p3 = se_pred_not()
-        local e = p_call("PRED_E") end_call(e)
-    end_call(p3)
-    
-    -- Complex nested: (A AND B) OR (C AND D)
-    local complex = se_pred_or()
-        local and1 = se_pred_and()
-            local a2 = p_call("SENSOR_A_READY") end_call(a2)
-            local b2 = p_call("SENSOR_B_READY") end_call(b2)
-        end_call(and1)
-        local and2 = se_pred_and()
-            local c2 = p_call("TIMEOUT_EXPIRED") end_call(c2)
-            local d2 = p_call("RETRY_AVAILABLE") end_call(d2)
-        end_call(and2)
-    end_call(complex)
-    
-    -- Triple nested: NOT((A OR B) AND (C OR D))
-    local triple = se_pred_not()
-        local inner_and = se_pred_and()
-            local or1 = se_pred_or()
-                local t1 = p_call("FLAG_1") end_call(t1)
-                local t2 = p_call("FLAG_2") end_call(t2)
-            end_call(or1)
-            local or2 = se_pred_or()
-                local t3 = p_call("FLAG_3") end_call(t3)
-                local t4 = p_call("FLAG_4") end_call(t4)
-            end_call(or2)
-        end_call(inner_and)
-    end_call(triple)
-    
-    -- NOR
-    local p4 = se_pred_nor()
-        local f = p_call("PRED_F") end_call(f)
-        local g = p_call("PRED_G") end_call(g)
-    end_call(p4)
-    
-    -- NAND
-    local p5 = se_pred_nand()
-        local h = p_call("PRED_H") end_call(h)
-        local i = p_call("PRED_I") end_call(i)
-    end_call(p5)
-    
-    -- XOR
-    local p6 = se_pred_xor()
-        local j = p_call("PRED_J") end_call(j)
-        local k = p_call("PRED_K") end_call(k)
-    end_call(p6)
-    
+-- Simple AND
+local p1 = se_pred_and()
+    se_pred("PRED_A")
+    se_pred("PRED_B")
+end_call(p1)
+
+-- Simple OR
+local p2 = se_pred_or()
+    se_pred("PRED_C")
+    se_pred("PRED_D")
+end_call(p2)
+
+-- NOT (single child)
+local p3 = se_pred_not()
+    se_pred("PRED_E")
+end_call(p3)
+
+-- Complex nested: (A AND B) OR (C AND D)
+local complex = se_pred_or()
+    local and1 = se_pred_and()
+        se_pred("SENSOR_A_READY")
+        se_pred("SENSOR_B_READY")
+    end_call(and1)
+    local and2 = se_pred_and()
+        se_pred("TIMEOUT_EXPIRED")
+        se_pred("RETRY_AVAILABLE")
+    end_call(and2)
+end_call(complex)
+
+-- Triple nested: NOT((A OR B) AND (C OR D))
+local triple = se_pred_not()
+    local inner_and = se_pred_and()
+        local or1 = se_pred_or()
+            se_pred("FLAG_1")
+            se_pred("FLAG_2")
+        end_call(or1)
+        local or2 = se_pred_or()
+            se_pred("FLAG_3")
+            se_pred("FLAG_4")
+        end_call(or2)
+    end_call(inner_and)
+end_call(triple)
+
+-- NOR
+local p4 = se_pred_nor()
+    se_pred("PRED_F")
+    se_pred("PRED_G")
+end_call(p4)
+
+-- NAND
+local p5 = se_pred_nand()
+    se_pred("PRED_H")
+    se_pred("PRED_I")
+end_call(p5)
+
+-- XOR
+local p6 = se_pred_xor()
+    se_pred("PRED_J")
+    se_pred("PRED_K")
+end_call(p6)
+
     result(SE_CONTINUE)
 end_tree()
 

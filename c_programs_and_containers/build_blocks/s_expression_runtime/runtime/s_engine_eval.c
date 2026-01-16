@@ -197,10 +197,10 @@ static s_expr_result_t dispatch_main(
     uint8_t pointer_base = func_param->index_to_pointer;
    
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return SE_TERMINATE;  // Exception already raised
+    if (!state) return SE_TERMINATE;
     
     if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return SE_CONTINUE;  // Not active - skip silently
+        return SE_CONTINUE;
     }
     
     uint16_t saved_node = inst->current_node_index;
@@ -233,24 +233,29 @@ static s_expr_result_t dispatch_main(
         return SE_TERMINATE;
     }
     
+    // =========================================================================
+    // PHASE 1: INITIALIZATION (first call only)
+    // Called with SE_EVENT_INIT on first dispatch to this node
+    // =========================================================================
     if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
         state->flags |= S_EXPR_NODE_FLAG_INITIALIZED;
         
-        result = fn(inst, args, arg_count, SE_EVENT_INIT, event_id, event_data);
+        fn(inst, args, arg_count, SE_EVENT_INIT, event_id, event_data);
         
-        if (result == SE_DISABLE) {
-            fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
-            state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
-            
-            inst->current_node_index = saved_node;
-            inst->in_pointer_call = saved_in_ptr;
-            inst->pointer_base = saved_ptr_base;
-            return SE_DISABLE;
-        }
+      
     }
+    
+    // =========================================================================
+    // PHASE 2: REGULAR EVENT PROCESSING
+    // Called with event_type (typically SE_EVENT_TICK or user event)
+    // =========================================================================
     
     result = fn(inst, args, arg_count, event_type, event_id, event_data);
     
+    // =========================================================================
+    // PHASE 3b: TERMINATION (node completed or disabled)
+    // Called with SE_EVENT_TERMINATE when result is SE_DISABLE
+    // =========================================================================
     if (result == SE_DISABLE) {
         fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
         state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
@@ -366,7 +371,7 @@ static s_expr_result_t eval_params(
                     return result;
                     
                 case SE_SKIP_CONTINUE:
-                    return SE_CONTINUE;
+                    return SE_SKIP_CONTINUE;
                     
                 default:
                     idx = skip;

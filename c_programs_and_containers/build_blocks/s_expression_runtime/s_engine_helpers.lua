@@ -22,6 +22,65 @@
 --   end_call(p1)  -- (A AND B) OR OVERRIDE
 --============================================================================
 
+
+--============================================================================
+-- RESULT CODE FUNCTIONS
+-- 
+-- These return specific result codes to control execution flow.
+-- Only SE_CONTINUE and SE_DISABLE continue to next node.
+-- All others terminate the current tick and propagate to caller.
+--============================================================================
+
+function se_return_continue()
+    local c = m_call("SE_RETURN_CONTINUE")
+    end_call(c)
+end
+
+function se_return_terminate()
+    local c = m_call("SE_RETURN_TERMINATE")
+    end_call(c)
+end
+
+function se_return_reset()
+    local c = m_call("SE_RETURN_RESET")
+    end_call(c)
+end
+
+function se_return_disable()
+    local c = m_call("SE_RETURN_DISABLE")
+    end_call(c)
+end
+
+function se_return_halt()
+    local c = m_call("SE_RETURN_HALT")
+    end_call(c)
+end
+
+function se_return_skip_continue()
+    local c = m_call("SE_RETURN_SKIP_CONTINUE")
+    end_call(c)
+end
+
+function se_return_function_halt()
+    local c = m_call("SE_RETURN_FUNCTION_HALT")
+    end_call(c)
+end
+
+function se_return_function_reset()
+    local c = m_call("SE_RETURN_FUNCTION_RESET")
+    end_call(c)
+end
+
+function se_return_function_terminate()
+    local c = m_call("SE_RETURN_FUNCTION_TERMINATE")
+    end_call(c)
+end
+
+function se_pred(name)
+    local c = p_call(name)
+    end_call(c)
+end
+
 function se_pred_or()
     return p_call_composite("SE_PRED_OR")
 end
