@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <unistd.h>
 
 #include "s_engine_types.h"
 #include "s_engine_module.h"
@@ -50,13 +50,7 @@ static void debug_callback(s_expr_tree_instance_t* inst, const char* msg) {
 // TEST RESULT TRACKING
 // ============================================================================
 
-typedef struct {
-    int passed;
-    int failed;
-    int skipped;
-} test_stats_t;
 
-static test_stats_t g_stats = {0, 0, 0};
 
 static const char* result_to_str(s_expr_result_t r) {
     switch (r) {
@@ -76,7 +70,7 @@ static const char* result_to_str(s_expr_result_t r) {
 static double linux_get_time(void* ctx) {
     (void)ctx;
     struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
@@ -208,7 +202,14 @@ static void return_code_tests(s_engine_handle_t* engine);
 static void test_parameter_types(s_engine_handle_t* engine);
 static void test_all_call_types(s_engine_handle_t* engine);
 static void test_composable_predicates(s_engine_handle_t* engine);
-
+static void test_pipeline_and_delays(s_engine_handle_t* engine);
+static void test_conditionals(s_engine_handle_t* engine);
+static void test_state_machine(s_engine_handle_t* engine);
+static void test_dispatch(s_engine_handle_t* engine);
+static void test_predicate_helpers(s_engine_handle_t* engine);
+static void test_nested_fields(s_engine_handle_t* engine);
+static void test_pointer_slots(s_engine_handle_t* engine);
+static void test_complex_nesting(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -245,7 +246,16 @@ int main(int argc, char* argv[]) {
     test_parameter_types(&engine);
     test_all_call_types(&engine);
     test_composable_predicates(&engine);
+    test_pipeline_and_delays(&engine);
+    test_conditionals(&engine);
+    test_state_machine(&engine);
+    test_dispatch(&engine);
+    test_predicate_helpers(&engine);
+    test_nested_fields(&engine);
+    test_pointer_slots(&engine);
+    test_complex_nesting(&engine);
     s_engine_free(&engine);
+
     // ========================================================================
     // INITIALIZE ENGINE
     // ========================================================================
@@ -506,4 +516,239 @@ static void test_composable_predicates(s_engine_handle_t* engine) {
     }
     printf("  ✅ PASSED: Expected SE_CONTINUE or SE_HALT, got %s\n", result_to_str(last_result));
     s_expr_tree_free(test_composable_predicates_tree);
+}
+
+
+static void test_pipeline_and_delays(s_engine_handle_t* engine) {
+    printf("\n=== Test Pipeline and Delays ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_PIPELINE_AND_DELAYS_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_PIPELINE_AND_DELAYS_HASH);
+        exit(1);
+    }
+    
+    s_expr_result_t result;
+    
+    // Step 1: Pass the tick_delay(100)
+    printf("Phase 1: Tick delay (100 ticks)\n");
+    for (int i = 0; i < 110; i++) {
+        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        if (result != SE_HALT) {
+            printf("  tick %d: result=%d\n", i, result);
+        }
+    }
+    printf("  After 110 ticks: result=%d\n", result);
+    
+    // Step 2: Pass the time_delay(1.5)
+    printf("Phase 2: Time delay (1.5 seconds)\n");
+    result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  Before sleep: result=%d\n", result);
+    
+    usleep(1600000);  // 1.6 seconds
+    
+    result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  After sleep: result=%d\n", result);
+    
+    // Step 3: Pass the wait_event(42, 3)
+    printf("Phase 3: Wait for event 42 (3 times)\n");
+    for (int i = 0; i < 3; i++) {
+        result = s_expr_tree_tick(tree, 42, NULL);  
+       
+    }
+    
+    // Step 4: Pass the wait_event_once(99)
+    printf("Phase 4: Wait for event 99 (once)\n");
+    result = s_expr_tree_tick(tree, 99, NULL);  
+    
+    printf("  event 99: result=%d\n", result);
+    
+    // Step 5: Final tick to complete pipeline
+    printf("Phase 5: Final tick\n");
+    result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  Final result: %d\n", result);
+    
+    // Expected: SE_FUNCTION_TERMINATE (5) or SE_DISABLE (4)
+    if (result == SE_FUNCTION_TERMINATE ) {
+        printf("✅ PASSED: Pipeline completed correctly\n");
+    } else {
+        printf("❌ FAILED: Expected SE_FUNCTION_TERMINATE  but got %s\n", result_to_str(result));
+        exit(1);
+    }
+    
+    s_expr_tree_free(tree);
+}
+
+
+static void test_conditionals(s_engine_handle_t* engine) {
+    printf("\n=== Test Conditionals ===\n");
+    s_expr_tree_instance_t* test_conditionals_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CONDITIONALS_HASH,
+        0
+    );
+    if (!test_conditionals_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_CONDITIONALS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_conditionals_tree, SE_EVENT_TICK, NULL);
+    last_result = s_expr_tree_tick(test_conditionals_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    if (last_result != SE_FUNCTION_TERMINATE) {
+        printf("  ❌ FAILED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+        exit(1);
+    }
+    printf("  ✅ PASSED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+    s_expr_tree_free(test_conditionals_tree);
+}
+
+static void test_state_machine(s_engine_handle_t* engine) {
+    printf("\n=== Test State Machine ===\n");
+    s_expr_tree_instance_t* test_state_machine_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_STATE_MACHINE_HASH,
+        0
+    );
+    if (!test_state_machine_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_STATE_MACHINE_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result;
+    for (int i = 0; i <  200 ; i++) {
+        last_result = s_expr_tree_tick(test_state_machine_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d %d\n", i, last_result);
+        if (last_result == SE_FUNCTION_TERMINATE) {
+            printf("  ✅ PASSED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+            s_expr_tree_free(test_state_machine_tree);
+            return;
+        }
+    }
+    printf("  ❌ FAILED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+    exit(1);
+    
+}
+
+#define EVT_TIMER 100
+#define EVT_BUTTON 101
+#define EVT_SENSOR 102
+static void test_dispatch(s_engine_handle_t* engine) {
+    printf("\n=== Test Dispatch ===\n");
+    
+    s_expr_result_t result;
+    s_expr_tree_instance_t* tree;
+    
+    // Test 1: Field dispatch IDLE
+    printf("\nTest: field_dispatch IDLE\n");
+    tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_IDLE_HASH, 0);
+    if (tree) {
+        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
+        s_expr_tree_free(tree);
+    }
+    
+    // Test 2: Field dispatch START
+    printf("\nTest: field_dispatch START\n");
+    tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_START_HASH, 0);
+    if (tree) {
+        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
+        s_expr_tree_free(tree);
+    }
+    
+    // Test 3: Field dispatch STOP
+    printf("\nTest: field_dispatch STOP\n");
+    tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_STOP_HASH, 0);
+    if (tree) {
+        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
+        s_expr_tree_free(tree);
+    }
+    
+    // Test 4: Event dispatch
+    printf("\nTest: event_dispatch\n");
+    tree = s_expr_tree_create_by_hash(&engine->module, TEST_EVENT_DISPATCH_HASH, 0);
+    if (tree) {
+        printf("Sending EVT_TIMER (100):\n");
+        s_expr_tree_tick(tree, EVT_TIMER, NULL);
+        
+        printf("Sending EVT_BUTTON (101):\n");
+        s_expr_tree_tick(tree, EVT_BUTTON, NULL);
+        
+        printf("Sending EVT_SENSOR (102):\n");
+        result = s_expr_tree_tick(tree, EVT_SENSOR, NULL);
+        
+        printf("Final result: %d\n", result);
+        s_expr_tree_free(tree);
+    }
+    
+    printf("\n=== Dispatch Tests Complete ===\n");
+}
+static void test_predicate_helpers(s_engine_handle_t* engine) {
+    printf("\n=== Test Predicate Helpers ===\n");
+    s_expr_tree_instance_t* test_predicate_helpers_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_PREDICATE_HELPERS_HASH,
+        0
+    );
+    if (!test_predicate_helpers_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_PREDICATE_HELPERS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_predicate_helpers_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    
+    s_expr_tree_free(test_predicate_helpers_tree);
+}
+
+
+static void test_nested_fields(s_engine_handle_t* engine) {
+    printf("\n=== Test Nested Fields ===\n");
+    s_expr_tree_instance_t* test_nested_fields_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_NESTED_FIELDS_HASH,
+        0
+    );
+    if (!test_nested_fields_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_NESTED_FIELDS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_nested_fields_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    s_expr_tree_free(test_nested_fields_tree);
+}
+
+static void test_pointer_slots(s_engine_handle_t* engine) {
+    printf("\n=== Test Pointer Slots ===\n");
+    s_expr_tree_instance_t* test_pointer_slots_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_POINTER_SLOTS_HASH,
+        0
+    );
+    if (!test_pointer_slots_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_POINTER_SLOTS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_pointer_slots_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    s_expr_tree_free(test_pointer_slots_tree);
+}
+
+static void test_complex_nesting(s_engine_handle_t* engine) {
+    printf("\n=== Test Complex Nesting ===\n");
+    s_expr_tree_instance_t* test_complex_nesting_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_COMPLEX_NESTING_HASH,
+        0
+    );
+    if (!test_complex_nesting_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_COMPLEX_NESTING_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_complex_nesting_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    s_expr_tree_free(test_complex_nesting_tree);
 }

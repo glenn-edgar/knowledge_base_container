@@ -224,12 +224,9 @@ function se_field_dispatch(field_name, cases)
         for _, case in ipairs(cases) do
             local case_val = case[1]
             local action_fn = case[2]
-            local l = list_start("case")
-                int(case_val)
-                local sa = m_call("SE_STATE_ACTIONS")
-                    action_fn()
-                end_call(sa)
-            list_end(l)
+            -- Emit value + pipeline as sequential children (no list wrapper)
+            int(case_val)
+            se_pipeline(action_fn)
         end
     end_call(c)
 end
@@ -239,10 +236,8 @@ function se_event_dispatch(cases)
         for _, case in ipairs(cases) do
             local event_val = case[1]
             local action_fn = case[2]
-            local l = list_start("case")
-                int(event_val)
-                se_pipeline(action_fn)
-            list_end(l)
+            int(event_val)
+            se_pipeline(action_fn)
         end
     end_call(c)
 end

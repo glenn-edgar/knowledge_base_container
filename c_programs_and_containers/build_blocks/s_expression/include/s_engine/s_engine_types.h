@@ -511,7 +511,27 @@ static inline bool s_expr_param_is_predicate(const s_expr_param_t* param) {
     }
     return false;
 }
+// ============================================================================
+// PARAMETER TYPE HELPERS (local to builtins)
+// ============================================================================
 
+static inline bool s_expr_param_is_oneshot(const s_expr_param_t* param) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_ONESHOT) return true;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        return ((param + 1)->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_ONESHOT;
+    }
+    return false;
+}
+
+static inline bool s_expr_param_is_main(const s_expr_param_t* param) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    if (opcode == S_EXPR_PARAM_MAIN) return true;
+    if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+        return ((param + 1)->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_MAIN;
+    }
+    return false;
+}
 static inline bool s_expr_param_is_action(const s_expr_param_t* param) {
     uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
     if (opcode == S_EXPR_PARAM_MAIN || opcode == S_EXPR_PARAM_ONESHOT) return true;

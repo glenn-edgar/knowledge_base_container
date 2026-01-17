@@ -160,7 +160,7 @@ CONST("blackboard_defaults", "test_blackboard")
     VALUE("gains.kd", 0.05)
     VALUE("flags", 0)
 END_CONST()
-
+--[[
 -- ============================================================================
 -- TEST TREE 1: All Call Types
 -- Tests: o_call, m_call, p_call, pt_m_call, io_call
@@ -382,16 +382,16 @@ start_tree("test_pipeline_and_delays")
         
         -- Tick delay
         se_tick_delay(100)
-        
+        se_log("Tick delay complete")
         -- Time delay
         se_time_delay(1.5)
-        
+        se_log("Time delay complete")
         -- Wait for event
         se_wait_event(42, 3)
-        
+        se_log("Wait for event 42 3 complete")
         -- Wait event once (convenience)
         se_wait_event_once(99)
-        
+        se_log("Wait event once 99 complete")
         -- NOP
         se_nop()
         
@@ -411,65 +411,70 @@ end_tree()
 start_tree("test_conditionals")
     use_record("test_blackboard")
     
-    -- Full if-then-else
-    se_if_then_else(
-        function()  -- predicate
-            local p = p_call("CHECK_CONDITION") end_call(p)
-        end,
-        function()  -- then branch
-            se_log("Condition is true")
-        end,
-        function()  -- else branch
-            se_log("Condition is false")
-        end
-    )
+    se_pipeline(function()
+        se_log("Starting test_conditionals")
+        
+        -- Full if-then-else
+        se_if_then_else(
+            function()
+                local p = p_call("CHECK_CONDITION") end_call(p)
+            end,
+            function()
+                se_log("Condition is true")
+            end,
+            function()
+                se_log("Condition is false")
+            end
+        )
+        
+        -- Simple if-then (no else)
+        se_if_then(
+            function()
+                local p = p_call("ANOTHER_CONDITION") end_call(p)
+            end,
+            function()
+                se_log("Another condition is true")
+            end
+        )
+        
+        -- Trigger on change
+        se_trigger_on_change(0,
+            function()
+                local p = p_call("MONITOR_STATE") end_call(p)
+            end,
+            function()
+                se_log("State went high")
+            end,
+            function()
+                se_log("State went low")
+            end
+        )
+        
+        -- Rising edge only
+        se_on_rising_edge(
+            function()
+                local p = p_call("BUTTON_PRESSED") end_call(p)
+            end,
+            function()
+                se_log("Button was pressed")
+            end
+        )
+        
+        -- Falling edge only
+        se_on_falling_edge(
+            function()
+                local p = p_call("SENSOR_ACTIVE") end_call(p)
+            end,
+            function()
+                se_log("Sensor went inactive")
+            end
+        )
+        
+        se_log("Ending test_conditionals")
+        result(SE_FUNCTION_TERMINATE)
+    end)
     
-    -- Simple if-then (no else)
-    se_if_then(
-        function()
-            local p = p_call("ANOTHER_CONDITION") end_call(p)
-        end,
-        function()
-            se_log("Another condition is true")
-        end
-    )
-    
-    -- Trigger on change
-    se_trigger_on_change(0,
-        function()  -- predicate
-            local p = p_call("MONITOR_STATE") end_call(p)
-        end,
-        function()  -- on rising (0->1)
-            se_log("State went high")
-        end,
-        function()  -- on falling (1->0)
-            se_log("State went low")
-        end
-    )
-    
-    -- Rising edge only
-    se_on_rising_edge(
-        function()
-            local p = p_call("BUTTON_PRESSED") end_call(p)
-        end,
-        function()
-            se_log("Button was pressed")
-        end
-    )
-    
-    -- Falling edge only
-    se_on_falling_edge(
-        function()
-            local p = p_call("SENSOR_ACTIVE") end_call(p)
-        end,
-        function()
-            se_log("Sensor went inactive")
-        end
-    )
-    
-    result(SE_CONTINUE)
 end_tree()
-
 -- ============================================================================
 -- TEST TREE 7: Helper Functions - State Machine
 -- Tests: se_state_machine, se_state_actions
@@ -481,8 +486,14 @@ local STATE_PAUSED = 2
 local STATE_DONE = 3
 
 start_tree("test_state_machine")
+    
     use_record("test_blackboard")
     
+    se_pipeline(function()
+    local set = io_call("SET_STATE")
+        field_ref("state")
+        int(STATE_IDLE)
+    end_call(set)
     se_state_machine("state", {
         -- State 0: IDLE
         function()
@@ -522,7 +533,7 @@ start_tree("test_state_machine")
             result(SE_FUNCTION_TERMINATE)
         end,
     })
-    
+    end)
 end_tree()
 
 -- ============================================================================
@@ -530,53 +541,146 @@ end_tree()
 -- Tests: se_dispatch, se_field_dispatch, se_event_dispatch
 -- ============================================================================
 
+-- Command constants
 local CMD_IDLE = 0
 local CMD_START = 1
 local CMD_STOP = 2
 local CMD_RESET = 3
 
+-- Event constants
 local EVT_TIMER = 100
 local EVT_BUTTON = 101
 local EVT_SENSOR = 102
 
-start_tree("test_dispatch")
+-- ============================================================================
+-- TEST: Field Dispatch with different command values
+-- ============================================================================
+
+start_tree("test_field_dispatch_idle")
     use_record("test_blackboard")
     
-    -- Field dispatch
-    se_field_dispatch("command", {
-        { CMD_IDLE, function()
-            se_log("Command: IDLE")
-            result(SE_CONTINUE)
-        end },
-        { CMD_START, function()
-            se_log("Command: START")
-            result(SE_HALT)
-        end },
-        { CMD_STOP, function()
-            se_log("Command: STOP")
-            result(SE_HALT)
-        end },
-        { CMD_RESET, function()
-            se_log("Command: RESET")
-            result(SE_FUNCTION_RESET)
-        end },
-    })
-    
-    -- Event dispatch
-    se_event_dispatch({
-        { EVT_TIMER, function()
-            se_log("Event: TIMER")
-        end },
-        { EVT_BUTTON, function()
-            se_log("Event: BUTTON")
-        end },
-        { EVT_SENSOR, function()
-            se_log("Event: SENSOR")
-        end },
-    })
-    
+    se_pipeline(function()
+        -- Set command to IDLE
+        local set = io_call("SET_STATE")
+            field_ref("command")
+            int(CMD_IDLE)
+        end_call(set)
+        
+        se_field_dispatch("command", {
+            { CMD_IDLE, function()
+                se_log("✅ Command: IDLE")
+                result(SE_FUNCTION_HALT)
+            end },
+            { CMD_START, function()
+                se_log("❌ Command: START (wrong)")
+                result(SE_FUNCTION_HALT)
+            end },
+            { CMD_STOP, function()
+                se_log("❌ Command: STOP (wrong)")
+                result(SE_FUNCTION_HALT)
+            end },
+            { CMD_RESET, function()
+                se_log("❌ Command: RESET (wrong)")
+                result(SE_FUNCTION_HALT)
+            end },
+        })
+        
+        
+    end)
 end_tree()
 
+start_tree("test_field_dispatch_start")
+    use_record("test_blackboard")
+    
+    se_pipeline(function()
+        -- Set command to START
+        local set = io_call("SET_STATE")
+            field_ref("command")
+            int(CMD_START)
+        end_call(set)
+        
+        se_field_dispatch("command", {
+            { CMD_IDLE, function()
+                se_log("❌ Command: IDLE (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_START, function()
+                se_log("✅ Command: START")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_STOP, function()
+                se_log("❌ Command: STOP (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_RESET, function()
+                se_log("❌ Command: RESET (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+        })
+        
+        se_return_function_terminate()
+    end)
+end_tree()
+
+start_tree("test_field_dispatch_stop")
+    use_record("test_blackboard")
+    
+    se_pipeline(function()
+        -- Set command to STOP
+        local set = io_call("SET_STATE")
+            field_ref("command")
+            int(CMD_STOP)
+        end_call(set)
+        
+        se_field_dispatch("command", {
+            { CMD_IDLE, function()
+                se_log("❌ Command: IDLE (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_START, function()
+                se_log("❌ Command: START (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_STOP, function()
+                se_log("✅ Command: STOP")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { CMD_RESET, function()
+                se_log("❌ Command: RESET (wrong)")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+        })
+        
+        se_return_function_terminate()
+    end)
+end_tree()
+
+-- ============================================================================
+-- TEST: Event Dispatch with different events
+-- ============================================================================
+
+start_tree("test_event_dispatch")
+    use_record("test_blackboard")
+    
+    se_pipeline(function()
+        se_event_dispatch({
+            { EVT_TIMER, function()
+                se_log("✅ Event: TIMER")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { EVT_BUTTON, function()
+                se_log("✅ Event: BUTTON")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+            { EVT_SENSOR, function()
+                se_log("✅ Event: SENSOR")
+                result(SE_FUNCTION_TERMINATE)
+            end },
+        })
+        
+        se_return_function_terminate()
+    end)
+end_tree()
 -- ============================================================================
 -- TEST TREE 9: Predicate Helpers
 -- Tests: se_true, se_false, se_check_event
@@ -744,7 +848,160 @@ start_tree("test_complex_nesting")
     end_call(outer)
     
 end_tree()
+--]]
+--[[
+    Test DSL: Brace Distance Verification
+    
+    Tests various list patterns to verify brace_idx calculation:
+    1. Simple flat list
+    2. Nested lists
+    3. Dispatch with interleaved children
+    4. Deep nesting with children
+    
+    Run with: luajit s_expr_dsl.lua test_brace_lists.lua
+    Then verify with: ./test_brace_verify test_brace_lists.bin -v
+]]
 
+--------------------------------------------------------------------------------
+-- TEST 1: Simple flat list [1, 2, 3, 4]
+--------------------------------------------------------------------------------
+start_tree("test_simple_list")
+    se_pipeline(function()
+        local v = list_start("vector")
+            int(1)
+            int(2)
+            int(3)
+            int(4)
+        list_end(v)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 2: Nested lists ["x", [100, 200], "y"]
+--------------------------------------------------------------------------------
+start_tree("test_nested_list")
+    se_pipeline(function()
+        local outer = list_start("outer")
+            str("x")
+            int(10)
+            local inner = list_start("inner")
+                int(100)
+                int(200)
+            list_end(inner)
+            str("y")
+            int(20)
+        list_end(outer)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 3: Dispatch with pattern lists containing children
+-- This is the tricky case where children are interleaved with list params
+-- NOTE: Requires a record with "event_id" field bound via use_record()
+--------------------------------------------------------------------------------
+--[[ DISABLED - needs record binding
+start_tree("test_dispatch_lists")
+    use_record("test_blackboard")
+    se_dispatch(field("event_id"), function()
+        -- Case 1: pattern "start" -> action
+        case_pattern("start", function()
+            se_log("dispatch matched start")
+            se_return_continue()
+        end)
+        
+        -- Case 2: pattern "stop" -> action  
+        case_pattern("stop", function()
+            se_log("dispatch matched stop")
+            se_return_terminate()
+        end)
+        
+        -- Default case
+        case_default(function()
+            se_return_continue()
+        end)
+    end)
+end_tree()
+]]
+
+--------------------------------------------------------------------------------
+-- TEST 4: Deep nesting - lists inside lists inside lists
+--------------------------------------------------------------------------------
+start_tree("test_deep_nesting")
+    se_pipeline(function()
+        local l1 = list_start("level1")
+            int(1)
+            local l2 = list_start("level2")
+                int(2)
+                local l3 = list_start("level3")
+                    int(3)
+                    int(4)
+                list_end(l3)
+                int(5)
+            list_end(l2)
+            int(6)
+        list_end(l1)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 5: Pipeline with multiple list arguments
+--------------------------------------------------------------------------------
+start_tree("test_pipeline_lists")
+    se_pipeline(function()
+        -- First list
+        local coords = list_start("coords")
+            int(10)
+            int(20)
+            int(30)
+        list_end(coords)
+        
+        -- Second list (separate from first)
+        local flags = list_start("flags")
+            int(1)
+            int(0)
+            int(1)
+        list_end(flags)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 6: Empty list edge case
+--------------------------------------------------------------------------------
+start_tree("test_empty_list")
+    se_pipeline(function()
+        local empty = list_start("empty")
+        list_end(empty)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 7: Adjacent lists (no gap)
+--------------------------------------------------------------------------------
+start_tree("test_adjacent_lists")
+    se_pipeline(function()
+        local a = list_start("a")
+            int(1)
+        list_end(a)
+        local b = list_start("b")
+            int(2)
+        list_end(b)
+        local c = list_start("c")
+            int(3)
+        list_end(c)
+        
+        se_return_continue()
+    end)
+end_tree()
 -- ============================================================================
 -- END MODULE
 -- ============================================================================

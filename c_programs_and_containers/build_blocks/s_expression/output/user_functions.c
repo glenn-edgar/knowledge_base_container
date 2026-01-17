@@ -9,6 +9,7 @@
 #include "s_expr_dsl_test.h"
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
+#include "cfl_exception.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -74,12 +75,23 @@ void set_state(
     void* event_data
 ) {
     UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
-    
-    test_blackboard_t* bb = (test_blackboard_t*)s_expr_tree_get_blackboard(inst);
-    if (bb && param_count > 0) {
-        bb->state = params[0].int_val;
-        printf("[set_state] state=%d\n", bb->state);
+    if (param_count < 2) {
+        printf("[set_state] param_count < 2\n");
+        EXCEPTION("[set_state] param_count < 2");
+        return;
     }
+    // Get field offset from first param
+    uint16_t offset = params[0].field_offset;
+    
+    
+    // Get value from second param
+    int32_t new_value = params[1].int_val;
+    
+    // Write to blackboard
+    int32_t* field_ptr = (int32_t*)((uint8_t*)inst->blackboard + offset);
+    *field_ptr = new_value;
+    
+    printf("[set_state] offset=%d, value=%d\n", offset, new_value);
 }
 
 void set_vector(

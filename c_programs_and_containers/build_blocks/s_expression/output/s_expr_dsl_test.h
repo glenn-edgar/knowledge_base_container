@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: s_expr_dsl_test
 #define S_EXPR_DSL_TEST_NAME_HASH 0x7BB33CC5
-#define S_EXPR_DSL_TEST_TREE_COUNT 20
+#define S_EXPR_DSL_TEST_TREE_COUNT 23
 #define S_EXPR_DSL_TEST_RECORD_COUNT 9
 
 // String table
@@ -26,7 +26,12 @@ static const char* const s_expr_dsl_test_strings[] = {
     "Hello, World!",
     "This is a longer string for testing",
     "Starting pipeline test",
+    "Tick delay complete",
+    "Time delay complete",
+    "Wait for event 42 3 complete",
+    "Wait event once 99 complete",
     "Pipeline complete",
+    "Starting test_conditionals",
     "Condition is true",
     "Condition is false",
     "Another condition is true",
@@ -34,17 +39,21 @@ static const char* const s_expr_dsl_test_strings[] = {
     "State went low",
     "Button was pressed",
     "Sensor went inactive",
+    "Ending test_conditionals",
     "State: IDLE",
     "State: RUNNING",
     "State: PAUSED",
     "State: DONE",
-    "Command: IDLE",
-    "Command: START",
-    "Command: STOP",
-    "Command: RESET",
-    "Event: TIMER",
-    "Event: BUTTON",
-    "Event: SENSOR",
+    "✅ Command: IDLE",
+    "❌ Command: START (wrong)",
+    "❌ Command: STOP (wrong)",
+    "❌ Command: RESET (wrong)",
+    "❌ Command: IDLE (wrong)",
+    "✅ Command: START",
+    "✅ Command: STOP",
+    "✅ Event: TIMER",
+    "✅ Event: BUTTON",
+    "✅ Event: SENSOR",
     "Level 1",
     "Level 2A",
     "Level 3A",
@@ -52,7 +61,7 @@ static const char* const s_expr_dsl_test_strings[] = {
     "Level 4",
     "Level 2B"
 };
-#define S_EXPR_DSL_TEST_STRING_COUNT 30
+#define S_EXPR_DSL_TEST_STRING_COUNT 39
 
 // Function hashes
 #define INIT_SYSTEM_HASH 0xE562935D
@@ -152,7 +161,10 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define TEST_PIPELINE_AND_DELAYS_HASH 0xAE7550EB
 #define TEST_CONDITIONALS_HASH 0x6764DEAF
 #define TEST_STATE_MACHINE_HASH 0x3B4B5C29
-#define TEST_DISPATCH_HASH 0xD29ED858
+#define TEST_FIELD_DISPATCH_IDLE_HASH 0x1CF26AC8
+#define TEST_FIELD_DISPATCH_START_HASH 0x95E46F4E
+#define TEST_FIELD_DISPATCH_STOP_HASH 0x5A638916
+#define TEST_EVENT_DISPATCH_HASH 0x1AB48355
 #define TEST_PREDICATE_HELPERS_HASH 0x6FD1BB3D
 #define TEST_NESTED_FIELDS_HASH 0xA21839F7
 #define TEST_POINTER_SLOTS_HASH 0xD1E84F15

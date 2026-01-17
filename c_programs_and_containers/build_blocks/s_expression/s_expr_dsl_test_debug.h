@@ -35,16 +35,19 @@ static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0xE4A1E585, "test_result_codes_8", 1, 0, 0 },
     { 0xE3A1E3F2, "test_result_codes_9", 1, 0, 0 },
     { 0x2B0C43E2, "test_composable_predicates", 32, 0, 0 },
-    { 0xAE7550EB, "test_pipeline_and_delays", 8, 4, 0 },
-    { 0x6764DEAF, "test_conditionals", 20, 0, 0 },
-    { 0x3B4B5C29, "test_state_machine", 14, 2, 0 },
-    { 0xD29ED858, "test_dispatch", 16, 0, 0 },
+    { 0xAE7550EB, "test_pipeline_and_delays", 12, 4, 0 },
+    { 0x6764DEAF, "test_conditionals", 23, 0, 0 },
+    { 0x3B4B5C29, "test_state_machine", 16, 2, 0 },
+    { 0x1CF26AC8, "test_field_dispatch_idle", 11, 0, 0 },
+    { 0x95E46F4E, "test_field_dispatch_start", 12, 0, 0 },
+    { 0x5A638916, "test_field_dispatch_stop", 12, 0, 0 },
+    { 0x1AB48355, "test_event_dispatch", 9, 0, 0 },
     { 0x6FD1BB3D, "test_predicate_helpers", 8, 0, 0 },
     { 0xA21839F7, "test_nested_fields", 6, 0, 0 },
     { 0xD1E84F15, "test_pointer_slots", 5, 4, 0 },
     { 0x0153499F, "test_complex_nesting", 11, 1, 0 },
 };
-#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 20
+#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 23
 
 // ============================================================================
 // FUNCTION DEBUG INFO
