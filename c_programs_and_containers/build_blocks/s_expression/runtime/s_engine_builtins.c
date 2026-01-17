@@ -960,8 +960,10 @@ static void se_log(
     (void)event_type;
     (void)event_id;
     (void)event_data;
-    
-    if (param_count < 1) return;
+   
+    if (param_count < 1){
+        EXCEPTION("SE_LOG: param_count < 1");
+    }
     
     const char* msg = s_expr_get_string(inst, &params[0]);
     if (!msg) return;

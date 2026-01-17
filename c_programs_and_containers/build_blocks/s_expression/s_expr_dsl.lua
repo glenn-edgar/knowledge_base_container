@@ -2215,6 +2215,7 @@ end
 function BinaryModuleGenerator:emit_tree_params(e, tree)
     local param_count = 0
     local current_node_idx = 0  -- Track node index as we emit
+    local brace_stack = {}  -- Stack for tracking OPEN positions: {byte_pos, param_idx}
     
     local function emit_node(node)
         -- Determine opcode and func_index based on call_type
@@ -2260,9 +2261,44 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
         self:emit_param_struct(e, opcode, idx_to_ptr, node_index, func_index)
         param_count = param_count + 1
         
-        -- Emit parameters
+        -- Emit parameters (handle list_start/list_end specially for brace tracking)
         for _, param in ipairs(node.params) do
-            param_count = param_count + self:emit_dsl_param(e, param)
+            if param.type == "list_start" then
+                -- Remember position for later patching
+                local open_byte_pos = e:get_pos()
+                local open_param_idx = param_count
+                -- Emit OPEN with placeholder brace_idx=0
+                self:emit_param_struct(e, S_EXPR_PARAM.OPEN, 0, 0, 0)
+                table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx})
+                param_count = param_count + 1
+            elseif param.type == "list_end" then
+                -- Pop matching OPEN and calculate offset
+                local open_info = table.remove(brace_stack)
+                if open_info then
+                    local close_param_idx = param_count
+                    local brace_offset = close_param_idx - open_info.param_idx
+                    
+                    -- Patch the OPEN's brace_idx (u16_a field)
+                    -- 32-bit layout: [type:1][idx:1][pad:2][u16_a:2][u16_b:2] = 8 bytes
+                    -- 64-bit layout: [type:1][idx:1][pad:6][u16_a:2][u16_b:2][pad:4] = 16 bytes
+                    local patch_offset
+                    if self.is_64bit then
+                        patch_offset = open_info.byte_pos + 8  -- After type(1)+idx(1)+pad(6)
+                    else
+                        patch_offset = open_info.byte_pos + 4  -- After type(1)+idx(1)+pad(2)
+                    end
+                    e:patch_u16(patch_offset, brace_offset)
+                    
+                    -- Emit CLOSE with same brace_offset
+                    self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, brace_offset, 0)
+                else
+                    -- Unmatched CLOSE - emit with 0 (error case)
+                    self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, 0, 0)
+                end
+                param_count = param_count + 1
+            else
+                param_count = param_count + self:emit_dsl_param(e, param)
+            end
         end
         
         -- Emit children recursively
@@ -2283,14 +2319,17 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
     return param_count
 end
 
--- Count params in a node (for brace_idx)
+-- Count params in a node (for content_count in OPEN_CALL)
+-- Runtime convention: param_count = content_count - 2
+-- close_idx = open_idx + content_count (verified by runtime, verifier may show off-by-one)
 function BinaryModuleGenerator:count_node_params(node)
     local count = 2  -- OPEN_CALL + func_ref
     
-    count = count + #node.params
+    count = count + #node.params  -- user params
     
     for _, child in ipairs(node.children) do
-        count = count + self:count_node_params(child) + 1  -- +1 for CLOSE
+        -- Child contributes: its content_count + 1 for its CLOSE
+        count = count + self:count_node_params(child) + 1
     end
     
     return count
