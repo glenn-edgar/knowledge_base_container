@@ -9,10 +9,11 @@
 #include "s_expr_dsl_test.h"
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
+#include "s_engine_builtins.h"
 #include "cfl_exception.h"
 #include <stdio.h>
 #include <string.h>
-
+#include <stdlib.h>
 // ============================================================================
 // HELPER MACROS
 // ============================================================================
@@ -868,4 +869,644 @@ bool deep_pred_2(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uin
 bool deep_pred_3(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data) {
     UNUSED(inst); UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
     return true;
+}
+
+/*
+
+  list and dictionary processing functions
+
+
+*/
+
+// ============================================================================
+// s_expr_dsl_test_new_stubs.c
+// Stub implementations for new structure tests (trees 13-24)
+// ============================================================================
+
+#include "s_expr_dsl_test.h"
+#include "s_expr_dsl_test_user_functions.h"
+#include "s_engine_types.h"
+#include <stdio.h>
+
+// ============================================================================
+// TEST TREE 13: Basic List Functions
+// ============================================================================
+
+// SE_PROCESS_INT_LIST - process a list of integers
+// params: [OPEN list...integers... CLOSE] [RESULT]
+s_expr_result_t process_int_list(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)inst;
+    
+    // Handle lifecycle events
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (param_count < 1){
+        EXCEPTION("se_process_int_list: expected at least 1 parameter");
+        return SE_CONTINUE;
+    }
+    
+    // First param should be OPEN (the list)
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN) {
+        EXCEPTION("se_process_int_list: expected OPEN for list");
+        return SE_CONTINUE;
+    }
+    
+    // Get list bounds using brace_idx
+    uint16_t list_end_idx = params[0].brace_idx;  // Index of CLOSE relative to OPEN
+    
+    // Iterate through list contents (skip OPEN at 0, stop before CLOSE)
+    for (uint16_t i = 1; i < list_end_idx; i++) {
+        uint8_t elem_opcode = params[i].type & S_EXPR_OPCODE_MASK;
+        
+        if (elem_opcode == S_EXPR_PARAM_INT) {
+            int32_t value = (int32_t)params[i].int_val;
+            
+            // Do something with the integer
+            printf("Processing int: %d\n", value);
+        }
+        else if (elem_opcode == S_EXPR_PARAM_UINT) {
+            uint32_t value = (uint32_t)params[i].uint_val;
+            printf("Processing uint: %u\n", value);
+        }
+        // Handle nested structures if needed
+        else if (elem_opcode == S_EXPR_PARAM_OPEN) {
+            // Skip nested list
+            i += params[i].brace_idx;
+        }
+    }
+    
+    // Find result code at end of params
+    s_expr_result_t result = s_expr_find_result(params, param_count);
+    printf("result: %d\n", result);
+    
+    return result;
+}
+
+// Maximum lists we'll track
+#define MAX_LISTS 16
+
+typedef struct {
+    uint16_t param_idx;      // Index into params where OPEN is
+    uint16_t element_count;  // Number of elements in list
+} list_info_t;
+
+s_expr_result_t multi_list_func(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // PASS 1: Identify all lists and store their locations
+    // =========================================================================
+    list_info_t lists[MAX_LISTS];
+    uint16_t list_count = 0;
+    uint16_t idx = 0;
+    
+    while (idx < param_count && list_count < MAX_LISTS) {
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN) {
+            lists[list_count].param_idx = idx;
+            lists[list_count].element_count = params[idx].brace_idx - 1;  // Exclude OPEN/CLOSE
+            list_count++;
+        }
+        
+        idx = s_expr_skip_param(params, idx);
+    }
+    
+    printf("Identified %u lists:\n", list_count);
+    for (uint16_t i = 0; i < list_count; i++) {
+        printf("  List %u: starts at param[%u], %u elements\n", 
+               i + 1, lists[i].param_idx, lists[i].element_count);
+    }
+    
+    // =========================================================================
+    // PASS 2: Process each list using stored info
+    // =========================================================================
+    for (uint16_t list_idx = 0; list_idx < list_count; list_idx++) {
+        uint16_t open_idx = lists[list_idx].param_idx;
+        
+        uint16_t content_count;
+        const s_expr_param_t* contents = s_expr_brace_contents(params, open_idx, &content_count);
+        
+        printf("\nProcessing List %u:\n", list_idx + 1);
+        
+        // Sum floats as example processing
+        float sum = 0.0f;
+        for (uint16_t i = 0; i < content_count; i++) {
+            if ((contents[i].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+                sum += contents[i].float_val;
+                printf("  + %.2f\n", (double)contents[i].float_val);
+            }
+        }
+        printf("  = %.2f (sum)\n", (double)sum);
+    }
+    
+    return s_expr_find_result(params, param_count);
+}
+
+#define MAX_NESTING_DEPTH 8
+
+typedef struct {
+    const s_expr_param_t* params;  // Pointer to list contents
+    uint16_t count;                 // Number of elements
+    uint16_t current_idx;           // Current position
+} list_frame_t;
+
+s_expr_result_t nested_lists(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // Find the outer list
+    if (param_count < 1){
+        EXCEPTION("nested_lists_iterative: expected at least 1 parameter");
+        return SE_CONTINUE;
+    }
+    if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_OPEN) {
+        return s_expr_find_result(params, param_count);
+    }
+    
+    // Stack for tracking nested list traversal
+    list_frame_t stack[MAX_NESTING_DEPTH];
+    int16_t stack_depth = 0;
+    
+    // Push initial list onto stack
+    uint16_t initial_count;
+    const s_expr_param_t* initial_contents = s_expr_brace_contents(params, 0, &initial_count);
+    
+    stack[0].params = initial_contents;
+    stack[0].count = initial_count;
+    stack[0].current_idx = 0;
+    stack_depth = 1;
+    
+    printf("=== Iterative Nested List Traversal ===\n");
+    printf("ENTER list at depth 0\n");
+    
+    // Process until stack is empty
+    while (stack_depth > 0) {
+        list_frame_t* frame = &stack[stack_depth - 1];
+        
+        // Check if current list is exhausted
+        if (frame->current_idx >= frame->count) {
+            // Pop this list
+            stack_depth--;
+            printf("%*sEXIT list at depth %d\n", (stack_depth) * 2, "", stack_depth);
+            continue;
+        }
+        
+        // Get current element
+        const s_expr_param_t* elem = &frame->params[frame->current_idx];
+        uint8_t opcode = elem->type & S_EXPR_OPCODE_MASK;
+        uint16_t depth = stack_depth - 1;
+        
+        if (opcode == S_EXPR_PARAM_OPEN) {
+            // Nested list - push onto stack
+            if (stack_depth >= MAX_NESTING_DEPTH) {
+                printf("%*sERROR: Max nesting depth exceeded!\n", depth * 2, "");
+                frame->current_idx = s_expr_skip_param(frame->params, frame->current_idx);
+                continue;
+            }
+            
+            uint16_t nested_count;
+            const s_expr_param_t* nested = s_expr_brace_contents(
+                frame->params, frame->current_idx, &nested_count
+            );
+            
+            // Advance past this list in current frame
+            frame->current_idx = s_expr_skip_param(frame->params, frame->current_idx);
+            
+            // Push new frame
+            stack[stack_depth].params = nested;
+            stack[stack_depth].count = nested_count;
+            stack[stack_depth].current_idx = 0;
+            stack_depth++;
+            
+            printf("%*sENTER list at depth %d (%u elements)\n", 
+                   depth * 2, "", depth, nested_count);
+        }
+        else {
+            // Regular element - process it
+            printf("%*s", depth * 2, "");
+            
+            switch (opcode) {
+                case S_EXPR_PARAM_INT:
+                    printf("INT: %d\n", (int32_t)elem->int_val);
+                    break;
+                case S_EXPR_PARAM_UINT:
+                    printf("UINT: %u\n", (uint32_t)elem->uint_val);
+                    break;
+                case S_EXPR_PARAM_FLOAT:
+                    printf("FLOAT: %.4f\n", (double)elem->float_val);
+                    break;
+                default:
+                    printf("<opcode 0x%02X>\n", opcode);
+                    break;
+            }
+            
+            // Advance to next element
+            frame->current_idx = s_expr_skip_param(frame->params, frame->current_idx);
+        }
+    }
+    
+    printf("=== Done ===\n");
+    return s_expr_find_result(params, param_count);
+}
+// ============================================================================
+// TEST TREE 14: Dictionary Basic
+// ============================================================================
+
+
+// ============================================================================
+// TEST TREE 15: Dictionary with Actions
+// ============================================================================
+
+s_expr_result_t state_machine_dispatch(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("STATE_MACHINE_DISPATCH: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+void log_msg(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("LOG_MSG: param_count=%u\n", param_count);
+    exit(0);
+}
+
+void set_counter(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("SET_COUNTER: param_count=%u\n", param_count);
+    exit(0);
+}
+
+// ============================================================================
+// TEST TREE 16: Array Basic
+// ============================================================================
+
+s_expr_result_t array_access(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("ARRAY_ACCESS: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+s_expr_result_t field_array(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("FIELD_ARRAY: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+s_expr_result_t matrix_2d(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("MATRIX_2D: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// TEST TREE 17: Tuple Basic
+// ============================================================================
+
+s_expr_result_t process_tuple(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("PROCESS_TUPLE: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+s_expr_result_t tuple_table(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("TUPLE_TABLE: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+s_expr_result_t complex_tuple(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("COMPLEX_TUPLE: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// TEST TREE 18: Named State Machine
+// ============================================================================
+
+void set_state_hash(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("SET_STATE_HASH: param_count=%u\n", param_count);
+    exit(0);
+}
+
+bool check_start_condition(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("CHECK_START_CONDITION: param_count=%u\n", param_count);
+    return true;
+    exit(0);
+}
+
+// ============================================================================
+// TEST TREE 19: Dict Event Dispatch
+// ============================================================================
+
+void increment_counter(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("INCREMENT_COUNTER: param_count=%u\n", param_count);
+    exit(0);
+}
+
+void toggle_enabled(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("TOGGLE_ENABLED: param_count=%u\n", param_count);
+    exit(0);
+}
+
+void read_sensor(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("READ_SENSOR: param_count=%u\n", param_count);
+    exit(0);
+}
+
+// ============================================================================
+// TEST TREE 20: Complex Structures
+// ============================================================================
+
+s_expr_result_t load_config(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("LOAD_CONFIG: param_count=%u\n", param_count);
+    exit(0);
+    
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// TEST TREE 21: Alist Style
+// ============================================================================
+
+s_expr_result_t process_alist(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("PROCESS_ALIST: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// TEST TREE 22: Plist Style
+// ============================================================================
+
+s_expr_result_t process_plist(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("PROCESS_PLIST: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// TEST TREE 23: Mixed Dispatch
+// ============================================================================
+
+s_expr_result_t mixed_structure_dispatch(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("MIXED_STRUCTURE_DISPATCH: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
+}
+
+void action_1(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("ACTION_1\n");
+    exit(0);
+}
+
+void action_2(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("ACTION_2\n");
+    exit(0);
+}
+
+void action_3(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("ACTION_3\n");\
+    exit(0);
+}
+
+void sub_action_a(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("SUB_ACTION_A\n");
+    exit(0);
+}
+
+void sub_action_b(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("SUB_ACTION_B\n");
+    exit(0);
+}
+
+// ============================================================================
+// TEST TREE 24: Brace Navigation
+// ============================================================================
+
+s_expr_result_t brace_test(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    printf("BRACE_TEST: param_count=%u\n", param_count);
+    exit(0);
+    return SE_CONTINUE;
 }

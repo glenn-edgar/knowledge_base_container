@@ -33,6 +33,11 @@
      S_EXPR_PARAM_RESULT      = 0x0C,
      S_EXPR_PARAM_STR_IDX     = 0x0D,
      S_EXPR_PARAM_CONST_REF   = 0x0E,
+     // Dict support
+     S_EXPR_PARAM_OPEN_DICT   = 0x10,
+     S_EXPR_PARAM_CLOSE_DICT  = 0x11,
+     S_EXPR_PARAM_OPEN_KEY    = 0x12,
+     S_EXPR_PARAM_CLOSE_KEY   = 0x13,
  } s_expr_param_type_t;
  
  static const char* param_type_name(uint8_t type) {
@@ -44,6 +49,11 @@
      if (type < sizeof(names)/sizeof(names[0])) {
          return names[type];
      }
+     // Dict opcodes at 0x10-0x13
+     if (type == 0x10) return "OPEN_DICT";
+     if (type == 0x11) return "CLOSE_DICT";
+     if (type == 0x12) return "OPEN_KEY";
+     if (type == 0x13) return "CLOSE_KEY";
      return "UNKNOWN";
  }
  
@@ -142,9 +152,15 @@
  
  /* Verify brace pairs in a tree's parameter array
   * 
-  * OPEN_CALL: brace_idx = content_count (params inside, excluding OPEN_CALL and CLOSE)
+  * OPEN_CALL: content_count = distance to matching CLOSE
+  *            Runtime: close_idx = open_idx + content_count
+  *            Runtime: param_count = content_count - 2
   * OPEN:      brace_idx = distance to matching CLOSE
-  * CLOSE:    brace_idx = distance back to matching OPEN (0 for OPEN_CALL match)
+  * CLOSE:     brace_idx = distance back to matching OPEN (0 for OPEN_CALL match)
+  * OPEN_DICT: brace_idx = distance to matching CLOSE_DICT
+  * CLOSE_DICT: brace_idx = distance back to matching OPEN_DICT
+  * OPEN_KEY:  u32 = key hash (brace_idx stored in CLOSE_KEY only)
+  * CLOSE_KEY: brace_idx = distance back to matching OPEN_KEY
   */
  static int verify_tree_braces(const char* tree_name, const s_expr_param_t* params, 
                                 uint32_t param_count, bool verbose) {
@@ -167,6 +183,10 @@
              if (p->type == S_EXPR_PARAM_OPEN_CALL) label = " (content)";
              else if (p->type == S_EXPR_PARAM_OPEN) label = " (brace)";
              else if (p->type == S_EXPR_PARAM_CLOSE) label = " (brace)";
+             else if (p->type == S_EXPR_PARAM_OPEN_DICT) label = " (brace)";
+             else if (p->type == S_EXPR_PARAM_CLOSE_DICT) label = " (brace)";
+             else if (p->type == S_EXPR_PARAM_OPEN_KEY) label = " (key_hash)";
+             else if (p->type == S_EXPR_PARAM_CLOSE_KEY) label = " (brace)";
              
              printf("%-5u %-12s %-8u %-10u%-8s %-10u\n",
                     i, param_type_name(p->type), p->index_to_pointer,
@@ -185,6 +205,18 @@
                  errors++;
              }
          }
+         else if (p->type == S_EXPR_PARAM_OPEN_DICT) {
+             /* OPEN_DICT: brace_idx = distance to matching CLOSE_DICT */
+             if (!stack_push(&stack, i, p->brace_idx, p->type)) {
+                 errors++;
+             }
+         }
+         else if (p->type == S_EXPR_PARAM_OPEN_KEY) {
+             /* OPEN_KEY: u32 = key hash, brace_idx in CLOSE_KEY only */
+             if (!stack_push(&stack, i, 0, p->type)) {
+                 errors++;
+             }
+         }
          else if (p->type == S_EXPR_PARAM_CLOSE) {
              brace_entry_t open;
              if (!stack_pop(&stack, &open)) {
@@ -196,9 +228,11 @@
              uint32_t actual_distance = i - open.index;
              
              if (open.type == S_EXPR_PARAM_OPEN_CALL) {
-                 /* OPEN_CALL stores content_count, not distance */
-                 /* content_count = distance - 1 (excludes OPEN_CALL itself) */
-                 uint32_t expected_content = actual_distance - 1;
+                 /* OPEN_CALL stores content_count
+                  * Convention: close_idx = open_idx + content_count
+                  * So: content_count = actual_distance
+                  */
+                 uint32_t expected_content = actual_distance;
                  if (open.brace_idx != expected_content) {
                      printf("  ERROR: OPEN_CALL at %u: content_count=%u, expected=%u\n",
                             open.index, open.brace_idx, expected_content);
@@ -210,7 +244,7 @@
                             i, p->brace_idx);
                  }
              }
-             else {
+             else if (open.type == S_EXPR_PARAM_OPEN) {
                  /* OPEN stores brace_idx (distance) */
                  if (open.brace_idx != actual_distance) {
                      printf("  ERROR: OPEN at %u: brace_idx=%u, expected=%u\n",
@@ -224,6 +258,63 @@
                      errors++;
                  }
              }
+             else {
+                 printf("  ERROR: CLOSE at %u matched unexpected type %s at %u\n",
+                        i, param_type_name(open.type), open.index);
+                 errors++;
+             }
+         }
+         else if (p->type == S_EXPR_PARAM_CLOSE_DICT) {
+             brace_entry_t open;
+             if (!stack_pop(&stack, &open)) {
+                 printf("  ERROR: CLOSE_DICT at %u has no matching OPEN_DICT\n", i);
+                 errors++;
+                 continue;
+             }
+             
+             if (open.type != S_EXPR_PARAM_OPEN_DICT) {
+                 printf("  ERROR: CLOSE_DICT at %u matched %s at %u (expected OPEN_DICT)\n",
+                        i, param_type_name(open.type), open.index);
+                 errors++;
+                 continue;
+             }
+             
+             uint32_t actual_distance = i - open.index;
+             
+             if (open.brace_idx != actual_distance) {
+                 printf("  ERROR: OPEN_DICT at %u: brace_idx=%u, expected=%u\n",
+                        open.index, open.brace_idx, actual_distance);
+                 errors++;
+             }
+             if (p->brace_idx != actual_distance) {
+                 printf("  ERROR: CLOSE_DICT at %u: brace_idx=%u, expected=%u\n",
+                        i, p->brace_idx, actual_distance);
+                 errors++;
+             }
+         }
+         else if (p->type == S_EXPR_PARAM_CLOSE_KEY) {
+             brace_entry_t open;
+             if (!stack_pop(&stack, &open)) {
+                 printf("  ERROR: CLOSE_KEY at %u has no matching OPEN_KEY\n", i);
+                 errors++;
+                 continue;
+             }
+             
+             if (open.type != S_EXPR_PARAM_OPEN_KEY) {
+                 printf("  ERROR: CLOSE_KEY at %u matched %s at %u (expected OPEN_KEY)\n",
+                        i, param_type_name(open.type), open.index);
+                 errors++;
+                 continue;
+             }
+             
+             uint32_t actual_distance = i - open.index;
+             
+             /* OPEN_KEY doesn't store brace_idx (uses u32 for hash), only CLOSE_KEY has it */
+             if (p->brace_idx != actual_distance) {
+                 printf("  ERROR: CLOSE_KEY at %u: brace_idx=%u, expected=%u\n",
+                        i, p->brace_idx, actual_distance);
+                 errors++;
+             }
          }
      }
      
@@ -232,8 +323,7 @@
          brace_entry_t unmatched;
          stack_pop(&stack, &unmatched);
          printf("  ERROR: %s at %u has no matching CLOSE\n",
-                (unmatched.type == S_EXPR_PARAM_OPEN_CALL) ? "OPEN_CALL" : "OPEN",
-                unmatched.index);
+                param_type_name(unmatched.type), unmatched.index);
          errors++;
      }
      
@@ -351,11 +441,11 @@
      
      /* Test 1: Simple list [1, 2, 3]
       * Layout: OPEN_CALL(0), MAIN(1), OPEN(2), UINT(3), UINT(4), UINT(5), CLOSE(6), CLOSE(7)
-      * OPEN_CALL content_count = 6 (indices 1-6)
+      * OPEN_CALL content_count = 7 (close at 0+7=7)
       * OPEN brace_idx = 4 (distance from 2 to 6)
       */
      s_expr_param_t test1[] = {
-         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 6 } },
+         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 7 } },
          { S_EXPR_PARAM_MAIN,      0, 0, { .ab = { 0, 0 } } },
          { S_EXPR_PARAM_OPEN,      0, 0, { .brace_idx = 4 } },
          { S_EXPR_PARAM_UINT,      0, 0, { .u32 = 1 } },
@@ -371,9 +461,12 @@
      
      /* Test 2: Nested lists [[1, 2], 3]
       * Layout: OPEN_CALL(0), MAIN(1), OPEN(2), OPEN(3), UINT(4), UINT(5), CLOSE(6), UINT(7), CLOSE(8), CLOSE(9)
+      * OPEN_CALL content_count = 9 (close at 0+9=9)
+      * Outer OPEN brace_idx = 6 (from 2 to 8)
+      * Inner OPEN brace_idx = 3 (from 3 to 6)
       */
      s_expr_param_t test2[] = {
-         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 8 } },
+         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 9 } },
          { S_EXPR_PARAM_MAIN,      0, 0, { .ab = { 0, 0 } } },
          { S_EXPR_PARAM_OPEN,      0, 0, { .brace_idx = 6 } },
          { S_EXPR_PARAM_OPEN,      0, 0, { .brace_idx = 3 } },
@@ -389,14 +482,19 @@
                                     sizeof(test2)/sizeof(test2[0]), true);
      printf("Test 2 (nested list): %s\n", err2 == 0 ? "PASS" : "FAIL");
      
-     /* Test 3: Dispatch with child - [pattern, CHILD_NODE] */
+     /* Test 3: Dispatch with child - [pattern, CHILD_NODE]
+      * Layout: OPEN_CALL(0), MAIN(1), UINT(2), OPEN(3), STR_IDX(4), OPEN_CALL(5), MAIN(6), CLOSE(7), CLOSE(8), CLOSE(9)
+      * Root OPEN_CALL content_count = 9 (close at 0+9=9)
+      * OPEN brace_idx = 5 (from 3 to 8)
+      * Child OPEN_CALL content_count = 2 (close at 5+2=7)
+      */
      s_expr_param_t test3[] = {
-         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 8 } },
+         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 9 } },
          { S_EXPR_PARAM_MAIN,      0, 0, { .ab = { 0, 0 } } },
          { S_EXPR_PARAM_UINT,      0, 0, { .u32 = 100 } },
          { S_EXPR_PARAM_OPEN,      0, 0, { .brace_idx = 5 } },
          { S_EXPR_PARAM_STR_IDX,   0, 0, { .ab = { 0, 0 } } },
-         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 1 } },
+         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 2 } },
          { S_EXPR_PARAM_MAIN,      0, 0, { .ab = { 1, 1 } } },
          { S_EXPR_PARAM_CLOSE,     0, 0, { .brace_idx = 0 } },
          { S_EXPR_PARAM_CLOSE,     0, 0, { .brace_idx = 5 } },
@@ -410,7 +508,7 @@
      /* Test 4: Intentionally wrong - should fail */
      printf("\n--- Test 4: Intentionally wrong brace_idx (should FAIL) ---\n");
      s_expr_param_t test4[] = {
-         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 4 } },
+         { S_EXPR_PARAM_OPEN_CALL, 0, 0, { .brace_idx = 5 } },
          { S_EXPR_PARAM_MAIN,      0, 0, { .ab = { 0, 0 } } },
          { S_EXPR_PARAM_OPEN,      0, 0, { .brace_idx = 99 } },  /* WRONG! */
          { S_EXPR_PARAM_UINT,      0, 0, { .u32 = 1 } },

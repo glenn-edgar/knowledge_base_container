@@ -210,6 +210,8 @@ static void test_predicate_helpers(s_engine_handle_t* engine);
 static void test_nested_fields(s_engine_handle_t* engine);
 static void test_pointer_slots(s_engine_handle_t* engine);
 static void test_complex_nesting(s_engine_handle_t* engine);
+static void test_basic_lists(s_engine_handle_t* engine);
+static void test_dictionary_basic(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -254,6 +256,8 @@ int main(int argc, char* argv[]) {
     test_nested_fields(&engine);
     test_pointer_slots(&engine);
     test_complex_nesting(&engine);
+    test_basic_lists(&engine);
+    test_dictionary_basic(&engine);
     s_engine_free(&engine);
 
     // ========================================================================
@@ -751,4 +755,39 @@ static void test_complex_nesting(s_engine_handle_t* engine) {
     s_expr_result_t last_result = s_expr_tree_tick(test_complex_nesting_tree, SE_EVENT_TICK, NULL);
     printf("last_result: %d\n", last_result);
     s_expr_tree_free(test_complex_nesting_tree);
+}
+
+static void test_basic_lists(s_engine_handle_t* engine) {
+    printf("\n=== Test Basic Lists ===\n");
+    s_expr_tree_instance_t* test_basic_lists_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_BASIC_LISTS_HASH,
+        0
+    );
+    if (!test_basic_lists_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_BASIC_LISTS_HASH);
+        exit(1);
+    }
+    s_expr_result_t last_result = s_expr_tree_tick(test_basic_lists_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    s_expr_tree_free(test_basic_lists_tree);
+}
+
+static void test_dictionary_basic(s_engine_handle_t* engine) {
+    printf("\n=== Test Dictionary Basic ===\n");
+    s_expr_tree_instance_t* test_dictionary_basic_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_DICTIONARY_BASIC_HASH,
+        0
+    );
+    if (!test_dictionary_basic_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_DICTIONARY_BASIC_HASH);
+        exit(1);
+    }
+    printf("tree index: %d\n", test_dictionary_basic_tree->tree_index);
+    printf("tree node count: %d\n", test_dictionary_basic_tree->node_count);
+    printf("hash_state: %x\n", test_dictionary_basic_tree->tree->name_hash);
+    s_expr_result_t last_result = s_expr_tree_tick(test_dictionary_basic_tree, SE_EVENT_TICK, NULL);
+    printf("last_result: %d\n", last_result);
+    s_expr_tree_free(test_dictionary_basic_tree);
 }

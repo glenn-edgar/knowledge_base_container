@@ -8,11 +8,13 @@
 --   - C registration code (.c)
 --   - Binary module files (.bin) - direct s_expr_param_t, zero-copy
 --   - Binary as C header (_bin.h)
+--   - Debug parameter dump header (_dump.h)
 --
 -- VERSION 5.1 CHANGES:
 --   - Renamed p_call_bit to p_call_composite for generic predicate composition
 --   - Updated result codes for proper caller/engine separation
 --   - Standalone library (no ChainTree dependencies in core)
+--   - Added parameter dump header for debugging
 --
 -- Usage: luajit s_compile.lua <input.lua> [options]
 -- ============================================================================
@@ -35,6 +37,7 @@ local function parse_args(args)
         debug_header = nil,
         binary_file = nil,
         binary_header = nil,
+        dump_header = nil,  -- Parameter dump header
         dump = false,
         all = false,
         all_bin = false,
@@ -58,6 +61,8 @@ local function parse_args(args)
             opts.binary_file = arg:match("^%-%-binary=(.+)$")
         elseif arg:match("^%-%-binary%-h=") then
             opts.binary_header = arg:match("^%-%-binary%-h=(.+)$")
+        elseif arg:match("^%-%-dump%-h=") then
+            opts.dump_header = arg:match("^%-%-dump%-h=(.+)$")
         elseif arg:match("^%-%-outdir=") then
             opts.outdir = arg:match("^%-%-outdir=(.+)$")
         elseif arg:match("^%-%-helpers=") then
@@ -105,8 +110,9 @@ Options:
   --debug=<file>       Generate debug header with hash->name mappings
   --binary=<file>      Generate binary module file (.bin)
   --binary-h=<file>    Generate binary header (const uint8_t array)
+  --dump-h=<file>      Generate parameter dump header (human-readable params)
   --helpers=<file>     Load helper functions (can specify multiple times)
-  --dump               Print debug dump of module
+  --dump               Print debug dump of module to stdout
   --all                Generate all text outputs
   --all-bin            Generate all outputs including binary files
   --outdir=<dir>       Output directory (default: current)
@@ -122,8 +128,9 @@ Generated files with --all:
   <base>_user_registration.c - Function registration code
 
 Generated files with --all-bin (includes --all plus):
-  <base>_32.bin or <base>_64.bin   - Binary module for runtime loading
+  <base>_32.bin or <base>_64.bin     - Binary module for runtime loading
   <base>_bin_32.h or <base>_bin_64.h - Binary as C array for ROM embedding
+  <base>_dump_32.h or <base>_dump_64.h - Human-readable parameter dump
 
 Version 5.1 Features:
   - Binary format contains direct s_expr_param_t structs
@@ -131,12 +138,15 @@ Version 5.1 Features:
   - Two binary formats: 32-bit (8-byte params) and 64-bit (16-byte params)
   - Composable predicate API (p_call_composite)
   - Updated result codes for caller/engine separation
+  - Dict/hash support with OPEN_DICT, CLOSE_DICT, OPEN_KEY, CLOSE_KEY
+  - DSL-level brace validation with stack tracking
 
 Examples:
   luajit s_compile.lua my_module.lua --all --outdir=generated/
   luajit s_compile.lua my_module.lua --all-bin --64bit
   luajit s_compile.lua my_module.lua --binary=my_module_32.bin --32bit
   luajit s_compile.lua my_module.lua --helpers=s_engine_helpers.lua --all
+  luajit s_compile.lua my_module.lua --dump-h=my_module_dump_32.h
 ]])
 end
 
@@ -301,13 +311,14 @@ local function main()
     
     -- Create generators
     local gen = dsl.ModuleGenerator.new(module_data)
-    local bin_gen = dsl.BinaryModuleGenerator.new(module_data)
+    local is_64bit = (opts.pointer_size == 8)
+    local bin_gen = dsl.BinaryModuleGenerator.new(module_data, is_64bit)
     
     -- Determine base name
     local base_name = module_data.name:lower():gsub("[^%w_]", "_")
     
     -- Mode suffix for binary files
-    local mode_suffix = (opts.pointer_size == 8) and "_64" or "_32"
+    local mode_suffix = is_64bit and "_64" or "_32"
     
     -- Handle --all flags
     if opts.all or opts.all_bin then
@@ -323,6 +334,7 @@ local function main()
     if opts.all_bin then
         if not opts.binary_file then opts.binary_file = base_name .. mode_suffix .. ".bin" end
         if not opts.binary_header then opts.binary_header = base_name .. "_bin" .. mode_suffix .. ".h" end
+        if not opts.dump_header then opts.dump_header = base_name .. "_dump" .. mode_suffix .. ".h" end
     end
     
     -- Generate outputs
@@ -361,6 +373,11 @@ local function main()
         write_file(make_path(opts.outdir, opts.binary_header), content)
     end
     
+    if opts.dump_header then
+        local content = bin_gen:to_debug_dump(base_name)
+        write_file(make_path(opts.outdir, opts.dump_header), content)
+    end
+    
     if opts.dump then
         print(gen:dump())
     end
@@ -368,7 +385,7 @@ local function main()
     -- Default output if nothing specified
     if not opts.header and not opts.user_header and not opts.registration and
        not opts.records_header and not opts.binary_file and not opts.binary_header and 
-       not opts.debug_header and not opts.dump then
+       not opts.debug_header and not opts.dump_header and not opts.dump then
         if #module_data.record_order > 0 then
             local content = gen:to_c_records_header(base_name)
             write_file(make_path(opts.outdir, base_name .. "_records.h"), content)
@@ -388,7 +405,7 @@ local function main()
     print("  Oneshot functions: " .. #module_data.oneshot_funcs)
     print("  Main functions: " .. #module_data.main_funcs)
     print("  Pred functions: " .. #module_data.pred_funcs)
-    print("  Mode: " .. (opts.pointer_size == 8 and "64-bit" or "32-bit"))
+    print("  Mode: " .. (is_64bit and "64-bit" or "32-bit"))
     print("  Binary format: v5.1 (direct s_expr_param_t, zero-copy)")
 end
 

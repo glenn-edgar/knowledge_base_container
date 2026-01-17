@@ -1,16 +1,18 @@
 -- ============================================================================
 -- s_expr_dsl.lua
--- S-Expression Engine DSL Core Library - Version 5.1
+-- S-Expression Engine DSL Core Library - Version 5.2
 -- 
 -- This is the main DSL library that provides:
 --   1. DSL functions for defining modules, records, trees, etc.
 --   2. C header generation (text output)
 --   3. Binary module generation (direct s_expr_param_t, zero-copy)
 --
--- VERSION 5.1 CHANGES:
---   - Renamed p_call_bit to p_call_composite for generic predicate composition
---   - Updated result codes for proper caller/engine separation
---   - Standalone library (no ChainTree dependencies)
+-- VERSION 5.2 CHANGES:
+--   - Added array structures (array_start/array_end)
+--   - Added tuple structures (tuple_start/tuple_end)
+--   - Added str_hash() for emitting pre-computed hashes
+--   - Added key()/key_end() as aliases for dict_key()/end_dict_key()
+--   - Added key_hash() for integer hash keys
 --
 -- Usage: This file is loaded by s_compile.lua and sets up global DSL functions
 -- ============================================================================
@@ -84,27 +86,62 @@ local type_info = {
 }
 
 M.type_info = type_info
-
+local current_module = nil
+local current_record = nil
+local current_tree = nil
+local current_const = nil
+local current_call_stack = {}
+local order_stack = {0}  -- ADD THIS LINE - Stack of order counters, one per nesting level
+local in_composite_block = false
+local debug_mode = false
 -- ============================================================================
 -- s_expr_param_t OPCODE DEFINITIONS (must match s_engine_types.h)
 -- ============================================================================
 
 local S_EXPR_PARAM = {
+    -- Primitive values
     INT         = 0x00,
     UINT        = 0x01,
     FLOAT       = 0x02,
     STR_HASH    = 0x03,
+    
+    -- Legacy/reserved
     SLOT        = 0x04,
+    
+    -- List structure (basic grouping)
     OPEN        = 0x05,
     CLOSE       = 0x06,
+    
+    -- Function call structure
     OPEN_CALL   = 0x07,
+    
+    -- Function references
     ONESHOT     = 0x08,
     MAIN        = 0x09,
     PRED        = 0x0A,
+    
+    -- Field/record access
     FIELD       = 0x0B,
     RESULT      = 0x0C,
     STR_IDX     = 0x0D,
     CONST_REF   = 0x0E,
+    
+    -- Reserved
+    RESERVED_0F = 0x0F,
+    
+    -- Dictionary/hash structure (key-value collections)
+    OPEN_DICT   = 0x10,
+    CLOSE_DICT  = 0x11,
+    OPEN_KEY    = 0x12,
+    CLOSE_KEY   = 0x13,
+    
+    -- Array structure (indexed collections)
+    OPEN_ARRAY  = 0x14,
+    CLOSE_ARRAY = 0x15,
+    
+    -- Tuple structure (fixed-size heterogeneous)
+    OPEN_TUPLE  = 0x16,
+    CLOSE_TUPLE = 0x17,
 }
 
 -- Flags
@@ -142,6 +179,10 @@ local BUILTIN_FUNCTIONS = {
     "SE_FIELD_DISPATCH",
     "SE_EVENT_DISPATCH",
     "SE_DISPATCH",
+    "SE_NAMED_STATE_MACHINE",
+    "SE_NAMED_EVENT_DISPATCH",
+    "SE_STRING_DISPATCH",
+    "SE_HASH_DISPATCH",
     -- Result code functions
     "SE_RETURN_CONTINUE",
     "SE_RETURN_HALT",
@@ -183,6 +224,72 @@ local current_const = nil
 local current_call_stack = {}
 local in_composite_block = false
 local debug_mode = false
+
+-- ============================================================================
+-- BRACE STACK VALIDATION
+-- ============================================================================
+
+local brace_stack = {}
+local MAX_BRACE_STACK = 64
+
+-- Generate unique symbol for unnamed braces
+local gensym_counter = 0
+local function gensym(prefix)
+    gensym_counter = gensym_counter + 1
+    return string.format("__%s_%d", prefix or "anon", gensym_counter)
+end
+
+-- Push a brace onto validation stack
+local function push_brace(name, brace_type)
+    if #brace_stack >= MAX_BRACE_STACK then
+        dsl_error("Brace stack overflow (max " .. MAX_BRACE_STACK .. ")")
+    end
+    local marker = {
+        name = name or gensym(brace_type),
+        brace_type = brace_type,
+        line = debug.getinfo(3, "l").currentline or 0
+    }
+    table.insert(brace_stack, marker)
+    return marker
+end
+
+-- Pop and validate brace from stack
+local function pop_brace(marker, expected_type)
+    if #brace_stack == 0 then
+        dsl_error(string.format("Unmatched %s close", expected_type))
+    end
+    local top = brace_stack[#brace_stack]
+    if top ~= marker then
+        dsl_error(string.format(
+            "Brace mismatch: expected '%s' (%s line %d), got '%s'",
+            top.name, top.brace_type, top.line,
+            marker and marker.name or "nil"))
+    end
+    if top.brace_type ~= expected_type then
+        dsl_error(string.format(
+            "Type mismatch: '%s' opened as %s, closed as %s",
+            top.name, top.brace_type, expected_type))
+    end
+    table.remove(brace_stack)
+end
+
+-- Check all braces are balanced (call at end_tree)
+local function check_brace_balance()
+    if #brace_stack > 0 then
+        local unclosed = {}
+        for _, b in ipairs(brace_stack) do
+            table.insert(unclosed, string.format("'%s' (%s line %d)",
+                b.name, b.brace_type, b.line))
+        end
+        dsl_error("Unclosed braces: " .. table.concat(unclosed, ", "))
+    end
+end
+
+-- Reset brace stack (call at start_tree)
+local function reset_brace_stack()
+    brace_stack = {}
+    gensym_counter = 0
+end
 
 -- ============================================================================
 -- DSL ERROR HANDLING
@@ -645,6 +752,7 @@ function _G.start_tree(name)
     }
     
     current_call_stack = {}
+    reset_brace_stack()
 end
 
 function _G.use_record(name)
@@ -670,6 +778,9 @@ function _G.end_tree(name)
     if name and current_tree.name ~= name then
         dsl_error("Tree name mismatch: expected " .. current_tree.name .. ", got " .. name)
     end
+    
+    -- Validate all braces are closed
+    check_brace_balance()
     
     current_module.trees[current_tree.name] = current_tree
     table.insert(current_module.tree_order, current_tree.name)
@@ -729,12 +840,15 @@ local function start_call(func_name, call_type)
     -- Add to parent or tree root
     if #current_call_stack > 0 then
         local parent = current_call_stack[#current_call_stack]
+        node.order = order_stack[#order_stack]  -- ADD THIS LINE
+        order_stack[#order_stack] = order_stack[#order_stack] + 1  -- ADD THIS LINE
         table.insert(parent.children, node)
     else
         table.insert(current_tree.nodes, node)
     end
     
     table.insert(current_call_stack, node)
+    table.insert(order_stack, 0)  -- ADD THIS LINE - new order context for this node's children/params
     current_tree.node_count = current_tree.node_count + 1
     
     return node
@@ -745,6 +859,7 @@ function _G.o_call(func_name)
 end
 
 function _G.m_call(func_name)
+
     return start_call(func_name, "m_call")
 end
 
@@ -782,6 +897,7 @@ function _G.end_call(node)
     end
     
     table.remove(current_call_stack)
+    table.remove(order_stack)  -- ADD THIS LINE - pop order context
     return top
 end
 
@@ -801,14 +917,21 @@ end
 -- PARAMETER FUNCTIONS
 -- ============================================================================
 
+
+
 local function add_param(ptype, value)
     if #current_call_stack == 0 then
         dsl_error("No call open for parameter")
     end
     
     local node = current_call_stack[#current_call_stack]
-    table.insert(node.params, { type = ptype, value = value })
+    table.insert(node.params, { 
+        type = ptype, 
+        value = value,
+        order = order_stack[#order_stack]  -- ADD THIS LINE
+    })
     node.param_count = node.param_count + 1
+    order_stack[#order_stack] = order_stack[#order_stack] + 1  -- ADD THIS LINE
 end
 
 function _G.int(value)
@@ -841,6 +964,12 @@ function _G.str_ptr(value)
     add_param("str_ptr", value)
 end
 
+-- Emit pre-computed string hash (useful for state machine keys, etc.)
+function _G.str_hash(value)
+    local hash = M.fnv1a_32(value)
+    add_param("str_hash", { hash = hash, str = value })
+end
+
 function _G.field_ref(name)
     add_param("field_ref", name)
 end
@@ -865,13 +994,102 @@ function _G.result(code)
     end
 end
 
+-- ============================================================================
+-- LIST STRUCTURE FUNCTIONS
+-- ============================================================================
+
 function _G.list_start(name)
-    add_param("list_start", name or "")
-    return { name = name }
+    local marker = push_brace(name, "list")
+    add_param("list_start", marker.name)
+    return marker
 end
 
 function _G.list_end(marker)
+    pop_brace(marker, "list")
     add_param("list_end", marker and marker.name or "")
+end
+
+-- ============================================================================
+-- DICTIONARY STRUCTURE FUNCTIONS
+-- ============================================================================
+
+function _G.dict_start(name)
+    local marker = push_brace(name, "dict")
+    add_param("dict_start", marker.name)
+    return marker
+end
+
+function _G.dict_end(marker)
+    pop_brace(marker, "dict")
+    add_param("dict_end", marker and marker.name or "")
+end
+
+-- Start a dictionary key with string name (computes hash)
+function _G.dict_key(key_str)
+    if type(key_str) ~= "string" then
+        dsl_error("dict_key requires a string argument")
+    end
+    local marker = push_brace(key_str, "dict_key")
+    marker.key_hash = M.fnv1a_32(key_str)
+    add_param("dict_key", key_str)
+    return marker
+end
+
+-- Alias: key() for dict_key()
+function _G.key(key_str)
+    return _G.dict_key(key_str)
+end
+
+-- Start a dictionary key with pre-computed hash (for integer dispatch)
+function _G.key_hash(hash_value)
+    if type(hash_value) ~= "number" then
+        dsl_error("key_hash requires a number argument")
+    end
+    local marker = push_brace(tostring(hash_value), "dict_key")
+    marker.key_hash = hash_value
+    add_param("dict_key_hash", hash_value)
+    return marker
+end
+
+-- End a dictionary key
+function _G.end_dict_key(marker)
+    pop_brace(marker, "dict_key")
+    add_param("end_dict_key", marker and marker.name or "")
+end
+
+-- Alias: key_end() for end_dict_key()
+function _G.key_end(marker)
+    return _G.end_dict_key(marker)
+end
+
+-- ============================================================================
+-- ARRAY STRUCTURE FUNCTIONS
+-- ============================================================================
+
+function _G.array_start(name)
+    local marker = push_brace(name, "array")
+    add_param("array_start", marker.name)
+    return marker
+end
+
+function _G.array_end(marker)
+    pop_brace(marker, "array")
+    add_param("array_end", marker and marker.name or "")
+end
+
+-- ============================================================================
+-- TUPLE STRUCTURE FUNCTIONS
+-- ============================================================================
+
+function _G.tuple_start(name)
+    local marker = push_brace(name, "tuple")
+    add_param("tuple_start", marker.name)
+    return marker
+end
+
+function _G.tuple_end(marker)
+    pop_brace(marker, "tuple")
+    add_param("tuple_end", marker and marker.name or "")
 end
 
 -- ============================================================================
@@ -891,6 +1109,7 @@ _G.SE_FUNCTION_TERMINATE = 5
 _G.SE_SKIP_CONTINUE      = 6
 _G.SE_FUNCTION_HALT      = 7
 _G.SE_FUNCTION_RESET     = 8
+
 -- ============================================================================
 -- MODULE GENERATOR CLASS (for C headers)
 -- ============================================================================
@@ -913,7 +1132,7 @@ function ModuleGenerator:to_c_records_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_records.h")
     table.insert(lines, "// Generated record structures for " .. mod.name)
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#ifndef " .. guard)
@@ -984,7 +1203,7 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. ".h")
     table.insert(lines, "// Generated S-expression module for " .. mod.name)
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#ifndef " .. guard)
@@ -1111,7 +1330,7 @@ function ModuleGenerator:to_c_debug_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_debug.h")
     table.insert(lines, "// Debug hash reference for " .. mod.name)
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#ifndef " .. guard)
@@ -1162,7 +1381,7 @@ function ModuleGenerator:to_c_user_header(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_user_functions.h")
     table.insert(lines, "// User function prototypes for " .. mod.name)
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// NOTE: Builtin functions (SE_*) are in s_engine_builtins.h")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1280,7 +1499,7 @@ function ModuleGenerator:to_c_user_registration(base_name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_user_registration.c")
     table.insert(lines, "// User function registration for " .. mod.name)
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// NOTE: Builtin functions (SE_*) are registered via s_engine_register_builtins()")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -1427,12 +1646,12 @@ end
 M.ModuleGenerator = ModuleGenerator
 
 -- ============================================================================
--- BINARY GENERATOR - VERSION 5.1 (DIRECT s_expr_param_t)
+-- BINARY GENERATOR - VERSION 5.2 (DIRECT s_expr_param_t)
 -- ============================================================================
 
 -- Binary format constants
 local SEXB_MAGIC = 0x42584553    -- "SEXB"
-local SEXB_VERSION = 0x0501      -- Version 5.1
+local SEXB_VERSION = 0x0502      -- Version 5.2
 
 local SEXB_FLAG_32BIT = 0x0000
 local SEXB_FLAG_64BIT = 0x0001
@@ -1674,11 +1893,6 @@ function BinaryModuleGenerator:emit_param_struct(e, param_type, index_to_pointer
         end
     end
 end
--- ============================================================================
--- ============================================================================
--- DEBUG HEADER GENERATOR
--- Call after finalize_module()
--- ============================================================================
 
 -- ============================================================================
 -- DEBUG HEADER GENERATOR
@@ -1693,7 +1907,7 @@ function M.generate_debug_header(module)
     
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. module.name .. "_debug.h")
-    table.insert(lines, "// DEBUG INFORMATION - Auto-generated by s_expr_dsl.lua")
+    table.insert(lines, "// DEBUG INFORMATION - Auto-generated by s_expr_dsl.lua v5.2")
     table.insert(lines, "// Module: " .. module.name)
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
@@ -2215,8 +2429,7 @@ end
 function BinaryModuleGenerator:emit_tree_params(e, tree)
     local param_count = 0
     local current_node_idx = 0  -- Track node index as we emit
-    local brace_stack = {}  -- Stack for tracking OPEN positions: {byte_pos, param_idx}
-    
+    local brace_stack = {}  -- Stack for tracking OPEN positions: {byte_pos, param_idx, type}
     local function emit_node(node)
         -- Determine opcode and func_index based on call_type
         local opcode, func_index
@@ -2261,49 +2474,172 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
         self:emit_param_struct(e, opcode, idx_to_ptr, node_index, func_index)
         param_count = param_count + 1
         
-        -- Emit parameters (handle list_start/list_end specially for brace tracking)
+        -- **NEW: Merge params and children, sort by order**
+        local items = {}
+        
+        -- Add params with their order and type
         for _, param in ipairs(node.params) do
-            if param.type == "list_start" then
-                -- Remember position for later patching
-                local open_byte_pos = e:get_pos()
-                local open_param_idx = param_count
-                -- Emit OPEN with placeholder brace_idx=0
-                self:emit_param_struct(e, S_EXPR_PARAM.OPEN, 0, 0, 0)
-                table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx})
-                param_count = param_count + 1
-            elseif param.type == "list_end" then
-                -- Pop matching OPEN and calculate offset
-                local open_info = table.remove(brace_stack)
-                if open_info then
-                    local close_param_idx = param_count
-                    local brace_offset = close_param_idx - open_info.param_idx
-                    
-                    -- Patch the OPEN's brace_idx (u16_a field)
-                    -- 32-bit layout: [type:1][idx:1][pad:2][u16_a:2][u16_b:2] = 8 bytes
-                    -- 64-bit layout: [type:1][idx:1][pad:6][u16_a:2][u16_b:2][pad:4] = 16 bytes
-                    local patch_offset
-                    if self.is_64bit then
-                        patch_offset = open_info.byte_pos + 8  -- After type(1)+idx(1)+pad(6)
-                    else
-                        patch_offset = open_info.byte_pos + 4  -- After type(1)+idx(1)+pad(2)
-                    end
-                    e:patch_u16(patch_offset, brace_offset)
-                    
-                    -- Emit CLOSE with same brace_offset
-                    self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, brace_offset, 0)
-                else
-                    -- Unmatched CLOSE - emit with 0 (error case)
-                    self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, 0, 0)
-                end
-                param_count = param_count + 1
-            else
-                param_count = param_count + self:emit_dsl_param(e, param)
-            end
+            table.insert(items, {
+                type = "param",
+                order = param.order or 0,
+                data = param
+            })
         end
         
-        -- Emit children recursively
+        -- Add children with their order and type
         for _, child in ipairs(node.children) do
-            emit_node(child)
+            table.insert(items, {
+                type = "child",
+                order = child.order or 0,
+                data = child
+            })
+        end
+        
+        -- Sort by order field
+        table.sort(items, function(a, b)
+            return a.order < b.order
+        end)
+        
+        -- Emit in sorted order
+        for _, item in ipairs(items) do
+            if item.type == "param" then
+                local param = item.data
+                if param.type == "list_start" then
+                    -- Remember position for later patching
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    -- Emit OPEN with placeholder brace_idx=0
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN, 0, 0, 0)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "list"})
+                    param_count = param_count + 1
+                elseif param.type == "list_end" then
+                    -- Pop matching OPEN and calculate offset
+                    local open_info = table.remove(brace_stack)
+                    if open_info and open_info.brace_type == "list" then
+                        local close_param_idx = param_count
+                        local brace_offset = close_param_idx - open_info.param_idx
+                        
+                        -- Patch the OPEN's brace_idx (u16_a field)
+                        local patch_offset
+                        if self.is_64bit then
+                            patch_offset = open_info.byte_pos + 8
+                        else
+                            patch_offset = open_info.byte_pos + 4
+                        end
+                        e:patch_u16(patch_offset, brace_offset)
+                        
+                        -- Emit CLOSE with same brace_offset
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, brace_offset, 0)
+                    else
+                        -- Unmatched CLOSE - emit with 0 (error case)
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, 0, 0)
+                    end
+                    param_count = param_count + 1
+                elseif param.type == "dict_start" then
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN_DICT, 0, 0, 0)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "dict"})
+                    param_count = param_count + 1
+                elseif param.type == "dict_end" then
+                    local open_info = table.remove(brace_stack)
+                    if open_info and open_info.brace_type == "dict" then
+                        local close_param_idx = param_count
+                        local brace_offset = close_param_idx - open_info.param_idx
+                        
+                        local patch_offset
+                        if self.is_64bit then
+                            patch_offset = open_info.byte_pos + 8
+                        else
+                            patch_offset = open_info.byte_pos + 4
+                        end
+                        e:patch_u16(patch_offset, brace_offset)
+                        
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_DICT, 0, brace_offset, 0)
+                    else
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_DICT, 0, 0, 0)
+                    end
+                    param_count = param_count + 1
+                elseif param.type == "dict_key" then
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    local key_hash = M.fnv1a_32(param.value)
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN_KEY, 0, nil, nil, key_hash)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "dict_key"})
+                    param_count = param_count + 1
+                elseif param.type == "dict_key_hash" then
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN_KEY, 0, nil, nil, param.value)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "dict_key"})
+                    param_count = param_count + 1
+                elseif param.type == "end_dict_key" then
+                    local open_info = table.remove(brace_stack)
+                    if open_info and open_info.brace_type == "dict_key" then
+                        local close_param_idx = param_count
+                        local brace_offset = close_param_idx - open_info.param_idx
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_KEY, 0, brace_offset, 0)
+                    else
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_KEY, 0, 0, 0)
+                    end
+                    param_count = param_count + 1
+                elseif param.type == "array_start" then
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN_ARRAY, 0, 0, 0)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "array"})
+                    param_count = param_count + 1
+                elseif param.type == "array_end" then
+                    local open_info = table.remove(brace_stack)
+                    if open_info and open_info.brace_type == "array" then
+                        local close_param_idx = param_count
+                        local brace_offset = close_param_idx - open_info.param_idx
+                        
+                        local patch_offset
+                        if self.is_64bit then
+                            patch_offset = open_info.byte_pos + 8
+                        else
+                            patch_offset = open_info.byte_pos + 4
+                        end
+                        e:patch_u16(patch_offset, brace_offset)
+                        
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_ARRAY, 0, brace_offset, 0)
+                    else
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_ARRAY, 0, 0, 0)
+                    end
+                    param_count = param_count + 1
+                elseif param.type == "tuple_start" then
+                    local open_byte_pos = e:get_pos()
+                    local open_param_idx = param_count
+                    self:emit_param_struct(e, S_EXPR_PARAM.OPEN_TUPLE, 0, 0, 0)
+                    table.insert(brace_stack, {byte_pos = open_byte_pos, param_idx = open_param_idx, brace_type = "tuple"})
+                    param_count = param_count + 1
+                elseif param.type == "tuple_end" then
+                    local open_info = table.remove(brace_stack)
+                    if open_info and open_info.brace_type == "tuple" then
+                        local close_param_idx = param_count
+                        local brace_offset = close_param_idx - open_info.param_idx
+                        
+                        local patch_offset
+                        if self.is_64bit then
+                            patch_offset = open_info.byte_pos + 8
+                        else
+                            patch_offset = open_info.byte_pos + 4
+                        end
+                        e:patch_u16(patch_offset, brace_offset)
+                        
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_TUPLE, 0, brace_offset, 0)
+                    else
+                        self:emit_param_struct(e, S_EXPR_PARAM.CLOSE_TUPLE, 0, 0, 0)
+                    end
+                    param_count = param_count + 1
+                else
+                    param_count = param_count + self:emit_dsl_param(e, param)
+                end
+            else
+                -- item.type == "child"
+                emit_node(item.data)
+            end
         end
         
         -- CLOSE param
@@ -2348,6 +2684,10 @@ function BinaryModuleGenerator:emit_dsl_param(e, param)
         return 1
     elseif ptype == "float" then
         self:emit_param_struct(e, S_EXPR_PARAM.FLOAT, 0, nil, nil, value)
+        return 1
+    elseif ptype == "str_hash" then
+        -- value is {hash=..., str=...}
+        self:emit_param_struct(e, S_EXPR_PARAM.STR_HASH, 0, nil, nil, value.hash)
         return 1
     elseif ptype == "str_idx" or ptype == "str_ptr" then
         local idx = self.string_index[value] or 0
@@ -2409,8 +2749,8 @@ function BinaryModuleGenerator:to_c_header(base_name)
     table.insert(lines, "// " .. base_name .. "_bin" .. mode_suffix .. ".h")
     table.insert(lines, "// Generated binary module data for " .. self.module.name)
     table.insert(lines, "// Mode: " .. (self.is_64bit and "64-bit" or "32-bit"))
-    table.insert(lines, "// Version: 5.1 (direct s_expr_param_t, zero-copy)")
-    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.1")
+    table.insert(lines, "// Version: 5.2 (direct s_expr_param_t, zero-copy)")
+    table.insert(lines, "// DO NOT EDIT - Generated by s_expr_dsl v5.2")
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "")
     table.insert(lines, "#ifndef " .. guard)
@@ -2441,6 +2781,370 @@ function BinaryModuleGenerator:to_c_header(base_name)
     table.insert(lines, "#endif // " .. guard)
     
     return table.concat(lines, "\n")
+end
+
+-- ============================================================================
+-- DEBUG DUMP - Human-readable parameter dump as .h file
+-- ============================================================================
+
+local PARAM_TYPE_NAMES = {
+    [0x00] = "INT",
+    [0x01] = "UINT",
+    [0x02] = "FLOAT",
+    [0x03] = "STR_HASH",
+    [0x04] = "SLOT",
+    [0x05] = "OPEN",
+    [0x06] = "CLOSE",
+    [0x07] = "OPEN_CALL",
+    [0x08] = "ONESHOT",
+    [0x09] = "MAIN",
+    [0x0A] = "PRED",
+    [0x0B] = "FIELD",
+    [0x0C] = "RESULT",
+    [0x0D] = "STR_IDX",
+    [0x0E] = "CONST_REF",
+    [0x10] = "OPEN_DICT",
+    [0x11] = "CLOSE_DICT",
+    [0x12] = "OPEN_KEY",
+    [0x13] = "CLOSE_KEY",
+    [0x14] = "OPEN_ARRAY",
+    [0x15] = "CLOSE_ARRAY",
+    [0x16] = "OPEN_TUPLE",
+    [0x17] = "CLOSE_TUPLE",
+}
+
+local function get_param_type_name(ptype)
+    local base_type = bit.band(ptype, 0x3F)
+    local name = PARAM_TYPE_NAMES[base_type] or string.format("UNK_0x%02X", base_type)
+    local flags = {}
+    if bit.band(ptype, 0x40) ~= 0 then table.insert(flags, "SURVIVES_RESET") end
+    if bit.band(ptype, 0x80) ~= 0 then table.insert(flags, "POINTER") end
+    if #flags > 0 then
+        name = name .. "|" .. table.concat(flags, "|")
+    end
+    return name
+end
+
+-- ============================================================================
+-- COMPLETE FIXED to_debug_dump function
+-- Replace the existing function in s_expr_dsl.lua with this one
+-- ============================================================================
+
+function BinaryModuleGenerator:to_debug_dump(base_name)
+    local lines = {}
+    local mod = self.module
+    local mode_suffix = self.is_64bit and "_64" or "_32"
+    local guard = base_name:upper() .. "_DUMP" .. mode_suffix:upper() .. "_H"
+    
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// " .. base_name .. "_dump" .. mode_suffix .. ".h")
+    table.insert(lines, "// DEBUG PARAMETER DUMP for " .. mod.name)
+    table.insert(lines, "// Mode: " .. (self.is_64bit and "64-bit" or "32-bit"))
+    table.insert(lines, "// Generated by s_expr_dsl v5.2")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "")
+    table.insert(lines, "#ifndef " .. guard)
+    table.insert(lines, "#define " .. guard)
+    table.insert(lines, "")
+    table.insert(lines, "/*")
+    table.insert(lines, " * Module: " .. mod.name)
+    table.insert(lines, " * Hash:   " .. M.fmt_hash(mod.name_hash))
+    table.insert(lines, " * Trees:  " .. #mod.tree_order)
+    table.insert(lines, " * Records: " .. #mod.record_order)
+    table.insert(lines, " * Strings: " .. #mod.string_table)
+    table.insert(lines, " * Constants: " .. #mod.const_order)
+    table.insert(lines, " */")
+    table.insert(lines, "")
+    
+    -- String table dump
+    if #mod.string_table > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// STRING TABLE")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "/*")
+        for i, s in ipairs(mod.string_table) do
+            local escaped = s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n")
+            table.insert(lines, string.format(" * [%2d] \"%s\"", i - 1, escaped))
+        end
+        table.insert(lines, " */")
+        table.insert(lines, "")
+    end
+    
+    -- Function tables dump
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// FUNCTION TABLES")
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "/*")
+    
+    if #mod.oneshot_funcs > 0 then
+        table.insert(lines, " * ONESHOT FUNCTIONS:")
+        for i, name in ipairs(mod.oneshot_funcs) do
+            table.insert(lines, string.format(" *   [%2d] %s (hash=%s)", i - 1, name, M.fmt_hash(M.fnv1a_32(name))))
+        end
+    end
+    
+    if #mod.main_funcs > 0 then
+        table.insert(lines, " * MAIN FUNCTIONS:")
+        for i, name in ipairs(mod.main_funcs) do
+            table.insert(lines, string.format(" *   [%2d] %s (hash=%s)", i - 1, name, M.fmt_hash(M.fnv1a_32(name))))
+        end
+    end
+    
+    if #mod.pred_funcs > 0 then
+        table.insert(lines, " * PREDICATE FUNCTIONS:")
+        for i, name in ipairs(mod.pred_funcs) do
+            table.insert(lines, string.format(" *   [%2d] %s (hash=%s)", i - 1, name, M.fmt_hash(M.fnv1a_32(name))))
+        end
+    end
+    
+    table.insert(lines, " */")
+    table.insert(lines, "")
+    
+    -- Record dump
+    if #mod.record_order > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// RECORDS")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "/*")
+        for _, name in ipairs(mod.record_order) do
+            local rec = mod.records[name]
+            table.insert(lines, string.format(" * %s (size=%d, align=%d, hash=%s)", 
+                name, rec.size, rec.align, M.fmt_hash(rec.name_hash)))
+            for _, field in ipairs(rec.fields) do
+                table.insert(lines, string.format(" *   +%3d: %-20s %-10s (size=%d, hash=%s)",
+                    field.offset, field.name, field.type, field.size, M.fmt_hash(field.name_hash)))
+            end
+        end
+        table.insert(lines, " */")
+        table.insert(lines, "")
+    end
+    
+    -- Tree parameter dumps
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// TREE PARAMETERS")
+    table.insert(lines, "// ============================================================================")
+    
+    for _, tree_name in ipairs(mod.tree_order) do
+        local tree = mod.trees[tree_name]
+        
+        table.insert(lines, "")
+        table.insert(lines, "/*")
+        table.insert(lines, string.format(" * TREE: %s", tree_name))
+        table.insert(lines, string.format(" * Hash: %s", M.fmt_hash(tree.name_hash)))
+        table.insert(lines, string.format(" * Record: %s", tree.record_name or "(none)"))
+        table.insert(lines, string.format(" * Nodes: %d, Pointers: %d", tree.node_count, tree.pointer_count or 0))
+        table.insert(lines, " *")
+        table.insert(lines, " * IDX  TYPE              PTR   VALUE/BRACE     DETAILS")
+        table.insert(lines, " * ---------------------------------------------------------------")
+        
+        local param_idx = 0
+        
+        local function dump_node(node, depth)
+            local indent = string.rep("  ", depth)
+            
+            -- OPEN_CALL
+            local content_count = self:count_node_params(node)
+            table.insert(lines, string.format(" * %3d  %s%-17s %3d   content=%-6d  %s%s",
+                param_idx, indent, "OPEN_CALL", node.pointer_index or 0, content_count,
+                indent, node.func_name))
+            param_idx = param_idx + 1
+            
+            -- Function ref
+            local func_type = "MAIN"
+            if node.call_type == "o_call" or node.call_type == "io_call" then
+                func_type = "ONESHOT"
+            elseif node.call_type == "p_call" or node.call_type == "p_call_composite" then
+                func_type = "PRED"
+            end
+            if node.call_type == "io_call" then func_type = func_type .. "|SR" end
+            if node.call_type == "p_call_composite" then func_type = func_type .. "|SR" end
+            if node.call_type == "pt_m_call" then func_type = func_type .. "|PTR" end
+            
+            table.insert(lines, string.format(" * %3d  %s  %-15s %3d   func_idx=%-5d  hash=%s",
+                param_idx, indent, func_type, node.pointer_index or 0, 
+                self:get_func_index(node), M.fmt_hash(node.func_hash)))
+            param_idx = param_idx + 1
+            
+            -- ================================================================
+            -- FIXED: Merge params and children, sort by order field
+            -- This matches the behavior of emit_tree_params()
+            -- ================================================================
+            local items = {}
+            
+            -- Add params with their order
+            for _, param in ipairs(node.params) do
+                table.insert(items, {
+                    type = "param",
+                    order = param.order or 0,
+                    data = param
+                })
+            end
+            
+            -- Add children with their order
+            for _, child in ipairs(node.children) do
+                table.insert(items, {
+                    type = "child",
+                    order = child.order or 0,
+                    data = child
+                })
+            end
+            
+            -- Sort by order field
+            table.sort(items, function(a, b)
+                return a.order < b.order
+            end)
+            
+            -- Emit in sorted order
+            local brace_stack = {}
+            for _, item in ipairs(items) do
+                if item.type == "child" then
+                    -- Recurse into child node
+                    dump_node(item.data, depth + 1)
+                else
+                    -- Emit parameter
+                    local param = item.data
+                    local ptype = param.type
+                    local value = param.value
+                    local param_indent = indent .. "    "
+                    
+                    if ptype == "list_start" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=TBD",
+                            param_idx, param_indent, "OPEN"))
+                        table.insert(brace_stack, {idx = param_idx, type = "list"})
+                    elseif ptype == "list_end" then
+                        local open = table.remove(brace_stack)
+                        local brace_dist = param_idx - (open and open.idx or 0)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=%-6d",
+                            param_idx, param_indent, "CLOSE", brace_dist))
+                    elseif ptype == "dict_start" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=TBD",
+                            param_idx, param_indent, "OPEN_DICT"))
+                        table.insert(brace_stack, {idx = param_idx, type = "dict"})
+                    elseif ptype == "dict_end" then
+                        local open = table.remove(brace_stack)
+                        local brace_dist = param_idx - (open and open.idx or 0)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=%-6d",
+                            param_idx, param_indent, "CLOSE_DICT", brace_dist))
+                    elseif ptype == "dict_key" then
+                        local key_hash = M.fnv1a_32(value)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       hash=%s  key=\"%s\"",
+                            param_idx, param_indent, "OPEN_KEY", M.fmt_hash(key_hash), value))
+                        table.insert(brace_stack, {idx = param_idx, type = "dict_key"})
+                    elseif ptype == "dict_key_hash" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       hash=%s",
+                            param_idx, param_indent, "OPEN_KEY", M.fmt_hash(value)))
+                        table.insert(brace_stack, {idx = param_idx, type = "dict_key"})
+                    elseif ptype == "end_dict_key" then
+                        local open = table.remove(brace_stack)
+                        local brace_dist = param_idx - (open and open.idx or 0)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=%-6d",
+                            param_idx, param_indent, "CLOSE_KEY", brace_dist))
+                    elseif ptype == "array_start" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=TBD",
+                            param_idx, param_indent, "OPEN_ARRAY"))
+                        table.insert(brace_stack, {idx = param_idx, type = "array"})
+                    elseif ptype == "array_end" then
+                        local open = table.remove(brace_stack)
+                        local brace_dist = param_idx - (open and open.idx or 0)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=%-6d",
+                            param_idx, param_indent, "CLOSE_ARRAY", brace_dist))
+                    elseif ptype == "tuple_start" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=TBD",
+                            param_idx, param_indent, "OPEN_TUPLE"))
+                        table.insert(brace_stack, {idx = param_idx, type = "tuple"})
+                    elseif ptype == "tuple_end" then
+                        local open = table.remove(brace_stack)
+                        local brace_dist = param_idx - (open and open.idx or 0)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       brace=%-6d",
+                            param_idx, param_indent, "CLOSE_TUPLE", brace_dist))
+                    elseif ptype == "int" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       value=%-6d",
+                            param_idx, param_indent, "INT", value))
+                    elseif ptype == "uint" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       value=%-6d  (0x%08X)",
+                            param_idx, param_indent, "UINT", value, value))
+                    elseif ptype == "float" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       value=%g",
+                            param_idx, param_indent, "FLOAT", value))
+                    elseif ptype == "str_hash" then
+                        table.insert(lines, string.format(" * %3d  %s%-17s       hash=%s  \"%s\"",
+                            param_idx, param_indent, "STR_HASH", M.fmt_hash(value.hash), value.str))
+                    elseif ptype == "str_idx" or ptype == "str_ptr" then
+                        local idx = self.string_index[value] or 0
+                        table.insert(lines, string.format(" * %3d  %s%-17s       idx=%-2d len=%-3d  \"%s\"",
+                            param_idx, param_indent, "STR_IDX", idx, #value, value))
+                    elseif ptype == "field_ref" or ptype == "nested_field_ref" then
+                        local hash = M.fnv1a_32(value)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       hash=%s  \"%s\"",
+                            param_idx, param_indent, "FIELD", M.fmt_hash(hash), value))
+                    elseif ptype == "const_ref" then
+                        local idx = self.const_index[value] or 0
+                        table.insert(lines, string.format(" * %3d  %s%-17s       idx=%-2d  \"%s\"",
+                            param_idx, param_indent, "CONST_REF", idx, value))
+                    elseif ptype == "result" then
+                        local result_names = {
+                            [0] = "SE_CONTINUE", [1] = "SE_HALT", [2] = "SE_TERMINATE",
+                            [3] = "SE_RESET", [4] = "SE_DISABLE", [5] = "SE_FUNCTION_TERMINATE",
+                            [6] = "SE_SKIP_CONTINUE", [7] = "SE_FUNCTION_HALT", [8] = "SE_FUNCTION_RESET"
+                        }
+                        local name = result_names[value] or string.format("UNKNOWN(%d)", value)
+                        table.insert(lines, string.format(" * %3d  %s%-17s       value=%-2d  %s",
+                            param_idx, param_indent, "RESULT", value, name))
+                    else
+                        table.insert(lines, string.format(" * %3d  %s%-17s       value=%s",
+                            param_idx, param_indent, string.upper(ptype), tostring(value)))
+                    end
+                    param_idx = param_idx + 1
+                end
+            end
+            
+            -- CLOSE
+            table.insert(lines, string.format(" * %3d  %s%-17s       (end %s)",
+                param_idx, indent, "CLOSE", node.func_name))
+            param_idx = param_idx + 1
+        end
+        
+        -- Dump all top-level nodes
+        for _, node in ipairs(tree.nodes) do
+            dump_node(node, 0)
+        end
+        
+        table.insert(lines, " */")
+    end
+    
+    table.insert(lines, "")
+    table.insert(lines, "#endif // " .. guard)
+    
+    return table.concat(lines, "\n")
+end
+
+-- Helper to get function index for debug dump
+function BinaryModuleGenerator:get_func_index(node)
+    if node.call_type == "o_call" or node.call_type == "io_call" then
+        return self.oneshot_hash_index[node.func_hash] or 0
+    elseif node.call_type == "m_call" or node.call_type == "pt_m_call" then
+        return self.main_hash_index[node.func_hash] or 0
+    elseif node.call_type == "p_call" or node.call_type == "p_call_composite" then
+        return self.pred_hash_index[node.func_hash] or 0
+    end
+    return 0
+end
+
+-- Write debug dump header to file
+function BinaryModuleGenerator:write_debug_dump(base_name, output_dir)
+    local mode_suffix = self.is_64bit and "_64" or "_32"
+    local content = self:to_debug_dump(base_name)
+    local filename = (output_dir or "./") .. base_name .. "_dump" .. mode_suffix .. ".h"
+    
+    local f = io.open(filename, "w")
+    if f then
+        f:write(content)
+        f:close()
+        print("Generated: " .. filename)
+        return true
+    else
+        error("Failed to write: " .. filename)
+    end
 end
 
 M.BinaryModuleGenerator = BinaryModuleGenerator

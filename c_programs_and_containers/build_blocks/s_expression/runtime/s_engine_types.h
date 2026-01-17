@@ -86,24 +86,53 @@ typedef enum {
 } s_expr_event_type_t;
 
 // ============================================================================
-// PARAMETER TYPE OPCODES (bits 3:0 of type byte)
+// PARAMETER TYPE OPCODES (bits 5:0 of type byte)
 // ============================================================================
 
+// Primitive values
 #define S_EXPR_PARAM_INT         0x00
 #define S_EXPR_PARAM_UINT        0x01
 #define S_EXPR_PARAM_FLOAT       0x02
 #define S_EXPR_PARAM_STR_HASH    0x03
+
+// Legacy/reserved
 #define S_EXPR_PARAM_SLOT        0x04
-#define S_EXPR_PARAM_OPEN        0x05
-#define S_EXPR_PARAM_CLOSE       0x06
-#define S_EXPR_PARAM_OPEN_CALL   0x07
+
+// List structure (basic grouping)
+#define S_EXPR_PARAM_OPEN        0x05   // list_start()
+#define S_EXPR_PARAM_CLOSE       0x06   // list_end()
+
+// Function call structure
+#define S_EXPR_PARAM_OPEN_CALL   0x07   // start_call() - function invocation
+
+// Function references
 #define S_EXPR_PARAM_ONESHOT     0x08
 #define S_EXPR_PARAM_MAIN        0x09
 #define S_EXPR_PARAM_PRED        0x0A
+
+// Field/record access
 #define S_EXPR_PARAM_FIELD       0x0B
 #define S_EXPR_PARAM_RESULT      0x0C
 #define S_EXPR_PARAM_STR_IDX     0x0D   // String table index
 #define S_EXPR_PARAM_CONST_REF   0x0E   // Constant reference (ROM)
+
+// Reserved
+#define S_EXPR_PARAM_RESERVED_0F 0x0F
+
+// Dictionary/hash structure (key-value collections)
+#define S_EXPR_PARAM_OPEN_DICT   0x10   // dict_start() - begin dictionary
+#define S_EXPR_PARAM_CLOSE_DICT  0x11   // dict_end()   - end dictionary
+#define S_EXPR_PARAM_OPEN_KEY    0x12   // key_start()  - begin key-value pair
+#define S_EXPR_PARAM_CLOSE_KEY   0x13   // key_end()    - end key-value pair
+
+// Array structure (indexed collections)
+#define S_EXPR_PARAM_OPEN_ARRAY  0x14   // array_start() - begin array
+#define S_EXPR_PARAM_CLOSE_ARRAY 0x15   // array_end()   - end array
+
+// Tuple structure (fixed-size heterogeneous)
+#define S_EXPR_PARAM_OPEN_TUPLE  0x16   // tuple_start() - begin tuple
+#define S_EXPR_PARAM_CLOSE_TUPLE 0x17   // tuple_end()   - end tuple
+
 // ============================================================================
 // TYPE FLAGS (upper bits of type byte)
 // ============================================================================
@@ -111,6 +140,7 @@ typedef enum {
 #define S_EXPR_FLAG_SURVIVES_RESET 0x40  // bit 6: io_call (survives reset)
 #define S_EXPR_FLAG_POINTER        0x80  // bit 7: pt_m_call (pointer-capable)
 #define S_EXPR_OPCODE_MASK         0x3F  // bits 5:0 (allows 64 opcodes)
+
 // ============================================================================
 // PARAMETER TYPE PREDICATES
 // ============================================================================
@@ -118,16 +148,51 @@ typedef enum {
 #define S_EXPR_PARAM_IS_NUMERIC(t)   (((t) & S_EXPR_OPCODE_MASK) <= S_EXPR_PARAM_FLOAT)
 #define S_EXPR_PARAM_IS_FUNC_REF(t)  (((t) & S_EXPR_OPCODE_MASK) >= S_EXPR_PARAM_ONESHOT && \
                                       ((t) & S_EXPR_OPCODE_MASK) <= S_EXPR_PARAM_PRED)
+
+// Basic list braces
 #define S_EXPR_PARAM_IS_OPEN(t)      (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN || \
                                       ((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_CALL)
 #define S_EXPR_PARAM_IS_CLOSE(t)     (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CLOSE)
 #define S_EXPR_PARAM_IS_CALLABLE(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_CALL)
+
+// Dictionary predicates
+#define S_EXPR_PARAM_IS_OPEN_DICT(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_DICT)
+#define S_EXPR_PARAM_IS_CLOSE_DICT(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CLOSE_DICT)
+#define S_EXPR_PARAM_IS_OPEN_KEY(t)   (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_KEY)
+#define S_EXPR_PARAM_IS_CLOSE_KEY(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CLOSE_KEY)
+#define S_EXPR_PARAM_IS_DICT(t)       (S_EXPR_PARAM_IS_OPEN_DICT(t) || S_EXPR_PARAM_IS_CLOSE_DICT(t))
+#define S_EXPR_PARAM_IS_KEY(t)        (S_EXPR_PARAM_IS_OPEN_KEY(t) || S_EXPR_PARAM_IS_CLOSE_KEY(t))
+
+// Array predicates
+#define S_EXPR_PARAM_IS_OPEN_ARRAY(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_ARRAY)
+#define S_EXPR_PARAM_IS_CLOSE_ARRAY(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CLOSE_ARRAY)
+#define S_EXPR_PARAM_IS_ARRAY(t)       (S_EXPR_PARAM_IS_OPEN_ARRAY(t) || S_EXPR_PARAM_IS_CLOSE_ARRAY(t))
+
+// Tuple predicates
+#define S_EXPR_PARAM_IS_OPEN_TUPLE(t)  (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_OPEN_TUPLE)
+#define S_EXPR_PARAM_IS_CLOSE_TUPLE(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CLOSE_TUPLE)
+#define S_EXPR_PARAM_IS_TUPLE(t)       (S_EXPR_PARAM_IS_OPEN_TUPLE(t) || S_EXPR_PARAM_IS_CLOSE_TUPLE(t))
+
+// Any structured open/close (for generic iteration)
+#define S_EXPR_PARAM_IS_ANY_OPEN(t)  (S_EXPR_PARAM_IS_OPEN(t) || \
+                                      S_EXPR_PARAM_IS_OPEN_DICT(t) || \
+                                      S_EXPR_PARAM_IS_OPEN_KEY(t) || \
+                                      S_EXPR_PARAM_IS_OPEN_ARRAY(t) || \
+                                      S_EXPR_PARAM_IS_OPEN_TUPLE(t))
+#define S_EXPR_PARAM_IS_ANY_CLOSE(t) (S_EXPR_PARAM_IS_CLOSE(t) || \
+                                      S_EXPR_PARAM_IS_CLOSE_DICT(t) || \
+                                      S_EXPR_PARAM_IS_CLOSE_KEY(t) || \
+                                      S_EXPR_PARAM_IS_CLOSE_ARRAY(t) || \
+                                      S_EXPR_PARAM_IS_CLOSE_TUPLE(t))
+
+// Field/slot/string predicates
 #define S_EXPR_PARAM_IS_SLOT(t)      (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_SLOT)
 #define S_EXPR_PARAM_IS_FIELD(t)     (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FIELD)
 #define S_EXPR_PARAM_IS_RESULT(t)    (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_RESULT)
 #define S_EXPR_PARAM_HAS_POINTER(t)  (((t) & S_EXPR_FLAG_POINTER) != 0)
 #define S_EXPR_PARAM_SURVIVES_RESET(t) (((t) & S_EXPR_FLAG_SURVIVES_RESET) != 0)
 #define S_EXPR_PARAM_IS_STR_IDX(t)   (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_STR_IDX)
+#define S_EXPR_PARAM_IS_CONST_REF(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CONST_REF)
 
 // ============================================================================
 // NODE FLAGS (runtime state per func_node)
@@ -148,6 +213,8 @@ typedef enum {
 //   { .type = 0x0B, .field_offset = 0, .field_size = 4 }
 //   { .type = 0x00, .int_val = 1 }
 //   { .type = 0x07, .brace_idx = 4 }
+//   { .type = 0x10, .brace_idx = 8 }   // OPEN_DICT
+//   { .type = 0x12, .str_hash = 0x... } // OPEN_KEY with key hash
 //
 // Fields:
 //   node_index       -> index into node_states[] (flags/state)
@@ -183,13 +250,13 @@ typedef struct {
             uint16_t str_index;     // -> string_table[]
             uint16_t str_len;       // string length (informational)
         };
-        // Brace matching (OPEN, OPEN_CALL, CLOSE)
+        // Brace matching (OPEN, OPEN_CALL, CLOSE, OPEN_DICT, etc.)
         uint16_t brace_idx;
         // Values (INT, UINT, FLOAT, STR_HASH, RESULT)
         ct_int_t      int_val;
         ct_uint_t     uint_val;
         ct_float_t    float_val;
-        s_expr_hash_t str_hash;
+        s_expr_hash_t str_hash;     // Also used for OPEN_KEY key hash
     };
 } s_expr_param_t;
 
@@ -224,6 +291,7 @@ typedef union {
     int64_t  i64;
     double   f64;
 } s_expr_slot_t;
+
 #define S_EXPR_SLOT_FLAG_NONE       0x00
 #define S_EXPR_SLOT_FLAG_ALLOCATED  0x01  // engine allocated - freeable
 #define S_EXPR_SLOT_FLAG_EXTERNAL   0x02  // user provided - do not free
@@ -406,6 +474,7 @@ struct s_expr_module {
 // ============================================================================
 // TREE INSTANCE (created per-execution)
 // ============================================================================
+
 struct s_expr_tree_instance {
     s_expr_module_t*          module;
     const s_expr_tree_def_t*  tree;
@@ -454,6 +523,8 @@ struct s_expr_tree_instance {
 #define S_EXPR_ERR_NOT_POINTER_CALL      8
 #define S_EXPR_ERR_POINTER_INDEX         9
 #define S_EXPR_ERR_NO_BLACKBOARD         10
+#define S_EXPR_ERR_DICT_KEY_NOT_FOUND    11
+#define S_EXPR_ERR_INVALID_STRUCTURE     12
 
 // ============================================================================
 // HASH FUNCTION (FNV-1a)
@@ -499,6 +570,10 @@ static inline uint8_t s_expr_param_opcode(const s_expr_param_t* p) {
     return p->type & S_EXPR_OPCODE_MASK;
 }
 
+static inline uint8_t s_expr_param_ptr_index(const s_expr_param_t* p) {
+    return p->index_to_pointer;
+}
+
 // ============================================================================
 // PARAMETER TYPE HELPERS
 // ============================================================================
@@ -511,9 +586,6 @@ static inline bool s_expr_param_is_predicate(const s_expr_param_t* param) {
     }
     return false;
 }
-// ============================================================================
-// PARAMETER TYPE HELPERS (local to builtins)
-// ============================================================================
 
 static inline bool s_expr_param_is_oneshot(const s_expr_param_t* param) {
     uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
@@ -532,6 +604,7 @@ static inline bool s_expr_param_is_main(const s_expr_param_t* param) {
     }
     return false;
 }
+
 static inline bool s_expr_param_is_action(const s_expr_param_t* param) {
     uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
     if (opcode == S_EXPR_PARAM_MAIN || opcode == S_EXPR_PARAM_ONESHOT) return true;
@@ -540,10 +613,6 @@ static inline bool s_expr_param_is_action(const s_expr_param_t* param) {
         return func_opcode == S_EXPR_PARAM_MAIN || func_opcode == S_EXPR_PARAM_ONESHOT;
     }
     return false;
-}
-
-static inline uint8_t s_expr_param_ptr_index(const s_expr_param_t* p) {
-    return p->index_to_pointer;
 }
 
 // ============================================================================
@@ -568,6 +637,10 @@ static inline s_expr_result_t s_expr_find_result(
     return SE_CONTINUE;
 }
 
+// ============================================================================
+// STRING TABLE ACCESS
+// ============================================================================
+
 static inline const char* s_expr_param_string(
     const s_expr_module_def_t* def,
     const s_expr_param_t* p
@@ -577,11 +650,96 @@ static inline const char* s_expr_param_string(
     if (p->str_index >= def->string_count) return NULL;
     return def->string_table[p->str_index];
 }
-// In s_engine_tree.c or appropriate source
-static inline const s_expr_module_def_t* s_expr_tree_get_module_def(s_expr_tree_instance_t* inst) {
+
+static inline const s_expr_module_def_t* s_expr_tree_get_module_def(
+    s_expr_tree_instance_t* inst
+) {
     if (!inst || !inst->module) return NULL;
     return inst->module->def;
 }
+
+// ============================================================================
+// DICTIONARY/COLLECTION NAVIGATION HELPERS
+// ============================================================================
+
+// Skip to end of current structure (handles nested structures)
+// Returns pointer to matching CLOSE token, or NULL on error
+static inline const s_expr_param_t* s_expr_skip_structure(
+    const s_expr_param_t* open_param,
+    const s_expr_param_t* params_end
+) {
+    if (!open_param || open_param >= params_end) return NULL;
+    
+    uint8_t opcode = open_param->type & S_EXPR_OPCODE_MASK;
+    uint8_t close_opcode;
+    
+    // Determine matching close opcode
+    switch (opcode) {
+        case S_EXPR_PARAM_OPEN:
+        case S_EXPR_PARAM_OPEN_CALL:
+            close_opcode = S_EXPR_PARAM_CLOSE;
+            break;
+        case S_EXPR_PARAM_OPEN_DICT:
+            close_opcode = S_EXPR_PARAM_CLOSE_DICT;
+            break;
+        case S_EXPR_PARAM_OPEN_KEY:
+            close_opcode = S_EXPR_PARAM_CLOSE_KEY;
+            break;
+        case S_EXPR_PARAM_OPEN_ARRAY:
+            close_opcode = S_EXPR_PARAM_CLOSE_ARRAY;
+            break;
+        case S_EXPR_PARAM_OPEN_TUPLE:
+            close_opcode = S_EXPR_PARAM_CLOSE_TUPLE;
+            break;
+        default:
+            return NULL;  // Not an open token
+    }
+    
+    // Use brace_idx for O(1) navigation
+    uint16_t close_idx = open_param->brace_idx;
+    const s_expr_param_t* close_param = open_param + close_idx;
+    
+    if (close_param < params_end && 
+        (close_param->type & S_EXPR_OPCODE_MASK) == close_opcode) {
+        return close_param;
+    }
+    
+    return NULL;
+}
+
+
+
+// Get array element by index (0-based)
+static inline const s_expr_param_t* s_expr_array_get(
+    const s_expr_param_t* array_param,
+    const s_expr_param_t* params_end,
+    uint16_t index
+) {
+    if (!array_param || array_param >= params_end) return NULL;
+    if ((array_param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_OPEN_ARRAY) return NULL;
+    
+    const s_expr_param_t* p = array_param + 1;
+    const s_expr_param_t* array_end = s_expr_skip_structure(array_param, params_end);
+    if (!array_end) return NULL;
+    
+    uint16_t current = 0;
+    while (p < array_end) {
+        if (current == index) {
+            return p;
+        }
+        
+        // Skip nested structures
+        if (S_EXPR_PARAM_IS_ANY_OPEN(p->type)) {
+            p = s_expr_skip_structure(p, params_end);
+            if (!p) return NULL;
+        }
+        p++;
+        current++;
+    }
+    
+    return NULL;
+}
+
 #ifdef __cplusplus
 }
 #endif
