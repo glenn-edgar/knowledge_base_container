@@ -96,6 +96,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_LOG_INT_HASH               0x2442CEA2
 #define SE_LOG_FLOAT_HASH             0xA8949A19
 #define SE_LOG_FIELD_HASH             0xBA2925AB
+#define SE_SET_HASH_HASH              0xEF5AD4AB
 
 // Field operations (oneshots)
 #define SE_SET_FIELD_HASH             0xFFF84A15

@@ -83,12 +83,15 @@ static void dispatch_oneshot(
     bool survives_reset = (func_param->type & S_EXPR_FLAG_SURVIVES_RESET) != 0;
     
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return;  // Exception already raised
+    if (!state) return;
     
     uint8_t check_flag = survives_reset ? S_EXPR_NODE_FLAG_EVER_INIT : S_EXPR_NODE_FLAG_INITIALIZED;
     
+    
+    
     if (state->flags & check_flag) {
-        return;  // Already executed - not an error
+        
+        return;
     }
     
     state->flags |= check_flag;
@@ -110,7 +113,6 @@ static void dispatch_oneshot(
     
     inst->current_node_index = saved_node;
 }
-
 // ============================================================================
 // INTERNAL: Dispatch predicate function
 // ============================================================================
@@ -891,10 +893,6 @@ void s_expr_restart_actions(
     }
 }
 
-// ============================================================================
-// Reset flags so actions get INIT event on next invoke (no TERMINATE sent)
-// ============================================================================
-
 void s_expr_enable_actions(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -917,27 +915,35 @@ void s_expr_enable_actions(
         if (opcode == S_EXPR_PARAM_OPEN_CALL) {
             const s_expr_param_t* func_param = &params[i + 1];
             uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
-            
+            uint16_t node_idx = func_param->node_index;
+            uint16_t close_offset = params[i].brace_idx;
             if (func_opcode == S_EXPR_PARAM_MAIN) {
-                uint16_t node_idx = func_param->node_index;
-                
+                printf("enable_actions: MAIN node_idx=%d\n", node_idx);
                 if (node_idx < inst->node_count) {
                     s_expr_node_state_t* node_state = &inst->node_states[node_idx];
-                    
                     uint8_t ever_init = node_state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
                     node_state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
-                } else {
-                    EXCEPTION("s_expr_enable_actions: node_index out of range");
+                    node_state->flags &= ~S_EXPR_NODE_FLAG_INITIALIZED;
+                }
+                
+                // Invoke MAIN with INIT event so it can initialize its children
+                //s_expr_invoke_main_with_event(inst, params, i, SE_EVENT_INIT, 0, NULL);
+                
+                // No need to recurse - MAIN's INIT handler will handle its children
+            }
+            else if (func_opcode == S_EXPR_PARAM_ONESHOT) {
+                printf("enable_actions: ONESHOT node_idx=%d\n", node_idx);
+                if (node_idx < inst->node_count) {
+                    inst->node_states[node_idx].flags &= ~(S_EXPR_NODE_FLAG_INITIALIZED | S_EXPR_NODE_FLAG_EVER_INIT);
                 }
             }
             
-            i += params[i].brace_idx + 1;
+            i += close_offset + 1;
         } else {
             i++;
         }
     }
 }
-
 // ============================================================================
 // NODE STATE ACCESSORS
 // ============================================================================

@@ -80,7 +80,17 @@ end
 -- Only SE_CONTINUE and SE_DISABLE continue to next node.
 -- All others terminate the current tick and propagate to caller.
 --============================================================================
-
+function se_set_result(result)
+    if result == SE_CONTINUE then
+        se_return_continue()
+    elseif result == SE_DISABLE then
+        se_return_disable()
+    elseif result == SE_HALT then
+        se_return_halt()
+    elseif result == SE_RESET then
+        se_return_reset()
+    end
+end
 function se_return_continue()
     local c = m_call("SE_RETURN_CONTINUE")
     end_call(c)
@@ -347,26 +357,33 @@ function se_string_dispatch_table(field_name, cases)
     end_call(c)
 end
 
--- NEW: Hash dispatch (dispatch on pre-computed hash value)
--- Usage: se_hash_dispatch("hash_field", {
---     {"COMMAND_A", action_a_fn},
---     {"COMMAND_B", action_b_fn},
--- })
-function se_hash_dispatch(field_name, cases)
+--- Hash dispatch (dispatch on pre-computed hash value)
+-- Usage: se_hash_dispatch("hash_state", {
+--     {"idle",     function() int(0) str_ptr("System idle") se_log("idle") result(SE_HALT) end},
+--     {"running",  function() int(1) str_ptr("System running") se_log("running") end},
+--     {"error",    function() int(2) str_ptr("System error") se_log("error") end},
+--     {"shutdown", function() int(3) str_ptr("System shutdown") se_log("shutdown") end},
+-- }, SE_CONTINUE)
+function se_hash_dispatch(field_name, cases, default_result)
     local c = m_call("SE_HASH_DISPATCH")
         field_ref(field_name)
         local d = dict_start("cases")
             for _, case in ipairs(cases) do
-                local key_str = case[1]
-                local action_fn = case[2]
-                local k = dict_key(key_str)
-                    action_fn()
-                end_dict_key(k)
+                local key_str    = case[1]
+                local content_fn = case[2]
+                
+                local k = key(key_str)
+                    if content_fn then
+                        content_fn()
+                    end
+                key_end(k)
             end
         dict_end(d)
+        if default_result then
+            se_set_result(default_result)
+        end
     end_call(c)
 end
-
 --============================================================================
 -- EVENT DISPATCH FUNCTIONS
 --============================================================================
@@ -977,4 +994,10 @@ function se_ordered_dict(name, pairs_array)
     return d
 end
 
+function se_set_hash(target_field, string_value)
+    local c = o_call("SE_SET_HASH")
+        field_ref(target_field)
+        str_hash(string_value)  -- emits precomputed hash instead of str_ptr
+    end_call(c)
+end
 print("S-Expression Engine helpers loaded (v5.2)")

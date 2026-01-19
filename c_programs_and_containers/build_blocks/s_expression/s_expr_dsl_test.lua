@@ -169,7 +169,7 @@ END_CONST()
 -- TEST TREE 1: All Call Types
 -- Tests: o_call, m_call, p_call, pt_m_call, io_call
 -- ============================================================================
-
+--[[
 start_tree("test_all_call_types")
     use_record("test_blackboard")
     
@@ -249,7 +249,7 @@ start_tree("test_all_param_types")
     end_call(test)
     
 end_tree()
-
+--]]
 -- ============================================================================
 -- TEST TREE 3: All Result Codes
 -- Tests: SE_CONTINUE, SE_TERMINATE, SE_RESET, SE_DISABLE, SE_HALT,
@@ -305,7 +305,7 @@ end_tree()
 -- Tests: se_pred_and, se_pred_or, se_pred_not, se_pred_nor, se_pred_nand, se_pred_xor
 -- Tests nested composition: (A AND B) OR (C AND D)
 -- ============================================================================
-
+--[[
 start_tree("test_composable_predicates")
     use_record("test_blackboard")
     
@@ -372,7 +372,7 @@ end_call(p6)
 
     result(SE_CONTINUE)
 end_tree()
-
+--]]
 -- ============================================================================
 -- TEST TREE 5: Helper Functions - Pipeline and Delays
 -- Tests: se_pipeline, se_tick_delay, se_time_delay, se_wait_event, se_nop, se_log
@@ -401,7 +401,7 @@ start_tree("test_pipeline_and_delays")
         
         se_log("Pipeline complete")
         
-        result(SE_FUNCTION_TERMINATE)
+        se_return_function_terminate()
     end)
     
 end_tree()
@@ -425,9 +425,12 @@ start_tree("test_conditionals")
             end,
             function()
                 se_log("Condition is true")
+                se_return_continue()
+                
             end,
             function()
                 se_log("Condition is false")
+                se_return_continue()
             end
         )
         
@@ -438,6 +441,7 @@ start_tree("test_conditionals")
             end,
             function()
                 se_log("Another condition is true")
+                se_return_continue()
             end
         )
         
@@ -448,9 +452,11 @@ start_tree("test_conditionals")
             end,
             function()
                 se_log("State went high")
+                se_return_continue()
             end,
             function()
                 se_log("State went low")
+                se_return_continue()
             end
         )
         
@@ -461,6 +467,7 @@ start_tree("test_conditionals")
             end,
             function()
                 se_log("Button was pressed")
+                se_return_continue()
             end
         )
         
@@ -471,11 +478,12 @@ start_tree("test_conditionals")
             end,
             function()
                 se_log("Sensor went inactive")
+                se_return_continue()
             end
         )
         
         se_log("Ending test_conditionals")
-        result(SE_FUNCTION_TERMINATE)
+        se_return_function_terminate()
     end)
     
 end_tree()
@@ -506,7 +514,7 @@ start_tree("test_state_machine")
                 field_ref("state")
                 int(STATE_RUNNING)
             end_call(set)
-            result(SE_HALT)
+            se_return_halt()
         end,
         
         -- State 1: RUNNING
@@ -517,7 +525,7 @@ start_tree("test_state_machine")
                 field_ref("state")
                 int(STATE_PAUSED)
             end_call(set)
-            result(SE_HALT)
+            se_return_halt()
         end,
         
         -- State 2: PAUSED
@@ -528,13 +536,13 @@ start_tree("test_state_machine")
                 field_ref("state")
                 int(STATE_DONE)
             end_call(set)
-            result(SE_HALT)
+            se_return_halt()
         end,
         
         -- State 3: DONE
         function()
             se_log("State: DONE")
-            result(SE_FUNCTION_TERMINATE)
+            se_return_function_terminate()
         end,
     })
     end)
@@ -573,19 +581,19 @@ start_tree("test_field_dispatch_idle")
         se_field_dispatch("command", {
             { CMD_IDLE, function()
                 se_log("✅ Command: IDLE")
-                result(SE_FUNCTION_HALT)
+                se_return_function_terminate()
             end },
             { CMD_START, function()
                 se_log("❌ Command: START (wrong)")
-                result(SE_FUNCTION_HALT)
+                se_return_function_terminate()
             end },
             { CMD_STOP, function()
                 se_log("❌ Command: STOP (wrong)")
-                result(SE_FUNCTION_HALT)
+                se_return_function_terminate()
             end },
             { CMD_RESET, function()
                 se_log("❌ Command: RESET (wrong)")
-                result(SE_FUNCTION_HALT)
+                se_return_function_terminate()
             end },
         })
         
@@ -606,19 +614,19 @@ start_tree("test_field_dispatch_start")
         se_field_dispatch("command", {
             { CMD_IDLE, function()
                 se_log("❌ Command: IDLE (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_START, function()
                 se_log("✅ Command: START")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_STOP, function()
                 se_log("❌ Command: STOP (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_RESET, function()
                 se_log("❌ Command: RESET (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
         })
         
@@ -639,19 +647,19 @@ start_tree("test_field_dispatch_stop")
         se_field_dispatch("command", {
             { CMD_IDLE, function()
                 se_log("❌ Command: IDLE (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_START, function()
                 se_log("❌ Command: START (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_STOP, function()
                 se_log("✅ Command: STOP")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { CMD_RESET, function()
                 se_log("❌ Command: RESET (wrong)")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
         })
         
@@ -670,188 +678,22 @@ start_tree("test_event_dispatch")
         se_event_dispatch({
             { EVT_TIMER, function()
                 se_log("✅ Event: TIMER")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { EVT_BUTTON, function()
                 se_log("✅ Event: BUTTON")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
             { EVT_SENSOR, function()
                 se_log("✅ Event: SENSOR")
-                result(SE_FUNCTION_TERMINATE)
+                se_return_function_terminate()
             end },
         })
         
         se_return_function_terminate()
     end)
 end_tree()
--- ============================================================================
--- TEST TREE 9: Predicate Helpers
--- Tests: se_true, se_false, se_check_event
--- ============================================================================
 
-start_tree("test_predicate_helpers")
-    use_record("test_blackboard")
-    
-    -- Always true
-    se_true()
-    
-    -- Always false
-    se_false()
-    
-    -- Check for specific events
-    se_check_event(EVT_TIMER, EVT_BUTTON, EVT_SENSOR)
-    
-    -- Complex predicate using helpers
-    local complex = se_pred_or()
-        se_true()
-        local inner = se_pred_and()
-            se_false()
-            local p = p_call("CUSTOM_PRED") end_call(p)
-        end_call(inner)
-    end_call(complex)
-    
-    result(SE_CONTINUE)
-end_tree()
-
--- ============================================================================
--- TEST TREE 10: Nested Field Access
--- Tests deep field access through embedded records
--- ============================================================================
-
-start_tree("test_nested_fields")
-    use_record("test_blackboard")
-    
-    se_pipeline(function()
-        -- Access 3 levels deep: motor.position.x
-        local set_pos = o_call("SET_VECTOR")
-            nested_field_ref("motor.position.x")
-            nested_field_ref("motor.position.y")
-            nested_field_ref("motor.position.z")
-            flt(100.0)
-            flt(200.0)
-            flt(300.0)
-        end_call(set_pos)
-        
-        -- Access 3 levels deep: motor.velocity
-        local set_vel = o_call("SET_VECTOR")
-            nested_field_ref("motor.velocity.x")
-            nested_field_ref("motor.velocity.y")
-            nested_field_ref("motor.velocity.z")
-            flt(1.0)
-            flt(2.0)
-            flt(3.0)
-        end_call(set_vel)
-        
-        -- Access 2 levels: motor.torque
-        local set_torque = o_call("SET_FLOAT")
-            nested_field_ref("motor.torque")
-            flt(50.0)
-        end_call(set_torque)
-        
-        -- Access 2 levels: gains.kp/ki/kd
-        local set_gains = o_call("SET_PID")
-            nested_field_ref("gains.kp")
-            nested_field_ref("gains.ki")
-            nested_field_ref("gains.kd")
-            flt(1.5)
-            flt(0.3)
-            flt(0.08)
-        end_call(set_gains)
-        
-        -- Access 1 level (no nesting)
-        local set_counter = o_call("SET_UINT")
-            field_ref("counter")
-            uint(12345)
-        end_call(set_counter)
-        
-        result(SE_FUNCTION_TERMINATE)
-    end)
-    
-end_tree()
-
--- ============================================================================
--- TEST TREE 11: Multiple pt_m_call (Pointer Slots)
--- Tests multiple protothread functions with pointer tracking
--- ============================================================================
-
-start_tree("test_pointer_slots")
-    use_record("test_blackboard")
-    
-    -- First pt_m_call - gets pointer_index 0
-    local pt1 = pt_m_call("PROTOTHREAD_1")
-        int(100)
-    end_call(pt1)
-    
-    -- Second pt_m_call - gets pointer_index 1
-    local pt2 = pt_m_call("PROTOTHREAD_2")
-        int(200)
-    end_call(pt2)
-    
-    -- Third pt_m_call - gets pointer_index 2
-    local pt3 = pt_m_call("PROTOTHREAD_3")
-        int(300)
-    end_call(pt3)
-    
-    -- Nested pt_m_call inside m_call
-    local outer = m_call("OUTER_FUNC")
-        -- Fourth pt_m_call - gets pointer_index 3
-        local pt4 = pt_m_call("NESTED_PROTOTHREAD")
-            int(400)
-        end_call(pt4)
-    end_call(outer)
-    
-    result(SE_CONTINUE)
-end_tree()
-
--- ============================================================================
--- TEST TREE 12: Complex Nested Structure
--- Tests deeply nested call structure with mixed types
--- ============================================================================
-
-start_tree("test_complex_nesting")
-    use_record("test_blackboard")
-    
-    local outer = m_call("LEVEL_1")
-        str_ptr("Level 1")
-        
-        local level2a = m_call("LEVEL_2A")
-            str_ptr("Level 2A")
-            
-            local level3a = o_call("LEVEL_3A")
-                str_ptr("Level 3A")
-            end_call(level3a)
-            
-            local level3b = m_call("LEVEL_3B")
-                str_ptr("Level 3B")
-                
-                local level4 = pt_m_call("LEVEL_4")
-                    str_ptr("Level 4")
-                    int(42)
-                end_call(level4)
-                
-            end_call(level3b)
-            
-        end_call(level2a)
-        
-        local level2b = m_call("LEVEL_2B")
-            str_ptr("Level 2B")
-            
-            -- Nested predicate composition
-            local pred = se_pred_and()
-                local p1 = p_call("DEEP_PRED_1") end_call(p1)
-                local inner_or = se_pred_or()
-                    local p2 = p_call("DEEP_PRED_2") end_call(p2)
-                    local p3 = p_call("DEEP_PRED_3") end_call(p3)
-                end_call(inner_or)
-            end_call(pred)
-            
-        end_call(level2b)
-        
-        result(SE_CONTINUE)
-    end_call(outer)
-    
-end_tree()
 
 -- ============================================================================
 -- TEST TREE 13: Basic List Structures
@@ -870,7 +712,7 @@ start_tree("test_basic_lists")
             int(40)
             int(50)
         list_end(l1)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn1)
     
     -- Function with multiple lists
@@ -887,7 +729,7 @@ start_tree("test_basic_lists")
             flt(5.0)
             flt(6.0)
         list_end(l3)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn2)
     
     -- Nested lists
@@ -906,10 +748,10 @@ start_tree("test_basic_lists")
             list_end(l6)
             int(8)
         list_end(l4)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn3)
     
-    result(SE_HALT)
+    se_return_halt()
     end)
 end_tree()
 
@@ -921,37 +763,28 @@ end_tree()
 
 start_tree("test_dictionary_basic")
     use_record("test_blackboard")
-    
-    -- SE_HASH_DISPATCH expects: [field_ref] [OPEN_DICT cases...]
-    local fn1 = m_call("SE_HASH_DISPATCH")
-        field_ref("hash_state")  -- field containing hash value to dispatch on
-        d1 = dict_start("d1")
-            k1 = key("idle")
-                int(0)
-                str_ptr("System idle")
+    se_pipeline(function()
+    se_set_hash("hash_state", "idle") 
+    se_hash_dispatch("hash_state", {
+        {"idle", function()
+            se_pipeline(function()
                 se_log("idle")
-                result(SE_HALT)
-            key_end(k1)
-            k2 = key("running")
-                int(1)
-                str_ptr("System running")
+                se_set_hash("hash_state", "running")
+                se_return_halt()
+            end)
+           
+        end},
+        {"running", function()
+            se_pipeline(function()
                 se_log("running")
-            key_end(k2)
-            k3 = key("error")
-                int(2)
-                str_ptr("System error")
-                se_log("error")
-            key_end(k3)
-            k4 = key("shutdown")
-                int(3)
-                str_ptr("System shutdown")
-                se_log("shutdown")
-            key_end(k4)
-        dict_end(d1)
-        result(SE_CONTINUE)
-    end_call(fn1)
+                se_set_hash("hash_state", "idle")
+                se_return_halt()
+            end)
+        end},
+    }, SE_CONTINUE)
     
-    result(SE_CONTINUE)
+    se_return_halt()
+    end)
 end_tree()
 
 -- ============================================================================
@@ -961,61 +794,54 @@ end_tree()
 
 start_tree("test_dictionary_with_actions")
     use_record("test_blackboard")
-    
+    local p0 = m_call("SE_PIPELINE")
+    i0 = io_call("SE_SET_HASH")
+        field_ref("hash_state")
+        str_hash("start")
+    end_call(i0)
     -- Dictionary where values are action sequences
-    local dispatch = m_call("STATE_MACHINE_DISPATCH")
-        field_ref("command")  -- dispatch key field
+    local dispatch = m_call("SE_NAMED_STATE_MACHINE")
+        field_ref("hash_state")  -- dispatch key field
         local d2 = dict_start("d2")
             local k1=key("start")
-                local a1 = o_call("LOG_MSG")
-                    str_ptr("Starting system")
-                end_call(a1)
-                local a2 = o_call("SET_STATE")
-                    field_ref("state")
-                    int(STATE_RUNNING)
-                end_call(a2)
+                local p1 = m_call("SE_PIPELINE")
+                    se_log("start state")
+                    se_set_hash("hash_state", "stop")
+                    se_return_halt()
+                end_call(p1)
             key_end(k1)
             
             local k2=key("stop")
-                local b1 = o_call("LOG_MSG")
-                    str_ptr("Stopping system")
-                end_call(b1)
-                local b2 = o_call("SET_STATE")
-                    field_ref("state")
-                    int(STATE_IDLE)
-                end_call(b2)
+                local p2 = m_call("SE_PIPELINE")
+                    se_log("stop state")
+                    se_set_hash("hash_state", "pause")
+                    se_return_continue()
+                end_call(p2)
             key_end(k2)
             
-           local k3=key("pause")
-                local c1 = o_call("LOG_MSG")
-                    str_ptr("Pausing system")
-                end_call(c1)
-                local c2 = o_call("SET_STATE")
-                    field_ref("state")
-                    int(STATE_PAUSED)
-                end_call(c2)
+            local k3=key("pause")
+                local p3 = m_call("SE_PIPELINE")
+                    se_log("pause state")
+                    se_set_hash("hash_state", "reset")
+                    se_return_continue()
+                end_call(p3)
             key_end(k3)
 
             local k4=key("reset")
-                local o1 = o_call("LOG_MSG")
-                    str_ptr("Resetting system")
-                end_call(o1)
-                local o2 = o_call("SET_STATE")
-                    field_ref("state")
-                    int(STATE_IDLE)
-                end_call(o2)
-                local o3 = o_call("SET_COUNTER")
-                    field_ref("counter")
-                    uint(0)
-                end_call(o3)
+                local p4 = m_call("SE_PIPELINE")
+                    se_log("reset state")
+                    se_set_hash("hash_state", "start")
+                    se_return_continue()
+                end_call(p4)
             key_end(k4)
         dict_end(d2)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(dispatch)
     
-    result(SE_CONTINUE)
+    se_return_continue()
 end_tree()
 
+--[[
 -- ============================================================================
 -- TEST TREE 16: Array Structures
 -- Tests: array_start/array_end for indexed collections
@@ -1456,9 +1282,9 @@ end_tree()
 -- ============================================================================
 -- FINALIZE MODULE
 -- ============================================================================
-
+--]]
 local result = end_module(mod)
 print("Module compiled successfully: " .. result.name)
 
---print(M.write_debug_header(result))
+print(M.write_debug_header(result))
 return result

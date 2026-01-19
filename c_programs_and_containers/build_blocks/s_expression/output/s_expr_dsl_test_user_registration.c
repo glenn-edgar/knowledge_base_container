@@ -11,106 +11,38 @@
 
 // Oneshot function entries
 static s_expr_fn_entry_t s_expr_dsl_test_oneshot_entries[] = {
-    { 0xE562935D, (void*)init_system },
-    { 0x73602B5F, (void*)update_counter },
     { 0xE5FF0069, (void*)set_state },
-    { 0x77B626F3, (void*)set_vector },
-    { 0x91FBEC26, (void*)set_float },
-    { 0xFB0AC161, (void*)set_pid },
-    { 0x7795933C, (void*)set_uint },
-    { 0x29418A6A, (void*)level_3a },
-    { 0x221FCA5F, (void*)log_msg },
-    { 0x15A23A08, (void*)set_counter },
-    { 0xA1FA0A56, (void*)set_state_hash },
-    { 0x29E86A85, (void*)increment_counter },
-    { 0x2D0F9AEB, (void*)toggle_enabled },
-    { 0x86807A58, (void*)read_sensor },
-    { 0x46B57543, (void*)action_1 },
-    { 0x47B576D6, (void*)action_2 },
-    { 0x48B57869, (void*)action_3 },
-    { 0x97492850, (void*)sub_action_a },
-    { 0x9A492D09, (void*)sub_action_b },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_oneshot_table = {
     .entries = s_expr_dsl_test_oneshot_entries,
-    .count = 19
+    .count = 1
 };
 
 // Main function entries
 static s_expr_fn_entry_t s_expr_dsl_test_main_entries[] = {
-    { 0xAC7037D0, (void*)process_state },
-    { 0xC2EB67FF, (void*)wait_for_event },
-    { 0xC82DEDD4, (void*)test_params },
-    { 0x63282C1D, (void*)protothread_1 },
-    { 0x60282764, (void*)protothread_2 },
-    { 0x612828F7, (void*)protothread_3 },
-    { 0x008A6FCB, (void*)outer_func },
-    { 0x742768B3, (void*)nested_protothread },
-    { 0xB00AF995, (void*)level_1 },
-    { 0x053F1327, (void*)level_2a },
-    { 0x284188D7, (void*)level_3b },
-    { 0xAB0AF1B6, (void*)level_4 },
-    { 0x063F14BA, (void*)level_2b },
     { 0xE6B90959, (void*)process_int_list },
     { 0x274D6E56, (void*)multi_list_func },
     { 0xC32CF90C, (void*)nested_lists },
-    { 0x5BA5530B, (void*)state_machine_dispatch },
-    { 0x88810CB1, (void*)array_access },
-    { 0x267C4925, (void*)field_array },
-    { 0xB366B1FF, (void*)matrix_2d },
-    { 0xDE2C8DF7, (void*)process_tuple },
-    { 0xDB0DE5BE, (void*)tuple_table },
-    { 0x715D092E, (void*)complex_tuple },
-    { 0x2C30B0AC, (void*)load_config },
-    { 0x55C4D336, (void*)process_alist },
-    { 0xD36A3C79, (void*)process_plist },
-    { 0xD42AB691, (void*)mixed_structure_dispatch },
-    { 0xA7749965, (void*)brace_test },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_main_table = {
     .entries = s_expr_dsl_test_main_entries,
-    .count = 28
+    .count = 3
 };
 
 // Predicate function entries
 static s_expr_fn_entry_t s_expr_dsl_test_pred_entries[] = {
-    { 0x7261C319, (void*)check_enabled },
-    { 0x6906CB0E, (void*)pred_a },
-    { 0x6806C97B, (void*)pred_b },
-    { 0x6706C7E8, (void*)pred_c },
-    { 0x6E06D2ED, (void*)pred_d },
-    { 0x6D06D15A, (void*)pred_e },
-    { 0x11B4ADAF, (void*)sensor_a_ready },
-    { 0x7EECE99E, (void*)sensor_b_ready },
-    { 0x03994BA2, (void*)timeout_expired },
-    { 0xFB18B281, (void*)retry_available },
-    { 0x894065CB, (void*)flag_1 },
-    { 0x8A40675E, (void*)flag_2 },
-    { 0x8B4068F1, (void*)flag_3 },
-    { 0x8C406A84, (void*)flag_4 },
-    { 0x6C06CFC7, (void*)pred_f },
-    { 0x6B06CE34, (void*)pred_g },
-    { 0x6206C009, (void*)pred_h },
-    { 0x6106BE76, (void*)pred_i },
-    { 0x6006BCE3, (void*)pred_j },
-    { 0x5F06BB50, (void*)pred_k },
     { 0x27B2B70D, (void*)check_condition },
     { 0xA303CD62, (void*)another_condition },
     { 0xC04E8337, (void*)monitor_state },
     { 0x520E2FF0, (void*)button_pressed },
     { 0x6FAC375E, (void*)sensor_active },
-    { 0x8B787418, (void*)custom_pred },
-    { 0xB437BB0B, (void*)deep_pred_1 },
-    { 0xB537BC9E, (void*)deep_pred_2 },
-    { 0xB637BE31, (void*)deep_pred_3 },
-    { 0x93A4FD22, (void*)check_start_condition },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_pred_table = {
     .entries = s_expr_dsl_test_pred_entries,
-    .count = 30
+    .count = 5
 };
 
 // Table accessors

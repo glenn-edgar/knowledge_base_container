@@ -193,6 +193,7 @@ local BUILTIN_FUNCTIONS = {
     "SE_RETURN_FUNCTION_HALT",
     "SE_RETURN_FUNCTION_RESET",
     "SE_RETURN_FUNCTION_TERMINATE",
+    "SE_SET_HASH",
     -- Oneshots
     "SE_LOG",
 }
@@ -981,7 +982,7 @@ end
 function _G.const_ref(name)
     add_param("const_ref", name)
 end
-
+--[[
 function _G.result(code)
     -- If we're inside a call, add as parameter
     if #current_call_stack > 0 then
@@ -993,7 +994,7 @@ function _G.result(code)
         end
     end
 end
-
+--]]
 -- ============================================================================
 -- LIST STRUCTURE FUNCTIONS
 -- ============================================================================

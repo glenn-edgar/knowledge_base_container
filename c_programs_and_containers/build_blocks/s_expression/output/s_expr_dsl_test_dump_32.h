@@ -11,9 +11,9 @@
 /*
  * Module: s_expr_dsl_test
  * Hash:   0x7BB33CC5
- * Trees:  35
+ * Trees:  19
  * Records: 9
- * Strings: 71
+ * Strings: 35
  * Constants: 3
  */
 
@@ -21,77 +21,41 @@
 // STRING TABLE
 // ============================================================================
 /*
- * [ 0] "Initializing system"
- * [ 1] "System initialized"
- * [ 2] "Hello, World!"
- * [ 3] "This is a longer string for testing"
- * [ 4] "Starting pipeline test"
- * [ 5] "Tick delay complete"
- * [ 6] "Time delay complete"
- * [ 7] "Wait for event 42 3 complete"
- * [ 8] "Wait event once 99 complete"
- * [ 9] "Pipeline complete"
- * [10] "Starting test_conditionals"
- * [11] "Condition is true"
- * [12] "Condition is false"
- * [13] "Another condition is true"
- * [14] "State went high"
- * [15] "State went low"
- * [16] "Button was pressed"
- * [17] "Sensor went inactive"
- * [18] "Ending test_conditionals"
- * [19] "State: IDLE"
- * [20] "State: RUNNING"
- * [21] "State: PAUSED"
- * [22] "State: DONE"
- * [23] "✅ Command: IDLE"
- * [24] "❌ Command: START (wrong)"
- * [25] "❌ Command: STOP (wrong)"
- * [26] "❌ Command: RESET (wrong)"
- * [27] "❌ Command: IDLE (wrong)"
- * [28] "✅ Command: START"
- * [29] "✅ Command: STOP"
- * [30] "✅ Event: TIMER"
- * [31] "✅ Event: BUTTON"
- * [32] "✅ Event: SENSOR"
- * [33] "Level 1"
- * [34] "Level 2A"
- * [35] "Level 3A"
- * [36] "Level 3B"
- * [37] "Level 4"
- * [38] "Level 2B"
- * [39] "System idle"
- * [40] "idle"
- * [41] "System running"
- * [42] "running"
- * [43] "System error"
- * [44] "error"
- * [45] "System shutdown"
- * [46] "shutdown"
- * [47] "Starting system"
- * [48] "Stopping system"
- * [49] "Pausing system"
- * [50] "Resetting system"
- * [51] "sensor_1"
- * [52] "temp_sensor"
- * [53] "pressure_sensor"
- * [54] "humidity_sensor"
- * [55] "motor_config"
- * [56] "State: INIT"
- * [57] "State: READY"
- * [58] "State: COMPLETE"
- * [59] "State: ERROR"
- * [60] "Event: TIMER_TICK"
- * [61] "Event: BUTTON_PRESS"
- * [62] "Event: SENSOR_TRIGGER"
- * [63] "Event: SHUTDOWN"
- * [64] "Event: RESET"
- * [65] "temp_1"
- * [66] "temp_2"
- * [67] "motor_1"
- * [68] "valve_1"
- * [69] "test_system"
- * [70] "motor_controller"
+ * [ 0] "Starting pipeline test"
+ * [ 1] "Tick delay complete"
+ * [ 2] "Time delay complete"
+ * [ 3] "Wait for event 42 3 complete"
+ * [ 4] "Wait event once 99 complete"
+ * [ 5] "Pipeline complete"
+ * [ 6] "Starting test_conditionals"
+ * [ 7] "Condition is true"
+ * [ 8] "Condition is false"
+ * [ 9] "Another condition is true"
+ * [10] "State went high"
+ * [11] "State went low"
+ * [12] "Button was pressed"
+ * [13] "Sensor went inactive"
+ * [14] "Ending test_conditionals"
+ * [15] "State: IDLE"
+ * [16] "State: RUNNING"
+ * [17] "State: PAUSED"
+ * [18] "State: DONE"
+ * [19] "✅ Command: IDLE"
+ * [20] "❌ Command: START (wrong)"
+ * [21] "❌ Command: STOP (wrong)"
+ * [22] "❌ Command: RESET (wrong)"
+ * [23] "❌ Command: IDLE (wrong)"
+ * [24] "✅ Command: START"
+ * [25] "✅ Command: STOP"
+ * [26] "✅ Event: TIMER"
+ * [27] "✅ Event: BUTTON"
+ * [28] "✅ Event: SENSOR"
+ * [29] "idle"
+ * [30] "running"
+ * [31] "start state"
+ * [32] "stop state"
+ * [33] "pause state"
+ * [34] "reset state"
  */
 
 // ============================================================================
@@ -99,118 +63,41 @@
 // ============================================================================
 /*
  * ONESHOT FUNCTIONS:
- *   [ 0] INIT_SYSTEM (hash=0xE562935D)
- *   [ 1] SE_LOG (hash=0xCEBBEFA4)
- *   [ 2] UPDATE_COUNTER (hash=0x73602B5F)
- *   [ 3] SET_STATE (hash=0xE5FF0069)
- *   [ 4] SET_VECTOR (hash=0x77B626F3)
- *   [ 5] SET_FLOAT (hash=0x91FBEC26)
- *   [ 6] SET_PID (hash=0xFB0AC161)
- *   [ 7] SET_UINT (hash=0x7795933C)
- *   [ 8] LEVEL_3A (hash=0x29418A6A)
- *   [ 9] LOG_MSG (hash=0x221FCA5F)
- *   [10] SET_COUNTER (hash=0x15A23A08)
- *   [11] SET_STATE_HASH (hash=0xA1FA0A56)
- *   [12] INCREMENT_COUNTER (hash=0x29E86A85)
- *   [13] TOGGLE_ENABLED (hash=0x2D0F9AEB)
- *   [14] READ_SENSOR (hash=0x86807A58)
- *   [15] ACTION_1 (hash=0x46B57543)
- *   [16] ACTION_2 (hash=0x47B576D6)
- *   [17] ACTION_3 (hash=0x48B57869)
- *   [18] SUB_ACTION_A (hash=0x97492850)
- *   [19] SUB_ACTION_B (hash=0x9A492D09)
+ *   [ 0] SE_LOG (hash=0xCEBBEFA4)
+ *   [ 1] SET_STATE (hash=0xE5FF0069)
+ *   [ 2] SE_SET_HASH (hash=0xEF5AD4AB)
  * MAIN FUNCTIONS:
- *   [ 0] PROCESS_STATE (hash=0xAC7037D0)
- *   [ 1] WAIT_FOR_EVENT (hash=0xC2EB67FF)
- *   [ 2] TEST_PARAMS (hash=0xC82DEDD4)
- *   [ 3] SE_RETURN_CONTINUE (hash=0xB4243714)
- *   [ 4] SE_RETURN_TERMINATE (hash=0xDFE64C74)
- *   [ 5] SE_RETURN_RESET (hash=0x70EAA030)
- *   [ 6] SE_RETURN_DISABLE (hash=0x02C11A13)
- *   [ 7] SE_RETURN_HALT (hash=0x056FB9EA)
- *   [ 8] SE_RETURN_SKIP_CONTINUE (hash=0xEAE5524E)
- *   [ 9] SE_RETURN_FUNCTION_HALT (hash=0x891F0675)
- *   [10] SE_RETURN_FUNCTION_RESET (hash=0xF6027E85)
- *   [11] SE_RETURN_FUNCTION_TERMINATE (hash=0x0A5B8A85)
- *   [12] SE_PIPELINE (hash=0x4D6E2B18)
- *   [13] SE_TICK_DELAY (hash=0x0C3460EB)
- *   [14] SE_TIME_DELAY (hash=0xA60CE767)
- *   [15] SE_WAIT_EVENT (hash=0xAD4917EC)
- *   [16] SE_NOP (hash=0x080C2B37)
- *   [17] SE_IF_THEN_ELSE (hash=0x1E860193)
- *   [18] SE_TRIGGER_ON_CHANGE (hash=0x8374277F)
- *   [19] SE_STATE_MACHINE (hash=0x5EEDA8E9)
- *   [20] SE_STATE_ACTIONS (hash=0x25308B8F)
- *   [21] SE_FIELD_DISPATCH (hash=0xA1C11B35)
- *   [22] SE_EVENT_DISPATCH (hash=0xF3EDFC75)
- *   [23] PROTOTHREAD_1 (hash=0x63282C1D)
- *   [24] PROTOTHREAD_2 (hash=0x60282764)
- *   [25] PROTOTHREAD_3 (hash=0x612828F7)
- *   [26] OUTER_FUNC (hash=0x008A6FCB)
- *   [27] NESTED_PROTOTHREAD (hash=0x742768B3)
- *   [28] LEVEL_1 (hash=0xB00AF995)
- *   [29] LEVEL_2A (hash=0x053F1327)
- *   [30] LEVEL_3B (hash=0x284188D7)
- *   [31] LEVEL_4 (hash=0xAB0AF1B6)
- *   [32] LEVEL_2B (hash=0x063F14BA)
- *   [33] PROCESS_INT_LIST (hash=0xE6B90959)
- *   [34] MULTI_LIST_FUNC (hash=0x274D6E56)
- *   [35] NESTED_LISTS (hash=0xC32CF90C)
- *   [36] SE_HASH_DISPATCH (hash=0xDE8E6F0D)
- *   [37] STATE_MACHINE_DISPATCH (hash=0x5BA5530B)
- *   [38] ARRAY_ACCESS (hash=0x88810CB1)
- *   [39] FIELD_ARRAY (hash=0x267C4925)
- *   [40] MATRIX_2D (hash=0xB366B1FF)
- *   [41] PROCESS_TUPLE (hash=0xDE2C8DF7)
- *   [42] TUPLE_TABLE (hash=0xDB0DE5BE)
- *   [43] COMPLEX_TUPLE (hash=0x715D092E)
- *   [44] SE_NAMED_STATE_MACHINE (hash=0x876B8A33)
- *   [45] SE_NAMED_EVENT_DISPATCH (hash=0x5E99A787)
- *   [46] LOAD_CONFIG (hash=0x2C30B0AC)
- *   [47] PROCESS_ALIST (hash=0x55C4D336)
- *   [48] PROCESS_PLIST (hash=0xD36A3C79)
- *   [49] MIXED_STRUCTURE_DISPATCH (hash=0xD42AB691)
- *   [50] BRACE_TEST (hash=0xA7749965)
+ *   [ 0] SE_RETURN_CONTINUE (hash=0xB4243714)
+ *   [ 1] SE_RETURN_TERMINATE (hash=0xDFE64C74)
+ *   [ 2] SE_RETURN_RESET (hash=0x70EAA030)
+ *   [ 3] SE_RETURN_DISABLE (hash=0x02C11A13)
+ *   [ 4] SE_RETURN_HALT (hash=0x056FB9EA)
+ *   [ 5] SE_RETURN_SKIP_CONTINUE (hash=0xEAE5524E)
+ *   [ 6] SE_RETURN_FUNCTION_HALT (hash=0x891F0675)
+ *   [ 7] SE_RETURN_FUNCTION_RESET (hash=0xF6027E85)
+ *   [ 8] SE_RETURN_FUNCTION_TERMINATE (hash=0x0A5B8A85)
+ *   [ 9] SE_PIPELINE (hash=0x4D6E2B18)
+ *   [10] SE_TICK_DELAY (hash=0x0C3460EB)
+ *   [11] SE_TIME_DELAY (hash=0xA60CE767)
+ *   [12] SE_WAIT_EVENT (hash=0xAD4917EC)
+ *   [13] SE_NOP (hash=0x080C2B37)
+ *   [14] SE_IF_THEN_ELSE (hash=0x1E860193)
+ *   [15] SE_TRIGGER_ON_CHANGE (hash=0x8374277F)
+ *   [16] SE_STATE_MACHINE (hash=0x5EEDA8E9)
+ *   [17] SE_STATE_ACTIONS (hash=0x25308B8F)
+ *   [18] SE_FIELD_DISPATCH (hash=0xA1C11B35)
+ *   [19] SE_EVENT_DISPATCH (hash=0xF3EDFC75)
+ *   [20] PROCESS_INT_LIST (hash=0xE6B90959)
+ *   [21] MULTI_LIST_FUNC (hash=0x274D6E56)
+ *   [22] NESTED_LISTS (hash=0xC32CF90C)
+ *   [23] SE_HASH_DISPATCH (hash=0xDE8E6F0D)
+ *   [24] SE_NAMED_STATE_MACHINE (hash=0x876B8A33)
  * PREDICATE FUNCTIONS:
- *   [ 0] CHECK_ENABLED (hash=0x7261C319)
- *   [ 1] SE_PRED_AND (hash=0x7C0DF5F3)
- *   [ 2] PRED_A (hash=0x6906CB0E)
- *   [ 3] PRED_B (hash=0x6806C97B)
- *   [ 4] SE_PRED_OR (hash=0x0CF6212F)
- *   [ 5] PRED_C (hash=0x6706C7E8)
- *   [ 6] PRED_D (hash=0x6E06D2ED)
- *   [ 7] SE_PRED_NOT (hash=0x217DEB8F)
- *   [ 8] PRED_E (hash=0x6D06D15A)
- *   [ 9] SENSOR_A_READY (hash=0x11B4ADAF)
- *   [10] SENSOR_B_READY (hash=0x7EECE99E)
- *   [11] TIMEOUT_EXPIRED (hash=0x03994BA2)
- *   [12] RETRY_AVAILABLE (hash=0xFB18B281)
- *   [13] FLAG_1 (hash=0x894065CB)
- *   [14] FLAG_2 (hash=0x8A40675E)
- *   [15] FLAG_3 (hash=0x8B4068F1)
- *   [16] FLAG_4 (hash=0x8C406A84)
- *   [17] SE_PRED_NOR (hash=0x1F7DE869)
- *   [18] PRED_F (hash=0x6C06CFC7)
- *   [19] PRED_G (hash=0x6B06CE34)
- *   [20] SE_PRED_NAND (hash=0x067DC775)
- *   [21] PRED_H (hash=0x6206C009)
- *   [22] PRED_I (hash=0x6106BE76)
- *   [23] SE_PRED_XOR (hash=0xB713B6A3)
- *   [24] PRED_J (hash=0x6006BCE3)
- *   [25] PRED_K (hash=0x5F06BB50)
- *   [26] CHECK_CONDITION (hash=0x27B2B70D)
- *   [27] ANOTHER_CONDITION (hash=0xA303CD62)
- *   [28] MONITOR_STATE (hash=0xC04E8337)
- *   [29] BUTTON_PRESSED (hash=0x520E2FF0)
- *   [30] SENSOR_ACTIVE (hash=0x6FAC375E)
- *   [31] SE_TRUE (hash=0x0C125BC2)
- *   [32] SE_FALSE (hash=0x77C35775)
- *   [33] SE_CHECK_EVENT (hash=0x80659F81)
- *   [34] CUSTOM_PRED (hash=0x8B787418)
- *   [35] DEEP_PRED_1 (hash=0xB437BB0B)
- *   [36] DEEP_PRED_2 (hash=0xB537BC9E)
- *   [37] DEEP_PRED_3 (hash=0xB637BE31)
- *   [38] CHECK_START_CONDITION (hash=0x93A4FD22)
+ *   [ 0] CHECK_CONDITION (hash=0x27B2B70D)
+ *   [ 1] ANOTHER_CONDITION (hash=0xA303CD62)
+ *   [ 2] MONITOR_STATE (hash=0xC04E8337)
+ *   [ 3] BUTTON_PRESSED (hash=0x520E2FF0)
+ *   [ 4] SENSOR_ACTIVE (hash=0x6FAC375E)
  */
 
 // ============================================================================
@@ -281,67 +168,6 @@
 // ============================================================================
 
 /*
- * TREE: test_all_call_types
- * Hash: 0x0F2D298C
- * Record: test_blackboard
- * Nodes: 6, Pointers: 1
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=5       INIT_SYSTEM
- *   1    ONESHOT|SR        0   func_idx=0      hash=0xE562935D
- *   2      STR_IDX                 idx=0  len=19   "Initializing system"
- *   3      FIELD                   hash=0x783132F6  "state"
- *   4      INT                     value=0     
- *   5  CLOSE                   (end INIT_SYSTEM)
- *   6  OPEN_CALL           0   content=3       SE_LOG
- *   7    ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   8      STR_IDX                 idx=1  len=18   "System initialized"
- *   9  CLOSE                   (end SE_LOG)
- *  10  OPEN_CALL           0   content=3       CHECK_ENABLED
- *  11    PRED              0   func_idx=0      hash=0x7261C319
- *  12      FIELD                   hash=0x02F3B39E  "enabled"
- *  13  CLOSE                   (end CHECK_ENABLED)
- *  14  OPEN_CALL           0   content=9       PROCESS_STATE
- *  15    MAIN              0   func_idx=0      hash=0xAC7037D0
- *  16      FIELD                   hash=0x783132F6  "state"
- *  17    OPEN_CALL           0   content=4         UPDATE_COUNTER
- *  18      ONESHOT           0   func_idx=2      hash=0x73602B5F
- *  19        FIELD                   hash=0x9CACDE23  "counter"
- *  20        UINT                    value=1       (0x00000001)
- *  21    CLOSE                   (end UPDATE_COUNTER)
- *  22      RESULT                  value=0   SE_CONTINUE
- *  23  CLOSE                   (end PROCESS_STATE)
- *  24  OPEN_CALL           0   content=3       WAIT_FOR_EVENT
- *  25    MAIN|PTR          0   func_idx=1      hash=0xC2EB67FF
- *  26      INT                     value=100   
- *  27  CLOSE                   (end WAIT_FOR_EVENT)
- */
-
-/*
- * TREE: test_all_param_types
- * Hash: 0x0C2D6F09
- * Record: test_blackboard
- * Nodes: 1, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=12      TEST_PARAMS
- *   1    MAIN              0   func_idx=2      hash=0xC82DEDD4
- *   2      INT                     value=-12345
- *   3      UINT                    value=3735928559  (0xDEADBEEF)
- *   4      FLOAT                   value=3.14159
- *   5      STR_IDX                 idx=2  len=13   "Hello, World!"
- *   6      STR_IDX                 idx=3  len=35   "This is a longer string for testing"
- *   7      FIELD                   hash=0x9CACDE23  "counter"
- *   8      FIELD                   hash=0x461898E0  "gains.kp"
- *   9      FIELD                   hash=0x3FF6F369  "motor.position.x"
- *  10      CONST_REF               idx=0   "default_gains"
- *  11      RESULT                  value=0   SE_CONTINUE
- *  12  CLOSE                   (end TEST_PARAMS)
- */
-
-/*
  * TREE: test_result_codes_1
  * Hash: 0xEBA1F08A
  * Record: test_blackboard
@@ -350,7 +176,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_CONTINUE
- *   1    MAIN              0   func_idx=3      hash=0xB4243714
+ *   1    MAIN              0   func_idx=0      hash=0xB4243714
  *   2  CLOSE                   (end SE_RETURN_CONTINUE)
  */
 
@@ -363,7 +189,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_TERMINATE
- *   1    MAIN              0   func_idx=4      hash=0xDFE64C74
+ *   1    MAIN              0   func_idx=1      hash=0xDFE64C74
  *   2  CLOSE                   (end SE_RETURN_TERMINATE)
  */
 
@@ -376,7 +202,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_RESET
- *   1    MAIN              0   func_idx=5      hash=0x70EAA030
+ *   1    MAIN              0   func_idx=2      hash=0x70EAA030
  *   2  CLOSE                   (end SE_RETURN_RESET)
  */
 
@@ -389,7 +215,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_DISABLE
- *   1    MAIN              0   func_idx=6      hash=0x02C11A13
+ *   1    MAIN              0   func_idx=3      hash=0x02C11A13
  *   2  CLOSE                   (end SE_RETURN_DISABLE)
  */
 
@@ -402,7 +228,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_HALT
- *   1    MAIN              0   func_idx=7      hash=0x056FB9EA
+ *   1    MAIN              0   func_idx=4      hash=0x056FB9EA
  *   2  CLOSE                   (end SE_RETURN_HALT)
  */
 
@@ -415,7 +241,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_SKIP_CONTINUE
- *   1    MAIN              0   func_idx=8      hash=0xEAE5524E
+ *   1    MAIN              0   func_idx=5      hash=0xEAE5524E
  *   2  CLOSE                   (end SE_RETURN_SKIP_CONTINUE)
  */
 
@@ -428,7 +254,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_FUNCTION_HALT
- *   1    MAIN              0   func_idx=9      hash=0x891F0675
+ *   1    MAIN              0   func_idx=6      hash=0x891F0675
  *   2  CLOSE                   (end SE_RETURN_FUNCTION_HALT)
  */
 
@@ -441,7 +267,7 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_FUNCTION_RESET
- *   1    MAIN              0   func_idx=10     hash=0xF6027E85
+ *   1    MAIN              0   func_idx=7      hash=0xF6027E85
  *   2  CLOSE                   (end SE_RETURN_FUNCTION_RESET)
  */
 
@@ -454,750 +280,539 @@
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
  *   0  OPEN_CALL           0   content=2       SE_RETURN_FUNCTION_TERMINATE
- *   1    MAIN              0   func_idx=11     hash=0x0A5B8A85
+ *   1    MAIN              0   func_idx=8      hash=0x0A5B8A85
  *   2  CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
- */
-
-/*
- * TREE: test_composable_predicates
- * Hash: 0x2B0C43E2
- * Record: test_blackboard
- * Nodes: 32, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=8       SE_PRED_AND
- *   1    PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *   2    OPEN_CALL           0   content=2         PRED_A
- *   3      PRED              0   func_idx=2      hash=0x6906CB0E
- *   4    CLOSE                   (end PRED_A)
- *   5    OPEN_CALL           0   content=2         PRED_B
- *   6      PRED              0   func_idx=3      hash=0x6806C97B
- *   7    CLOSE                   (end PRED_B)
- *   8  CLOSE                   (end SE_PRED_AND)
- *   9  OPEN_CALL           0   content=8       SE_PRED_OR
- *  10    PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  11    OPEN_CALL           0   content=2         PRED_C
- *  12      PRED              0   func_idx=5      hash=0x6706C7E8
- *  13    CLOSE                   (end PRED_C)
- *  14    OPEN_CALL           0   content=2         PRED_D
- *  15      PRED              0   func_idx=6      hash=0x6E06D2ED
- *  16    CLOSE                   (end PRED_D)
- *  17  CLOSE                   (end SE_PRED_OR)
- *  18  OPEN_CALL           0   content=5       SE_PRED_NOT
- *  19    PRED|SR           0   func_idx=7      hash=0x217DEB8F
- *  20    OPEN_CALL           0   content=2         PRED_E
- *  21      PRED              0   func_idx=8      hash=0x6D06D15A
- *  22    CLOSE                   (end PRED_E)
- *  23  CLOSE                   (end SE_PRED_NOT)
- *  24  OPEN_CALL           0   content=20      SE_PRED_OR
- *  25    PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  26    OPEN_CALL           0   content=8         SE_PRED_AND
- *  27      PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *  28      OPEN_CALL           0   content=2           SENSOR_A_READY
- *  29        PRED              0   func_idx=9      hash=0x11B4ADAF
- *  30      CLOSE                   (end SENSOR_A_READY)
- *  31      OPEN_CALL           0   content=2           SENSOR_B_READY
- *  32        PRED              0   func_idx=10     hash=0x7EECE99E
- *  33      CLOSE                   (end SENSOR_B_READY)
- *  34    CLOSE                   (end SE_PRED_AND)
- *  35    OPEN_CALL           0   content=8         SE_PRED_AND
- *  36      PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *  37      OPEN_CALL           0   content=2           TIMEOUT_EXPIRED
- *  38        PRED              0   func_idx=11     hash=0x03994BA2
- *  39      CLOSE                   (end TIMEOUT_EXPIRED)
- *  40      OPEN_CALL           0   content=2           RETRY_AVAILABLE
- *  41        PRED              0   func_idx=12     hash=0xFB18B281
- *  42      CLOSE                   (end RETRY_AVAILABLE)
- *  43    CLOSE                   (end SE_PRED_AND)
- *  44  CLOSE                   (end SE_PRED_OR)
- *  45  OPEN_CALL           0   content=23      SE_PRED_NOT
- *  46    PRED|SR           0   func_idx=7      hash=0x217DEB8F
- *  47    OPEN_CALL           0   content=20        SE_PRED_AND
- *  48      PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *  49      OPEN_CALL           0   content=8           SE_PRED_OR
- *  50        PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  51        OPEN_CALL           0   content=2             FLAG_1
- *  52          PRED              0   func_idx=13     hash=0x894065CB
- *  53        CLOSE                   (end FLAG_1)
- *  54        OPEN_CALL           0   content=2             FLAG_2
- *  55          PRED              0   func_idx=14     hash=0x8A40675E
- *  56        CLOSE                   (end FLAG_2)
- *  57      CLOSE                   (end SE_PRED_OR)
- *  58      OPEN_CALL           0   content=8           SE_PRED_OR
- *  59        PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  60        OPEN_CALL           0   content=2             FLAG_3
- *  61          PRED              0   func_idx=15     hash=0x8B4068F1
- *  62        CLOSE                   (end FLAG_3)
- *  63        OPEN_CALL           0   content=2             FLAG_4
- *  64          PRED              0   func_idx=16     hash=0x8C406A84
- *  65        CLOSE                   (end FLAG_4)
- *  66      CLOSE                   (end SE_PRED_OR)
- *  67    CLOSE                   (end SE_PRED_AND)
- *  68  CLOSE                   (end SE_PRED_NOT)
- *  69  OPEN_CALL           0   content=8       SE_PRED_NOR
- *  70    PRED|SR           0   func_idx=17     hash=0x1F7DE869
- *  71    OPEN_CALL           0   content=2         PRED_F
- *  72      PRED              0   func_idx=18     hash=0x6C06CFC7
- *  73    CLOSE                   (end PRED_F)
- *  74    OPEN_CALL           0   content=2         PRED_G
- *  75      PRED              0   func_idx=19     hash=0x6B06CE34
- *  76    CLOSE                   (end PRED_G)
- *  77  CLOSE                   (end SE_PRED_NOR)
- *  78  OPEN_CALL           0   content=8       SE_PRED_NAND
- *  79    PRED|SR           0   func_idx=20     hash=0x067DC775
- *  80    OPEN_CALL           0   content=2         PRED_H
- *  81      PRED              0   func_idx=21     hash=0x6206C009
- *  82    CLOSE                   (end PRED_H)
- *  83    OPEN_CALL           0   content=2         PRED_I
- *  84      PRED              0   func_idx=22     hash=0x6106BE76
- *  85    CLOSE                   (end PRED_I)
- *  86  CLOSE                   (end SE_PRED_NAND)
- *  87  OPEN_CALL           0   content=8       SE_PRED_XOR
- *  88    PRED|SR           0   func_idx=23     hash=0xB713B6A3
- *  89    OPEN_CALL           0   content=2         PRED_J
- *  90      PRED              0   func_idx=24     hash=0x6006BCE3
- *  91    CLOSE                   (end PRED_J)
- *  92    OPEN_CALL           0   content=2         PRED_K
- *  93      PRED              0   func_idx=25     hash=0x5F06BB50
- *  94    CLOSE                   (end PRED_K)
- *  95  CLOSE                   (end SE_PRED_XOR)
  */
 
 /*
  * TREE: test_pipeline_and_delays
  * Hash: 0xAE7550EB
  * Record: test_blackboard
- * Nodes: 12, Pointers: 4
+ * Nodes: 13, Pointers: 4
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=48      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=50      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=3         SE_LOG
- *   3      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   4        STR_IDX                 idx=4  len=22   "Starting pipeline test"
+ *   3      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *   4        STR_IDX                 idx=0  len=22   "Starting pipeline test"
  *   5    CLOSE                   (end SE_LOG)
  *   6    OPEN_CALL           0   content=3         SE_TICK_DELAY
- *   7      MAIN|PTR          0   func_idx=13     hash=0x0C3460EB
+ *   7      MAIN|PTR          0   func_idx=10     hash=0x0C3460EB
  *   8        INT                     value=100   
  *   9    CLOSE                   (end SE_TICK_DELAY)
  *  10    OPEN_CALL           0   content=3         SE_LOG
- *  11      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  12        STR_IDX                 idx=5  len=19   "Tick delay complete"
+ *  11      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  12        STR_IDX                 idx=1  len=19   "Tick delay complete"
  *  13    CLOSE                   (end SE_LOG)
  *  14    OPEN_CALL           1   content=3         SE_TIME_DELAY
- *  15      MAIN|PTR          1   func_idx=14     hash=0xA60CE767
+ *  15      MAIN|PTR          1   func_idx=11     hash=0xA60CE767
  *  16        FLOAT                   value=1.5
  *  17    CLOSE                   (end SE_TIME_DELAY)
  *  18    OPEN_CALL           0   content=3         SE_LOG
- *  19      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  20        STR_IDX                 idx=6  len=19   "Time delay complete"
+ *  19      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  20        STR_IDX                 idx=2  len=19   "Time delay complete"
  *  21    CLOSE                   (end SE_LOG)
  *  22    OPEN_CALL           2   content=4         SE_WAIT_EVENT
- *  23      MAIN|PTR          2   func_idx=15     hash=0xAD4917EC
+ *  23      MAIN|PTR          2   func_idx=12     hash=0xAD4917EC
  *  24        INT                     value=42    
  *  25        INT                     value=3     
  *  26    CLOSE                   (end SE_WAIT_EVENT)
  *  27    OPEN_CALL           0   content=3         SE_LOG
- *  28      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  29        STR_IDX                 idx=7  len=28   "Wait for event 42 3 complete"
+ *  28      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  29        STR_IDX                 idx=3  len=28   "Wait for event 42 3 complete"
  *  30    CLOSE                   (end SE_LOG)
  *  31    OPEN_CALL           3   content=4         SE_WAIT_EVENT
- *  32      MAIN|PTR          3   func_idx=15     hash=0xAD4917EC
+ *  32      MAIN|PTR          3   func_idx=12     hash=0xAD4917EC
  *  33        INT                     value=99    
  *  34        INT                     value=1     
  *  35    CLOSE                   (end SE_WAIT_EVENT)
  *  36    OPEN_CALL           0   content=3         SE_LOG
- *  37      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  38        STR_IDX                 idx=8  len=27   "Wait event once 99 complete"
+ *  37      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  38        STR_IDX                 idx=4  len=27   "Wait event once 99 complete"
  *  39    CLOSE                   (end SE_LOG)
  *  40    OPEN_CALL           0   content=2         SE_NOP
- *  41      MAIN              0   func_idx=16     hash=0x080C2B37
+ *  41      MAIN              0   func_idx=13     hash=0x080C2B37
  *  42    CLOSE                   (end SE_NOP)
  *  43    OPEN_CALL           0   content=3         SE_LOG
- *  44      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  45        STR_IDX                 idx=9  len=17   "Pipeline complete"
+ *  44      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  45        STR_IDX                 idx=5  len=17   "Pipeline complete"
  *  46    CLOSE                   (end SE_LOG)
- *  47      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  48  CLOSE                   (end SE_PIPELINE)
+ *  47    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  48      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  49    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  50  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_conditionals
  * Hash: 0x6764DEAF
  * Record: test_blackboard
- * Nodes: 23, Pointers: 0
+ * Nodes: 31, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=81      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=104     SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=3         SE_LOG
- *   3      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   4        STR_IDX                 idx=10 len=26   "Starting test_conditionals"
+ *   3      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *   4        STR_IDX                 idx=6  len=26   "Starting test_conditionals"
  *   5    CLOSE                   (end SE_LOG)
- *   6    OPEN_CALL           0   content=13        SE_IF_THEN_ELSE
- *   7      MAIN              0   func_idx=17     hash=0x1E860193
+ *   6    OPEN_CALL           0   content=19        SE_IF_THEN_ELSE
+ *   7      MAIN              0   func_idx=14     hash=0x1E860193
  *   8      OPEN_CALL           0   content=2           CHECK_CONDITION
- *   9        PRED              0   func_idx=26     hash=0x27B2B70D
+ *   9        PRED              0   func_idx=0      hash=0x27B2B70D
  *  10      CLOSE                   (end CHECK_CONDITION)
  *  11      OPEN_CALL           0   content=3           SE_LOG
- *  12        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  13          STR_IDX                 idx=11 len=17   "Condition is true"
+ *  12        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  13          STR_IDX                 idx=7  len=17   "Condition is true"
  *  14      CLOSE                   (end SE_LOG)
- *  15      OPEN_CALL           0   content=3           SE_LOG
- *  16        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  17          STR_IDX                 idx=12 len=18   "Condition is false"
- *  18      CLOSE                   (end SE_LOG)
- *  19    CLOSE                   (end SE_IF_THEN_ELSE)
- *  20    OPEN_CALL           0   content=12        SE_IF_THEN_ELSE
- *  21      MAIN              0   func_idx=17     hash=0x1E860193
- *  22      OPEN_CALL           0   content=2           ANOTHER_CONDITION
- *  23        PRED              0   func_idx=27     hash=0xA303CD62
- *  24      CLOSE                   (end ANOTHER_CONDITION)
- *  25      OPEN_CALL           0   content=3           SE_LOG
- *  26        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  27          STR_IDX                 idx=13 len=25   "Another condition is true"
- *  28      CLOSE                   (end SE_LOG)
- *  29      OPEN_CALL           0   content=2           SE_NOP
- *  30        MAIN              0   func_idx=16     hash=0x080C2B37
- *  31      CLOSE                   (end SE_NOP)
- *  32    CLOSE                   (end SE_IF_THEN_ELSE)
- *  33    OPEN_CALL           0   content=14        SE_TRIGGER_ON_CHANGE
- *  34      MAIN              0   func_idx=18     hash=0x8374277F
- *  35        INT                     value=0     
- *  36      OPEN_CALL           0   content=2           MONITOR_STATE
- *  37        PRED              0   func_idx=28     hash=0xC04E8337
- *  38      CLOSE                   (end MONITOR_STATE)
- *  39      OPEN_CALL           0   content=3           SE_LOG
- *  40        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  41          STR_IDX                 idx=14 len=15   "State went high"
- *  42      CLOSE                   (end SE_LOG)
- *  43      OPEN_CALL           0   content=3           SE_LOG
- *  44        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  45          STR_IDX                 idx=15 len=14   "State went low"
- *  46      CLOSE                   (end SE_LOG)
- *  47    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
- *  48    OPEN_CALL           0   content=13        SE_TRIGGER_ON_CHANGE
- *  49      MAIN              0   func_idx=18     hash=0x8374277F
- *  50        INT                     value=0     
- *  51      OPEN_CALL           0   content=2           BUTTON_PRESSED
- *  52        PRED              0   func_idx=29     hash=0x520E2FF0
- *  53      CLOSE                   (end BUTTON_PRESSED)
- *  54      OPEN_CALL           0   content=3           SE_LOG
- *  55        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  56          STR_IDX                 idx=16 len=18   "Button was pressed"
- *  57      CLOSE                   (end SE_LOG)
- *  58      OPEN_CALL           0   content=2           SE_NOP
- *  59        MAIN              0   func_idx=16     hash=0x080C2B37
- *  60      CLOSE                   (end SE_NOP)
- *  61    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
- *  62    OPEN_CALL           0   content=13        SE_TRIGGER_ON_CHANGE
- *  63      MAIN              0   func_idx=18     hash=0x8374277F
- *  64        INT                     value=1     
- *  65      OPEN_CALL           0   content=2           SENSOR_ACTIVE
- *  66        PRED              0   func_idx=30     hash=0x6FAC375E
- *  67      CLOSE                   (end SENSOR_ACTIVE)
- *  68      OPEN_CALL           0   content=2           SE_NOP
- *  69        MAIN              0   func_idx=16     hash=0x080C2B37
- *  70      CLOSE                   (end SE_NOP)
- *  71      OPEN_CALL           0   content=3           SE_LOG
- *  72        ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  73          STR_IDX                 idx=17 len=20   "Sensor went inactive"
- *  74      CLOSE                   (end SE_LOG)
- *  75    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
- *  76    OPEN_CALL           0   content=3         SE_LOG
- *  77      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  78        STR_IDX                 idx=18 len=24   "Ending test_conditionals"
- *  79    CLOSE                   (end SE_LOG)
- *  80      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  81  CLOSE                   (end SE_PIPELINE)
+ *  15      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  16        MAIN              0   func_idx=0      hash=0xB4243714
+ *  17      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  18      OPEN_CALL           0   content=3           SE_LOG
+ *  19        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  20          STR_IDX                 idx=8  len=18   "Condition is false"
+ *  21      CLOSE                   (end SE_LOG)
+ *  22      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  23        MAIN              0   func_idx=0      hash=0xB4243714
+ *  24      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  25    CLOSE                   (end SE_IF_THEN_ELSE)
+ *  26    OPEN_CALL           0   content=15        SE_IF_THEN_ELSE
+ *  27      MAIN              0   func_idx=14     hash=0x1E860193
+ *  28      OPEN_CALL           0   content=2           ANOTHER_CONDITION
+ *  29        PRED              0   func_idx=1      hash=0xA303CD62
+ *  30      CLOSE                   (end ANOTHER_CONDITION)
+ *  31      OPEN_CALL           0   content=3           SE_LOG
+ *  32        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  33          STR_IDX                 idx=9  len=25   "Another condition is true"
+ *  34      CLOSE                   (end SE_LOG)
+ *  35      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  36        MAIN              0   func_idx=0      hash=0xB4243714
+ *  37      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  38      OPEN_CALL           0   content=2           SE_NOP
+ *  39        MAIN              0   func_idx=13     hash=0x080C2B37
+ *  40      CLOSE                   (end SE_NOP)
+ *  41    CLOSE                   (end SE_IF_THEN_ELSE)
+ *  42    OPEN_CALL           0   content=20        SE_TRIGGER_ON_CHANGE
+ *  43      MAIN              0   func_idx=15     hash=0x8374277F
+ *  44        INT                     value=0     
+ *  45      OPEN_CALL           0   content=2           MONITOR_STATE
+ *  46        PRED              0   func_idx=2      hash=0xC04E8337
+ *  47      CLOSE                   (end MONITOR_STATE)
+ *  48      OPEN_CALL           0   content=3           SE_LOG
+ *  49        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  50          STR_IDX                 idx=10 len=15   "State went high"
+ *  51      CLOSE                   (end SE_LOG)
+ *  52      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  53        MAIN              0   func_idx=0      hash=0xB4243714
+ *  54      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  55      OPEN_CALL           0   content=3           SE_LOG
+ *  56        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  57          STR_IDX                 idx=11 len=14   "State went low"
+ *  58      CLOSE                   (end SE_LOG)
+ *  59      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  60        MAIN              0   func_idx=0      hash=0xB4243714
+ *  61      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  62    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
+ *  63    OPEN_CALL           0   content=16        SE_TRIGGER_ON_CHANGE
+ *  64      MAIN              0   func_idx=15     hash=0x8374277F
+ *  65        INT                     value=0     
+ *  66      OPEN_CALL           0   content=2           BUTTON_PRESSED
+ *  67        PRED              0   func_idx=3      hash=0x520E2FF0
+ *  68      CLOSE                   (end BUTTON_PRESSED)
+ *  69      OPEN_CALL           0   content=3           SE_LOG
+ *  70        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  71          STR_IDX                 idx=12 len=18   "Button was pressed"
+ *  72      CLOSE                   (end SE_LOG)
+ *  73      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  74        MAIN              0   func_idx=0      hash=0xB4243714
+ *  75      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  76      OPEN_CALL           0   content=2           SE_NOP
+ *  77        MAIN              0   func_idx=13     hash=0x080C2B37
+ *  78      CLOSE                   (end SE_NOP)
+ *  79    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
+ *  80    OPEN_CALL           0   content=16        SE_TRIGGER_ON_CHANGE
+ *  81      MAIN              0   func_idx=15     hash=0x8374277F
+ *  82        INT                     value=1     
+ *  83      OPEN_CALL           0   content=2           SENSOR_ACTIVE
+ *  84        PRED              0   func_idx=4      hash=0x6FAC375E
+ *  85      CLOSE                   (end SENSOR_ACTIVE)
+ *  86      OPEN_CALL           0   content=2           SE_NOP
+ *  87        MAIN              0   func_idx=13     hash=0x080C2B37
+ *  88      CLOSE                   (end SE_NOP)
+ *  89      OPEN_CALL           0   content=3           SE_LOG
+ *  90        ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  91          STR_IDX                 idx=13 len=20   "Sensor went inactive"
+ *  92      CLOSE                   (end SE_LOG)
+ *  93      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  94        MAIN              0   func_idx=0      hash=0xB4243714
+ *  95      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  96    CLOSE                   (end SE_TRIGGER_ON_CHANGE)
+ *  97    OPEN_CALL           0   content=3         SE_LOG
+ *  98      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  99        STR_IDX                 idx=14 len=24   "Ending test_conditionals"
+ * 100    CLOSE                   (end SE_LOG)
+ * 101    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ * 102      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ * 103    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ * 104  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_state_machine
  * Hash: 0x3B4B5C29
  * Record: test_blackboard
- * Nodes: 16, Pointers: 2
+ * Nodes: 20, Pointers: 2
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=66      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=74      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=4         SET_STATE
- *   3      ONESHOT|SR        0   func_idx=3      hash=0xE5FF0069
+ *   3      ONESHOT|SR        0   func_idx=1      hash=0xE5FF0069
  *   4        FIELD                   hash=0x783132F6  "state"
  *   5        INT                     value=0     
  *   6    CLOSE                   (end SET_STATE)
- *   7    OPEN_CALL           0   content=58        SE_STATE_MACHINE
- *   8      MAIN              0   func_idx=19     hash=0x5EEDA8E9
+ *   7    OPEN_CALL           0   content=66        SE_STATE_MACHINE
+ *   8      MAIN              0   func_idx=16     hash=0x5EEDA8E9
  *   9        FIELD                   hash=0x783132F6  "state"
- *  10      OPEN_CALL           0   content=12          SE_STATE_ACTIONS
- *  11        MAIN              0   func_idx=20     hash=0x25308B8F
+ *  10      OPEN_CALL           0   content=14          SE_STATE_ACTIONS
+ *  11        MAIN              0   func_idx=17     hash=0x25308B8F
  *  12        OPEN_CALL           0   content=3             SE_LOG
- *  13          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  14            STR_IDX                 idx=19 len=11   "State: IDLE"
+ *  13          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  14            STR_IDX                 idx=15 len=11   "State: IDLE"
  *  15        CLOSE                   (end SE_LOG)
  *  16        OPEN_CALL           0   content=4             SET_STATE
- *  17          ONESHOT           0   func_idx=3      hash=0xE5FF0069
+ *  17          ONESHOT           0   func_idx=1      hash=0xE5FF0069
  *  18            FIELD                   hash=0x783132F6  "state"
  *  19            INT                     value=1     
  *  20        CLOSE                   (end SET_STATE)
- *  21          RESULT                  value=1   SE_HALT
- *  22      CLOSE                   (end SE_STATE_ACTIONS)
- *  23      OPEN_CALL           0   content=16          SE_STATE_ACTIONS
- *  24        MAIN              0   func_idx=20     hash=0x25308B8F
- *  25        OPEN_CALL           0   content=3             SE_LOG
- *  26          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  27            STR_IDX                 idx=20 len=14   "State: RUNNING"
- *  28        CLOSE                   (end SE_LOG)
- *  29        OPEN_CALL           0   content=3             SE_TICK_DELAY
- *  30          MAIN|PTR          0   func_idx=13     hash=0x0C3460EB
- *  31            INT                     value=50    
- *  32        CLOSE                   (end SE_TICK_DELAY)
- *  33        OPEN_CALL           0   content=4             SET_STATE
- *  34          ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  35            FIELD                   hash=0x783132F6  "state"
- *  36            INT                     value=2     
- *  37        CLOSE                   (end SET_STATE)
- *  38          RESULT                  value=1   SE_HALT
- *  39      CLOSE                   (end SE_STATE_ACTIONS)
- *  40      OPEN_CALL           0   content=16          SE_STATE_ACTIONS
- *  41        MAIN              0   func_idx=20     hash=0x25308B8F
- *  42        OPEN_CALL           0   content=3             SE_LOG
- *  43          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  44            STR_IDX                 idx=21 len=13   "State: PAUSED"
- *  45        CLOSE                   (end SE_LOG)
- *  46        OPEN_CALL           1   content=3             SE_TICK_DELAY
- *  47          MAIN|PTR          1   func_idx=13     hash=0x0C3460EB
- *  48            INT                     value=25    
- *  49        CLOSE                   (end SE_TICK_DELAY)
- *  50        OPEN_CALL           0   content=4             SET_STATE
- *  51          ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  52            FIELD                   hash=0x783132F6  "state"
- *  53            INT                     value=3     
- *  54        CLOSE                   (end SET_STATE)
- *  55          RESULT                  value=1   SE_HALT
- *  56      CLOSE                   (end SE_STATE_ACTIONS)
- *  57      OPEN_CALL           0   content=7           SE_STATE_ACTIONS
- *  58        MAIN              0   func_idx=20     hash=0x25308B8F
- *  59        OPEN_CALL           0   content=3             SE_LOG
- *  60          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  61            STR_IDX                 idx=22 len=11   "State: DONE"
- *  62        CLOSE                   (end SE_LOG)
- *  63          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  64      CLOSE                   (end SE_STATE_ACTIONS)
- *  65    CLOSE                   (end SE_STATE_MACHINE)
- *  66  CLOSE                   (end SE_PIPELINE)
+ *  21        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  22          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  23        CLOSE                   (end SE_RETURN_HALT)
+ *  24      CLOSE                   (end SE_STATE_ACTIONS)
+ *  25      OPEN_CALL           0   content=18          SE_STATE_ACTIONS
+ *  26        MAIN              0   func_idx=17     hash=0x25308B8F
+ *  27        OPEN_CALL           0   content=3             SE_LOG
+ *  28          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  29            STR_IDX                 idx=16 len=14   "State: RUNNING"
+ *  30        CLOSE                   (end SE_LOG)
+ *  31        OPEN_CALL           0   content=3             SE_TICK_DELAY
+ *  32          MAIN|PTR          0   func_idx=10     hash=0x0C3460EB
+ *  33            INT                     value=50    
+ *  34        CLOSE                   (end SE_TICK_DELAY)
+ *  35        OPEN_CALL           0   content=4             SET_STATE
+ *  36          ONESHOT           0   func_idx=1      hash=0xE5FF0069
+ *  37            FIELD                   hash=0x783132F6  "state"
+ *  38            INT                     value=2     
+ *  39        CLOSE                   (end SET_STATE)
+ *  40        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  41          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  42        CLOSE                   (end SE_RETURN_HALT)
+ *  43      CLOSE                   (end SE_STATE_ACTIONS)
+ *  44      OPEN_CALL           0   content=18          SE_STATE_ACTIONS
+ *  45        MAIN              0   func_idx=17     hash=0x25308B8F
+ *  46        OPEN_CALL           0   content=3             SE_LOG
+ *  47          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  48            STR_IDX                 idx=17 len=13   "State: PAUSED"
+ *  49        CLOSE                   (end SE_LOG)
+ *  50        OPEN_CALL           1   content=3             SE_TICK_DELAY
+ *  51          MAIN|PTR          1   func_idx=10     hash=0x0C3460EB
+ *  52            INT                     value=25    
+ *  53        CLOSE                   (end SE_TICK_DELAY)
+ *  54        OPEN_CALL           0   content=4             SET_STATE
+ *  55          ONESHOT           0   func_idx=1      hash=0xE5FF0069
+ *  56            FIELD                   hash=0x783132F6  "state"
+ *  57            INT                     value=3     
+ *  58        CLOSE                   (end SET_STATE)
+ *  59        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  60          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  61        CLOSE                   (end SE_RETURN_HALT)
+ *  62      CLOSE                   (end SE_STATE_ACTIONS)
+ *  63      OPEN_CALL           0   content=9           SE_STATE_ACTIONS
+ *  64        MAIN              0   func_idx=17     hash=0x25308B8F
+ *  65        OPEN_CALL           0   content=3             SE_LOG
+ *  66          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  67            STR_IDX                 idx=18 len=11   "State: DONE"
+ *  68        CLOSE                   (end SE_LOG)
+ *  69        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  70          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  71        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  72      CLOSE                   (end SE_STATE_ACTIONS)
+ *  73    CLOSE                   (end SE_STATE_MACHINE)
+ *  74  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_field_dispatch_idle
  * Hash: 0x1CF26AC8
  * Record: test_blackboard
- * Nodes: 11, Pointers: 0
+ * Nodes: 15, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=47      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=55      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=4         SET_STATE
- *   3      ONESHOT|SR        0   func_idx=3      hash=0xE5FF0069
+ *   3      ONESHOT|SR        0   func_idx=1      hash=0xE5FF0069
  *   4        FIELD                   hash=0x93594AB2  "command"
  *   5        INT                     value=0     
  *   6    CLOSE                   (end SET_STATE)
- *   7    OPEN_CALL           0   content=39        SE_FIELD_DISPATCH
- *   8      MAIN              0   func_idx=21     hash=0xA1C11B35
+ *   7    OPEN_CALL           0   content=47        SE_FIELD_DISPATCH
+ *   8      MAIN              0   func_idx=18     hash=0xA1C11B35
  *   9        FIELD                   hash=0x93594AB2  "command"
  *  10        INT                     value=0     
- *  11      OPEN_CALL           0   content=7           SE_PIPELINE
- *  12        MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *  11      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  12        MAIN              0   func_idx=9      hash=0x4D6E2B18
  *  13        OPEN_CALL           0   content=3             SE_LOG
- *  14          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  15            STR_IDX                 idx=23 len=17   "✅ Command: IDLE"
+ *  14          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  15            STR_IDX                 idx=19 len=17   "✅ Command: IDLE"
  *  16        CLOSE                   (end SE_LOG)
- *  17          RESULT                  value=7   SE_FUNCTION_HALT
- *  18      CLOSE                   (end SE_PIPELINE)
- *  19        INT                     value=1     
- *  20      OPEN_CALL           0   content=7           SE_PIPELINE
- *  21        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  22        OPEN_CALL           0   content=3             SE_LOG
- *  23          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  24            STR_IDX                 idx=24 len=26   "❌ Command: START (wrong)"
- *  25        CLOSE                   (end SE_LOG)
- *  26          RESULT                  value=7   SE_FUNCTION_HALT
- *  27      CLOSE                   (end SE_PIPELINE)
- *  28        INT                     value=2     
- *  29      OPEN_CALL           0   content=7           SE_PIPELINE
- *  30        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  31        OPEN_CALL           0   content=3             SE_LOG
- *  32          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  33            STR_IDX                 idx=25 len=25   "❌ Command: STOP (wrong)"
- *  34        CLOSE                   (end SE_LOG)
- *  35          RESULT                  value=7   SE_FUNCTION_HALT
- *  36      CLOSE                   (end SE_PIPELINE)
- *  37        INT                     value=3     
- *  38      OPEN_CALL           0   content=7           SE_PIPELINE
- *  39        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  40        OPEN_CALL           0   content=3             SE_LOG
- *  41          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  42            STR_IDX                 idx=26 len=26   "❌ Command: RESET (wrong)"
- *  43        CLOSE                   (end SE_LOG)
- *  44          RESULT                  value=7   SE_FUNCTION_HALT
- *  45      CLOSE                   (end SE_PIPELINE)
- *  46    CLOSE                   (end SE_FIELD_DISPATCH)
- *  47  CLOSE                   (end SE_PIPELINE)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  18          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  19        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21        INT                     value=1     
+ *  22      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  23        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  24        OPEN_CALL           0   content=3             SE_LOG
+ *  25          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  26            STR_IDX                 idx=20 len=26   "❌ Command: START (wrong)"
+ *  27        CLOSE                   (end SE_LOG)
+ *  28        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  29          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  30        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  31      CLOSE                   (end SE_PIPELINE)
+ *  32        INT                     value=2     
+ *  33      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  34        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  35        OPEN_CALL           0   content=3             SE_LOG
+ *  36          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  37            STR_IDX                 idx=21 len=25   "❌ Command: STOP (wrong)"
+ *  38        CLOSE                   (end SE_LOG)
+ *  39        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  40          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  41        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  42      CLOSE                   (end SE_PIPELINE)
+ *  43        INT                     value=3     
+ *  44      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  45        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  46        OPEN_CALL           0   content=3             SE_LOG
+ *  47          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  48            STR_IDX                 idx=22 len=26   "❌ Command: RESET (wrong)"
+ *  49        CLOSE                   (end SE_LOG)
+ *  50        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  51          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  52        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  53      CLOSE                   (end SE_PIPELINE)
+ *  54    CLOSE                   (end SE_FIELD_DISPATCH)
+ *  55  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_field_dispatch_start
  * Hash: 0x95E46F4E
  * Record: test_blackboard
- * Nodes: 12, Pointers: 0
+ * Nodes: 16, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=50      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=58      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=4         SET_STATE
- *   3      ONESHOT|SR        0   func_idx=3      hash=0xE5FF0069
+ *   3      ONESHOT|SR        0   func_idx=1      hash=0xE5FF0069
  *   4        FIELD                   hash=0x93594AB2  "command"
  *   5        INT                     value=1     
  *   6    CLOSE                   (end SET_STATE)
- *   7    OPEN_CALL           0   content=39        SE_FIELD_DISPATCH
- *   8      MAIN              0   func_idx=21     hash=0xA1C11B35
+ *   7    OPEN_CALL           0   content=47        SE_FIELD_DISPATCH
+ *   8      MAIN              0   func_idx=18     hash=0xA1C11B35
  *   9        FIELD                   hash=0x93594AB2  "command"
  *  10        INT                     value=0     
- *  11      OPEN_CALL           0   content=7           SE_PIPELINE
- *  12        MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *  11      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  12        MAIN              0   func_idx=9      hash=0x4D6E2B18
  *  13        OPEN_CALL           0   content=3             SE_LOG
- *  14          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  15            STR_IDX                 idx=27 len=25   "❌ Command: IDLE (wrong)"
+ *  14          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  15            STR_IDX                 idx=23 len=25   "❌ Command: IDLE (wrong)"
  *  16        CLOSE                   (end SE_LOG)
- *  17          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  18      CLOSE                   (end SE_PIPELINE)
- *  19        INT                     value=1     
- *  20      OPEN_CALL           0   content=7           SE_PIPELINE
- *  21        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  22        OPEN_CALL           0   content=3             SE_LOG
- *  23          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  24            STR_IDX                 idx=28 len=18   "✅ Command: START"
- *  25        CLOSE                   (end SE_LOG)
- *  26          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  27      CLOSE                   (end SE_PIPELINE)
- *  28        INT                     value=2     
- *  29      OPEN_CALL           0   content=7           SE_PIPELINE
- *  30        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  31        OPEN_CALL           0   content=3             SE_LOG
- *  32          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  33            STR_IDX                 idx=25 len=25   "❌ Command: STOP (wrong)"
- *  34        CLOSE                   (end SE_LOG)
- *  35          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  36      CLOSE                   (end SE_PIPELINE)
- *  37        INT                     value=3     
- *  38      OPEN_CALL           0   content=7           SE_PIPELINE
- *  39        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  40        OPEN_CALL           0   content=3             SE_LOG
- *  41          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  42            STR_IDX                 idx=26 len=26   "❌ Command: RESET (wrong)"
- *  43        CLOSE                   (end SE_LOG)
- *  44          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  45      CLOSE                   (end SE_PIPELINE)
- *  46    CLOSE                   (end SE_FIELD_DISPATCH)
- *  47    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
- *  48      MAIN              0   func_idx=11     hash=0x0A5B8A85
- *  49    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
- *  50  CLOSE                   (end SE_PIPELINE)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  18          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  19        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21        INT                     value=1     
+ *  22      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  23        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  24        OPEN_CALL           0   content=3             SE_LOG
+ *  25          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  26            STR_IDX                 idx=24 len=18   "✅ Command: START"
+ *  27        CLOSE                   (end SE_LOG)
+ *  28        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  29          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  30        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  31      CLOSE                   (end SE_PIPELINE)
+ *  32        INT                     value=2     
+ *  33      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  34        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  35        OPEN_CALL           0   content=3             SE_LOG
+ *  36          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  37            STR_IDX                 idx=21 len=25   "❌ Command: STOP (wrong)"
+ *  38        CLOSE                   (end SE_LOG)
+ *  39        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  40          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  41        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  42      CLOSE                   (end SE_PIPELINE)
+ *  43        INT                     value=3     
+ *  44      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  45        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  46        OPEN_CALL           0   content=3             SE_LOG
+ *  47          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  48            STR_IDX                 idx=22 len=26   "❌ Command: RESET (wrong)"
+ *  49        CLOSE                   (end SE_LOG)
+ *  50        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  51          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  52        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  53      CLOSE                   (end SE_PIPELINE)
+ *  54    CLOSE                   (end SE_FIELD_DISPATCH)
+ *  55    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  56      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  57    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  58  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_field_dispatch_stop
  * Hash: 0x5A638916
  * Record: test_blackboard
- * Nodes: 12, Pointers: 0
+ * Nodes: 16, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=50      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   0  OPEN_CALL           0   content=58      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   2    OPEN_CALL           0   content=4         SET_STATE
- *   3      ONESHOT|SR        0   func_idx=3      hash=0xE5FF0069
+ *   3      ONESHOT|SR        0   func_idx=1      hash=0xE5FF0069
  *   4        FIELD                   hash=0x93594AB2  "command"
  *   5        INT                     value=2     
  *   6    CLOSE                   (end SET_STATE)
- *   7    OPEN_CALL           0   content=39        SE_FIELD_DISPATCH
- *   8      MAIN              0   func_idx=21     hash=0xA1C11B35
+ *   7    OPEN_CALL           0   content=47        SE_FIELD_DISPATCH
+ *   8      MAIN              0   func_idx=18     hash=0xA1C11B35
  *   9        FIELD                   hash=0x93594AB2  "command"
  *  10        INT                     value=0     
- *  11      OPEN_CALL           0   content=7           SE_PIPELINE
- *  12        MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *  11      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  12        MAIN              0   func_idx=9      hash=0x4D6E2B18
  *  13        OPEN_CALL           0   content=3             SE_LOG
- *  14          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  15            STR_IDX                 idx=27 len=25   "❌ Command: IDLE (wrong)"
+ *  14          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  15            STR_IDX                 idx=23 len=25   "❌ Command: IDLE (wrong)"
  *  16        CLOSE                   (end SE_LOG)
- *  17          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  18      CLOSE                   (end SE_PIPELINE)
- *  19        INT                     value=1     
- *  20      OPEN_CALL           0   content=7           SE_PIPELINE
- *  21        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  22        OPEN_CALL           0   content=3             SE_LOG
- *  23          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  24            STR_IDX                 idx=24 len=26   "❌ Command: START (wrong)"
- *  25        CLOSE                   (end SE_LOG)
- *  26          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  27      CLOSE                   (end SE_PIPELINE)
- *  28        INT                     value=2     
- *  29      OPEN_CALL           0   content=7           SE_PIPELINE
- *  30        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  31        OPEN_CALL           0   content=3             SE_LOG
- *  32          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  33            STR_IDX                 idx=29 len=17   "✅ Command: STOP"
- *  34        CLOSE                   (end SE_LOG)
- *  35          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  36      CLOSE                   (end SE_PIPELINE)
- *  37        INT                     value=3     
- *  38      OPEN_CALL           0   content=7           SE_PIPELINE
- *  39        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  40        OPEN_CALL           0   content=3             SE_LOG
- *  41          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  42            STR_IDX                 idx=26 len=26   "❌ Command: RESET (wrong)"
- *  43        CLOSE                   (end SE_LOG)
- *  44          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  45      CLOSE                   (end SE_PIPELINE)
- *  46    CLOSE                   (end SE_FIELD_DISPATCH)
- *  47    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
- *  48      MAIN              0   func_idx=11     hash=0x0A5B8A85
- *  49    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
- *  50  CLOSE                   (end SE_PIPELINE)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  18          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  19        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21        INT                     value=1     
+ *  22      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  23        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  24        OPEN_CALL           0   content=3             SE_LOG
+ *  25          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  26            STR_IDX                 idx=20 len=26   "❌ Command: START (wrong)"
+ *  27        CLOSE                   (end SE_LOG)
+ *  28        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  29          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  30        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  31      CLOSE                   (end SE_PIPELINE)
+ *  32        INT                     value=2     
+ *  33      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  34        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  35        OPEN_CALL           0   content=3             SE_LOG
+ *  36          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  37            STR_IDX                 idx=25 len=17   "✅ Command: STOP"
+ *  38        CLOSE                   (end SE_LOG)
+ *  39        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  40          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  41        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  42      CLOSE                   (end SE_PIPELINE)
+ *  43        INT                     value=3     
+ *  44      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  45        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  46        OPEN_CALL           0   content=3             SE_LOG
+ *  47          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  48            STR_IDX                 idx=22 len=26   "❌ Command: RESET (wrong)"
+ *  49        CLOSE                   (end SE_LOG)
+ *  50        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  51          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  52        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  53      CLOSE                   (end SE_PIPELINE)
+ *  54    CLOSE                   (end SE_FIELD_DISPATCH)
+ *  55    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  56      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  57    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  58  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_event_dispatch
  * Hash: 0x1AB48355
  * Record: test_blackboard
- * Nodes: 9, Pointers: 0
+ * Nodes: 12, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=35      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
- *   2    OPEN_CALL           0   content=29        SE_EVENT_DISPATCH
- *   3      MAIN              0   func_idx=22     hash=0xF3EDFC75
+ *   0  OPEN_CALL           0   content=41      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=35        SE_EVENT_DISPATCH
+ *   3      MAIN              0   func_idx=19     hash=0xF3EDFC75
  *   4        INT                     value=100   
- *   5      OPEN_CALL           0   content=7           SE_PIPELINE
- *   6        MAIN              0   func_idx=12     hash=0x4D6E2B18
+ *   5      OPEN_CALL           0   content=9           SE_PIPELINE
+ *   6        MAIN              0   func_idx=9      hash=0x4D6E2B18
  *   7        OPEN_CALL           0   content=3             SE_LOG
- *   8          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   9            STR_IDX                 idx=30 len=16   "✅ Event: TIMER"
+ *   8          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *   9            STR_IDX                 idx=26 len=16   "✅ Event: TIMER"
  *  10        CLOSE                   (end SE_LOG)
- *  11          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  12      CLOSE                   (end SE_PIPELINE)
- *  13        INT                     value=101   
- *  14      OPEN_CALL           0   content=7           SE_PIPELINE
- *  15        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  16        OPEN_CALL           0   content=3             SE_LOG
- *  17          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  18            STR_IDX                 idx=31 len=17   "✅ Event: BUTTON"
- *  19        CLOSE                   (end SE_LOG)
- *  20          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  21      CLOSE                   (end SE_PIPELINE)
- *  22        INT                     value=102   
- *  23      OPEN_CALL           0   content=7           SE_PIPELINE
- *  24        MAIN              0   func_idx=12     hash=0x4D6E2B18
- *  25        OPEN_CALL           0   content=3             SE_LOG
- *  26          ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  27            STR_IDX                 idx=32 len=17   "✅ Event: SENSOR"
- *  28        CLOSE                   (end SE_LOG)
- *  29          RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  30      CLOSE                   (end SE_PIPELINE)
- *  31    CLOSE                   (end SE_EVENT_DISPATCH)
- *  32    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
- *  33      MAIN              0   func_idx=11     hash=0x0A5B8A85
- *  34    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
- *  35  CLOSE                   (end SE_PIPELINE)
- */
-
-/*
- * TREE: test_predicate_helpers
- * Hash: 0x6FD1BB3D
- * Record: test_blackboard
- * Nodes: 8, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=2       SE_TRUE
- *   1    PRED              0   func_idx=31     hash=0x0C125BC2
- *   2  CLOSE                   (end SE_TRUE)
- *   3  OPEN_CALL           0   content=2       SE_FALSE
- *   4    PRED              0   func_idx=32     hash=0x77C35775
- *   5  CLOSE                   (end SE_FALSE)
- *   6  OPEN_CALL           0   content=5       SE_CHECK_EVENT
- *   7    PRED              0   func_idx=33     hash=0x80659F81
- *   8      INT                     value=100   
- *   9      INT                     value=101   
- *  10      INT                     value=102   
- *  11  CLOSE                   (end SE_CHECK_EVENT)
- *  12  OPEN_CALL           0   content=14      SE_PRED_OR
- *  13    PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  14    OPEN_CALL           0   content=2         SE_TRUE
- *  15      PRED              0   func_idx=31     hash=0x0C125BC2
- *  16    CLOSE                   (end SE_TRUE)
- *  17    OPEN_CALL           0   content=8         SE_PRED_AND
- *  18      PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *  19      OPEN_CALL           0   content=2           SE_FALSE
- *  20        PRED              0   func_idx=32     hash=0x77C35775
- *  21      CLOSE                   (end SE_FALSE)
- *  22      OPEN_CALL           0   content=2           CUSTOM_PRED
- *  23        PRED              0   func_idx=34     hash=0x8B787418
- *  24      CLOSE                   (end CUSTOM_PRED)
- *  25    CLOSE                   (end SE_PRED_AND)
- *  26  CLOSE                   (end SE_PRED_OR)
- */
-
-/*
- * TREE: test_nested_fields
- * Hash: 0xA21839F7
- * Record: test_blackboard
- * Nodes: 6, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=40      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
- *   2    OPEN_CALL           0   content=8         SET_VECTOR
- *   3      ONESHOT           0   func_idx=4      hash=0x77B626F3
- *   4        FIELD                   hash=0x3FF6F369  "motor.position.x"
- *   5        FIELD                   hash=0x3EF6F1D6  "motor.position.y"
- *   6        FIELD                   hash=0x3DF6F043  "motor.position.z"
- *   7        FLOAT                   value=100
- *   8        FLOAT                   value=200
- *   9        FLOAT                   value=300
- *  10    CLOSE                   (end SET_VECTOR)
- *  11    OPEN_CALL           0   content=8         SET_VECTOR
- *  12      ONESHOT           0   func_idx=4      hash=0x77B626F3
- *  13        FIELD                   hash=0x13775751  "motor.velocity.x"
- *  14        FIELD                   hash=0x127755BE  "motor.velocity.y"
- *  15        FIELD                   hash=0x1177542B  "motor.velocity.z"
- *  16        FLOAT                   value=1
- *  17        FLOAT                   value=2
- *  18        FLOAT                   value=3
- *  19    CLOSE                   (end SET_VECTOR)
- *  20    OPEN_CALL           0   content=4         SET_FLOAT
- *  21      ONESHOT           0   func_idx=5      hash=0x91FBEC26
- *  22        FIELD                   hash=0xDEAB9812  "motor.torque"
- *  23        FLOAT                   value=50
- *  24    CLOSE                   (end SET_FLOAT)
- *  25    OPEN_CALL           0   content=8         SET_PID
- *  26      ONESHOT           0   func_idx=6      hash=0xFB0AC161
- *  27        FIELD                   hash=0x461898E0  "gains.kp"
- *  28        FIELD                   hash=0x5F18C03B  "gains.ki"
- *  29        FIELD                   hash=0x5A18B85C  "gains.kd"
- *  30        FLOAT                   value=1.5
- *  31        FLOAT                   value=0.3
- *  32        FLOAT                   value=0.08
- *  33    CLOSE                   (end SET_PID)
- *  34    OPEN_CALL           0   content=4         SET_UINT
- *  35      ONESHOT           0   func_idx=7      hash=0x7795933C
- *  36        FIELD                   hash=0x9CACDE23  "counter"
- *  37        UINT                    value=12345   (0x00003039)
- *  38    CLOSE                   (end SET_UINT)
- *  39      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  40  CLOSE                   (end SE_PIPELINE)
- */
-
-/*
- * TREE: test_pointer_slots
- * Hash: 0xD1E84F15
- * Record: test_blackboard
- * Nodes: 5, Pointers: 4
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=3       PROTOTHREAD_1
- *   1    MAIN|PTR          0   func_idx=23     hash=0x63282C1D
- *   2      INT                     value=100   
- *   3  CLOSE                   (end PROTOTHREAD_1)
- *   4  OPEN_CALL           1   content=3       PROTOTHREAD_2
- *   5    MAIN|PTR          1   func_idx=24     hash=0x60282764
- *   6      INT                     value=200   
- *   7  CLOSE                   (end PROTOTHREAD_2)
- *   8  OPEN_CALL           2   content=3       PROTOTHREAD_3
- *   9    MAIN|PTR          2   func_idx=25     hash=0x612828F7
- *  10      INT                     value=300   
- *  11  CLOSE                   (end PROTOTHREAD_3)
- *  12  OPEN_CALL           0   content=6       OUTER_FUNC
- *  13    MAIN              0   func_idx=26     hash=0x008A6FCB
- *  14    OPEN_CALL           3   content=3         NESTED_PROTOTHREAD
- *  15      MAIN|PTR          3   func_idx=27     hash=0x742768B3
- *  16        INT                     value=400   
- *  17    CLOSE                   (end NESTED_PROTOTHREAD)
- *  18  CLOSE                   (end OUTER_FUNC)
- */
-
-/*
- * TREE: test_complex_nesting
- * Hash: 0x0153499F
- * Record: test_blackboard
- * Nodes: 11, Pointers: 1
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=40      LEVEL_1
- *   1    MAIN              0   func_idx=28     hash=0xB00AF995
- *   2      STR_IDX                 idx=33 len=7    "Level 1"
- *   3    OPEN_CALL           0   content=16        LEVEL_2A
- *   4      MAIN              0   func_idx=29     hash=0x053F1327
- *   5        STR_IDX                 idx=34 len=8    "Level 2A"
- *   6      OPEN_CALL           0   content=3           LEVEL_3A
- *   7        ONESHOT           0   func_idx=8      hash=0x29418A6A
- *   8          STR_IDX                 idx=35 len=8    "Level 3A"
- *   9      CLOSE                   (end LEVEL_3A)
- *  10      OPEN_CALL           0   content=8           LEVEL_3B
- *  11        MAIN              0   func_idx=30     hash=0x284188D7
- *  12          STR_IDX                 idx=36 len=8    "Level 3B"
- *  13        OPEN_CALL           0   content=4             LEVEL_4
- *  14          MAIN|PTR          0   func_idx=31     hash=0xAB0AF1B6
- *  15            STR_IDX                 idx=37 len=7    "Level 4"
- *  16            INT                     value=42    
- *  17        CLOSE                   (end LEVEL_4)
- *  18      CLOSE                   (end LEVEL_3B)
- *  19    CLOSE                   (end LEVEL_2A)
- *  20    OPEN_CALL           0   content=18        LEVEL_2B
- *  21      MAIN              0   func_idx=32     hash=0x063F14BA
- *  22        STR_IDX                 idx=38 len=8    "Level 2B"
- *  23      OPEN_CALL           0   content=14          SE_PRED_AND
- *  24        PRED|SR           0   func_idx=1      hash=0x7C0DF5F3
- *  25        OPEN_CALL           0   content=2             DEEP_PRED_1
- *  26          PRED              0   func_idx=35     hash=0xB437BB0B
- *  27        CLOSE                   (end DEEP_PRED_1)
- *  28        OPEN_CALL           0   content=8             SE_PRED_OR
- *  29          PRED|SR           0   func_idx=4      hash=0x0CF6212F
- *  30          OPEN_CALL           0   content=2               DEEP_PRED_2
- *  31            PRED              0   func_idx=36     hash=0xB537BC9E
- *  32          CLOSE                   (end DEEP_PRED_2)
- *  33          OPEN_CALL           0   content=2               DEEP_PRED_3
- *  34            PRED              0   func_idx=37     hash=0xB637BE31
- *  35          CLOSE                   (end DEEP_PRED_3)
- *  36        CLOSE                   (end SE_PRED_OR)
- *  37      CLOSE                   (end SE_PRED_AND)
- *  38    CLOSE                   (end LEVEL_2B)
- *  39      RESULT                  value=0   SE_CONTINUE
- *  40  CLOSE                   (end LEVEL_1)
+ *  11        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  12          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  13        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  14      CLOSE                   (end SE_PIPELINE)
+ *  15        INT                     value=101   
+ *  16      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  17        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  18        OPEN_CALL           0   content=3             SE_LOG
+ *  19          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  20            STR_IDX                 idx=27 len=17   "✅ Event: BUTTON"
+ *  21        CLOSE                   (end SE_LOG)
+ *  22        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  23          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  24        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  25      CLOSE                   (end SE_PIPELINE)
+ *  26        INT                     value=102   
+ *  27      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  28        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  29        OPEN_CALL           0   content=3             SE_LOG
+ *  30          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  31            STR_IDX                 idx=28 len=17   "✅ Event: SENSOR"
+ *  32        CLOSE                   (end SE_LOG)
+ *  33        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  34          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  35        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  36      CLOSE                   (end SE_PIPELINE)
+ *  37    CLOSE                   (end SE_EVENT_DISPATCH)
+ *  38    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  39      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  40    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  41  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_basic_lists
  * Hash: 0x14CCAF62
  * Record: test_blackboard
- * Nodes: 4, Pointers: 0
+ * Nodes: 8, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=46      SE_PIPELINE
- *   1    MAIN              0   func_idx=12     hash=0x4D6E2B18
- *   2    OPEN_CALL           0   content=10        PROCESS_INT_LIST
- *   3      MAIN              0   func_idx=33     hash=0xE6B90959
+ *   0  OPEN_CALL           0   content=54      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=12        PROCESS_INT_LIST
+ *   3      MAIN              0   func_idx=20     hash=0xE6B90959
  *   4        OPEN                    brace=TBD
  *   5        INT                     value=10    
  *   6        INT                     value=20    
@@ -1205,642 +820,212 @@
  *   8        INT                     value=40    
  *   9        INT                     value=50    
  *  10        CLOSE                   brace=6     
- *  11        RESULT                  value=0   SE_CONTINUE
- *  12    CLOSE                   (end PROCESS_INT_LIST)
- *  13    OPEN_CALL           0   content=13        MULTI_LIST_FUNC
- *  14      MAIN              0   func_idx=34     hash=0x274D6E56
- *  15        OPEN                    brace=TBD
- *  16        FLOAT                   value=1
- *  17        FLOAT                   value=2
- *  18        FLOAT                   value=3
- *  19        CLOSE                   brace=4     
- *  20        OPEN                    brace=TBD
- *  21        FLOAT                   value=4
- *  22        FLOAT                   value=5
- *  23        FLOAT                   value=6
- *  24        CLOSE                   brace=4     
- *  25        RESULT                  value=0   SE_CONTINUE
- *  26    CLOSE                   (end MULTI_LIST_FUNC)
- *  27    OPEN_CALL           0   content=17        NESTED_LISTS
- *  28      MAIN              0   func_idx=35     hash=0xC32CF90C
- *  29        OPEN                    brace=TBD
- *  30        INT                     value=1     
- *  31        OPEN                    brace=TBD
- *  32        INT                     value=2     
- *  33        INT                     value=3     
- *  34        CLOSE                   brace=3     
- *  35        INT                     value=4     
- *  36        OPEN                    brace=TBD
- *  37        INT                     value=5     
- *  38        INT                     value=6     
- *  39        INT                     value=7     
- *  40        CLOSE                   brace=4     
- *  41        INT                     value=8     
- *  42        CLOSE                   brace=13    
- *  43        RESULT                  value=0   SE_CONTINUE
- *  44    CLOSE                   (end NESTED_LISTS)
- *  45      RESULT                  value=1   SE_HALT
- *  46  CLOSE                   (end SE_PIPELINE)
+ *  11      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  12        MAIN              0   func_idx=0      hash=0xB4243714
+ *  13      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  14    CLOSE                   (end PROCESS_INT_LIST)
+ *  15    OPEN_CALL           0   content=15        MULTI_LIST_FUNC
+ *  16      MAIN              0   func_idx=21     hash=0x274D6E56
+ *  17        OPEN                    brace=TBD
+ *  18        FLOAT                   value=1
+ *  19        FLOAT                   value=2
+ *  20        FLOAT                   value=3
+ *  21        CLOSE                   brace=4     
+ *  22        OPEN                    brace=TBD
+ *  23        FLOAT                   value=4
+ *  24        FLOAT                   value=5
+ *  25        FLOAT                   value=6
+ *  26        CLOSE                   brace=4     
+ *  27      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  28        MAIN              0   func_idx=0      hash=0xB4243714
+ *  29      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  30    CLOSE                   (end MULTI_LIST_FUNC)
+ *  31    OPEN_CALL           0   content=19        NESTED_LISTS
+ *  32      MAIN              0   func_idx=22     hash=0xC32CF90C
+ *  33        OPEN                    brace=TBD
+ *  34        INT                     value=1     
+ *  35        OPEN                    brace=TBD
+ *  36        INT                     value=2     
+ *  37        INT                     value=3     
+ *  38        CLOSE                   brace=3     
+ *  39        INT                     value=4     
+ *  40        OPEN                    brace=TBD
+ *  41        INT                     value=5     
+ *  42        INT                     value=6     
+ *  43        INT                     value=7     
+ *  44        CLOSE                   brace=4     
+ *  45        INT                     value=8     
+ *  46        CLOSE                   brace=13    
+ *  47      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  48        MAIN              0   func_idx=0      hash=0xB4243714
+ *  49      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  50    CLOSE                   (end NESTED_LISTS)
+ *  51    OPEN_CALL           0   content=2         SE_RETURN_HALT
+ *  52      MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  53    CLOSE                   (end SE_RETURN_HALT)
+ *  54  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_dictionary_basic
  * Hash: 0x48646D7F
  * Record: test_blackboard
- * Nodes: 5, Pointers: 0
+ * Nodes: 13, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=39      SE_HASH_DISPATCH
- *   1    MAIN              0   func_idx=36     hash=0xDE8E6F0D
- *   2      FIELD                   hash=0xF328E8BF  "hash_state"
- *   3      OPEN_DICT               brace=TBD
- *   4      OPEN_KEY                hash=0xC301CF93  key="idle"
- *   5      INT                     value=0     
- *   6      STR_IDX                 idx=39 len=11   "System idle"
- *   7    OPEN_CALL           0   content=3         SE_LOG
- *   8      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   9        STR_IDX                 idx=40 len=4    "idle"
- *  10    CLOSE                   (end SE_LOG)
- *  11      RESULT                  value=1   SE_HALT
- *  12      CLOSE_KEY               brace=8     
- *  13      OPEN_KEY                hash=0x147EB74C  key="running"
- *  14      INT                     value=1     
- *  15      STR_IDX                 idx=41 len=14   "System running"
- *  16    OPEN_CALL           0   content=3         SE_LOG
- *  17      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  18        STR_IDX                 idx=42 len=7    "running"
- *  19    CLOSE                   (end SE_LOG)
- *  20      CLOSE_KEY               brace=7     
- *  21      OPEN_KEY                hash=0x21918751  key="error"
- *  22      INT                     value=2     
- *  23      STR_IDX                 idx=43 len=12   "System error"
- *  24    OPEN_CALL           0   content=3         SE_LOG
- *  25      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  26        STR_IDX                 idx=44 len=5    "error"
- *  27    CLOSE                   (end SE_LOG)
- *  28      CLOSE_KEY               brace=7     
- *  29      OPEN_KEY                hash=0xF8206A4B  key="shutdown"
- *  30      INT                     value=3     
- *  31      STR_IDX                 idx=45 len=15   "System shutdown"
- *  32    OPEN_CALL           0   content=3         SE_LOG
- *  33      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  34        STR_IDX                 idx=46 len=8    "shutdown"
- *  35    CLOSE                   (end SE_LOG)
- *  36      CLOSE_KEY               brace=7     
- *  37      CLOSE_DICT              brace=34    
- *  38      RESULT                  value=0   SE_CONTINUE
- *  39  CLOSE                   (end SE_HASH_DISPATCH)
+ *   0  OPEN_CALL           0   content=53      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=4         SE_SET_HASH
+ *   3      ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *   4        FIELD                   hash=0xF328E8BF  "hash_state"
+ *   5        STR_HASH                hash=0xC301CF93  "idle"
+ *   6    CLOSE                   (end SE_SET_HASH)
+ *   7    OPEN_CALL           0   content=42        SE_HASH_DISPATCH
+ *   8      MAIN              0   func_idx=23     hash=0xDE8E6F0D
+ *   9        FIELD                   hash=0xF328E8BF  "hash_state"
+ *  10        OPEN_DICT               brace=TBD
+ *  11        OPEN_KEY                hash=0xC301CF93  key="idle"
+ *  12      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  13        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  14        OPEN_CALL           0   content=3             SE_LOG
+ *  15          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  16            STR_IDX                 idx=29 len=4    "idle"
+ *  17        CLOSE                   (end SE_LOG)
+ *  18        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  19          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  20            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  21            STR_HASH                hash=0x147EB74C  "running"
+ *  22        CLOSE                   (end SE_SET_HASH)
+ *  23        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  24          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  25        CLOSE                   (end SE_RETURN_HALT)
+ *  26      CLOSE                   (end SE_PIPELINE)
+ *  27        CLOSE_KEY               brace=16    
+ *  28        OPEN_KEY                hash=0x147EB74C  key="running"
+ *  29      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  30        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  31        OPEN_CALL           0   content=3             SE_LOG
+ *  32          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  33            STR_IDX                 idx=30 len=7    "running"
+ *  34        CLOSE                   (end SE_LOG)
+ *  35        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  36          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  37            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  38            STR_HASH                hash=0xC301CF93  "idle"
+ *  39        CLOSE                   (end SE_SET_HASH)
+ *  40        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  41          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  42        CLOSE                   (end SE_RETURN_HALT)
+ *  43      CLOSE                   (end SE_PIPELINE)
+ *  44        CLOSE_KEY               brace=16    
+ *  45        CLOSE_DICT              brace=35    
+ *  46      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  47        MAIN              0   func_idx=0      hash=0xB4243714
+ *  48      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  49    CLOSE                   (end SE_HASH_DISPATCH)
+ *  50    OPEN_CALL           0   content=2         SE_RETURN_HALT
+ *  51      MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  52    CLOSE                   (end SE_RETURN_HALT)
+ *  53  CLOSE                   (end SE_PIPELINE)
  */
 
 /*
  * TREE: test_dictionary_with_actions
  * Hash: 0xD995097B
  * Record: test_blackboard
- * Nodes: 10, Pointers: 0
+ * Nodes: 21, Pointers: 0
  *
  * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
  * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=55      STATE_MACHINE_DISPATCH
- *   1    MAIN              0   func_idx=37     hash=0x5BA5530B
- *   2      FIELD                   hash=0x93594AB2  "command"
- *   3      OPEN_DICT               brace=TBD
- *   4      OPEN_KEY                hash=0x652B04DF  key="start"
- *   5    OPEN_CALL           0   content=3         LOG_MSG
- *   6      ONESHOT           0   func_idx=9      hash=0x221FCA5F
- *   7        STR_IDX                 idx=47 len=15   "Starting system"
- *   8    CLOSE                   (end LOG_MSG)
- *   9    OPEN_CALL           0   content=4         SET_STATE
- *  10      ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  11        FIELD                   hash=0x783132F6  "state"
- *  12        INT                     value=1     
- *  13    CLOSE                   (end SET_STATE)
- *  14      CLOSE_KEY               brace=10    
- *  15      OPEN_KEY                hash=0xCB532AE5  key="stop"
- *  16    OPEN_CALL           0   content=3         LOG_MSG
- *  17      ONESHOT           0   func_idx=9      hash=0x221FCA5F
- *  18        STR_IDX                 idx=48 len=15   "Stopping system"
- *  19    CLOSE                   (end LOG_MSG)
- *  20    OPEN_CALL           0   content=4         SET_STATE
- *  21      ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  22        FIELD                   hash=0x783132F6  "state"
- *  23        INT                     value=0     
- *  24    CLOSE                   (end SET_STATE)
- *  25      CLOSE_KEY               brace=10    
- *  26      OPEN_KEY                hash=0x7084D38D  key="pause"
- *  27    OPEN_CALL           0   content=3         LOG_MSG
- *  28      ONESHOT           0   func_idx=9      hash=0x221FCA5F
- *  29        STR_IDX                 idx=49 len=14   "Pausing system"
- *  30    CLOSE                   (end LOG_MSG)
- *  31    OPEN_CALL           0   content=4         SET_STATE
- *  32      ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  33        FIELD                   hash=0x783132F6  "state"
- *  34        INT                     value=2     
- *  35    CLOSE                   (end SET_STATE)
- *  36      CLOSE_KEY               brace=10    
- *  37      OPEN_KEY                hash=0x650D33C0  key="reset"
- *  38    OPEN_CALL           0   content=3         LOG_MSG
- *  39      ONESHOT           0   func_idx=9      hash=0x221FCA5F
- *  40        STR_IDX                 idx=50 len=16   "Resetting system"
- *  41    CLOSE                   (end LOG_MSG)
- *  42    OPEN_CALL           0   content=4         SET_STATE
- *  43      ONESHOT           0   func_idx=3      hash=0xE5FF0069
- *  44        FIELD                   hash=0x783132F6  "state"
- *  45        INT                     value=0     
- *  46    CLOSE                   (end SET_STATE)
- *  47    OPEN_CALL           0   content=4         SET_COUNTER
- *  48      ONESHOT           0   func_idx=10     hash=0x15A23A08
- *  49        FIELD                   hash=0x9CACDE23  "counter"
- *  50        UINT                    value=0       (0x00000000)
- *  51    CLOSE                   (end SET_COUNTER)
- *  52      CLOSE_KEY               brace=15    
- *  53      CLOSE_DICT              brace=50    
- *  54      RESULT                  value=0   SE_CONTINUE
- *  55  CLOSE                   (end STATE_MACHINE_DISPATCH)
- */
-
-/*
- * TREE: test_array_basic
- * Hash: 0xAFECDD8E
- * Record: test_blackboard
- * Nodes: 3, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=11      ARRAY_ACCESS
- *   1    MAIN              0   func_idx=38     hash=0x88810CB1
- *   2      OPEN_ARRAY              brace=TBD
- *   3      INT                     value=100   
- *   4      INT                     value=200   
- *   5      INT                     value=300   
- *   6      INT                     value=400   
- *   7      INT                     value=500   
- *   8      CLOSE_ARRAY             brace=6     
- *   9      INT                     value=2     
- *  10      RESULT                  value=0   SE_CONTINUE
- *  11  CLOSE                   (end ARRAY_ACCESS)
- *  12  OPEN_CALL           0   content=10      FIELD_ARRAY
- *  13    MAIN              0   func_idx=39     hash=0x267C4925
- *  14      OPEN_ARRAY              brace=TBD
- *  15      FIELD                   hash=0x783132F6  "state"
- *  16      FIELD                   hash=0x93594AB2  "command"
- *  17      FIELD                   hash=0x9CACDE23  "counter"
- *  18      FIELD                   hash=0x461898E0  "gains.kp"
- *  19      FIELD                   hash=0x3FF6F369  "motor.position.x"
- *  20      CLOSE_ARRAY             brace=6     
- *  21      RESULT                  value=0   SE_CONTINUE
- *  22  CLOSE                   (end FIELD_ARRAY)
- *  23  OPEN_CALL           0   content=20      MATRIX_2D
- *  24    MAIN              0   func_idx=40     hash=0xB366B1FF
- *  25      OPEN_ARRAY              brace=TBD
- *  26      OPEN_ARRAY              brace=TBD
- *  27      FLOAT                   value=1
- *  28      FLOAT                   value=0
- *  29      FLOAT                   value=0
- *  30      CLOSE_ARRAY             brace=4     
- *  31      OPEN_ARRAY              brace=TBD
- *  32      FLOAT                   value=0
- *  33      FLOAT                   value=1
- *  34      FLOAT                   value=0
- *  35      CLOSE_ARRAY             brace=4     
- *  36      OPEN_ARRAY              brace=TBD
- *  37      FLOAT                   value=0
- *  38      FLOAT                   value=0
- *  39      FLOAT                   value=1
- *  40      CLOSE_ARRAY             brace=4     
- *  41      CLOSE_ARRAY             brace=16    
- *  42      RESULT                  value=0   SE_CONTINUE
- *  43  CLOSE                   (end MATRIX_2D)
- */
-
-/*
- * TREE: test_tuple_basic
- * Hash: 0xA310BFED
- * Record: test_blackboard
- * Nodes: 3, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=8       PROCESS_TUPLE
- *   1    MAIN              0   func_idx=41     hash=0xDE2C8DF7
- *   2      OPEN_TUPLE              brace=TBD
- *   3      STR_IDX                 idx=51 len=8    "sensor_1"
- *   4      INT                     value=42    
- *   5      FLOAT                   value=3.14159
- *   6      CLOSE_TUPLE             brace=4     
- *   7      RESULT                  value=0   SE_CONTINUE
- *   8  CLOSE                   (end PROCESS_TUPLE)
- *   9  OPEN_CALL           0   content=23      TUPLE_TABLE
- *  10    MAIN              0   func_idx=42     hash=0xDB0DE5BE
- *  11      OPEN_ARRAY              brace=TBD
- *  12      OPEN_TUPLE              brace=TBD
- *  13      STR_IDX                 idx=52 len=11   "temp_sensor"
- *  14      INT                     value=1     
- *  15      FLOAT                   value=25.5
- *  16      UINT                    value=1       (0x00000001)
- *  17      CLOSE_TUPLE             brace=5     
- *  18      OPEN_TUPLE              brace=TBD
- *  19      STR_IDX                 idx=53 len=15   "pressure_sensor"
- *  20      INT                     value=2     
- *  21      FLOAT                   value=101.3
- *  22      UINT                    value=2       (0x00000002)
- *  23      CLOSE_TUPLE             brace=5     
- *  24      OPEN_TUPLE              brace=TBD
- *  25      STR_IDX                 idx=54 len=15   "humidity_sensor"
- *  26      INT                     value=3     
- *  27      FLOAT                   value=65
- *  28      UINT                    value=4       (0x00000004)
- *  29      CLOSE_TUPLE             brace=5     
- *  30      CLOSE_ARRAY             brace=19    
- *  31      RESULT                  value=0   SE_CONTINUE
- *  32  CLOSE                   (end TUPLE_TABLE)
- *  33  OPEN_CALL           0   content=18      COMPLEX_TUPLE
- *  34    MAIN              0   func_idx=43     hash=0x715D092E
- *  35      OPEN_TUPLE              brace=TBD
- *  36      STR_IDX                 idx=55 len=12   "motor_config"
- *  37      OPEN_DICT               brace=TBD
- *  38      OPEN_KEY                hash=0x65F6CBA5  key="max_speed"
- *  39      FLOAT                   value=1000
- *  40      CLOSE_KEY               brace=2     
- *  41      OPEN_KEY                hash=0x2FA0BA9D  key="acceleration"
- *  42      FLOAT                   value=50
- *  43      CLOSE_KEY               brace=2     
- *  44      CLOSE_DICT              brace=7     
- *  45      OPEN_ARRAY              brace=TBD
- *  46      FLOAT                   value=-100
- *  47      FLOAT                   value=100
- *  48      CLOSE_ARRAY             brace=3     
- *  49      CLOSE_TUPLE             brace=14    
- *  50      RESULT                  value=0   SE_CONTINUE
- *  51  CLOSE                   (end COMPLEX_TUPLE)
- */
-
-/*
- * TREE: test_named_state_machine
- * Hash: 0xB7C0ED13
- * Record: test_blackboard
- * Nodes: 11, Pointers: 1
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=62      SE_NAMED_STATE_MACHINE
- *   1    MAIN              0   func_idx=44     hash=0x876B8A33
- *   2      FIELD                   hash=0x783132F6  "state"
- *   3      OPEN_DICT               brace=TBD
- *   4      OPEN_KEY                hash=0x54040873  key="INIT"
- *   5    OPEN_CALL           0   content=3         SE_LOG
- *   6      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   7        STR_IDX                 idx=56 len=11   "State: INIT"
- *   8    CLOSE                   (end SE_LOG)
- *   9    OPEN_CALL           0   content=4         SET_STATE_HASH
- *  10      ONESHOT           0   func_idx=11     hash=0xA1FA0A56
- *  11        FIELD                   hash=0x783132F6  "state"
- *  12        STR_HASH                hash=0xCDDA2CD4  "READY"
- *  13    CLOSE                   (end SET_STATE_HASH)
- *  14      RESULT                  value=1   SE_HALT
- *  15      CLOSE_KEY               brace=11    
- *  16      OPEN_KEY                hash=0xCDDA2CD4  key="READY"
- *  17    OPEN_CALL           0   content=3         SE_LOG
- *  18      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  19        STR_IDX                 idx=57 len=12   "State: READY"
- *  20    CLOSE                   (end SE_LOG)
- *  21    OPEN_CALL           0   content=2         CHECK_START_CONDITION
- *  22      PRED              0   func_idx=38     hash=0x93A4FD22
- *  23    CLOSE                   (end CHECK_START_CONDITION)
- *  24    OPEN_CALL           0   content=4         SET_STATE_HASH
- *  25      ONESHOT           0   func_idx=11     hash=0xA1FA0A56
- *  26        FIELD                   hash=0x783132F6  "state"
- *  27        STR_HASH                hash=0xADC260AC  "RUNNING"
- *  28    CLOSE                   (end SET_STATE_HASH)
- *  29      RESULT                  value=1   SE_HALT
- *  30      CLOSE_KEY               brace=14    
- *  31      OPEN_KEY                hash=0xADC260AC  key="RUNNING"
- *  32    OPEN_CALL           0   content=3         SE_LOG
- *  33      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  34        STR_IDX                 idx=20 len=14   "State: RUNNING"
- *  35    CLOSE                   (end SE_LOG)
- *  36    OPEN_CALL           0   content=3         SE_TICK_DELAY
- *  37      MAIN|PTR          0   func_idx=13     hash=0x0C3460EB
- *  38        INT                     value=10    
- *  39    CLOSE                   (end SE_TICK_DELAY)
- *  40    OPEN_CALL           0   content=4         SET_STATE_HASH
- *  41      ONESHOT           0   func_idx=11     hash=0xA1FA0A56
- *  42        FIELD                   hash=0x783132F6  "state"
- *  43        STR_HASH                hash=0xC1F9A242  "COMPLETE"
- *  44    CLOSE                   (end SET_STATE_HASH)
- *  45      RESULT                  value=1   SE_HALT
- *  46      CLOSE_KEY               brace=15    
- *  47      OPEN_KEY                hash=0xC1F9A242  key="COMPLETE"
- *  48    OPEN_CALL           0   content=3         SE_LOG
- *  49      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  50        STR_IDX                 idx=58 len=15   "State: COMPLETE"
- *  51    CLOSE                   (end SE_LOG)
- *  52      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  53      CLOSE_KEY               brace=6     
- *  54      OPEN_KEY                hash=0xDF22B531  key="ERROR"
- *  55    OPEN_CALL           0   content=3         SE_LOG
- *  56      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  57        STR_IDX                 idx=59 len=12   "State: ERROR"
- *  58    CLOSE                   (end SE_LOG)
- *  59      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  60      CLOSE_KEY               brace=6     
- *  61      CLOSE_DICT              brace=58    
- *  62  CLOSE                   (end SE_NAMED_STATE_MACHINE)
- */
-
-/*
- * TREE: test_dict_event_dispatch
- * Hash: 0xC0516A38
- * Record: test_blackboard
- * Nodes: 9, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=48      SE_NAMED_EVENT_DISPATCH
- *   1    MAIN              0   func_idx=45     hash=0x5E99A787
- *   2      OPEN_DICT               brace=TBD
- *   3      OPEN_KEY                hash=0xFB7E7D76  key="TIMER_TICK"
- *   4    OPEN_CALL           0   content=3         SE_LOG
- *   5      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *   6        STR_IDX                 idx=60 len=17   "Event: TIMER_TICK"
- *   7    CLOSE                   (end SE_LOG)
- *   8    OPEN_CALL           0   content=3         INCREMENT_COUNTER
- *   9      ONESHOT           0   func_idx=12     hash=0x29E86A85
- *  10        FIELD                   hash=0x9CACDE23  "counter"
- *  11    CLOSE                   (end INCREMENT_COUNTER)
- *  12      CLOSE_KEY               brace=9     
- *  13      OPEN_KEY                hash=0x10AB3E59  key="BUTTON_PRESS"
- *  14    OPEN_CALL           0   content=3         SE_LOG
- *  15      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  16        STR_IDX                 idx=61 len=19   "Event: BUTTON_PRESS"
- *  17    CLOSE                   (end SE_LOG)
- *  18    OPEN_CALL           0   content=3         TOGGLE_ENABLED
- *  19      ONESHOT           0   func_idx=13     hash=0x2D0F9AEB
- *  20        FIELD                   hash=0x02F3B39E  "enabled"
- *  21    CLOSE                   (end TOGGLE_ENABLED)
- *  22      CLOSE_KEY               brace=9     
- *  23      OPEN_KEY                hash=0xC9FC6730  key="SENSOR_TRIGGER"
- *  24    OPEN_CALL           0   content=3         SE_LOG
- *  25      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  26        STR_IDX                 idx=62 len=21   "Event: SENSOR_TRIGGER"
- *  27    CLOSE                   (end SE_LOG)
- *  28    OPEN_CALL           0   content=3         READ_SENSOR
- *  29      ONESHOT           0   func_idx=14     hash=0x86807A58
- *  30        FIELD                   hash=0xE9F2A935  "temperature"
- *  31    CLOSE                   (end READ_SENSOR)
- *  32      CLOSE_KEY               brace=9     
- *  33      OPEN_KEY                hash=0x98AE7DCB  key="SHUTDOWN"
- *  34    OPEN_CALL           0   content=3         SE_LOG
- *  35      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  36        STR_IDX                 idx=63 len=15   "Event: SHUTDOWN"
- *  37    CLOSE                   (end SE_LOG)
- *  38      RESULT                  value=5   SE_FUNCTION_TERMINATE
- *  39      CLOSE_KEY               brace=6     
- *  40      OPEN_KEY                hash=0x0D76D520  key="RESET"
- *  41    OPEN_CALL           0   content=3         SE_LOG
- *  42      ONESHOT           0   func_idx=1      hash=0xCEBBEFA4
- *  43        STR_IDX                 idx=64 len=12   "Event: RESET"
- *  44    CLOSE                   (end SE_LOG)
- *  45      RESULT                  value=3   SE_RESET
- *  46      CLOSE_KEY               brace=6     
- *  47      CLOSE_DICT              brace=45    
- *  48  CLOSE                   (end SE_NAMED_EVENT_DISPATCH)
- */
-
-/*
- * TREE: test_complex_structures
- * Hash: 0x581C8A41
- * Record: test_blackboard
- * Nodes: 1, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=76      LOAD_CONFIG
- *   1    MAIN              0   func_idx=46     hash=0x2C30B0AC
- *   2      OPEN_DICT               brace=TBD
- *   3      OPEN_KEY                hash=0x5FD70E98  key="sensors"
- *   4      OPEN_ARRAY              brace=TBD
- *   5      OPEN_TUPLE              brace=TBD
- *   6      STR_IDX                 idx=65 len=6    "temp_1"
- *   7      INT                     value=0     
- *   8      FLOAT                   value=0
- *   9      FLOAT                   value=100
- *  10      CLOSE_TUPLE             brace=5     
- *  11      OPEN_TUPLE              brace=TBD
- *  12      STR_IDX                 idx=66 len=6    "temp_2"
- *  13      INT                     value=1     
- *  14      FLOAT                   value=-40
- *  15      FLOAT                   value=125
- *  16      CLOSE_TUPLE             brace=5     
- *  17      CLOSE_ARRAY             brace=13    
- *  18      CLOSE_KEY               brace=15    
- *  19      OPEN_KEY                hash=0x4332DBFF  key="actuators"
- *  20      OPEN_ARRAY              brace=TBD
- *  21      OPEN_TUPLE              brace=TBD
- *  22      STR_IDX                 idx=67 len=7    "motor_1"
- *  23      INT                     value=0     
- *  24      OPEN_DICT               brace=TBD
- *  25      OPEN_KEY                hash=0xC98F4557  key="min"
- *  26      FLOAT                   value=-100
- *  27      CLOSE_KEY               brace=2     
- *  28      OPEN_KEY                hash=0xD7A2E319  key="max"
- *  29      FLOAT                   value=100
- *  30      CLOSE_KEY               brace=2     
- *  31      OPEN_KEY                hash=0x933B5BDE  key="default"
- *  32      FLOAT                   value=0
- *  33      CLOSE_KEY               brace=2     
- *  34      CLOSE_DICT              brace=10    
- *  35      CLOSE_TUPLE             brace=14    
- *  36      OPEN_TUPLE              brace=TBD
- *  37      STR_IDX                 idx=68 len=7    "valve_1"
- *  38      INT                     value=1     
- *  39      OPEN_DICT               brace=TBD
- *  40      OPEN_KEY                hash=0xC98F4557  key="min"
- *  41      FLOAT                   value=0
- *  42      CLOSE_KEY               brace=2     
- *  43      OPEN_KEY                hash=0xD7A2E319  key="max"
- *  44      FLOAT                   value=1
- *  45      CLOSE_KEY               brace=2     
- *  46      OPEN_KEY                hash=0x933B5BDE  key="default"
- *  47      FLOAT                   value=0
- *  48      CLOSE_KEY               brace=2     
- *  49      CLOSE_DICT              brace=10    
- *  50      CLOSE_TUPLE             brace=14    
- *  51      CLOSE_ARRAY             brace=31    
- *  52      CLOSE_KEY               brace=33    
- *  53      OPEN_KEY                hash=0xB52F0137  key="timing"
- *  54      OPEN_DICT               brace=TBD
- *  55      OPEN_KEY                hash=0xAB20B273  key="tick_rate"
- *  56      INT                     value=100   
- *  57      CLOSE_KEY               brace=2     
- *  58      OPEN_KEY                hash=0x68DEB0F7  key="watchdog_ms"
- *  59      INT                     value=1000  
- *  60      CLOSE_KEY               brace=2     
- *  61      OPEN_KEY                hash=0xCB5BF9AE  key="startup_delay"
- *  62      FLOAT                   value=0.5
- *  63      CLOSE_KEY               brace=2     
- *  64      CLOSE_DICT              brace=10    
- *  65      CLOSE_KEY               brace=12    
- *  66      OPEN_KEY                hash=0x9C677A2C  key="flags"
- *  67      OPEN                    brace=TBD
- *  68      UINT                    value=1       (0x00000001)
- *  69      UINT                    value=2       (0x00000002)
- *  70      UINT                    value=4       (0x00000004)
- *  71      UINT                    value=8       (0x00000008)
- *  72      CLOSE                   brace=5     
- *  73      CLOSE_KEY               brace=7     
- *  74      CLOSE_DICT              brace=72    
- *  75      RESULT                  value=0   SE_CONTINUE
- *  76  CLOSE                   (end LOAD_CONFIG)
- */
-
-/*
- * TREE: test_alist_style
- * Hash: 0xF91097B7
- * Record: test_blackboard
- * Nodes: 1, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=21      PROCESS_ALIST
- *   1    MAIN              0   func_idx=47     hash=0x55C4D336
- *   2      OPEN                    brace=TBD
- *   3      OPEN_TUPLE              brace=TBD
- *   4      STR_HASH                hash=0x8D39BDE6  "name"
- *   5      STR_IDX                 idx=69 len=11   "test_system"
- *   6      CLOSE_TUPLE             brace=3     
- *   7      OPEN_TUPLE              brace=TBD
- *   8      STR_HASH                hash=0x4671AE97  "version"
- *   9      INT                     value=1     
- *  10      CLOSE_TUPLE             brace=3     
- *  11      OPEN_TUPLE              brace=TBD
- *  12      STR_HASH                hash=0x02F3B39E  "enabled"
- *  13      INT                     value=1     
- *  14      CLOSE_TUPLE             brace=3     
- *  15      OPEN_TUPLE              brace=TBD
- *  16      STR_HASH                hash=0x97F68388  "timeout"
- *  17      FLOAT                   value=5
- *  18      CLOSE_TUPLE             brace=3     
- *  19      CLOSE                   brace=17    
- *  20      RESULT                  value=0   SE_CONTINUE
- *  21  CLOSE                   (end PROCESS_ALIST)
- */
-
-/*
- * TREE: test_plist_style
- * Hash: 0x017D22AC
- * Record: test_blackboard
- * Nodes: 1, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=15      PROCESS_PLIST
- *   1    MAIN              0   func_idx=48     hash=0xD36A3C79
- *   2      OPEN                    brace=TBD
- *   3      STR_HASH                hash=0x8D39BDE6  "name"
- *   4      STR_IDX                 idx=70 len=16   "motor_controller"
- *   5      STR_HASH                hash=0x21C252A4  "channel"
- *   6      INT                     value=3     
- *   7      STR_HASH                hash=0x1B5426FE  "gain"
- *   8      FLOAT                   value=2.5
- *   9      STR_HASH                hash=0x02F3B39E  "enabled"
- *  10      INT                     value=1     
- *  11      STR_HASH                hash=0xEC6EE012  "mode"
- *  12      STR_HASH                hash=0x923FA396  "auto"
- *  13      CLOSE                   brace=11    
- *  14      RESULT                  value=0   SE_CONTINUE
- *  15  CLOSE                   (end PROCESS_PLIST)
- */
-
-/*
- * TREE: test_mixed_dispatch
- * Hash: 0x713521BC
- * Record: test_blackboard
- * Nodes: 6, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=45      MIXED_STRUCTURE_DISPATCH
- *   1    MAIN              0   func_idx=49     hash=0xD42AB691
- *   2      FIELD                   hash=0x93594AB2  "command"
- *   3      OPEN_DICT               brace=TBD
- *   4      OPEN_KEY                hash=0x00000000
- *   5      INT                     value=0     
- *   6      STR_IDX                 idx=40 len=4    "idle"
- *   7      CLOSE_KEY               brace=3     
- *   8      OPEN_KEY                hash=0x00000001
- *   9      OPEN_ARRAY              brace=TBD
- *  10    OPEN_CALL           0   content=2         ACTION_1
- *  11      ONESHOT           0   func_idx=15     hash=0x46B57543
- *  12    CLOSE                   (end ACTION_1)
- *  13    OPEN_CALL           0   content=2         ACTION_2
- *  14      ONESHOT           0   func_idx=16     hash=0x47B576D6
- *  15    CLOSE                   (end ACTION_2)
- *  16    OPEN_CALL           0   content=2         ACTION_3
- *  17      ONESHOT           0   func_idx=17     hash=0x48B57869
- *  18    CLOSE                   (end ACTION_3)
- *  19      CLOSE_ARRAY             brace=10    
- *  20      CLOSE_KEY               brace=12    
- *  21      OPEN_KEY                hash=0x00000002
- *  22      OPEN_TUPLE              brace=TBD
- *  23      FLOAT                   value=1
- *  24      FLOAT                   value=2
- *  25      INT                     value=100   
- *  26      UINT                    value=255     (0x000000FF)
- *  27      CLOSE_TUPLE             brace=5     
- *  28      CLOSE_KEY               brace=7     
- *  29      OPEN_KEY                hash=0x00000003
- *  30      OPEN_DICT               brace=TBD
- *  31      OPEN_KEY                hash=0x4DE389E6  key="sub_cmd_a"
- *  32    OPEN_CALL           0   content=2         SUB_ACTION_A
- *  33      ONESHOT           0   func_idx=18     hash=0x97492850
- *  34    CLOSE                   (end SUB_ACTION_A)
- *  35      CLOSE_KEY               brace=4     
- *  36      OPEN_KEY                hash=0x4CE38853  key="sub_cmd_b"
- *  37    OPEN_CALL           0   content=2         SUB_ACTION_B
- *  38      ONESHOT           0   func_idx=19     hash=0x9A492D09
- *  39    CLOSE                   (end SUB_ACTION_B)
- *  40      CLOSE_KEY               brace=4     
- *  41      CLOSE_DICT              brace=11    
- *  42      CLOSE_KEY               brace=13    
- *  43      CLOSE_DICT              brace=40    
- *  44      RESULT                  value=0   SE_CONTINUE
- *  45  CLOSE                   (end MIXED_STRUCTURE_DISPATCH)
- */
-
-/*
- * TREE: test_brace_navigation
- * Hash: 0xD0510C40
- * Record: test_blackboard
- * Nodes: 1, Pointers: 0
- *
- * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
- * ---------------------------------------------------------------
- *   0  OPEN_CALL           0   content=24      BRACE_TEST
- *   1    MAIN              0   func_idx=50     hash=0xA7749965
- *   2      OPEN_DICT               brace=TBD
- *   3      OPEN_KEY                hash=0x83205BE0  key="level1_a"
- *   4      INT                     value=1     
- *   5      OPEN                    brace=TBD
- *   6      INT                     value=2     
- *   7      INT                     value=3     
- *   8      CLOSE                   brace=3     
- *   9      CLOSE_KEY               brace=6     
- *  10      OPEN_KEY                hash=0x86206099  key="level1_b"
- *  11      OPEN_ARRAY              brace=TBD
- *  12      OPEN_TUPLE              brace=TBD
- *  13      INT                     value=10    
- *  14      INT                     value=20    
- *  15      CLOSE_TUPLE             brace=3     
- *  16      OPEN_TUPLE              brace=TBD
- *  17      INT                     value=30    
- *  18      INT                     value=40    
- *  19      CLOSE_TUPLE             brace=3     
- *  20      CLOSE_ARRAY             brace=9     
- *  21      CLOSE_KEY               brace=11    
- *  22      CLOSE_DICT              brace=20    
- *  23      RESULT                  value=0   SE_CONTINUE
- *  24  CLOSE                   (end BRACE_TEST)
+ *   0  OPEN_CALL           0   content=87      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=4         SE_SET_HASH
+ *   3      ONESHOT|SR        0   func_idx=2      hash=0xEF5AD4AB
+ *   4        FIELD                   hash=0xF328E8BF  "hash_state"
+ *   5        STR_HASH                hash=0x652B04DF  "start"
+ *   6    CLOSE                   (end SE_SET_HASH)
+ *   7    OPEN_CALL           0   content=76        SE_NAMED_STATE_MACHINE
+ *   8      MAIN              0   func_idx=24     hash=0x876B8A33
+ *   9        FIELD                   hash=0xF328E8BF  "hash_state"
+ *  10        OPEN_DICT               brace=TBD
+ *  11        OPEN_KEY                hash=0x652B04DF  key="start"
+ *  12      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  13        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  14        OPEN_CALL           0   content=3             SE_LOG
+ *  15          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  16            STR_IDX                 idx=31 len=11   "start state"
+ *  17        CLOSE                   (end SE_LOG)
+ *  18        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  19          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  20            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  21            STR_HASH                hash=0xCB532AE5  "stop"
+ *  22        CLOSE                   (end SE_SET_HASH)
+ *  23        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  24          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  25        CLOSE                   (end SE_RETURN_HALT)
+ *  26      CLOSE                   (end SE_PIPELINE)
+ *  27        CLOSE_KEY               brace=16    
+ *  28        OPEN_KEY                hash=0xCB532AE5  key="stop"
+ *  29      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  30        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  31        OPEN_CALL           0   content=3             SE_LOG
+ *  32          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  33            STR_IDX                 idx=32 len=10   "stop state"
+ *  34        CLOSE                   (end SE_LOG)
+ *  35        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  36          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  37            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  38            STR_HASH                hash=0x7084D38D  "pause"
+ *  39        CLOSE                   (end SE_SET_HASH)
+ *  40        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  41          MAIN              0   func_idx=0      hash=0xB4243714
+ *  42        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  43      CLOSE                   (end SE_PIPELINE)
+ *  44        CLOSE_KEY               brace=16    
+ *  45        OPEN_KEY                hash=0x7084D38D  key="pause"
+ *  46      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  47        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  48        OPEN_CALL           0   content=3             SE_LOG
+ *  49          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  50            STR_IDX                 idx=33 len=11   "pause state"
+ *  51        CLOSE                   (end SE_LOG)
+ *  52        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  53          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  54            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  55            STR_HASH                hash=0x650D33C0  "reset"
+ *  56        CLOSE                   (end SE_SET_HASH)
+ *  57        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  58          MAIN              0   func_idx=0      hash=0xB4243714
+ *  59        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  60      CLOSE                   (end SE_PIPELINE)
+ *  61        CLOSE_KEY               brace=16    
+ *  62        OPEN_KEY                hash=0x650D33C0  key="reset"
+ *  63      OPEN_CALL           0   content=14          SE_PIPELINE
+ *  64        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  65        OPEN_CALL           0   content=3             SE_LOG
+ *  66          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  67            STR_IDX                 idx=34 len=11   "reset state"
+ *  68        CLOSE                   (end SE_LOG)
+ *  69        OPEN_CALL           0   content=4             SE_SET_HASH
+ *  70          ONESHOT           0   func_idx=2      hash=0xEF5AD4AB
+ *  71            FIELD                   hash=0xF328E8BF  "hash_state"
+ *  72            STR_HASH                hash=0x652B04DF  "start"
+ *  73        CLOSE                   (end SE_SET_HASH)
+ *  74        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  75          MAIN              0   func_idx=0      hash=0xB4243714
+ *  76        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  77      CLOSE                   (end SE_PIPELINE)
+ *  78        CLOSE_KEY               brace=16    
+ *  79        CLOSE_DICT              brace=69    
+ *  80      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  81        MAIN              0   func_idx=0      hash=0xB4243714
+ *  82      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  83    CLOSE                   (end SE_NAMED_STATE_MACHINE)
+ *  84    OPEN_CALL           0   content=2         SE_RETURN_CONTINUE
+ *  85      MAIN              0   func_idx=0      hash=0xB4243714
+ *  86    CLOSE                   (end SE_RETURN_CONTINUE)
+ *  87  CLOSE                   (end SE_PIPELINE)
  */
 
 #endif // S_EXPR_DSL_TEST_DUMP_32_H

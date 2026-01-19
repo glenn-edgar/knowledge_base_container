@@ -11,6 +11,7 @@
 #include "s_engine_eval.h"
 #include "s_engine_builtins.h"
 #include "cfl_exception.h"
+#include "s_engine_node.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -892,8 +893,9 @@ bool deep_pred_3(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uin
 // TEST TREE 13: Basic List Functions
 // ============================================================================
 
-// SE_PROCESS_INT_LIST - process a list of integers
-// params: [OPEN list...integers... CLOSE] [RESULT]
+/// SE_PROCESS_INT_LIST - process a list of integers
+// params: [OPEN list...integers... CLOSE]
+// Returns SE_CONTINUE after processing
 s_expr_result_t process_int_list(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -904,34 +906,45 @@ s_expr_result_t process_int_list(
 ) {
     (void)event_id; (void)event_data; (void)inst;
     
-    // Handle lifecycle events
-    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+    // Structure:
+    // Child 0: OPEN list of integers CLOSE - not callable
+    
+    if (event_type == SE_EVENT_TERMINATE) {
         return SE_CONTINUE;
     }
     
-    if (param_count < 1){
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Process the integer list
+    if (param_count < 1) {
         EXCEPTION("se_process_int_list: expected at least 1 parameter");
         return SE_CONTINUE;
     }
     
     // First param should be OPEN (the list)
-    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    uint16_t list_phys_idx = s_expr_child_index(params, param_count, 0);
+    if (list_phys_idx == UINT16_MAX) {
+        EXCEPTION("se_process_int_list: no list found");
+        return SE_CONTINUE;
+    }
+    
+    uint8_t opcode = params[list_phys_idx].type & S_EXPR_OPCODE_MASK;
     if (opcode != S_EXPR_PARAM_OPEN) {
         EXCEPTION("se_process_int_list: expected OPEN for list");
         return SE_CONTINUE;
     }
     
     // Get list bounds using brace_idx
-    uint16_t list_end_idx = params[0].brace_idx;  // Index of CLOSE relative to OPEN
+    uint16_t list_end_idx = list_phys_idx + params[list_phys_idx].brace_idx;
     
-    // Iterate through list contents (skip OPEN at 0, stop before CLOSE)
-    for (uint16_t i = 1; i < list_end_idx; i++) {
+    // Iterate through list contents (skip OPEN, stop before CLOSE)
+    for (uint16_t i = list_phys_idx + 1; i < list_end_idx; i++) {
         uint8_t elem_opcode = params[i].type & S_EXPR_OPCODE_MASK;
         
         if (elem_opcode == S_EXPR_PARAM_INT) {
             int32_t value = (int32_t)params[i].int_val;
-            
-            // Do something with the integer
             printf("Processing int: %d\n", value);
         }
         else if (elem_opcode == S_EXPR_PARAM_UINT) {
@@ -945,14 +958,13 @@ s_expr_result_t process_int_list(
         }
     }
     
-    // Find result code at end of params
-    s_expr_result_t result = s_expr_find_result(params, param_count);
-    printf("result: %d\n", result);
-    
-    return result;
+    return SE_CONTINUE;
 }
+// ============================================================================
+// multi_list_func - Process multiple lists (sum floats)
+// NEW FORMAT: Uses proper event handling
+// ============================================================================
 
-// Maximum lists we'll track
 #define MAX_LISTS 16
 
 typedef struct {
@@ -970,9 +982,16 @@ s_expr_result_t multi_list_func(
 ) {
     (void)inst; (void)event_id; (void)event_data;
     
-    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+    // Handle lifecycle events
+    if (event_type == SE_EVENT_INIT) {
         return SE_CONTINUE;
     }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Process the lists
     
     // =========================================================================
     // PASS 1: Identify all lists and store their locations
@@ -986,7 +1005,7 @@ s_expr_result_t multi_list_func(
         
         if (opcode == S_EXPR_PARAM_OPEN) {
             lists[list_count].param_idx = idx;
-            lists[list_count].element_count = params[idx].brace_idx - 1;  // Exclude OPEN/CLOSE
+            lists[list_count].element_count = params[idx].brace_idx - 1;
             list_count++;
         }
         
@@ -1010,7 +1029,7 @@ s_expr_result_t multi_list_func(
         
         printf("\nProcessing List %u:\n", list_idx + 1);
         
-        // Sum floats as example processing
+        // Sum floats
         float sum = 0.0f;
         for (uint16_t i = 0; i < content_count; i++) {
             if ((contents[i].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
@@ -1023,6 +1042,12 @@ s_expr_result_t multi_list_func(
     
     return s_expr_find_result(params, param_count);
 }
+
+
+// ============================================================================
+// nested_lists - Iterative nested list traversal
+// NEW FORMAT: Uses proper event handling
+// ============================================================================
 
 #define MAX_NESTING_DEPTH 8
 
@@ -1042,15 +1067,24 @@ s_expr_result_t nested_lists(
 ) {
     (void)inst; (void)event_id; (void)event_data;
     
-    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+    // Handle lifecycle events
+    if (event_type == SE_EVENT_INIT) {
         return SE_CONTINUE;
     }
     
-    // Find the outer list
-    if (param_count < 1){
-        EXCEPTION("nested_lists_iterative: expected at least 1 parameter");
+    if (event_type == SE_EVENT_TERMINATE) {
         return SE_CONTINUE;
     }
+    
+    // TICK: Process nested lists
+    
+    // Validate: need at least one parameter
+    if (param_count < 1) {
+        EXCEPTION("nested_lists: expected at least 1 parameter");
+        return SE_CONTINUE;
+    }
+    
+    // Check if first param is a list
     if ((params[0].type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_OPEN) {
         return s_expr_find_result(params, param_count);
     }
@@ -1077,9 +1111,8 @@ s_expr_result_t nested_lists(
         
         // Check if current list is exhausted
         if (frame->current_idx >= frame->count) {
-            // Pop this list
             stack_depth--;
-            printf("%*sEXIT list at depth %d\n", (stack_depth) * 2, "", stack_depth);
+            printf("%*sEXIT list at depth %d\n", stack_depth * 2, "", stack_depth);
             continue;
         }
         
@@ -1159,7 +1192,7 @@ s_expr_result_t state_machine_dispatch(
 ) {
     (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
     printf("STATE_MACHINE_DISPATCH: param_count=%u\n", param_count);
-    exit(0);
+    
     return SE_CONTINUE;
 }
 
