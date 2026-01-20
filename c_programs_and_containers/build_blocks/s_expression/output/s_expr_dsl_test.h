@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: s_expr_dsl_test
 #define S_EXPR_DSL_TEST_NAME_HASH 0x7BB33CC5
-#define S_EXPR_DSL_TEST_TREE_COUNT 21
+#define S_EXPR_DSL_TEST_TREE_COUNT 27
 #define S_EXPR_DSL_TEST_RECORD_COUNT 9
 
 // String table
@@ -60,14 +60,37 @@ static const char* const s_expr_dsl_test_strings[] = {
     "temp_sensor",
     "pressure_sensor",
     "humidity_sensor",
-    "motor_config"
+    "motor_config",
+    "State: INIT",
+    "State: READY",
+    "State: COMPLETE",
+    "State: ERROR",
+    "Event: TIMER_TICK",
+    "Event: BUTTON_PRESS",
+    "Event: SENSOR_TRIGGER",
+    "Event: SHUTDOWN",
+    "Event: RESET",
+    "temp_1",
+    "temp_2",
+    "motor_1",
+    "valve_1",
+    "test_system",
+    "motor_controller"
 };
-#define S_EXPR_DSL_TEST_STRING_COUNT 40
+#define S_EXPR_DSL_TEST_STRING_COUNT 55
 
 // Function hashes
 #define SE_LOG_HASH 0xCEBBEFA4
 #define SET_STATE_HASH 0xE5FF0069
 #define SE_SET_HASH_HASH 0xEF5AD4AB
+#define ON_BIT0_RISE_HASH 0x13068D30
+#define ON_BIT0_FALL_HASH 0xF8140330
+#define ON_BITS_12_RISE_HASH 0xFE5ADA37
+#define ON_BITS_12_FALL_HASH 0x7B832107
+#define ON_BITS_34_RISE_HASH 0x6B533EF3
+#define ON_BITS_34_FALL_HASH 0x29423823
+#define ON_BIT5_CLEAR_HASH 0x15953A35
+#define ON_BIT5_SET_HASH 0xAC23F0C8
 #define SE_RETURN_CONTINUE_HASH 0xB4243714
 #define SE_RETURN_TERMINATE_HASH 0xDFE64C74
 #define SE_RETURN_RESET_HASH 0x70EAA030
@@ -99,11 +122,22 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define PROCESS_TUPLE_HASH 0xDE2C8DF7
 #define TUPLE_TABLE_HASH 0xDB0DE5BE
 #define COMPLEX_TUPLE_HASH 0x715D092E
+#define SE_NAMED_EVENT_DISPATCH_HASH 0x5E99A787
+#define INCREMENT_COUNTER_HASH 0x29E86A85
+#define TOGGLE_ENABLED_HASH 0x2D0F9AEB
+#define READ_SENSOR_HASH 0x86807A58
+#define LOAD_CONFIG_HASH 0x2C30B0AC
+#define PROCESS_ALIST_HASH 0x55C4D336
+#define PROCESS_PLIST_HASH 0xD36A3C79
 #define CHECK_CONDITION_HASH 0x27B2B70D
 #define ANOTHER_CONDITION_HASH 0xA303CD62
 #define MONITOR_STATE_HASH 0xC04E8337
 #define BUTTON_PRESSED_HASH 0x520E2FF0
 #define SENSOR_ACTIVE_HASH 0x6FAC375E
+#define TEST_BIT_HASH 0x2D749139
+#define SE_PRED_AND_HASH 0x7C0DF5F3
+#define SE_PRED_OR_HASH 0x0CF6212F
+#define SE_PRED_NOT_HASH 0x217DEB8F
 
 // Tree hashes
 #define TEST_RESULT_CODES_1_HASH 0xEBA1F08A
@@ -127,6 +161,12 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define TEST_DICTIONARY_WITH_ACTIONS_HASH 0xD995097B
 #define TEST_ARRAY_BASIC_HASH 0xAFECDD8E
 #define TEST_TUPLE_BASIC_HASH 0xA310BFED
+#define TEST_NAMED_STATE_MACHINE_HASH 0xB7C0ED13
+#define TEST_DICT_EVENT_DISPATCH_HASH 0xC0516A38
+#define TEST_COMPLEX_STRUCTURES_HASH 0x581C8A41
+#define TEST_ALIST_STYLE_HASH 0xF91097B7
+#define TEST_PLIST_STYLE_HASH 0x017D22AC
+#define TEST_TRIGGER_ON_CHANGE_HASH 0x28DCF95F
 
 // Record hashes
 #define ALL_PRIMITIVES_HASH 0xBF9832AB

@@ -1780,8 +1780,7 @@ bool check_start_condition(
 // ============================================================================
 // TEST TREE 19: Dict Event Dispatch
 // ============================================================================
-
-void increment_counter(
+s_expr_result_t increment_counter(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -1789,12 +1788,42 @@ void increment_counter(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("INCREMENT_COUNTER: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Increment the counter field
+    if (param_count < 1) {
+        EXCEPTION("increment_counter: need field_ref");
+        return SE_CONTINUE;
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("increment_counter: expected field_ref");
+        return SE_CONTINUE;
+    }
+    
+    // Get pointer to the counter field in blackboard
+    int32_t* counter_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!counter_ptr) {
+        EXCEPTION("increment_counter: NULL field pointer");
+        return SE_CONTINUE;
+    }
+    
+    // Increment
+    int32_t old_val = *counter_ptr;
+    (*counter_ptr)++;
+    
+    printf("INCREMENT_COUNTER: %d -> %d\n", old_val, *counter_ptr);
+    
+    return SE_CONTINUE;  // Event dispatch handles lifecycle
 }
 
-void toggle_enabled(
+
+s_expr_result_t toggle_enabled(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -1802,12 +1831,42 @@ void toggle_enabled(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("TOGGLE_ENABLED: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Toggle the boolean field
+    if (param_count < 1) {
+        EXCEPTION("toggle_enabled: need field_ref");
+        return SE_DISABLE;
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("toggle_enabled: expected field_ref");
+        return SE_DISABLE;
+    }
+    
+    // Get pointer to the boolean field in blackboard
+    bool* enabled_ptr = S_EXPR_GET_FIELD(inst, &params[0], bool);
+    if (!enabled_ptr) {
+        EXCEPTION("toggle_enabled: NULL field pointer");
+        return SE_DISABLE;
+    }
+    
+    // Toggle
+    *enabled_ptr = !(*enabled_ptr);
+    
+    printf("TOGGLE_ENABLED: %s -> %s\n", 
+           *enabled_ptr ? "false" : "true",   // was
+           *enabled_ptr ? "true" : "false");  // now
+    
+    return SE_DISABLE;  // One-shot action, done
 }
 
-void read_sensor(
+s_expr_result_t read_sensor(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -1815,11 +1874,40 @@ void read_sensor(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("READ_SENSOR: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Read sensor and store in field
+    if (param_count < 1) {
+        EXCEPTION("read_sensor: need field_ref");
+        return SE_CONTINUE;
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("read_sensor: expected field_ref");
+        return SE_CONTINUE;
+    }
+    
+    // Get pointer to the temperature field in blackboard
+    int32_t* temp_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!temp_ptr) {
+        EXCEPTION("read_sensor: NULL field pointer");
+        return SE_CONTINUE;
+    }
+    
+    // Simulate sensor read - increment by small random-ish amount
+    // In real system this would read actual hardware
+    int32_t old_val = *temp_ptr;
+    *temp_ptr = old_val + (old_val % 3) + 1;  // Simple deterministic "variation"
+    
+    printf("READ_SENSOR: temperature %d -> %d\n", old_val, *temp_ptr);
+    
+    return SE_CONTINUE;  // Event dispatch handles lifecycle
 }
-
 // ============================================================================
 // TEST TREE 20: Complex Structures
 // ============================================================================
@@ -1832,13 +1920,181 @@ s_expr_result_t load_config(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("LOAD_CONFIG: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (param_count < 1) {
+        EXCEPTION("load_config: need dict");
+        return SE_CONTINUE;
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
+        EXCEPTION("load_config: expected OPEN_DICT");
+        return SE_CONTINUE;
+    }
+    
+    const s_expr_param_t* config_dict = &params[0];
+    
+    printf("=== LOAD_CONFIG: Parsing configuration ===\n");
+    
+    // =========================================================================
+    // Parse "sensors" - array of tuples (name, id, min, max)
+    // =========================================================================
+    uint32_t sensors_hash = s_expr_hash("sensors");
+    const s_expr_param_t* sensors_content = s_expr_dict_find_key(config_dict, sensors_hash);
+    
+    if (sensors_content) {
+        printf("\n[sensors]\n");
+        
+        uint16_t array_count;
+        const s_expr_param_t* array_items = s_expr_array_contents(sensors_content, &array_count);
+        
+        if (array_items) {
+            const s_expr_param_t* p = array_items;
+            int sensor_idx = 0;
+            
+            while (p < sensors_content + sensors_content->brace_idx) {
+                if (S_EXPR_PARAM_IS_OPEN_TUPLE(p->type)) {
+                    uint16_t tuple_count;
+                    const s_expr_param_t* tuple_items = s_expr_tuple_contents(p, &tuple_count);
+                    
+                    if (tuple_items && tuple_count >= 4) {
+                        const char* name = inst->module->def->string_table[tuple_items[0].str_index];
+                        int32_t id = tuple_items[1].int_val;
+                        float min_val = tuple_items[2].float_val;
+                        float max_val = tuple_items[3].float_val;
+                        
+                        printf("  sensor[%d]: name=\"%s\" id=%d range=[%.1f, %.1f]\n",
+                               sensor_idx, name, id, min_val, max_val);
+                    }
+                    
+                    p += p->brace_idx + 1;
+                    sensor_idx++;
+                } else {
+                    p++;
+                }
+            }
+        }
+    }
+    
+    // =========================================================================
+    // Parse "actuators" - array of tuples (name, id, dict{min,max,default})
+    // =========================================================================
+    uint32_t actuators_hash = s_expr_hash("actuators");
+    const s_expr_param_t* actuators_content = s_expr_dict_find_key(config_dict, actuators_hash);
+    
+    if (actuators_content) {
+        printf("\n[actuators]\n");
+        
+        uint16_t array_count;
+        const s_expr_param_t* array_items = s_expr_array_contents(actuators_content, &array_count);
+        
+        if (array_items) {
+            const s_expr_param_t* p = array_items;
+            int actuator_idx = 0;
+            
+            while (p < actuators_content + actuators_content->brace_idx) {
+                if (S_EXPR_PARAM_IS_OPEN_TUPLE(p->type)) {
+                    uint16_t tuple_count;
+                    const s_expr_param_t* tuple_items = s_expr_tuple_contents(p, &tuple_count);
+                    
+                    if (tuple_items && tuple_count >= 3) {
+                        const char* name = inst->module->def->string_table[tuple_items[0].str_index];
+                        int32_t id = tuple_items[1].int_val;
+                        
+                        printf("  actuator[%d]: name=\"%s\" id=%d", actuator_idx, name, id);
+                        
+                        const s_expr_param_t* limits_dict = &tuple_items[2];
+                        if (S_EXPR_PARAM_IS_OPEN_DICT(limits_dict->type)) {
+                            uint32_t min_hash = s_expr_hash("min");
+                            uint32_t max_hash = s_expr_hash("max");
+                            uint32_t default_hash = s_expr_hash("default");
+                            
+                            const s_expr_param_t* min_val = s_expr_dict_find_key(limits_dict, min_hash);
+                            const s_expr_param_t* max_val = s_expr_dict_find_key(limits_dict, max_hash);
+                            const s_expr_param_t* def_val = s_expr_dict_find_key(limits_dict, default_hash);
+                            
+                            printf(" limits={");
+                            if (min_val) printf("min=%.1f", min_val->float_val);
+                            if (max_val) printf(", max=%.1f", max_val->float_val);
+                            if (def_val) printf(", default=%.1f", def_val->float_val);
+                            printf("}");
+                        }
+                        printf("\n");
+                    }
+                    
+                    p += p->brace_idx + 1;
+                    actuator_idx++;
+                } else {
+                    p++;
+                }
+            }
+        }
+    }
+    
+    // =========================================================================
+    // Parse "timing" - dict with tick_rate, watchdog_ms, startup_delay
+    // =========================================================================
+    uint32_t timing_hash = s_expr_hash("timing");
+    const s_expr_param_t* timing_content = s_expr_dict_find_key(config_dict, timing_hash);
+    
+    if (timing_content) {
+        printf("\n[timing]\n");
+        
+        if (S_EXPR_PARAM_IS_OPEN_DICT(timing_content->type)) {
+            uint32_t tick_rate_hash = s_expr_hash("tick_rate");
+            uint32_t watchdog_hash = s_expr_hash("watchdog_ms");
+            uint32_t startup_hash = s_expr_hash("startup_delay");
+            
+            const s_expr_param_t* tick_rate = s_expr_dict_find_key(timing_content, tick_rate_hash);
+            const s_expr_param_t* watchdog = s_expr_dict_find_key(timing_content, watchdog_hash);
+            const s_expr_param_t* startup = s_expr_dict_find_key(timing_content, startup_hash);
+            
+            if (tick_rate) printf("  tick_rate: %d Hz\n", tick_rate->int_val);
+            if (watchdog) printf("  watchdog_ms: %d ms\n", watchdog->int_val);
+            if (startup) printf("  startup_delay: %.2f s\n", startup->float_val);
+        }
+    }
+    
+    // =========================================================================
+    // Parse "flags" - list of uint flags
+    // =========================================================================
+    uint32_t flags_hash = s_expr_hash("flags");
+    const s_expr_param_t* flags_content = s_expr_dict_find_key(config_dict, flags_hash);
+    
+    if (flags_content) {
+        printf("\n[flags]\n");
+        
+        uint16_t list_count;
+        const s_expr_param_t* list_items = s_expr_list_contents(flags_content, &list_count);
+        
+        if (list_items) {
+            uint32_t combined_flags = 0;
+            printf("  flags: ");
+            for (uint16_t i = 0; i < list_count; i++) {
+                uint32_t flag = list_items[i].uint_val;
+                combined_flags |= flag;
+                printf("0x%02X ", flag);
+            }
+            printf("\n  combined: 0x%02X\n", combined_flags);
+            
+            printf("  decoded: ");
+            if (combined_flags & 0x01) printf("LOGGING ");
+            if (combined_flags & 0x02) printf("WATCHDOG ");
+            if (combined_flags & 0x04) printf("SAFETY ");
+            if (combined_flags & 0x08) printf("DEBUG ");
+            printf("\n");
+        }
+    }
+    
+    printf("\n=== Configuration loaded ===\n");
     
     return SE_CONTINUE;
 }
-
 // ============================================================================
 // TEST TREE 21: Alist Style
 // ============================================================================
@@ -1851,13 +2107,40 @@ s_expr_result_t process_alist(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("PROCESS_ALIST: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (param_count < 1 || !S_EXPR_PARAM_IS_OPEN(params[0].type)) {
+        EXCEPTION("process_alist: need list");
+        return SE_CONTINUE;
+    }
+    
+    const s_expr_param_t* alist = &params[0];
+    const s_expr_module_def_t* def = inst->module->def;
+    
+    printf("=== PROCESS_ALIST ===\n");
+    
+    // Clean typed access with defaults
+    const char* name = s_expr_alist_str(def, alist, s_expr_hash("name"), "unknown");
+    int32_t version = s_expr_alist_int(alist, s_expr_hash("version"), 0);
+    bool enabled = s_expr_alist_bool(alist, s_expr_hash("enabled"), false);
+    float timeout = s_expr_alist_float(alist, s_expr_hash("timeout"), 1.0f);
+    
+    printf("  name:    \"%s\"\n", name);
+    printf("  version: %d\n", version);
+    printf("  enabled: %s\n", enabled ? "true" : "false");
+    printf("  timeout: %.2f\n", timeout);
+    
+    printf("=== Done ===\n");
+    
     return SE_CONTINUE;
 }
 
-// ============================================================================
+
+//============================================================================
 // TEST TREE 22: Plist Style
 // ============================================================================
 
@@ -1869,17 +2152,53 @@ s_expr_result_t process_plist(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("PROCESS_PLIST: param_count=%u\n", param_count);
-    exit(0);
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (param_count < 1 || !S_EXPR_PARAM_IS_OPEN(params[0].type)) {
+        EXCEPTION("process_plist: need list");
+        return SE_CONTINUE;
+    }
+    
+    const s_expr_param_t* plist = &params[0];
+    const s_expr_module_def_t* def = inst->module->def;
+    
+    printf("=== PROCESS_PLIST ===\n");
+    
+    // Clean typed access with defaults
+    const char* name = s_expr_plist_str(def, plist, s_expr_hash("name"), "unknown");
+    int32_t channel = s_expr_plist_int(plist, s_expr_hash("channel"), -1);
+    float gain = s_expr_plist_float(plist, s_expr_hash("gain"), 1.0f);
+    bool enabled = s_expr_plist_bool(plist, s_expr_hash("enabled"), false);
+    s_expr_hash_t mode = s_expr_plist_hash(plist, s_expr_hash("mode"), 0);
+    
+    // Decode mode hash for display
+    const char* mode_str = "unknown";
+    if (mode == s_expr_hash("auto")) mode_str = "auto";
+    else if (mode == s_expr_hash("manual")) mode_str = "manual";
+    else if (mode == s_expr_hash("off")) mode_str = "off";
+    
+    printf("  name:    \"%s\"\n", name);
+    printf("  channel: %d\n", channel);
+    printf("  gain:    %.2f\n", gain);
+    printf("  enabled: %s\n", enabled ? "true" : "false");
+    printf("  mode:    %s (0x%08X)\n", mode_str, mode);
+    
+    printf("=== Done ===\n");
+    
     return SE_CONTINUE;
 }
 
 // ============================================================================
-// TEST TREE 23: Mixed Dispatch
+// TEST BITMAP CONTEXT
+// Stored in inst->user_ctx as uint32_t*
 // ============================================================================
 
-s_expr_result_t mixed_structure_dispatch(
+// Predicate: Test if bit N is set
+bool test_bit(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -1887,82 +2206,53 @@ s_expr_result_t mixed_structure_dispatch(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("MIXED_STRUCTURE_DISPATCH: param_count=%u\n", param_count);
-    exit(0);
-    return SE_CONTINUE;
-}
-
-void action_1(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("ACTION_1\n");
-    exit(0);
-}
-
-void action_2(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("ACTION_2\n");
-    exit(0);
-}
-
-void action_3(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("ACTION_3\n");\
-    exit(0);
-}
-
-void sub_action_a(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("SUB_ACTION_A\n");
-    exit(0);
-}
-
-void sub_action_b(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("SUB_ACTION_B\n");
-    exit(0);
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    if (param_count < 1) {
+        EXCEPTION("test_bit: need bit index");
+        return false;
+    }
+    
+    uint32_t* bitmap = (uint32_t*)inst->user_ctx;
+    if (!bitmap) {
+        EXCEPTION("test_bit: no bitmap in user_ctx");
+        return false;
+    }
+    
+    int32_t bit_index = params[0].int_val;
+    if (bit_index < 0 || bit_index > 31) {
+        EXCEPTION("test_bit: bit index out of range");
+        return false;
+    }
+    
+    bool result = (*bitmap & (1U << bit_index)) != 0;
+    return result;
 }
 
 // ============================================================================
-// TEST TREE 24: Brace Navigation
+// TRIGGER ACTIONS - Print and record what happened
 // ============================================================================
 
-s_expr_result_t brace_test(
+static uint32_t g_trigger_events = 0;  // Bitmask of which events fired
+
+#define EVENT_BIT0_RISE     (1U << 0)
+#define EVENT_BIT0_FALL     (1U << 1)
+#define EVENT_BITS12_RISE   (1U << 2)
+#define EVENT_BITS12_FALL   (1U << 3)
+#define EVENT_BITS34_RISE   (1U << 4)
+#define EVENT_BITS34_FALL   (1U << 5)
+#define EVENT_BIT5_CLEAR    (1U << 6)
+#define EVENT_BIT5_SET      (1U << 7)
+
+void reset_trigger_events(void) {
+    g_trigger_events = 0;
+}
+
+uint32_t get_trigger_events(void) {
+    return g_trigger_events;
+}
+
+void on_bit0_rise(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -1970,8 +2260,106 @@ s_expr_result_t brace_test(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("BRACE_TEST: param_count=%u\n", param_count);
-    exit(0);
-    return SE_CONTINUE;
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BIT0_RISE\n");
+    g_trigger_events |= EVENT_BIT0_RISE;
+}
+
+void on_bit0_fall(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BIT0_FALL\n");
+    g_trigger_events |= EVENT_BIT0_FALL;
+}
+
+void on_bits_12_rise(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BITS_12_RISE (bit1 AND bit2)\n");
+    g_trigger_events |= EVENT_BITS12_RISE;
+}
+
+void on_bits_12_fall(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BITS_12_FALL (bit1 AND bit2)\n");
+    g_trigger_events |= EVENT_BITS12_FALL;
+}
+
+void on_bits_34_rise(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BITS_34_RISE (bit3 OR bit4)\n");
+    g_trigger_events |= EVENT_BITS34_RISE;
+}
+
+void on_bits_34_fall(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BITS_34_FALL (bit3 OR bit4)\n");
+    g_trigger_events |= EVENT_BITS34_FALL;
+}
+
+void on_bit5_clear(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BIT5_CLEAR (NOT bit5 went true)\n");
+    g_trigger_events |= EVENT_BIT5_CLEAR;
+}
+
+void on_bit5_set(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    printf("  >> ON_BIT5_SET (NOT bit5 went false)\n");
+    g_trigger_events |= EVENT_BIT5_SET;
 }

@@ -12,11 +12,19 @@
 // Oneshot function entries
 static s_expr_fn_entry_t s_expr_dsl_test_oneshot_entries[] = {
     { 0xE5FF0069, (void*)set_state },
+    { 0x13068D30, (void*)on_bit0_rise },
+    { 0xF8140330, (void*)on_bit0_fall },
+    { 0xFE5ADA37, (void*)on_bits_12_rise },
+    { 0x7B832107, (void*)on_bits_12_fall },
+    { 0x6B533EF3, (void*)on_bits_34_rise },
+    { 0x29423823, (void*)on_bits_34_fall },
+    { 0x15953A35, (void*)on_bit5_clear },
+    { 0xAC23F0C8, (void*)on_bit5_set },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_oneshot_table = {
     .entries = s_expr_dsl_test_oneshot_entries,
-    .count = 1
+    .count = 9
 };
 
 // Main function entries
@@ -30,11 +38,17 @@ static s_expr_fn_entry_t s_expr_dsl_test_main_entries[] = {
     { 0xDE2C8DF7, (void*)process_tuple },
     { 0xDB0DE5BE, (void*)tuple_table },
     { 0x715D092E, (void*)complex_tuple },
+    { 0x29E86A85, (void*)increment_counter },
+    { 0x2D0F9AEB, (void*)toggle_enabled },
+    { 0x86807A58, (void*)read_sensor },
+    { 0x2C30B0AC, (void*)load_config },
+    { 0x55C4D336, (void*)process_alist },
+    { 0xD36A3C79, (void*)process_plist },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_main_table = {
     .entries = s_expr_dsl_test_main_entries,
-    .count = 9
+    .count = 15
 };
 
 // Predicate function entries
@@ -44,11 +58,12 @@ static s_expr_fn_entry_t s_expr_dsl_test_pred_entries[] = {
     { 0xC04E8337, (void*)monitor_state },
     { 0x520E2FF0, (void*)button_pressed },
     { 0x6FAC375E, (void*)sensor_active },
+    { 0x2D749139, (void*)test_bit },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_pred_table = {
     .entries = s_expr_dsl_test_pred_entries,
-    .count = 5
+    .count = 6
 };
 
 // Table accessors

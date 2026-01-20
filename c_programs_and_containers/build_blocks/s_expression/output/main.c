@@ -208,6 +208,12 @@ static void test_dictionary_basic(s_engine_handle_t* engine);
 static void test_dictionary_with_actions(s_engine_handle_t* engine);
 static void test_array_access(s_engine_handle_t* engine);
 static void test_tuple_basic(s_engine_handle_t* engine);
+static void test_named_state_machine(s_engine_handle_t* engine);
+static void test_dict_event_dispatch(s_engine_handle_t* engine);
+static void test_complex_structures(s_engine_handle_t* engine);
+static void test_alist_style(s_engine_handle_t* engine);
+static void test_plist_style(s_engine_handle_t* engine);
+static void test_trigger_on_change(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -250,6 +256,12 @@ int main(int argc, char* argv[]) {
     test_dictionary_with_actions(&engine);
     test_array_access(&engine);
     test_tuple_basic(&engine);
+    test_named_state_machine(&engine);
+    test_dict_event_dispatch(&engine);
+    test_complex_structures(&engine);
+    test_alist_style(&engine);
+    test_plist_style(&engine);
+    test_trigger_on_change(&engine);
 /**
     test_parameter_types(&engine);
     test_all_call_types(&engine);
@@ -721,4 +733,369 @@ static void test_tuple_basic(s_engine_handle_t* engine) {
         printf("last_result: %d\n", last_result);
     }
     s_expr_tree_free(test_tuple_basic_tree);
+}
+
+static void test_named_state_machine(s_engine_handle_t* engine) {
+    printf("\n=== Test Named State Machine ===\n");
+    s_expr_tree_instance_t* test_named_state_machine_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_NAMED_STATE_MACHINE_HASH,
+        0
+    );
+    if (!test_named_state_machine_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_NAMED_STATE_MACHINE_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 100; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_named_state_machine_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d %d\n", i, last_result);
+        if (last_result == SE_FUNCTION_TERMINATE) {
+            printf("  ✅ PASSED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
+            s_expr_tree_free(test_named_state_machine_tree);
+            return;
+        }
+    }
+    s_expr_tree_free(test_named_state_machine_tree);
+}
+
+static void test_dict_event_dispatch(s_engine_handle_t* engine) {
+    printf("\n=== Test Dict Event Dispatch ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_DICT_EVENT_DISPATCH_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_DICT_EVENT_DISPATCH_HASH);
+        exit(1);
+    }
+    
+    // Compute event hashes
+    uint32_t TIMER_TICK_HASH = s_expr_hash("TIMER_TICK");
+    uint32_t BUTTON_PRESS_HASH = s_expr_hash("BUTTON_PRESS");
+    uint32_t SENSOR_TRIGGER_HASH = s_expr_hash("SENSOR_TRIGGER");
+    uint32_t SHUTDOWN_HASH = s_expr_hash("SHUTDOWN");
+    uint32_t RESET_HASH = s_expr_hash("RESET");
+    uint32_t UNKNOWN_EVENT_HASH = s_expr_hash("UNKNOWN_EVENT");
+    
+    printf("Event hashes:\n");
+    printf("  TIMER_TICK:     0x%08X\n", TIMER_TICK_HASH);
+    printf("  BUTTON_PRESS:   0x%08X\n", BUTTON_PRESS_HASH);
+    printf("  SENSOR_TRIGGER: 0x%08X\n", SENSOR_TRIGGER_HASH);
+    printf("  SHUTDOWN:       0x%08X\n", SHUTDOWN_HASH);
+    printf("  RESET:          0x%08X\n", RESET_HASH);
+    printf("\n");
+    
+    s_expr_result_t result;
+    uint32_t event_hash;
+    
+    // Test 1: Send TIMER_TICK events
+    printf("--- Sending TIMER_TICK events ---\n");
+    for (int i = 0; i < 3; i++) {
+        event_hash = TIMER_TICK_HASH;
+        result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+        printf("  tick %d: result=%d (%s)\n", i, result, result_to_str(result));
+    }
+    
+    // Test 2: Send BUTTON_PRESS event
+    printf("\n--- Sending BUTTON_PRESS event ---\n");
+    event_hash = BUTTON_PRESS_HASH;
+    result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+    printf("  result=%d (%s)\n", result, result_to_str(result));
+    
+    // Test 3: Send SENSOR_TRIGGER event
+    printf("\n--- Sending SENSOR_TRIGGER event ---\n");
+    event_hash = SENSOR_TRIGGER_HASH;
+    result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+    printf("  result=%d (%s)\n", result, result_to_str(result));
+    
+    // Test 4: Send unknown event (should be ignored/no-op)
+    printf("\n--- Sending UNKNOWN_EVENT (should be no-op) ---\n");
+    event_hash = UNKNOWN_EVENT_HASH;
+    result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+    printf("  result=%d (%s)\n", result, result_to_str(result));
+    
+    // Test 5: Send more TIMER_TICK to verify counter increments
+    printf("\n--- Sending more TIMER_TICK events ---\n");
+    for (int i = 0; i < 2; i++) {
+        event_hash = TIMER_TICK_HASH;
+        result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+        printf("  tick %d: result=%d (%s)\n", i, result, result_to_str(result));
+    }
+    
+    // Test 6: Send RESET event
+    printf("\n--- Sending RESET event ---\n");
+    event_hash = RESET_HASH;
+    result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+    printf("  result=%d (%s)\n", result, result_to_str(result));
+    
+    // Test 7: Send SHUTDOWN event - should terminate
+    printf("\n--- Sending SHUTDOWN event ---\n");
+    event_hash = SHUTDOWN_HASH;
+    result = s_expr_node_tick(tree, SE_EVENT_USER, &event_hash);
+    printf("  result=%d (%s)\n", result, result_to_str(result));
+    
+    if (result == SE_FUNCTION_TERMINATE) {
+        printf("\n  ✅ PASSED: SHUTDOWN returned SE_FUNCTION_TERMINATE as expected\n");
+    } else {
+        printf("\n  ❌ FAILED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(result));
+    }
+    
+    s_expr_tree_free(tree);
+}
+
+static void test_complex_structures(s_engine_handle_t* engine) {
+    printf("\n=== Test Complex Structures ===\n");
+    s_expr_tree_instance_t* test_complex_structures_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_COMPLEX_STRUCTURES_HASH,
+        0
+    );
+    if (!test_complex_structures_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_COMPLEX_STRUCTURES_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 1; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_complex_structures_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d\n", last_result);
+    }
+    s_expr_tree_free(test_complex_structures_tree);
+}
+
+static void test_alist_style(s_engine_handle_t* engine) {
+    printf("\n=== Test Alist Style ===\n");
+    s_expr_tree_instance_t* test_alist_style_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_ALIST_STYLE_HASH,
+        0
+    );
+
+    if (!test_alist_style_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_ALIST_STYLE_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 1; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_alist_style_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d\n", last_result);
+    }
+    s_expr_tree_free(test_alist_style_tree);
+}
+
+static void test_plist_style(s_engine_handle_t* engine) {
+    printf("\n=== Test Plist Style ===\n");
+    s_expr_tree_instance_t* test_plist_style_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_PLIST_STYLE_HASH,
+        0
+    );
+    if (!test_plist_style_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_PLIST_STYLE_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 1; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_plist_style_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d\n", last_result);
+    }
+    s_expr_tree_free(test_plist_style_tree);
+}
+
+
+#define EVENT_BIT0_RISE     (1U << 0)
+#define EVENT_BIT0_FALL     (1U << 1)
+#define EVENT_BITS12_RISE   (1U << 2)
+#define EVENT_BITS12_FALL   (1U << 3)
+#define EVENT_BITS34_RISE   (1U << 4)
+#define EVENT_BITS34_FALL   (1U << 5)
+#define EVENT_BIT5_CLEAR    (1U << 6)
+#define EVENT_BIT5_SET      (1U << 7)
+
+void reset_trigger_events(void);
+uint32_t get_trigger_events(void);
+
+static void test_trigger_on_change(s_engine_handle_t* engine) {
+    
+    printf("\n=== Test Trigger On Change ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_TRIGGER_ON_CHANGE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    // Bitmap for predicates to read
+    uint32_t bitmap = 0;
+    tree->user_ctx = &bitmap;
+    
+    
+    int test_pass = 1;
+    
+    // -------------------------------------------------------------------------
+    // Initial tick - all triggers start with their initial state
+    // Trigger 4 starts with initial_state=1 (NOT bit5, bit5=0 means pred=true)
+    // -------------------------------------------------------------------------
+    printf("\n--- Initial tick (bitmap=0x%08X) ---\n", bitmap);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    // No transitions expected on first tick (state matches initial)
+    
+    // -------------------------------------------------------------------------
+    // Test 1: Set bit 0 -> should trigger ON_BIT0_RISE
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 0 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x01);
+    bitmap |= (1U << 0);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT0_RISE)) {
+        printf("  ❌ Expected BIT0_RISE\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 2: Clear bit 0 -> should trigger ON_BIT0_FALL
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 0 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x01);
+    bitmap &= ~(1U << 0);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT0_FALL)) {
+        printf("  ❌ Expected BIT0_FALL\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 3: Set bit 1 only -> AND should not trigger (need both 1 and 2)
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 1 only (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x02);
+    bitmap |= (1U << 1);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (get_trigger_events() & EVENT_BITS12_RISE) {
+        printf("  ❌ Unexpected BITS12_RISE (only bit1 set)\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 4: Set bit 2 -> now AND is true, should trigger ON_BITS_12_RISE
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 2 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x04);
+    bitmap |= (1U << 2);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BITS12_RISE)) {
+        printf("  ❌ Expected BITS12_RISE\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 5: Clear bit 1 -> AND becomes false, should trigger ON_BITS_12_FALL
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 1 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x02);
+    bitmap &= ~(1U << 1);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BITS12_FALL)) {
+        printf("  ❌ Expected BITS12_FALL\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 6: Set bit 3 -> OR becomes true, should trigger ON_BITS_34_RISE
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 3 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x08);
+    bitmap |= (1U << 3);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BITS34_RISE)) {
+        printf("  ❌ Expected BITS34_RISE\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 7: Set bit 4 also -> OR still true, no new trigger
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 4 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x10);
+    bitmap |= (1U << 4);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (get_trigger_events() & (EVENT_BITS34_RISE | EVENT_BITS34_FALL)) {
+        printf("  ❌ Unexpected BITS34 event (OR still true)\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 8: Clear bit 3 -> OR still true (bit 4 set), no trigger
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 3 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x08);
+    bitmap &= ~(1U << 3);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (get_trigger_events() & (EVENT_BITS34_RISE | EVENT_BITS34_FALL)) {
+        printf("  ❌ Unexpected BITS34 event (OR still true via bit4)\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 9: Clear bit 4 -> OR now false, should trigger ON_BITS_34_FALL
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 4 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x10);
+    bitmap &= ~(1U << 4);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BITS34_FALL)) {
+        printf("  ❌ Expected BITS34_FALL\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 10: Set bit 5 -> NOT bit5 becomes false, should trigger ON_BIT5_SET
+    // (initial_state=1, so NOT bit5 starts true when bit5=0)
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 5 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x20);
+    bitmap |= (1U << 5);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT5_SET)) {
+        printf("  ❌ Expected BIT5_SET (NOT became false)\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 11: Clear bit 5 -> NOT bit5 becomes true, should trigger ON_BIT5_CLEAR
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 5 (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x20);
+    bitmap &= ~(1U << 5);
+    reset_trigger_events();
+    s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT5_CLEAR)) {
+        printf("  ❌ Expected BIT5_CLEAR (NOT became true)\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Summary
+    // -------------------------------------------------------------------------
+    if (test_pass) {
+        printf("\n  ✅ PASSED: All edge triggers working correctly\n");
+    } else {
+        printf("\n  ❌ FAILED: Some edge triggers failed\n");
+    }
+    
+    s_expr_tree_free(tree);
 }

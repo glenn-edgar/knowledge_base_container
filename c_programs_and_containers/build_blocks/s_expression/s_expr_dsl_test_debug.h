@@ -44,8 +44,14 @@ static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0xD995097B, "test_dictionary_with_actions", 21, 0, 0 },
     { 0xAFECDD8E, "test_array_basic", 8, 0, 0 },
     { 0xA310BFED, "test_tuple_basic", 8, 0, 0 },
+    { 0xB7C0ED13, "test_named_state_machine", 28, 2, 0 },
+    { 0xC0516A38, "test_dict_event_dispatch", 21, 0, 0 },
+    { 0x581C8A41, "test_complex_structures", 4, 0, 0 },
+    { 0xF91097B7, "test_alist_style", 4, 0, 0 },
+    { 0x017D22AC, "test_plist_style", 2, 0, 0 },
+    { 0x28DCF95F, "test_trigger_on_change", 39, 0, 0 },
 };
-#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 21
+#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 27
 
 // ============================================================================
 // FUNCTION DEBUG INFO
@@ -62,8 +68,16 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_oneshot_debug[] = {
     { 0xCEBBEFA4, "SE_LOG", 0 },
     { 0xE5FF0069, "SET_STATE", 1 },
     { 0xEF5AD4AB, "SE_SET_HASH", 2 },
+    { 0x13068D30, "ON_BIT0_RISE", 3 },
+    { 0xF8140330, "ON_BIT0_FALL", 4 },
+    { 0xFE5ADA37, "ON_BITS_12_RISE", 5 },
+    { 0x7B832107, "ON_BITS_12_FALL", 6 },
+    { 0x6B533EF3, "ON_BITS_34_RISE", 7 },
+    { 0x29423823, "ON_BITS_34_FALL", 8 },
+    { 0x15953A35, "ON_BIT5_CLEAR", 9 },
+    { 0xAC23F0C8, "ON_BIT5_SET", 10 },
 };
-#define S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT 3
+#define S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT 11
 
 // Main functions
 static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_main_debug[] = {
@@ -98,8 +112,15 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_main_debug[] = {
     { 0xDE2C8DF7, "PROCESS_TUPLE", 28 },
     { 0xDB0DE5BE, "TUPLE_TABLE", 29 },
     { 0x715D092E, "COMPLEX_TUPLE", 30 },
+    { 0x5E99A787, "SE_NAMED_EVENT_DISPATCH", 31 },
+    { 0x29E86A85, "INCREMENT_COUNTER", 32 },
+    { 0x2D0F9AEB, "TOGGLE_ENABLED", 33 },
+    { 0x86807A58, "READ_SENSOR", 34 },
+    { 0x2C30B0AC, "LOAD_CONFIG", 35 },
+    { 0x55C4D336, "PROCESS_ALIST", 36 },
+    { 0xD36A3C79, "PROCESS_PLIST", 37 },
 };
-#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 31
+#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 38
 
 // Predicate functions
 static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {
@@ -108,8 +129,12 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {
     { 0xC04E8337, "MONITOR_STATE", 2 },
     { 0x520E2FF0, "BUTTON_PRESSED", 3 },
     { 0x6FAC375E, "SENSOR_ACTIVE", 4 },
+    { 0x2D749139, "TEST_BIT", 5 },
+    { 0x7C0DF5F3, "SE_PRED_AND", 6 },
+    { 0x0CF6212F, "SE_PRED_OR", 7 },
+    { 0x217DEB8F, "SE_PRED_NOT", 8 },
 };
-#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 5
+#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 9
 
 // ============================================================================
 // RECORD DEBUG INFO

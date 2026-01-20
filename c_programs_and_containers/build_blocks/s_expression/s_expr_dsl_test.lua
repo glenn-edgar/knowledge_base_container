@@ -810,57 +810,69 @@ end_tree()
 -- TEST TREE 18: Named State Machine with Dictionary
 -- Tests: Dictionary-based state machine dispatch
 -- ============================================================================
---[[
+
 start_tree("test_named_state_machine")
     use_record("test_blackboard")
-    
+    local p1 = m_call("SE_PIPELINE")
+        se_i_set_hash("state", "INIT")
     -- State machine using string state names in dictionary
-    local sm = m_call("SE_NAMED_STATE_MACHINE")
-        field_ref("state")  -- current state field (stores hash)
-        local d = dict_start()
-            local k1 = key("INIT")
-                se_log("State: INIT")
-                local set1 = o_call("SET_STATE_HASH")
-                    field_ref("state")
-                    str_hash("READY")  -- transition to READY
-                end_call(set1)
-                result(SE_HALT)
-            key_end(k1)
-            
-            local k2 = key("READY")
-                se_log("State: READY")
-                local pred = p_call("CHECK_START_CONDITION")
-                end_call(pred)
-                local set2 = o_call("SET_STATE_HASH")
-                    field_ref("state")
-                    str_hash("RUNNING")
-                end_call(set2)
-                result(SE_HALT)
-            key_end(k2)
-            
-            local k3 = key("RUNNING")
-                se_log("State: RUNNING")
-                se_tick_delay(10)
-                local set3 = o_call("SET_STATE_HASH")
-                    field_ref("state")
-                    str_hash("COMPLETE")
-                end_call(set3)
-                result(SE_HALT)
-            key_end(k3)
-            
-            local k4 = key("COMPLETE")
-                se_log("State: COMPLETE")
-                result(SE_FUNCTION_TERMINATE)
-            key_end(k4)
-            
-            local k5 = key("ERROR")
-                se_log("State: ERROR")
-                result(SE_FUNCTION_TERMINATE)
-            key_end(k5)
-        dict_end(d)
-    end_call(sm)
-    
-    result(SE_CONTINUE)
+        local sm = m_call("SE_NAMED_STATE_MACHINE")
+            field_ref("state")  -- current state field (stores hash)
+            local d = dict_start()
+                local k1 = key("INIT")
+                    local p2 = m_call("SE_PIPELINE")
+                         se_log("State: INIT")
+                         se_set_hash("state", "READY")
+                         se_return_halt()
+                end_call(p2)
+                key_end(k1)
+
+                local k2 = key("READY")
+                    local p3 = m_call("SE_PIPELINE")
+                         se_log("State: READY")
+                         se_set_hash("state", "RUNNING")
+                         se_return_halt()
+                      end_call(p3)
+                key_end(k2)
+
+                local k3 = key("RUNNING")
+                    p4 = m_call("SE_PIPELINE")
+                        se_log("State: RUNNING")
+                        se_tick_delay(10)
+                        se_set_hash("state", "COMPLETE")
+                        se_return_continue()
+                    end_call(p4)
+                key_end(k3)
+
+                local k3 = key("RUNNING")
+                    p5 = m_call("SE_PIPELINE")
+                        se_log("State: RUNNING")
+                        se_tick_delay(10)
+                        se_set_hash("state", "COMPLETE")
+                        se_return_halt()
+                end_call(p5)
+                key_end(k3)
+                
+                local k4 = key("COMPLETE")
+                    p6 = m_call("SE_PIPELINE")
+                       se_log("State: COMPLETE")
+                       se_return_function_terminate()
+                    end_call(p6)
+                
+                key_end(k4)
+                
+                local k5 = key("ERROR")
+                    p7 = m_call("SE_PIPELINE")
+                       se_log("State: ERROR")
+                       se_return_function_terminate()
+                    end_call(p7)
+                key_end(k5)
+
+            dict_end(d)
+        end_call(sm)
+        
+        se_return_continue()
+    end_call(p1)
 end_tree()
 
 -- ============================================================================
@@ -870,44 +882,59 @@ end_tree()
 
 start_tree("test_dict_event_dispatch")
     use_record("test_blackboard")
-    
+    local p1 = m_call("SE_PIPELINE")
     -- Event handler dictionary
     local handler = m_call("SE_NAMED_EVENT_DISPATCH")
         local d = dict_start()
             local k1 = key("TIMER_TICK")
-                se_log("Event: TIMER_TICK")
-                local inc = o_call("INCREMENT_COUNTER")
-                    field_ref("counter")
-                end_call(inc)
+                local p4 = m_call("SE_PIPELINE")
+                    se_log("Event: TIMER_TICK")
+                    local inc = m_call("INCREMENT_COUNTER")
+                        field_ref("counter")
+                    end_call(inc)
+                    se_return_continue()
+                end_call(p4)
             key_end(k1)
             
             local k2 = key("BUTTON_PRESS")
-                se_log("Event: BUTTON_PRESS")
-                local toggle = o_call("TOGGLE_ENABLED")
-                    field_ref("enabled")
-                end_call(toggle)
+                local p5 = m_call("SE_PIPELINE")
+                    se_log("Event: BUTTON_PRESS")
+                    local toggle = m_call("TOGGLE_ENABLED")
+                        field_ref("enabled")
+                    end_call(toggle)
+                    se_return_continue()
+                end_call(p5)
             key_end(k2)
             
             local k3 = key("SENSOR_TRIGGER")
-                se_log("Event: SENSOR_TRIGGER")
-                local read = o_call("READ_SENSOR")
-                    field_ref("temperature")
-                end_call(read)
+                local p6 = m_call("SE_PIPELINE")
+                    se_log("Event: SENSOR_TRIGGER")
+                    local read = m_call("READ_SENSOR")
+                        field_ref("temperature")
+                    end_call(read)
+                    se_return_continue()
+                end_call(p6)
             key_end(k3)
             
             local k4 = key("SHUTDOWN")
-                se_log("Event: SHUTDOWN")
-                result(SE_FUNCTION_TERMINATE)
+                local p7 = m_call("SE_PIPELINE")
+                    se_log("Event: SHUTDOWN")
+                    se_return_function_terminate()
+                end_call(p7)
             key_end(k4)
             
-            local k5 = key("RESET")
-                se_log("Event: RESET")
-                result(SE_RESET)
-            key_end(k5)
+              local k5 = key("RESET")
+                local p8 = m_call("SE_PIPELINE")
+                        se_log("Event: RESET")
+                        se_return_reset()
+                end_call(p8)
+              key_end(k5)
+            
         dict_end(d)
     end_call(handler)
     
-    result(SE_CONTINUE)
+    se_return_continue()
+    end_call(p1)
 end_tree()
 
 -- ============================================================================
@@ -919,69 +946,70 @@ start_tree("test_complex_structures")
     use_record("test_blackboard")
     
     -- Configuration structure: dict containing arrays of tuples
-    local config = m_call("LOAD_CONFIG")
-        local d1 = dict_start()
-            local k1 = key("sensors")
-                local a1 = array_start()
-                    local t1 = tuple_start()
-                        str_ptr("temp_1")
-                        int(0)
-                        flt(0.0)
-                        flt(100.0)
-                    tuple_end(t1)
-                    local t2 = tuple_start()
-                        str_ptr("temp_2")
-                        int(1)
-                        flt(-40.0)
-                        flt(125.0)
-                    tuple_end(t2)
-                array_end(a1)
-            key_end(k1)
-            
-            local k2 = key("actuators")
-                local a2 = array_start()
-                    local t3 = tuple_start()
-                        str_ptr("motor_1")
-                        int(0)
-                        local d2 = dict_start()
-                            local km1 = key("min") flt(-100.0) key_end(km1)
-                            local km2 = key("max") flt(100.0) key_end(km2)
-                            local km3 = key("default") flt(0.0) key_end(km3)
-                        dict_end(d2)
-                    tuple_end(t3)
-                    local t4 = tuple_start()
-                        str_ptr("valve_1")
-                        int(1)
-                        local d3 = dict_start()
-                            local kv1 = key("min") flt(0.0) key_end(kv1)
-                            local kv2 = key("max") flt(1.0) key_end(kv2)
-                            local kv3 = key("default") flt(0.0) key_end(kv3)
-                        dict_end(d3)
-                    tuple_end(t4)
-                array_end(a2)
-            key_end(k2)
-            
-            local k3 = key("timing")
-                local d4 = dict_start()
-                    local kt1 = key("tick_rate") int(100) key_end(kt1)
-                    local kt2 = key("watchdog_ms") int(1000) key_end(kt2)
-                    local kt3 = key("startup_delay") flt(0.5) key_end(kt3)
-                dict_end(d4)
-            key_end(k3)
-            
-            local k4 = key("flags")
-                local l1 = list_start()
-                    uint(0x01)  -- ENABLE_LOGGING
-                    uint(0x02)  -- ENABLE_WATCHDOG
-                    uint(0x04)  -- ENABLE_SAFETY
-                    uint(0x08)  -- DEBUG_MODE
-                list_end(l1)
-            key_end(k4)
-        dict_end(d1)
-        result(SE_CONTINUE)
-    end_call(config)
-    
-    result(SE_CONTINUE)
+    local p1 = m_call("SE_PIPELINE")
+        local config = m_call("LOAD_CONFIG")
+            local d1 = dict_start()
+                local k1 = key("sensors")
+                    local a1 = array_start()
+                        local t1 = tuple_start()
+                            str_ptr("temp_1")
+                            int(0)
+                            flt(0.0)
+                            flt(100.0)
+                        tuple_end(t1)
+                        local t2 = tuple_start()
+                            str_ptr("temp_2")
+                            int(1)
+                            flt(-40.0)
+                            flt(125.0)
+                        tuple_end(t2)
+                    array_end(a1)
+                key_end(k1)
+                
+                local k2 = key("actuators")
+                    local a2 = array_start()
+                        local t3 = tuple_start()
+                            str_ptr("motor_1")
+                            int(0)
+                            local d2 = dict_start()
+                                local km1 = key("min") flt(-100.0) key_end(km1)
+                                local km2 = key("max") flt(100.0) key_end(km2)
+                                local km3 = key("default") flt(0.0) key_end(km3)
+                            dict_end(d2)
+                        tuple_end(t3)
+                        local t4 = tuple_start()
+                            str_ptr("valve_1")
+                            int(1)
+                            local d3 = dict_start()
+                                local kv1 = key("min") flt(0.0) key_end(kv1)
+                                local kv2 = key("max") flt(1.0) key_end(kv2)
+                                local kv3 = key("default") flt(0.0) key_end(kv3)
+                            dict_end(d3)
+                        tuple_end(t4)
+                    array_end(a2)
+                key_end(k2)
+                
+                local k3 = key("timing")
+                    local d4 = dict_start()
+                        local kt1 = key("tick_rate") int(100) key_end(kt1)
+                        local kt2 = key("watchdog_ms") int(1000) key_end(kt2)
+                        local kt3 = key("startup_delay") flt(0.5) key_end(kt3)
+                    dict_end(d4)
+                key_end(k3)
+                
+                local k4 = key("flags")
+                    local l1 = list_start()
+                        uint(0x01)  -- ENABLE_LOGGING
+                        uint(0x02)  -- ENABLE_WATCHDOG
+                        uint(0x04)  -- ENABLE_SAFETY
+                        uint(0x08)  -- DEBUG_MODE
+                    list_end(l1)
+                key_end(k4)
+            dict_end(d1)
+            se_return_continue()    
+        end_call(config)
+        se_return_continue()
+    end_call(p1)
 end_tree()
 
 -- ============================================================================
@@ -994,17 +1022,19 @@ start_tree("test_alist_style")
     
     -- Lisp-style association list: ((key1 . val1) (key2 . val2) ...)
     -- Using tuples inside a list to represent cons cells
-    local fn = m_call("PROCESS_ALIST")
-        local l = list_start()
-            local t1 = tuple_start() str_hash("name") str_ptr("test_system") tuple_end(t1)
-            local t2 = tuple_start() str_hash("version") int(1) tuple_end(t2)
-            local t3 = tuple_start() str_hash("enabled") int(1) tuple_end(t3)
-            local t4 = tuple_start() str_hash("timeout") flt(5.0) tuple_end(t4)
-        list_end(l)
-        result(SE_CONTINUE)
-    end_call(fn)
-    
-    result(SE_CONTINUE)
+    local p1 = m_call("SE_PIPELINE")
+        local fn = m_call("PROCESS_ALIST")
+            local l = list_start()
+                local t1 = tuple_start() str_hash("name") str_ptr("test_system") tuple_end(t1)
+                local t2 = tuple_start() str_hash("version") int(1) tuple_end(t2)
+                local t3 = tuple_start() str_hash("enabled") int(1) tuple_end(t3)
+                local t4 = tuple_start() str_hash("timeout") flt(5.0) tuple_end(t4)
+            list_end(l)
+            se_return_continue()
+        end_call(fn)
+        
+        se_return_continue()
+    end_call(p1)
 end_tree()
 
 -- ============================================================================
@@ -1024,67 +1054,127 @@ start_tree("test_plist_style")
             str_hash("enabled") int(1)
             str_hash("mode")    str_hash("auto")
         list_end(l)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn)
     
-    result(SE_CONTINUE)
+    
 end_tree()
 
 -- ============================================================================
--- TEST TREE 23: Dispatch Table with Mixed Structure Types
--- Tests: Using different structure types for different dispatch cases
+-- TEST TREE: Trigger On Change
+-- Tests: Edge detection with boolean predicates
+-- Predicate reads bitmap from user_ctx, then/else actions fire on transitions
 -- ============================================================================
 
-start_tree("test_mixed_dispatch")
+-- ============================================================================
+-- TEST TREE: Trigger On Change
+-- Tests: Edge detection with boolean predicates
+-- Predicate reads bitmap from user_ctx, then/else actions fire on transitions
+-- ============================================================================
+
+start_tree("test_trigger_on_change")
     use_record("test_blackboard")
     
-    local dispatch = m_call("MIXED_STRUCTURE_DISPATCH")
-        field_ref("command")
-        local d = dict_start()
-            -- Command 0: Simple value
-            local k0 = key_hash(0)
-                int(0)
-                str_ptr("idle")
-            key_end(k0)
-            
-            -- Command 1: Array of actions
-            local k1 = key_hash(1)
-                local a = array_start()
-                    local a1 = o_call("ACTION_1") end_call(a1)
-                    local a2 = o_call("ACTION_2") end_call(a2)
-                    local a3 = o_call("ACTION_3") end_call(a3)
-                array_end(a)
-            key_end(k1)
-            
-            -- Command 2: Tuple of parameters
-            local k2 = key_hash(2)
-                local t = tuple_start()
-                    flt(1.0)
-                    flt(2.0)
-                    int(100)
-                    uint(0xFF)
-                tuple_end(t)
-            key_end(k2)
-            
-            -- Command 3: Nested dict
-            local k3 = key_hash(3)
-                local d2 = dict_start()
-                    local ka = key("sub_cmd_a")
-                        local b1 = o_call("SUB_ACTION_A") end_call(b1)
-                    key_end(ka)
-                    local kb = key("sub_cmd_b")
-                        local b2 = o_call("SUB_ACTION_B") end_call(b2)
-                    key_end(kb)
-                dict_end(d2)
-            key_end(k3)
-        dict_end(d)
-        result(SE_CONTINUE)
-    end_call(dispatch)
-    
-    result(SE_CONTINUE)
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Trigger 1: Simple single bit test
+        se_trigger_on_change(0,
+            function()
+                local pred = p_call("TEST_BIT")
+                    int(0)  -- bit index
+                end_call(pred)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local then_fn = o_call("ON_BIT0_RISE")
+                    end_call(then_fn)
+                    se_return_continue()
+                end_call(p)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local else_fn = o_call("ON_BIT0_FALL")
+                    end_call(else_fn)
+                    se_return_continue()
+                end_call(p)
+            end
+        )
+        
+        -- Trigger 2: AND of two bits
+        se_trigger_on_change(0,
+            function()
+                local pred = p_call("SE_PRED_AND")
+                    local p1 = p_call("TEST_BIT") int(1) end_call(p1)
+                    local p2 = p_call("TEST_BIT") int(2) end_call(p2)
+                end_call(pred)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local then_fn = o_call("ON_BITS_12_RISE")
+                    end_call(then_fn)
+                    se_return_continue()
+                end_call(p)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local else_fn = o_call("ON_BITS_12_FALL")
+                    end_call(else_fn)
+                    se_return_continue()
+                end_call(p)
+            end
+        )
+        
+        -- Trigger 3: OR of two bits
+        se_trigger_on_change(0,
+            function()
+                local pred = p_call("SE_PRED_OR")
+                    local p1 = p_call("TEST_BIT") int(3) end_call(p1)
+                    local p2 = p_call("TEST_BIT") int(4) end_call(p2)
+                end_call(pred)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local then_fn = o_call("ON_BITS_34_RISE")
+                    end_call(then_fn)
+                    se_return_continue()
+                end_call(p)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local else_fn = o_call("ON_BITS_34_FALL")
+                    end_call(else_fn)
+                    se_return_continue()
+                end_call(p)
+            end
+        )
+        
+        -- Trigger 4: NOT of a bit (inverted logic)
+        se_trigger_on_change(1,
+            function()
+                local pred = p_call("SE_PRED_NOT")
+                    local p1 = p_call("TEST_BIT") int(5) end_call(p1)
+                end_call(pred)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local then_fn = o_call("ON_BIT5_CLEAR")
+                    end_call(then_fn)
+                    se_return_continue()
+                end_call(p)
+            end,
+            function()
+                local p = m_call("SE_PIPELINE")
+                    local else_fn = o_call("ON_BIT5_SET")
+                    end_call(else_fn)
+                    se_return_continue()
+                end_call(p)
+            end
+        )
+        
+        se_return_continue()
+    end_call(p1)
 end_tree()
-
---]]
+--
 --========================================================================
 -- FINALIZE MODULE
 -- ============================================================================

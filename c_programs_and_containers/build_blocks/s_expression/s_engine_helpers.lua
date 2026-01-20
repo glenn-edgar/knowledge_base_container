@@ -1000,4 +1000,12 @@ function se_set_hash(target_field, string_value)
         str_hash(string_value)  -- emits precomputed hash instead of str_ptr
     end_call(c)
 end
+
+function se_i_set_hash(target_field, string_value)
+    local c = io_call("SE_SET_HASH")
+        field_ref(target_field)
+        str_hash(string_value)  -- emits precomputed hash instead of str_ptr
+    end_call(c)
+end
 print("S-Expression Engine helpers loaded (v5.2)")
+

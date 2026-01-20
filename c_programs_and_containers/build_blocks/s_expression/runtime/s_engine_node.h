@@ -105,6 +105,14 @@ s_expr_result_t s_expr_child_invoke(
     uint16_t logical_index
 );
 
+// Invoke Nth child specifically as MAIN
+s_expr_result_t s_expr_child_invoke_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index
+);
+
 // Invoke Nth child as PRED, returns bool
 bool s_expr_child_invoke_pred(
     s_expr_tree_instance_t* inst,
@@ -156,6 +164,104 @@ bool s_expr_child_is_initialized(
     uint16_t logical_index
 );
 
+// ============================================================================
+// S-EXPRESSION PAYLOAD STRUCTURE
+// Standard structure for passing S-expressions via event_data
+// ============================================================================
+
+typedef struct {
+    const s_expr_param_t* params;
+    uint16_t param_count;
+    void* context;  // Optional additional context
+} s_expr_payload_t;
+
+// ============================================================================
+// EXTENDED CHILD INVOCATION
+// Explicit event context on caller's stack
+// Saves/restores instance event state internally
+// ============================================================================
+
+// Invoke Nth child with explicit event, auto-detect type
+s_expr_result_t s_expr_child_invoke_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+);
+
+// Invoke Nth child as MAIN with explicit event
+s_expr_result_t s_expr_child_invoke_main_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+);
+
+// Invoke Nth child as PRED with explicit event
+bool s_expr_child_invoke_pred_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+);
+
+// Invoke Nth child as ONESHOT with explicit event
+void s_expr_child_invoke_oneshot_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+);
+
+// ============================================================================
+// EXTENDED BULK OPERATIONS
+// ============================================================================
+
+// Broadcast explicit event to all children
+// Returns last non-CONTINUE result, or CONTINUE if all children return CONTINUE
+// Stops early on SE_TERMINATE
+s_expr_result_t s_expr_children_broadcast_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t event_id,
+    void* event_data
+);
+
+// ============================================================================
+// EXECUTE PASSED S-EXPRESSION
+// Invoke S-expression received via event_data
+// Uses same instance/state - no isolation
+// Finds first callable in params and invokes it
+// ============================================================================
+
+s_expr_result_t s_expr_invoke_params(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t event_id,
+    void* event_data
+);
+
+// ============================================================================
+// CONVENIENCE MACROS
+// ============================================================================
+
+// Create payload from params
+#define S_EXPR_PAYLOAD(p, c) \
+    (s_expr_payload_t){ .params = (p), .param_count = (c), .context = NULL }
+
+// Create payload with context
+#define S_EXPR_PAYLOAD_CTX(p, c, ctx) \
+    (s_expr_payload_t){ .params = (p), .param_count = (c), .context = (ctx) }
 #ifdef __cplusplus
 }
 #endif

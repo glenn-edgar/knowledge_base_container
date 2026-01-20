@@ -517,6 +517,35 @@ s_expr_result_t s_expr_child_invoke(
     return result;
 }
 
+// Invoke Nth child specifically as MAIN
+s_expr_result_t s_expr_child_invoke_main(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_invoke_main: NULL instance");
+        return SE_TERMINATE;
+    }
+    
+    uint16_t phys_idx = s_expr_child_index(params, param_count, logical_index);
+    if (phys_idx == UINT16_MAX) {
+        EXCEPTION("s_expr_child_invoke_main: logical_index out of range");
+        return SE_TERMINATE;
+    }
+    
+    s_expr_result_t result = s_expr_invoke_main(inst, params, phys_idx);
+    
+    if (result == SE_DISABLE) {
+        // Child completed - terminate it
+        s_expr_child_terminate(inst, params, param_count, logical_index);
+        result = SE_CONTINUE;
+    }
+    
+    return result;
+}
+
 bool s_expr_child_invoke_pred(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -639,4 +668,259 @@ bool s_expr_child_is_initialized(
     }
     
     return (state->flags & S_EXPR_NODE_FLAG_INITIALIZED) != 0;
+}
+
+// ============================================================================
+// s_engine_node_ex.c
+// Extended Node API - Explicit Event Context
+// ============================================================================
+
+// ============================================================================
+// INTERNAL HELPERS
+// ============================================================================
+
+// Save current event context
+static inline void save_event_context(
+    s_expr_tree_instance_t* inst,
+    uint16_t* saved_event_id,
+    void** saved_event_data
+) {
+    *saved_event_id = inst->current_event_id;
+    *saved_event_data = inst->current_event_data;
+}
+
+// Restore event context
+static inline void restore_event_context(
+    s_expr_tree_instance_t* inst,
+    uint16_t saved_event_id,
+    void* saved_event_data
+) {
+    inst->current_event_id = saved_event_id;
+    inst->current_event_data = saved_event_data;
+}
+
+// Set new event context
+static inline void set_event_context(
+    s_expr_tree_instance_t* inst,
+    uint16_t event_id,
+    void* event_data
+) {
+    inst->current_event_id = event_id;
+    inst->current_event_data = event_data;
+}
+
+// ============================================================================
+// EXTENDED CHILD INVOCATION
+// ============================================================================
+
+s_expr_result_t s_expr_child_invoke_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_invoke_ex: NULL instance");
+        return SE_TERMINATE;
+    }
+    
+    // Save current context
+    uint16_t saved_event_id;
+    void* saved_event_data;
+    save_event_context(inst, &saved_event_id, &saved_event_data);
+    
+    // Set override
+    set_event_context(inst, event_id, event_data);
+    
+    // Delegate to legacy API
+    s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, logical_index);
+    
+    // Restore
+    restore_event_context(inst, saved_event_id, saved_event_data);
+    
+    return result;
+}
+
+s_expr_result_t s_expr_child_invoke_main_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_invoke_main_ex: NULL instance");
+        return SE_TERMINATE;
+    }
+    
+    // Save current context
+    uint16_t saved_event_id;
+    void* saved_event_data;
+    save_event_context(inst, &saved_event_id, &saved_event_data);
+    
+    // Set override
+    set_event_context(inst, event_id, event_data);
+    
+    // Delegate to legacy API
+    s_expr_result_t result = s_expr_child_invoke_main(inst, params, param_count, logical_index);
+    
+    // Restore
+    restore_event_context(inst, saved_event_id, saved_event_data);
+    
+    return result;
+}
+
+bool s_expr_child_invoke_pred_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_invoke_pred_ex: NULL instance");
+        return false;
+    }
+    
+    // Save current context
+    uint16_t saved_event_id;
+    void* saved_event_data;
+    save_event_context(inst, &saved_event_id, &saved_event_data);
+    
+    // Set override
+    set_event_context(inst, event_id, event_data);
+    
+    // Delegate to legacy API
+    bool result = s_expr_child_invoke_pred(inst, params, param_count, logical_index);
+    
+    // Restore
+    restore_event_context(inst, saved_event_id, saved_event_data);
+    
+    return result;
+}
+
+void s_expr_child_invoke_oneshot_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_invoke_oneshot_ex: NULL instance");
+        return;
+    }
+    
+    // Save current context
+    uint16_t saved_event_id;
+    void* saved_event_data;
+    save_event_context(inst, &saved_event_id, &saved_event_data);
+    
+    // Set override
+    set_event_context(inst, event_id, event_data);
+    
+    // Delegate to legacy API
+    s_expr_child_invoke_oneshot(inst, params, param_count, logical_index);
+    
+    // Restore
+    restore_event_context(inst, saved_event_id, saved_event_data);
+}
+
+// ============================================================================
+// EXTENDED BULK OPERATIONS
+// ============================================================================
+
+s_expr_result_t s_expr_children_broadcast_ex(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_children_broadcast_ex: NULL instance");
+        return SE_TERMINATE;
+    }
+    
+    // Save current context
+    uint16_t saved_event_id;
+    void* saved_event_data;
+    save_event_context(inst, &saved_event_id, &saved_event_data);
+    
+    // Set override
+    set_event_context(inst, event_id, event_data);
+    
+    // Get child count and iterate
+    uint16_t child_count = s_expr_child_count(params, param_count);
+    s_expr_result_t result = SE_CONTINUE;
+    
+    for (uint16_t i = 0; i < child_count; i++) {
+        s_expr_result_t child_result = s_expr_child_invoke(inst, params, param_count, i);
+        
+        // Capture non-CONTINUE results
+        if (child_result != SE_CONTINUE) {
+            result = child_result;
+        }
+        
+        // Stop on TERMINATE
+        if (child_result == SE_TERMINATE) {
+            break;
+        }
+    }
+    
+    // Restore
+    restore_event_context(inst, saved_event_id, saved_event_data);
+    
+    return result;
+}
+
+// ============================================================================
+// EXECUTE PASSED S-EXPRESSION
+// ============================================================================
+
+s_expr_result_t s_expr_invoke_params(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_invoke_params: NULL instance");
+        return SE_TERMINATE;
+    }
+    
+    if (!params || param_count == 0) {
+        EXCEPTION("s_expr_invoke_params: invalid params");
+        return SE_TERMINATE;
+    }
+    
+    // Find first callable in params
+    for (uint16_t i = 0; i < param_count; i++) {
+        if (s_expr_child_is_callable(params, param_count, i)) {
+            // Save current context
+            uint16_t saved_event_id;
+            void* saved_event_data;
+            save_event_context(inst, &saved_event_id, &saved_event_data);
+            
+            // Set new context
+            set_event_context(inst, event_id, event_data);
+            
+            // Invoke the callable
+            s_expr_result_t result = s_expr_invoke_any(inst, params, i);
+            
+            // Restore
+            restore_event_context(inst, saved_event_id, saved_event_data);
+            
+            return result;
+        }
+    }
+    
+    EXCEPTION("s_expr_invoke_params: no callable found");
+    return SE_TERMINATE;
 }

@@ -199,7 +199,7 @@ s_expr_loaded_module_t* s_expr_load_from_file(
     if (!data) {
         return NULL;
     }
-    
+    printf("s_expr_load_from_file: data size: %d\n", size);
     // Parse binary (takes ownership of data)
     s_expr_loaded_module_t* loaded = s_expr_load_binary(data, size, alloc, true);
     

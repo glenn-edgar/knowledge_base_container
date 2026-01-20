@@ -1464,72 +1464,93 @@ static s_expr_result_t se_hash_dispatch(
     return result;
 }
 // Terminate action at physical index
+
+
+/// ============================================================================
+// STATIC HELPERS for state machine nodes
+// ============================================================================
+
 static void terminate_action_at_index(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t phys_idx
 ) {
     uint8_t opcode = params[phys_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_CALL) return;
+    if (opcode != S_EXPR_PARAM_OPEN_CALL) {
+        return;
+    }
     
     const s_expr_param_t* func_param = &params[phys_idx + 1];
     uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
-    if (func_opcode != S_EXPR_PARAM_MAIN) return;
+    
+    if (func_opcode != S_EXPR_PARAM_MAIN) {
+        return;  // Only MAIN nodes receive TERMINATE
+    }
     
     uint16_t node_idx = func_param->node_index;
-    if (node_idx >= inst->node_count) return;
+    if (node_idx >= inst->node_count) {
+        return;
+    }
     
-    s_expr_node_state_t* state = &inst->node_states[node_idx];
-    if (!(state->flags & S_EXPR_NODE_FLAG_INITIALIZED)) return;
+    if (!(inst->node_states[node_idx].flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
+        return;  // Never initialized, no cleanup needed
+    }
     
-    // Send TERMINATE event
     uint16_t func_idx = func_param->func_index;
-    if (func_idx >= inst->module->def->main_count) return;
+    if (func_idx >= inst->module->def->main_count) {
+        return;
+    }
     
     s_expr_main_fn_t fn = inst->module->main_fns[func_idx];
-    if (!fn) return;
+    if (!fn) {
+        return;
+    }
     
+    // Calculate args
     uint16_t close_idx = phys_idx + params[phys_idx].brace_idx;
     uint16_t arg_count = (close_idx > phys_idx + 2) ? (close_idx - phys_idx - 2) : 0;
     const s_expr_param_t* args = (arg_count > 0) ? &params[phys_idx + 2] : NULL;
     
-    bool is_pointer_call = (func_param->type & S_EXPR_FLAG_POINTER) != 0;
-    uint8_t pointer_base = func_param->index_to_pointer;
-    
+    // Save/restore context
     uint16_t saved_node = inst->current_node_index;
     bool saved_in_ptr = inst->in_pointer_call;
     uint8_t saved_ptr_base = inst->pointer_base;
     
     inst->current_node_index = node_idx;
-    if (is_pointer_call) {
+    if (func_param->type & S_EXPR_FLAG_POINTER) {
         inst->in_pointer_call = true;
-        inst->pointer_base = pointer_base;
+        inst->pointer_base = func_param->index_to_pointer;
     }
     
+    // Send TERMINATE event
     fn(inst, args, arg_count, SE_EVENT_TERMINATE, 0, NULL);
     
     inst->current_node_index = saved_node;
     inst->in_pointer_call = saved_in_ptr;
     inst->pointer_base = saved_ptr_base;
     
-    // Clear state
-    state->flags = 0;
-    state->state = 0;
-    state->user_data = 0;
+    // Clear node state
+    inst->node_states[node_idx].flags = 0;
+    inst->node_states[node_idx].state = 0;
+    inst->node_states[node_idx].user_data = 0;
 }
 
-// Reset action at physical index
 static void reset_action_at_index(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t phys_idx
 ) {
     uint8_t opcode = params[phys_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_CALL) return;
+    if (opcode != S_EXPR_PARAM_OPEN_CALL) {
+        return;
+    }
     
     const s_expr_param_t* func_param = &params[phys_idx + 1];
     uint16_t node_idx = func_param->node_index;
-    if (node_idx >= inst->node_count) return;
+    
+    if (node_idx >= inst->node_count) {
+        return;
+    }
     
     s_expr_node_state_t* state = &inst->node_states[node_idx];
     uint8_t ever_init = state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
@@ -1537,10 +1558,14 @@ static void reset_action_at_index(
     state->state = 0;
     state->user_data = 0;
 }
-// SE_NAMED_STATE_MACHINE - state machine with string state names
+
+// ============================================================================
+// se_named_state_machine
 // params: [field_ref] [OPEN_DICT states...]
 // Field contains state hash
 // user_flags stores physical index of current action (0 = none)
+// ============================================================================
+
 static s_expr_result_t se_named_state_machine(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1558,28 +1583,20 @@ static s_expr_result_t se_named_state_machine(
     
     uint16_t prev_action_phys_idx = s_expr_get_user_flags(inst);
     
+    // =========================================================================
+    // TERMINATE: Clean up current action
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
-        // Terminate current action if any
         if (prev_action_phys_idx > 0 && prev_action_phys_idx < param_count) {
-            uint8_t opcode = params[prev_action_phys_idx].type & S_EXPR_OPCODE_MASK;
-            if (opcode == S_EXPR_PARAM_OPEN_CALL) {
-                const s_expr_param_t* func_param = &params[prev_action_phys_idx + 1];
-                uint8_t func_opcode = func_param->type & S_EXPR_OPCODE_MASK;
-                if (func_opcode == S_EXPR_PARAM_MAIN) {
-                    uint16_t node_idx = func_param->node_index;
-                    if (node_idx < inst->node_count &&
-                        (inst->node_states[node_idx].flags & S_EXPR_NODE_FLAG_INITIALIZED)) {
-                        // Send TERMINATE to this action
-                        s_expr_invoke_main(inst, params, prev_action_phys_idx);
-                        // Note: invoke_main doesn't send TERMINATE, need direct dispatch
-                    }
-                }
-            }
+            terminate_action_at_index(inst, params, prev_action_phys_idx);
         }
         s_expr_set_user_flags(inst, 0);
         return SE_CONTINUE;
     }
     
+    // =========================================================================
+    // INIT: Validate structure
+    // =========================================================================
     if (event_type == SE_EVENT_INIT) {
         if (param_count < 2) {
             EXCEPTION("se_named_state_machine: need field_ref and dict");
@@ -1594,10 +1611,15 @@ static s_expr_result_t se_named_state_machine(
         return SE_CONTINUE;
     }
     
-    // TICK: Get state hash from field
-    uint32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], uint32_t);
-    if (!state_ptr) return SE_CONTINUE;
+    // =========================================================================
+    // TICK: Get state hash from field and dispatch
+    // =========================================================================
     
+    // Get state hash from blackboard field
+    uint32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], uint32_t);
+    if (!state_ptr) {
+        return SE_CONTINUE;
+    }
     uint32_t state_hash = *state_ptr;
     
     // Find dictionary (child 1)
@@ -1619,35 +1641,34 @@ static s_expr_result_t se_named_state_machine(
         // State not found - terminate previous action if any
         if (prev_action_phys_idx > 0) {
             terminate_action_at_index(inst, params, prev_action_phys_idx);
-            reset_action_at_index(inst, params, prev_action_phys_idx);
             s_expr_set_user_flags(inst, 0);
         }
         return SE_CONTINUE;
     }
     
+    // Calculate physical index of action within full params array
     uint16_t action_phys_idx = (uint16_t)(key_content - params);
-    uint16_t content_count;
-    s_expr_key_contents(key_content - 1, &content_count);
     
     // Handle state transition
     if (action_phys_idx != prev_action_phys_idx) {
         // Terminate previous action
         if (prev_action_phys_idx > 0) {
             terminate_action_at_index(inst, params, prev_action_phys_idx);
-            reset_action_at_index(inst, params, prev_action_phys_idx);
         }
-        // Reset new action (invoke will handle INIT)
+        // Reset new action so it gets INIT on first invoke
         reset_action_at_index(inst, params, action_phys_idx);
         s_expr_set_user_flags(inst, action_phys_idx);
     }
     
     // Invoke current state action
-    return s_expr_invoke_any(inst, key_content, 0);
+    // key_content points to first param after OPEN_KEY
+    // We need to invoke the action at that position
+    return s_expr_invoke_any(inst, params, action_phys_idx);
 }
 
 // SE_NAMED_EVENT_DISPATCH - event dispatch with string event names
 // params: [OPEN_DICT events...]
-// event_id is a hash of the event name
+// event_data points to uint32_t hash of the event name
 // Handlers run fresh each time (terminate, reset, invoke)
 static s_expr_result_t se_named_event_dispatch(
     s_expr_tree_instance_t* inst,
@@ -1657,7 +1678,7 @@ static s_expr_result_t se_named_event_dispatch(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_data;
+    (void)event_id;
     
     // Structure:
     // Child 0: OPEN_DICT containing event_hash -> action mappings
@@ -1696,8 +1717,14 @@ static s_expr_result_t se_named_event_dispatch(
         return SE_CONTINUE;
     }
     
-    // TICK: Look up event by hash and invoke handler
+    // TICK: Look up event by hash from event_data
     if (param_count < 1) return SE_CONTINUE;
+    
+    // Get hash from event_data
+    if (!event_data) {
+        return SE_CONTINUE;  // No event hash provided
+    }
+    uint32_t event_hash = *(uint32_t*)event_data;
     
     uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
     if (opcode != S_EXPR_PARAM_OPEN_DICT) {
@@ -1706,7 +1733,7 @@ static s_expr_result_t se_named_event_dispatch(
     }
     
     // Look up event by hash
-    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[0], (uint32_t)event_id);
+    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[0], event_hash);
     
     if (!key_content) {
         return SE_CONTINUE;  // No handler for this event
@@ -1721,7 +1748,6 @@ static s_expr_result_t se_named_event_dispatch(
     
     return s_expr_invoke_any(inst, params, action_phys_idx);
 }
-
 // ============================================================================
 // ONESHOT IMPLEMENTATIONS
 // ============================================================================
