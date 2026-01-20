@@ -748,6 +748,9 @@ function _G.start_tree(name)
         record_name = nil,
         record_index = 0,
         nodes = {},
+        defaults_name = nil,      -- NEW
+        defaults_hash = 0,        -- NEW
+        defaults_index = 0xFFFF,  -- NEW: sentinel for "no defaults"
         node_count = 0,
         pointer_count = 0,  -- Count of pt_m_call nodes
     }
@@ -767,6 +770,38 @@ function _G.use_record(name)
     for i, rname in ipairs(current_module.record_order) do
         if rname == name then
             current_tree.record_index = i - 1
+            break
+        end
+    end
+end
+
+-- Add to TREE FUNCTIONS section in s_expr_dsl.lua
+
+function _G.use_defaults(const_name)
+    if not current_tree then
+        dsl_error("No tree open")
+    end
+    
+    -- Verify constant exists
+    if not current_module.constants[const_name] then
+        dsl_error("Unknown constant: " .. const_name)
+    end
+    
+    -- Verify constant's record type matches tree's record
+    local cnst = current_module.constants[const_name]
+    if current_tree.record_name and cnst.record_type ~= current_tree.record_name then
+        dsl_error(string.format(
+            "Constant '%s' is for record '%s', but tree uses '%s'",
+            const_name, cnst.record_type, current_tree.record_name))
+    end
+    
+    current_tree.defaults_name = const_name
+    current_tree.defaults_hash = M.fnv1a_32(const_name)
+    
+    -- Find constant index
+    for i, name in ipairs(current_module.const_order) do
+        if name == const_name then
+            current_tree.defaults_index = i - 1
             break
         end
     end
@@ -2252,7 +2287,7 @@ function BinaryModuleGenerator:generate()
         e:emit_u32(0)  -- placeholders
     end
     
-    -- ========== TREES ==========
+    -- ========== TREES (24 bytes each) ==========
     local tree_offset = e:get_pos()
     e:patch_u32(dir_start, tree_offset)
     
@@ -2271,6 +2306,8 @@ function BinaryModuleGenerator:generate()
         
         e:emit_u16(tree.node_count)
         e:emit_u16(tree.pointer_count or 0)
+        e:emit_u16(tree.defaults_index or 0xFFFF)  -- defaults index
+        e:emit_u16(0)  -- reserved
         
         local param_patch = e:get_pos()
         e:emit_u32(0)  -- param_offset placeholder
@@ -2316,11 +2353,11 @@ function BinaryModuleGenerator:generate()
             e:emit_u32(field.name_hash)
             e:emit_u8(field.type_tag or 0x07)
             
-            local flags = 0
-            if field.is_pointer then flags = bit.bor(flags, 0x01) end
-            if field.is_char_array then flags = bit.bor(flags, 0x02) end
-            if field.is_embedded then flags = bit.bor(flags, 0x04) end
-            e:emit_u8(flags)
+            local field_flags = 0
+            if field.is_pointer then field_flags = bit.bor(field_flags, 0x01) end
+            if field.is_char_array then field_flags = bit.bor(field_flags, 0x02) end
+            if field.is_embedded then field_flags = bit.bor(field_flags, 0x04) end
+            e:emit_u8(field_flags)
             
             e:emit_u16(field.offset)
             e:emit_u16(field.size)
@@ -2409,6 +2446,10 @@ function BinaryModuleGenerator:generate()
     
     for _, patch in ipairs(tree_param_patches) do
         local tree = patch.tree
+        
+        -- Set current tree record for field resolution
+        self.current_tree_record = tree.record_name
+        
         local start_pos = e:get_pos()
         e:patch_u32(patch.offset_patch, start_pos)
         
@@ -2421,12 +2462,40 @@ function BinaryModuleGenerator:generate()
         e:align(self.param_size)
     end
     
+    -- Clear current tree record
+    self.current_tree_record = nil
+    
     -- ========== FINALIZE ==========
     e:patch_u32(size_patch, e:get_pos())
     
     return e:to_bytes(), e:get_pos()
 end
-
+-- Count params in a node (for content_count in OPEN_CALL)
+function BinaryModuleGenerator:count_node_params(node)
+    local count = 2  -- OPEN_CALL + func_ref
+    
+    -- Count user params
+    for _, param in ipairs(node.params) do
+        local ptype = param.type
+        if ptype == "list_start" or ptype == "list_end" or
+           ptype == "dict_start" or ptype == "dict_end" or
+           ptype == "dict_key" or ptype == "dict_key_hash" or
+           ptype == "end_dict_key" or
+           ptype == "array_start" or ptype == "array_end" or
+           ptype == "tuple_start" or ptype == "tuple_end" then
+            count = count + 1
+        else
+            count = count + 1
+        end
+    end
+    
+    -- Count children recursively
+    for _, child in ipairs(node.children) do
+        count = count + self:count_node_params(child) + 1  -- +1 for CLOSE
+    end
+    
+    return count
+end
 function BinaryModuleGenerator:emit_tree_params(e, tree)
     local param_count = 0
     local current_node_idx = 0  -- Track node index as we emit
@@ -2656,22 +2725,66 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
     return param_count
 end
 
--- Count params in a node (for content_count in OPEN_CALL)
--- Runtime convention: param_count = content_count - 2
--- close_idx = open_idx + content_count (verified by runtime, verifier may show off-by-one)
-function BinaryModuleGenerator:count_node_params(node)
-    local count = 2  -- OPEN_CALL + func_ref
-    
-    count = count + #node.params  -- user params
-    
-    for _, child in ipairs(node.children) do
-        -- Child contributes: its content_count + 1 for its CLOSE
-        count = count + self:count_node_params(child) + 1
+function BinaryModuleGenerator:resolve_field_offset(field_name)
+    if not self.current_tree_record then
+        return nil, nil
     end
     
-    return count
+    local rec = self.module.records[self.current_tree_record]
+    if not rec then return nil, nil end
+    
+    for _, field in ipairs(rec.fields) do
+        if field.name == field_name then
+            return field.offset, field.size
+        end
+    end
+    
+    return nil, nil
 end
 
+function BinaryModuleGenerator:resolve_nested_field_offset(path)
+    if not self.current_tree_record then
+        return nil, nil
+    end
+    
+    local rec = self.module.records[self.current_tree_record]
+    if not rec then return nil, nil end
+    
+    -- Parse path like "gains.kp" or "motor.position.x"
+    local parts = {}
+    for part in path:gmatch("[^.]+") do
+        table.insert(parts, part)
+    end
+    
+    local offset = 0
+    local current_rec = rec
+    local field = nil
+    
+    for i, part in ipairs(parts) do
+        field = nil
+        for _, f in ipairs(current_rec.fields) do
+            if f.name == part then
+                field = f
+                break
+            end
+        end
+        
+        if not field then
+            return nil, nil
+        end
+        
+        offset = offset + field.offset
+        
+        if i < #parts and field.is_embedded then
+            current_rec = self.module.records[field.embedded_record]
+            if not current_rec then
+                return nil, nil
+            end
+        end
+    end
+    
+    return offset, field and field.size or 0
+end
 -- Emit a DSL parameter as s_expr_param_t
 function BinaryModuleGenerator:emit_dsl_param(e, param)
     local ptype = param.type
@@ -2695,13 +2808,29 @@ function BinaryModuleGenerator:emit_dsl_param(e, param)
         local len = #value
         self:emit_param_struct(e, S_EXPR_PARAM.STR_IDX, 0, idx, len)
         return 1
-    elseif ptype == "field_ref" or ptype == "nested_field_ref" then
-        -- Resolve field offset/size from current tree's record
-        local offset, size = 0, 0
-        -- For now emit hash, runtime will resolve
-        local hash = M.fnv1a_32(value)
-        self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, nil, nil, hash)
+    elseif ptype == "field_ref" then
+        -- Resolve field offset from tree's record
+        local offset, size = self:resolve_field_offset(value)
+        if offset then
+            -- Store offset in u16_a, size in u16_b
+            self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, offset, size)
+        else
+            -- Fallback: emit hash for runtime resolution
+            local hash = M.fnv1a_32(value)
+            self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, nil, nil, hash)
+        end
         return 1
+    elseif ptype == "nested_field_ref" then
+        -- Resolve nested path like "gains.kp"
+        local offset, size = self:resolve_nested_field_offset(value)
+        if offset then
+            self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, offset, size)
+        else
+            local hash = M.fnv1a_32(value)
+            self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, nil, nil, hash)
+        end
+        return 1
+        
     elseif ptype == "const_ref" then
         local idx = self.const_index[value] or 0
         self:emit_param_struct(e, S_EXPR_PARAM.CONST_REF, 0, idx, 0)

@@ -24,11 +24,17 @@ static s_expr_fn_entry_t s_expr_dsl_test_main_entries[] = {
     { 0xE6B90959, (void*)process_int_list },
     { 0x274D6E56, (void*)multi_list_func },
     { 0xC32CF90C, (void*)nested_lists },
+    { 0x88810CB1, (void*)array_access },
+    { 0x267C4925, (void*)field_array },
+    { 0xB366B1FF, (void*)matrix_2d },
+    { 0xDE2C8DF7, (void*)process_tuple },
+    { 0xDB0DE5BE, (void*)tuple_table },
+    { 0x715D092E, (void*)complex_tuple },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_main_table = {
     .entries = s_expr_dsl_test_main_entries,
-    .count = 3
+    .count = 9
 };
 
 // Predicate function entries

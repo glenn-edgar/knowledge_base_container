@@ -18,6 +18,7 @@
 #include "s_engine_types.h"
 #include "s_engine_node.h"
 #include "cfl_exception.h"
+#include "s_engine_list_dictionary_support.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -204,7 +205,7 @@ const s_expr_fn_table_t* s_engine_builtin_pred_table(void) {
 // ============================================================================
 // FNV-1a HASH IMPLEMENTATION
 // ============================================================================
-
+#if 0
 uint32_t s_expr_fnv1a_hash(const char* str) {
     uint32_t hash = 0x811c9dc5;  // FNV offset basis
     
@@ -215,7 +216,7 @@ uint32_t s_expr_fnv1a_hash(const char* str) {
     
     return hash;
 }
-
+#endif
 // ============================================================================
 // DICTIONARY NAVIGATION HELPERS
 // ============================================================================
@@ -223,118 +224,6 @@ uint32_t s_expr_fnv1a_hash(const char* str) {
 // Find a key in a dictionary by hash value
 // dict_param should point to OPEN_DICT
 // Returns pointer to the content after OPEN_KEY (first value in key), or NULL
-const s_expr_param_t* s_expr_dict_find_key(
-    const s_expr_param_t* dict_param,
-    uint32_t key_hash
-) {
-    uint8_t opcode = dict_param->type & S_EXPR_OPCODE_MASK;
-    
-    // Verify this is OPEN_DICT
-    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
-        return NULL;
-    }
-    
-    // Get dict bounds from brace_idx
-    uint16_t dict_size = dict_param->brace_idx;
-    const s_expr_param_t* dict_end = dict_param + dict_size;
-    const s_expr_param_t* p = dict_param + 1;  // Skip OPEN_DICT
-    
-    // Scan through dictionary looking for OPEN_KEY with matching hash
-    while (p < dict_end) {
-        opcode = p->type & S_EXPR_OPCODE_MASK;
-        
-        if (opcode == S_EXPR_PARAM_OPEN_KEY) {
-            // Check if hash matches (stored in u32 field)
-            if (p->uint_val == key_hash) {
-                // Found! Return pointer to first content param
-                return p + 1;
-            }
-            // Skip to CLOSE_KEY using brace_idx
-            // CLOSE_KEY is at p + brace_idx, but we need to get brace_idx from CLOSE_KEY
-            // Actually, OPEN_KEY doesn't store brace_idx, the hash is in u32
-            // We need to skip to CLOSE_KEY
-            uint16_t skip = 1;
-            while (p + skip < dict_end) {
-                uint8_t skip_opcode = p[skip].type & S_EXPR_OPCODE_MASK;
-                if (skip_opcode == S_EXPR_PARAM_CLOSE_KEY) {
-                    break;
-                }
-                skip++;
-            }
-            p += skip + 1;  // Move past CLOSE_KEY
-        } else if (opcode == S_EXPR_PARAM_CLOSE_DICT) {
-            break;  // End of dict
-        } else {
-            p++;
-        }
-    }
-    
-    return NULL;  // Key not found
-}
-
-// Get the contents of a dictionary key (between OPEN_KEY and CLOSE_KEY)
-// key_param should point to OPEN_KEY
-const s_expr_param_t* s_expr_key_contents(
-    const s_expr_param_t* key_param,
-    uint16_t* content_count
-) {
-    uint8_t opcode = key_param->type & S_EXPR_OPCODE_MASK;
-    
-    if (opcode != S_EXPR_PARAM_OPEN_KEY) {
-        *content_count = 0;
-        return NULL;
-    }
-    
-    // Content starts after OPEN_KEY
-    const s_expr_param_t* content = key_param + 1;
-    
-    // Find CLOSE_KEY to get content count
-    uint16_t count = 0;
-    const s_expr_param_t* p = content;
-    
-    while (true) {
-        opcode = p->type & S_EXPR_OPCODE_MASK;
-        if (opcode == S_EXPR_PARAM_CLOSE_KEY) {
-            break;
-        }
-        count++;
-        p++;
-        
-        // Safety limit
-        if (count > 10000) {
-            *content_count = 0;
-            return NULL;
-        }
-    }
-    
-    *content_count = count;
-    return content;
-}
-
-// ============================================================================
-// UNIFIED BODY EXECUTION HELPER
-// ============================================================================
-
-static s_expr_result_t s_expr_execute_body(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count
-) {
-    for (uint16_t i = 0; i < param_count; ) {
-        if (s_expr_param_is_oneshot(&params[i])) {
-            s_expr_invoke_oneshot(inst, params, i);
-        }
-        else if (s_expr_param_is_main(&params[i])) {
-            s_expr_result_t r = s_expr_invoke_main(inst, params, i);
-            if (r != SE_CONTINUE && r != SE_DISABLE) {
-                return r;
-            }
-        }
-        i = s_expr_skip_param(params, i);
-    }
-    
-    return s_expr_find_result(params, param_count);
-}
 
 // ============================================================================
 // PREDICATE IMPLEMENTATIONS
@@ -1124,8 +1013,9 @@ static s_expr_result_t se_state_actions(
     return SE_CONTINUE;
 }
 
-
-
+// SE_FIELD_DISPATCH - dispatch based on integer field value
+// params: [field_ref] [int, action] pairs (flat structure)
+// Stateful: tracks branch changes, handles INIT/TERMINATE
 static s_expr_result_t se_field_dispatch(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1138,34 +1028,44 @@ static s_expr_result_t se_field_dispatch(
     
     uint16_t prev_action_idx = s_expr_get_user_flags(inst);
     
+    // =========================================================================
+    // TERMINATE: Clean up active branch
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_idx > 0) {
-            s_expr_restart_actions(inst, &params[prev_action_idx], 
-                s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            uint16_t action_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
+            s_expr_children_terminate_all(inst, &params[prev_action_idx], action_count);
         }
         return SE_CONTINUE;
     }
     
+    // =========================================================================
+    // INIT: Validate and set sentinel
+    // =========================================================================
     if (event_type == SE_EVENT_INIT) {
-        if (param_count < 1) {
-            EXCEPTION("se_field_dispatch: missing field parameter");
+        if (param_count < 2) {
+            EXCEPTION("se_field_dispatch: need field_ref and cases");
             return SE_CONTINUE;
         }
-        uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-        if (opcode != S_EXPR_PARAM_FIELD) {
-            EXCEPTION("se_field_dispatch: first param must be field_ref");
-            return SE_CONTINUE;
-        }
-        s_expr_set_user_flags(inst, 0);
+        s_expr_set_user_flags(inst, 0xFFFF);  // Sentinel: no previous action
         return SE_CONTINUE;
     }
     
+    // =========================================================================
+    // TICK: Dispatch based on field value
+    // =========================================================================
+    
+    // Get integer value from field
     int32_t* val_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-    if (!val_ptr) return SE_CONTINUE;
+    if (!val_ptr) {
+        EXCEPTION("se_field_dispatch: field not found");
+        return SE_CONTINUE;
+    }
     
     int32_t val = *val_ptr;
     
-    uint16_t idx = s_expr_skip_param(params, 0);
+    // Search for matching case in flat [int, action] pairs
+    uint16_t idx = s_expr_skip_param(params, 0);  // Skip field_ref
     uint16_t action_idx = 0;
     
     while (idx < param_count) {
@@ -1180,36 +1080,56 @@ static s_expr_result_t se_field_dispatch(
                 break;
             }
             
-            idx = s_expr_skip_param(params, idx);
-            idx = s_expr_skip_param(params, idx);
+            // Skip [int, action] pair
+            idx = s_expr_skip_param(params, idx);      // Skip int
+            idx = s_expr_skip_param(params, idx);      // Skip action
         } else {
             idx = s_expr_skip_param(params, idx);
         }
     }
     
+    // =========================================================================
+    // No match - terminate previous if any
+    // =========================================================================
     if (action_idx == 0) {
-        if (prev_action_idx > 0) {
-            s_expr_restart_actions(inst, &params[prev_action_idx],
-                s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
-            s_expr_set_user_flags(inst, 0);
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            uint16_t prev_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
+            s_expr_children_terminate_all(inst, &params[prev_action_idx], prev_count);
+            s_expr_set_user_flags(inst, 0xFFFF);
         }
         return SE_CONTINUE;
     }
     
+    uint16_t action_count = s_expr_skip_param(params, action_idx) - action_idx;
+    
+    // =========================================================================
+    // Handle branch change: terminate old, reset new
+    // =========================================================================
     if (action_idx != prev_action_idx) {
-        if (prev_action_idx > 0) {
-            s_expr_restart_actions(inst, &params[prev_action_idx],
-                s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            uint16_t prev_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
+            s_expr_children_terminate_all(inst, &params[prev_action_idx], prev_count);
         }
-        s_expr_enable_actions(inst, &params[action_idx],
-            s_expr_skip_param(params, action_idx) - action_idx);
+        
+        s_expr_children_reset_all(inst, &params[action_idx], action_count);
         s_expr_set_user_flags(inst, action_idx);
     }
     
-    uint16_t action_end = s_expr_skip_param(params, action_idx);
-    return s_expr_execute_body(inst, &params[action_idx], action_end - action_idx);
+    // =========================================================================
+    // Execute children in selected branch
+    // =========================================================================
+    uint16_t child_count = s_expr_child_count(&params[action_idx], action_count);
+    s_expr_result_t result = SE_CONTINUE;
+    
+    for (uint16_t i = 0; i < child_count; i++) {
+        result = s_expr_child_invoke(inst, &params[action_idx], action_count, i);
+        if (result != SE_CONTINUE) {
+            break;
+        }
+    }
+    
+    return result;
 }
-
 static s_expr_result_t se_event_dispatch(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1234,8 +1154,8 @@ static s_expr_result_t se_event_dispatch(
             uint16_t action_idx = idx + 1;
             
             if (case_event == (int32_t)event_id && action_idx < param_count) {
-                uint16_t action_end = s_expr_skip_param(params, action_idx);
-                return s_expr_execute_body(inst, &params[action_idx], action_end - action_idx);
+                uint16_t action_count = s_expr_skip_param(params, action_idx) - action_idx;
+                return s_expr_child_invoke(inst, &params[action_idx], action_count, 0);
             }
             
             idx = s_expr_skip_param(params, idx);
@@ -1275,7 +1195,18 @@ static s_expr_result_t se_dispatch(
                 int32_t case_val = case_params[0].int_val;
                 if (case_val == val) {
                     uint16_t body_start = s_expr_skip_param(case_params, 0);
-                    return s_expr_execute_body(inst, &case_params[body_start], case_count - body_start);
+                    uint16_t body_count = case_count - body_start;
+                    
+                    uint16_t child_count = s_expr_child_count(&case_params[body_start], body_count);
+                    s_expr_result_t result = SE_CONTINUE;
+                    
+                    for (uint16_t i = 0; i < child_count; i++) {
+                        result = s_expr_child_invoke(inst, &case_params[body_start], body_count, i);
+                        if (result != SE_CONTINUE) {
+                            break;
+                        }
+                    }
+                    return result;
                 }
             }
         }
@@ -1284,10 +1215,6 @@ static s_expr_result_t se_dispatch(
     
     return SE_CONTINUE;
 }
-
-// ============================================================================
-// NEW v5.2: DICTIONARY-BASED DISPATCH FUNCTIONS
-// ============================================================================
 
 // SE_STRING_DISPATCH - dispatch based on string field value (computes hash)
 // params: [field_ref] [OPEN_DICT cases...]
@@ -1304,32 +1231,49 @@ static s_expr_result_t se_string_dispatch(
     
     uint16_t prev_action_idx = s_expr_get_user_flags(inst);
     
+    // =========================================================================
+    // TERMINATE: Clean up active branch
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_idx > 0) {
-            s_expr_restart_actions(inst, &params[prev_action_idx],
-                s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            const s_expr_param_t* prev_content = &params[prev_action_idx];
+            uint16_t prev_count;
+            s_expr_key_contents(prev_content - 1, &prev_count);
+            s_expr_children_terminate_all(inst, prev_content, prev_count);
         }
         return SE_CONTINUE;
     }
     
+    // =========================================================================
+    // INIT: Validate and set sentinel
+    // =========================================================================
     if (event_type == SE_EVENT_INIT) {
         if (param_count < 2) {
             EXCEPTION("se_string_dispatch: need field_ref and dict");
             return SE_CONTINUE;
         }
-        s_expr_set_user_flags(inst, 0);
+        s_expr_set_user_flags(inst, 0xFFFF);  // Sentinel: no previous action
         return SE_CONTINUE;
     }
     
+    // =========================================================================
+    // TICK: Dispatch based on string hash
+    // =========================================================================
+    
     // Get string from field and compute hash
     const char** str_ptr = S_EXPR_GET_FIELD(inst, &params[0], const char*);
-    if (!str_ptr || !*str_ptr) return SE_CONTINUE;
+    if (!str_ptr || !*str_ptr) {
+        EXCEPTION("se_string_dispatch: field not found or null");
+        return SE_CONTINUE;
+    }
     
     uint32_t str_hash = s_expr_fnv1a_hash(*str_ptr);
     
-    // Find dictionary (should be second param)
+    // Find dictionary (skip field_ref)
     uint16_t dict_idx = s_expr_skip_param(params, 0);
-    if (dict_idx >= param_count) return SE_CONTINUE;
+    if (dict_idx >= param_count) {
+        return SE_CONTINUE;
+    }
     
     uint8_t opcode = params[dict_idx].type & S_EXPR_OPCODE_MASK;
     if (opcode != S_EXPR_PARAM_OPEN_DICT) {
@@ -1341,41 +1285,57 @@ static s_expr_result_t se_string_dispatch(
     const s_expr_param_t* key_content = s_expr_dict_find_key(&params[dict_idx], str_hash);
     
     if (!key_content) {
-        // No match - check for DEFAULT key
+        // No match - check for DEFAULT
         uint32_t default_hash = s_expr_fnv1a_hash("DEFAULT");
         key_content = s_expr_dict_find_key(&params[dict_idx], default_hash);
         
         if (!key_content) {
-            // No default either - terminate previous if any
-            if (prev_action_idx > 0) {
-                s_expr_restart_actions(inst, &params[prev_action_idx],
-                    s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
-                s_expr_set_user_flags(inst, 0);
+            // No match and no default - terminate previous if any
+            if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+                const s_expr_param_t* prev_content = &params[prev_action_idx];
+                uint16_t prev_count;
+                s_expr_key_contents(prev_content - 1, &prev_count);
+                s_expr_children_terminate_all(inst, prev_content, prev_count);
+                s_expr_set_user_flags(inst, 0xFFFF);
             }
             return SE_CONTINUE;
         }
     }
     
-    // Calculate action index (offset from params start)
     uint16_t action_idx = (uint16_t)(key_content - params);
-    
-    // Get content count
     uint16_t content_count;
     s_expr_key_contents(key_content - 1, &content_count);
     
-    // Handle state transition
+    // =========================================================================
+    // Handle branch change: terminate old, reset new
+    // =========================================================================
     if (action_idx != prev_action_idx) {
-        if (prev_action_idx > 0) {
-            s_expr_restart_actions(inst, &params[prev_action_idx],
-                s_expr_skip_param(params, prev_action_idx) - prev_action_idx);
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            const s_expr_param_t* prev_content = &params[prev_action_idx];
+            uint16_t prev_count;
+            s_expr_key_contents(prev_content - 1, &prev_count);
+            s_expr_children_terminate_all(inst, prev_content, prev_count);
         }
-        s_expr_enable_actions(inst, key_content, content_count);
+        
+        s_expr_children_reset_all(inst, key_content, content_count);
         s_expr_set_user_flags(inst, action_idx);
     }
     
-    return s_expr_execute_body(inst, key_content, content_count);
+    // =========================================================================
+    // Execute children in selected branch
+    // =========================================================================
+    uint16_t child_count = s_expr_child_count(key_content, content_count);
+    s_expr_result_t result = SE_CONTINUE;
+    
+    for (uint16_t i = 0; i < child_count; i++) {
+        result = s_expr_child_invoke(inst, key_content, content_count, i);
+        if (result != SE_CONTINUE) {
+            break;
+        }
+    }
+    
+    return result;
 }
-
 // SE_HASH_DISPATCH - dispatch based on pre-computed hash in field
 // params: [field_ref] [OPEN_DICT cases...]
 // Field already contains a hash value

@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: s_expr_dsl_test
 #define S_EXPR_DSL_TEST_NAME_HASH 0x7BB33CC5
-#define S_EXPR_DSL_TEST_TREE_COUNT 19
+#define S_EXPR_DSL_TEST_TREE_COUNT 21
 #define S_EXPR_DSL_TEST_RECORD_COUNT 9
 
 // String table
@@ -55,9 +55,14 @@ static const char* const s_expr_dsl_test_strings[] = {
     "start state",
     "stop state",
     "pause state",
-    "reset state"
+    "reset state",
+    "sensor_1",
+    "temp_sensor",
+    "pressure_sensor",
+    "humidity_sensor",
+    "motor_config"
 };
-#define S_EXPR_DSL_TEST_STRING_COUNT 35
+#define S_EXPR_DSL_TEST_STRING_COUNT 40
 
 // Function hashes
 #define SE_LOG_HASH 0xCEBBEFA4
@@ -88,6 +93,12 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define NESTED_LISTS_HASH 0xC32CF90C
 #define SE_HASH_DISPATCH_HASH 0xDE8E6F0D
 #define SE_NAMED_STATE_MACHINE_HASH 0x876B8A33
+#define ARRAY_ACCESS_HASH 0x88810CB1
+#define FIELD_ARRAY_HASH 0x267C4925
+#define MATRIX_2D_HASH 0xB366B1FF
+#define PROCESS_TUPLE_HASH 0xDE2C8DF7
+#define TUPLE_TABLE_HASH 0xDB0DE5BE
+#define COMPLEX_TUPLE_HASH 0x715D092E
 #define CHECK_CONDITION_HASH 0x27B2B70D
 #define ANOTHER_CONDITION_HASH 0xA303CD62
 #define MONITOR_STATE_HASH 0xC04E8337
@@ -114,6 +125,8 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define TEST_BASIC_LISTS_HASH 0x14CCAF62
 #define TEST_DICTIONARY_BASIC_HASH 0x48646D7F
 #define TEST_DICTIONARY_WITH_ACTIONS_HASH 0xD995097B
+#define TEST_ARRAY_BASIC_HASH 0xAFECDD8E
+#define TEST_TUPLE_BASIC_HASH 0xA310BFED
 
 // Record hashes
 #define ALL_PRIMITIVES_HASH 0xBF9832AB

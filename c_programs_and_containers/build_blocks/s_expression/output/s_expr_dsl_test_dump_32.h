@@ -11,9 +11,9 @@
 /*
  * Module: s_expr_dsl_test
  * Hash:   0x7BB33CC5
- * Trees:  19
+ * Trees:  21
  * Records: 9
- * Strings: 35
+ * Strings: 40
  * Constants: 3
  */
 
@@ -56,6 +56,11 @@
  * [32] "stop state"
  * [33] "pause state"
  * [34] "reset state"
+ * [35] "sensor_1"
+ * [36] "temp_sensor"
+ * [37] "pressure_sensor"
+ * [38] "humidity_sensor"
+ * [39] "motor_config"
  */
 
 // ============================================================================
@@ -92,6 +97,12 @@
  *   [22] NESTED_LISTS (hash=0xC32CF90C)
  *   [23] SE_HASH_DISPATCH (hash=0xDE8E6F0D)
  *   [24] SE_NAMED_STATE_MACHINE (hash=0x876B8A33)
+ *   [25] ARRAY_ACCESS (hash=0x88810CB1)
+ *   [26] FIELD_ARRAY (hash=0x267C4925)
+ *   [27] MATRIX_2D (hash=0xB366B1FF)
+ *   [28] PROCESS_TUPLE (hash=0xDE2C8DF7)
+ *   [29] TUPLE_TABLE (hash=0xDB0DE5BE)
+ *   [30] COMPLEX_TUPLE (hash=0x715D092E)
  * PREDICATE FUNCTIONS:
  *   [ 0] CHECK_CONDITION (hash=0x27B2B70D)
  *   [ 1] ANOTHER_CONDITION (hash=0xA303CD62)
@@ -1026,6 +1037,146 @@
  *  85      MAIN              0   func_idx=0      hash=0xB4243714
  *  86    CLOSE                   (end SE_RETURN_CONTINUE)
  *  87  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_array_basic
+ * Hash: 0xAFECDD8E
+ * Record: test_blackboard
+ * Nodes: 8, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=55      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=13        ARRAY_ACCESS
+ *   3      MAIN              0   func_idx=25     hash=0x88810CB1
+ *   4        OPEN_ARRAY              brace=TBD
+ *   5        INT                     value=100   
+ *   6        INT                     value=200   
+ *   7        INT                     value=300   
+ *   8        INT                     value=400   
+ *   9        INT                     value=500   
+ *  10        CLOSE_ARRAY             brace=6     
+ *  11        INT                     value=2     
+ *  12      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  13        MAIN              0   func_idx=0      hash=0xB4243714
+ *  14      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  15    CLOSE                   (end ARRAY_ACCESS)
+ *  16    OPEN_CALL           0   content=12        FIELD_ARRAY
+ *  17      MAIN              0   func_idx=26     hash=0x267C4925
+ *  18        OPEN_ARRAY              brace=TBD
+ *  19        FIELD                   hash=0x783132F6  "state"
+ *  20        FIELD                   hash=0x93594AB2  "command"
+ *  21        FIELD                   hash=0x9CACDE23  "counter"
+ *  22        FIELD                   hash=0x461898E0  "gains.kp"
+ *  23        FIELD                   hash=0x3FF6F369  "motor.position.x"
+ *  24        CLOSE_ARRAY             brace=6     
+ *  25      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  26        MAIN              0   func_idx=0      hash=0xB4243714
+ *  27      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  28    CLOSE                   (end FIELD_ARRAY)
+ *  29    OPEN_CALL           0   content=22        MATRIX_2D
+ *  30      MAIN              0   func_idx=27     hash=0xB366B1FF
+ *  31        OPEN_ARRAY              brace=TBD
+ *  32        OPEN_ARRAY              brace=TBD
+ *  33        FLOAT                   value=1
+ *  34        FLOAT                   value=0
+ *  35        FLOAT                   value=0
+ *  36        CLOSE_ARRAY             brace=4     
+ *  37        OPEN_ARRAY              brace=TBD
+ *  38        FLOAT                   value=0
+ *  39        FLOAT                   value=1
+ *  40        FLOAT                   value=0
+ *  41        CLOSE_ARRAY             brace=4     
+ *  42        OPEN_ARRAY              brace=TBD
+ *  43        FLOAT                   value=0
+ *  44        FLOAT                   value=0
+ *  45        FLOAT                   value=1
+ *  46        CLOSE_ARRAY             brace=4     
+ *  47        CLOSE_ARRAY             brace=16    
+ *  48      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  49        MAIN              0   func_idx=0      hash=0xB4243714
+ *  50      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  51    CLOSE                   (end MATRIX_2D)
+ *  52    OPEN_CALL           0   content=2         SE_RETURN_CONTINUE
+ *  53      MAIN              0   func_idx=0      hash=0xB4243714
+ *  54    CLOSE                   (end SE_RETURN_CONTINUE)
+ *  55  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_tuple_basic
+ * Hash: 0xA310BFED
+ * Record: test_blackboard
+ * Nodes: 8, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=63      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=10        PROCESS_TUPLE
+ *   3      MAIN              0   func_idx=28     hash=0xDE2C8DF7
+ *   4        OPEN_TUPLE              brace=TBD
+ *   5        STR_IDX                 idx=35 len=8    "sensor_1"
+ *   6        INT                     value=42    
+ *   7        FLOAT                   value=3.14159
+ *   8        CLOSE_TUPLE             brace=4     
+ *   9      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  10        MAIN              0   func_idx=0      hash=0xB4243714
+ *  11      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  12    CLOSE                   (end PROCESS_TUPLE)
+ *  13    OPEN_CALL           0   content=25        TUPLE_TABLE
+ *  14      MAIN              0   func_idx=29     hash=0xDB0DE5BE
+ *  15        OPEN_ARRAY              brace=TBD
+ *  16        OPEN_TUPLE              brace=TBD
+ *  17        STR_IDX                 idx=36 len=11   "temp_sensor"
+ *  18        INT                     value=1     
+ *  19        FLOAT                   value=25.5
+ *  20        UINT                    value=1       (0x00000001)
+ *  21        CLOSE_TUPLE             brace=5     
+ *  22        OPEN_TUPLE              brace=TBD
+ *  23        STR_IDX                 idx=37 len=15   "pressure_sensor"
+ *  24        INT                     value=2     
+ *  25        FLOAT                   value=101.3
+ *  26        UINT                    value=2       (0x00000002)
+ *  27        CLOSE_TUPLE             brace=5     
+ *  28        OPEN_TUPLE              brace=TBD
+ *  29        STR_IDX                 idx=38 len=15   "humidity_sensor"
+ *  30        INT                     value=3     
+ *  31        FLOAT                   value=65
+ *  32        UINT                    value=4       (0x00000004)
+ *  33        CLOSE_TUPLE             brace=5     
+ *  34        CLOSE_ARRAY             brace=19    
+ *  35      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  36        MAIN              0   func_idx=0      hash=0xB4243714
+ *  37      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  38    CLOSE                   (end TUPLE_TABLE)
+ *  39    OPEN_CALL           0   content=20        COMPLEX_TUPLE
+ *  40      MAIN              0   func_idx=30     hash=0x715D092E
+ *  41        OPEN_TUPLE              brace=TBD
+ *  42        STR_IDX                 idx=39 len=12   "motor_config"
+ *  43        OPEN_DICT               brace=TBD
+ *  44        OPEN_KEY                hash=0x65F6CBA5  key="max_speed"
+ *  45        FLOAT                   value=1000
+ *  46        CLOSE_KEY               brace=2     
+ *  47        OPEN_KEY                hash=0x2FA0BA9D  key="acceleration"
+ *  48        FLOAT                   value=50
+ *  49        CLOSE_KEY               brace=2     
+ *  50        CLOSE_DICT              brace=7     
+ *  51        OPEN_ARRAY              brace=TBD
+ *  52        FLOAT                   value=-100
+ *  53        FLOAT                   value=100
+ *  54        CLOSE_ARRAY             brace=3     
+ *  55        CLOSE_TUPLE             brace=14    
+ *  56      OPEN_CALL           0   content=2           SE_RETURN_CONTINUE
+ *  57        MAIN              0   func_idx=0      hash=0xB4243714
+ *  58      CLOSE                   (end SE_RETURN_CONTINUE)
+ *  59    CLOSE                   (end COMPLEX_TUPLE)
+ *  60    OPEN_CALL           0   content=2         SE_RETURN_CONTINUE
+ *  61      MAIN              0   func_idx=0      hash=0xB4243714
+ *  62    CLOSE                   (end SE_RETURN_CONTINUE)
+ *  63  CLOSE                   (end SE_PIPELINE)
  */
 
 #endif // S_EXPR_DSL_TEST_DUMP_32_H

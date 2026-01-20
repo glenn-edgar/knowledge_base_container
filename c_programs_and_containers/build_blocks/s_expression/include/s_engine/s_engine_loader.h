@@ -65,18 +65,20 @@ _Static_assert(sizeof(sexb_directory_t) == 32, "directory should be 32 bytes");
 // BINARY TREE ENTRY (20 bytes)
 // ============================================================================
 
+// Change from 20 bytes to 24 bytes
 typedef struct __attribute__((packed)) {
     uint32_t name_hash;
     uint32_t record_hash;
     uint16_t node_count;
     uint16_t pointer_count;
+    uint16_t defaults_index;    // NEW: 0xFFFF = no defaults
+    uint16_t reserved;
     uint32_t param_offset;
     uint16_t param_count;
-    uint16_t reserved;
+    uint16_t reserved2;
 } sexb_tree_entry_t;
 
-_Static_assert(sizeof(sexb_tree_entry_t) == 20, "tree entry should be 20 bytes");
-
+_Static_assert(sizeof(sexb_tree_entry_t) == 24, "tree entry should be 24 bytes");
 // ============================================================================
 // BINARY RECORD ENTRY (12 bytes)
 // ============================================================================

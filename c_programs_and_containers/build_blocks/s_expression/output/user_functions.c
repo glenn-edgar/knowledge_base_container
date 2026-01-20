@@ -12,6 +12,8 @@
 #include "s_engine_builtins.h"
 #include "cfl_exception.h"
 #include "s_engine_node.h"
+#include  "s_engine_types.h"
+#include "s_engine_list_dictionary_support.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1226,20 +1228,15 @@ void set_counter(
 // TEST TREE 16: Array Basic
 // ============================================================================
 
-s_expr_result_t array_access(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("ARRAY_ACCESS: param_count=%u\n", param_count);
-    exit(0);
-    return SE_CONTINUE;
-}
+// ============================================================================
+// Test Array Functions - New Format
+// ============================================================================
 
+
+// ============================================================================
+// FIELD_ARRAY - Array of field references
+// params: [OPEN_ARRAY field_refs...] [result]
+// ============================================================================
 s_expr_result_t field_array(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1248,12 +1245,103 @@ s_expr_result_t field_array(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("FIELD_ARRAY: param_count=%u\n", param_count);
-    exit(0);
-    return SE_CONTINUE;
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 1) {
+            EXCEPTION("field_array: need array");
+            return SE_CONTINUE;
+        }
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK
+    // =========================================================================
+    
+    printf("=== FIELD_ARRAY DEBUG ===\n");
+    printf("Blackboard ptr: %p, size: %u\n", inst->blackboard, inst->blackboard_size);
+    
+    if (inst->blackboard) {
+        printf("Blackboard dump (expected: state=1, command=2, counter=5, gains.kp=1.0, motor.position.x=100.0):\n");
+        uint8_t* bb = (uint8_t*)inst->blackboard;
+        
+        // Show key offsets based on record layout
+        printf("  offset  0 (state):    int=%d\n", *(int32_t*)(bb + 0));
+        printf("  offset  4 (hash):     uint=0x%08X\n", *(uint32_t*)(bb + 4));
+        printf("  offset  8 (command):  int=%d\n", *(int32_t*)(bb + 8));
+        printf("  offset 12 (event_id): int=%d\n", *(int32_t*)(bb + 12));
+        printf("  offset 16 (counter):  uint=%u\n", *(uint32_t*)(bb + 16));
+        printf("  offset 20 (temp):     float=%f\n", *(float*)(bb + 20));
+        printf("  offset 24 (enabled):  bool=%d\n", *(uint8_t*)(bb + 24));
+        // gains is at offset 108, kp is first field
+        printf("  offset 108 (gains.kp): float=%f\n", *(float*)(bb + 108));
+        printf("  offset 112 (gains.ki): float=%f\n", *(float*)(bb + 112));
+        printf("  offset 116 (gains.kd): float=%f\n", *(float*)(bb + 116));
+        // motor is at offset 76, position is first (vec3), x is first
+        printf("  offset 76 (motor.position.x): float=%f\n", *(float*)(bb + 76));
+        printf("  offset 80 (motor.position.y): float=%f\n", *(float*)(bb + 80));
+        printf("  offset 84 (motor.position.z): float=%f\n", *(float*)(bb + 84));
+    }
+    
+    // Find array
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    printf("\nparams[0] opcode: 0x%02X (expected OPEN_ARRAY=0x%02X)\n", opcode, S_EXPR_PARAM_OPEN_ARRAY);
+    
+    if (opcode != S_EXPR_PARAM_OPEN_ARRAY) {
+        EXCEPTION("field_array: expected OPEN_ARRAY");
+        return s_expr_find_result(params, param_count);
+    }
+    
+    uint16_t array_end_idx = params[0].brace_idx;
+    printf("Array brace_idx (end): %u\n", array_end_idx);
+    
+    printf("\nIterating array - checking field params:\n");
+    
+    uint16_t element_num = 0;
+    uint16_t idx = 1;
+    
+    while (idx < array_end_idx) {
+        uint8_t elem_opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (elem_opcode == S_EXPR_PARAM_FIELD) {
+            printf("  [%u] params[%u]: FIELD\n", element_num, idx);
+            printf("       field_offset=%u, field_size=%u\n", 
+                   params[idx].field_offset, params[idx].field_size);
+            printf("       uint_val=0x%08X (raw 32-bit)\n", params[idx].uint_val);
+            
+            void* val_ptr = S_EXPR_GET_FIELD(inst, &params[idx], void);
+            if (val_ptr) {
+                int32_t as_int = *(int32_t*)val_ptr;
+                float as_float = *(float*)val_ptr;
+                printf("       -> as_int=%d, as_float=%f\n", as_int, as_float);
+            } else {
+                printf("       -> NULL\n");
+            }
+            element_num++;
+        } else if (elem_opcode == S_EXPR_PARAM_CLOSE_ARRAY) {
+            printf("  params[%u]: CLOSE_ARRAY\n", idx);
+            break;
+        } else {
+            printf("  params[%u]: opcode=0x%02X\n", idx, elem_opcode);
+        }
+        
+        idx = s_expr_skip_param(params, idx);
+    }
+    
+    printf("Total fields: %u\n", element_num);
+    printf("=== END DEBUG ===\n");
+    
+    return s_expr_find_result(params, param_count);
 }
-
+// ============================================================================
+// MATRIX_2D - Nested 2D array (matrix)
+// params: [OPEN_ARRAY rows...] [result]
+// ============================================================================
 s_expr_result_t matrix_2d(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1262,14 +1350,190 @@ s_expr_result_t matrix_2d(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
-    printf("MATRIX_2D: param_count=%u\n", param_count);
-    exit(0);
+    (void)inst; (void)event_id; (void)event_data;
+    
+    // =========================================================================
+    // TERMINATE
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // INIT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 1) {
+            EXCEPTION("se_matrix_2d: need array");
+            return SE_CONTINUE;
+        }
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK
+    // =========================================================================
+    
+    // Find outer array (rows)
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN_ARRAY) {
+        EXCEPTION("se_matrix_2d: expected OPEN_ARRAY");
+        return s_expr_find_result(params, param_count);
+    }
+    
+    // Get outer array contents
+    uint16_t outer_count;
+    const s_expr_param_t* outer = s_expr_brace_contents(params, 0, &outer_count);
+    
+    uint16_t row_count = s_expr_child_count(outer, outer_count);
+    
+    printf("Matrix %u rows:\n", row_count);
+    
+    for (uint16_t row = 0; row < row_count; row++) {
+        uint16_t row_idx = s_expr_child_index(outer, outer_count, row);
+        if (row_idx == UINT16_MAX) {
+            continue;
+        }
+        
+        const s_expr_param_t* row_param = &outer[row_idx];
+        uint8_t row_opcode = row_param->type & S_EXPR_OPCODE_MASK;
+        
+        if (row_opcode != S_EXPR_PARAM_OPEN_ARRAY) {
+            printf("  Row %u: not an array\n", row);
+            continue;
+        }
+        
+        // Get inner array contents (columns)
+        uint16_t inner_count;
+        const s_expr_param_t* inner = s_expr_brace_contents(outer, row_idx, &inner_count);
+        
+        uint16_t col_count = s_expr_child_count(inner, inner_count);
+        
+        printf("  Row %u: [", row);
+        
+        for (uint16_t col = 0; col < col_count; col++) {
+            uint16_t col_idx = s_expr_child_index(inner, inner_count, col);
+            if (col_idx == UINT16_MAX) {
+                continue;
+            }
+            
+            const s_expr_param_t* elem = &inner[col_idx];
+            uint8_t elem_opcode = elem->type & S_EXPR_OPCODE_MASK;
+            
+            if (col > 0) printf(", ");
+            
+            switch (elem_opcode) {
+                case S_EXPR_PARAM_INT:
+                    printf("%d", (int32_t)elem->int_val);
+                    break;
+                case S_EXPR_PARAM_UINT:
+                    printf("%u", (uint32_t)elem->uint_val);
+                    break;
+                case S_EXPR_PARAM_FLOAT:
+                    printf("%.1f", (double)elem->float_val);
+                    break;
+                default:
+                    printf("?");
+                    break;
+            }
+        }
+        
+        printf("]\n");
+    }
+    
     return SE_CONTINUE;
 }
 
 // ============================================================================
-// TEST TREE 17: Tuple Basic
+// ARRAY_ACCESS - Access integer array by index
+// params: [OPEN_ARRAY ints...] [index] [result]
+// ============================================================================
+s_expr_result_t array_access(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)event_id; (void)event_data;
+    
+    (void)inst; (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN_ARRAY) {
+        EXCEPTION("se_array_access: expected OPEN_ARRAY");
+        return SE_FUNCTION_TERMINATE;
+    }
+    
+    // Get array contents
+    uint16_t content_count;
+    const s_expr_param_t* contents = s_expr_brace_contents(params, 0, &content_count);
+    
+    
+    // Get index parameter (after array)
+    uint16_t index_idx = s_expr_skip_param(params, 0);
+
+    
+    if (index_idx >= param_count) {
+        EXCEPTION("se_array_access: missing index");
+        return SE_FUNCTION_TERMINATE;
+    }
+    
+    uint16_t access_index = (uint16_t)params[index_idx].int_val;
+    
+    
+    uint16_t element_count = s_expr_child_count(contents, content_count);
+    
+    
+    if (access_index >= element_count) {
+        EXCEPTION("se_array_access: index out of bounds");
+        return SE_FUNCTION_TERMINATE;
+    }
+    
+    // Get element at index
+    uint16_t elem_idx = s_expr_child_index(contents, content_count, access_index);
+    if (elem_idx == UINT16_MAX) {
+        EXCEPTION("se_array_access: failed to find element");
+        return SE_FUNCTION_TERMINATE;
+    }
+    
+    const s_expr_param_t* elem = &contents[elem_idx];
+    uint8_t elem_opcode = elem->type & S_EXPR_OPCODE_MASK;
+    
+    printf("Array access [%u]: ", access_index);
+    switch (elem_opcode) {
+        case S_EXPR_PARAM_INT:
+            printf("INT %d\n", (int32_t)elem->int_val);
+            break;
+        case S_EXPR_PARAM_UINT:
+            printf("UINT %u\n", (uint32_t)elem->uint_val);
+            break;
+        case S_EXPR_PARAM_FLOAT:
+            printf("FLOAT %.4f\n", (double)elem->float_val);
+            break;
+        default:
+            printf("<opcode 0x%02X>\n", elem_opcode);
+            break;
+    }
+    
+    return SE_CONTINUE;
+}
+
+
+
+
+// ============================================================================
+// TEST FUNCTIONS
 // ============================================================================
 
 s_expr_result_t process_tuple(
@@ -1280,9 +1544,44 @@ s_expr_result_t process_tuple(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    (void)event_id;  (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+
     printf("PROCESS_TUPLE: param_count=%u\n", param_count);
-    exit(0);
+    
+    if (param_count < 1 || !S_EXPR_PARAM_IS_OPEN_TUPLE(params[0].type)) {
+        printf("  ERROR: expected OPEN_TUPLE at params[0]\n");
+        return SE_CONTINUE;
+    }
+    
+    uint16_t tuple_count;
+    const s_expr_param_t* tuple_params = s_expr_tuple_contents(&params[0], &tuple_count);
+    if (!tuple_params) {
+        printf("  ERROR: failed to get tuple contents\n");
+        return SE_CONTINUE;
+    }
+    
+    printf("  tuple t1: %u elements\n", tuple_count);
+    
+    if (tuple_count >= 3) {
+        if (S_EXPR_PARAM_IS_STR_IDX(tuple_params[0].type)) {
+            const char* str = s_expr_param_string(inst->module->def, &tuple_params[0]);
+            printf("    [0] str: \"%s\"\n", str ? str : "(null)");
+        }
+        if ((tuple_params[1].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_INT) {
+            printf("    [1] int: %d\n", (int)tuple_params[1].int_val);
+        }
+        if ((tuple_params[2].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+            printf("    [2] float: %f\n", (double)tuple_params[2].float_val);
+        }
+    }
+    
     return SE_CONTINUE;
 }
 
@@ -1294,9 +1593,69 @@ s_expr_result_t tuple_table(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    (void)event_id;  (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
     printf("TUPLE_TABLE: param_count=%u\n", param_count);
-    exit(0);
+    
+    if (param_count < 1 || !S_EXPR_PARAM_IS_OPEN_ARRAY(params[0].type)) {
+        printf("  ERROR: expected OPEN_ARRAY at params[0]\n");
+        return SE_CONTINUE;
+    }
+    
+    uint16_t array_count;
+    const s_expr_param_t* array_params = s_expr_array_contents(&params[0], &array_count);
+    if (!array_params) {
+        printf("  ERROR: failed to get array contents\n");
+        return SE_CONTINUE;
+    }
+    
+    printf("  array a1: %u elements (raw)\n", array_count);
+    
+    uint16_t idx = 0;
+    int tuple_num = 0;
+    
+    while (idx < array_count) {
+        if (S_EXPR_PARAM_IS_OPEN_TUPLE(array_params[idx].type)) {
+            uint16_t tuple_count;
+            const s_expr_param_t* tuple_params = s_expr_tuple_contents(&array_params[idx], &tuple_count);
+            
+            if (tuple_params) {
+                printf("  tuple[%d]: %u elements\n", tuple_num, tuple_count);
+                
+                if (tuple_count >= 4) {
+                    if (S_EXPR_PARAM_IS_STR_IDX(tuple_params[0].type)) {
+                        const char* str = s_expr_param_string(inst->module->def, &tuple_params[0]);
+                        printf("    name: \"%s\"\n", str ? str : "(null)");
+                    }
+                    if ((tuple_params[1].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_INT) {
+                        printf("    id: %d\n", (int)tuple_params[1].int_val);
+                    }
+                    if ((tuple_params[2].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+                        printf("    value: %f\n", (double)tuple_params[2].float_val);
+                    }
+                    if ((tuple_params[3].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_UINT) {
+                        printf("    flags: 0x%02X\n", (unsigned)tuple_params[3].uint_val);
+                    }
+                }
+                tuple_num++;
+            }
+            
+            // Skip past this tuple
+            idx += array_params[idx].brace_idx + 1;
+        } else {
+            idx++;
+        }
+    }
+    
+    printf("  total tuples: %d\n", tuple_num);
+    
     return SE_CONTINUE;
 }
 
@@ -1308,9 +1667,82 @@ s_expr_result_t complex_tuple(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)inst; (void)params; (void)event_type; (void)event_id; (void)event_data;
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_CONTINUE;
+    }
+    
     printf("COMPLEX_TUPLE: param_count=%u\n", param_count);
-    exit(0);
+    
+    if (param_count < 1 || !S_EXPR_PARAM_IS_OPEN_TUPLE(params[0].type)) {
+        printf("  ERROR: expected OPEN_TUPLE at params[0]\n");
+        return SE_CONTINUE;
+    }
+    
+    uint16_t tuple_count;
+    const s_expr_param_t* tuple_params = s_expr_tuple_contents(&params[0], &tuple_count);
+    if (!tuple_params) {
+        printf("  ERROR: failed to get tuple contents\n");
+        return SE_CONTINUE;
+    }
+    
+    printf("  tuple t4: %u raw elements\n", tuple_count);
+    
+    uint16_t idx = 0;
+    
+    // Element 0: str_idx("motor_config")
+    if (idx < tuple_count && S_EXPR_PARAM_IS_STR_IDX(tuple_params[idx].type)) {
+        const char* str = s_expr_param_string(inst->module->def, &tuple_params[idx]);
+        printf("    name: \"%s\"\n", str ? str : "(null)");
+        idx++;
+    }
+    
+    // Element 1: nested dict d1
+    if (idx < tuple_count && S_EXPR_PARAM_IS_OPEN_DICT(tuple_params[idx].type)) {
+        printf("    nested dict:\n");
+        
+        const s_expr_param_t* dict_param = &tuple_params[idx];
+        
+        // Look up "max_speed" by hash
+        const s_expr_param_t* max_speed_val = s_expr_dict_find_key(dict_param, s_expr_hash("max_speed"));
+        if (max_speed_val && (max_speed_val->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+            printf("      max_speed: %f\n", (double)max_speed_val->float_val);
+        } else {
+            printf("      max_speed: NOT FOUND\n");
+        }
+        
+        // Look up "acceleration" by hash
+        const s_expr_param_t* accel_val = s_expr_dict_find_key(dict_param, s_expr_hash("acceleration"));
+        if (accel_val && (accel_val->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+            printf("      acceleration: %f\n", (double)accel_val->float_val);
+        } else {
+            printf("      acceleration: NOT FOUND\n");
+        }
+        
+        // Skip past dict in tuple
+        idx += tuple_params[idx].brace_idx + 1;
+    }
+    
+    // Element 2: nested array a2
+    if (idx < tuple_count && S_EXPR_PARAM_IS_OPEN_ARRAY(tuple_params[idx].type)) {
+        printf("    nested array (limits):\n");
+        
+        uint16_t arr_count;
+        const s_expr_param_t* arr_params = s_expr_array_contents(&tuple_params[idx], &arr_count);
+        
+        if (arr_params) {
+            for (uint16_t i = 0; i < arr_count; i++) {
+                if ((arr_params[i].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT) {
+                    printf("      [%u]: %f\n", i, (double)arr_params[i].float_val);
+                }
+            }
+        }
+    }
+    
     return SE_CONTINUE;
 }
 

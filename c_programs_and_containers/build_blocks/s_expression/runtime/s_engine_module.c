@@ -554,7 +554,19 @@ s_expr_tree_instance_t* s_expr_tree_create(
                 alloc->free(alloc->ctx, inst);
                 return NULL;
             }
-            memset(inst->blackboard, 0, record->total_size);
+            
+            if (tree_def->defaults_index != S_EXPR_NO_DEFAULTS && 
+                tree_def->defaults_index < mod->def->const_count &&
+                mod->def->constants) {
+                const void* defaults = mod->def->constants[tree_def->defaults_index];
+                if (defaults) {
+                    memcpy(inst->blackboard, defaults, record->total_size);
+                } else {
+                    memset(inst->blackboard, 0, record->total_size);
+                }
+            } else {
+                memset(inst->blackboard, 0, record->total_size);
+            }
             inst->blackboard_size = record->total_size;
             inst->blackboard_owned = true;
         }

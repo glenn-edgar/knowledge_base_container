@@ -171,7 +171,13 @@ void  s_expr_tree_slot_free(s_expr_tree_instance_t* inst, uint16_t index);
 
 static inline uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t idx) {
     uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode == S_EXPR_PARAM_OPEN || opcode == S_EXPR_PARAM_OPEN_CALL) {
+    
+    if (opcode == S_EXPR_PARAM_OPEN || 
+        opcode == S_EXPR_PARAM_OPEN_CALL ||
+        opcode == S_EXPR_PARAM_OPEN_DICT ||
+        opcode == S_EXPR_PARAM_OPEN_ARRAY ||
+        opcode == S_EXPR_PARAM_OPEN_TUPLE ||
+        opcode == S_EXPR_PARAM_OPEN_KEY) {
         return idx + params[idx].brace_idx + 1;
     }
     return idx + 1;

@@ -308,6 +308,7 @@ s_expr_loaded_module_t* s_expr_load_binary(
             loaded->trees[i].record_hash = tree_entries[i].record_hash;
             loaded->trees[i].func_node_count = tree_entries[i].node_count;
             loaded->trees[i].pointer_count = tree_entries[i].pointer_count;
+            loaded->trees[i].defaults_index = tree_entries[i].defaults_index;
             loaded->trees[i].param_count = tree_entries[i].param_count;
             
             // Point directly into binary for params (zero-copy)

@@ -206,22 +206,8 @@ static void test_dispatch(s_engine_handle_t* engine);
 static void test_basic_lists(s_engine_handle_t* engine);
 static void test_dictionary_basic(s_engine_handle_t* engine);
 static void test_dictionary_with_actions(s_engine_handle_t* engine);
-#if 0
-static void test_parameter_types(s_engine_handle_t* engine);
-static void test_all_call_types(s_engine_handle_t* engine);
-static void test_composable_predicates(s_engine_handle_t* engine);
-
-
-
-static void test_dispatch(s_engine_handle_t* engine);
-static void test_predicate_helpers(s_engine_handle_t* engine);
-static void test_nested_fields(s_engine_handle_t* engine);
-static void test_pointer_slots(s_engine_handle_t* engine);
-static void test_complex_nesting(s_engine_handle_t* engine);
-static void test_basic_lists(s_engine_handle_t* engine);
-static void test_dictionary_basic(s_engine_handle_t* engine);
-static void test_dictionary_with_actions(s_engine_handle_t* engine);
-#endif
+static void test_array_access(s_engine_handle_t* engine);
+static void test_tuple_basic(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -262,6 +248,8 @@ int main(int argc, char* argv[]) {
     test_basic_lists(&engine);
     test_dictionary_basic(&engine);
     test_dictionary_with_actions(&engine);
+    test_array_access(&engine);
+    test_tuple_basic(&engine);
 /**
     test_parameter_types(&engine);
     test_all_call_types(&engine);
@@ -473,76 +461,7 @@ static void return_code_tests(s_engine_handle_t* engine) {
     printf("  ✅ PASSED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
     s_expr_tree_free(function_terminate_tree);
 }
-#if 0
 
-static void test_parameter_types(s_engine_handle_t* engine) {
-    s_expr_tree_instance_t* test_params_tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        TEST_ALL_PARAM_TYPES_HASH,
-        0
-    );
-    if (!test_params_tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_PARAMS_HASH);
-        exit(1);
-    }
-    s_expr_result_t last_result = s_expr_tree_tick(test_params_tree, SE_EVENT_TICK, NULL);
-    if (last_result != SE_CONTINUE) {
-        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
-        exit(1);
-    }
-    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
-    s_expr_tree_free(test_params_tree);
-}
-
-
-static void test_all_call_types(s_engine_handle_t* engine) {
-    s_expr_tree_instance_t* test_all_call_types_tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        TEST_ALL_CALL_TYPES_HASH,
-        0
-    );
-    if (!test_all_call_types_tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_ALL_CALL_TYPES_HASH);
-        exit(1);
-    }
-    for (int i = 0; i < 10; i++) {
-        s_expr_result_t last_result = s_expr_tree_tick(test_all_call_types_tree, SE_EVENT_TICK, NULL);
-        if (last_result == SE_CONTINUE) {
-            break;
-        }
-        printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(last_result));
-    }
-    s_expr_result_t result = s_expr_tree_tick(test_all_call_types_tree, 42,NULL);
-    if (result != SE_CONTINUE) {
-        printf("  ❌ FAILED: Expected SE_CONTINUE, got %s\n", result_to_str(result));
-        exit(1);
-    }
-    printf("  ✅ PASSED: Expected SE_CONTINUE, got %s\n", result_to_str(result));
-    
-    s_expr_tree_free(test_all_call_types_tree);
-}
-
-static void test_composable_predicates(s_engine_handle_t* engine) {
-    s_expr_tree_instance_t* test_composable_predicates_tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        TEST_COMPOSABLE_PREDICATES_HASH,
-        0
-    );
-    if (!test_composable_predicates_tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_COMPOSABLE_PREDICATES_HASH);
-        exit(1);
-    }
-    s_expr_result_t last_result = s_expr_tree_tick(test_composable_predicates_tree, SE_EVENT_TICK, NULL);
-    printf("last_result: %d\n", last_result);
-    if ((last_result != SE_CONTINUE) && (last_result != SE_HALT)) {
-        printf("  ❌ FAILED: Expected SE_CONTINUE or SE_HALT, got %s\n", result_to_str(last_result));
-        exit(1);
-    }
-    printf("  ✅ PASSED: Expected SE_CONTINUE or SE_HALT, got %s\n", result_to_str(last_result));
-    s_expr_tree_free(test_composable_predicates_tree);
-}
-
-#endif
 static void test_pipeline_and_delays(s_engine_handle_t* engine) {
     printf("\n=== Test Pipeline and Delays ===\n");
     
@@ -581,7 +500,7 @@ static void test_pipeline_and_delays(s_engine_handle_t* engine) {
     // Step 3: Pass the wait_event(42, 3)
     printf("Phase 3: Wait for event 42 (3 times)\n");
     for (int i = 0; i < 3; i++) {
-        result = s_expr_tree_tick(tree, 42, NULL);  
+        result = s_expr_node_tick(tree, 42, NULL);  
        
     }
     
@@ -620,7 +539,7 @@ static void test_conditionals(s_engine_handle_t* engine) {
         exit(1);
     }
     s_expr_result_t last_result = s_expr_node_tick(test_conditionals_tree, SE_EVENT_TICK, NULL);
-    last_result = s_expr_tree_tick(test_conditionals_tree, SE_EVENT_TICK, NULL);
+    last_result = s_expr_node_tick(test_conditionals_tree, SE_EVENT_TICK, NULL);
     printf("last_result: %d\n", last_result);
     if (last_result != SE_FUNCTION_TERMINATE) {
         printf("  ❌ FAILED: Expected SE_FUNCTION_TERMINATE, got %s\n", result_to_str(last_result));
@@ -668,7 +587,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     printf("\nTest: field_dispatch IDLE\n");
     tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_IDLE_HASH, 0);
     if (tree) {
-        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
         s_expr_tree_free(tree);
     }
@@ -677,7 +596,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     printf("\nTest: field_dispatch START\n");
     tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_START_HASH, 0);
     if (tree) {
-        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
         s_expr_tree_free(tree);
     }
@@ -686,7 +605,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     printf("\nTest: field_dispatch STOP\n");
     tree = s_expr_tree_create_by_hash(&engine->module, TEST_FIELD_DISPATCH_STOP_HASH, 0);
     if (tree) {
-        result = s_expr_tree_tick(tree, SE_EVENT_TICK, NULL);
+        result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         printf("Result: %d (expected %d)\n", result, SE_FUNCTION_TERMINATE);
         s_expr_tree_free(tree);
     }
@@ -764,4 +683,42 @@ static void test_dictionary_with_actions(s_engine_handle_t* engine) {
         printf("last_result: %d\n", last_result);
     }
     s_expr_tree_free(test_dictionary_with_actions_tree);
+}
+
+
+static void test_array_access(s_engine_handle_t* engine) {
+    printf("\n=== Test Array Access ===\n");
+    s_expr_tree_instance_t* test_array_access_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_ARRAY_BASIC_HASH,
+        0
+    );
+    if (!test_array_access_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_ARRAY_BASIC_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 1; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_array_access_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d\n", last_result);
+    }
+    s_expr_tree_free(test_array_access_tree);
+}
+
+
+static void test_tuple_basic(s_engine_handle_t* engine) {
+    printf("\n=== Test Tuple Basic ===\n");
+    s_expr_tree_instance_t* test_tuple_basic_tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_TUPLE_BASIC_HASH,
+        0
+    );
+    if (!test_tuple_basic_tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", TEST_TUPLE_BASIC_HASH);
+        exit(1);
+    }
+    for (int i = 0; i < 1; i++) {
+        s_expr_result_t last_result = s_expr_node_tick(test_tuple_basic_tree, SE_EVENT_TICK, NULL);
+        printf("last_result: %d\n", last_result);
+    }
+    s_expr_tree_free(test_tuple_basic_tree);
 }

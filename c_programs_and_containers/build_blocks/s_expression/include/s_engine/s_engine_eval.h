@@ -16,12 +16,7 @@ extern "C" {
 // TREE LIFECYCLE
 // ============================================================================
 
-// Execute one tick of the tree
-s_expr_result_t s_expr_tree_tick(
-    s_expr_tree_instance_t* inst,
-    uint16_t event_id,
-    void* event_data
-);
+
 
 // Reset tree (preserves EVER_INIT flags)
 void s_expr_tree_reset(s_expr_tree_instance_t* inst);
@@ -89,24 +84,7 @@ void s_expr_iterate_params(
     void* ctx
 );
 
-// ============================================================================
-// ACTION MANAGEMENT
-// For composite nodes that need to restart/enable child actions
-// ============================================================================
 
-// Restart actions: send TERMINATE, then reset flags for re-INIT
-void s_expr_restart_actions(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count
-);
-
-// Enable actions: reset flags so next invoke gets INIT (no TERMINATE sent)
-void s_expr_enable_actions(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count
-);
 
 // ============================================================================
 // NODE STATE ACCESSORS (current node during callback)

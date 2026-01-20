@@ -143,12 +143,14 @@ CONST("default_motor", "motor_state")
     VALUE("enabled", false)
 END_CONST()
 
+
 -- Full blackboard default
 CONST("blackboard_defaults", "test_blackboard")
-    VALUE("state", 0)
-    VALUE("command", 0)
-    VALUE("event_id", 0)
-    VALUE("counter", 0)
+    VALUE("state", 1)
+    VALUE("hash_state", 0x12345678)
+    VALUE("command", 2)
+    VALUE("event_id", 03)
+    VALUE("counter", 5)
     VALUE("temperature", 25.0)
     VALUE("enabled", true)
     VALUE("motor.position.x", 100.0)
@@ -162,94 +164,10 @@ CONST("blackboard_defaults", "test_blackboard")
     VALUE("gains.kp", 1.0)
     VALUE("gains.ki", 0.2)
     VALUE("gains.kd", 0.05)
-    VALUE("flags", 0)
+    VALUE("flags", 4)
 END_CONST()
 
--- ============================================================================
--- TEST TREE 1: All Call Types
--- Tests: o_call, m_call, p_call, pt_m_call, io_call
--- ============================================================================
---[[
-start_tree("test_all_call_types")
-    use_record("test_blackboard")
-    
-    -- io_call: Init oneshot (survives reset)
-    local init = io_call("INIT_SYSTEM")
-        str_ptr("Initializing system")
-        field_ref("state")
-        int(0)
-    end_call(init)
-    
-   
-    se_log("System initialized")
-    
-    -- p_call: Predicate
-    local pred = p_call("CHECK_ENABLED")
-        field_ref("enabled")
-    end_call(pred)
-    
-    -- m_call: Main function with children
-    local main = m_call("PROCESS_STATE")
-        field_ref("state")
-        
-        -- Nested o_call
-        local nested = o_call("UPDATE_COUNTER")
-            field_ref("counter")
-            uint(1)
-        end_call(nested)
-        
-        result(SE_CONTINUE)
-    end_call(main)
-    
-    -- pt_m_call: Protothread main (has pointer slot)
-    local pt = pt_m_call("WAIT_FOR_EVENT")
-        int(100)  -- timeout
-    end_call(pt)
-    
-    result(SE_CONTINUE)
-end_tree()
 
--- ============================================================================
--- TEST TREE 2: All Parameter Types
--- Tests: int, uint, flt, str, str_ptr, field_ref, nested_field_ref, const_ref
--- ============================================================================
-
-start_tree("test_all_param_types")
-    use_record("test_blackboard")
-    
-    local test = m_call("TEST_PARAMS")
-        -- int parameter
-        int(-12345)
-        
-        -- uint parameter
-        uint(0xDEADBEEF)
-        
-        -- float parameter
-        flt(3.14159)
-        
-        -- str parameter (indexed string)
-        str("Hello, World!")
-        
-        -- str_ptr parameter (string pointer)
-        str_ptr("This is a longer string for testing")
-        
-        -- Simple field reference
-        field_ref("counter")
-        
-        -- Nested field reference (2 levels)
-        nested_field_ref("gains.kp")
-        
-        -- Deeply nested field reference (3 levels)
-        nested_field_ref("motor.position.x")
-        
-        -- Constant reference
-        const_ref("default_gains")
-        
-        result(SE_CONTINUE)
-    end_call(test)
-    
-end_tree()
---]]
 -- ============================================================================
 -- TEST TREE 3: All Result Codes
 -- Tests: SE_CONTINUE, SE_TERMINATE, SE_RESET, SE_DISABLE, SE_HALT,
@@ -300,83 +218,7 @@ start_tree("test_result_codes_9")
     use_record("test_blackboard")
     se_return_function_terminate()
 end_tree()
--- ============================================================================
--- TEST TREE 4: Composable Predicates
--- Tests: se_pred_and, se_pred_or, se_pred_not, se_pred_nor, se_pred_nand, se_pred_xor
--- Tests nested composition: (A AND B) OR (C AND D)
--- ============================================================================
---[[
-start_tree("test_composable_predicates")
-    use_record("test_blackboard")
-    
--- Simple AND
-local p1 = se_pred_and()
-    se_pred("PRED_A")
-    se_pred("PRED_B")
-end_call(p1)
 
--- Simple OR
-local p2 = se_pred_or()
-    se_pred("PRED_C")
-    se_pred("PRED_D")
-end_call(p2)
-
--- NOT (single child)
-local p3 = se_pred_not()
-    se_pred("PRED_E")
-end_call(p3)
-
--- Complex nested: (A AND B) OR (C AND D)
-local complex = se_pred_or()
-    local and1 = se_pred_and()
-        se_pred("SENSOR_A_READY")
-        se_pred("SENSOR_B_READY")
-    end_call(and1)
-    local and2 = se_pred_and()
-        se_pred("TIMEOUT_EXPIRED")
-        se_pred("RETRY_AVAILABLE")
-    end_call(and2)
-end_call(complex)
-
--- Triple nested: NOT((A OR B) AND (C OR D))
-local triple = se_pred_not()
-    local inner_and = se_pred_and()
-        local or1 = se_pred_or()
-            se_pred("FLAG_1")
-            se_pred("FLAG_2")
-        end_call(or1)
-        local or2 = se_pred_or()
-            se_pred("FLAG_3")
-            se_pred("FLAG_4")
-        end_call(or2)
-    end_call(inner_and)
-end_call(triple)
-
--- NOR
-local p4 = se_pred_nor()
-    se_pred("PRED_F")
-    se_pred("PRED_G")
-end_call(p4)
-
--- NAND
-local p5 = se_pred_nand()
-    se_pred("PRED_H")
-    se_pred("PRED_I")
-end_call(p5)
-
--- XOR
-local p6 = se_pred_xor()
-    se_pred("PRED_J")
-    se_pred("PRED_K")
-end_call(p6)
-
-    result(SE_CONTINUE)
-end_tree()
---]]
--- ============================================================================
--- TEST TREE 5: Helper Functions - Pipeline and Delays
--- Tests: se_pipeline, se_tick_delay, se_time_delay, se_wait_event, se_nop, se_log
--- ============================================================================
 
 start_tree("test_pipeline_and_delays")
     use_record("test_blackboard")
@@ -841,7 +683,6 @@ start_tree("test_dictionary_with_actions")
     se_return_continue()
 end_tree()
 
---[[
 -- ============================================================================
 -- TEST TREE 16: Array Structures
 -- Tests: array_start/array_end for indexed collections
@@ -849,49 +690,51 @@ end_tree()
 
 start_tree("test_array_basic")
     use_record("test_blackboard")
-    
-    -- Simple array of integers (index-based access)
-    local fn1 = m_call("ARRAY_ACCESS")
-       local a1 = array_start("a1")
-            int(100)   -- index 0
-            int(200)   -- index 1
-            int(300)   -- index 2
-            int(400)   -- index 3
-            int(500)   -- index 4
-        array_end(a1)
-        int(2)  -- access index 2 -> should get 300
-        result(SE_CONTINUE)
-    end_call(fn1)
-    
-    -- Array of field references
-    local fn2 = m_call("FIELD_ARRAY")
-       local a2 = array_start("a2")
-            field_ref("state")
-            field_ref("command")
-            field_ref("counter")
-            nested_field_ref("gains.kp")
-            nested_field_ref("motor.position.x")
-        array_end(a2)
-        result(SE_CONTINUE)
-    end_call(fn2)
-    
-    -- Nested arrays (2D array)
-    local fn3 = m_call("MATRIX_2D")
-       local a3 = array_start("a3")  -- rows
-           local a35 = array_start("a35")  -- row 0
-                flt(1.0) flt(0.0) flt(0.0)
-            array_end(a35)
-         local a4 =  array_start("a4")  -- row 1
-                flt(0.0) flt(1.0) flt(0.0)
-            array_end(a4)
-            local a5 = array_start("a5")  -- row 2
-                flt(0.0) flt(0.0) flt(1.0)
-            array_end(a5)
-        array_end(a3)
-        result(SE_CONTINUE)
-    end_call(fn3)
-    
-    result(SE_CONTINUE)
+    use_defaults("blackboard_defaults")
+    local root = m_call("SE_PIPELINE")
+        -- Simple array of integers (index-based access)
+        local fn1 = m_call("ARRAY_ACCESS")
+           local a1 = array_start("a1")
+                int(100)   -- index 0
+                int(200)   -- index 1
+                int(300)   -- index 2
+                int(400)   -- index 3
+                int(500)   -- index 4
+            array_end(a1)
+            int(2)  -- access index 2 -> should get 300
+            se_return_continue()
+        end_call(fn1)
+        
+        -- Array of field references
+        local fn2 = m_call("FIELD_ARRAY")
+           local a2 = array_start("a2")
+                field_ref("state")
+                field_ref("command")
+                field_ref("counter")
+                nested_field_ref("gains.kp")
+                nested_field_ref("motor.position.x")
+            array_end(a2)
+            se_return_continue()
+        end_call(fn2)
+        
+        -- Nested arrays (2D array)
+        local fn3 = m_call("MATRIX_2D")
+           local a3 = array_start("a3")  -- rows
+               local a35 = array_start("a35")  -- row 0
+                    flt(1.0) flt(0.0) flt(0.0)
+                array_end(a35)
+             local a4 =  array_start("a4")  -- row 1
+                    flt(0.0) flt(1.0) flt(0.0)
+                array_end(a4)
+                local a5 = array_start("a5")  -- row 2
+                    flt(0.0) flt(0.0) flt(1.0)
+                array_end(a5)
+            array_end(a3)
+            se_return_continue()
+        end_call(fn3)
+        
+        se_return_continue()
+    end_call(root)
 end_tree()
 
 -- ============================================================================
@@ -901,7 +744,7 @@ end_tree()
 
 start_tree("test_tuple_basic")
     use_record("test_blackboard")
-    
+    local p1 = m_call("SE_PIPELINE")
     -- Tuple: (string, int, float) - like a struct
     local fn1 = m_call("PROCESS_TUPLE")
         local t1 = tuple_start("t1")
@@ -909,7 +752,7 @@ start_tree("test_tuple_basic")
             int(42)
             flt(3.14159)
         tuple_end(t1)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn1)
     
     -- Multiple tuples (like a table of records)
@@ -934,7 +777,7 @@ start_tree("test_tuple_basic")
                 uint(0x04)
             tuple_end(t3)
         array_end(a1)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn2)
     
     -- Tuple with nested structures
@@ -956,17 +799,18 @@ start_tree("test_tuple_basic")
                 flt(100.0)   -- max
             array_end(a2)
         tuple_end(t4)
-        result(SE_CONTINUE)
+        se_return_continue()
     end_call(fn3)
     
-    result(SE_CONTINUE)
+    se_return_continue()
+    end_call(p1)
 end_tree()
 
 -- ============================================================================
 -- TEST TREE 18: Named State Machine with Dictionary
 -- Tests: Dictionary-based state machine dispatch
 -- ============================================================================
-
+--[[
 start_tree("test_named_state_machine")
     use_record("test_blackboard")
     
@@ -1240,49 +1084,11 @@ start_tree("test_mixed_dispatch")
     result(SE_CONTINUE)
 end_tree()
 
--- ============================================================================
--- TEST TREE 24: Brace Index Verification
--- Tests: Ensure brace_idx values are correct for navigation
--- ============================================================================
-
-start_tree("test_brace_navigation")
-    use_record("test_blackboard")
-    
-    -- Structure designed to test brace_idx calculations
-    local fn = m_call("BRACE_TEST")
-        -- Outer dict
-        local d = dict_start()
-            local k1 = key("level1_a")
-                int(1)
-                local l = list_start()
-                    int(2)
-                    int(3)
-                list_end(l)
-            key_end(k1)
-            
-            local k2 = key("level1_b")
-                local a = array_start()
-                    local t1 = tuple_start()
-                        int(10)
-                        int(20)
-                    tuple_end(t1)
-                    local t2 = tuple_start()
-                        int(30)
-                        int(40)
-                    tuple_end(t2)
-                array_end(a)
-            key_end(k2)
-        dict_end(d)
-        result(SE_CONTINUE)
-    end_call(fn)
-    
-    result(SE_CONTINUE)
-end_tree()
-
--- ============================================================================
+--]]
+--========================================================================
 -- FINALIZE MODULE
 -- ============================================================================
---]]
+
 local result = end_module(mod)
 print("Module compiled successfully: " .. result.name)
 

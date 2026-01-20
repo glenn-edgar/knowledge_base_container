@@ -42,8 +42,10 @@ static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0x14CCAF62, "test_basic_lists", 8, 0, 0 },
     { 0x48646D7F, "test_dictionary_basic", 13, 0, 0 },
     { 0xD995097B, "test_dictionary_with_actions", 21, 0, 0 },
+    { 0xAFECDD8E, "test_array_basic", 8, 0, 0 },
+    { 0xA310BFED, "test_tuple_basic", 8, 0, 0 },
 };
-#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 19
+#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 21
 
 // ============================================================================
 // FUNCTION DEBUG INFO
@@ -90,8 +92,14 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_main_debug[] = {
     { 0xC32CF90C, "NESTED_LISTS", 22 },
     { 0xDE8E6F0D, "SE_HASH_DISPATCH", 23 },
     { 0x876B8A33, "SE_NAMED_STATE_MACHINE", 24 },
+    { 0x88810CB1, "ARRAY_ACCESS", 25 },
+    { 0x267C4925, "FIELD_ARRAY", 26 },
+    { 0xB366B1FF, "MATRIX_2D", 27 },
+    { 0xDE2C8DF7, "PROCESS_TUPLE", 28 },
+    { 0xDB0DE5BE, "TUPLE_TABLE", 29 },
+    { 0x715D092E, "COMPLEX_TUPLE", 30 },
 };
-#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 25
+#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 31
 
 // Predicate functions
 static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {
