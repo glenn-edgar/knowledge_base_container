@@ -183,6 +183,9 @@ local BUILTIN_FUNCTIONS = {
     "SE_NAMED_EVENT_DISPATCH",
     "SE_STRING_DISPATCH",
     "SE_HASH_DISPATCH",
+    "SE_SEQUENCE",
+    "SE_FORK",
+    "SE_FORK_JOIN",
     -- Result code functions
     "SE_RETURN_CONTINUE",
     "SE_RETURN_HALT",

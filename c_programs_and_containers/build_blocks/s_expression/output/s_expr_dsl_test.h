@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: s_expr_dsl_test
 #define S_EXPR_DSL_TEST_NAME_HASH 0x7BB33CC5
-#define S_EXPR_DSL_TEST_TREE_COUNT 27
+#define S_EXPR_DSL_TEST_TREE_COUNT 36
 #define S_EXPR_DSL_TEST_RECORD_COUNT 9
 
 // String table
@@ -75,9 +75,41 @@ static const char* const s_expr_dsl_test_strings[] = {
     "motor_1",
     "valve_1",
     "test_system",
-    "motor_controller"
+    "motor_controller",
+    "SEQUENCE: Step 1 - immediate",
+    "SEQUENCE: Step 2 - delay 3",
+    "SEQUENCE: Step 2 - complete",
+    "SEQUENCE: Step 3 - immediate",
+    "SEQUENCE: Step 4 - delay 2",
+    "SEQUENCE: Step 4 - complete",
+    "SEQUENCE: Step 5 - final",
+    "SEQUENCE: All steps complete",
+    "FORK: Child A - start",
+    "FORK: Child A - complete",
+    "FORK: Child B - start",
+    "FORK: Child B - complete",
+    "FORK: Child C - immediate",
+    "FORK: All children complete",
+    "FORK FATAL: Child A - running",
+    "FORK FATAL: Child A - should not reach",
+    "FORK FATAL: Child B - running",
+    "FORK FATAL: Child B - terminating",
+    "FORK FATAL: Should not reach",
+    "FORK_JOIN: Child A - start",
+    "FORK_JOIN: Child A - complete",
+    "FORK_JOIN: Child B - start",
+    "FORK_JOIN: Child B - complete",
+    "FORK_JOIN: Child C - immediate",
+    "FORK_JOIN: All children complete",
+    "FORK_JOIN: Tracking complete",
+    "FORK_JOIN FATAL: Child A - running",
+    "FORK_JOIN FATAL: Child A - should not reach",
+    "FORK_JOIN FATAL: Child B - running",
+    "FORK_JOIN FATAL: Child B - terminating",
+    "FORK_JOIN FATAL: Should not reach",
+    "FORK_JOIN VS FORK: Complete"
 };
-#define S_EXPR_DSL_TEST_STRING_COUNT 55
+#define S_EXPR_DSL_TEST_STRING_COUNT 87
 
 // Function hashes
 #define SE_LOG_HASH 0xCEBBEFA4
@@ -91,6 +123,9 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define ON_BITS_34_FALL_HASH 0x29423823
 #define ON_BIT5_CLEAR_HASH 0x15953A35
 #define ON_BIT5_SET_HASH 0xAC23F0C8
+#define RESET_SEQUENCE_TRACKER_HASH 0x1D13DA13
+#define TRACK_STEP_HASH 0x85D14963
+#define VERIFY_SEQUENCE_ORDER_HASH 0x557C66BB
 #define SE_RETURN_CONTINUE_HASH 0xB4243714
 #define SE_RETURN_TERMINATE_HASH 0xDFE64C74
 #define SE_RETURN_RESET_HASH 0x70EAA030
@@ -129,6 +164,9 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define LOAD_CONFIG_HASH 0x2C30B0AC
 #define PROCESS_ALIST_HASH 0x55C4D336
 #define PROCESS_PLIST_HASH 0xD36A3C79
+#define SE_SEQUENCE_HASH 0xEC3EE7BF
+#define SE_FORK_HASH 0x0A24332A
+#define SE_FORK_JOIN_HASH 0xE404E1CF
 #define CHECK_CONDITION_HASH 0x27B2B70D
 #define ANOTHER_CONDITION_HASH 0xA303CD62
 #define MONITOR_STATE_HASH 0xC04E8337
@@ -167,6 +205,15 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define TEST_ALIST_STYLE_HASH 0xF91097B7
 #define TEST_PLIST_STYLE_HASH 0x017D22AC
 #define TEST_TRIGGER_ON_CHANGE_HASH 0x28DCF95F
+#define TEST_SEQUENCE_HASH 0xEDA681FF
+#define TEST_SEQUENCE_TRACKING_HASH 0x6FEF2BF1
+#define TEST_FORK_HASH 0xA0D861EA
+#define TEST_FORK_TRACKING_HASH 0x30643172
+#define TEST_FORK_FATAL_HASH 0x1E53C533
+#define TEST_FORK_JOIN_HASH 0x35552C8F
+#define TEST_FORK_JOIN_TRACKING_HASH 0xA003E4C1
+#define TEST_FORK_JOIN_FATAL_HASH 0x69C66CCA
+#define TEST_FORK_JOIN_VS_FORK_HASH 0x6932C2D0
 
 // Record hashes
 #define ALL_PRIMITIVES_HASH 0xBF9832AB

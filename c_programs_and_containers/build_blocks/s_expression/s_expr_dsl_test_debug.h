@@ -50,8 +50,17 @@ static const s_expr_dsl_test_tree_debug_t s_expr_dsl_test_tree_debug[] = {
     { 0xF91097B7, "test_alist_style", 4, 0, 0 },
     { 0x017D22AC, "test_plist_style", 2, 0, 0 },
     { 0x28DCF95F, "test_trigger_on_change", 39, 0, 0 },
+    { 0xEDA681FF, "test_sequence", 23, 2, 0 },
+    { 0x6FEF2BF1, "test_sequence_tracking", 16, 2, 0 },
+    { 0xA0D861EA, "test_fork", 18, 2, 0 },
+    { 0x30643172, "test_fork_tracking", 18, 2, 0 },
+    { 0x1E53C533, "test_fork_fatal", 15, 2, 0 },
+    { 0x35552C8F, "test_fork_join", 17, 2, 0 },
+    { 0xA003E4C1, "test_fork_join_tracking", 18, 2, 0 },
+    { 0x69C66CCA, "test_fork_join_fatal", 14, 2, 0 },
+    { 0x6932C2D0, "test_fork_join_vs_fork", 12, 1, 0 },
 };
-#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 27
+#define S_EXPR_DSL_TEST_TREE_DEBUG_COUNT 36
 
 // ============================================================================
 // FUNCTION DEBUG INFO
@@ -76,8 +85,11 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_oneshot_debug[] = {
     { 0x29423823, "ON_BITS_34_FALL", 8 },
     { 0x15953A35, "ON_BIT5_CLEAR", 9 },
     { 0xAC23F0C8, "ON_BIT5_SET", 10 },
+    { 0x1D13DA13, "RESET_SEQUENCE_TRACKER", 11 },
+    { 0x85D14963, "TRACK_STEP", 12 },
+    { 0x557C66BB, "VERIFY_SEQUENCE_ORDER", 13 },
 };
-#define S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT 11
+#define S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT 14
 
 // Main functions
 static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_main_debug[] = {
@@ -119,8 +131,11 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_main_debug[] = {
     { 0x2C30B0AC, "LOAD_CONFIG", 35 },
     { 0x55C4D336, "PROCESS_ALIST", 36 },
     { 0xD36A3C79, "PROCESS_PLIST", 37 },
+    { 0xEC3EE7BF, "SE_SEQUENCE", 38 },
+    { 0x0A24332A, "SE_FORK", 39 },
+    { 0xE404E1CF, "SE_FORK_JOIN", 40 },
 };
-#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 38
+#define S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT 41
 
 // Predicate functions
 static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {

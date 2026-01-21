@@ -157,7 +157,7 @@ s_expr_result_t s_expr_node_tick(
     // Invoke root - it controls everything else
     s_expr_result_t result = s_expr_invoke_main(inst, params, 0);
     
-    if (result == SE_DISABLE) {
+    if ((result == SE_DISABLE) || (result == SE_PIPELINE_DISABLE)) {
         // Root completed - terminate it
         s_expr_child_terminate(inst, params, param_count, 0);
         result = SE_FUNCTION_TERMINATE;

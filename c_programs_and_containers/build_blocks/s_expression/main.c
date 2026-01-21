@@ -210,6 +210,7 @@ static void test_predicate_helpers(s_engine_handle_t* engine);
 static void test_nested_fields(s_engine_handle_t* engine);
 static void test_pointer_slots(s_engine_handle_t* engine);
 static void test_complex_nesting(s_engine_handle_t* engine);
+static void test_sequence_tracking(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -254,6 +255,7 @@ int main(int argc, char* argv[]) {
     test_nested_fields(&engine);
     test_pointer_slots(&engine);
     test_complex_nesting(&engine);
+    test_sequence_tracking(&engine);
     s_engine_free(&engine);
 
     // ========================================================================
@@ -751,4 +753,74 @@ static void test_complex_nesting(s_engine_handle_t* engine) {
     s_expr_result_t last_result = s_expr_tree_tick(test_complex_nesting_tree, SE_EVENT_TICK, NULL);
     printf("last_result: %d\n", last_result);
     s_expr_tree_free(test_complex_nesting_tree);
+}
+
+static void test_sequence(s_engine_handle_t* engine) {
+    printf("\n=== Test Sequence ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_SEQUENCE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running sequence with delays ---\n");
+    
+    // Expected:
+    // Tick 1: Step 1 immediate, Step 2 starts (delay 3)
+    // Tick 2: Step 2 waiting
+    // Tick 3: Step 2 waiting
+    // Tick 4: Step 2 complete, Step 3 immediate, Step 4 starts (delay 2)
+    // Tick 5: Step 4 waiting
+    // Tick 6: Step 4 complete, Step 5 immediate, sequence complete
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ✅ PASSED: Sequence completed\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Sequence did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+static void test_sequence_tracking(s_engine_handle_t* engine) {
+    printf("\n=== Test Sequence Tracking ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_SEQUENCE_TRACKING_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running sequence with order tracking ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ✅ PASSED: Sequence tracking completed\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Sequence tracking did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
 }

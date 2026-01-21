@@ -73,7 +73,9 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FIELD_DISPATCH_HASH        0xA1C11B35
 #define SE_EVENT_DISPATCH_HASH        0xF3EDFC75
 #define SE_DISPATCH_HASH              0xE67DDA18
-
+#define SE_SEQUENCE_HASH              0xEC3EE7BF
+#define SE_FORK_HASH                  0x0A24332A
+#define SE_FORK_JOIN_HASH             0xE404E1CF
 // NEW v5.2: Dictionary-based dispatch functions
 #define SE_STRING_DISPATCH_HASH       0x6A3A4922
 #define SE_HASH_DISPATCH_HASH         0xDE8E6F0D

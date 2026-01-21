@@ -2363,3 +2363,133 @@ void on_bit5_set(
     printf("  >> ON_BIT5_SET (NOT bit5 went false)\n");
     g_trigger_events |= EVENT_BIT5_SET;
 }
+
+// ============================================================================
+// SEQUENCE/FORK TRACKING - Unified tracker for test verification
+// ============================================================================
+
+// ============================================================================
+// SEQUENCE/FORK TRACKING - Unified tracker for test verification
+// ============================================================================
+
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+
+#define MAX_TRACKED_STEPS 32
+static int g_tracked_steps[MAX_TRACKED_STEPS];
+static int g_tracked_count = 0;
+
+// ============================================================================
+// C API - For test driver assertions
+// ============================================================================
+
+int test_tracker_get_count(void) {
+    return g_tracked_count;
+}
+
+int test_tracker_get_step(int index) {
+    if (index >= 0 && index < g_tracked_count) {
+        return g_tracked_steps[index];
+    }
+    return -1;
+}
+
+void test_tracker_reset(void) {
+    g_tracked_count = 0;
+    memset(g_tracked_steps, 0, sizeof(g_tracked_steps));
+}
+
+// ============================================================================
+// RESET_SEQUENCE_TRACKER - Clears all recorded steps (oneshot)
+// ============================================================================
+
+void reset_sequence_tracker(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    test_tracker_reset();
+    printf("  SEQUENCE TRACKER: Reset\n");
+}
+
+// ============================================================================
+// TRACK_STEP - Records a step number in execution order (oneshot)
+// Param: int - step number to record
+// ============================================================================
+
+void track_step(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)event_type; (void)event_id; (void)event_data;
+    
+    int step = 0;
+    if (param_count > 0 && (params[0].type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_INT) {
+        step = params[0].int_val;
+    }
+    
+    if (g_tracked_count < MAX_TRACKED_STEPS) {
+        g_tracked_steps[g_tracked_count++] = step;
+        printf("  SEQUENCE TRACKER: Step %d recorded (total: %d)\n", step, g_tracked_count);
+    }
+}
+
+// ============================================================================
+// VERIFY_SEQUENCE_ORDER - Checks steps are in sequential order (oneshot)
+// ============================================================================
+
+void verify_sequence_order(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    printf("  SEQUENCE TRACKER: Verifying order - ");
+    bool in_order = true;
+    for (int i = 0; i < g_tracked_count; i++) {
+        printf("%d ", g_tracked_steps[i]);
+        if (g_tracked_steps[i] != i) {
+            in_order = false;
+        }
+    }
+    printf("- %s\n", in_order ? "IN ORDER" : "OUT OF ORDER");
+}
+
+// ============================================================================
+// VERIFY_FORK_ORDER - Checks parallel execution pattern (oneshot)
+// ============================================================================
+
+void verify_fork_order(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    printf("  FORK TRACKER: Recorded steps - ");
+    for (int i = 0; i < g_tracked_count; i++) {
+        printf("%d ", g_tracked_steps[i]);
+    }
+    printf("\n");
+}

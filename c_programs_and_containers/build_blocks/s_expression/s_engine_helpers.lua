@@ -204,6 +204,37 @@ function se_on_falling_edge(pred_fn, action_fn)
     end, action_fn)
 end
 
+-- SE_SEQUENCE: Execute children one at a time, advance on completion
+function se_sequence(...)
+    local children = {...}
+    local c = m_call("SE_SEQUENCE")
+        for _, child_fn in ipairs(children) do
+            child_fn()
+        end
+    end_call(c)
+end
+
+function se_fork(...)
+    local children = {...}
+    local f = m_call("SE_FORK")
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    end_call(f)
+end
+
+function se_fork_join(...)
+    local children = {...}
+    local f = m_call("SE_FORK_JOIN")
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    end_call(f)
+end
 function se_nop()
     local c = m_call("SE_NOP")
     end_call(c)

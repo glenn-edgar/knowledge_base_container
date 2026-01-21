@@ -20,11 +20,14 @@ static s_expr_fn_entry_t s_expr_dsl_test_oneshot_entries[] = {
     { 0x29423823, (void*)on_bits_34_fall },
     { 0x15953A35, (void*)on_bit5_clear },
     { 0xAC23F0C8, (void*)on_bit5_set },
+    { 0x1D13DA13, (void*)reset_sequence_tracker },
+    { 0x85D14963, (void*)track_step },
+    { 0x557C66BB, (void*)verify_sequence_order },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_oneshot_table = {
     .entries = s_expr_dsl_test_oneshot_entries,
-    .count = 9
+    .count = 12
 };
 
 // Main function entries

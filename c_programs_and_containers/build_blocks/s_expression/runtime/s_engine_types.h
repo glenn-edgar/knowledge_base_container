@@ -73,6 +73,7 @@ typedef enum {
     SE_SKIP_CONTINUE      = 6,
     SE_FUNCTION_HALT      = 7,
     SE_FUNCTION_RESET     = 8,
+    SE_PIPELINE_DISABLE = 9,  
 } s_expr_result_t;
 
 // ============================================================================

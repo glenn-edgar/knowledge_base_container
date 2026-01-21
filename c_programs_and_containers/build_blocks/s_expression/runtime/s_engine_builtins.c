@@ -94,6 +94,11 @@ static s_expr_result_t se_return_function_halt(s_expr_tree_instance_t* inst, con
 static s_expr_result_t se_return_function_reset(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_return_function_terminate(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
+// Sequence functions
+static s_expr_result_t se_sequence(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_fork(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_fork_join(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+
 // Oneshots
 static void se_log(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static void se_log_int(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -133,6 +138,9 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_FIELD_DISPATCH_HASH, (void*)se_field_dispatch },
     { SE_EVENT_DISPATCH_HASH, (void*)se_event_dispatch },
     { SE_DISPATCH_HASH, (void*)se_dispatch },
+    { SE_SEQUENCE_HASH, (void*)se_sequence },
+    { SE_FORK_HASH, (void*)se_fork },
+    { SE_FORK_JOIN_HASH, (void*)se_fork_join },
     // NEW v5.2: Dictionary-based dispatch
     { SE_STRING_DISPATCH_HASH, (void*)se_string_dispatch },
     { SE_HASH_DISPATCH_HASH, (void*)se_hash_dispatch },
@@ -573,39 +581,34 @@ static s_expr_result_t se_pipeline(
     }
     
     uint16_t count = s_expr_child_count(params, param_count);
-    //printf("se_pipeline: child count=%d\n", count);
-    
     uint16_t active_count = 0;
     
     for (uint16_t i = 0; i < count; i++) {
         bool callable = s_expr_child_is_callable(params, param_count, i);
         bool active = s_expr_child_is_active(inst, params, param_count, i);
-        //uint8_t func_type = s_expr_child_func_type(params, param_count, i);
-        
-      //  printf("se_pipeline: child %d: callable=%d active=%d func_type=0x%02X\n", 
-      //         i, callable, active, func_type);
         
         if (!callable) {
             continue;
         }
         
         if (!active) {
-           // printf("se_pipeline: child %d SKIPPED (not active)\n", i);
             continue;
         }
         
         active_count++;
         
         s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-        //printf("se_pipeline: child %d result=%d\n", i, result);
+        
+        // SE_PIPELINE_DISABLE is the signal from se_return_disable()
+        // Convert it to SE_DISABLE for our parent
+        if (result == SE_PIPELINE_DISABLE) {
+            return SE_DISABLE;
+        }
         
         if (result != SE_CONTINUE) {
-          //  printf("se_pipeline: returning early with result=%d\n", result);
             return result;
         }
     }
-    
-  //  printf("se_pipeline: active_count=%d, returning SE_DISABLE\n", active_count);
     
     if (active_count == 0) {
         return SE_DISABLE;
@@ -613,7 +616,6 @@ static s_expr_result_t se_pipeline(
     
     return SE_CONTINUE;
 }
-
 
 static s_expr_result_t se_tick_delay(
     s_expr_tree_instance_t* inst,
@@ -2029,7 +2031,7 @@ static s_expr_result_t se_return_disable(
 ) {
     (void)inst; (void)params; (void)param_count;
     (void)event_type; (void)event_id; (void)event_data;
-    return SE_DISABLE;
+    return SE_PIPELINE_DISABLE;
 }
 
 static s_expr_result_t se_return_skip_continue(
@@ -2088,4 +2090,228 @@ static void se_set_hash(
     
     *field_ptr = (uint32_t)params[1].uint_val;
    
+}
+// ============================================================================
+// SE_SEQUENCE
+// Execute children one at a time, advancing when each completes (SE_DISABLE)
+// Returns SE_HALT while working, SE_DISABLE when all complete
+// Fatal codes (TERMINATE, RESET, FUNCTION_TERMINATE, FUNCTION_RESET) propagate
+// ============================================================================
+
+static s_expr_result_t se_sequence(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    uint8_t state = s_expr_get_state(inst);
+    uint16_t child_count = s_expr_child_count(params, param_count);
+    
+    // =========================================================================
+    // TERMINATE: Clean up current child
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        if (state < child_count) {
+            if (s_expr_child_is_initialized(inst, params, param_count, state)) {
+                s_expr_child_terminate(inst, params, param_count, state);
+            }
+        }
+        s_expr_set_state(inst, 0);
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // INIT: Start at first child
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        s_expr_set_state(inst, 0);
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK: Execute current child, advance on SE_DISABLE
+    // =========================================================================
+    while (state < child_count) {
+        // Skip non-callable children
+        if (!s_expr_child_is_callable(params, param_count, state)) {
+            state++;
+            s_expr_set_state(inst, state);
+            continue;
+        }
+        
+        // Invoke current child
+        uint16_t phys_idx = s_expr_child_index(params, param_count, state);
+        if (phys_idx == UINT16_MAX) {
+            state++;
+            s_expr_set_state(inst, state);
+            continue;
+        }
+        
+        s_expr_result_t result = s_expr_invoke_any(inst, params, phys_idx);
+        
+        switch (result) {
+            case SE_DISABLE:
+            case SE_PIPELINE_DISABLE:
+                // Child complete - terminate it and advance
+                s_expr_child_terminate(inst, params, param_count, state);
+                s_expr_child_reset(inst, params, param_count, state);
+                state++;
+                s_expr_set_state(inst, state);
+                continue;  // Try next child same tick
+            
+            case SE_TERMINATE:
+            case SE_RESET:
+            case SE_FUNCTION_TERMINATE:
+            case SE_FUNCTION_RESET:
+                // Fatal - propagate
+                return SE_FUNCTION_TERMINATE;
+            
+            case SE_CONTINUE:
+            case SE_HALT:
+            case SE_FUNCTION_HALT:
+            case SE_SKIP_CONTINUE:
+            default:
+                // Still working
+                return SE_HALT;
+        }
+    }
+    
+    // All children complete
+    return SE_DISABLE;
+}
+
+static s_expr_result_t se_fork(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; 
+    (void)event_data;
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    uint16_t count = s_expr_child_count(params, param_count);
+    
+    // Invoke all active children
+    for (uint16_t i = 0; i < count; i++) {
+        bool callable = s_expr_child_is_callable(params, param_count, i);
+        bool active = s_expr_child_is_active(inst, params, param_count, i);
+ 
+        if (!callable || !active) {
+            continue;
+        }
+        
+        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
+      
+        // Propagate fatal results immediately
+        switch (result) {
+            case SE_TERMINATE:
+            case SE_RESET:
+            case SE_FUNCTION_TERMINATE:
+            case SE_FUNCTION_RESET:
+                return result;
+            default:
+                printf("se_fork: child %d result=%d\n", i, result);
+                break;
+        }
+    }
+    
+    // Recount active children AFTER all have run
+    uint16_t active_count = 0;
+    for (uint16_t i = 0; i < count; i++) {
+        
+       
+        if (s_expr_child_is_callable(params, param_count, i) &&
+            s_expr_child_is_active(inst, params, param_count, i)) {
+            active_count++;
+        }
+    }
+    
+    if (active_count == 0) {
+        return SE_PIPELINE_DISABLE;
+    }
+    
+    return SE_CONTINUE;
+}
+
+// ============================================================================
+// SE_FORK_JOIN
+// Execute all children in parallel, return SE_FUNCTION_HALT until all complete
+// Returns SE_FUNCTION_HALT while working, SE_PIPELINE_DISABLE when all complete
+// Fatal codes propagate immediately
+// ============================================================================
+
+static s_expr_result_t se_fork_join(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; 
+    (void)event_data;
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    uint16_t count = s_expr_child_count(params, param_count);
+    
+    // Invoke all active children
+    for (uint16_t i = 0; i < count; i++) {
+        bool callable = s_expr_child_is_callable(params, param_count, i);
+        bool active = s_expr_child_is_active(inst, params, param_count, i);
+        
+        if (!callable || !active) {
+            continue;
+        }
+        
+        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
+        
+        // Propagate fatal results immediately
+        switch (result) {
+            case SE_TERMINATE:
+            case SE_RESET:
+            case SE_FUNCTION_TERMINATE:
+            case SE_FUNCTION_RESET:
+                return result;
+            default:
+                break;
+        }
+    }
+    
+    // Recount active children AFTER all have run
+    uint16_t active_count = 0;
+    for (uint16_t i = 0; i < count; i++) {
+        if (s_expr_child_is_callable(params, param_count, i) &&
+            s_expr_child_is_active(inst, params, param_count, i)) {
+            active_count++;
+        }
+    }
+    
+    if (active_count == 0) {
+        return SE_CONTINUE;  // Changed from SE_PIPELINE_DISABLE
+    }
+    
+    return SE_FUNCTION_HALT;
 }

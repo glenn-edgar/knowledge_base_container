@@ -1174,7 +1174,427 @@ start_tree("test_trigger_on_change")
         se_return_continue()
     end_call(p1)
 end_tree()
---
+
+
+-- ============================================================================
+-- TEST TREE: Sequence
+-- Tests: Sequential execution, advancing on SE_DISABLE
+-- ============================================================================
+
+start_tree("test_sequence")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Sequence of steps with delays
+        se_sequence(
+            -- Step 1: Log and complete immediately
+            function()
+                local s1 = m_call("SE_PIPELINE")
+                    se_log("SEQUENCE: Step 1 - immediate")
+                    se_return_disable()
+                end_call(s1)
+            end,
+            
+            -- Step 2: Delay 3 ticks then complete
+            function()
+                local s2 = m_call("SE_PIPELINE")
+                    se_log("SEQUENCE: Step 2 - delay 3")
+                    se_tick_delay(3)
+                    se_log("SEQUENCE: Step 2 - complete")
+                    se_return_disable()
+                end_call(s2)
+            end,
+            
+            -- Step 3: Log and complete immediately
+            function()
+                local s3 = m_call("SE_PIPELINE")
+                    se_log("SEQUENCE: Step 3 - immediate")
+                    se_return_disable()
+                end_call(s3)
+            end,
+            
+            -- Step 4: Delay 2 ticks then complete
+            function()
+                local s4 = m_call("SE_PIPELINE")
+                    se_log("SEQUENCE: Step 4 - delay 2")
+                    se_tick_delay(2)
+                    se_log("SEQUENCE: Step 4 - complete")
+                    se_return_disable()
+                end_call(s4)
+            end,
+            
+            -- Step 5: Final step
+            function()
+                local s5 = m_call("SE_PIPELINE")
+                    se_log("SEQUENCE: Step 5 - final")
+                    se_return_disable()
+                end_call(s5)
+            end
+        )
+        
+        se_log("SEQUENCE: All steps complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Sequence with tracking
+-- Uses oneshots to track execution order
+-- ============================================================================
+
+start_tree("test_sequence_tracking")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_sequence(
+            -- Step A
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_tick_delay(2)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Step B
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_tick_delay(1)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Step C
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Verify order
+        local verify = o_call("VERIFY_SEQUENCE_ORDER")
+        end_call(verify)
+        
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork - all children run in parallel
+-- ============================================================================
+
+start_tree("test_fork")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Sequence waits for fork to complete before continuing
+        se_sequence(
+            function()
+                se_fork(
+                    -- Child A: completes after 2 ticks
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            se_log("FORK: Child A - start")
+                            se_tick_delay(2)
+                            se_log("FORK: Child A - complete")
+                            se_return_disable()
+                        end_call(s)
+                    end,
+                    
+                    -- Child B: completes after 1 tick
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            se_log("FORK: Child B - start")
+                            se_tick_delay(1)
+                            se_log("FORK: Child B - complete")
+                            se_return_disable()
+                        end_call(s)
+                    end,
+                    
+                    -- Child C: completes immediately
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            se_log("FORK: Child C - immediate")
+                            se_return_disable()
+                        end_call(s)
+                    end
+                )
+            end
+        )
+        
+        se_log("FORK: All children complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork with tracking to verify parallel execution
+-- ============================================================================
+
+start_tree("test_fork_tracking")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_sequence(
+            function()
+                se_fork(
+                    -- Child A: records step 0 on tick 1, step 3 on tick 2
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            local a1 = o_call("TRACK_STEP") int(0) end_call(a1)
+                            se_tick_delay(1)
+                            local a2 = o_call("TRACK_STEP") int(3) end_call(a2)
+                            se_return_disable()
+                        end_call(s)
+                    end,
+                    
+                    -- Child B: records step 1 on tick 1, step 4 on tick 2
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            local b1 = o_call("TRACK_STEP") int(1) end_call(b1)
+                            se_tick_delay(1)
+                            local b2 = o_call("TRACK_STEP") int(4) end_call(b2)
+                            se_return_disable()
+                        end_call(s)
+                    end,
+                    
+                    -- Child C: records step 2 on tick 1, completes immediately
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            local c1 = o_call("TRACK_STEP") int(2) end_call(c1)
+                            se_return_disable()
+                        end_call(s)
+                    end
+                )
+            end
+        )
+        
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork with fatal propagation
+-- ============================================================================
+
+start_tree("test_fork_fatal")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        se_sequence(
+            function()
+                se_fork(
+                    -- Child A: runs normally
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            se_log("FORK FATAL: Child A - running")
+                            se_tick_delay(5)
+                            se_log("FORK FATAL: Child A - should not reach")
+                            se_return_disable()
+                        end_call(s)
+                    end,
+                    
+                    -- Child B: terminates after 2 ticks
+                    function()
+                        local s = m_call("SE_PIPELINE")
+                            se_log("FORK FATAL: Child B - running")
+                            se_tick_delay(2)
+                            se_log("FORK FATAL: Child B - terminating")
+                            se_return_function_terminate()
+                        end_call(s)
+                    end
+                )
+            end
+        )
+        
+        se_log("FORK FATAL: Should not reach")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork Join - all children run in parallel, blocks until complete
+-- ============================================================================
+
+start_tree("test_fork_join")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Fork join blocks until all children complete
+        se_fork_join(
+            -- Child A: completes after 2 ticks
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FORK_JOIN: Child A - start")
+                    se_tick_delay(2)
+                    se_log("FORK_JOIN: Child A - complete")
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child B: completes after 1 tick
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FORK_JOIN: Child B - start")
+                    se_tick_delay(1)
+                    se_log("FORK_JOIN: Child B - complete")
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child C: completes immediately
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FORK_JOIN: Child C - immediate")
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- This should only print after ALL children complete
+        se_log("FORK_JOIN: All children complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork Join with tracking to verify parallel execution
+-- ============================================================================
+
+start_tree("test_fork_join_tracking")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_fork_join(
+            -- Child A: records step 0 on tick 1, step 3 on tick 2
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local a1 = o_call("TRACK_STEP") int(0) end_call(a1)
+                    se_tick_delay(1)
+                    local a2 = o_call("TRACK_STEP") int(3) end_call(a2)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child B: records step 1 on tick 1, step 4 on tick 2
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local b1 = o_call("TRACK_STEP") int(1) end_call(b1)
+                    se_tick_delay(1)
+                    local b2 = o_call("TRACK_STEP") int(4) end_call(b2)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child C: records step 2 on tick 1, completes immediately
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local c1 = o_call("TRACK_STEP") int(2) end_call(c1)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Expected order: 0,1,2 (tick 1), then 3,4 (tick 2)
+        se_log("FORK_JOIN: Tracking complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork Join with fatal propagation
+-- ============================================================================
+
+start_tree("test_fork_join_fatal")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        se_fork_join(
+            -- Child A: runs normally
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FORK_JOIN FATAL: Child A - running")
+                    se_tick_delay(5)
+                    se_log("FORK_JOIN FATAL: Child A - should not reach")
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child B: terminates after 2 ticks
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FORK_JOIN FATAL: Child B - running")
+                    se_tick_delay(2)
+                    se_log("FORK_JOIN FATAL: Child B - terminating")
+                    se_return_function_terminate()
+                end_call(s)
+            end
+        )
+        
+        se_log("FORK_JOIN FATAL: Should not reach")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Fork Join vs Fork comparison
+-- Shows that fork_join blocks but fork does not
+-- ============================================================================
+
+start_tree("test_fork_join_vs_fork")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Step 0: Mark start
+        local s0 = o_call("TRACK_STEP") int(0) end_call(s0)
+        
+        -- Fork join - blocks until children complete
+        se_fork_join(
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local t1 = o_call("TRACK_STEP") int(1) end_call(t1)
+                    se_tick_delay(2)
+                    local t2 = o_call("TRACK_STEP") int(2) end_call(t2)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Step 3: Should only happen AFTER fork_join completes
+        local s3 = o_call("TRACK_STEP") int(3) end_call(s3)
+        
+        se_log("FORK_JOIN VS FORK: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
 --========================================================================
 -- FINALIZE MODULE
 -- ============================================================================

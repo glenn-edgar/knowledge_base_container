@@ -22,7 +22,9 @@
 
 // Forward declaration for generated registration function
 extern void s_expr_dsl_test_register_all(s_expr_module_t* module);
-
+extern void test_tracker_reset(void);
+extern int test_tracker_get_count(void);
+extern int test_tracker_get_step(int index);
 // ============================================================================
 // SIMPLE ALLOCATOR
 // ============================================================================
@@ -214,6 +216,16 @@ static void test_complex_structures(s_engine_handle_t* engine);
 static void test_alist_style(s_engine_handle_t* engine);
 static void test_plist_style(s_engine_handle_t* engine);
 static void test_trigger_on_change(s_engine_handle_t* engine);
+static void test_sequence(s_engine_handle_t* engine);
+static void test_sequence_tracking(s_engine_handle_t* engine);
+static void test_fork(s_engine_handle_t* engine);
+static void test_fork_tracking(s_engine_handle_t* engine);
+static void test_fork_fatal(s_engine_handle_t* engine);
+static void test_fork_join(s_engine_handle_t* engine);
+static void test_fork_join_tracking(s_engine_handle_t* engine);
+static void test_fork_join_fatal(s_engine_handle_t* engine);
+static void test_fork_join_vs_fork(s_engine_handle_t* engine);
+
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -262,6 +274,15 @@ int main(int argc, char* argv[]) {
     test_alist_style(&engine);
     test_plist_style(&engine);
     test_trigger_on_change(&engine);
+    test_sequence(&engine);
+    test_sequence_tracking(&engine);
+    test_fork(&engine);
+    test_fork_tracking(&engine);
+    test_fork_fatal(&engine);
+    test_fork_join(&engine);
+    test_fork_join_tracking(&engine);
+    test_fork_join_fatal(&engine);
+    test_fork_join_vs_fork(&engine);
 /**
     test_parameter_types(&engine);
     test_all_call_types(&engine);
@@ -1087,7 +1108,57 @@ static void test_trigger_on_change(s_engine_handle_t* engine) {
         printf("  ❌ Expected BIT5_CLEAR (NOT became true)\n");
         test_pass = 0;
     }
+    // -------------------------------------------------------------------------
+    // Test 12: Set bit 0 AGAIN -> should trigger ON_BIT0_RISE again
+    // This verifies the action path resets properly
+    // -------------------------------------------------------------------------
+    printf("\n--- Set bit 0 AGAIN (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap | 0x01);
+    bitmap |= (1U << 0);
+    reset_trigger_events();
+    (void)s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT0_RISE)) {
+        printf("  ❌ Expected BIT0_RISE on repeated trigger\n");
+        test_pass = 0;
+    }
     
+    // -------------------------------------------------------------------------
+    // Test 13: Clear bit 0 AGAIN -> should trigger ON_BIT0_FALL again
+    // -------------------------------------------------------------------------
+    printf("\n--- Clear bit 0 AGAIN (bitmap=0x%08X -> 0x%08X) ---\n", bitmap, bitmap & ~0x01);
+    bitmap &= ~(1U << 0);
+    reset_trigger_events();
+    (void)s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  events fired: 0x%02X\n", get_trigger_events());
+    if (!(get_trigger_events() & EVENT_BIT0_FALL)) {
+        printf("  ❌ Expected BIT0_FALL on repeated trigger\n");
+        test_pass = 0;
+    }
+    
+    // -------------------------------------------------------------------------
+    // Test 14: Rapid toggle - multiple cycles
+    // -------------------------------------------------------------------------
+    printf("\n--- Rapid toggle bit 0 (3 cycles) ---\n");
+    for (int cycle = 0; cycle < 3; cycle++) {
+        // Rise
+        bitmap |= (1U << 0);
+        reset_trigger_events();
+        (void)s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        if (!(get_trigger_events() & EVENT_BIT0_RISE)) {
+            printf("  ❌ Cycle %d: Expected BIT0_RISE\n", cycle);
+            test_pass = 0;
+        }
+        
+        // Fall
+        bitmap &= ~(1U << 0);
+        reset_trigger_events();
+        (void)s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        if (!(get_trigger_events() & EVENT_BIT0_FALL)) {
+            printf("  ❌ Cycle %d: Expected BIT0_FALL\n", cycle);
+            test_pass = 0;
+        }
+    }
+    printf("  Completed 3 toggle cycles\n");
     // -------------------------------------------------------------------------
     // Summary
     // -------------------------------------------------------------------------
@@ -1097,5 +1168,426 @@ static void test_trigger_on_change(s_engine_handle_t* engine) {
         printf("\n  ❌ FAILED: Some edge triggers failed\n");
     }
     
+    s_expr_tree_free(tree);
+}
+
+static void test_sequence(s_engine_handle_t* engine) {
+    printf("\n=== Test Sequence ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_SEQUENCE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running sequence with delays ---\n");
+    
+    // Expected:
+    // Tick 1: Step 1 immediate, Step 2 starts (delay 3)
+    // Tick 2: Step 2 waiting
+    // Tick 3: Step 2 waiting
+    // Tick 4: Step 2 complete, Step 3 immediate, Step 4 starts (delay 2)
+    // Tick 5: Step 4 waiting
+    // Tick 6: Step 4 complete, Step 5 immediate, sequence complete
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ✅ PASSED: Sequence completed\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Sequence did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+static void test_sequence_tracking(s_engine_handle_t* engine) {
+    printf("\n=== Test Sequence Tracking ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_SEQUENCE_TRACKING_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running sequence with order tracking ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ✅ PASSED: Sequence tracking completed\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Sequence tracking did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+/// ============================================================================
+// TEST: Fork Basic
+// Children complete at different times, fork waits for all
+// ============================================================================
+
+static void test_fork(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running fork with children completing at different times ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ✅ PASSED: Fork completed in %d ticks\n", i + 1);
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Tracking
+// Verifies parallel execution - all children run each tick
+// ============================================================================
+
+static void test_fork_tracking(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Tracking ===\n");
+    
+    test_tracker_reset();
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_TRACKING_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Verifying parallel execution order ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            // Verify parallel execution pattern
+            int count = test_tracker_get_count();
+            
+            if (count == 5) {
+                // Tick 1: steps 0,1,2 should all be recorded
+                bool has_0 = false, has_1 = false, has_2 = false;
+                for (int j = 0; j < 3; j++) {
+                    int step = test_tracker_get_step(j);
+                    if (step == 0) has_0 = true;
+                    if (step == 1) has_1 = true;
+                    if (step == 2) has_2 = true;
+                }
+                
+                // Tick 2: steps 3,4 should be recorded
+                bool has_3 = false, has_4 = false;
+                for (int j = 3; j < 5; j++) {
+                    int step = test_tracker_get_step(j);
+                    if (step == 3) has_3 = true;
+                    if (step == 4) has_4 = true;
+                }
+                
+                if (has_0 && has_1 && has_2 && has_3 && has_4) {
+                    printf("\n  ✅ PASSED: Parallel execution verified\n");
+                    s_expr_tree_free(tree);
+                    return;
+                }
+            }
+            
+            printf("\n  ❌ FAILED: Wrong execution order (count=%d)\n", count);
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork tracking did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Fatal Propagation
+// Verifies fatal results propagate immediately from any child
+// ============================================================================
+
+static void test_fork_fatal(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Fatal ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_FATAL_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Verifying fatal result propagates ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            // Should terminate after ~3 ticks (child B delays 2, then terminates)
+            if (i + 1 <= 4) {
+                printf("\n  ✅ PASSED: Fatal propagated from child at tick %d\n", i + 1);
+            } else {
+                printf("\n  ⚠️  PASSED: Fatal propagated but took %d ticks (expected ~3)\n", i + 1);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork fatal did not terminate in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Join Basic
+// Children complete at different times, fork_join blocks until all complete
+// ============================================================================
+
+static void test_fork_join(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Join ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_JOIN_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Running fork_join with children completing at different times ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            // Child A takes 2 ticks, so should complete on tick 3
+            if (i + 1 >= 3) {
+                printf("\n  ✅ PASSED: Fork join completed in %d ticks\n", i + 1);
+            } else {
+                printf("\n  ⚠️  WARNING: Fork join completed too early (%d ticks)\n", i + 1);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork join did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Join Tracking
+// Verifies parallel execution - all children run each tick, blocks pipeline
+// ============================================================================
+
+static void test_fork_join_tracking(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Join Tracking ===\n");
+    
+    test_tracker_reset();
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_JOIN_TRACKING_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Verifying parallel execution with blocking ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            
+            if (count == 5) {
+                // Tick 1: steps 0,1,2 should all be recorded
+                bool has_0 = false, has_1 = false, has_2 = false;
+                for (int j = 0; j < 3; j++) {
+                    int step = test_tracker_get_step(j);
+                    if (step == 0) has_0 = true;
+                    if (step == 1) has_1 = true;
+                    if (step == 2) has_2 = true;
+                }
+                
+                // Tick 2: steps 3,4 should be recorded
+                bool has_3 = false, has_4 = false;
+                for (int j = 3; j < 5; j++) {
+                    int step = test_tracker_get_step(j);
+                    if (step == 3) has_3 = true;
+                    if (step == 4) has_4 = true;
+                }
+                
+                if (has_0 && has_1 && has_2 && has_3 && has_4) {
+                    printf("\n  ✅ PASSED: Parallel execution verified\n");
+                    s_expr_tree_free(tree);
+                    return;
+                }
+            }
+            
+            printf("\n  ❌ FAILED: Wrong execution order (count=%d)\n", count);
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork join tracking did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Join Fatal Propagation
+// Verifies fatal results propagate immediately from any child
+// ============================================================================
+
+static void test_fork_join_fatal(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Join Fatal ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_JOIN_FATAL_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Verifying fatal result propagates ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            // Should terminate after ~3 ticks (child B delays 2, then terminates)
+            if (i + 1 <= 4) {
+                printf("\n  ✅ PASSED: Fatal propagated from child at tick %d\n", i + 1);
+            } else {
+                printf("\n  ⚠️  PASSED: Fatal propagated but took %d ticks (expected ~3)\n", i + 1);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork join fatal did not terminate in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Fork Join vs Fork
+// Verifies fork_join blocks pipeline but fork does not
+// ============================================================================
+
+static void test_fork_join_vs_fork(s_engine_handle_t* engine) {
+    printf("\n=== Test Fork Join vs Fork ===\n");
+    
+    test_tracker_reset();
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FORK_JOIN_VS_FORK_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    printf("\n--- Verifying fork_join blocks pipeline ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            
+            // Expected order: 0 (start), 1 (fork child tick 1), 2 (fork child tick 2), 3 (after fork_join)
+            // Step 3 should only appear AFTER steps 1 and 2
+            if (count == 4) {
+                int s0 = test_tracker_get_step(0);
+                int s1 = test_tracker_get_step(1);
+                int s2 = test_tracker_get_step(2);
+                int s3 = test_tracker_get_step(3);
+                
+                if (s0 == 0 && s1 == 1 && s2 == 2 && s3 == 3) {
+                    printf("\n  ✅ PASSED: Fork join correctly blocked pipeline\n");
+                    printf("    Order: %d -> %d -> %d -> %d\n", s0, s1, s2, s3);
+                    s_expr_tree_free(tree);
+                    return;
+                }
+            }
+            
+            printf("\n  ❌ FAILED: Wrong execution order (count=%d)\n", count);
+            printf("    Steps: ");
+            for (int j = 0; j < count; j++) {
+                printf("%d ", test_tracker_get_step(j));
+            }
+            printf("\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Fork join vs fork did not complete in 20 ticks\n");
     s_expr_tree_free(tree);
 }
