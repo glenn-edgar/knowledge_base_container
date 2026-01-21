@@ -235,6 +235,51 @@ function se_fork_join(...)
     end
     end_call(f)
 end
+
+function se_chain_flow(...)
+    local children = {...}
+    local f = m_call("SE_CHAIN_FLOW")
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    end_call(f)
+end
+
+function se_for(count, ...)
+    local children = {...}
+    local f = m_call("SE_FOR")
+    
+    -- Emit count parameter
+    if type(count) == "number" then
+        int(count)
+    elseif type(count) == "function" then
+        count()  -- Slot reference or other param emitter
+    end
+    
+    -- Emit children
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    
+    end_call(f)
+end
+
+function se_while(condition, ...)
+    local children = {...}
+    local w = m_call("SE_WHILE")
+    condition()
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    end_call(w)
+end
+
 function se_nop()
     local c = m_call("SE_NOP")
     end_call(c)

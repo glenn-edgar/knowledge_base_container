@@ -11,9 +11,9 @@
 /*
  * Module: s_expr_dsl_test
  * Hash:   0x7BB33CC5
- * Trees:  36
+ * Trees:  52
  * Records: 9
- * Strings: 87
+ * Strings: 135
  * Constants: 3
  */
 
@@ -108,6 +108,54 @@
  * [84] "FORK_JOIN FATAL: Child B - terminating"
  * [85] "FORK_JOIN FATAL: Should not reach"
  * [86] "FORK_JOIN VS FORK: Complete"
+ * [87] "CHAIN_FLOW: Child A"
+ * [88] "CHAIN_FLOW: Child B"
+ * [89] "CHAIN_FLOW: Child C"
+ * [90] "CHAIN_FLOW: All children processed"
+ * [91] "CHAIN_FLOW_RESET: Child A"
+ * [92] "CHAIN_FLOW_RESET: Child B - returning FUNCTION_RESET"
+ * [93] "CHAIN_FLOW_RESET: Child C - after reset"
+ * [94] "CHAIN_FLOW_RESET: All children processed"
+ * [95] "CHAIN_FLOW_TERM: Child A"
+ * [96] "CHAIN_FLOW_TERM: Child B - returning FUNCTION_TERMINATE"
+ * [97] "CHAIN_FLOW_TERM: Child C - after terminate"
+ * [98] "CHAIN_FLOW_TERM: All children processed"
+ * [99] "CHAIN_FLOW_HALT: Child A"
+ * [100] "CHAIN_FLOW_HALT: Child B - returning HALT"
+ * [101] "CHAIN_FLOW_HALT: Child C - should not reach"
+ * [102] "CHAIN_FLOW_HALT: Should not reach"
+ * [103] "CHAIN_FLOW_DISABLE: Child A"
+ * [104] "CHAIN_FLOW_DISABLE: Child B - returning DISABLE"
+ * [105] "CHAIN_FLOW_DISABLE: Child C - should not reach"
+ * [106] "CHAIN_FLOW_DISABLE: Should not reach"
+ * [107] "CHAIN_FLOW_MULTI: Child A - start"
+ * [108] "CHAIN_FLOW_MULTI: Child A - after delay"
+ * [109] "CHAIN_FLOW_MULTI: Child B"
+ * [110] "CHAIN_FLOW_MULTI: Complete"
+ * [111] "FOR_LOOP: Iteration"
+ * [112] "FOR_LOOP: Complete"
+ * [113] "FOR_LOOP_DELAY: Start iteration"
+ * [114] "FOR_LOOP_DELAY: End iteration"
+ * [115] "FOR_LOOP_DELAY: Complete"
+ * [116] "FOR_LOOP_SLOT: Iteration"
+ * [117] "FOR_LOOP_SLOT: Complete"
+ * [118] "FOR_LOOP_ZERO: Should not reach"
+ * [119] "FOR_LOOP_ZERO: Complete"
+ * [120] "FOR_LOOP_MULTI: Child A"
+ * [121] "FOR_LOOP_MULTI: Child B"
+ * [122] "FOR_LOOP_MULTI: Complete"
+ * [123] "WHILE_LOOP: Iteration"
+ * [124] "WHILE_LOOP: Complete"
+ * [125] "WHILE_LOOP_FALSE: Should not reach"
+ * [126] "WHILE_LOOP_FALSE: Complete"
+ * [127] "WHILE_LOOP_DELAY: Start iteration"
+ * [128] "WHILE_LOOP_DELAY: End iteration"
+ * [129] "WHILE_LOOP_DELAY: Complete"
+ * [130] "WHILE_LOOP_MULTI: Child A"
+ * [131] "WHILE_LOOP_MULTI: Child B"
+ * [132] "WHILE_LOOP_MULTI: Complete"
+ * [133] "WHILE_LOOP_BREAK: Iteration"
+ * [134] "WHILE_LOOP_BREAK: Should not reach"
  */
 
 // ============================================================================
@@ -129,6 +177,8 @@
  *   [11] RESET_SEQUENCE_TRACKER (hash=0x1D13DA13)
  *   [12] TRACK_STEP (hash=0x85D14963)
  *   [13] VERIFY_SEQUENCE_ORDER (hash=0x557C66BB)
+ *   [14] SET_FIELD_INT (hash=0xB1E77AAE)
+ *   [15] INCREMENT_COUNTER_ONESHOT (hash=0x12C4B13E)
  * MAIN FUNCTIONS:
  *   [ 0] SE_RETURN_CONTINUE (hash=0xB4243714)
  *   [ 1] SE_RETURN_TERMINATE (hash=0xDFE64C74)
@@ -149,7 +199,7 @@
  *   [16] SE_STATE_MACHINE (hash=0x5EEDA8E9)
  *   [17] SE_STATE_ACTIONS (hash=0x25308B8F)
  *   [18] SE_FIELD_DISPATCH (hash=0xA1C11B35)
- *   [19] SE_EVENT_DISPATCH (hash=0xF3EDFC75)fo
+ *   [19] SE_EVENT_DISPATCH (hash=0xF3EDFC75)
  *   [20] PROCESS_INT_LIST (hash=0xE6B90959)
  *   [21] MULTI_LIST_FUNC (hash=0x274D6E56)
  *   [22] NESTED_LISTS (hash=0xC32CF90C)
@@ -171,6 +221,9 @@
  *   [38] SE_SEQUENCE (hash=0xEC3EE7BF)
  *   [39] SE_FORK (hash=0x0A24332A)
  *   [40] SE_FORK_JOIN (hash=0xE404E1CF)
+ *   [41] SE_CHAIN_FLOW (hash=0xFFC1FAA4)
+ *   [42] SE_FOR (hash=0xA11A2225)
+ *   [43] SE_WHILE (hash=0xA08B6DD3)
  * PREDICATE FUNCTIONS:
  *   [ 0] CHECK_CONDITION (hash=0x27B2B70D)
  *   [ 1] ANOTHER_CONDITION (hash=0xA303CD62)
@@ -181,6 +234,8 @@
  *   [ 6] SE_PRED_AND (hash=0x7C0DF5F3)
  *   [ 7] SE_PRED_OR (hash=0x0CF6212F)
  *   [ 8] SE_PRED_NOT (hash=0x217DEB8F)
+ *   [ 9] SE_LESS_THAN_INT (hash=0xBFE88BCD)
+ *   [10] SE_GREATER_EQUAL_INT (hash=0xBB057075)
  */
 
 // ============================================================================
@@ -2378,6 +2433,964 @@
  *  39      MAIN              0   func_idx=8      hash=0x0A5B8A85
  *  40    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
  *  41  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow
+ * Hash: 0x1775D484
+ * Record: test_blackboard
+ * Nodes: 17, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=57      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=44        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=87 len=19   "CHAIN_FLOW: Child A"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  18          MAIN              0   func_idx=0      hash=0xB4243714
+ *  19        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  22        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  23        OPEN_CALL           0   content=3             SE_LOG
+ *  24          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25            STR_IDX                 idx=88 len=19   "CHAIN_FLOW: Child B"
+ *  26        CLOSE                   (end SE_LOG)
+ *  27        OPEN_CALL           0   content=3             TRACK_STEP
+ *  28          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end TRACK_STEP)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  32          MAIN              0   func_idx=0      hash=0xB4243714
+ *  33        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  36        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  37        OPEN_CALL           0   content=3             SE_LOG
+ *  38          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39            STR_IDX                 idx=89 len=19   "CHAIN_FLOW: Child C"
+ *  40        CLOSE                   (end SE_LOG)
+ *  41        OPEN_CALL           0   content=3             TRACK_STEP
+ *  42          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  43            INT                     value=2     
+ *  44        CLOSE                   (end TRACK_STEP)
+ *  45        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  46          MAIN              0   func_idx=0      hash=0xB4243714
+ *  47        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  48      CLOSE                   (end SE_PIPELINE)
+ *  49    CLOSE                   (end SE_CHAIN_FLOW)
+ *  50    OPEN_CALL           0   content=3         SE_LOG
+ *  51      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  52        STR_IDX                 idx=90 len=34   "CHAIN_FLOW: All children processed"
+ *  53    CLOSE                   (end SE_LOG)
+ *  54    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  55      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  56    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  57  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow_reset
+ * Hash: 0xF5B367AC
+ * Record: test_blackboard
+ * Nodes: 17, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=57      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=44        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=91 len=25   "CHAIN_FLOW_RESET: Child A"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  18          MAIN              0   func_idx=0      hash=0xB4243714
+ *  19        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  22        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  23        OPEN_CALL           0   content=3             SE_LOG
+ *  24          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25            STR_IDX                 idx=92 len=52   "CHAIN_FLOW_RESET: Child B - returning FUNCTION_RESET"
+ *  26        CLOSE                   (end SE_LOG)
+ *  27        OPEN_CALL           0   content=3             TRACK_STEP
+ *  28          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end TRACK_STEP)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_RESET
+ *  32          MAIN              0   func_idx=7      hash=0xF6027E85
+ *  33        CLOSE                   (end SE_RETURN_FUNCTION_RESET)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  36        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  37        OPEN_CALL           0   content=3             SE_LOG
+ *  38          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39            STR_IDX                 idx=93 len=39   "CHAIN_FLOW_RESET: Child C - after reset"
+ *  40        CLOSE                   (end SE_LOG)
+ *  41        OPEN_CALL           0   content=3             TRACK_STEP
+ *  42          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  43            INT                     value=2     
+ *  44        CLOSE                   (end TRACK_STEP)
+ *  45        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  46          MAIN              0   func_idx=0      hash=0xB4243714
+ *  47        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  48      CLOSE                   (end SE_PIPELINE)
+ *  49    CLOSE                   (end SE_CHAIN_FLOW)
+ *  50    OPEN_CALL           0   content=3         SE_LOG
+ *  51      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  52        STR_IDX                 idx=94 len=40   "CHAIN_FLOW_RESET: All children processed"
+ *  53    CLOSE                   (end SE_LOG)
+ *  54    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  55      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  56    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  57  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow_terminate
+ * Hash: 0x58505DA8
+ * Record: test_blackboard
+ * Nodes: 17, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=57      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=44        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=95 len=24   "CHAIN_FLOW_TERM: Child A"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  18          MAIN              0   func_idx=0      hash=0xB4243714
+ *  19        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  22        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  23        OPEN_CALL           0   content=3             SE_LOG
+ *  24          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25            STR_IDX                 idx=96 len=55   "CHAIN_FLOW_TERM: Child B - returning FUNCTION_TERMINATE"
+ *  26        CLOSE                   (end SE_LOG)
+ *  27        OPEN_CALL           0   content=3             TRACK_STEP
+ *  28          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end TRACK_STEP)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_FUNCTION_TERMINATE
+ *  32          MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  33        CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  36        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  37        OPEN_CALL           0   content=3             SE_LOG
+ *  38          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39            STR_IDX                 idx=97 len=42   "CHAIN_FLOW_TERM: Child C - after terminate"
+ *  40        CLOSE                   (end SE_LOG)
+ *  41        OPEN_CALL           0   content=3             TRACK_STEP
+ *  42          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  43            INT                     value=2     
+ *  44        CLOSE                   (end TRACK_STEP)
+ *  45        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  46          MAIN              0   func_idx=0      hash=0xB4243714
+ *  47        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  48      CLOSE                   (end SE_PIPELINE)
+ *  49    CLOSE                   (end SE_CHAIN_FLOW)
+ *  50    OPEN_CALL           0   content=3         SE_LOG
+ *  51      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  52        STR_IDX                 idx=98 len=39   "CHAIN_FLOW_TERM: All children processed"
+ *  53    CLOSE                   (end SE_LOG)
+ *  54    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  55      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  56    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  57  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow_halt
+ * Hash: 0xA0B087E6
+ * Record: test_blackboard
+ * Nodes: 17, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=57      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=44        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=99 len=24   "CHAIN_FLOW_HALT: Child A"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  18          MAIN              0   func_idx=0      hash=0xB4243714
+ *  19        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  22        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  23        OPEN_CALL           0   content=3             SE_LOG
+ *  24          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25            STR_IDX                 idx=100 len=41   "CHAIN_FLOW_HALT: Child B - returning HALT"
+ *  26        CLOSE                   (end SE_LOG)
+ *  27        OPEN_CALL           0   content=3             TRACK_STEP
+ *  28          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end TRACK_STEP)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_HALT
+ *  32          MAIN              0   func_idx=4      hash=0x056FB9EA
+ *  33        CLOSE                   (end SE_RETURN_HALT)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  36        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  37        OPEN_CALL           0   content=3             SE_LOG
+ *  38          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39            STR_IDX                 idx=101 len=43   "CHAIN_FLOW_HALT: Child C - should not reach"
+ *  40        CLOSE                   (end SE_LOG)
+ *  41        OPEN_CALL           0   content=3             TRACK_STEP
+ *  42          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  43            INT                     value=2     
+ *  44        CLOSE                   (end TRACK_STEP)
+ *  45        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  46          MAIN              0   func_idx=0      hash=0xB4243714
+ *  47        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  48      CLOSE                   (end SE_PIPELINE)
+ *  49    CLOSE                   (end SE_CHAIN_FLOW)
+ *  50    OPEN_CALL           0   content=3         SE_LOG
+ *  51      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  52        STR_IDX                 idx=102 len=33   "CHAIN_FLOW_HALT: Should not reach"
+ *  53    CLOSE                   (end SE_LOG)
+ *  54    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  55      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  56    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  57  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow_disable
+ * Hash: 0xAC94CB7F
+ * Record: test_blackboard
+ * Nodes: 17, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=57      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=44        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=103 len=27   "CHAIN_FLOW_DISABLE: Child A"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  18          MAIN              0   func_idx=0      hash=0xB4243714
+ *  19        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  20      CLOSE                   (end SE_PIPELINE)
+ *  21      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  22        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  23        OPEN_CALL           0   content=3             SE_LOG
+ *  24          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25            STR_IDX                 idx=104 len=47   "CHAIN_FLOW_DISABLE: Child B - returning DISABLE"
+ *  26        CLOSE                   (end SE_LOG)
+ *  27        OPEN_CALL           0   content=3             TRACK_STEP
+ *  28          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end TRACK_STEP)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  32          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  33        CLOSE                   (end SE_RETURN_DISABLE)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  36        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  37        OPEN_CALL           0   content=3             SE_LOG
+ *  38          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39            STR_IDX                 idx=105 len=46   "CHAIN_FLOW_DISABLE: Child C - should not reach"
+ *  40        CLOSE                   (end SE_LOG)
+ *  41        OPEN_CALL           0   content=3             TRACK_STEP
+ *  42          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  43            INT                     value=2     
+ *  44        CLOSE                   (end TRACK_STEP)
+ *  45        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  46          MAIN              0   func_idx=0      hash=0xB4243714
+ *  47        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  48      CLOSE                   (end SE_PIPELINE)
+ *  49    CLOSE                   (end SE_CHAIN_FLOW)
+ *  50    OPEN_CALL           0   content=3         SE_LOG
+ *  51      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  52        STR_IDX                 idx=106 len=36   "CHAIN_FLOW_DISABLE: Should not reach"
+ *  53    CLOSE                   (end SE_LOG)
+ *  54    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  55      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  56    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  57  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_chain_flow_multitick
+ * Hash: 0xEDD1DF53
+ * Record: test_blackboard
+ * Nodes: 16, Pointers: 1
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=55      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=42        SE_CHAIN_FLOW
+ *   6      MAIN              0   func_idx=41     hash=0xFFC1FAA4
+ *   7      OPEN_CALL           0   content=25          SE_PIPELINE
+ *   8        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   9        OPEN_CALL           0   content=3             SE_LOG
+ *  10          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  11            STR_IDX                 idx=107 len=33   "CHAIN_FLOW_MULTI: Child A - start"
+ *  12        CLOSE                   (end SE_LOG)
+ *  13        OPEN_CALL           0   content=3             TRACK_STEP
+ *  14          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  15            INT                     value=0     
+ *  16        CLOSE                   (end TRACK_STEP)
+ *  17        OPEN_CALL           0   content=3             SE_TICK_DELAY
+ *  18          MAIN|PTR          0   func_idx=10     hash=0x0C3460EB
+ *  19            INT                     value=1     
+ *  20        CLOSE                   (end SE_TICK_DELAY)
+ *  21        OPEN_CALL           0   content=3             SE_LOG
+ *  22          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  23            STR_IDX                 idx=108 len=39   "CHAIN_FLOW_MULTI: Child A - after delay"
+ *  24        CLOSE                   (end SE_LOG)
+ *  25        OPEN_CALL           0   content=3             TRACK_STEP
+ *  26          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  27            INT                     value=1     
+ *  28        CLOSE                   (end TRACK_STEP)
+ *  29        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  30          MAIN              0   func_idx=0      hash=0xB4243714
+ *  31        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  32      CLOSE                   (end SE_PIPELINE)
+ *  33      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  34        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  35        OPEN_CALL           0   content=3             SE_LOG
+ *  36          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  37            STR_IDX                 idx=109 len=25   "CHAIN_FLOW_MULTI: Child B"
+ *  38        CLOSE                   (end SE_LOG)
+ *  39        OPEN_CALL           0   content=3             TRACK_STEP
+ *  40          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  41            INT                     value=2     
+ *  42        CLOSE                   (end TRACK_STEP)
+ *  43        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  44          MAIN              0   func_idx=0      hash=0xB4243714
+ *  45        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  46      CLOSE                   (end SE_PIPELINE)
+ *  47    CLOSE                   (end SE_CHAIN_FLOW)
+ *  48    OPEN_CALL           0   content=3         SE_LOG
+ *  49      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  50        STR_IDX                 idx=110 len=26   "CHAIN_FLOW_MULTI: Complete"
+ *  51    CLOSE                   (end SE_LOG)
+ *  52    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  53      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  54    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  55  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_for_loop
+ * Hash: 0xC97E09F4
+ * Record: test_blackboard
+ * Nodes: 9, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=30      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=17        SE_FOR
+ *   6      MAIN              0   func_idx=42     hash=0xA11A2225
+ *   7        INT                     value=3     
+ *   8      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   9        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  10        OPEN_CALL           0   content=3             SE_LOG
+ *  11          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  12            STR_IDX                 idx=111 len=19   "FOR_LOOP: Iteration"
+ *  13        CLOSE                   (end SE_LOG)
+ *  14        OPEN_CALL           0   content=3             TRACK_STEP
+ *  15          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  16            INT                     value=1     
+ *  17        CLOSE                   (end TRACK_STEP)
+ *  18        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  19          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  20        CLOSE                   (end SE_RETURN_DISABLE)
+ *  21      CLOSE                   (end SE_PIPELINE)
+ *  22    CLOSE                   (end SE_FOR)
+ *  23    OPEN_CALL           0   content=3         SE_LOG
+ *  24      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25        STR_IDX                 idx=112 len=18   "FOR_LOOP: Complete"
+ *  26    CLOSE                   (end SE_LOG)
+ *  27    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  28      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  29    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  30  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_for_loop_delay
+ * Hash: 0x199AEA24
+ * Record: test_blackboard
+ * Nodes: 12, Pointers: 1
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=42      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=29        SE_FOR
+ *   6      MAIN              0   func_idx=42     hash=0xA11A2225
+ *   7        INT                     value=2     
+ *   8      OPEN_CALL           0   content=25          SE_PIPELINE
+ *   9        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  10        OPEN_CALL           0   content=3             SE_LOG
+ *  11          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  12            STR_IDX                 idx=113 len=31   "FOR_LOOP_DELAY: Start iteration"
+ *  13        CLOSE                   (end SE_LOG)
+ *  14        OPEN_CALL           0   content=3             TRACK_STEP
+ *  15          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  16            INT                     value=0     
+ *  17        CLOSE                   (end TRACK_STEP)
+ *  18        OPEN_CALL           0   content=3             SE_TICK_DELAY
+ *  19          MAIN|PTR          0   func_idx=10     hash=0x0C3460EB
+ *  20            INT                     value=1     
+ *  21        CLOSE                   (end SE_TICK_DELAY)
+ *  22        OPEN_CALL           0   content=3             SE_LOG
+ *  23          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  24            STR_IDX                 idx=114 len=29   "FOR_LOOP_DELAY: End iteration"
+ *  25        CLOSE                   (end SE_LOG)
+ *  26        OPEN_CALL           0   content=3             TRACK_STEP
+ *  27          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  28            INT                     value=1     
+ *  29        CLOSE                   (end TRACK_STEP)
+ *  30        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  31          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  32        CLOSE                   (end SE_RETURN_DISABLE)
+ *  33      CLOSE                   (end SE_PIPELINE)
+ *  34    CLOSE                   (end SE_FOR)
+ *  35    OPEN_CALL           0   content=3         SE_LOG
+ *  36      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  37        STR_IDX                 idx=115 len=24   "FOR_LOOP_DELAY: Complete"
+ *  38    CLOSE                   (end SE_LOG)
+ *  39    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  40      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  41    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  42  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_for_loop_slot
+ * Hash: 0x7E7457D5
+ * Record: test_blackboard
+ * Nodes: 10, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=35      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=4     
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=17        SE_FOR
+ *  11      MAIN              0   func_idx=42     hash=0xA11A2225
+ *  12        FIELD                   hash=0x9CACDE23  "counter"
+ *  13      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  14        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  15        OPEN_CALL           0   content=3             SE_LOG
+ *  16          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  17            STR_IDX                 idx=116 len=24   "FOR_LOOP_SLOT: Iteration"
+ *  18        CLOSE                   (end SE_LOG)
+ *  19        OPEN_CALL           0   content=3             TRACK_STEP
+ *  20          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  21            INT                     value=1     
+ *  22        CLOSE                   (end TRACK_STEP)
+ *  23        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  24          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  25        CLOSE                   (end SE_RETURN_DISABLE)
+ *  26      CLOSE                   (end SE_PIPELINE)
+ *  27    CLOSE                   (end SE_FOR)
+ *  28    OPEN_CALL           0   content=3         SE_LOG
+ *  29      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  30        STR_IDX                 idx=117 len=23   "FOR_LOOP_SLOT: Complete"
+ *  31    CLOSE                   (end SE_LOG)
+ *  32    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  33      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  34    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  35  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_for_loop_zero
+ * Hash: 0x3FBDE81F
+ * Record: test_blackboard
+ * Nodes: 9, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=30      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=17        SE_FOR
+ *   6      MAIN              0   func_idx=42     hash=0xA11A2225
+ *   7        INT                     value=0     
+ *   8      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   9        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  10        OPEN_CALL           0   content=3             SE_LOG
+ *  11          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  12            STR_IDX                 idx=118 len=31   "FOR_LOOP_ZERO: Should not reach"
+ *  13        CLOSE                   (end SE_LOG)
+ *  14        OPEN_CALL           0   content=3             TRACK_STEP
+ *  15          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  16            INT                     value=99    
+ *  17        CLOSE                   (end TRACK_STEP)
+ *  18        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  19          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  20        CLOSE                   (end SE_RETURN_DISABLE)
+ *  21      CLOSE                   (end SE_PIPELINE)
+ *  22    CLOSE                   (end SE_FOR)
+ *  23    OPEN_CALL           0   content=3         SE_LOG
+ *  24      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  25        STR_IDX                 idx=119 len=23   "FOR_LOOP_ZERO: Complete"
+ *  26    CLOSE                   (end SE_LOG)
+ *  27    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  28      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  29    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  30  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_for_loop_multi
+ * Hash: 0x8116A116
+ * Record: test_blackboard
+ * Nodes: 13, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=44      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=31        SE_FOR
+ *   6      MAIN              0   func_idx=42     hash=0xA11A2225
+ *   7        INT                     value=2     
+ *   8      OPEN_CALL           0   content=13          SE_PIPELINE
+ *   9        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  10        OPEN_CALL           0   content=3             SE_LOG
+ *  11          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  12            STR_IDX                 idx=120 len=23   "FOR_LOOP_MULTI: Child A"
+ *  13        CLOSE                   (end SE_LOG)
+ *  14        OPEN_CALL           0   content=3             TRACK_STEP
+ *  15          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  16            INT                     value=0     
+ *  17        CLOSE                   (end TRACK_STEP)
+ *  18        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  19          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  20        CLOSE                   (end SE_RETURN_DISABLE)
+ *  21      CLOSE                   (end SE_PIPELINE)
+ *  22      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  23        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  24        OPEN_CALL           0   content=3             SE_LOG
+ *  25          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  26            STR_IDX                 idx=121 len=23   "FOR_LOOP_MULTI: Child B"
+ *  27        CLOSE                   (end SE_LOG)
+ *  28        OPEN_CALL           0   content=3             TRACK_STEP
+ *  29          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  30            INT                     value=1     
+ *  31        CLOSE                   (end TRACK_STEP)
+ *  32        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  33          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  34        CLOSE                   (end SE_RETURN_DISABLE)
+ *  35      CLOSE                   (end SE_PIPELINE)
+ *  36    CLOSE                   (end SE_FOR)
+ *  37    OPEN_CALL           0   content=3         SE_LOG
+ *  38      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  39        STR_IDX                 idx=122 len=24   "FOR_LOOP_MULTI: Complete"
+ *  40    CLOSE                   (end SE_LOG)
+ *  41    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  42      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  43    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  44  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_while_loop
+ * Hash: 0x1BE5287A
+ * Record: test_blackboard
+ * Nodes: 12, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=43      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=0     
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=25        SE_WHILE
+ *  11      MAIN              0   func_idx=43     hash=0xA08B6DD3
+ *  12      OPEN_CALL           0   content=4           SE_LESS_THAN_INT
+ *  13        PRED              0   func_idx=9      hash=0xBFE88BCD
+ *  14          FIELD                   hash=0x9CACDE23  "counter"
+ *  15          INT                     value=3     
+ *  16      CLOSE                   (end SE_LESS_THAN_INT)
+ *  17      OPEN_CALL           0   content=17          SE_PIPELINE
+ *  18        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  19        OPEN_CALL           0   content=3             SE_LOG
+ *  20          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  21            STR_IDX                 idx=123 len=21   "WHILE_LOOP: Iteration"
+ *  22        CLOSE                   (end SE_LOG)
+ *  23        OPEN_CALL           0   content=3             TRACK_STEP
+ *  24          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  25            INT                     value=1     
+ *  26        CLOSE                   (end TRACK_STEP)
+ *  27        OPEN_CALL           0   content=3             INCREMENT_COUNTER
+ *  28          MAIN              0   func_idx=32     hash=0x29E86A85
+ *  29            FIELD                   hash=0x9CACDE23  "counter"
+ *  30        CLOSE                   (end INCREMENT_COUNTER)
+ *  31        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  32          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  33        CLOSE                   (end SE_RETURN_DISABLE)
+ *  34      CLOSE                   (end SE_PIPELINE)
+ *  35    CLOSE                   (end SE_WHILE)
+ *  36    OPEN_CALL           0   content=3         SE_LOG
+ *  37      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  38        STR_IDX                 idx=124 len=20   "WHILE_LOOP: Complete"
+ *  39    CLOSE                   (end SE_LOG)
+ *  40    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  41      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  42    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  43  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_while_loop_false
+ * Hash: 0xA1D984BE
+ * Record: test_blackboard
+ * Nodes: 11, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=39      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=10    
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=21        SE_WHILE
+ *  11      MAIN              0   func_idx=43     hash=0xA08B6DD3
+ *  12      OPEN_CALL           0   content=4           SE_LESS_THAN_INT
+ *  13        PRED              0   func_idx=9      hash=0xBFE88BCD
+ *  14          FIELD                   hash=0x9CACDE23  "counter"
+ *  15          INT                     value=3     
+ *  16      CLOSE                   (end SE_LESS_THAN_INT)
+ *  17      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  18        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  19        OPEN_CALL           0   content=3             SE_LOG
+ *  20          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  21            STR_IDX                 idx=125 len=34   "WHILE_LOOP_FALSE: Should not reach"
+ *  22        CLOSE                   (end SE_LOG)
+ *  23        OPEN_CALL           0   content=3             TRACK_STEP
+ *  24          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  25            INT                     value=99    
+ *  26        CLOSE                   (end TRACK_STEP)
+ *  27        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  28          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  29        CLOSE                   (end SE_RETURN_DISABLE)
+ *  30      CLOSE                   (end SE_PIPELINE)
+ *  31    CLOSE                   (end SE_WHILE)
+ *  32    OPEN_CALL           0   content=3         SE_LOG
+ *  33      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  34        STR_IDX                 idx=126 len=26   "WHILE_LOOP_FALSE: Complete"
+ *  35    CLOSE                   (end SE_LOG)
+ *  36    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  37      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  38    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  39  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_while_loop_delay
+ * Hash: 0x87E9FD3E
+ * Record: test_blackboard
+ * Nodes: 15, Pointers: 1
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=55      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=0     
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=37        SE_WHILE
+ *  11      MAIN              0   func_idx=43     hash=0xA08B6DD3
+ *  12      OPEN_CALL           0   content=4           SE_LESS_THAN_INT
+ *  13        PRED              0   func_idx=9      hash=0xBFE88BCD
+ *  14          FIELD                   hash=0x9CACDE23  "counter"
+ *  15          INT                     value=2     
+ *  16      CLOSE                   (end SE_LESS_THAN_INT)
+ *  17      OPEN_CALL           0   content=29          SE_PIPELINE
+ *  18        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  19        OPEN_CALL           0   content=3             SE_LOG
+ *  20          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  21            STR_IDX                 idx=127 len=33   "WHILE_LOOP_DELAY: Start iteration"
+ *  22        CLOSE                   (end SE_LOG)
+ *  23        OPEN_CALL           0   content=3             TRACK_STEP
+ *  24          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  25            INT                     value=0     
+ *  26        CLOSE                   (end TRACK_STEP)
+ *  27        OPEN_CALL           0   content=3             SE_TICK_DELAY
+ *  28          MAIN|PTR          0   func_idx=10     hash=0x0C3460EB
+ *  29            INT                     value=1     
+ *  30        CLOSE                   (end SE_TICK_DELAY)
+ *  31        OPEN_CALL           0   content=3             SE_LOG
+ *  32          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  33            STR_IDX                 idx=128 len=31   "WHILE_LOOP_DELAY: End iteration"
+ *  34        CLOSE                   (end SE_LOG)
+ *  35        OPEN_CALL           0   content=3             TRACK_STEP
+ *  36          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  37            INT                     value=1     
+ *  38        CLOSE                   (end TRACK_STEP)
+ *  39        OPEN_CALL           0   content=3             INCREMENT_COUNTER
+ *  40          MAIN              0   func_idx=32     hash=0x29E86A85
+ *  41            FIELD                   hash=0x9CACDE23  "counter"
+ *  42        CLOSE                   (end INCREMENT_COUNTER)
+ *  43        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  44          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  45        CLOSE                   (end SE_RETURN_DISABLE)
+ *  46      CLOSE                   (end SE_PIPELINE)
+ *  47    CLOSE                   (end SE_WHILE)
+ *  48    OPEN_CALL           0   content=3         SE_LOG
+ *  49      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  50        STR_IDX                 idx=129 len=26   "WHILE_LOOP_DELAY: Complete"
+ *  51    CLOSE                   (end SE_LOG)
+ *  52    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  53      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  54    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  55  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_while_loop_multi
+ * Hash: 0x6D614BB8
+ * Record: test_blackboard
+ * Nodes: 18, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=63      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=0     
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=45        SE_WHILE
+ *  11      MAIN              0   func_idx=43     hash=0xA08B6DD3
+ *  12      OPEN_CALL           0   content=4           SE_LESS_THAN_INT
+ *  13        PRED              0   func_idx=9      hash=0xBFE88BCD
+ *  14          FIELD                   hash=0x9CACDE23  "counter"
+ *  15          INT                     value=2     
+ *  16      CLOSE                   (end SE_LESS_THAN_INT)
+ *  17      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  18        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  19        OPEN_CALL           0   content=3             SE_LOG
+ *  20          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  21            STR_IDX                 idx=130 len=25   "WHILE_LOOP_MULTI: Child A"
+ *  22        CLOSE                   (end SE_LOG)
+ *  23        OPEN_CALL           0   content=3             TRACK_STEP
+ *  24          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  25            INT                     value=0     
+ *  26        CLOSE                   (end TRACK_STEP)
+ *  27        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  28          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  29        CLOSE                   (end SE_RETURN_DISABLE)
+ *  30      CLOSE                   (end SE_PIPELINE)
+ *  31      OPEN_CALL           0   content=13          SE_PIPELINE
+ *  32        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  33        OPEN_CALL           0   content=3             SE_LOG
+ *  34          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  35            STR_IDX                 idx=131 len=25   "WHILE_LOOP_MULTI: Child B"
+ *  36        CLOSE                   (end SE_LOG)
+ *  37        OPEN_CALL           0   content=3             TRACK_STEP
+ *  38          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  39            INT                     value=1     
+ *  40        CLOSE                   (end TRACK_STEP)
+ *  41        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  42          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  43        CLOSE                   (end SE_RETURN_DISABLE)
+ *  44      CLOSE                   (end SE_PIPELINE)
+ *  45      OPEN_CALL           0   content=9           SE_PIPELINE
+ *  46        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  47        OPEN_CALL           0   content=3             INCREMENT_COUNTER
+ *  48          MAIN              0   func_idx=32     hash=0x29E86A85
+ *  49            FIELD                   hash=0x9CACDE23  "counter"
+ *  50        CLOSE                   (end INCREMENT_COUNTER)
+ *  51        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  52          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  53        CLOSE                   (end SE_RETURN_DISABLE)
+ *  54      CLOSE                   (end SE_PIPELINE)
+ *  55    CLOSE                   (end SE_WHILE)
+ *  56    OPEN_CALL           0   content=3         SE_LOG
+ *  57      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  58        STR_IDX                 idx=132 len=26   "WHILE_LOOP_MULTI: Complete"
+ *  59    CLOSE                   (end SE_LOG)
+ *  60    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  61      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  62    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  63  CLOSE                   (end SE_PIPELINE)
+ */
+
+/*
+ * TREE: test_while_loop_break
+ * Hash: 0x700C04B2
+ * Record: test_blackboard
+ * Nodes: 18, Pointers: 0
+ *
+ * IDX  TYPE              PTR   VALUE/BRACE     DETAILS
+ * ---------------------------------------------------------------
+ *   0  OPEN_CALL           0   content=61      SE_PIPELINE
+ *   1    MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *   2    OPEN_CALL           0   content=2         RESET_SEQUENCE_TRACKER
+ *   3      ONESHOT           0   func_idx=11     hash=0x1D13DA13
+ *   4    CLOSE                   (end RESET_SEQUENCE_TRACKER)
+ *   5    OPEN_CALL           0   content=4         SET_FIELD_INT
+ *   6      ONESHOT           0   func_idx=14     hash=0xB1E77AAE
+ *   7        FIELD                   hash=0x9CACDE23  "counter"
+ *   8        INT                     value=0     
+ *   9    CLOSE                   (end SET_FIELD_INT)
+ *  10    OPEN_CALL           0   content=43        SE_WHILE
+ *  11      MAIN              0   func_idx=43     hash=0xA08B6DD3
+ *  12      OPEN_CALL           0   content=5           SE_PIPELINE
+ *  13        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  14        OPEN_CALL           0   content=2             SE_RETURN_CONTINUE
+ *  15          MAIN              0   func_idx=0      hash=0xB4243714
+ *  16        CLOSE                   (end SE_RETURN_CONTINUE)
+ *  17      CLOSE                   (end SE_PIPELINE)
+ *  18      OPEN_CALL           0   content=34          SE_PIPELINE
+ *  19        MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  20        OPEN_CALL           0   content=3             SE_LOG
+ *  21          ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  22            STR_IDX                 idx=133 len=27   "WHILE_LOOP_BREAK: Iteration"
+ *  23        CLOSE                   (end SE_LOG)
+ *  24        OPEN_CALL           0   content=3             TRACK_STEP
+ *  25          ONESHOT           0   func_idx=12     hash=0x85D14963
+ *  26            INT                     value=1     
+ *  27        CLOSE                   (end TRACK_STEP)
+ *  28        OPEN_CALL           0   content=3             INCREMENT_COUNTER_ONESHOT
+ *  29          ONESHOT           0   func_idx=15     hash=0x12C4B13E
+ *  30            FIELD                   hash=0x9CACDE23  "counter"
+ *  31        CLOSE                   (end INCREMENT_COUNTER_ONESHOT)
+ *  32        OPEN_CALL           0   content=16            SE_IF_THEN_ELSE
+ *  33          MAIN              0   func_idx=14     hash=0x1E860193
+ *  34          OPEN_CALL           0   content=4               SE_GREATER_EQUAL_INT
+ *  35            PRED              0   func_idx=10     hash=0xBB057075
+ *  36              FIELD                   hash=0x9CACDE23  "counter"
+ *  37              INT                     value=2     
+ *  38          CLOSE                   (end SE_GREATER_EQUAL_INT)
+ *  39          OPEN_CALL           0   content=5               SE_PIPELINE
+ *  40            MAIN              0   func_idx=9      hash=0x4D6E2B18
+ *  41            OPEN_CALL           0   content=2                 SE_RETURN_FUNCTION_TERMINATE
+ *  42              MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  43            CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  44          CLOSE                   (end SE_PIPELINE)
+ *  45          OPEN_CALL           0   content=2               SE_NOP
+ *  46            MAIN              0   func_idx=13     hash=0x080C2B37
+ *  47          CLOSE                   (end SE_NOP)
+ *  48        CLOSE                   (end SE_IF_THEN_ELSE)
+ *  49        OPEN_CALL           0   content=2             SE_RETURN_DISABLE
+ *  50          MAIN              0   func_idx=3      hash=0x02C11A13
+ *  51        CLOSE                   (end SE_RETURN_DISABLE)
+ *  52      CLOSE                   (end SE_PIPELINE)
+ *  53    CLOSE                   (end SE_WHILE)
+ *  54    OPEN_CALL           0   content=3         SE_LOG
+ *  55      ONESHOT           0   func_idx=0      hash=0xCEBBEFA4
+ *  56        STR_IDX                 idx=134 len=34   "WHILE_LOOP_BREAK: Should not reach"
+ *  57    CLOSE                   (end SE_LOG)
+ *  58    OPEN_CALL           0   content=2         SE_RETURN_FUNCTION_TERMINATE
+ *  59      MAIN              0   func_idx=8      hash=0x0A5B8A85
+ *  60    CLOSE                   (end SE_RETURN_FUNCTION_TERMINATE)
+ *  61  CLOSE                   (end SE_PIPELINE)
  */
 
 #endif // S_EXPR_DSL_TEST_DUMP_32_H

@@ -166,6 +166,7 @@ local BUILTIN_FUNCTIONS = {
     "SE_TRUE",
     "SE_FALSE",
     "SE_CHECK_EVENT",
+    
     -- Main functions
     "SE_PIPELINE",
     "SE_TICK_DELAY",
@@ -186,6 +187,11 @@ local BUILTIN_FUNCTIONS = {
     "SE_SEQUENCE",
     "SE_FORK",
     "SE_FORK_JOIN",
+    "SE_CHAIN_FLOW",
+    "SE_FOR",
+    "SE_WHILE",
+  
+
     -- Result code functions
     "SE_RETURN_CONTINUE",
     "SE_RETURN_HALT",

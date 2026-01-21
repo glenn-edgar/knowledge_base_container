@@ -59,6 +59,8 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FALSE_HASH             0x77C35775
 #define SE_CHECK_EVENT_HASH       0x80659F81
 #define SE_CHECK_NAMED_EVENT_HASH 0x542BD82B
+#define SE_LESS_THAN_INT_HASH     0xBFE88BCD
+#define SE_GREATER_EQUAL_INT_HASH 0xBB057075
 
 // Main functions
 #define SE_PIPELINE_HASH              0x4D6E2B18
@@ -76,6 +78,9 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_SEQUENCE_HASH              0xEC3EE7BF
 #define SE_FORK_HASH                  0x0A24332A
 #define SE_FORK_JOIN_HASH             0xE404E1CF
+#define SE_CHAIN_FLOW_HASH            0xFFC1FAA4  
+#define SE_FOR_HASH                   0xA11A2225
+#define SE_WHILE_HASH                 0xA08B6DD3  
 // NEW v5.2: Dictionary-based dispatch functions
 #define SE_STRING_DISPATCH_HASH       0x6A3A4922
 #define SE_HASH_DISPATCH_HASH         0xDE8E6F0D

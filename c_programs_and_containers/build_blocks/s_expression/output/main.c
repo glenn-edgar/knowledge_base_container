@@ -225,6 +225,22 @@ static void test_fork_join(s_engine_handle_t* engine);
 static void test_fork_join_tracking(s_engine_handle_t* engine);
 static void test_fork_join_fatal(s_engine_handle_t* engine);
 static void test_fork_join_vs_fork(s_engine_handle_t* engine);
+static void test_chain_flow(s_engine_handle_t* engine);
+static void test_chain_flow_reset(s_engine_handle_t* engine);
+static void test_chain_flow_terminate(s_engine_handle_t* engine);
+static void test_chain_flow_halt(s_engine_handle_t* engine);
+static void test_chain_flow_disable(s_engine_handle_t* engine);
+static void test_chain_flow_multitick(s_engine_handle_t* engine);
+static void test_for_loop(s_engine_handle_t* engine);
+static void test_for_loop_delay(s_engine_handle_t* engine);
+static void test_for_loop_slot(s_engine_handle_t* engine);
+static void test_for_loop_zero(s_engine_handle_t* engine);
+static void test_for_loop_multi(s_engine_handle_t* engine);
+static void test_while_loop(s_engine_handle_t* engine);
+static void test_while_loop_false(s_engine_handle_t* engine);
+static void test_while_loop_delay(s_engine_handle_t* engine);
+static void test_while_loop_multi(s_engine_handle_t* engine);
+static void test_while_loop_break(s_engine_handle_t* engine);
 
 int main(int argc, char* argv[]) {
     printf("\n");
@@ -283,6 +299,22 @@ int main(int argc, char* argv[]) {
     test_fork_join_tracking(&engine);
     test_fork_join_fatal(&engine);
     test_fork_join_vs_fork(&engine);
+    test_chain_flow(&engine);
+    test_chain_flow_reset(&engine);
+    test_chain_flow_terminate(&engine);
+    test_chain_flow_halt(&engine);
+    test_chain_flow_disable(&engine);
+    test_chain_flow_multitick(&engine);
+    test_for_loop(&engine);
+    test_for_loop_delay(&engine);
+    test_for_loop_slot(&engine);
+    test_for_loop_zero(&engine);
+    test_for_loop_multi(&engine);
+    test_while_loop(&engine);
+    test_while_loop_false(&engine);
+    test_while_loop_delay(&engine);
+    test_while_loop_multi(&engine);
+    test_while_loop_break(&engine);
 /**
     test_parameter_types(&engine);
     test_all_call_types(&engine);
@@ -1589,5 +1621,775 @@ static void test_fork_join_vs_fork(s_engine_handle_t* engine) {
     }
     
     printf("\n  ❌ FAILED: Fork join vs fork did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Chain Flow Basic
+// All children return SE_CONTINUE, flow processes all
+// ============================================================================
+
+static void test_chain_flow(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with all children continuing ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 3 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 2) {
+                printf("\n  ✅ PASSED: Chain flow processed all children\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step order (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Chain flow did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Chain Flow with FUNCTION_RESET
+// Child returns SE_FUNCTION_RESET, gets reset, flow continues
+// ============================================================================
+
+static void test_chain_flow_reset(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow Reset ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_RESET_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with FUNCTION_RESET ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // All three children should run: A, B (reset), C
+            if (count == 3 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 2) {
+                printf("\n  ✅ PASSED: Chain flow continued after FUNCTION_RESET\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step order (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Chain flow reset did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Chain Flow with FUNCTION_TERMINATE
+// Child returns SE_FUNCTION_TERMINATE, gets terminated, flow continues
+// ============================================================================
+
+static void test_chain_flow_terminate(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow Terminate ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_TERMINATE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with FUNCTION_TERMINATE ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // All three children should run: A, B (terminate), C
+            if (count == 3 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 2) {
+                printf("\n  ✅ PASSED: Chain flow continued after FUNCTION_TERMINATE\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step order (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Chain flow terminate did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Chain Flow with HALT (stops flow)
+// Child returns SE_HALT, flow stops immediately
+// ============================================================================
+
+static void test_chain_flow_halt(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow Halt ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_HALT_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with HALT ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_HALT) {
+            int count = test_tracker_get_count();
+            // Only A and B should run, C should NOT run
+            if (count == 2 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1) {
+                printf("\n  ✅ PASSED: Chain flow stopped on HALT\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step order (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            printf("\n  ❌ FAILED: Chain flow should not have completed\n");
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Chain flow halt did not return HALT in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: Chain Flow with DISABLE (stops flow)
+// Child returns SE_DISABLE, flow stops immediately
+// ============================================================================
+
+static void test_chain_flow_disable(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow Disable ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_DISABLE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with DISABLE ---\n");
+    
+    printf("Tick 1:\n");
+    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    printf("  result: %d (%s)\n", result, result_to_str(result));
+    
+    int count = test_tracker_get_count();
+    // Only A and B should run, C should NOT run
+    if (count == 2 &&
+        test_tracker_get_step(0) == 0 &&
+        test_tracker_get_step(1) == 1) {
+        printf("\n  ✅ PASSED: Chain flow stopped on DISABLE (tracked %d steps)\n", count);
+    } else {
+        printf("\n  ❌ FAILED: Wrong step count (count=%d, expected 2)\n", count);
+    }
+    
+    s_expr_tree_free(tree);
+}
+// ============================================================================
+// TEST: Chain Flow Multi-tick
+// Chain flow with delays, verifies children stay active across ticks
+// ============================================================================
+
+static void test_chain_flow_multitick(s_engine_handle_t* engine) {
+    printf("\n=== Test Chain Flow Multi-tick ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_CHAIN_FLOW_MULTITICK_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running chain flow with delays ---\n");
+    
+    // Expected:
+    // Tick 1: Child A starts (tracks 0), delay, Child B runs (tracks 2)
+    // Tick 2: Child A after delay (tracks 1), Child B runs (tracks 2)
+    // Then complete
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            printf("  Steps recorded: ");
+            for (int j = 0; j < count; j++) {
+                printf("%d ", test_tracker_get_step(j));
+            }
+            printf("\n");
+            
+            // Expect: 0, 2 (tick 1), then 1, 2 (tick 2) = 4 total
+            if (count >= 3) {
+                printf("\n  ✅ PASSED: Chain flow multi-tick completed\n");
+            } else {
+                printf("\n  ❌ FAILED: Not enough steps recorded (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: Chain flow multi-tick did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+
+// ============================================================================
+// TEST: For Loop Basic
+// Execute children N times
+// ============================================================================
+
+static void test_for_loop(s_engine_handle_t* engine) {
+    printf("\n=== Test For Loop ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FOR_LOOP_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running for loop 3 times ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 3) {
+                printf("\n  ✅ PASSED: For loop executed 3 iterations\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong iteration count (count=%d, expected 3)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: For loop did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: For Loop with Delay
+// Each iteration takes multiple ticks
+// ============================================================================
+
+static void test_for_loop_delay(s_engine_handle_t* engine) {
+    printf("\n=== Test For Loop Delay ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FOR_LOOP_DELAY_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running for loop with delays ---\n");
+    
+    // Expected: 2 iterations, each takes 2 ticks
+    // Tick 1: iteration 1 start (track 0)
+    // Tick 2: iteration 1 end (track 1)
+    // Tick 3: iteration 2 start (track 0)
+    // Tick 4: iteration 2 end (track 1)
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // Expected: 0,1,0,1 = 4 steps
+            if (count == 4 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 0 &&
+                test_tracker_get_step(3) == 1) {
+                printf("\n  ✅ PASSED: For loop with delay executed correctly\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step sequence (count=%d)\n", count);
+                printf("    Steps: ");
+                for (int j = 0; j < count; j++) {
+                    printf("%d ", test_tracker_get_step(j));
+                }
+                printf("\n");
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: For loop delay did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: For Loop with Slot Reference
+// Iteration count from blackboard slot
+// ============================================================================
+
+static void test_for_loop_slot(s_engine_handle_t* engine) {
+    printf("\n=== Test For Loop Slot ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FOR_LOOP_SLOT_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running for loop with slot reference (count=4) ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 4) {
+                printf("\n  ✅ PASSED: For loop with slot executed 4 iterations\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong iteration count (count=%d, expected 4)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: For loop slot did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: For Loop Zero Count
+// Zero iterations should complete immediately
+// ============================================================================
+
+static void test_for_loop_zero(s_engine_handle_t* engine) {
+    printf("\n=== Test For Loop Zero ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FOR_LOOP_ZERO_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running for loop with zero count ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 0) {
+                printf("\n  ✅ PASSED: For loop with zero count skipped body\n");
+            } else {
+                printf("\n  ❌ FAILED: Body should not have run (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: For loop zero did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: For Loop Multiple Children
+// Multiple children each iteration
+// ============================================================================
+
+static void test_for_loop_multi(s_engine_handle_t* engine) {
+    printf("\n=== Test For Loop Multi ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_FOR_LOOP_MULTI_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running for loop with multiple children ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // Expected: 0,1,0,1 = 4 steps (2 children x 2 iterations)
+            if (count == 4 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 0 &&
+                test_tracker_get_step(3) == 1) {
+                printf("\n  ✅ PASSED: For loop with multiple children executed correctly\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step sequence (count=%d)\n", count);
+                printf("    Steps: ");
+                for (int j = 0; j < count; j++) {
+                    printf("%d ", test_tracker_get_step(j));
+                }
+                printf("\n");
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: For loop multi did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: While Loop Basic
+// Loop while counter < 3
+// ============================================================================
+
+static void test_while_loop(s_engine_handle_t* engine) {
+    printf("\n=== Test While Loop ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_WHILE_LOOP_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running while loop (counter < 3) ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 3) {
+                printf("\n  ✅ PASSED: While loop executed 3 iterations\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong iteration count (count=%d, expected 3)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: While loop did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: While Loop False Initially
+// Predicate false on first check, body never runs
+// ============================================================================
+
+static void test_while_loop_false(s_engine_handle_t* engine) {
+    printf("\n=== Test While Loop False ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_WHILE_LOOP_FALSE_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running while loop with false predicate ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            if (count == 0) {
+                printf("\n  ✅ PASSED: While loop with false predicate skipped body\n");
+            } else {
+                printf("\n  ❌ FAILED: Body should not have run (count=%d)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: While loop false did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: While Loop with Delay
+// Each iteration takes multiple ticks
+// ============================================================================
+
+static void test_while_loop_delay(s_engine_handle_t* engine) {
+    printf("\n=== Test While Loop Delay ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_WHILE_LOOP_DELAY_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running while loop with delays ---\n");
+    
+    // Expected: 2 iterations, each takes 2 ticks
+    // Tick 1: iteration 1 start (track 0)
+    // Tick 2: iteration 1 end (track 1), increment
+    // Tick 3: iteration 2 start (track 0)
+    // Tick 4: iteration 2 end (track 1), increment
+    // Tick 5: predicate false, complete
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // Expected: 0,1,0,1 = 4 steps
+            if (count == 4 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 0 &&
+                test_tracker_get_step(3) == 1) {
+                printf("\n  ✅ PASSED: While loop with delay executed correctly\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step sequence (count=%d)\n", count);
+                printf("    Steps: ");
+                for (int j = 0; j < count; j++) {
+                    printf("%d ", test_tracker_get_step(j));
+                }
+                printf("\n");
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: While loop delay did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: While Loop Multiple Body Children
+// Multiple children in loop body
+// ============================================================================
+
+static void test_while_loop_multi(s_engine_handle_t* engine) {
+    printf("\n=== Test While Loop Multi ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_WHILE_LOOP_MULTI_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running while loop with multiple children ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // Expected: 0,1,0,1 = 4 steps (2 tracking children x 2 iterations)
+            if (count == 4 &&
+                test_tracker_get_step(0) == 0 &&
+                test_tracker_get_step(1) == 1 &&
+                test_tracker_get_step(2) == 0 &&
+                test_tracker_get_step(3) == 1) {
+                printf("\n  ✅ PASSED: While loop with multiple children executed correctly\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong step sequence (count=%d)\n", count);
+                printf("    Steps: ");
+                for (int j = 0; j < count; j++) {
+                    printf("%d ", test_tracker_get_step(j));
+                }
+                printf("\n");
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: While loop multi did not complete in 20 ticks\n");
+    s_expr_tree_free(tree);
+}
+
+// ============================================================================
+// TEST: While Loop Break
+// Body returns fatal, loop exits
+// ============================================================================
+
+static void test_while_loop_break(s_engine_handle_t* engine) {
+    printf("\n=== Test While Loop Break ===\n");
+    
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        TEST_WHILE_LOOP_BREAK_HASH,
+        0
+    );
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree\n");
+        exit(1);
+    }
+    
+    test_tracker_reset();
+    
+    printf("\n--- Running while loop with break ---\n");
+    
+    for (int i = 0; i < 20; i++) {
+        printf("Tick %d:\n", i + 1);
+        s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+        printf("  result: %d (%s)\n", result, result_to_str(result));
+        
+        if (result == SE_FUNCTION_TERMINATE) {
+            int count = test_tracker_get_count();
+            // Expected: 2 iterations before break
+            if (count == 2) {
+                printf("\n  ✅ PASSED: While loop broke after 2 iterations\n");
+            } else {
+                printf("\n  ❌ FAILED: Wrong iteration count (count=%d, expected 2)\n", count);
+            }
+            s_expr_tree_free(tree);
+            return;
+        }
+    }
+    
+    printf("\n  ❌ FAILED: While loop break did not complete in 20 ticks\n");
     s_expr_tree_free(tree);
 }

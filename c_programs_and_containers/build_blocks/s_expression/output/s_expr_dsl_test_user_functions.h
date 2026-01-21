@@ -123,6 +123,24 @@ void verify_sequence_order(
     void* event_data
 );
 
+void set_field_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+);
+
+void increment_counter_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+);
+
 // Main functions
 s_expr_result_t process_int_list(
     s_expr_tree_instance_t* inst,
@@ -306,6 +324,24 @@ bool sensor_active(
 );
 
 bool test_bit(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+);
+
+bool se_less_than_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+);
+
+bool se_greater_equal_int(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,

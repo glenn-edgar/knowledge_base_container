@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: s_expr_dsl_test
 #define S_EXPR_DSL_TEST_NAME_HASH 0x7BB33CC5
-#define S_EXPR_DSL_TEST_TREE_COUNT 36
+#define S_EXPR_DSL_TEST_TREE_COUNT 52
 #define S_EXPR_DSL_TEST_RECORD_COUNT 9
 
 // String table
@@ -107,9 +107,57 @@ static const char* const s_expr_dsl_test_strings[] = {
     "FORK_JOIN FATAL: Child B - running",
     "FORK_JOIN FATAL: Child B - terminating",
     "FORK_JOIN FATAL: Should not reach",
-    "FORK_JOIN VS FORK: Complete"
+    "FORK_JOIN VS FORK: Complete",
+    "CHAIN_FLOW: Child A",
+    "CHAIN_FLOW: Child B",
+    "CHAIN_FLOW: Child C",
+    "CHAIN_FLOW: All children processed",
+    "CHAIN_FLOW_RESET: Child A",
+    "CHAIN_FLOW_RESET: Child B - returning FUNCTION_RESET",
+    "CHAIN_FLOW_RESET: Child C - after reset",
+    "CHAIN_FLOW_RESET: All children processed",
+    "CHAIN_FLOW_TERM: Child A",
+    "CHAIN_FLOW_TERM: Child B - returning FUNCTION_TERMINATE",
+    "CHAIN_FLOW_TERM: Child C - after terminate",
+    "CHAIN_FLOW_TERM: All children processed",
+    "CHAIN_FLOW_HALT: Child A",
+    "CHAIN_FLOW_HALT: Child B - returning HALT",
+    "CHAIN_FLOW_HALT: Child C - should not reach",
+    "CHAIN_FLOW_HALT: Should not reach",
+    "CHAIN_FLOW_DISABLE: Child A",
+    "CHAIN_FLOW_DISABLE: Child B - returning DISABLE",
+    "CHAIN_FLOW_DISABLE: Child C - should not reach",
+    "CHAIN_FLOW_DISABLE: Should not reach",
+    "CHAIN_FLOW_MULTI: Child A - start",
+    "CHAIN_FLOW_MULTI: Child A - after delay",
+    "CHAIN_FLOW_MULTI: Child B",
+    "CHAIN_FLOW_MULTI: Complete",
+    "FOR_LOOP: Iteration",
+    "FOR_LOOP: Complete",
+    "FOR_LOOP_DELAY: Start iteration",
+    "FOR_LOOP_DELAY: End iteration",
+    "FOR_LOOP_DELAY: Complete",
+    "FOR_LOOP_SLOT: Iteration",
+    "FOR_LOOP_SLOT: Complete",
+    "FOR_LOOP_ZERO: Should not reach",
+    "FOR_LOOP_ZERO: Complete",
+    "FOR_LOOP_MULTI: Child A",
+    "FOR_LOOP_MULTI: Child B",
+    "FOR_LOOP_MULTI: Complete",
+    "WHILE_LOOP: Iteration",
+    "WHILE_LOOP: Complete",
+    "WHILE_LOOP_FALSE: Should not reach",
+    "WHILE_LOOP_FALSE: Complete",
+    "WHILE_LOOP_DELAY: Start iteration",
+    "WHILE_LOOP_DELAY: End iteration",
+    "WHILE_LOOP_DELAY: Complete",
+    "WHILE_LOOP_MULTI: Child A",
+    "WHILE_LOOP_MULTI: Child B",
+    "WHILE_LOOP_MULTI: Complete",
+    "WHILE_LOOP_BREAK: Iteration",
+    "WHILE_LOOP_BREAK: Should not reach"
 };
-#define S_EXPR_DSL_TEST_STRING_COUNT 87
+#define S_EXPR_DSL_TEST_STRING_COUNT 135
 
 // Function hashes
 #define SE_LOG_HASH 0xCEBBEFA4
@@ -126,6 +174,8 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define RESET_SEQUENCE_TRACKER_HASH 0x1D13DA13
 #define TRACK_STEP_HASH 0x85D14963
 #define VERIFY_SEQUENCE_ORDER_HASH 0x557C66BB
+#define SET_FIELD_INT_HASH 0xB1E77AAE
+#define INCREMENT_COUNTER_ONESHOT_HASH 0x12C4B13E
 #define SE_RETURN_CONTINUE_HASH 0xB4243714
 #define SE_RETURN_TERMINATE_HASH 0xDFE64C74
 #define SE_RETURN_RESET_HASH 0x70EAA030
@@ -167,6 +217,9 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define SE_SEQUENCE_HASH 0xEC3EE7BF
 #define SE_FORK_HASH 0x0A24332A
 #define SE_FORK_JOIN_HASH 0xE404E1CF
+#define SE_CHAIN_FLOW_HASH 0xFFC1FAA4
+#define SE_FOR_HASH 0xA11A2225
+#define SE_WHILE_HASH 0xA08B6DD3
 #define CHECK_CONDITION_HASH 0x27B2B70D
 #define ANOTHER_CONDITION_HASH 0xA303CD62
 #define MONITOR_STATE_HASH 0xC04E8337
@@ -176,6 +229,8 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define SE_PRED_AND_HASH 0x7C0DF5F3
 #define SE_PRED_OR_HASH 0x0CF6212F
 #define SE_PRED_NOT_HASH 0x217DEB8F
+#define SE_LESS_THAN_INT_HASH 0xBFE88BCD
+#define SE_GREATER_EQUAL_INT_HASH 0xBB057075
 
 // Tree hashes
 #define TEST_RESULT_CODES_1_HASH 0xEBA1F08A
@@ -214,6 +269,22 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define TEST_FORK_JOIN_TRACKING_HASH 0xA003E4C1
 #define TEST_FORK_JOIN_FATAL_HASH 0x69C66CCA
 #define TEST_FORK_JOIN_VS_FORK_HASH 0x6932C2D0
+#define TEST_CHAIN_FLOW_HASH 0x1775D484
+#define TEST_CHAIN_FLOW_RESET_HASH 0xF5B367AC
+#define TEST_CHAIN_FLOW_TERMINATE_HASH 0x58505DA8
+#define TEST_CHAIN_FLOW_HALT_HASH 0xA0B087E6
+#define TEST_CHAIN_FLOW_DISABLE_HASH 0xAC94CB7F
+#define TEST_CHAIN_FLOW_MULTITICK_HASH 0xEDD1DF53
+#define TEST_FOR_LOOP_HASH 0xC97E09F4
+#define TEST_FOR_LOOP_DELAY_HASH 0x199AEA24
+#define TEST_FOR_LOOP_SLOT_HASH 0x7E7457D5
+#define TEST_FOR_LOOP_ZERO_HASH 0x3FBDE81F
+#define TEST_FOR_LOOP_MULTI_HASH 0x8116A116
+#define TEST_WHILE_LOOP_HASH 0x1BE5287A
+#define TEST_WHILE_LOOP_FALSE_HASH 0xA1D984BE
+#define TEST_WHILE_LOOP_DELAY_HASH 0x87E9FD3E
+#define TEST_WHILE_LOOP_MULTI_HASH 0x6D614BB8
+#define TEST_WHILE_LOOP_BREAK_HASH 0x700C04B2
 
 // Record hashes
 #define ALL_PRIMITIVES_HASH 0xBF9832AB

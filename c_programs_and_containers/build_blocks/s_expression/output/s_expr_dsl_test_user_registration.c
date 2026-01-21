@@ -23,11 +23,13 @@ static s_expr_fn_entry_t s_expr_dsl_test_oneshot_entries[] = {
     { 0x1D13DA13, (void*)reset_sequence_tracker },
     { 0x85D14963, (void*)track_step },
     { 0x557C66BB, (void*)verify_sequence_order },
+    { 0xB1E77AAE, (void*)set_field_int },
+    { 0x12C4B13E, (void*)increment_counter_oneshot },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_oneshot_table = {
     .entries = s_expr_dsl_test_oneshot_entries,
-    .count = 12
+    .count = 14
 };
 
 // Main function entries
@@ -62,11 +64,13 @@ static s_expr_fn_entry_t s_expr_dsl_test_pred_entries[] = {
     { 0x520E2FF0, (void*)button_pressed },
     { 0x6FAC375E, (void*)sensor_active },
     { 0x2D749139, (void*)test_bit },
+    { 0xBFE88BCD, (void*)se_less_than_int },
+    { 0xBB057075, (void*)se_greater_equal_int },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_pred_table = {
     .entries = s_expr_dsl_test_pred_entries,
-    .count = 6
+    .count = 8
 };
 
 // Table accessors

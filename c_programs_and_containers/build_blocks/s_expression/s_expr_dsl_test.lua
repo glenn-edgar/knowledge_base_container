@@ -1598,6 +1598,730 @@ end_tree()
 --========================================================================
 -- FINALIZE MODULE
 -- ============================================================================
+-- ============================================================================
+-- TEST TREE: Chain Flow Basic
+-- Tests: All children return SE_CONTINUE, flow processes all
+-- ============================================================================
+
+start_tree("test_chain_flow")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW: Child B")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child C: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW: Child C")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW: All children processed")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Chain Flow with FUNCTION_RESET
+-- Tests: Child returns SE_FUNCTION_RESET, gets reset, flow continues
+-- ============================================================================
+
+start_tree("test_chain_flow_reset")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_RESET: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: returns FUNCTION_RESET (should reset and continue)
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_RESET: Child B - returning FUNCTION_RESET")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_function_reset()
+                end_call(s)
+            end,
+            
+            -- Child C: should still run after B's reset
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_RESET: Child C - after reset")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW_RESET: All children processed")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Chain Flow with FUNCTION_TERMINATE
+-- Tests: Child returns SE_FUNCTION_TERMINATE, gets terminated, flow continues
+-- ============================================================================
+
+start_tree("test_chain_flow_terminate")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_TERM: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: returns FUNCTION_TERMINATE (should terminate and continue)
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_TERM: Child B - returning FUNCTION_TERMINATE")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_function_terminate()
+                end_call(s)
+            end,
+            
+            -- Child C: should still run after B's terminate
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_TERM: Child C - after terminate")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW_TERM: All children processed")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Chain Flow with HALT (stops flow)
+-- Tests: Child returns SE_HALT, flow stops immediately
+-- ============================================================================
+
+start_tree("test_chain_flow_halt")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_HALT: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: returns HALT (should stop flow)
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_HALT: Child B - returning HALT")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_halt()
+                end_call(s)
+            end,
+            
+            -- Child C: should NOT run because B returned HALT
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_HALT: Child C - should not reach")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW_HALT: Should not reach")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Chain Flow with DISABLE (stops flow)
+-- Tests: Child returns SE_DISABLE, flow stops immediately
+-- ============================================================================
+
+start_tree("test_chain_flow_disable")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: logs and continues
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_DISABLE: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: returns DISABLE (should stop flow)
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_DISABLE: Child B - returning DISABLE")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Child C: should NOT run because B returned DISABLE
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_DISABLE: Child C - should not reach")
+                    local c = o_call("TRACK_STEP") int(2) end_call(c)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW_DISABLE: Should not reach")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: Chain Flow Multi-tick
+-- Tests: Chain flow with delays, verifies children stay active across ticks
+-- ============================================================================
+
+start_tree("test_chain_flow_multitick")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        se_chain_flow(
+            -- Child A: delay then continue
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_MULTI: Child A - start")
+                    local a1 = o_call("TRACK_STEP") int(0) end_call(a1)
+                    se_tick_delay(1)
+                    se_log("CHAIN_FLOW_MULTI: Child A - after delay")
+                    local a2 = o_call("TRACK_STEP") int(1) end_call(a2)
+                    se_return_continue()
+                end_call(s)
+            end,
+            
+            -- Child B: runs every tick
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("CHAIN_FLOW_MULTI: Child B")
+                    local b = o_call("TRACK_STEP") int(2) end_call(b)
+                    se_return_continue()
+                end_call(s)
+            end
+        )
+        
+        se_log("CHAIN_FLOW_MULTI: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+
+-- ============================================================================
+-- TEST TREE: For Loop Basic
+-- Tests: Execute children N times
+-- ============================================================================
+
+start_tree("test_for_loop")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Loop 3 times
+        se_for(3,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP: Iteration")
+                    local t = o_call("TRACK_STEP") int(1) end_call(t)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Should have 3 steps tracked
+        se_log("FOR_LOOP: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: For Loop with Delay
+-- Tests: Each iteration takes multiple ticks
+-- ============================================================================
+
+start_tree("test_for_loop_delay")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Loop 2 times, each iteration takes 2 ticks
+        se_for(2,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP_DELAY: Start iteration")
+                    local t1 = o_call("TRACK_STEP") int(0) end_call(t1)
+                    se_tick_delay(1)
+                    se_log("FOR_LOOP_DELAY: End iteration")
+                    local t2 = o_call("TRACK_STEP") int(1) end_call(t2)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Expected: 4 steps total (0,1 for first iteration, 0,1 for second)
+        se_log("FOR_LOOP_DELAY: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: For Loop with Slot Reference
+-- Tests: Iteration count from blackboard slot
+-- ============================================================================
+
+start_tree("test_for_loop_slot")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Set loop count in blackboard
+        local set_count = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(4)
+        end_call(set_count)
+        
+        -- Loop using slot reference
+        se_for(function() field_ref("counter") end,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP_SLOT: Iteration")
+                    local t = o_call("TRACK_STEP") int(1) end_call(t)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Should have 4 steps tracked
+        se_log("FOR_LOOP_SLOT: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: For Loop Zero Count
+-- Tests: Zero iterations should complete immediately
+-- ============================================================================
+
+start_tree("test_for_loop_zero")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Loop 0 times - should skip entirely
+        se_for(0,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP_ZERO: Should not reach")
+                    local t = o_call("TRACK_STEP") int(99) end_call(t)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Should have 0 steps tracked
+        se_log("FOR_LOOP_ZERO: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: For Loop Multiple Children
+-- Tests: Multiple children each iteration
+-- ============================================================================
+
+start_tree("test_for_loop_multi")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Loop 2 times with 2 children
+        se_for(2,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP_MULTI: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_disable()
+                end_call(s)
+            end,
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("FOR_LOOP_MULTI: Child B")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Expected: 0,1,0,1 (4 steps total)
+        se_log("FOR_LOOP_MULTI: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: While Loop Basic
+-- Tests: Loop while counter < 3
+-- ============================================================================
+
+start_tree("test_while_loop")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking and counter
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        local set_counter = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(0)
+        end_call(set_counter)
+        
+        -- While counter < 3
+        se_while(
+            -- Predicate: check counter < 3
+            function()
+                local pred = p_call("SE_LESS_THAN_INT")
+                    field_ref("counter")
+                    int(3)
+                end_call(pred)
+            end,
+            
+            -- Body: log and increment
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP: Iteration")
+                        local t = o_call("TRACK_STEP") int(1) end_call(t)
+                        local inc = m_call("INCREMENT_COUNTER")
+                        field_ref("counter")
+                    end_call(inc)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Should have 3 steps tracked
+        se_log("WHILE_LOOP: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: While Loop False Initially
+-- Tests: Predicate false on first check, body never runs
+-- ============================================================================
+
+start_tree("test_while_loop_false")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        -- Set counter to 10 (already >= 3)
+        local set_counter = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(10)
+        end_call(set_counter)
+        
+        -- While counter < 3 (immediately false)
+        se_while(
+            -- Predicate: check counter < 3
+            function()
+                local pred = p_call("SE_LESS_THAN_INT")
+                    field_ref("counter")
+                    int(3)
+                end_call(pred)
+            end,
+            
+            -- Body: should never run
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP_FALSE: Should not reach")
+                    local t = o_call("TRACK_STEP") int(99) end_call(t)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Should have 0 steps tracked
+        se_log("WHILE_LOOP_FALSE: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: While Loop with Delay
+-- Tests: Each iteration takes multiple ticks
+-- ============================================================================
+
+start_tree("test_while_loop_delay")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking and counter
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        local set_counter = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(0)
+        end_call(set_counter)
+        
+        -- While counter < 2
+        se_while(
+            -- Predicate
+            function()
+                local pred = p_call("SE_LESS_THAN_INT")
+                    field_ref("counter")
+                    int(2)
+                end_call(pred)
+            end,
+            
+            -- Body: delay then increment
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP_DELAY: Start iteration")
+                    local t1 = o_call("TRACK_STEP") int(0) end_call(t1)
+                    se_tick_delay(1)
+                    se_log("WHILE_LOOP_DELAY: End iteration")
+                    local t2 = o_call("TRACK_STEP") int(1) end_call(t2)
+                    local inc = m_call("INCREMENT_COUNTER")
+                        field_ref("counter")
+                    end_call(inc)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Expected: 4 steps total (0,1 for each of 2 iterations)
+        se_log("WHILE_LOOP_DELAY: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: While Loop Multiple Body Children
+-- Tests: Multiple children in loop body
+-- ============================================================================
+
+start_tree("test_while_loop_multi")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking and counter
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        local set_counter = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(0)
+        end_call(set_counter)
+        
+        -- While counter < 2 with multiple body children
+        se_while(
+            -- Predicate
+            function()
+                local pred = p_call("SE_LESS_THAN_INT")
+                    field_ref("counter")
+                    int(2)
+                end_call(pred)
+            end,
+            
+            -- Body child A
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP_MULTI: Child A")
+                    local a = o_call("TRACK_STEP") int(0) end_call(a)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Body child B
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP_MULTI: Child B")
+                    local b = o_call("TRACK_STEP") int(1) end_call(b)
+                    se_return_disable()
+                end_call(s)
+            end,
+            
+            -- Body child C (increment)
+            function()
+                local s = m_call("SE_PIPELINE")
+                    local inc = m_call("INCREMENT_COUNTER")
+                        field_ref("counter")
+                    end_call(inc)
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        -- Expected: 0,1,0,1 (4 steps total, 2 iterations)
+        se_log("WHILE_LOOP_MULTI: Complete")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
+
+-- ============================================================================
+-- TEST TREE: While Loop Break (fatal from body)
+-- Tests: Body returns fatal, loop exits
+-- ============================================================================
+
+start_tree("test_while_loop_break")
+    use_record("test_blackboard")
+    
+    local p1 = m_call("SE_PIPELINE")
+        
+        -- Reset tracking and counter
+        local reset = o_call("RESET_SEQUENCE_TRACKER")
+        end_call(reset)
+        
+        local set_counter = o_call("SET_FIELD_INT")
+            field_ref("counter")
+            int(0)
+        end_call(set_counter)
+        
+        -- While true (infinite loop, but body breaks after 2)
+        se_while(
+            -- Predicate: always true
+            function()
+                local pred = m_call("SE_PIPELINE")
+                    se_return_continue()
+                end_call(pred)
+            end,
+            
+            -- Body: break after 2 iterations
+            function()
+                local s = m_call("SE_PIPELINE")
+                    se_log("WHILE_LOOP_BREAK: Iteration")
+                    local t = o_call("TRACK_STEP") int(1) end_call(t)
+                    local inc = o_call("INCREMENT_COUNTER_ONESHOT")
+                        field_ref("counter")
+                    end_call(inc)
+                    
+                    -- Check if counter >= 2, then break
+                    se_if_then(
+                        function()
+                            local cond = p_call("SE_GREATER_EQUAL_INT")
+                                field_ref("counter")
+                                int(2)
+                            end_call(cond)
+                        end,
+                        function()
+                            local then_branch = m_call("SE_PIPELINE")
+                                se_return_function_terminate()
+                            end_call(then_branch)
+                        end
+                    )
+                    
+                    se_return_disable()
+                end_call(s)
+            end
+        )
+        
+        se_log("WHILE_LOOP_BREAK: Should not reach")
+        se_return_function_terminate()
+    end_call(p1)
+end_tree()
 
 local result = end_module(mod)
 print("Module compiled successfully: " .. result.name)

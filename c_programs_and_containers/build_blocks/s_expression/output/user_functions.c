@@ -2493,3 +2493,220 @@ void verify_fork_order(
     }
     printf("\n");
 }
+
+void set_field_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)inst; (void)params; (void)param_count;
+    (void)event_type; (void)event_id; (void)event_data;
+    
+    printf("set_field_int\n");
+    exit(0);
+}
+
+
+// ============================================================================
+// TEST TREE 19: Dict Event Dispatch
+// ============================================================================
+void increment_counter_oneshot(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    (void)event_type;
+   
+    
+    // TICK: Increment the counter field
+    if (param_count < 1) {
+        EXCEPTION("increment_counter: need field_ref");
+    
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("increment_counter: expected field_ref");
+        
+    }
+    
+    // Get pointer to the counter field in blackboard
+    int32_t* counter_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!counter_ptr) {
+        EXCEPTION("increment_counter: NULL field pointer");
+        
+    }
+    
+    // Increment
+    int32_t old_val = *counter_ptr;
+    (*counter_ptr)++;
+    
+    printf("INCREMENT_COUNTER oneshot: %d -> %d\n", old_val, *counter_ptr);
+ 
+}
+
+// ============================================================================
+// COMPARISON PREDICATES
+// Return SE_CONTINUE if true, SE_PIPELINE_DISABLE if false
+// Params: [field_ref or int] [field_ref or int]
+// ============================================================================
+
+static inline int32_t get_int_param(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* param
+) {
+    uint8_t opcode = param->type & S_EXPR_OPCODE_MASK;
+    
+    if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+        return param->int_val;
+    }
+    
+    // Try field reference
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, param, int32_t);
+    if (field_ptr) {
+        return *field_ptr;
+    }
+    
+    return 0;
+}
+
+// SE_LESS_THAN_INT: a < b
+bool se_less_than_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_less_than_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a < b);
+}
+
+// SE_LESS_EQUAL_INT: a <= b
+bool se_less_equal_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_less_equal_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a <= b) ;
+}
+
+// SE_GREATER_THAN_INT: a > b
+bool se_greater_than_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_greater_than_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a > b); 
+}
+
+// SE_GREATER_EQUAL_INT: a >= b
+bool se_greater_equal_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_greater_equal_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a >= b); 
+}
+
+// SE_EQUAL_INT: a == b
+bool se_equal_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_equal_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a == b) ;
+}
+
+// SE_NOT_EQUAL_INT: a != b
+bool se_not_equal_int(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data; (void)event_type;
+    
+    if (param_count < 2) {
+        EXCEPTION("se_not_equal_int: need 2 params");
+        return SE_TERMINATE;
+    }
+    
+    int32_t a = get_int_param(inst, &params[0]);
+    int32_t b = get_int_param(inst, &params[1]);
+    
+    return (a != b); 
+}
+
+
