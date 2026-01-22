@@ -169,11 +169,10 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {
     { 0x7C0DF5F3, "SE_PRED_AND", 6 },
     { 0x0CF6212F, "SE_PRED_OR", 7 },
     { 0x217DEB8F, "SE_PRED_NOT", 8 },
-    { 0x306B0C71, "LESS_THAN_THREE_PRED", 9 },
-    { 0xBFE88BCD, "SE_LESS_THAN_INT", 10 },
-    { 0xBB057075, "SE_GREATER_EQUAL_INT", 11 },
+    { 0xBFE88BCD, "SE_LESS_THAN_INT", 9 },
+    { 0xBB057075, "SE_GREATER_EQUAL_INT", 10 },
 };
-#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 12
+#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 11
 
 // ============================================================================
 // RECORD DEBUG INFO
@@ -288,37 +287,95 @@ static const s_expr_dsl_test_record_debug_t s_expr_dsl_test_record_debug[] = {
 
 static inline const char* s_expr_dsl_test_find_tree_name(uint32_t hash) {
     for (int i = 0; i < S_EXPR_DSL_TEST_TREE_DEBUG_COUNT; i++) {
-        if (s_expr_dsl_test_tree_debug[i].hash == hash) return s_expr_dsl_test_tree_debug[i].name;
+        if (s_expr_dsl_test_tree_debug[i].hash == hash) {
+            return s_expr_dsl_test_tree_debug[i].name;
+        }
     }
     return "UNKNOWN";
 }
 
 static inline const char* s_expr_dsl_test_find_main_name(uint32_t hash) {
     for (int i = 0; i < S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT; i++) {
-        if (s_expr_dsl_test_main_debug[i].hash == hash) return s_expr_dsl_test_main_debug[i].name;
+        if (s_expr_dsl_test_main_debug[i].hash == hash) {
+            return s_expr_dsl_test_main_debug[i].name;
+        }
     }
     return "UNKNOWN";
 }
 
 static inline const char* s_expr_dsl_test_find_oneshot_name(uint32_t hash) {
     for (int i = 0; i < S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT; i++) {
-        if (s_expr_dsl_test_oneshot_debug[i].hash == hash) return s_expr_dsl_test_oneshot_debug[i].name;
+        if (s_expr_dsl_test_oneshot_debug[i].hash == hash) {
+            return s_expr_dsl_test_oneshot_debug[i].name;
+        }
     }
     return "UNKNOWN";
 }
 
 static inline const char* s_expr_dsl_test_find_pred_name(uint32_t hash) {
     for (int i = 0; i < S_EXPR_DSL_TEST_PRED_DEBUG_COUNT; i++) {
-        if (s_expr_dsl_test_pred_debug[i].hash == hash) return s_expr_dsl_test_pred_debug[i].name;
+        if (s_expr_dsl_test_pred_debug[i].hash == hash) {
+            return s_expr_dsl_test_pred_debug[i].name;
+        }
     }
     return "UNKNOWN";
 }
 
 static inline const char* s_expr_dsl_test_find_record_name(uint32_t hash) {
     for (int i = 0; i < S_EXPR_DSL_TEST_RECORD_DEBUG_COUNT; i++) {
-        if (s_expr_dsl_test_record_debug[i].hash == hash) return s_expr_dsl_test_record_debug[i].name;
+        if (s_expr_dsl_test_record_debug[i].hash == hash) {
+            return s_expr_dsl_test_record_debug[i].name;
+        }
     }
     return "UNKNOWN";
+}
+
+static inline void s_expr_dsl_test_print_trees(void) {
+    printf("s_expr_dsl_test Trees (%d):\n", S_EXPR_DSL_TEST_TREE_DEBUG_COUNT);
+    for (int i = 0; i < S_EXPR_DSL_TEST_TREE_DEBUG_COUNT; i++) {
+        const s_expr_dsl_test_tree_debug_t* t = &s_expr_dsl_test_tree_debug[i];
+        printf("  [%2d] 0x%08X %-32s nodes=%d ptrs=%d params=%d\n",
+               i, t->hash, t->name, t->node_count, t->pointer_count, t->param_count);
+    }
+}
+
+static inline void s_expr_dsl_test_print_functions(void) {
+    printf("s_expr_dsl_test Main Functions (%d):\n", S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT);
+    for (int i = 0; i < S_EXPR_DSL_TEST_MAIN_DEBUG_COUNT; i++) {
+        printf("  [%2d] 0x%08X %s\n", i, s_expr_dsl_test_main_debug[i].hash, s_expr_dsl_test_main_debug[i].name);
+    }
+    printf("s_expr_dsl_test Oneshot Functions (%d):\n", S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT);
+    for (int i = 0; i < S_EXPR_DSL_TEST_ONESHOT_DEBUG_COUNT; i++) {
+        printf("  [%2d] 0x%08X %s\n", i, s_expr_dsl_test_oneshot_debug[i].hash, s_expr_dsl_test_oneshot_debug[i].name);
+    }
+    printf("s_expr_dsl_test Predicate Functions (%d):\n", S_EXPR_DSL_TEST_PRED_DEBUG_COUNT);
+    for (int i = 0; i < S_EXPR_DSL_TEST_PRED_DEBUG_COUNT; i++) {
+        printf("  [%2d] 0x%08X %s\n", i, s_expr_dsl_test_pred_debug[i].hash, s_expr_dsl_test_pred_debug[i].name);
+    }
+}
+
+static inline void s_expr_dsl_test_print_records(void) {
+    printf("s_expr_dsl_test Records (%d):\n", S_EXPR_DSL_TEST_RECORD_DEBUG_COUNT);
+    for (int i = 0; i < S_EXPR_DSL_TEST_RECORD_DEBUG_COUNT; i++) {
+        const s_expr_dsl_test_record_debug_t* r = &s_expr_dsl_test_record_debug[i];
+        printf("  [%2d] 0x%08X %-24s size=%d fields=%d\n",
+               i, r->hash, r->name, r->size, r->field_count);
+        for (int j = 0; j < r->field_count; j++) {
+            const s_expr_dsl_test_field_debug_t* f = &r->fields[j];
+            printf("       [%2d] 0x%08X %-20s offset=%d size=%d\n",
+                   j, f->hash, f->name, f->offset, f->size);
+        }
+    }
+}
+
+static inline void s_expr_dsl_test_print_debug_all(void) {
+    printf("\n========== S_EXPR_DSL_TEST DEBUG INFO ==========\n\n");
+    s_expr_dsl_test_print_trees();
+    printf("\n");
+    s_expr_dsl_test_print_functions();
+    printf("\n");
+    s_expr_dsl_test_print_records();
+    printf("\n");
 }
 
 #endif // S_EXPR_DSL_TEST_DEBUG_H

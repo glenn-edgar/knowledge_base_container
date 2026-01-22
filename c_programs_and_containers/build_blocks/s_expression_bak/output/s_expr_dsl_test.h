@@ -229,7 +229,6 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define SE_PRED_AND_HASH 0x7C0DF5F3
 #define SE_PRED_OR_HASH 0x0CF6212F
 #define SE_PRED_NOT_HASH 0x217DEB8F
-#define LESS_THAN_THREE_PRED_HASH 0x306B0C71
 #define SE_LESS_THAN_INT_HASH 0xBFE88BCD
 #define SE_GREATER_EQUAL_INT_HASH 0xBB057075
 

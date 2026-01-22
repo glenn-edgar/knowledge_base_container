@@ -2578,64 +2578,82 @@ static s_expr_result_t se_while(
         return SE_TERMINATE;
     }
     
+    // First child is the predicate
     if (!s_expr_child_is_callable(params, param_count, 0)) {
         EXCEPTION("se_while: predicate not callable");
         return SE_TERMINATE;
     }
     
-    // Loop until predicate fails or we need to yield
-    while (1) {
-        // Invoke predicate
-        bool pred_result = s_expr_child_invoke_pred(inst, params, param_count, 0);
-        if (!pred_result) {
+    // Invoke predicate
+    s_expr_result_t pred_result = s_expr_child_invoke(inst, params, param_count, 0);
+    
+    // Check predicate result
+    switch (pred_result) {
+        case SE_DISABLE:
+        case SE_PIPELINE_DISABLE:
+            // Predicate false - terminate all children and exit
             s_expr_children_terminate_all(inst, params, param_count);
-            
             return SE_PIPELINE_DISABLE;
+        
+        case SE_TERMINATE:
+        case SE_RESET:
+        case SE_FUNCTION_TERMINATE:
+        case SE_FUNCTION_RESET:
+            // Fatal - propagate
+            return pred_result;
+        
+        case SE_CONTINUE:
+            // Predicate true - continue with body
+            break;
+        
+        default:
+            // HALT, FUNCTION_HALT, etc - return as-is
+            return pred_result;
+    }
+    
+    // Execute body children (skip predicate at index 0)
+    uint16_t active_count = 0;
+    
+    for (uint16_t i = 1; i < child_count; i++) {
+        bool callable = s_expr_child_is_callable(params, param_count, i);
+        bool active = s_expr_child_is_active(inst, params, param_count, i);
+        
+        if (!callable) {
+            continue;
         }
         
-        // Execute body children (skip predicate at index 0)
-        bool any_still_running = false;
+        if (!active) {
+            continue;
+        }
         
-        for (uint16_t i = 1; i < child_count; i++) {
-            if (!s_expr_child_is_callable(params, param_count, i)) {
-                continue;
-            }
-            
-            if (!s_expr_child_is_active(inst, params, param_count, i)) {
-                // Already completed this iteration
-                continue;
-            }
-            
-            s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-            
-            if (result == SE_PIPELINE_DISABLE || result == SE_DISABLE) {
-                // This child completed, check next
-                continue;
-            }
-            
-            if (result == SE_CONTINUE) {
-                // Child still running - need to yield
-                any_still_running = true;
-                continue;
-            }
-            
-            // Fatal or halt - propagate
+        active_count++;
+        
+        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
+        
+        if (result == SE_PIPELINE_DISABLE) {
+            // Body child completed, continue to next
+            continue;
+        }
+        
+        if (result != SE_CONTINUE) {
             return result;
         }
-        
-        if (any_still_running) {
-            // Yield, come back next tick
-            return SE_FUNCTION_HALT;
-        }
-       
-        // All body children complete - reset for next iteration
+    }
+    
+    // All body children complete this iteration - reset for next iteration
+    if (active_count == 0) {
+        // Reset predicate
         s_expr_child_reset(inst, params, param_count, 0);
         
+        // Reset all body children
         for (uint16_t i = 1; i < child_count; i++) {
             if (s_expr_child_is_callable(params, param_count, i)) {
                 s_expr_child_reset(inst, params, param_count, i);
             }
         }
-        // Loop back to check predicate again
     }
+    
+    return SE_CONTINUE;
 }
+
+

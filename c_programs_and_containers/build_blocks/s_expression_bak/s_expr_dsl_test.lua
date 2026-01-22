@@ -2075,7 +2075,7 @@ start_tree("test_while_loop")
         se_while(
             -- Predicate: check counter < 3
             function()
-                local pred = p_call("LESS_THAN_THREE_PRED")
+                local pred = p_call("SE_LESS_THAN_INT")
                     field_ref("counter")
                     int(3)
                 end_call(pred)
@@ -2124,8 +2124,10 @@ start_tree("test_while_loop_false")
         se_while(
             -- Predicate: check counter < 3
             function()
-                se_false()
-        
+                local pred = p_call("SE_LESS_THAN_INT")
+                    field_ref("counter")
+                    int(3)
+                end_call(pred)
             end,
             
             -- Body: should never run
@@ -2167,7 +2169,7 @@ start_tree("test_while_loop_delay")
         se_while(
             -- Predicate
             function()
-                local pred = p_call("LESS_THAN_THREE_PRED")
+                local pred = p_call("SE_LESS_THAN_INT")
                     field_ref("counter")
                     int(2)
                 end_call(pred)
@@ -2218,7 +2220,7 @@ start_tree("test_while_loop_multi")
         se_while(
             -- Predicate
             function()
-                local pred = p_call("LESS_THAN_THREE_PRED")
+                local pred = p_call("SE_LESS_THAN_INT")
                     field_ref("counter")
                     int(2)
                 end_call(pred)
@@ -2283,7 +2285,7 @@ start_tree("test_while_loop_break")
             -- Predicate: always true
             function()
                 local pred = m_call("SE_PIPELINE")
-                    se_true()
+                    se_return_continue()
                 end_call(pred)
             end,
             

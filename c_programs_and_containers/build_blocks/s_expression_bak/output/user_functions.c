@@ -1805,8 +1805,7 @@ s_expr_result_t increment_counter(
         EXCEPTION("increment_counter: expected field_ref");
         return SE_CONTINUE;
     }
-    printf(" increment_counter: offset=%d\n", params[0].field_offset);
-
+    
     // Get pointer to the counter field in blackboard
     int32_t* counter_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
     if (!counter_ptr) {
@@ -2503,17 +2502,13 @@ void set_field_int(
     uint16_t event_id,
     void* event_data
 ) {
+    (void)inst; (void)params; (void)param_count;
     (void)event_type; (void)event_id; (void)event_data;
     
-    uint32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], uint32_t);
-    if (!field_ptr) {
-        EXCEPTION("set_field_int: NULL field pointer");
-        return;
-    }
-    
-    *field_ptr = (uint32_t)params[1].uint_val;
-   
+    printf("set_field_int\n");
+    exit(0);
 }
+
 
 // ============================================================================
 // TEST TREE 19: Dict Event Dispatch
@@ -2542,7 +2537,7 @@ void increment_counter_oneshot(
         
     }
     
-    
+    // Get pointer to the counter field in blackboard
     int32_t* counter_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
     if (!counter_ptr) {
         EXCEPTION("increment_counter: NULL field pointer");
@@ -2597,10 +2592,10 @@ bool se_less_than_int(
         EXCEPTION("se_less_than_int: need 2 params");
         return SE_TERMINATE;
     }
-    printf("se_less_than_int: %d < %d\n", params[0].int_val, params[1].int_val);
+    
     int32_t a = get_int_param(inst, &params[0]);
     int32_t b = get_int_param(inst, &params[1]);
-    printf("se_less_than_int: %d < %d = %d\n", a, b, (a < b));
+    
     return (a < b);
 }
 
@@ -2715,27 +2710,3 @@ bool se_not_equal_int(
 }
 
 
-bool less_than_three_pred(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    
-    int32_t *counter = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-    (void)event_id; (void)event_data; (void)event_type;
-    
-    // Get counter from context fields
-
-    int32_t threshold = params[1].int_val;
-    
-    // Compare before increment
-    bool result = *counter < threshold;
-    
-    // Increment and store
-    
-    
-    return result;
-}

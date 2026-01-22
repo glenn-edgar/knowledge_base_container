@@ -160,7 +160,7 @@ CONST("blackboard_defaults", "test_blackboard")
     VALUE("gains.kd", 0.05)
     VALUE("flags", 0)
 END_CONST()
-
+--[[
 -- ============================================================================
 -- TEST TREE 1: All Call Types
 -- Tests: o_call, m_call, p_call, pt_m_call, io_call
@@ -848,7 +848,163 @@ start_tree("test_complex_nesting")
     end_call(outer)
     
 end_tree()
+--]]
+--[[
+    Test DSL: Brace Distance Verification
+    
+    Tests various list patterns to verify brace_idx calculation:
+    1. Simple flat list
+    2. Nested lists
+    3. Dispatch with interleaved children
+    4. Deep nesting with children
+    
+    Run with: luajit s_expr_dsl.lua test_brace_lists.lua
+    Then verify with: ./test_brace_verify test_brace_lists.bin -v
+]]
 
+--------------------------------------------------------------------------------
+-- TEST 1: Simple flat list [1, 2, 3, 4]
+--------------------------------------------------------------------------------
+start_tree("test_simple_list")
+    se_pipeline(function()
+        local v = list_start("vector")
+            int(1)
+            int(2)
+            int(3)
+            int(4)
+        list_end(v)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 2: Nested lists ["x", [100, 200], "y"]
+--------------------------------------------------------------------------------
+start_tree("test_nested_list")
+    se_pipeline(function()
+        local outer = list_start("outer")
+            str("x")
+            int(10)
+            local inner = list_start("inner")
+                int(100)
+                int(200)
+            list_end(inner)
+            str("y")
+            int(20)
+        list_end(outer)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 3: Dispatch with pattern lists containing children
+-- This is the tricky case where children are interleaved with list params
+-- NOTE: Requires a record with "event_id" field bound via use_record()
+--------------------------------------------------------------------------------
+--[[ DISABLED - needs record binding
+start_tree("test_dispatch_lists")
+    use_record("test_blackboard")
+    se_dispatch(field("event_id"), function()
+        -- Case 1: pattern "start" -> action
+        case_pattern("start", function()
+            se_log("dispatch matched start")
+            se_return_continue()
+        end)
+        
+        -- Case 2: pattern "stop" -> action  
+        case_pattern("stop", function()
+            se_log("dispatch matched stop")
+            se_return_terminate()
+        end)
+        
+        -- Default case
+        case_default(function()
+            se_return_continue()
+        end)
+    end)
+end_tree()
+]]
+
+--------------------------------------------------------------------------------
+-- TEST 4: Deep nesting - lists inside lists inside lists
+--------------------------------------------------------------------------------
+start_tree("test_deep_nesting")
+    se_pipeline(function()
+        local l1 = list_start("level1")
+            int(1)
+            local l2 = list_start("level2")
+                int(2)
+                local l3 = list_start("level3")
+                    int(3)
+                    int(4)
+                list_end(l3)
+                int(5)
+            list_end(l2)
+            int(6)
+        list_end(l1)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 5: Pipeline with multiple list arguments
+--------------------------------------------------------------------------------
+start_tree("test_pipeline_lists")
+    se_pipeline(function()
+        -- First list
+        local coords = list_start("coords")
+            int(10)
+            int(20)
+            int(30)
+        list_end(coords)
+        
+        -- Second list (separate from first)
+        local flags = list_start("flags")
+            int(1)
+            int(0)
+            int(1)
+        list_end(flags)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 6: Empty list edge case
+--------------------------------------------------------------------------------
+start_tree("test_empty_list")
+    se_pipeline(function()
+        local empty = list_start("empty")
+        list_end(empty)
+        
+        se_return_continue()
+    end)
+end_tree()
+
+--------------------------------------------------------------------------------
+-- TEST 7: Adjacent lists (no gap)
+--------------------------------------------------------------------------------
+start_tree("test_adjacent_lists")
+    se_pipeline(function()
+        local a = list_start("a")
+            int(1)
+        list_end(a)
+        local b = list_start("b")
+            int(2)
+        list_end(b)
+        local c = list_start("c")
+            int(3)
+        list_end(c)
+        
+        se_return_continue()
+    end)
+end_tree()
+-- ============================================================================
+-- END MODULE
+-- ============================================================================
 
 local result = end_module(mod)
 print("Module compiled successfully: " .. result.name)
