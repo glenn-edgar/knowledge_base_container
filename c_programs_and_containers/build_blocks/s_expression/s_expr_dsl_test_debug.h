@@ -170,10 +170,11 @@ static const s_expr_dsl_test_func_debug_t s_expr_dsl_test_pred_debug[] = {
     { 0x0CF6212F, "SE_PRED_OR", 7 },
     { 0x217DEB8F, "SE_PRED_NOT", 8 },
     { 0x306B0C71, "LESS_THAN_THREE_PRED", 9 },
-    { 0xBFE88BCD, "SE_LESS_THAN_INT", 10 },
-    { 0xBB057075, "SE_GREATER_EQUAL_INT", 11 },
+    { 0x77C35775, "SE_FALSE", 10 },
+    { 0x0C125BC2, "SE_TRUE", 11 },
+    { 0xBB057075, "SE_GREATER_EQUAL_INT", 12 },
 };
-#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 12
+#define S_EXPR_DSL_TEST_PRED_DEBUG_COUNT 13
 
 // ============================================================================
 // RECORD DEBUG INFO

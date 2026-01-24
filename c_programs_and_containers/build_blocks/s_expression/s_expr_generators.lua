@@ -75,12 +75,17 @@ function ModuleGenerator:to_c_records_header(base_name)
         for _, field in ipairs(rec.fields) do
             local ctype
             if field.is_pointer then
-                local target = field.target_type
-                if target == "char" or target == "void" or 
-                   target == "int" or target == "float" or target == "double" then
-                    ctype = target .. "*"
+                if field.is_ptr64 then
+                    -- Always 64-bit pointer storage
+                    ctype = "uint64_t"
                 else
-                    ctype = target .. "_t*"
+                    local target = field.target_type
+                    if target == "char" or target == "void" or 
+                       target == "int" or target == "float" or target == "double" then
+                        ctype = target .. "*"
+                    else
+                        ctype = target .. "_t*"
+                    end
                 end
             elseif field.is_char_array then
                 ctype = "char"
@@ -98,7 +103,12 @@ function ModuleGenerator:to_c_records_header(base_name)
                 decl = string.format("    %s %s;", ctype, field.name)
             end
             
-            table.insert(lines, decl .. string.format("  // offset=%d, size=%d", field.offset, field.size))
+            local comment = string.format("  // offset=%d, size=%d", field.offset, field.size)
+            if field.is_ptr64 then
+                comment = comment .. " (ptr64)"
+            end
+            
+            table.insert(lines, decl .. comment)
         end
         
         table.insert(lines, "};")
@@ -1214,6 +1224,7 @@ function BinaryModuleGenerator:generate()
             if field.is_pointer then field_flags = bit.bor(field_flags, 0x01) end
             if field.is_char_array then field_flags = bit.bor(field_flags, 0x02) end
             if field.is_embedded then field_flags = bit.bor(field_flags, 0x04) end
+            if field.is_ptr64 then field_flags = bit.bor(field_flags, 0x08) end
             e:emit_u8(field_flags)
             
             e:emit_u16(field.offset)

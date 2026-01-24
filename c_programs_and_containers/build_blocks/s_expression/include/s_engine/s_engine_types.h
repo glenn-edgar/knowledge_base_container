@@ -374,6 +374,7 @@ typedef struct {
 
 typedef struct s_expr_module s_expr_module_t;
 typedef struct s_expr_tree_instance s_expr_tree_instance_t;
+typedef struct s_expr_stack s_expr_stack_t;
 
 // ============================================================================
 // FUNCTION SIGNATURES
@@ -510,6 +511,10 @@ struct s_expr_tree_instance {
     
     // User context
     void*                     user_ctx;
+    
+    // Parameter stack (attached after instantiation)
+    s_expr_stack_t*           stack;
+    bool                      stack_owned;
 };
 
 // ============================================================================

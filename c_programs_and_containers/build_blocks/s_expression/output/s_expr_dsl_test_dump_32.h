@@ -231,8 +231,9 @@
  *   [ 7] SE_PRED_OR
  *   [ 8] SE_PRED_NOT
  *   [ 9] LESS_THAN_THREE_PRED
- *   [10] SE_LESS_THAN_INT
- *   [11] SE_GREATER_EQUAL_INT
+ *   [10] SE_FALSE
+ *   [11] SE_TRUE
+ *   [12] SE_GREATER_EQUAL_INT
  */
 
 /*
@@ -2885,34 +2886,32 @@
  *   9    CLOSE             (end SET_FIELD_INT)
  *  10    OPEN_CALL         SE_WHILE
  *  11      M               idx=43
- *  12      OPEN_CALL         SE_LESS_THAN_INT
+ *  12      OPEN_CALL         SE_FALSE
  *  13        P               idx=10
- *  14          FIELD             counter
- *  15          INT               3
- *  16      CLOSE             (end SE_LESS_THAN_INT)
- *  17      OPEN_CALL         SE_PIPELINE
- *  18        M               idx=9
- *  19        OPEN_CALL         SE_LOG
- *  20          O               idx=0
- *  21            STR_IDX           "WHILE_LOOP_FALSE: Should not reach"
- *  22        CLOSE             (end SE_LOG)
- *  23        OPEN_CALL         TRACK_STEP
- *  24          O               idx=12
- *  25            INT               99
- *  26        CLOSE             (end TRACK_STEP)
- *  27        OPEN_CALL         SE_RETURN_DISABLE
- *  28          M               idx=3
- *  29        CLOSE             (end SE_RETURN_DISABLE)
- *  30      CLOSE             (end SE_PIPELINE)
- *  31    CLOSE             (end SE_WHILE)
- *  32    OPEN_CALL         SE_LOG
- *  33      O               idx=0
- *  34        STR_IDX           "WHILE_LOOP_FALSE: Complete"
- *  35    CLOSE             (end SE_LOG)
- *  36    OPEN_CALL         SE_RETURN_FUNCTION_TERMINATE
- *  37      M               idx=8
- *  38    CLOSE             (end SE_RETURN_FUNCTION_TERMINATE)
- *  39  CLOSE             (end SE_PIPELINE)
+ *  14      CLOSE             (end SE_FALSE)
+ *  15      OPEN_CALL         SE_PIPELINE
+ *  16        M               idx=9
+ *  17        OPEN_CALL         SE_LOG
+ *  18          O               idx=0
+ *  19            STR_IDX           "WHILE_LOOP_FALSE: Should not reach"
+ *  20        CLOSE             (end SE_LOG)
+ *  21        OPEN_CALL         TRACK_STEP
+ *  22          O               idx=12
+ *  23            INT               99
+ *  24        CLOSE             (end TRACK_STEP)
+ *  25        OPEN_CALL         SE_RETURN_DISABLE
+ *  26          M               idx=3
+ *  27        CLOSE             (end SE_RETURN_DISABLE)
+ *  28      CLOSE             (end SE_PIPELINE)
+ *  29    CLOSE             (end SE_WHILE)
+ *  30    OPEN_CALL         SE_LOG
+ *  31      O               idx=0
+ *  32        STR_IDX           "WHILE_LOOP_FALSE: Complete"
+ *  33    CLOSE             (end SE_LOG)
+ *  34    OPEN_CALL         SE_RETURN_FUNCTION_TERMINATE
+ *  35      M               idx=8
+ *  36    CLOSE             (end SE_RETURN_FUNCTION_TERMINATE)
+ *  37  CLOSE             (end SE_PIPELINE)
  */
 
 /*
@@ -2931,11 +2930,11 @@
  *   9    CLOSE             (end SET_FIELD_INT)
  *  10    OPEN_CALL         SE_WHILE
  *  11      M               idx=43
- *  12      OPEN_CALL         SE_LESS_THAN_INT
- *  13        P               idx=10
+ *  12      OPEN_CALL         LESS_THAN_THREE_PRED
+ *  13        P               idx=9
  *  14          FIELD             counter
  *  15          INT               2
- *  16      CLOSE             (end SE_LESS_THAN_INT)
+ *  16      CLOSE             (end LESS_THAN_THREE_PRED)
  *  17      OPEN_CALL         SE_PIPELINE
  *  18        M               idx=9
  *  19        OPEN_CALL         SE_LOG
@@ -2993,11 +2992,11 @@
  *   9    CLOSE             (end SET_FIELD_INT)
  *  10    OPEN_CALL         SE_WHILE
  *  11      M               idx=43
- *  12      OPEN_CALL         SE_LESS_THAN_INT
- *  13        P               idx=10
+ *  12      OPEN_CALL         LESS_THAN_THREE_PRED
+ *  13        P               idx=9
  *  14          FIELD             counter
  *  15          INT               2
- *  16      CLOSE             (end SE_LESS_THAN_INT)
+ *  16      CLOSE             (end LESS_THAN_THREE_PRED)
  *  17      OPEN_CALL         SE_PIPELINE
  *  18        M               idx=9
  *  19        OPEN_CALL         SE_LOG
@@ -3065,9 +3064,9 @@
  *  11      M               idx=43
  *  12      OPEN_CALL         SE_PIPELINE
  *  13        M               idx=9
- *  14        OPEN_CALL         SE_RETURN_CONTINUE
- *  15          M               idx=0
- *  16        CLOSE             (end SE_RETURN_CONTINUE)
+ *  14        OPEN_CALL         SE_TRUE
+ *  15          P               idx=11
+ *  16        CLOSE             (end SE_TRUE)
  *  17      CLOSE             (end SE_PIPELINE)
  *  18      OPEN_CALL         SE_PIPELINE
  *  19        M               idx=9
@@ -3086,7 +3085,7 @@
  *  32        OPEN_CALL         SE_IF_THEN_ELSE
  *  33          M               idx=14
  *  34          OPEN_CALL         SE_GREATER_EQUAL_INT
- *  35            P               idx=11
+ *  35            P               idx=12
  *  36              FIELD             counter
  *  37              INT               2
  *  38          CLOSE             (end SE_GREATER_EQUAL_INT)

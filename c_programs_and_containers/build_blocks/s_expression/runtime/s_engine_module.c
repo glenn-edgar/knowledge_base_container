@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "s_engine_module.h"
+#include "s_engine_stack.h"
 #include "cfl_exception.h"
 #include <string.h>
 #include <stdio.h>
@@ -493,6 +494,8 @@ s_expr_tree_instance_t* s_expr_tree_create(
     }
     
     memset(inst, 0, sizeof(*inst));
+    inst->stack = NULL;
+    inst->stack_owned = false;
     inst->ct_node_id = ct_node_id;
     inst->module = mod;
     inst->tree = tree_def;
@@ -627,6 +630,9 @@ void s_expr_tree_free(s_expr_tree_instance_t* inst) {
             }
         }
     }
+    
+    // Free stack if attached and owned
+    s_expr_tree_stack_terminate(inst);
     
     if (inst->slot_flags) {
         alloc->free(alloc->ctx, inst->slot_flags);

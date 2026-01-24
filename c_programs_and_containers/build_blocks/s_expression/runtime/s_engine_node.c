@@ -6,6 +6,7 @@
 #include "s_engine_node.h"
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
+#include "s_engine_stack.h"
 #include "cfl_exception.h"
 
 // ============================================================================
@@ -120,6 +121,11 @@ s_expr_result_t s_expr_node_tick(
     if (!inst->tree) {
         EXCEPTION("s_expr_node_tick: NULL tree");
         return SE_FUNCTION_TERMINATE;
+    }
+    
+    // Reset stack at start of each tick
+    if (inst->stack) {
+        s_expr_stack_reset(inst->stack);
     }
     
     const s_expr_param_t* params = inst->tree->params;

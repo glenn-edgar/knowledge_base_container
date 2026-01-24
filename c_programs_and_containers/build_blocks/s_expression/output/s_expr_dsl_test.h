@@ -230,7 +230,8 @@ static const char* const s_expr_dsl_test_strings[] = {
 #define SE_PRED_OR_HASH 0x0CF6212F
 #define SE_PRED_NOT_HASH 0x217DEB8F
 #define LESS_THAN_THREE_PRED_HASH 0x306B0C71
-#define SE_LESS_THAN_INT_HASH 0xBFE88BCD
+#define SE_FALSE_HASH 0x77C35775
+#define SE_TRUE_HASH 0x0C125BC2
 #define SE_GREATER_EQUAL_INT_HASH 0xBB057075
 
 // Tree hashes

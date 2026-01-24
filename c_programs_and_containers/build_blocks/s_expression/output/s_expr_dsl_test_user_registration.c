@@ -65,13 +65,12 @@ static s_expr_fn_entry_t s_expr_dsl_test_pred_entries[] = {
     { 0x6FAC375E, (void*)sensor_active },
     { 0x2D749139, (void*)test_bit },
     { 0x306B0C71, (void*)less_than_three_pred },
-    { 0xBFE88BCD, (void*)se_less_than_int },
     { 0xBB057075, (void*)se_greater_equal_int },
 };
 
 static const s_expr_fn_table_t s_expr_dsl_test_pred_table = {
     .entries = s_expr_dsl_test_pred_entries,
-    .count = 9
+    .count = 8
 };
 
 // Table accessors

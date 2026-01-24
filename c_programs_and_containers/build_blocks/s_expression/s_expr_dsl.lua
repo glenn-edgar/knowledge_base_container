@@ -389,7 +389,40 @@ function _G.FIELD(name, type_name)
     
     table.insert(current_record.fields, field)
 end
+-- ============================================================================
+-- RECORD FUNCTIONS (add after PTR_FIELD)
+-- ============================================================================
 
+function _G.PTR64_FIELD(name, target_type)
+    if not current_record then dsl_error("No record open") end
+    
+    -- Always 8 bytes regardless of pointer_size setting
+    local field = {
+        name = name,
+        name_hash = hash_module.fnv1a_32(name),
+        type = "ptr64",
+        target_type = target_type,
+        size = 8,
+        align = 8,
+        is_pointer = true,
+        is_ptr64 = true,
+        is_char_array = false,
+        is_embedded = false,
+        type_tag = 0x0E,
+    }
+    
+    local offset = current_record.size
+    local padding = (field.align - (offset % field.align)) % field.align
+    offset = offset + padding
+    field.offset = offset
+    
+    current_record.size = offset + field.size
+    if field.align > current_record.align then
+        current_record.align = field.align
+    end
+    
+    table.insert(current_record.fields, field)
+end
 function _G.PTR_FIELD(name, target_type)
     if not current_record then dsl_error("No record open") end
     
