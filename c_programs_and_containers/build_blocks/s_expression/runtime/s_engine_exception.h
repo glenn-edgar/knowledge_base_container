@@ -1,5 +1,5 @@
-#ifndef CFL_EXCEPTION_H
-#define CFL_EXCEPTION_H
+#ifndef S_ENGINE_EXCEPTION_H
+#define S_ENGINE_EXCEPTION_H
 
 #include <stdint.h>
 

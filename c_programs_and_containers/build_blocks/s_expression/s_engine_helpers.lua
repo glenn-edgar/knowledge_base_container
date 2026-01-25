@@ -295,7 +295,7 @@ function se_state_machine(state_field, state_fns)
     local c = m_call("SE_STATE_MACHINE")
         field_ref(state_field)
         for _, state_fn in ipairs(state_fns) do
-            local s = m_call("SE_STATE_ACTIONS")
+            local s = m_call("SE_SEQUENCE")
                 state_fn()
             end_call(s)
         end
@@ -1084,7 +1084,19 @@ function se_i_set_hash(target_field, string_value)
     end_call(c)
 end
 
+function se_set_field(target_field, value)
+    local c = o_call("SE_SET_FIELD")
+        field_ref(target_field)
+        int(value)
+    end_call(c)
+end
 
+function se_i_set_field(target_field, value)
+    local c = io_call("SE_SET_FIELD")
+        field_ref(target_field)
+        int(value)
+    end_call(c)
+end
 -- ============================================================================
 -- s_engine_stack_ops_helpers.lua
 -- S-Expression Engine Stack Operations DSL Helpers

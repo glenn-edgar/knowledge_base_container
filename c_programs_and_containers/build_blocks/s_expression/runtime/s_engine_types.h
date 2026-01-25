@@ -18,6 +18,8 @@ extern "C" {
 // ============================================================================
 // 64-BIT CONFIGURATION
 // ============================================================================
+// Silence unused parameter warnings
+#define UNUSED(x) (void)(x)
 
 
 #ifndef MODULE_IS_64BIT

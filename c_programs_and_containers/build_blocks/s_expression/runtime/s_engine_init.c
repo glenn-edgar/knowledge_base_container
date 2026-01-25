@@ -5,7 +5,7 @@
 
 #include "s_engine_init.h"
 #include "s_engine_builtins.h"
-#include "cfl_exception.h"
+#include "s_engine_exception.h"
 #include <string.h>
 
 // ============================================================================

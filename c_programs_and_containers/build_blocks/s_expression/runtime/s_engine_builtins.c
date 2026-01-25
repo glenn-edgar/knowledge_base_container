@@ -17,8 +17,9 @@
 #include "s_engine_eval.h"
 #include "s_engine_types.h"
 #include "s_engine_node.h"
-#include "cfl_exception.h"
+#include "s_engine_exception.h"
 #include "s_engine_list_dictionary_support.h"
+#include "s_engine_stack_functions.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -123,7 +124,112 @@ static s_expr_fn_entry_t builtin_oneshot_entries[] = {
     { SE_SET_FIELD_FLOAT_HASH, (void*)se_set_field_float },
     { SE_INC_FIELD_HASH, (void*)se_inc_field },
     { SE_DEC_FIELD_HASH, (void*)se_dec_field },
-    { SE_SET_HASH_HASH, (void*)se_set_hash },
+    { SE_SET_HASH_HASH, (void*)se_set_hash },// Function table entries
+
+    { SE_STACK_ADD_HASH,         (void*)se_stack_add },         // SE_STACK_ADD
+    { SE_STACK_SUB_HASH,         (void*)se_stack_sub },         // SE_STACK_SUB
+    { SE_STACK_MUL_HASH,         (void*)se_stack_mul },         // SE_STACK_MUL
+    { SE_STACK_DIV_HASH,         (void*)se_stack_div },         // SE_STACK_DIV
+    { SE_STACK_MOD_HASH,         (void*)se_stack_mod },         // SE_STACK_MOD
+    { SE_STACK_IDIV_HASH,        (void*)se_stack_idiv },        // SE_STACK_IDIV
+    { SE_STACK_IMOD_HASH,        (void*)se_stack_imod },        // SE_STACK_IMOD
+    
+    // Unary arithmetic
+    { SE_STACK_NEG_HASH,         (void*)se_stack_neg },         // SE_STACK_NEG
+    { SE_STACK_ABS_HASH,         (void*)se_stack_abs },         // SE_STACK_ABS
+    { SE_STACK_INC_HASH,         (void*)se_stack_inc },         // SE_STACK_INC
+    { SE_STACK_DEC_HASH,         (void*)se_stack_dec },         // SE_STACK_DEC
+    
+    // Bitwise
+    { SE_STACK_BAND_HASH,        (void*)se_stack_band },        // SE_STACK_BAND
+    { SE_STACK_BOR_HASH,         (void*)se_stack_bor },         // SE_STACK_BOR
+    { SE_STACK_BXOR_HASH,        (void*)se_stack_bxor },        // SE_STACK_BXOR
+    { SE_STACK_SHL_HASH,         (void*)se_stack_shl },         // SE_STACK_SHL
+    { SE_STACK_SHR_HASH,         (void*)se_stack_shr },         // SE_STACK_SHR
+    { SE_STACK_SAR_HASH,         (void*)se_stack_sar },         // SE_STACK_SAR
+    { SE_STACK_BNOT_HASH,        (void*)se_stack_bnot },        // SE_STACK_BNOT
+    
+    // Comparison
+    { SE_STACK_EQ_HASH,          (void*)se_stack_eq },          // SE_STACK_EQ
+    { SE_STACK_NE_HASH,          (void*)se_stack_ne },          // SE_STACK_NE
+    { SE_STACK_LT_HASH,          (void*)se_stack_lt },          // SE_STACK_LT
+    { SE_STACK_LE_HASH,          (void*)se_stack_le },          // SE_STACK_LE
+    { SE_STACK_GT_HASH,          (void*)se_stack_gt },          // SE_STACK_GT
+    { SE_STACK_GE_HASH,          (void*)se_stack_ge },          // SE_STACK_GE
+    
+    // Logical
+    { SE_STACK_AND_HASH,         (void*)se_stack_and },         // SE_STACK_AND
+    { SE_STACK_OR_HASH,          (void*)se_stack_or },          // SE_STACK_OR
+    { SE_STACK_NOT_HASH,         (void*)se_stack_not },         // SE_STACK_NOT
+    
+    // Math functions
+    { SE_STACK_SQRT_HASH,        (void*)se_stack_sqrt },        // SE_STACK_SQRT
+    { SE_STACK_EXP_HASH,         (void*)se_stack_exp },         // SE_STACK_EXP
+    { SE_STACK_LOG_HASH,         (void*)se_stack_log },         // SE_STACK_LOG
+    { SE_STACK_LOG10_HASH,       (void*)se_stack_log10 },       // SE_STACK_LOG10
+    { SE_STACK_SIN_HASH,         (void*)se_stack_sin },         // SE_STACK_SIN
+    { SE_STACK_COS_HASH,         (void*)se_stack_cos },         // SE_STACK_COS
+    { SE_STACK_TAN_HASH,         (void*)se_stack_tan },         // SE_STACK_TAN
+    { SE_STACK_ASIN_HASH,        (void*)se_stack_asin },        // SE_STACK_ASIN
+    { SE_STACK_ACOS_HASH,        (void*)se_stack_acos },        // SE_STACK_ACOS
+    { SE_STACK_ATAN_HASH,        (void*)se_stack_atan },        // SE_STACK_ATAN
+    { SE_STACK_FLOOR_HASH,       (void*)se_stack_floor },       // SE_STACK_FLOOR
+    { SE_STACK_CEIL_HASH,        (void*)se_stack_ceil },        // SE_STACK_CEIL
+    { SE_STACK_ROUND_HASH,       (void*)se_stack_round },       // SE_STACK_ROUND
+    { SE_STACK_TRUNC_HASH,       (void*)se_stack_trunc },       // SE_STACK_TRUNC
+    { SE_STACK_POW_HASH,         (void*)se_stack_pow },         // SE_STACK_POW
+    { SE_STACK_ATAN2_HASH,       (void*)se_stack_atan2 },       // SE_STACK_ATAN2
+    { SE_STACK_MIN_HASH,         (void*)se_stack_min },         // SE_STACK_MIN
+    { SE_STACK_MAX_HASH,         (void*)se_stack_max },         // SE_STACK_MAX
+    { SE_STACK_CLAMP_HASH,       (void*)se_stack_clamp },       // SE_STACK_CLAMP
+    
+    // Type conversion
+    { SE_STACK_TOINT_HASH,       (void*)se_stack_to_int },      // SE_STACK_TOINT
+    { SE_STACK_TOUINT_HASH,      (void*)se_stack_to_uint },     // SE_STACK_TOUINT
+    { SE_STACK_TOFLOAT_HASH,     (void*)se_stack_to_float },    // SE_STACK_TOFLOAT
+    
+    // Constant/immediate
+    { SE_STACK_PUSH_CONST_HASH,  (void*)se_stack_push_const },  // SE_STACK_PUSH_CONST
+    { SE_STACK_ADDI_HASH,        (void*)se_stack_addi },        // SE_STACK_ADDI
+    { SE_STACK_SUBI_HASH,        (void*)se_stack_subi },        // SE_STACK_SUBI
+    { SE_STACK_MULI_HASH,        (void*)se_stack_muli },        // SE_STACK_MULI
+    { SE_STACK_DIVI_HASH,        (void*)se_stack_divi },        // SE_STACK_DIVI
+    { SE_STACK_MODI_HASH,        (void*)se_stack_modi },        // SE_STACK_MODI
+    { SE_STACK_SHLI_HASH,        (void*)se_stack_shli },        // SE_STACK_SHLI
+    { SE_STACK_SHRI_HASH,        (void*)se_stack_shri },        // SE_STACK_SHRI
+    { SE_STACK_SARI_HASH,        (void*)se_stack_sari },        // SE_STACK_SARI
+    { SE_STACK_BANDI_HASH,       (void*)se_stack_bandi },       // SE_STACK_BANDI
+    { SE_STACK_BORI_HASH,        (void*)se_stack_bori },        // SE_STACK_BORI
+    { SE_STACK_BXORI_HASH,       (void*)se_stack_bxori },       // SE_STACK_BXORI
+    
+    // Field operations
+    { SE_STACK_LOAD_INT_HASH,    (void*)se_stack_load_int },    // SE_STACK_LOAD_INT
+    { SE_STACK_LOAD_UINT_HASH,   (void*)se_stack_load_uint },   // SE_STACK_LOAD_UINT
+    { SE_STACK_LOAD_FLOAT_HASH,  (void*)se_stack_load_float },  // SE_STACK_LOAD_FLOAT
+
+    { SE_STACK_STORE_INT_HASH,   (void*)se_stack_store_int },   // SE_STACK_STORE_INT
+    { SE_STACK_STORE_UINT_HASH,  (void*)se_stack_store_uint },  // SE_STACK_STORE_UINT
+    { SE_STACK_STORE_FLOAT_HASH, (void*)se_stack_store_float }, // SE_STACK_STORE_FLOAT
+    
+    // Stack manipulation
+    { SE_STACK_DROP_HASH,        (void*)se_stack_drop },     // SE_STACK_DROP
+    { SE_STACK_DROP2_HASH,       (void*)se_stack_drop2 },    // SE_STACK_DROP2
+    { SE_STACK_DROPN_HASH,       (void*)se_stack_dropn },    // SE_STACK_DROPN
+    { SE_STACK_DUP_HASH,         (void*)se_stack_dup },      // SE_STACK_DUP
+    { SE_STACK_DUP2_HASH,        (void*)se_stack_dup2 },     // SE_STACK_DUP2
+    { SE_STACK_SWAP_HASH,        (void*)se_stack_swap },     // SE_STACK_SWAP
+    { SE_STACK_OVER_HASH,        (void*)se_stack_over },     // SE_STACK_OVER
+    { SE_STACK_ROT_HASH,         (void*)se_stack_rot },      // SE_STACK_ROT
+    { SE_STACK_NROT_HASH,        (void*)se_stack_nrot },     // SE_STACK_NROT
+    { SE_STACK_PICK_HASH,        (void*)se_stack_pick },     // SE_STACK_PICK
+    { SE_STACK_ROLL_HASH,        (void*)se_stack_roll },     // SE_STACK_ROLL
+    
+    // Conditional
+    { SE_STACK_SELECT_HASH,      (void*)se_stack_select },   // SE_STACK_SELECT
+    
+    // Hash
+    { SE_STACK_PUSH_HASH_HASH,   (void*)se_stack_push_hash }, // SE_STACK_PUSH_HASH
+    { SE_STACK_HASH_EQ_HASH,     (void*)se_stack_hash_eq },   // SE_STACK_HASH_EQ
 };
 
 static s_expr_fn_entry_t builtin_main_entries[] = {
@@ -917,7 +1023,10 @@ static s_expr_result_t se_state_machine(
     //   state=1 -> child 2
     //   etc.
     
-    if (param_count < 1) return SE_CONTINUE;
+    if (param_count < 1){
+        EXCEPTION("se_state_machine: need at least one parameter");
+        return SE_CONTINUE;
+    }
     
     uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
     if (opcode != S_EXPR_PARAM_FIELD) {
@@ -942,10 +1051,16 @@ static s_expr_result_t se_state_machine(
     
     // TICK: Get state index from field
     int32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-    if (!state_ptr) return SE_CONTINUE;
+    if (!state_ptr){
+        EXCEPTION("se_state_machine: field not found");
+        return SE_CONTINUE;
+    }
     
     int32_t state = *state_ptr;
-    if (state < 0) return SE_CONTINUE;
+    if (state < 0){
+        EXCEPTION("se_state_machine: state is negative");
+        return SE_CONTINUE;
+    }
     
     // Find action for this state
     // state 0 -> logical child 1, state 1 -> logical child 2, etc.
@@ -953,13 +1068,9 @@ static s_expr_result_t se_state_machine(
     uint16_t action_phys_idx = s_expr_child_index(params, param_count, action_logical_idx);
     
     if (action_phys_idx == UINT16_MAX) {
-        // State out of range - terminate previous action if any
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-            reset_action_at_index(inst, params, prev_action_phys_idx);
-            s_expr_set_user_flags(inst, 0);
-        }
+        EXCEPTION("se_state_machine: state out of range");
         return SE_CONTINUE;
+
     }
     
     // Handle state transition
@@ -2158,8 +2269,9 @@ static s_expr_result_t se_sequence(
         }
         
         s_expr_result_t result = s_expr_invoke_any(inst, params, phys_idx);
-        
+       // printf("se_sequence: child %d result=%d\n", state, result);
         switch (result) {
+            case SE_CONTINUE:
             case SE_DISABLE:
             case SE_PIPELINE_DISABLE:
                 // Child complete - terminate it and advance
@@ -2173,16 +2285,13 @@ static s_expr_result_t se_sequence(
             case SE_RESET:
             case SE_FUNCTION_TERMINATE:
             case SE_FUNCTION_RESET:
-                // Fatal - propagate
-                return SE_FUNCTION_TERMINATE;
-            
-            case SE_CONTINUE:
+            case SE_SKIP_CONTINUE:
             case SE_HALT:
             case SE_FUNCTION_HALT:
-            case SE_SKIP_CONTINUE:
-            default:
-                // Still working
-                return SE_HALT;
+                return result;
+                // Fatal - propagate
+        
+          
         }
     }
     

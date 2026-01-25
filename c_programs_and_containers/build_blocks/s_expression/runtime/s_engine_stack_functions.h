@@ -11,18 +11,49 @@
 
 #ifndef S_ENGINE_STACK_OPS_H
 #define S_ENGINE_STACK_OPS_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "s_engine_types.h"
 #include "s_engine_stack.h"
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 
 // ============================================================================
-// BASIC ARITHMETIC [-2, +1] - pop two, push result
+// HELPER MACROS
 // ============================================================================
+
+#define GET_STACK(inst) \
+    s_expr_stack_t* stack = (inst) ? (inst)->stack : NULL; \
+    if (!stack) { EXCEPTION("NULL stack"); return; }
+
+#define CHECK_NUMERIC_2() \
+    if (!s_expr_stack_isnumeric(stack, -1) || !s_expr_stack_isnumeric(stack, -2)) { \
+        EXCEPTION("operands must be numeric"); return; \
+    }
+
+#define CHECK_NUMERIC_1() \
+    if (!s_expr_stack_isnumeric(stack, -1)) { \
+        EXCEPTION("operand must be numeric"); return; \
+    }
+
+#define CHECK_INTEGER_2() \
+    if (s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2)) { \
+        EXCEPTION("operands must be integer"); return; \
+    } \
+    if (!s_expr_stack_isnumeric(stack, -1) || !s_expr_stack_isnumeric(stack, -2)) { \
+        EXCEPTION("operands must be numeric"); return; \
+    }
+
+#define CHECK_INTEGER_1() \
+    if (s_expr_stack_isfloat(stack, -1)) { \
+        EXCEPTION("operand must be integer"); return; \
+    } \
+    if (!s_expr_stack_isnumeric(stack, -1)) { \
+        EXCEPTION("operand must be numeric"); return; \
+    }
 
 void se_stack_add(
     s_expr_tree_instance_t* inst,
@@ -478,7 +509,7 @@ void se_stack_clamp(
 // TYPE CONVERSION [-1, +1]
 // ============================================================================
 
-void se_stack_toint(
+void se_stack_to_int(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -487,7 +518,7 @@ void se_stack_toint(
     void* event_data
 );
 
-void se_stack_touint(
+void se_stack_to_uint(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -496,7 +527,7 @@ void se_stack_touint(
     void* event_data
 );
 
-void se_stack_tofloat(
+void se_stack_to_float(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -840,15 +871,6 @@ void se_stack_hash_eq(
     void* event_data
 );
 
-// ============================================================================
-// REGISTRATION
-// ============================================================================
-
-// Register all stack operations with module
-void s_engine_register_stack_ops(s_expr_module_t* module);
-
-// Get the stack ops function table
-const s_expr_fn_table_t* s_engine_get_stack_ops_table(void);
 
 #ifdef __cplusplus
 }

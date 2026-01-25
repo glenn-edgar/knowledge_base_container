@@ -136,7 +136,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
     "SE_SEQUENCE", "SE_FORK", "SE_FORK_JOIN", "SE_CHAIN_FLOW", "SE_FOR", "SE_WHILE",
     "SE_RETURN_CONTINUE", "SE_RETURN_HALT", "SE_RETURN_TERMINATE", "SE_RETURN_RESET",
     "SE_RETURN_DISABLE", "SE_RETURN_SKIP_CONTINUE", "SE_RETURN_FUNCTION_HALT",
-    "SE_RETURN_FUNCTION_RESET", "SE_RETURN_FUNCTION_TERMINATE", "SE_SET_HASH", "SE_LOG",
+    "SE_RETURN_FUNCTION_RESET", "SE_RETURN_FUNCTION_TERMINATE", "SE_SET_HASH", "SE_LOG","SE_SET_FIELD",
 }
 
 builtins_module.BUILTIN_SET = {}
@@ -376,6 +376,67 @@ function _G.FIELD(name, type_name)
             dsl_error("Unknown type: " .. type_name)
         end
     end
+    
+    local offset = current_record.size
+    local padding = (field.align - (offset % field.align)) % field.align
+    offset = offset + padding
+    field.offset = offset
+    
+    current_record.size = offset + field.size
+    if field.align > current_record.align then
+        current_record.align = field.align
+    end
+    
+    table.insert(current_record.fields, field)
+end
+
+
+function _G.INT32_ARRAY(name, length)
+    if not current_record then dsl_error("No record open") end
+    
+    local field = {
+        name = name,
+        name_hash = hash_module.fnv1a_32(name),
+        type = "int32_array",
+        array_len = length,
+        size = length * 4,
+        align = 4,
+        is_pointer = false,
+        is_char_array = false,
+        is_int32_array = true,
+        is_embedded = false,
+        type_tag = 0x13,  -- New type tag for int32 array
+    }
+    
+    local offset = current_record.size
+    local padding = (field.align - (offset % field.align)) % field.align
+    offset = offset + padding
+    field.offset = offset
+    
+    current_record.size = offset + field.size
+    if field.align > current_record.align then
+        current_record.align = field.align
+    end
+    
+    table.insert(current_record.fields, field)
+end
+
+function _G.FLOAT32_ARRAY(name, length)
+    if not current_record then dsl_error("No record open") end
+    
+    local field = {
+        name = name,
+        name_hash = hash_module.fnv1a_32(name),
+        type = "float32_array",
+        array_len = length,
+        size = length * 4,
+        align = 4,
+        is_pointer = false,
+        is_char_array = false,
+        is_float32_array = true,
+        is_embedded = false,
+        type_tag = 0x14,  -- New type tag for float32 array
+    }
     
     local offset = current_record.size
     local padding = (field.align - (offset % field.align)) % field.align

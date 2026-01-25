@@ -74,6 +74,9 @@ function ModuleGenerator:to_c_records_header(base_name)
         
         for _, field in ipairs(rec.fields) do
             local ctype
+            local is_array = false
+            local array_len = 0
+            
             if field.is_pointer then
                 if field.is_ptr64 then
                     -- Always 64-bit pointer storage
@@ -89,6 +92,16 @@ function ModuleGenerator:to_c_records_header(base_name)
                 end
             elseif field.is_char_array then
                 ctype = "char"
+                is_array = true
+                array_len = field.array_len
+            elseif field.is_int32_array then
+                ctype = "int32_t"
+                is_array = true
+                array_len = field.array_len
+            elseif field.is_float32_array then
+                ctype = "float"
+                is_array = true
+                array_len = field.array_len
             elseif field.is_embedded then
                 ctype = field.embedded_record .. "_t"
             else
@@ -97,8 +110,8 @@ function ModuleGenerator:to_c_records_header(base_name)
             end
             
             local decl
-            if field.is_char_array then
-                decl = string.format("    %s %s[%d];", ctype, field.name, field.array_len)
+            if is_array then
+                decl = string.format("    %s %s[%d];", ctype, field.name, array_len)
             else
                 decl = string.format("    %s %s;", ctype, field.name)
             end
@@ -106,6 +119,12 @@ function ModuleGenerator:to_c_records_header(base_name)
             local comment = string.format("  // offset=%d, size=%d", field.offset, field.size)
             if field.is_ptr64 then
                 comment = comment .. " (ptr64)"
+            elseif field.is_int32_array then
+                comment = comment .. " (int32 array)"
+            elseif field.is_float32_array then
+                comment = comment .. " (float32 array)"
+            elseif field.is_char_array then
+                comment = comment .. " (char array)"
             end
             
             table.insert(lines, decl .. comment)
@@ -119,6 +138,7 @@ function ModuleGenerator:to_c_records_header(base_name)
     
     return table.concat(lines, "\n")
 end
+
 
 function ModuleGenerator:to_c_header(base_name)
     local lines = {}

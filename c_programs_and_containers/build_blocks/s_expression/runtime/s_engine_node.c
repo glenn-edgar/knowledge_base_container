@@ -7,7 +7,7 @@
 #include "s_engine_module.h"
 #include "s_engine_eval.h"
 #include "s_engine_stack.h"
-#include "cfl_exception.h"
+#include "s_engine_exception.h"
 
 // ============================================================================
 // INTERNAL: Skip one logical parameter

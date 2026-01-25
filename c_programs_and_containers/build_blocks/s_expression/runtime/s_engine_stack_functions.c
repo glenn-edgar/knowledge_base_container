@@ -6,12 +6,23 @@
 // evaluation. These provide calculator-style operations within tree nodes.
 //
 // Stack Notation: [-n, +m] means pop n values, push m values
-// All operations use ct_int_t, ct_uint_t, ct_float_t native types
+// Binary ops: -2 is 'a', -1 is 'b', result = a op b
+//
+// Type Rules:
+//   - Both INT/UINT → result is INT
+//   - Either FLOAT → promote to float, result is FLOAT
+//   - Non-numeric → EXCEPTION (hard crash)
+//   - Bitwise ops require integer types
 // ============================================================================
 
-#include "s_engine_stack_functions.h"
 #include "s_engine_stack.h"
+#include "s_engine_stack_functions.h"
+#include "s_engine_exception.h"
 #include <math.h>
+
+
+
+
 
 // ============================================================================
 // BASIC ARITHMETIC [-2, +1]
@@ -25,7 +36,24 @@ void se_stack_add(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push sum
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_float(stack, a + b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_int(stack, a + b);
+    }
 }
 
 void se_stack_sub(
@@ -36,7 +64,24 @@ void se_stack_sub(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push difference (second - top)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_float(stack, a - b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_int(stack, a - b);
+    }
 }
 
 void se_stack_mul(
@@ -47,7 +92,24 @@ void se_stack_mul(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push product
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_float(stack, a * b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_int(stack, a * b);
+    }
 }
 
 void se_stack_div(
@@ -58,7 +120,22 @@ void se_stack_div(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push quotient (float division)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    // Float division always
+    ct_float_t b = s_expr_stack_tofloat(stack, -1);
+    ct_float_t a = s_expr_stack_tofloat(stack, -2);
+    
+    if (b == 0.0) {
+        EXCEPTION("division by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_float(stack, a / b);
 }
 
 void se_stack_mod(
@@ -69,7 +146,22 @@ void se_stack_mod(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push remainder (fmod)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    // Float modulo (fmod)
+    ct_float_t b = s_expr_stack_tofloat(stack, -1);
+    ct_float_t a = s_expr_stack_tofloat(stack, -2);
+    
+    if (b == 0.0) {
+        EXCEPTION("modulo by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_float(stack, fmod(a, b));
 }
 
 void se_stack_idiv(
@@ -80,7 +172,21 @@ void se_stack_idiv(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push integer quotient (truncates)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_int_t b = s_expr_stack_toint(stack, -1);
+    ct_int_t a = s_expr_stack_toint(stack, -2);
+    
+    if (b == 0) {
+        EXCEPTION("integer division by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, a / b);
 }
 
 void se_stack_imod(
@@ -91,7 +197,21 @@ void se_stack_imod(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push integer remainder
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_int_t b = s_expr_stack_toint(stack, -1);
+    ct_int_t a = s_expr_stack_toint(stack, -2);
+    
+    if (b == 0) {
+        EXCEPTION("integer modulo by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, a % b);
 }
 
 // ============================================================================
@@ -106,7 +226,20 @@ void se_stack_neg(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push negated value
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (s_expr_stack_isfloat(stack, -1)) {
+        ct_float_t val = s_expr_stack_tofloat(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, -val);
+    } else {
+        ct_int_t val = s_expr_stack_toint(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, -val);
+    }
 }
 
 void se_stack_abs(
@@ -117,7 +250,20 @@ void se_stack_abs(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push absolute value
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (s_expr_stack_isfloat(stack, -1)) {
+        ct_float_t val = s_expr_stack_tofloat(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, fabs(val));
+    } else {
+        ct_int_t val = s_expr_stack_toint(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, val < 0 ? -val : val);
+    }
 }
 
 void se_stack_inc(
@@ -128,7 +274,20 @@ void se_stack_inc(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push value + 1
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (s_expr_stack_isfloat(stack, -1)) {
+        ct_float_t val = s_expr_stack_tofloat(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, val + 1.0);
+    } else {
+        ct_int_t val = s_expr_stack_toint(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, val + 1);
+    }
 }
 
 void se_stack_dec(
@@ -139,11 +298,24 @@ void se_stack_dec(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push value - 1
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (s_expr_stack_isfloat(stack, -1)) {
+        ct_float_t val = s_expr_stack_tofloat(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, val - 1.0);
+    } else {
+        ct_int_t val = s_expr_stack_toint(stack, -1);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, val - 1);
+    }
 }
 
 // ============================================================================
-// BITWISE OPERATIONS [-2, +1]
+// BITWISE OPERATIONS [-2, +1] - integers only
 // ============================================================================
 
 void se_stack_band(
@@ -154,7 +326,15 @@ void se_stack_band(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push bitwise AND
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_uint_t b = s_expr_stack_touint(stack, -1);
+    ct_uint_t a = s_expr_stack_touint(stack, -2);
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (ct_int_t)(a & b));
 }
 
 void se_stack_bor(
@@ -165,7 +345,15 @@ void se_stack_bor(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push bitwise OR
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_uint_t b = s_expr_stack_touint(stack, -1);
+    ct_uint_t a = s_expr_stack_touint(stack, -2);
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (ct_int_t)(a | b));
 }
 
 void se_stack_bxor(
@@ -176,7 +364,15 @@ void se_stack_bxor(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push bitwise XOR
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_uint_t b = s_expr_stack_touint(stack, -1);
+    ct_uint_t a = s_expr_stack_touint(stack, -2);
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (ct_int_t)(a ^ b));
 }
 
 void se_stack_shl(
@@ -187,7 +383,21 @@ void se_stack_shl(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push a << b
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_int_t shift = s_expr_stack_toint(stack, -1);
+    ct_uint_t a = s_expr_stack_touint(stack, -2);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_uint_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (ct_int_t)(a << shift));
 }
 
 void se_stack_shr(
@@ -198,7 +408,22 @@ void se_stack_shr(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push logical shift right (unsigned)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_int_t shift = s_expr_stack_toint(stack, -1);
+    ct_uint_t a = s_expr_stack_touint(stack, -2);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_uint_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    // Logical shift right (unsigned)
+    s_expr_stack_push_int(stack, (ct_int_t)(a >> shift));
 }
 
 void se_stack_sar(
@@ -209,11 +434,26 @@ void se_stack_sar(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push arithmetic shift right (signed)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_2();
+    
+    ct_int_t shift = s_expr_stack_toint(stack, -1);
+    ct_int_t a = s_expr_stack_toint(stack, -2);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_int_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    // Arithmetic shift right (signed - preserves sign bit)
+    s_expr_stack_push_int(stack, a >> shift);
 }
 
 // ============================================================================
-// UNARY BITWISE [-1, +1]
+// UNARY BITWISE [-1, +1] - integers only
 // ============================================================================
 
 void se_stack_bnot(
@@ -224,11 +464,18 @@ void se_stack_bnot(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push bitwise NOT
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    ct_uint_t val = s_expr_stack_touint(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(~val));
 }
 
 // ============================================================================
-// COMPARISON [-2, +1] - push 1 (true) or 0 (false)
+// COMPARISON [-2, +1] - push 1 (true) or 0 (false) as INT
 // ============================================================================
 
 void se_stack_eq(
@@ -239,7 +486,26 @@ void se_stack_eq(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if equal, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a == b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a == b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 void se_stack_ne(
@@ -250,7 +516,26 @@ void se_stack_ne(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if not equal, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a != b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a != b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 void se_stack_lt(
@@ -261,7 +546,26 @@ void se_stack_lt(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if a < b, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a < b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a < b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 void se_stack_le(
@@ -272,7 +576,26 @@ void se_stack_le(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if a <= b, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a <= b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a <= b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 void se_stack_gt(
@@ -283,7 +606,26 @@ void se_stack_gt(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if a > b, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a > b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a > b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 void se_stack_ge(
@@ -294,11 +636,30 @@ void se_stack_ge(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if a >= b, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    bool result;
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        result = (a >= b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        result = (a >= b);
+    }
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, result ? 1 : 0);
 }
 
 // ============================================================================
-// LOGICAL OPERATIONS [-2, +1]
+// LOGICAL OPERATIONS [-2, +1] - result is INT (0 or 1)
 // ============================================================================
 
 void se_stack_and(
@@ -309,7 +670,16 @@ void se_stack_and(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if both non-zero, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_float_t b = s_expr_stack_tofloat(stack, -1);
+    ct_float_t a = s_expr_stack_tofloat(stack, -2);
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (a != 0.0 && b != 0.0) ? 1 : 0);
 }
 
 void se_stack_or(
@@ -320,7 +690,16 @@ void se_stack_or(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push 1 if either non-zero, 0 otherwise
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_float_t b = s_expr_stack_tofloat(stack, -1);
+    ct_float_t a = s_expr_stack_tofloat(stack, -2);
+    
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (a != 0.0 || b != 0.0) ? 1 : 0);
 }
 
 // ============================================================================
@@ -335,11 +714,19 @@ void se_stack_not(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push 1 if zero, 0 if non-zero
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (val == 0.0) ? 1 : 0);
 }
 
 // ============================================================================
-// MATH FUNCTIONS [-1, +1]
+// MATH FUNCTIONS [-1, +1] - always produce FLOAT
 // ============================================================================
 
 void se_stack_sqrt(
@@ -350,7 +737,20 @@ void se_stack_sqrt(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push sqrt
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    if (val < 0.0) {
+        EXCEPTION("sqrt of negative number");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, sqrt(val));
 }
 
 void se_stack_exp(
@@ -361,7 +761,14 @@ void se_stack_exp(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push e^x
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, exp(val));
 }
 
 void se_stack_log(
@@ -372,7 +779,20 @@ void se_stack_log(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push natural log
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    if (val <= 0.0) {
+        EXCEPTION("log of non-positive number");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, log(val));
 }
 
 void se_stack_log10(
@@ -383,7 +803,20 @@ void se_stack_log10(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push log base 10
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    if (val <= 0.0) {
+        EXCEPTION("log10 of non-positive number");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, log10(val));
 }
 
 void se_stack_sin(
@@ -394,7 +827,14 @@ void se_stack_sin(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push sin (radians)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, sin(val));
 }
 
 void se_stack_cos(
@@ -405,7 +845,14 @@ void se_stack_cos(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push cos (radians)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, cos(val));
 }
 
 void se_stack_tan(
@@ -416,7 +863,14 @@ void se_stack_tan(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push tan (radians)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, tan(val));
 }
 
 void se_stack_asin(
@@ -427,7 +881,20 @@ void se_stack_asin(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push asin
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    if (val < -1.0 || val > 1.0) {
+        EXCEPTION("asin argument out of range [-1, 1]");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, asin(val));
 }
 
 void se_stack_acos(
@@ -438,7 +905,20 @@ void se_stack_acos(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push acos
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    
+    if (val < -1.0 || val > 1.0) {
+        EXCEPTION("acos argument out of range [-1, 1]");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, acos(val));
 }
 
 void se_stack_atan(
@@ -449,7 +929,14 @@ void se_stack_atan(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push atan
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, atan(val));
 }
 
 void se_stack_floor(
@@ -460,7 +947,14 @@ void se_stack_floor(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push floor
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, floor(val));
 }
 
 void se_stack_ceil(
@@ -471,7 +965,14 @@ void se_stack_ceil(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push ceil
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, ceil(val));
 }
 
 void se_stack_round(
@@ -482,7 +983,14 @@ void se_stack_round(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push round to nearest
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, round(val));
 }
 
 void se_stack_trunc(
@@ -493,11 +1001,18 @@ void se_stack_trunc(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push truncate toward zero
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, trunc(val));
 }
 
 // ============================================================================
-// MATH FUNCTIONS [-2, +1]
+// BINARY MATH FUNCTIONS [-2, +1] - always produce FLOAT
 // ============================================================================
 
 void se_stack_pow(
@@ -508,7 +1023,15 @@ void se_stack_pow(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push a^b
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_float_t b = s_expr_stack_tofloat(stack, -1);  // exponent
+    ct_float_t a = s_expr_stack_tofloat(stack, -2);  // base
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_float(stack, pow(a, b));
 }
 
 void se_stack_atan2(
@@ -519,7 +1042,15 @@ void se_stack_atan2(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push atan2(y, x)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    ct_float_t x = s_expr_stack_tofloat(stack, -1);
+    ct_float_t y = s_expr_stack_tofloat(stack, -2);
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_float(stack, atan2(y, x));
 }
 
 void se_stack_min(
@@ -530,7 +1061,24 @@ void se_stack_min(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push min(a, b)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_float(stack, (a < b) ? a : b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_int(stack, (a < b) ? a : b);
+    }
 }
 
 void se_stack_max(
@@ -541,11 +1089,28 @@ void se_stack_max(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two, push max(a, b)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_2();
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2);
+    
+    if (use_float) {
+        ct_float_t b = s_expr_stack_tofloat(stack, -1);
+        ct_float_t a = s_expr_stack_tofloat(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_float(stack, (a > b) ? a : b);
+    } else {
+        ct_int_t b = s_expr_stack_toint(stack, -1);
+        ct_int_t a = s_expr_stack_toint(stack, -2);
+        s_expr_stack_popn(stack, 2);
+        s_expr_stack_push_int(stack, (a > b) ? a : b);
+    }
 }
 
 // ============================================================================
-// MATH FUNCTIONS [-3, +1]
+// TERNARY MATH FUNCTIONS [-3, +1]
 // ============================================================================
 
 void se_stack_clamp(
@@ -556,14 +1121,48 @@ void se_stack_clamp(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop three, push clamp(val, min, max)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // Check all three are numeric
+    if (!s_expr_stack_isnumeric(stack, -1) || 
+        !s_expr_stack_isnumeric(stack, -2) || 
+        !s_expr_stack_isnumeric(stack, -3)) {
+        EXCEPTION("operands must be numeric");
+        return;
+    }
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || 
+                     s_expr_stack_isfloat(stack, -2) || 
+                     s_expr_stack_isfloat(stack, -3);
+    
+    if (use_float) {
+        ct_float_t max_val = s_expr_stack_tofloat(stack, -1);
+        ct_float_t min_val = s_expr_stack_tofloat(stack, -2);
+        ct_float_t val     = s_expr_stack_tofloat(stack, -3);
+        s_expr_stack_popn(stack, 3);
+        
+        if (val < min_val) val = min_val;
+        if (val > max_val) val = max_val;
+        s_expr_stack_push_float(stack, val);
+    } else {
+        ct_int_t max_val = s_expr_stack_toint(stack, -1);
+        ct_int_t min_val = s_expr_stack_toint(stack, -2);
+        ct_int_t val     = s_expr_stack_toint(stack, -3);
+        s_expr_stack_popn(stack, 3);
+        
+        if (val < min_val) val = min_val;
+        if (val > max_val) val = max_val;
+        s_expr_stack_push_int(stack, val);
+    }
 }
 
 // ============================================================================
 // TYPE CONVERSION [-1, +1]
 // ============================================================================
 
-void se_stack_toint(
+void se_stack_to_int(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -571,10 +1170,17 @@ void se_stack_toint(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push as ct_int_t
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_int_t val = s_expr_stack_toint(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, val);
 }
 
-void se_stack_touint(
+void se_stack_to_uint(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -582,10 +1188,17 @@ void se_stack_touint(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push as ct_uint_t
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_uint_t val = s_expr_stack_touint(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_uint(stack, val);
 }
 
-void se_stack_tofloat(
+void se_stack_to_float(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
     uint16_t param_count,
@@ -593,7 +1206,14 @@ void se_stack_tofloat(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, push as ct_float_t
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, val);
 }
 
 // ============================================================================
@@ -608,12 +1228,49 @@ void se_stack_push_const(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: read const from params[0], push to stack
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("push_const requires parameter");
+        return;
+    }
+    
+    s_expr_stack_push(stack, &params[0]);
 }
 
 // ============================================================================
 // IMMEDIATE OPERATIONS [-1, +1]
+// Param provides immediate value, operates with stack top
 // ============================================================================
+
+// Helper to get immediate value from param as float
+static ct_float_t get_imm_float(const s_expr_param_t* p) {
+    int type = p->type & S_EXPR_OPCODE_MASK;
+    switch (type) {
+        case S_EXPR_PARAM_FLOAT: return p->float_val;
+        case S_EXPR_PARAM_INT:   return (ct_float_t)p->int_val;
+        case S_EXPR_PARAM_UINT:  return (ct_float_t)p->uint_val;
+        default: return 0.0;
+    }
+}
+
+// Helper to get immediate value from param as int
+static ct_int_t get_imm_int(const s_expr_param_t* p) {
+    int type = p->type & S_EXPR_OPCODE_MASK;
+    switch (type) {
+        case S_EXPR_PARAM_INT:   return p->int_val;
+        case S_EXPR_PARAM_UINT:  return (ct_int_t)p->uint_val;
+        case S_EXPR_PARAM_FLOAT: return (ct_int_t)p->float_val;
+        default: return 0;
+    }
+}
+
+// Helper to check if param is float type
+static bool is_imm_float(const s_expr_param_t* p) {
+    return (p->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FLOAT;
+}
 
 void se_stack_addi(
     s_expr_tree_instance_t* inst,
@@ -623,7 +1280,29 @@ void se_stack_addi(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, add params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("addi requires parameter");
+        return;
+    }
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || is_imm_float(&params[0]);
+    
+    if (use_float) {
+        ct_float_t a = s_expr_stack_tofloat(stack, -1);
+        ct_float_t b = get_imm_float(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, a + b);
+    } else {
+        ct_int_t a = s_expr_stack_toint(stack, -1);
+        ct_int_t b = get_imm_int(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, a + b);
+    }
 }
 
 void se_stack_subi(
@@ -634,7 +1313,29 @@ void se_stack_subi(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, subtract params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("subi requires parameter");
+        return;
+    }
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || is_imm_float(&params[0]);
+    
+    if (use_float) {
+        ct_float_t a = s_expr_stack_tofloat(stack, -1);
+        ct_float_t b = get_imm_float(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, a - b);
+    } else {
+        ct_int_t a = s_expr_stack_toint(stack, -1);
+        ct_int_t b = get_imm_int(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, a - b);
+    }
 }
 
 void se_stack_muli(
@@ -645,7 +1346,29 @@ void se_stack_muli(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, multiply params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("muli requires parameter");
+        return;
+    }
+    
+    bool use_float = s_expr_stack_isfloat(stack, -1) || is_imm_float(&params[0]);
+    
+    if (use_float) {
+        ct_float_t a = s_expr_stack_tofloat(stack, -1);
+        ct_float_t b = get_imm_float(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_float(stack, a * b);
+    } else {
+        ct_int_t a = s_expr_stack_toint(stack, -1);
+        ct_int_t b = get_imm_int(&params[0]);
+        s_expr_stack_popn(stack, 1);
+        s_expr_stack_push_int(stack, a * b);
+    }
 }
 
 void se_stack_divi(
@@ -656,7 +1379,26 @@ void se_stack_divi(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, divide by params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("divi requires parameter");
+        return;
+    }
+    
+    ct_float_t a = s_expr_stack_tofloat(stack, -1);
+    ct_float_t b = get_imm_float(&params[0]);
+    
+    if (b == 0.0) {
+        EXCEPTION("division by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, a / b);
 }
 
 void se_stack_modi(
@@ -667,7 +1409,26 @@ void se_stack_modi(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, mod by params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("modi requires parameter");
+        return;
+    }
+    
+    ct_float_t a = s_expr_stack_tofloat(stack, -1);
+    ct_float_t b = get_imm_float(&params[0]);
+    
+    if (b == 0.0) {
+        EXCEPTION("modulo by zero");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_float(stack, fmod(a, b));
 }
 
 void se_stack_shli(
@@ -678,7 +1439,26 @@ void se_stack_shli(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, shift left by params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("shli requires parameter");
+        return;
+    }
+    
+    ct_uint_t a = s_expr_stack_touint(stack, -1);
+    ct_int_t shift = get_imm_int(&params[0]);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_uint_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(a << shift));
 }
 
 void se_stack_shri(
@@ -689,7 +1469,26 @@ void se_stack_shri(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, logical shift right by params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("shri requires parameter");
+        return;
+    }
+    
+    ct_uint_t a = s_expr_stack_touint(stack, -1);
+    ct_int_t shift = get_imm_int(&params[0]);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_uint_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(a >> shift));
 }
 
 void se_stack_sari(
@@ -700,7 +1499,26 @@ void se_stack_sari(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, arithmetic shift right by params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("sari requires parameter");
+        return;
+    }
+    
+    ct_int_t a = s_expr_stack_toint(stack, -1);
+    ct_int_t shift = get_imm_int(&params[0]);
+    
+    if (shift < 0 || shift >= (ct_int_t)(sizeof(ct_int_t) * 8)) {
+        EXCEPTION("shift amount out of range");
+        return;
+    }
+    
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, a >> shift);
 }
 
 void se_stack_bandi(
@@ -711,7 +1529,20 @@ void se_stack_bandi(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, AND with params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("bandi requires parameter");
+        return;
+    }
+    
+    ct_uint_t a = s_expr_stack_touint(stack, -1);
+    ct_uint_t b = (ct_uint_t)get_imm_int(&params[0]);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(a & b));
 }
 
 void se_stack_bori(
@@ -722,7 +1553,20 @@ void se_stack_bori(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, OR with params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("bori requires parameter");
+        return;
+    }
+    
+    ct_uint_t a = s_expr_stack_touint(stack, -1);
+    ct_uint_t b = (ct_uint_t)get_imm_int(&params[0]);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(a | b));
 }
 
 void se_stack_bxori(
@@ -733,11 +1577,25 @@ void se_stack_bxori(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop one, XOR with params[0], push result
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_INTEGER_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("bxori requires parameter");
+        return;
+    }
+    
+    ct_uint_t a = s_expr_stack_touint(stack, -1);
+    ct_uint_t b = (ct_uint_t)get_imm_int(&params[0]);
+    s_expr_stack_popn(stack, 1);
+    s_expr_stack_push_int(stack, (ct_int_t)(a ^ b));
 }
 
 // ============================================================================
 // BLACKBOARD FIELD OPERATIONS - LOAD [+1]
+// params[0] contains field_offset and field_size
 // ============================================================================
 
 void se_stack_load_int(
@@ -748,7 +1606,38 @@ void se_stack_load_int(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: read field offset/size from params[0], load as int, push
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("load_int requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("load_int: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_int_t val = 0;
+    switch (size) {
+        case 1: val = *(int8_t*)(bb + offset); break;
+        case 2: val = *(int16_t*)(bb + offset); break;
+        case 4: val = *(int32_t*)(bb + offset); break;
+#if MODULE_IS_64BIT
+        case 8: val = *(int64_t*)(bb + offset); break;
+#endif
+        default:
+            EXCEPTION("load_int: invalid field size");
+            return;
+    }
+    
+    s_expr_stack_push_int(stack, val);
 }
 
 void se_stack_load_uint(
@@ -759,7 +1648,38 @@ void se_stack_load_uint(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: read field offset/size from params[0], load as uint, push
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("load_uint requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("load_uint: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_uint_t val = 0;
+    switch (size) {
+        case 1: val = *(uint8_t*)(bb + offset); break;
+        case 2: val = *(uint16_t*)(bb + offset); break;
+        case 4: val = *(uint32_t*)(bb + offset); break;
+#if MODULE_IS_64BIT
+        case 8: val = *(uint64_t*)(bb + offset); break;
+#endif
+        default:
+            EXCEPTION("load_uint: invalid field size");
+            return;
+    }
+    
+    s_expr_stack_push_uint(stack, val);
 }
 
 void se_stack_load_float(
@@ -770,22 +1690,41 @@ void se_stack_load_float(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: read field offset/size from params[0], load as float, push
-}
-
-void se_stack_load_ptr64(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    // TODO: read field offset from params[0], load 8-byte ptr, push
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("load_float requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("load_float: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_float_t val = 0.0;
+    switch (size) {
+        case 4: val = (ct_float_t)(*(float*)(bb + offset)); break;
+#if MODULE_IS_64BIT
+        case 8: val = *(double*)(bb + offset); break;
+#endif
+        default:
+            EXCEPTION("load_float: invalid field size");
+            return;
+    }
+    
+    s_expr_stack_push_float(stack, val);
 }
 
 // ============================================================================
 // BLACKBOARD FIELD OPERATIONS - STORE [-1]
+// params[0] contains field_offset and field_size
 // ============================================================================
 
 void se_stack_store_int(
@@ -796,7 +1735,39 @@ void se_stack_store_int(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop, store as int to field at params[0] offset
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("store_int requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("store_int: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_int_t val = s_expr_stack_toint(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    
+    switch (size) {
+        case 1: *(int8_t*)(bb + offset) = (int8_t)val; break;
+        case 2: *(int16_t*)(bb + offset) = (int16_t)val; break;
+        case 4: *(int32_t*)(bb + offset) = (int32_t)val; break;
+#if MODULE_IS_64BIT
+        case 8: *(int64_t*)(bb + offset) = val; break;
+#endif
+        default:
+            EXCEPTION("store_int: invalid field size");
+            return;
+    }
 }
 
 void se_stack_store_uint(
@@ -807,7 +1778,39 @@ void se_stack_store_uint(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop, store as uint to field at params[0] offset
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("store_uint requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("store_uint: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_uint_t val = s_expr_stack_touint(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    
+    switch (size) {
+        case 1: *(uint8_t*)(bb + offset) = (uint8_t)val; break;
+        case 2: *(uint16_t*)(bb + offset) = (uint16_t)val; break;
+        case 4: *(uint32_t*)(bb + offset) = (uint32_t)val; break;
+#if MODULE_IS_64BIT
+        case 8: *(uint64_t*)(bb + offset) = val; break;
+#endif
+        default:
+            EXCEPTION("store_uint: invalid field size");
+            return;
+    }
 }
 
 void se_stack_store_float(
@@ -818,18 +1821,37 @@ void se_stack_store_float(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop, store as float to field at params[0] offset
-}
-
-void se_stack_store_ptr64(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    // TODO: pop, store as 8-byte ptr to field at params[0] offset
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    CHECK_NUMERIC_1();
+    
+    if (param_count < 1) {
+        EXCEPTION("store_float requires field parameter");
+        return;
+    }
+    
+    if (!inst->blackboard) {
+        EXCEPTION("store_float: NULL blackboard");
+        return;
+    }
+    
+    uint16_t offset = params[0].field_offset;
+    uint16_t size = params[0].field_size;
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    ct_float_t val = s_expr_stack_tofloat(stack, -1);
+    s_expr_stack_popn(stack, 1);
+    
+    switch (size) {
+        case 4: *(float*)(bb + offset) = (float)val; break;
+#if MODULE_IS_64BIT
+        case 8: *(double*)(bb + offset) = val; break;
+#endif
+        default:
+            EXCEPTION("store_float: invalid field size");
+            return;
+    }
 }
 
 // ============================================================================
@@ -844,7 +1866,10 @@ void se_stack_drop(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop and discard one value
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    s_expr_stack_popn(stack, 1);
 }
 
 void se_stack_drop2(
@@ -855,7 +1880,10 @@ void se_stack_drop2(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop and discard two values
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    s_expr_stack_popn(stack, 2);
 }
 
 void se_stack_dropn(
@@ -866,7 +1894,17 @@ void se_stack_dropn(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop and discard n values (n from params[0])
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("dropn requires count parameter");
+        return;
+    }
+    
+    uint16_t n = (uint16_t)get_imm_int(&params[0]);
+    s_expr_stack_popn(stack, n);
 }
 
 void se_stack_dup(
@@ -877,7 +1915,10 @@ void se_stack_dup(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: duplicate top (a -- a a)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    s_expr_stack_dup(stack);
 }
 
 void se_stack_dup2(
@@ -888,7 +1929,13 @@ void se_stack_dup2(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: duplicate top two (a b -- a b a b)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // (a b -- a b a b)
+    s_expr_stack_pushvalue(stack, -2);  // copy a to top
+    s_expr_stack_pushvalue(stack, -2);  // copy b to top (now at -2)
 }
 
 void se_stack_swap(
@@ -899,7 +1946,10 @@ void se_stack_swap(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: swap top two (a b -- b a)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    s_expr_stack_swap(stack);
 }
 
 void se_stack_over(
@@ -910,7 +1960,12 @@ void se_stack_over(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: copy second to top (a b -- a b a)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // (a b -- a b a)
+    s_expr_stack_pushvalue(stack, -2);
 }
 
 void se_stack_rot(
@@ -921,7 +1976,12 @@ void se_stack_rot(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: rotate three (a b c -- b c a)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // (a b c -- b c a) : rotate top 3, bringing third to top
+    s_expr_stack_rotate(stack, -3, 1);
 }
 
 void se_stack_nrot(
@@ -932,7 +1992,12 @@ void se_stack_nrot(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: reverse rotate (a b c -- c a b)
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // (a b c -- c a b) : reverse rotate, bringing top to third position
+    s_expr_stack_rotate(stack, -3, -1);
 }
 
 void se_stack_pick(
@@ -943,7 +2008,18 @@ void se_stack_pick(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: copy nth to top (n from params[0])
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("pick requires index parameter");
+        return;
+    }
+    
+    // n=0 means top, n=1 means second, etc.
+    int n = (int)get_imm_int(&params[0]);
+    s_expr_stack_pushvalue(stack, -(n + 1));
 }
 
 void se_stack_roll(
@@ -954,7 +2030,19 @@ void se_stack_roll(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: rotate n items (n from params[0])
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("roll requires count parameter");
+        return;
+    }
+    
+    int n = (int)get_imm_int(&params[0]);
+    if (n > 0) {
+        s_expr_stack_rotate(stack, -n, 1);
+    }
 }
 
 // ============================================================================
@@ -969,7 +2057,33 @@ void se_stack_select(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: (cond a b -- result) if cond!=0 then a else b
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    // (cond a b -- result) : if cond != 0 then a else b
+    // Stack: -3=cond, -2=a (true case), -1=b (false case)
+    
+    if (!s_expr_stack_isnumeric(stack, -3)) {
+        EXCEPTION("select: condition must be numeric");
+        return;
+    }
+    
+    ct_float_t cond = s_expr_stack_tofloat(stack, -3);
+    
+    // Get the value we want to keep
+    const s_expr_param_t* result;
+    if (cond != 0.0) {
+        result = s_expr_stack_get(stack, -2);  // true case
+    } else {
+        result = s_expr_stack_get(stack, -1);  // false case
+    }
+    
+    // Copy result before popping
+    s_expr_param_t result_copy = *result;
+    
+    s_expr_stack_popn(stack, 3);
+    s_expr_stack_push(stack, &result_copy);
 }
 
 // ============================================================================
@@ -984,7 +2098,17 @@ void se_stack_push_hash(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: push hash from params[0]
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+    
+    GET_STACK(inst);
+    
+    if (param_count < 1) {
+        EXCEPTION("push_hash requires hash parameter");
+        return;
+    }
+    
+    s_expr_hash_t hash = params[0].str_hash;
+    s_expr_stack_push_hash(stack, hash);
 }
 
 void se_stack_hash_eq(
@@ -995,136 +2119,18 @@ void se_stack_hash_eq(
     uint16_t event_id,
     void* event_data
 ) {
-    // TODO: pop two hashes, push 1 if equal, 0 otherwise
-}
-
-// ============================================================================
-// REGISTRATION
-// ============================================================================
-
-// Function table entries
-static s_expr_fn_entry_t s_stack_ops_entries[] = {
-    // Basic arithmetic
-    { 0x00000000, (void*)se_stack_add },      // SE_STACK_ADD
-    { 0x00000000, (void*)se_stack_sub },      // SE_STACK_SUB
-    { 0x00000000, (void*)se_stack_mul },      // SE_STACK_MUL
-    { 0x00000000, (void*)se_stack_div },      // SE_STACK_DIV
-    { 0x00000000, (void*)se_stack_mod },      // SE_STACK_MOD
-    { 0x00000000, (void*)se_stack_idiv },     // SE_STACK_IDIV
-    { 0x00000000, (void*)se_stack_imod },     // SE_STACK_IMOD
+    UNUSED(params); UNUSED(param_count); UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
     
-    // Unary arithmetic
-    { 0x00000000, (void*)se_stack_neg },      // SE_STACK_NEG
-    { 0x00000000, (void*)se_stack_abs },      // SE_STACK_ABS
-    { 0x00000000, (void*)se_stack_inc },      // SE_STACK_INC
-    { 0x00000000, (void*)se_stack_dec },      // SE_STACK_DEC
+    GET_STACK(inst);
     
-    // Bitwise
-    { 0x00000000, (void*)se_stack_band },     // SE_STACK_BAND
-    { 0x00000000, (void*)se_stack_bor },      // SE_STACK_BOR
-    { 0x00000000, (void*)se_stack_bxor },     // SE_STACK_BXOR
-    { 0x00000000, (void*)se_stack_shl },      // SE_STACK_SHL
-    { 0x00000000, (void*)se_stack_shr },      // SE_STACK_SHR
-    { 0x00000000, (void*)se_stack_sar },      // SE_STACK_SAR
-    { 0x00000000, (void*)se_stack_bnot },     // SE_STACK_BNOT
+    if (!s_expr_stack_ishash(stack, -1) || !s_expr_stack_ishash(stack, -2)) {
+        EXCEPTION("hash_eq: operands must be hashes");
+        return;
+    }
     
-    // Comparison
-    { 0x00000000, (void*)se_stack_eq },       // SE_STACK_EQ
-    { 0x00000000, (void*)se_stack_ne },       // SE_STACK_NE
-    { 0x00000000, (void*)se_stack_lt },       // SE_STACK_LT
-    { 0x00000000, (void*)se_stack_le },       // SE_STACK_LE
-    { 0x00000000, (void*)se_stack_gt },       // SE_STACK_GT
-    { 0x00000000, (void*)se_stack_ge },       // SE_STACK_GE
+    s_expr_hash_t b = s_expr_stack_tohash(stack, -1);
+    s_expr_hash_t a = s_expr_stack_tohash(stack, -2);
     
-    // Logical
-    { 0x00000000, (void*)se_stack_and },      // SE_STACK_AND
-    { 0x00000000, (void*)se_stack_or },       // SE_STACK_OR
-    { 0x00000000, (void*)se_stack_not },      // SE_STACK_NOT
-    
-    // Math functions
-    { 0x00000000, (void*)se_stack_sqrt },     // SE_STACK_SQRT
-    { 0x00000000, (void*)se_stack_exp },      // SE_STACK_EXP
-    { 0x00000000, (void*)se_stack_log },      // SE_STACK_LOG
-    { 0x00000000, (void*)se_stack_log10 },    // SE_STACK_LOG10
-    { 0x00000000, (void*)se_stack_sin },      // SE_STACK_SIN
-    { 0x00000000, (void*)se_stack_cos },      // SE_STACK_COS
-    { 0x00000000, (void*)se_stack_tan },      // SE_STACK_TAN
-    { 0x00000000, (void*)se_stack_asin },     // SE_STACK_ASIN
-    { 0x00000000, (void*)se_stack_acos },     // SE_STACK_ACOS
-    { 0x00000000, (void*)se_stack_atan },     // SE_STACK_ATAN
-    { 0x00000000, (void*)se_stack_floor },    // SE_STACK_FLOOR
-    { 0x00000000, (void*)se_stack_ceil },     // SE_STACK_CEIL
-    { 0x00000000, (void*)se_stack_round },    // SE_STACK_ROUND
-    { 0x00000000, (void*)se_stack_trunc },    // SE_STACK_TRUNC
-    { 0x00000000, (void*)se_stack_pow },      // SE_STACK_POW
-    { 0x00000000, (void*)se_stack_atan2 },    // SE_STACK_ATAN2
-    { 0x00000000, (void*)se_stack_min },      // SE_STACK_MIN
-    { 0x00000000, (void*)se_stack_max },      // SE_STACK_MAX
-    { 0x00000000, (void*)se_stack_clamp },    // SE_STACK_CLAMP
-    
-    // Type conversion
-    { 0x00000000, (void*)se_stack_toint },    // SE_STACK_TOINT
-    { 0x00000000, (void*)se_stack_touint },   // SE_STACK_TOUINT
-    { 0x00000000, (void*)se_stack_tofloat },  // SE_STACK_TOFLOAT
-    
-    // Constant/immediate
-    { 0x00000000, (void*)se_stack_push_const }, // SE_STACK_PUSH_CONST
-    { 0x00000000, (void*)se_stack_addi },     // SE_STACK_ADDI
-    { 0x00000000, (void*)se_stack_subi },     // SE_STACK_SUBI
-    { 0x00000000, (void*)se_stack_muli },     // SE_STACK_MULI
-    { 0x00000000, (void*)se_stack_divi },     // SE_STACK_DIVI
-    { 0x00000000, (void*)se_stack_modi },     // SE_STACK_MODI
-    { 0x00000000, (void*)se_stack_shli },     // SE_STACK_SHLI
-    { 0x00000000, (void*)se_stack_shri },     // SE_STACK_SHRI
-    { 0x00000000, (void*)se_stack_sari },     // SE_STACK_SARI
-    { 0x00000000, (void*)se_stack_bandi },    // SE_STACK_BANDI
-    { 0x00000000, (void*)se_stack_bori },     // SE_STACK_BORI
-    { 0x00000000, (void*)se_stack_bxori },    // SE_STACK_BXORI
-    
-    // Field operations
-    { 0x00000000, (void*)se_stack_load_int },   // SE_STACK_LOAD_INT
-    { 0x00000000, (void*)se_stack_load_uint },  // SE_STACK_LOAD_UINT
-    { 0x00000000, (void*)se_stack_load_float }, // SE_STACK_LOAD_FLOAT
-    { 0x00000000, (void*)se_stack_load_ptr64 }, // SE_STACK_LOAD_PTR64
-    { 0x00000000, (void*)se_stack_store_int },  // SE_STACK_STORE_INT
-    { 0x00000000, (void*)se_stack_store_uint }, // SE_STACK_STORE_UINT
-    { 0x00000000, (void*)se_stack_store_float },// SE_STACK_STORE_FLOAT
-    { 0x00000000, (void*)se_stack_store_ptr64 },// SE_STACK_STORE_PTR64
-    
-    // Stack manipulation
-    { 0x00000000, (void*)se_stack_drop },     // SE_STACK_DROP
-    { 0x00000000, (void*)se_stack_drop2 },    // SE_STACK_DROP2
-    { 0x00000000, (void*)se_stack_dropn },    // SE_STACK_DROPN
-    { 0x00000000, (void*)se_stack_dup },      // SE_STACK_DUP
-    { 0x00000000, (void*)se_stack_dup2 },     // SE_STACK_DUP2
-    { 0x00000000, (void*)se_stack_swap },     // SE_STACK_SWAP
-    { 0x00000000, (void*)se_stack_over },     // SE_STACK_OVER
-    { 0x00000000, (void*)se_stack_rot },      // SE_STACK_ROT
-    { 0x00000000, (void*)se_stack_nrot },     // SE_STACK_NROT
-    { 0x00000000, (void*)se_stack_pick },     // SE_STACK_PICK
-    { 0x00000000, (void*)se_stack_roll },     // SE_STACK_ROLL
-    
-    // Conditional
-    { 0x00000000, (void*)se_stack_select },   // SE_STACK_SELECT
-    
-    // Hash
-    { 0x00000000, (void*)se_stack_push_hash }, // SE_STACK_PUSH_HASH
-    { 0x00000000, (void*)se_stack_hash_eq },   // SE_STACK_HASH_EQ
-};
-
-// NOTE: Hash values (0x00000000) need to be filled in with actual FNV-1a hashes
-// of the function names (e.g., "SE_STACK_ADD" -> fnv1a_32("SE_STACK_ADD"))
-
-static const s_expr_fn_table_t s_stack_ops_table = {
-    .entries = s_stack_ops_entries,
-    .count = sizeof(s_stack_ops_entries) / sizeof(s_stack_ops_entries[0])
-};
-
-const s_expr_fn_table_t* s_engine_get_stack_ops_table(void) {
-    return &s_stack_ops_table;
-}
-
-void s_engine_register_stack_ops(s_expr_module_t* module) {
-    // TODO: Register with module's oneshot function table
-    // s_expr_module_register_oneshot(module, &s_stack_ops_table);
+    s_expr_stack_popn(stack, 2);
+    s_expr_stack_push_int(stack, (a == b) ? 1 : 0);
 }

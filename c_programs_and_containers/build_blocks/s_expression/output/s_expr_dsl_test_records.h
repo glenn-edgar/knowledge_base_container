@@ -39,8 +39,8 @@ struct all_primitives_s {
 
 // Record: string_container (size=98, align=2)
 struct string_container_s {
-    char name[32];  // offset=0, size=32
-    char description[64];  // offset=32, size=64
+    char name[32];  // offset=0, size=32 (char array)
+    char description[64];  // offset=32, size=64 (char array)
     uint16_t length;  // offset=96, size=2
 };
 
@@ -98,7 +98,7 @@ struct test_blackboard_s {
     uint32_t counter;  // offset=16, size=4
     float temperature;  // offset=20, size=4
     bool enabled;  // offset=24, size=1
-    char message[48];  // offset=25, size=48
+    char message[48];  // offset=25, size=48 (char array)
     motor_state_t motor;  // offset=76, size=32
     pid_gains_t gains;  // offset=108, size=12
     list_node_t* data_ptr;  // offset=120, size=4

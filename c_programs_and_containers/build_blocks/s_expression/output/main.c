@@ -2176,7 +2176,7 @@ static void test_while_loop(s_engine_handle_t* engine) {
     for (int i = 0; i < 20; i++) {
         printf("Tick %d:\n", i + 1);
         s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-        printf("  result: %d (%s)\n", result, result_to_str(result));
+        //printf("  result: %d (%s)\n", result, result_to_str(result));
         
         if (result == SE_FUNCTION_TERMINATE) {
             int count = test_tracker_get_count();
