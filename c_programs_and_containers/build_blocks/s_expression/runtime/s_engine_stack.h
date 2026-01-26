@@ -10,12 +10,12 @@
 #ifndef S_ENGINE_STACK_H
 #define S_ENGINE_STACK_H
 
-#include "s_engine_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "s_engine_types.h"
 // ============================================================================
 // STACK STRUCTURE
 // ============================================================================

@@ -93,6 +93,20 @@ typedef enum {
 // PARAMETER TYPE OPCODES (bits 5:0 of type byte)
 // ============================================================================
 
+
+#define S_EXPR_EVENT_QUEUE_SIZE 16
+
+typedef struct {
+    uint16_t tick_type;
+    uint16_t event_id;
+    void* event_data;
+} s_expr_queued_event_t;
+
+// Add these fields to s_expr_tree_instance_t:
+//     s_expr_queued_event_t event_queue[S_EXPR_EVENT_QUEUE_SIZE];
+//     uint8_t event_queue_head;
+//     uint8_t event_queue_count;
+
 // Primitive values
 #define S_EXPR_PARAM_INT         0x00
 #define S_EXPR_PARAM_UINT        0x01
@@ -517,6 +531,11 @@ struct s_expr_tree_instance {
     // Parameter stack (attached after instantiation)
     s_expr_stack_t*           stack;
     bool                      stack_owned;
+    s_expr_queued_event_t    event_queue[S_EXPR_EVENT_QUEUE_SIZE];
+    uint8_t                   event_queue_head;
+    uint8_t                   event_queue_count;
+    
+    uint16_t                  tick_type; // SE_EVENT_TICK, SE_EVENT_INIT, SE_EVENT_TERMINATE, SE_EVENT_USER
 };
 
 // ============================================================================

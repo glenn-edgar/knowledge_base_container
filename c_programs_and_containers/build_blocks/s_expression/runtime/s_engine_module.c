@@ -502,6 +502,8 @@ s_expr_tree_instance_t* s_expr_tree_create(
     inst->tree_index = tree_index;
     inst->node_count = tree_def->func_node_count;
     inst->pointer_count = tree_def->pointer_count;
+    inst->event_queue_head = 0;
+    inst->event_queue_count = 0;
     
     // Allocate node states
     if (tree_def->func_node_count > 0) {

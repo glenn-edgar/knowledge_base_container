@@ -71,8 +71,8 @@ static s_expr_result_t se_wait_event(s_expr_tree_instance_t* inst, const s_expr_
 static s_expr_result_t se_nop(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_if_then_else(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_trigger_on_change(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-static s_expr_result_t se_state_machine(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-static s_expr_result_t se_state_actions(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+//static s_expr_result_t se_state_machine(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+//static s_expr_result_t se_state_actions(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_field_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_event_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -240,8 +240,8 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_NOP_HASH, (void*)se_nop },
     { SE_IF_THEN_ELSE_HASH, (void*)se_if_then_else },
     { SE_TRIGGER_ON_CHANGE_HASH, (void*)se_trigger_on_change },
-    { SE_STATE_MACHINE_HASH, (void*)se_state_machine },
-    { SE_STATE_ACTIONS_HASH, (void*)se_state_actions },
+    //{ SE_STATE_MACHINE_HASH, (void*)se_state_machine },
+    //{ SE_STATE_ACTIONS_HASH, (void*)se_state_actions },
     { SE_FIELD_DISPATCH_HASH, (void*)se_field_dispatch },
     { SE_EVENT_DISPATCH_HASH, (void*)se_event_dispatch },
     { SE_DISPATCH_HASH, (void*)se_dispatch },
@@ -1002,139 +1002,18 @@ static s_expr_result_t se_trigger_on_change(
     
     return SE_CONTINUE;
 }
-// SE_STATE_MACHINE - state machine with integer state index
-// params: [field_ref] [action0] [action1] [action2] ...
-// Field contains state index (0, 1, 2, ...)
-// user_flags stores physical index of current action (0 = none)
-static s_expr_result_t se_state_machine(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    // Structure:
-    // Child 0: field_ref (state index variable) - not callable
-    // Child 1+: actions indexed by state value
-    //   state=0 -> child 1
-    //   state=1 -> child 2
-    //   etc.
-    
-    if (param_count < 1){
-        EXCEPTION("se_state_machine: need at least one parameter");
-        return SE_CONTINUE;
-    }
-    
-    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_FIELD) {
-        EXCEPTION("se_state_machine: first param must be field_ref");
-        return SE_CONTINUE;
-    }
-    
-    uint16_t prev_action_phys_idx = s_expr_get_user_flags(inst);
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    // TICK: Get state index from field
-    int32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-    if (!state_ptr){
-        EXCEPTION("se_state_machine: field not found");
-        return SE_CONTINUE;
-    }
-    
-    int32_t state = *state_ptr;
-    if (state < 0){
-        EXCEPTION("se_state_machine: state is negative");
-        return SE_CONTINUE;
-    }
-    
-    // Find action for this state
-    // state 0 -> logical child 1, state 1 -> logical child 2, etc.
-    uint16_t action_logical_idx = (uint16_t)(state + 1);
-    uint16_t action_phys_idx = s_expr_child_index(params, param_count, action_logical_idx);
-    
-    if (action_phys_idx == UINT16_MAX) {
-        EXCEPTION("se_state_machine: state out of range");
-        return SE_CONTINUE;
 
-    }
-    
-    // Handle state transition
-    if (action_phys_idx != prev_action_phys_idx) {
-        // Terminate previous action
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-            reset_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        // Reset new action (invoke will handle INIT)
-        reset_action_at_index(inst, params, action_phys_idx);
-        s_expr_set_user_flags(inst, action_phys_idx);
-    }
-    
-    // Invoke current state action
-    return s_expr_invoke_any(inst, params, action_phys_idx);
-}
 
-// SE_STATE_ACTIONS - container that executes all children in sequence
-// Used to group multiple actions for a single state
-static s_expr_result_t se_state_actions(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
-    // TICK: invoke all children in sequence
-    uint16_t count = s_expr_child_count(params, param_count);
-    
-    for (uint16_t i = 0; i < count; i++) {
-        if (!s_expr_child_is_callable(params, param_count, i)) {
-            continue;
-        }
-        
-        if (!s_expr_child_is_active(inst, params, param_count, i)) {
-            continue;
-        }
-        
-        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-        
-        if (result != SE_CONTINUE) {
-            return result;
-        }
-    }
-    
-    return SE_CONTINUE;
-}
 
 // SE_FIELD_DISPATCH - dispatch based on integer field value
 // params: [field_ref] [int, action] pairs (flat structure)
 // Stateful: tracks branch changes, handles INIT/TERMINATE
+// Crashes if no matching case (Erlang-style)
+// SE_FIELD_DISPATCH - dispatch based on integer field value
+// params: [field_ref] [int, action] pairs (flat structure)
+// Stateful: tracks branch changes, handles INIT/TERMINATE
+// Crashes if no matching case (Erlang-style)
+// Supports "default" case with value -1
 static s_expr_result_t se_field_dispatch(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1152,9 +1031,9 @@ static s_expr_result_t se_field_dispatch(
     // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
         if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            uint16_t action_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
-            s_expr_children_terminate_all(inst, &params[prev_action_idx], action_count);
+            terminate_action_at_index(inst, params, prev_action_idx);
         }
+        s_expr_set_user_flags(inst, 0xFFFF);
         return SE_CONTINUE;
     }
     
@@ -1162,11 +1041,11 @@ static s_expr_result_t se_field_dispatch(
     // INIT: Validate and set sentinel
     // =========================================================================
     if (event_type == SE_EVENT_INIT) {
-        if (param_count < 2) {
-            EXCEPTION("se_field_dispatch: need field_ref and cases");
+        if (param_count < 3) {
+            EXCEPTION("se_field_dispatch: need field_ref and at least one case");
             return SE_CONTINUE;
         }
-        s_expr_set_user_flags(inst, 0xFFFF);  // Sentinel: no previous action
+        s_expr_set_user_flags(inst, 0xFFFF);
         return SE_CONTINUE;
     }
     
@@ -1184,8 +1063,10 @@ static s_expr_result_t se_field_dispatch(
     int32_t val = *val_ptr;
     
     // Search for matching case in flat [int, action] pairs
+    // Also track default case (-1) as fallback
     uint16_t idx = s_expr_skip_param(params, 0);  // Skip field_ref
     uint16_t action_idx = 0;
+    uint16_t default_idx = 0;
     
     while (idx < param_count) {
         uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
@@ -1194,9 +1075,15 @@ static s_expr_result_t se_field_dispatch(
             int32_t case_val = (int32_t)params[idx].int_val;
             uint16_t this_action_idx = idx + 1;
             
-            if (case_val == val && this_action_idx < param_count) {
-                action_idx = this_action_idx;
-                break;
+            if (this_action_idx < param_count) {
+                if (case_val == val) {
+                    action_idx = this_action_idx;
+                    break;
+                }
+                
+                if (case_val == -1) {
+                    default_idx = this_action_idx;
+                }
             }
             
             // Skip [int, action] pair
@@ -1208,47 +1095,39 @@ static s_expr_result_t se_field_dispatch(
     }
     
     // =========================================================================
-    // No match - terminate previous if any
+    // Use default if no exact match
     // =========================================================================
     if (action_idx == 0) {
-        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            uint16_t prev_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
-            s_expr_children_terminate_all(inst, &params[prev_action_idx], prev_count);
-            s_expr_set_user_flags(inst, 0xFFFF);
-        }
-        return SE_CONTINUE;
+        action_idx = default_idx;
     }
     
-    uint16_t action_count = s_expr_skip_param(params, action_idx) - action_idx;
+    // =========================================================================
+    // No match and no default - crash (Erlang-style)
+    // =========================================================================
+    if (action_idx == 0) {
+        EXCEPTION("se_field_dispatch: no matching case");
+        return SE_CONTINUE;
+    }
     
     // =========================================================================
     // Handle branch change: terminate old, reset new
     // =========================================================================
     if (action_idx != prev_action_idx) {
         if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            uint16_t prev_count = s_expr_skip_param(params, prev_action_idx) - prev_action_idx;
-            s_expr_children_terminate_all(inst, &params[prev_action_idx], prev_count);
+            terminate_action_at_index(inst, params, prev_action_idx);
+            reset_action_at_index(inst, params, prev_action_idx);
         }
         
-        s_expr_children_reset_all(inst, &params[action_idx], action_count);
+        reset_action_at_index(inst, params, action_idx);
         s_expr_set_user_flags(inst, action_idx);
     }
     
     // =========================================================================
-    // Execute children in selected branch
+    // Invoke current action
     // =========================================================================
-    uint16_t child_count = s_expr_child_count(&params[action_idx], action_count);
-    s_expr_result_t result = SE_CONTINUE;
-    
-    for (uint16_t i = 0; i < child_count; i++) {
-        result = s_expr_child_invoke(inst, &params[action_idx], action_count, i);
-        if (result != SE_CONTINUE) {
-            break;
-        }
-    }
-    
-    return result;
+    return s_expr_invoke_any(inst, params, action_idx);
 }
+
 static s_expr_result_t se_event_dispatch(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1264,6 +1143,8 @@ static s_expr_result_t se_event_dispatch(
     }
     
     uint16_t idx = 0;
+    uint16_t default_action_idx = 0;
+    uint16_t default_action_count = 0;
     
     while (idx < param_count) {
         uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
@@ -1272,9 +1153,26 @@ static s_expr_result_t se_event_dispatch(
             int32_t case_event = (int32_t)params[idx].int_val;
             uint16_t action_idx = idx + 1;
             
-            if (case_event == (int32_t)event_id && action_idx < param_count) {
+            if (action_idx < param_count) {
                 uint16_t action_count = s_expr_skip_param(params, action_idx) - action_idx;
-                return s_expr_child_invoke(inst, &params[action_idx], action_count, 0);
+                
+                // Exact match - invoke immediately
+                if (case_event == (int32_t)event_id) {
+                    s_expr_result_t result = s_expr_child_invoke(inst, &params[action_idx], action_count, 0);
+                    
+                    if (result == SE_FUNCTION_RESET) {
+                        s_expr_children_reset_all(inst, &params[action_idx], action_count);
+                        return SE_CONTINUE;
+                    }
+                    
+                    return result;
+                }
+                
+                // Track default case
+                if (case_event == -1) {
+                    default_action_idx = action_idx;
+                    default_action_count = action_count;
+                }
             }
             
             idx = s_expr_skip_param(params, idx);
@@ -1284,9 +1182,20 @@ static s_expr_result_t se_event_dispatch(
         }
     }
     
+    // No exact match - try default
+    if (default_action_idx > 0) {
+        s_expr_result_t result = s_expr_child_invoke(inst, &params[default_action_idx], default_action_count, 0);
+        
+        if (result == SE_FUNCTION_RESET) {
+            s_expr_children_reset_all(inst, &params[default_action_idx], default_action_count);
+            return SE_CONTINUE;
+        }
+        
+        return result;
+    }
+    
     return SE_CONTINUE;
 }
-
 static s_expr_result_t se_dispatch(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -2748,3 +2657,140 @@ static s_expr_result_t se_while(
         // Loop back to check predicate again
     }
 }
+
+
+
+#if 0
+
+// obsolete functions.
+// SE_STATE_ACTIONS - container that executes all children in sequence
+// Used to group multiple actions for a single state
+static s_expr_result_t se_state_actions(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        return SE_CONTINUE;
+    }
+    
+    // TICK: invoke all children in sequence
+    uint16_t count = s_expr_child_count(params, param_count);
+    
+    for (uint16_t i = 0; i < count; i++) {
+        if (!s_expr_child_is_callable(params, param_count, i)) {
+            continue;
+        }
+        
+        if (!s_expr_child_is_active(inst, params, param_count, i)) {
+            continue;
+        }
+        
+        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
+        
+        if (result != SE_CONTINUE) {
+            return result;
+        }
+    }
+    
+    return SE_CONTINUE;
+}
+
+// SE_STATE_MACHINE - state machine with integer state index
+// params: [field_ref] [action0] [action1] [action2] ...
+// Field contains state index (0, 1, 2, ...)
+// user_flags stores physical index of current action (0 = none)
+static s_expr_result_t se_state_machine(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    // Structure:
+    // Child 0: field_ref (state index variable) - not callable
+    // Child 1+: actions indexed by state value
+    //   state=0 -> child 1
+    //   state=1 -> child 2
+    //   etc.
+    
+    if (param_count < 1){
+        EXCEPTION("se_state_machine: need at least one parameter");
+        return SE_CONTINUE;
+    }
+    
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("se_state_machine: first param must be field_ref");
+        return SE_CONTINUE;
+    }
+    
+    uint16_t prev_action_phys_idx = s_expr_get_user_flags(inst);
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        if (prev_action_phys_idx > 0) {
+            terminate_action_at_index(inst, params, prev_action_phys_idx);
+        }
+        s_expr_set_user_flags(inst, 0);
+        return SE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        s_expr_set_user_flags(inst, 0);
+        return SE_CONTINUE;
+    }
+    
+    // TICK: Get state index from field
+    int32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!state_ptr){
+        EXCEPTION("se_state_machine: field not found");
+        return SE_CONTINUE;
+    }
+    
+    int32_t state = *state_ptr;
+    if (state < 0){
+        EXCEPTION("se_state_machine: state is negative");
+        return SE_CONTINUE;
+    }
+    
+    // Find action for this state
+    // state 0 -> logical child 1, state 1 -> logical child 2, etc.
+    uint16_t action_logical_idx = (uint16_t)(state + 1);
+    uint16_t action_phys_idx = s_expr_child_index(params, param_count, action_logical_idx);
+    
+    if (action_phys_idx == UINT16_MAX) {
+        EXCEPTION("se_state_machine: state out of range");
+        return SE_CONTINUE;
+
+    }
+    
+    // Handle state transition
+    if (action_phys_idx != prev_action_phys_idx) {
+        // Terminate previous action
+        if (prev_action_phys_idx > 0) {
+            terminate_action_at_index(inst, params, prev_action_phys_idx);
+            reset_action_at_index(inst, params, prev_action_phys_idx);
+        }
+        // Reset new action (invoke will handle INIT)
+        reset_action_at_index(inst, params, action_phys_idx);
+        s_expr_set_user_flags(inst, action_phys_idx);
+    }
+    
+    // Invoke current state action
+    return s_expr_invoke_any(inst, params, action_phys_idx);
+}
+
+#endif

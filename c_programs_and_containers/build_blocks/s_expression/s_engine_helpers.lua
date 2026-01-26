@@ -288,19 +288,47 @@ end
 --============================================================================
 -- STATE MACHINE FUNCTIONS
 --============================================================================
+function se_case(case_val, action_fn)
+    local int_val
+    
+    if case_val == "default" then
+        int_val = -1
+    elseif type(case_val) == "number" and math.floor(case_val) == case_val then
+        int_val = case_val
+    else
+        error("se_case: first parameter must be integer or 'default', got: " .. tostring(case_val))
+    end
+    
+    int(int_val)
+    action_fn()
+end
 
--- Index-based state machine (original)
+function se_field_dispatch(state_field, cases_fn)
+    local c = m_call("SE_FIELD_DISPATCH")
+        field_ref(state_field)
+        if type(cases_fn) == "function" then
+            cases_fn()
+        elseif type(cases_fn) == "table" then
+            for _, case_fn in ipairs(cases_fn) do
+                case_fn()
+            end
+        else
+            error("se_field_dispatch: cases must be function or table")
+        end
+    end_call(c)
+end
+--[[  -- Index-based state machine (original)
 -- Usage: se_state_machine("state_field", {state0_fn, state1_fn, state2_fn})
 function se_state_machine(state_field, state_fns)
     local c = m_call("SE_STATE_MACHINE")
         field_ref(state_field)
         for _, state_fn in ipairs(state_fns) do
-            local s = m_call("SE_SEQUENCE")
                 state_fn()
-            end_call(s)
+            
         end
     end_call(c)
 end
+
 
 -- State actions helper
 function se_state_actions(return_code, actions_fn)
@@ -309,6 +337,7 @@ function se_state_actions(return_code, actions_fn)
         result(return_code)
     end_call(c)
 end
+--]]
 
 -- NEW: Named state machine with dictionary (string state names)
 -- Usage: se_named_state_machine("state_field", {
@@ -379,6 +408,8 @@ function se_dispatch(cases)
     end_call(c)
 end
 
+
+--[[
 -- Field-based integer dispatch
 function se_field_dispatch(field_name, cases)
     local c = m_call("SE_FIELD_DISPATCH")
@@ -391,7 +422,7 @@ function se_field_dispatch(field_name, cases)
         end
     end_call(c)
 end
-
+]]
 -- NEW: String-based dispatch using dictionary (hash lookup)
 -- Usage: se_string_dispatch("command_field", {
 --     {"START", start_fn},
@@ -463,19 +494,34 @@ end
 --============================================================================
 -- EVENT DISPATCH FUNCTIONS
 --============================================================================
+function se_event_case(event_val, action_fn)
+    local int_val
+    
+    if event_val == "default" then
+        int_val = -1
+    elseif type(event_val) == "number" and math.floor(event_val) == event_val then
+        int_val = event_val
+    else
+        error("se_event_case: event must be integer or 'default', got: " .. tostring(event_val))
+    end
+    
+    int(int_val)
+    action_fn()
+end
 
--- Integer event dispatch (original)
 function se_event_dispatch(cases)
     local c = m_call("SE_EVENT_DISPATCH")
-        for _, case in ipairs(cases) do
-            local event_val = case[1]
-            local action_fn = case[2]
-            int(event_val)
-            se_pipeline(action_fn)
+        if type(cases) == "function" then
+            cases()
+        elseif type(cases) == "table" then
+            for _, case_fn in ipairs(cases) do
+                case_fn()
+            end
+        else
+            error("se_event_dispatch: cases must be function or table")
         end
     end_call(c)
 end
-
 -- NEW: Named event dispatch using dictionary (string event names)
 -- Usage: se_named_event_dispatch({
 --     {"BUTTON_PRESS", button_handler},

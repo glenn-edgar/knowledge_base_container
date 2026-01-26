@@ -547,7 +547,73 @@ function _G.END_RECORD()
     
     current_record = nil
 end
+local function emit_json_value(value, use_hash_keys)
+    local vtype = type(value)
+    
+    if vtype == "number" then
+        if math.floor(value) == value then
+            int(value)
+        else
+            flt(value)
+        end
+    elseif vtype == "string" then
+        str(value)
+    elseif vtype == "boolean" then
+        int(value and 1 or 0)
+    elseif vtype == "table" then
+        -- Check if array (sequential integer keys starting at 1)
+        local is_array = true
+        local max_idx = 0
+        local count = 0
+        
+        for k, _ in pairs(value) do
+            count = count + 1
+            if type(k) ~= "number" or k ~= math.floor(k) or k < 1 then
+                is_array = false
+                break
+            end
+            if k > max_idx then max_idx = k end
+        end
+        
+        if is_array and max_idx ~= count then
+            is_array = false  -- Sparse array
+        end
+        
+        if is_array then
+            local a = array_start()
+            for _, v in ipairs(value) do
+                emit_json_value(v, use_hash_keys)
+            end
+            array_end(a)
+        else
+            local d = dict_start()
+            for k, v in pairs(value) do
+                local key_marker
+                if use_hash_keys then
+                    key_marker = key_hash(fnv1a_32(tostring(k)))
+                else
+                    key_marker = key(tostring(k))
+                end
+                emit_json_value(v, use_hash_keys)
+                key_end(key_marker)
+            end
+            dict_end(d)
+        end
+    else
+        -- nil or unsupported type - emit 0
+        int(0)
+    end
+end
 
+-- String keys (default)
+function _G.json(tbl)
+    emit_json_value(tbl, false)
+end
+
+-- Hash keys (smaller binary, faster lookup)
+function _G.json_hash(tbl)
+    emit_json_value(tbl, true)
+end
 -- ============================================================================
 -- CONSTANT FUNCTIONS
 -- ============================================================================

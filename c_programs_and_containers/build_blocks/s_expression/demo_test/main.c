@@ -15,16 +15,13 @@
 #include "s_engine_init.h"
 #include "s_engine_builtins.h"
 #include "s_engine_node.h"
-#include "s_expr_dsl_test.h"
-#include "s_expr_dsl_test_records.h"
-#include "s_expr_dsl_test_bin_32.h"
-#include "s_expr_dsl_test_user_functions.h"
+#include "demo_test.h"  // s_hashes
+#include "demo_test_records.h"
+#include "demo_test_bin_32.h"
+#include "demo_test_user_functions.h"
 
 // Forward declaration for generated registration function
-extern void s_expr_dsl_test_register_all(s_expr_module_t* module);
-extern void test_tracker_reset(void);
-extern int test_tracker_get_count(void);
-extern int test_tracker_get_step(int index);
+extern void demo_test_register_all(s_expr_module_t* module);
 // ============================================================================
 // SIMPLE ALLOCATOR
 // ============================================================================
@@ -116,7 +113,7 @@ static bool load_from_rom(s_engine_handle_t* engine, s_expr_allocator_t* alloc, 
     s_engine_register_builtins(engine);
     printf("✅ Built-in functions registered\n");
     
-    s_expr_dsl_test_register_all(&engine->module);
+    demo_test_register_all(&engine->module);
     printf("✅ User functions registered\n");
     
     s_expr_module_set_debug(&engine->module, debug_callback);
@@ -176,7 +173,7 @@ static bool load_from_file(s_engine_handle_t* engine, s_expr_allocator_t* alloc,
     s_engine_register_builtins(engine);
     printf("✅ Built-in functions registered\n");
     
-    s_expr_dsl_test_register_all(&engine->module);
+    demo_test_register_all(&engine->module);
     printf("✅ User functions registered\n");
     
     s_expr_module_set_debug(&engine->module, debug_callback);
@@ -219,7 +216,7 @@ int main(int argc, char* argv[]) {
     };
     s_engine_handle_t engine;
     printf("\n\nLoading module from ROM...\n\n");
-    bool result = load_from_rom(&engine, &alloc, s_expr_dsl_test_module_bin_32, S_EXPR_DSL_TEST_MODULE_BIN_32_SIZE);
+    bool result = load_from_rom(&engine, &alloc, demo_test_module_bin_32, DEMO_TEST_MODULE_BIN_32_SIZE);
     if (!result) {
         printf("❌ FATAL: Failed to load module\n");
         return 1;
@@ -227,7 +224,7 @@ int main(int argc, char* argv[]) {
     s_engine_free(&engine);
 
     printf("\n\nLoading module from file...\n\n");
-    result = load_from_file(&engine, &alloc, "s_expr_dsl_test_32.bin");
+    result = load_from_file(&engine, &alloc, "demo_test_32.bin");
     if (!result) {
         printf("❌ FATAL: Failed to load module\n");
         return 1;
@@ -264,6 +261,7 @@ static void test_state_machine(s_engine_handle_t* engine) {
     
     // Step 1: Pass the tick_delay(100)
     for (int i = 0; i < 1000; i++) {
+        tree->tick_type = SE_EVENT_TICK;
         result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         //printf("last_result: %d\n", result);
         if (result == SE_TERMINATE ){
