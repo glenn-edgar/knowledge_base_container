@@ -14,7 +14,10 @@ RECORD("state_machine_blackboard")
 END_RECORD()
 
 
+start_tree("event_dispatch_test")
 
+
+end_tree("event_dispatch_test")
 
 
 

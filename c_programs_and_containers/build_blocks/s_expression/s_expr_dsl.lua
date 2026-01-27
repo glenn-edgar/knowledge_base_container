@@ -127,16 +127,18 @@ M.S_EXPR_PARAM = types_module.S_EXPR_PARAM
 local builtins_module = {}
 
 builtins_module.BUILTIN_FUNCTIONS = {
-    "SE_PRED_AND", "SE_PRED_OR", "SE_PRED_NOT", "SE_PRED_NOR", "SE_PRED_NAND",
-    "SE_PRED_XOR", "SE_TRUE", "SE_FALSE", "SE_CHECK_EVENT",
-    "SE_PIPELINE", "SE_TICK_DELAY", "SE_TIME_DELAY", "SE_WAIT_EVENT", "SE_NOP",
-    "SE_IF_THEN_ELSE", "SE_TRIGGER_ON_CHANGE", "SE_STATE_MACHINE", "SE_STATE_ACTIONS",
-    "SE_FIELD_DISPATCH", "SE_EVENT_DISPATCH", "SE_DISPATCH", "SE_NAMED_STATE_MACHINE",
-    "SE_NAMED_EVENT_DISPATCH", "SE_STRING_DISPATCH", "SE_HASH_DISPATCH",
-    "SE_SEQUENCE", "SE_FORK", "SE_FORK_JOIN", "SE_CHAIN_FLOW", "SE_FOR", "SE_WHILE",
-    "SE_RETURN_CONTINUE", "SE_RETURN_HALT", "SE_RETURN_TERMINATE", "SE_RETURN_RESET",
-    "SE_RETURN_DISABLE", "SE_RETURN_SKIP_CONTINUE", "SE_RETURN_FUNCTION_HALT",
-    "SE_RETURN_FUNCTION_RESET", "SE_RETURN_FUNCTION_TERMINATE", "SE_SET_HASH", "SE_LOG","SE_SET_FIELD",
+   "SE_RETURN_CONTINUE",
+   "SE_RETURN_TERMINATE",
+   "SE_RETURN_RESET",
+   "SE_RETURN_HALT",
+   "SE_RETURN_SKIP_CONTINUE",
+   "SE_RETURN_FUNCTION_HALT",
+   "SE_RETURN_FUNCTION_RESET",
+   "SE_RETURN_FUNCTION_TERMINATE",
+   "SE_RETURN_PIPELINE_TERMINATE",
+   "SE_RETURN_PIPELINE_RESET_CONTINUE",
+   "SE_RETURN_PIPELINE_RESET_HALT",
+   "SE_SEQUENCE"
 }
 
 builtins_module.BUILTIN_SET = {}
@@ -350,6 +352,12 @@ end
 function _G.FIELD(name, type_name)
     if not current_record then dsl_error("No record open") end
     
+    -- Reject sub-32-bit types - 32-bit writes corrupt adjacent fields
+    local unsafe_types = { int8=1, uint8=1, int16=1, uint16=1, bool=1, char=1 }
+    if unsafe_types[type_name] then
+        dsl_error("Type '" .. type_name .. "' not allowed in FIELD() - use int32/uint32 minimum. For strings use CHAR_ARRAY().")
+    end
+    
     local info = types_module.type_info[type_name]
     local field = {
         name = name,
@@ -457,7 +465,6 @@ end
 function _G.PTR64_FIELD(name, target_type)
     if not current_record then dsl_error("No record open") end
     
-    -- Always 8 bytes regardless of pointer_size setting
     local field = {
         name = name,
         name_hash = hash_module.fnv1a_32(name),
@@ -484,38 +491,12 @@ function _G.PTR64_FIELD(name, target_type)
     
     table.insert(current_record.fields, field)
 end
-function _G.PTR_FIELD(name, target_type)
-    if not current_record then dsl_error("No record open") end
-    
-    local ptr_size = current_module.pointer_size
-    local field = {
-        name = name,
-        name_hash = hash_module.fnv1a_32(name),
-        type = "ptr",
-        target_type = target_type,
-        size = ptr_size,
-        align = ptr_size,
-        is_pointer = true,
-        is_char_array = false,
-        is_embedded = false,
-        type_tag = 0x0E,
-    }
-    
-    local offset = current_record.size
-    local padding = (field.align - (offset % field.align)) % field.align
-    offset = offset + padding
-    field.offset = offset
-    
-    current_record.size = offset + field.size
-    if field.align > current_record.align then
-        current_record.align = field.align
-    end
-    
-    table.insert(current_record.fields, field)
-end
-
 function _G.CHAR_ARRAY(name, length)
     if not current_record then dsl_error("No record open") end
+    
+    if length < 4 then
+        dsl_error("CHAR_ARRAY length must be at least 4 bytes (32-bit write safety)")
+    end
     
     local field = {
         name = name,
@@ -990,16 +971,22 @@ end
 -- ============================================================================
 -- RESULT CODES
 -- ============================================================================
-
+-- APPLICATION RESULT CODES
 _G.SE_CONTINUE           = 0
 _G.SE_HALT               = 1
 _G.SE_TERMINATE          = 2
 _G.SE_RESET              = 3
 _G.SE_DISABLE            = 4
-_G.SE_FUNCTION_TERMINATE = 5
-_G.SE_SKIP_CONTINUE      = 6
-_G.SE_FUNCTION_HALT      = 7
-_G.SE_FUNCTION_RESET     = 8
+_G.SE_SKIP_CONTINUE      = 5
+-- FUNCTION RESULT CODES
+_G.SE_FUNCTION_HALT      = 6
+_G.SE_FUNCTION_RESET     = 7
+_G.SE_FUNCTION_TERMINATE = 8
+-- PIPELINE RESULT CODES
+_G.SE_PIPELINE_TERMINATE = 9
+_G.SE_PIPELINE_RESET_CONTINUE = 10
+_G.SE_PIPELINE_RESET_HALT = 11
+_G.SE_PIPELINE_DISABLE = 12
 
 -- ============================================================================
 -- LOAD GENERATORS AND DEBUG MODULES

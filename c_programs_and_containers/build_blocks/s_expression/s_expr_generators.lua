@@ -68,6 +68,28 @@ function ModuleGenerator:to_c_records_header(base_name)
     -- Record definitions
     for _, name in ipairs(mod.record_order) do
         local rec = mod.records[name]
+        local rec_upper = name:upper()
+        
+        -- Collect array length defines for this record
+        local array_defines = {}
+        for _, field in ipairs(rec.fields) do
+            if field.is_char_array or field.is_int32_array or field.is_float32_array then
+                local define_name = rec_upper .. "_" .. field.name:upper() .. "_LEN"
+                table.insert(array_defines, {
+                    name = define_name,
+                    len = field.array_len
+                })
+            end
+        end
+        
+        -- Emit array length defines before the struct
+        if #array_defines > 0 then
+            table.insert(lines, "// Array length constants for " .. name)
+            for _, def in ipairs(array_defines) do
+                table.insert(lines, string.format("#define %s %d", def.name, def.len))
+            end
+            table.insert(lines, "")
+        end
         
         table.insert(lines, "// Record: " .. name .. " (size=" .. rec.size .. ", align=" .. rec.align .. ")")
         table.insert(lines, "struct " .. name .. "_s {")
@@ -75,7 +97,7 @@ function ModuleGenerator:to_c_records_header(base_name)
         for _, field in ipairs(rec.fields) do
             local ctype
             local is_array = false
-            local array_len = 0
+            local array_len_str = nil
             
             if field.is_pointer then
                 if field.is_ptr64 then
@@ -93,15 +115,15 @@ function ModuleGenerator:to_c_records_header(base_name)
             elseif field.is_char_array then
                 ctype = "char"
                 is_array = true
-                array_len = field.array_len
+                array_len_str = rec_upper .. "_" .. field.name:upper() .. "_LEN"
             elseif field.is_int32_array then
                 ctype = "int32_t"
                 is_array = true
-                array_len = field.array_len
+                array_len_str = rec_upper .. "_" .. field.name:upper() .. "_LEN"
             elseif field.is_float32_array then
                 ctype = "float"
                 is_array = true
-                array_len = field.array_len
+                array_len_str = rec_upper .. "_" .. field.name:upper() .. "_LEN"
             elseif field.is_embedded then
                 ctype = field.embedded_record .. "_t"
             else
@@ -111,7 +133,7 @@ function ModuleGenerator:to_c_records_header(base_name)
             
             local decl
             if is_array then
-                decl = string.format("    %s %s[%d];", ctype, field.name, array_len)
+                decl = string.format("    %s %s[%s];", ctype, field.name, array_len_str)
             else
                 decl = string.format("    %s %s;", ctype, field.name)
             end
@@ -139,7 +161,6 @@ function ModuleGenerator:to_c_records_header(base_name)
     return table.concat(lines, "\n")
 end
 
-
 function ModuleGenerator:to_c_header(base_name)
     local lines = {}
     local mod = self.module
@@ -159,7 +180,10 @@ function ModuleGenerator:to_c_header(base_name)
     table.insert(lines, "#endif")
     table.insert(lines, "")
     table.insert(lines, '#include "s_engine_types.h"')
-    table.insert(lines, '#include "' .. base_name .. '_records.h"')
+    if #mod.record_order > 0 then
+        
+        table.insert(lines, '#include "' .. base_name .. '_records.h"')
+    end
     table.insert(lines, "")
     
     -- Module info

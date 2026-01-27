@@ -80,17 +80,10 @@ end
 -- Only SE_CONTINUE and SE_DISABLE continue to next node.
 -- All others terminate the current tick and propagate to caller.
 --============================================================================
-function se_set_result(result)
-    if result == SE_CONTINUE then
-        se_return_continue()
-    elseif result == SE_DISABLE then
-        se_return_disable()
-    elseif result == SE_HALT then
-        se_return_halt()
-    elseif result == SE_RESET then
-        se_return_reset()
-    end
-end
+
+
+
+--- APPLICATION RESULT CODE FUNCTIONS
 function se_return_continue()
     local c = m_call("SE_RETURN_CONTINUE")
     end_call(c)
@@ -106,10 +99,7 @@ function se_return_reset()
     end_call(c)
 end
 
-function se_return_disable()
-    local c = m_call("SE_RETURN_DISABLE")
-    end_call(c)
-end
+
 
 function se_return_halt()
     local c = m_call("SE_RETURN_HALT")
@@ -121,6 +111,7 @@ function se_return_skip_continue()
     end_call(c)
 end
 
+-- FUNCTION RESULT CODE FUNCTIONS
 function se_return_function_halt()
     local c = m_call("SE_RETURN_FUNCTION_HALT")
     end_call(c)
@@ -135,7 +126,23 @@ function se_return_function_terminate()
     local c = m_call("SE_RETURN_FUNCTION_TERMINATE")
     end_call(c)
 end
+    
+-- PIPELINE RESULT CODE FUNCTIONS
 
+function se_return_pipeline_terminate()
+    local c = m_call("SE_RETURN_PIPELINE_TERMINATE")
+    end_call(c)
+end
+
+function se_return_pipeline_reset_continue()
+    local c = m_call("SE_RETURN_PIPELINE_RESET_CONTINUE")
+    end_call(c)
+end
+
+function se_return_pipeline_reset_halt()
+    local c = m_call("SE_RETURN_PIPELINE_RESET_HALT")
+    end_call(c)
+end
 --============================================================================
 -- MAIN FUNCTIONS
 --============================================================================
@@ -280,10 +287,6 @@ function se_while(condition, ...)
     end_call(w)
 end
 
-function se_nop()
-    local c = m_call("SE_NOP")
-    end_call(c)
-end
 
 --============================================================================
 -- STATE MACHINE FUNCTIONS

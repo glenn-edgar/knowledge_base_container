@@ -6,12 +6,12 @@
 #ifndef S_ENGINE_LOADER_H
 #define S_ENGINE_LOADER_H
 
-#include "s_engine_types.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include "s_engine_types.h"
 // ============================================================================
 // BINARY FORMAT CONSTANTS (must match s_expr_dsl.lua)
 // ============================================================================

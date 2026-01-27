@@ -66,18 +66,25 @@ extern "C" {
 // ============================================================================
 
 typedef enum {
+    // APPLICATION RESULT CODES
     SE_CONTINUE           = 0,
     SE_HALT               = 1,
     SE_TERMINATE          = 2,
     SE_RESET              = 3,
     SE_DISABLE            = 4,
-    SE_FUNCTION_TERMINATE = 5,
-    SE_SKIP_CONTINUE      = 6,
-    SE_FUNCTION_HALT      = 7,
-    SE_FUNCTION_RESET     = 8,
-    SE_PIPELINE_DISABLE = 9,  
+    SE_SKIP_CONTINUE      = 5,
+    
+    // FUNCTION RESULT CODES
+    SE_FUNCTION_HALT      = 6,
+    SE_FUNCTION_RESET     = 7,
+    SE_FUNCTION_TERMINATE = 8,
+    
+    // PIPELINE RESULT CODES
+    SE_PIPELINE_TERMINATE      = 9,
+    SE_PIPELINE_RESET_CONTINUE = 10,
+    SE_PIPELINE_RESET_HALT     = 11,
+    SE_PIPELINE_DISABLE        = 12,  // If needed
 } s_expr_result_t;
-
 // ============================================================================
 // EVENT TYPES (passed to functions)
 // ============================================================================

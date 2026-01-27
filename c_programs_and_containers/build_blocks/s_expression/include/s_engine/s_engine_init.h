@@ -9,14 +9,14 @@
 #ifndef S_ENGINE_INIT_H
 #define S_ENGINE_INIT_H
 
-#include "s_engine_types.h"
-#include "s_engine_module.h"
-#include "s_engine_loader.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "s_engine_types.h"
+#include "s_engine_module.h"
+#include "s_engine_loader.h"
 
 
 // ============================================================================
