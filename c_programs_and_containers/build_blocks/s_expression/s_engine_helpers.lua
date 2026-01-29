@@ -221,6 +221,8 @@ function se_sequence(...)
     end_call(c)
 end
 
+
+
 function se_fork(...)
     local children = {...}
     local f = m_call("SE_FORK")
@@ -291,6 +293,14 @@ end
 --============================================================================
 -- STATE MACHINE FUNCTIONS
 --============================================================================
+--============================================================================
+-- STATE MACHINE FUNCTIONS
+--============================================================================
+
+-- Track case values within current dispatch to detect duplicates
+local dispatch_case_values = {}
+local in_dispatch = false
+
 function se_case(case_val, action_fn)
     local int_val
     
@@ -302,23 +312,76 @@ function se_case(case_val, action_fn)
         error("se_case: first parameter must be integer or 'default', got: " .. tostring(case_val))
     end
     
+    -- Check for duplicates if inside a dispatch
+    if in_dispatch then
+        if dispatch_case_values[int_val] then
+            local label = (int_val == -1) and "default" or tostring(int_val)
+            error("se_case: duplicate case value: " .. label)
+        end
+        dispatch_case_values[int_val] = true
+    end
+    
     int(int_val)
     action_fn()
 end
 
 function se_field_dispatch(state_field, cases_fn)
-    local c = m_call("SE_FIELD_DISPATCH")
-        field_ref(state_field)
-        if type(cases_fn) == "function" then
-            cases_fn()
-        elseif type(cases_fn) == "table" then
-            for _, case_fn in ipairs(cases_fn) do
-                case_fn()
+    -- Reset case tracking for this dispatch
+    dispatch_case_values = {}
+    in_dispatch = true
+    
+    local success, err = pcall(function()
+        local c = m_call("SE_FIELD_DISPATCH")
+            field_ref(state_field)
+            if type(cases_fn) == "function" then
+                cases_fn()
+            elseif type(cases_fn) == "table" then
+                for _, case_fn in ipairs(cases_fn) do
+                    case_fn()
+                end
+            else
+                error("se_field_dispatch: cases must be function or table")
             end
-        else
-            error("se_field_dispatch: cases must be function or table")
-        end
-    end_call(c)
+        end_call(c)
+    end)
+    
+    -- Clean up tracking state
+    in_dispatch = false
+    dispatch_case_values = {}
+    
+    if not success then
+        error(err)
+    end
+end
+
+
+function se_state_machine(state_field, cases_fn)
+    -- Reset case tracking for this dispatch
+    dispatch_case_values = {}
+    in_dispatch = true
+    
+    local success, err = pcall(function()
+        local c = m_call("SE_STATE_MACHINE")
+            field_ref(state_field)
+            if type(cases_fn) == "function" then
+                cases_fn()
+            elseif type(cases_fn) == "table" then
+                for _, case_fn in ipairs(cases_fn) do
+                    case_fn()
+                end
+            else
+                error("se_field_dispatch: cases must be function or table")
+            end
+        end_call(c)
+    end)
+    
+    -- Clean up tracking state
+    in_dispatch = false
+    dispatch_case_values = {}
+    
+    if not success then
+        error(err)
+    end
 end
 --[[  -- Index-based state machine (original)
 -- Usage: se_state_machine("state_field", {state0_fn, state1_fn, state2_fn})

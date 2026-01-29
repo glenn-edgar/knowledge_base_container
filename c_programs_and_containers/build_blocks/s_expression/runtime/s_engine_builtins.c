@@ -71,7 +71,7 @@ static s_expr_result_t se_wait_event(s_expr_tree_instance_t* inst, const s_expr_
 static s_expr_result_t se_nop(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_if_then_else(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_trigger_on_change(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-//static s_expr_result_t se_state_machine(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_state_machine(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 //static s_expr_result_t se_state_actions(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_field_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_event_dispatch(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -243,7 +243,7 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_NOP_HASH, (void*)se_nop },
     { SE_IF_THEN_ELSE_HASH, (void*)se_if_then_else },
     { SE_TRIGGER_ON_CHANGE_HASH, (void*)se_trigger_on_change },
-    //{ SE_STATE_MACHINE_HASH, (void*)se_state_machine },
+    { SE_STATE_MACHINE_HASH, (void*)se_state_machine },
     //{ SE_STATE_ACTIONS_HASH, (void*)se_state_actions },
     { SE_FIELD_DISPATCH_HASH, (void*)se_field_dispatch },
     { SE_EVENT_DISPATCH_HASH, (void*)se_event_dispatch },
@@ -950,6 +950,128 @@ static s_expr_result_t se_trigger_on_change(
     return SE_CONTINUE;
 }
 
+// SE_FIELD_DISPATCH - dispatch based on integer field value
+// params: [field_ref] [int, action] pairs (flat structure)
+// Stateful: tracks branch changes, handles INIT/TERMINATE
+// Crashes if no matching case (Erlang-style)
+// SE_FIELD_DISPATCH - dispatch based on integer field value
+// params: [field_ref] [int, action] pairs (flat structure)
+// Stateful: tracks branch changes, handles INIT/TERMINATE
+// Crashes if no matching case (Erlang-style)
+// Supports "default" case with value -1
+static s_expr_result_t se_state_machine(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+    
+    uint16_t prev_action_idx = s_expr_get_user_flags(inst);
+    
+    // =========================================================================
+    // TERMINATE: Clean up active branch
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            terminate_action_at_index(inst, params, prev_action_idx);
+        }
+        s_expr_set_user_flags(inst, 0xFFFF);
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // INIT: Validate and set sentinel
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 3) {
+            EXCEPTION("se_field_dispatch: need field_ref and at least one case");
+            return SE_CONTINUE;
+        }
+        s_expr_set_user_flags(inst, 0xFFFF);
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK: Dispatch based on field value
+    // =========================================================================
+    
+    // Get integer value from field
+    int32_t* val_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
+    if (!val_ptr) {
+        EXCEPTION("se_field_dispatch: field not found");
+        return SE_CONTINUE;
+    }
+    
+    int32_t val = *val_ptr;
+    
+    // Search for matching case in flat [int, action] pairs
+    // Also track default case (-1) as fallback
+    uint16_t idx = s_expr_skip_param(params, 0);  // Skip field_ref
+    uint16_t action_idx = 0;
+    uint16_t default_idx = 0;
+    
+    while (idx < param_count) {
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+            int32_t case_val = (int32_t)params[idx].int_val;
+            uint16_t this_action_idx = idx + 1;
+            
+            if (this_action_idx < param_count) {
+                if (case_val == val) {
+                    action_idx = this_action_idx;
+                    break;
+                }
+                
+                if (case_val == -1) {
+                    default_idx = this_action_idx;
+                }
+            }
+            
+            // Skip [int, action] pair
+            idx = s_expr_skip_param(params, idx);      // Skip int
+            idx = s_expr_skip_param(params, idx);      // Skip action
+        } else {
+            idx = s_expr_skip_param(params, idx);
+        }
+    }
+    
+    // =========================================================================
+    // Use default if no exact match
+    // =========================================================================
+    if (action_idx == 0) {
+        action_idx = default_idx;
+    }
+    
+    // =========================================================================
+    // No match and no default - crash (Erlang-style)
+    // =========================================================================
+    if (action_idx == 0) {
+        EXCEPTION("se_field_dispatch: no matching case");
+        return SE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // Handle branch change: terminate old, reset new
+    // =========================================================================
+    if (action_idx != prev_action_idx) {
+        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
+            terminate_action_at_index(inst, params, prev_action_idx);
+            reset_action_at_index(inst, params, prev_action_idx);
+        }
+        
+        reset_action_at_index(inst, params, action_idx);
+        s_expr_set_user_flags(inst, action_idx);
+    }
+    
+    // =========================================================================
+    // Invoke current action
+    // =========================================================================
+    return s_expr_invoke_any(inst, params, action_idx);
+}
 
 
 // SE_FIELD_DISPATCH - dispatch based on integer field value
