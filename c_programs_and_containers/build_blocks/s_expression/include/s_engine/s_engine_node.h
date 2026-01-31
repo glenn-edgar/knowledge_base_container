@@ -56,7 +56,11 @@ uint16_t s_expr_child_index(
 // ============================================================================
 // CHILD LIFECYCLE
 // ============================================================================
-
+void s_expr_reset_recursive_at(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t phys_idx
+);
 // Reset Nth child: clear flags so next invoke sends INIT
 // Does not send TERMINATE, does not recurse
 void s_expr_child_reset(

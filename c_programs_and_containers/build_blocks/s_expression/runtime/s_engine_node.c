@@ -278,6 +278,38 @@ void s_expr_child_reset_recursive(
         reset_all_recursive(inst, child_args, child_arg_count);
     }
 }
+void s_expr_reset_recursive_at(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t phys_idx
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_reset_recursive_at: NULL instance");
+        return;
+    }
+    
+    uint8_t opcode = params[phys_idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN_CALL) {
+        return;  // Not a callable, nothing to reset
+    }
+    
+    // Reset the node itself
+    s_expr_node_state_t* state = get_callable_state(inst, params, phys_idx);
+    if (state) {
+        uint8_t ever_init = state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
+        state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+        state->state = 0;
+        state->user_data = 0;
+    }
+    
+    // Recurse into arguments
+    uint16_t child_arg_count;
+    const s_expr_param_t* child_args = s_expr_call_args(params, phys_idx, &child_arg_count);
+    if (child_args && child_arg_count > 0) {
+        reset_all_recursive(inst, child_args, child_arg_count);
+    }
+}
+
 void s_expr_node_terminate(s_expr_tree_instance_t* inst) {
     if (!inst) {
         EXCEPTION("s_expr_node_terminate: NULL instance");

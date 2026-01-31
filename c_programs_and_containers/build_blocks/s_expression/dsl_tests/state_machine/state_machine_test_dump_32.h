@@ -27,7 +27,7 @@
  * Hash:   0x6824A885
  * Trees:  1
  * Records: 1
- * Strings: 5
+ * Strings: 10
  * Constants: 0
  * Param size: 8 bytes (32-bit)
  */
@@ -36,11 +36,16 @@
 // STRING TABLE
 // ============================================================================
 /*
- * [0x0000] (  0) hash=0x7C533240 "State machine test started"
- * [0x0001] (  1) hash=0x89FA9636 "State 0"
- * [0x0002] (  2) hash=0x8AFA97C9 "State 1"
- * [0x0003] (  3) hash=0x87FA9310 "State 2"
- * [0x0004] (  4) hash=0x86413765 "State machine test finished"
+ * [0x0000] (  0) hash=0xB5554AF8 "Fork Join Test Started"
+ * [0x0001] (  1) hash=0x92683676 "Fork Join Test Terminated"
+ * [0x0002] (  2) hash=0x7C533240 "State machine test started"
+ * [0x0003] (  3) hash=0x89FA9636 "State 0"
+ * [0x0004] (  4) hash=0xA45143A3 "State 0 terminated"
+ * [0x0005] (  5) hash=0x8AFA97C9 "State 1"
+ * [0x0006] (  6) hash=0x0090A1DE "State 1 terminated"
+ * [0x0007] (  7) hash=0x87FA9310 "State 2"
+ * [0x0008] (  8) hash=0x8300AF51 "State 2 terminated"
+ * [0x0009] (  9) hash=0x86413765 "State machine test finished"
  */
 
 // ============================================================================
@@ -48,18 +53,19 @@
 // ============================================================================
 /*
  * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):
- *   [0x0000] ( 0) hash=0xFFF84A15 SE_SET_FIELD
- *   [0x0001] ( 1) hash=0xCEBBEFA4 SE_LOG
+ *   [0x0000] ( 0) hash=0xCEBBEFA4 SE_LOG
+ *   [0x0001] ( 1) hash=0xFFF84A15 SE_SET_FIELD
  *   [0x0002] ( 2) hash=0x5839B05B CFL_DISABLE_CHILDREN
  *   [0x0003] ( 3) hash=0xD42E3453 CFL_ENABLE_CHILD
  *
  * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
  *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
- *   [0x0001] ( 1) hash=0x5EEDA8E9 SE_STATE_MACHINE
- *   [0x0002] ( 2) hash=0x0A24332A SE_FORK
- *   [0x0003] ( 3) hash=0x0C3460EB SE_TICK_DELAY
- *   [0x0004] ( 4) hash=0x4AC84487 SE_RETURN_PIPELINE_HALT
- *   [0x0005] ( 5) hash=0x0A5B8A85 SE_RETURN_FUNCTION_TERMINATE
+ *   [0x0001] ( 1) hash=0xE404E1CF SE_FORK_JOIN
+ *   [0x0002] ( 2) hash=0x0C3460EB SE_TICK_DELAY
+ *   [0x0003] ( 3) hash=0x5EEDA8E9 SE_STATE_MACHINE
+ *   [0x0004] ( 4) hash=0xEC3EE7BF SE_SEQUENCE
+ *   [0x0005] ( 5) hash=0x6B7AA500 SE_RETURN_PIPELINE_DISABLE
+ *   [0x0006] ( 6) hash=0x0A5B8A85 SE_RETURN_FUNCTION_TERMINATE
  *
  */
 
@@ -77,121 +83,152 @@
 // ============================================================================
 /*
  * TREE: state_machine_test
- *   hash=0x6824A885 nodes=28 ptrs=4
+ *   hash=0x6824A885 nodes=36 ptrs=5
  *   record=state_machine_blackboard (hash=0xC89D038C)
  *
  * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
  * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    107      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    0  OPEN_CALL[0x07]    138      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
- *    2    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *    3    ONESHOT+SR[0x48]      2      0  idx_to_ptr=0
- *    4      FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
- *    5      UINT[0x01]           -      -  0 (0x00000000)
- *    6    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *    7    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *    8    ONESHOT   [0x08]      7      1  idx_to_ptr=0
- *    9      STR_IDX[0x0D]        0     26  "State machine test started"
- *   10    CLOSE[0x06]          0      -  (end SE_LOG)
- *   11    OPEN_CALL[0x07]     84      0  SE_STATE_MACHINE hash=0x5EEDA8E9
- *   12    MAIN      [0x09]     11      1  idx_to_ptr=0
- *   13      FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
- *   14      INT[0x00]            -      -  0 (0x00000000)
- *   15      OPEN_CALL[0x07]     25      0  SE_FORK hash=0x0A24332A
- *   16      MAIN      [0x09]     15      2  idx_to_ptr=0
- *   17        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *   18        ONESHOT   [0x08]     17      1  idx_to_ptr=0
- *   19          STR_IDX[0x0D]        1      7  "State 0"
- *   20        CLOSE[0x06]          0      -  (end SE_LOG)
- *   21        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
- *   22        ONESHOT   [0x08]     21      2  idx_to_ptr=0
- *   23        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
- *   24        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
- *   25        ONESHOT   [0x08]     24      3  idx_to_ptr=0
- *   26          INT[0x00]            -      -  0 (0x00000000)
- *   27        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
- *   28        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *   29        MAIN+PTR  [0x89]     28      3  idx_to_ptr=0
- *   30          INT[0x00]            -      -  10 (0x0000000A)
- *   31        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *   32        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   33        ONESHOT   [0x08]     32      0  idx_to_ptr=0
- *   34          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
- *   35          UINT[0x01]           -      -  1 (0x00000001)
- *   36        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *   37        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_HALT hash=0x4AC84487
- *   38        MAIN      [0x09]     37      4  idx_to_ptr=0
- *   39        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_HALT)
- *   40      CLOSE[0x06]          0      -  (end SE_FORK)
- *   41      INT[0x00]            -      -  1 (0x00000001)
- *   42      OPEN_CALL[0x07]     25      0  SE_FORK hash=0x0A24332A
- *   43      MAIN      [0x09]     42      2  idx_to_ptr=0
- *   44        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *   45        ONESHOT   [0x08]     44      1  idx_to_ptr=0
- *   46          STR_IDX[0x0D]        2      7  "State 1"
- *   47        CLOSE[0x06]          0      -  (end SE_LOG)
- *   48        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
- *   49        ONESHOT   [0x08]     48      2  idx_to_ptr=0
- *   50        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
- *   51        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
- *   52        ONESHOT   [0x08]     51      3  idx_to_ptr=0
- *   53          INT[0x00]            -      -  1 (0x00000001)
- *   54        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
- *   55        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *   56        MAIN+PTR  [0x89]     55      3  idx_to_ptr=1
- *   57          INT[0x00]            -      -  10 (0x0000000A)
- *   58        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *   59        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   60        ONESHOT   [0x08]     59      0  idx_to_ptr=0
- *   61          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
- *   62          UINT[0x01]           -      -  2 (0x00000002)
- *   63        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *   64        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_HALT hash=0x4AC84487
- *   65        MAIN      [0x09]     64      4  idx_to_ptr=0
- *   66        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_HALT)
- *   67      CLOSE[0x06]          0      -  (end SE_FORK)
- *   68      INT[0x00]            -      -  2 (0x00000002)
- *   69      OPEN_CALL[0x07]     25      0  SE_FORK hash=0x0A24332A
- *   70      MAIN      [0x09]     69      2  idx_to_ptr=0
- *   71        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *   72        ONESHOT   [0x08]     71      1  idx_to_ptr=0
- *   73          STR_IDX[0x0D]        3      7  "State 2"
- *   74        CLOSE[0x06]          0      -  (end SE_LOG)
- *   75        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
- *   76        ONESHOT   [0x08]     75      2  idx_to_ptr=0
- *   77        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
- *   78        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
- *   79        ONESHOT   [0x08]     78      3  idx_to_ptr=0
- *   80          INT[0x00]            -      -  1 (0x00000001)
- *   81        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
- *   82        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *   83        MAIN+PTR  [0x89]     82      3  idx_to_ptr=2
- *   84          INT[0x00]            -      -  10 (0x0000000A)
- *   85        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *   86        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   87        ONESHOT   [0x08]     86      0  idx_to_ptr=0
- *   88          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
- *   89          UINT[0x01]           -      -  0 (0x00000000)
- *   90        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *   91        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_HALT hash=0x4AC84487
- *   92        MAIN      [0x09]     91      4  idx_to_ptr=0
- *   93        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_HALT)
- *   94      CLOSE[0x06]          0      -  (end SE_FORK)
- *   95    CLOSE[0x06]          0      -  (end SE_STATE_MACHINE)
- *   96    OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *   97    MAIN+PTR  [0x89]     96      3  idx_to_ptr=3
- *   98      INT[0x00]            -      -  350 (0x0000015E)
- *   99    CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *  100    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  101    ONESHOT   [0x08]    100      1  idx_to_ptr=0
- *  102      STR_IDX[0x0D]        4     27  "State machine test finished"
- *  103    CLOSE[0x06]          0      -  (end SE_LOG)
- *  104    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
- *  105    MAIN      [0x09]    104      5  idx_to_ptr=0
- *  106    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
- *  107  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *    2    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
+ *    4      STR_IDX[0x0D]        0     22  "Fork Join Test Started"
+ *    5    CLOSE[0x06]          0      -  (end SE_LOG)
+ *    6    OPEN_CALL[0x07]     14      0  SE_FORK_JOIN hash=0xE404E1CF
+ *    7    MAIN      [0x09]      6      1  idx_to_ptr=0
+ *    8      OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *    9      ONESHOT   [0x08]      8      0  idx_to_ptr=0
+ *   10        STR_IDX[0x0D]        0     22  "Fork Join Test Started"
+ *   11      CLOSE[0x06]          0      -  (end SE_LOG)
+ *   12      OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *   13      MAIN+PTR  [0x89]     12      2  idx_to_ptr=0
+ *   14        INT[0x00]            -      -  10 (0x0000000A)
+ *   15      CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *   16      OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   17      ONESHOT   [0x08]     16      0  idx_to_ptr=0
+ *   18        STR_IDX[0x0D]        1     25  "Fork Join Test Terminated"
+ *   19      CLOSE[0x06]          0      -  (end SE_LOG)
+ *   20    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
+ *   21    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   22    ONESHOT+SR[0x48]     21      1  idx_to_ptr=0
+ *   23      FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
+ *   24      UINT[0x01]           -      -  0 (0x00000000)
+ *   25    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   26    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   27    ONESHOT   [0x08]     26      0  idx_to_ptr=0
+ *   28      STR_IDX[0x0D]        2     26  "State machine test started"
+ *   29    CLOSE[0x06]          0      -  (end SE_LOG)
+ *   30    OPEN_CALL[0x07]     96      0  SE_STATE_MACHINE hash=0x5EEDA8E9
+ *   31    MAIN      [0x09]     30      3  idx_to_ptr=0
+ *   32      FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
+ *   33      INT[0x00]            -      -  0 (0x00000000)
+ *   34      OPEN_CALL[0x07]     29      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *   35      MAIN      [0x09]     34      4  idx_to_ptr=0
+ *   36        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   37        ONESHOT   [0x08]     36      0  idx_to_ptr=0
+ *   38          STR_IDX[0x0D]        3      7  "State 0"
+ *   39        CLOSE[0x06]          0      -  (end SE_LOG)
+ *   40        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
+ *   41        ONESHOT   [0x08]     40      2  idx_to_ptr=0
+ *   42        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
+ *   43        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
+ *   44        ONESHOT   [0x08]     43      3  idx_to_ptr=0
+ *   45          INT[0x00]            -      -  0 (0x00000000)
+ *   46        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
+ *   47        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *   48        MAIN+PTR  [0x89]     47      2  idx_to_ptr=1
+ *   49          INT[0x00]            -      -  10 (0x0000000A)
+ *   50        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *   51        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   52        ONESHOT   [0x08]     51      1  idx_to_ptr=0
+ *   53          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
+ *   54          UINT[0x01]           -      -  1 (0x00000001)
+ *   55        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   56        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   57        ONESHOT   [0x08]     56      0  idx_to_ptr=0
+ *   58          STR_IDX[0x0D]        4     18  "State 0 terminated"
+ *   59        CLOSE[0x06]          0      -  (end SE_LOG)
+ *   60        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
+ *   61        MAIN      [0x09]     60      5  idx_to_ptr=0
+ *   62        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
+ *   63      CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *   64      INT[0x00]            -      -  1 (0x00000001)
+ *   65      OPEN_CALL[0x07]     29      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *   66      MAIN      [0x09]     65      4  idx_to_ptr=0
+ *   67        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   68        ONESHOT   [0x08]     67      0  idx_to_ptr=0
+ *   69          STR_IDX[0x0D]        5      7  "State 1"
+ *   70        CLOSE[0x06]          0      -  (end SE_LOG)
+ *   71        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
+ *   72        ONESHOT   [0x08]     71      2  idx_to_ptr=0
+ *   73        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
+ *   74        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
+ *   75        ONESHOT   [0x08]     74      3  idx_to_ptr=0
+ *   76          INT[0x00]            -      -  1 (0x00000001)
+ *   77        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
+ *   78        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *   79        MAIN+PTR  [0x89]     78      2  idx_to_ptr=2
+ *   80          INT[0x00]            -      -  10 (0x0000000A)
+ *   81        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *   82        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   83        ONESHOT   [0x08]     82      1  idx_to_ptr=0
+ *   84          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
+ *   85          UINT[0x01]           -      -  2 (0x00000002)
+ *   86        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   87        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   88        ONESHOT   [0x08]     87      0  idx_to_ptr=0
+ *   89          STR_IDX[0x0D]        6     18  "State 1 terminated"
+ *   90        CLOSE[0x06]          0      -  (end SE_LOG)
+ *   91        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
+ *   92        MAIN      [0x09]     91      5  idx_to_ptr=0
+ *   93        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
+ *   94      CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *   95      INT[0x00]            -      -  2 (0x00000002)
+ *   96      OPEN_CALL[0x07]     29      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *   97      MAIN      [0x09]     96      4  idx_to_ptr=0
+ *   98        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   99        ONESHOT   [0x08]     98      0  idx_to_ptr=0
+ *  100          STR_IDX[0x0D]        7      7  "State 2"
+ *  101        CLOSE[0x06]          0      -  (end SE_LOG)
+ *  102        OPEN_CALL[0x07]      2      0  CFL_DISABLE_CHILDREN hash=0x5839B05B
+ *  103        ONESHOT   [0x08]    102      2  idx_to_ptr=0
+ *  104        CLOSE[0x06]          0      -  (end CFL_DISABLE_CHILDREN)
+ *  105        OPEN_CALL[0x07]      3      0  CFL_ENABLE_CHILD hash=0xD42E3453
+ *  106        ONESHOT   [0x08]    105      3  idx_to_ptr=0
+ *  107          INT[0x00]            -      -  2 (0x00000002)
+ *  108        CLOSE[0x06]          0      -  (end CFL_ENABLE_CHILD)
+ *  109        OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *  110        MAIN+PTR  [0x89]    109      2  idx_to_ptr=3
+ *  111          INT[0x00]            -      -  10 (0x0000000A)
+ *  112        CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *  113        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *  114        ONESHOT   [0x08]    113      1  idx_to_ptr=0
+ *  115          FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
+ *  116          UINT[0x01]           -      -  0 (0x00000000)
+ *  117        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *  118        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  119        ONESHOT   [0x08]    118      0  idx_to_ptr=0
+ *  120          STR_IDX[0x0D]        8     18  "State 2 terminated"
+ *  121        CLOSE[0x06]          0      -  (end SE_LOG)
+ *  122        OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
+ *  123        MAIN      [0x09]    122      5  idx_to_ptr=0
+ *  124        CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
+ *  125      CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *  126    CLOSE[0x06]          0      -  (end SE_STATE_MACHINE)
+ *  127    OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *  128    MAIN+PTR  [0x89]    127      2  idx_to_ptr=4
+ *  129      INT[0x00]            -      -  350 (0x0000015E)
+ *  130    CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *  131    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  132    ONESHOT   [0x08]    131      0  idx_to_ptr=0
+ *  133      STR_IDX[0x0D]        9     27  "State machine test finished"
+ *  134    CLOSE[0x06]          0      -  (end SE_LOG)
+ *  135    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
+ *  136    MAIN      [0x09]    135      6  idx_to_ptr=0
+ *  137    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
+ *  138  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
  *
- * Total params: 108
+ * Total params: 139
  */
 
 #endif // STATE_MACHINE_TEST_DUMP_32_H

@@ -102,24 +102,9 @@ static void reset_action_at_index(
     const s_expr_param_t* params,
     uint16_t phys_idx
 ) {
-    uint8_t opcode = params[phys_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_CALL) {
-        return;
-    }
-    
-    const s_expr_param_t* func_param = &params[phys_idx + 1];
-    uint16_t node_idx = func_param->node_index;
-    
-    if (node_idx >= inst->node_count) {
-        return;
-    }
-    
-    s_expr_node_state_t* state = &inst->node_states[node_idx];
-    uint8_t ever_init = state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
-    state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
-    state->state = 0;
-    state->user_data = 0;
+    s_expr_reset_recursive_at(inst, params, phys_idx);
 }
+
 
 // ============================================================================
 // FORWARD DECLARATIONS
@@ -419,22 +404,7 @@ const s_expr_fn_table_t* s_engine_builtin_pred_table(void) {
     return &builtin_pred_table;
 }
 
-// ============================================================================
-// FNV-1a HASH IMPLEMENTATION
-// ============================================================================
-#if 0
-uint32_t s_expr_fnv1a_hash(const char* str) {
-    uint32_t hash = 0x811c9dc5;  // FNV offset basis
-    
-    while (*str) {
-        hash ^= (uint8_t)*str++;
-        hash *= 0x01000193;  // FNV prime
-    }
-    
-    return hash;
-}
-#endif
-// ============================================================================
+//=============================================================
 // DICTIONARY NAVIGATION HELPERS
 // ============================================================================
 
@@ -1049,7 +1019,6 @@ static s_expr_result_t se_trigger_on_change(
 // params: [field_ref] [int, action] pairs (flat structure)
 // Stateful: tracks branch changes, handles INIT/TERMINATE
 // Crashes if no matching case (Erlang-style)
-// Supports "default" case with value -1
 static s_expr_result_t se_state_machine(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1058,48 +1027,48 @@ static s_expr_result_t se_state_machine(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_id; (void)event_data;
+    UNUSED(event_id);
+    UNUSED(event_data);
     
     uint16_t prev_action_idx = s_expr_get_user_flags(inst);
     
     // =========================================================================
-    // TERMINATE: Clean up active branch
+    // TERMINATE EVENT
     // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
         if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
             terminate_action_at_index(inst, params, prev_action_idx);
         }
         s_expr_set_user_flags(inst, 0xFFFF);
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
     // =========================================================================
-    // INIT: Validate and set sentinel
+    // INIT EVENT
     // =========================================================================
     if (event_type == SE_EVENT_INIT) {
         if (param_count < 3) {
-            EXCEPTION("se_field_dispatch: need field_ref and at least one case");
-            return SE_CONTINUE;
+            EXCEPTION("se_state_machine: need field_ref and at least one case");
+            return SE_PIPELINE_CONTINUE;
         }
         s_expr_set_user_flags(inst, 0xFFFF);
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
     // =========================================================================
-    // TICK: Dispatch based on field value
+    // TICK EVENT
     // =========================================================================
    
     // Get integer value from field
     int32_t* val_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
     if (!val_ptr) {
-        EXCEPTION("se_field_dispatch: field not found");
-        return SE_CONTINUE;
+        EXCEPTION("se_state_machine: field not found");
+        return SE_PIPELINE_CONTINUE;
     }
     
     int32_t val = *val_ptr;
    
     // Search for matching case in flat [int, action] pairs
-    // Also track default case (-1) as fallback
     uint16_t idx = s_expr_skip_param(params, 0);  // Skip field_ref
     uint16_t action_idx = 0;
     uint16_t default_idx = 0;
@@ -1141,8 +1110,8 @@ static s_expr_result_t se_state_machine(
     // No match and no default - crash (Erlang-style)
     // =========================================================================
     if (action_idx == 0) {
-        EXCEPTION("se_field_dispatch: no matching case");
-        return SE_CONTINUE;
+        EXCEPTION("se_state_machine: no matching case");
+        return SE_PIPELINE_CONTINUE;
     }
     
     // =========================================================================
@@ -1161,15 +1130,43 @@ static s_expr_result_t se_state_machine(
     // =========================================================================
     // Invoke current action
     // =========================================================================
-    s_expr_result_t result = s_expr_invoke_any(inst, params, action_idx);
-    if (result == SE_PIPELINE_RESET) {
-        terminate_action_at_index(inst, params, action_idx);
-        reset_action_at_index(inst, params, action_idx);
-        return SE_PIPELINE_CONTINUE;
+    s_expr_result_t r = s_expr_invoke_any(inst, params, action_idx);
+    
+    // -----------------------------------------------------------------
+    // Non-PIPELINE codes (0-11) - propagate to caller
+    // -----------------------------------------------------------------
+    if (r == SE_FUNCTION_HALT){
+        return SE_PIPELINE_HALT;
     }
-    return result;
+    if (r < SE_PIPELINE_CONTINUE) {
+        return r;
+    }
+    
+    // -----------------------------------------------------------------
+    // PIPELINE codes (12-17) - handle internally
+    // -----------------------------------------------------------------
+    switch (r) {
+        case SE_PIPELINE_CONTINUE:
+        case SE_PIPELINE_HALT:
+            // Action still running
+            return r;
+            
+        case SE_PIPELINE_DISABLE:
+        case SE_PIPELINE_TERMINATE:
+        case SE_PIPELINE_RESET:
+            // Action completed - terminate and reset for next activation
+            terminate_action_at_index(inst, params, action_idx);
+            reset_action_at_index(inst, params, action_idx);
+            return SE_PIPELINE_CONTINUE;
+            
+        case SE_PIPELINE_SKIP_CONTINUE:
+            return SE_PIPELINE_CONTINUE;
+            
+        default:
+            EXCEPTION("se_state_machine: unknown result code");
+            return SE_PIPELINE_CONTINUE;
+    }
 }
-
 
 // SE_FIELD_DISPATCH - dispatch based on integer field value
 // params: [field_ref] [int, action] pairs (flat structure)
@@ -1299,6 +1296,46 @@ static s_expr_result_t se_field_dispatch(
     
     return result;
 }
+// Helper to invoke and handle all PIPELINE result codes consistently
+static s_expr_result_t invoke_and_handle_result(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t action_idx
+) {
+    s_expr_result_t r = s_expr_invoke_any(inst, params, action_idx);
+    
+    // -----------------------------------------------------------------
+    // Non-PIPELINE codes (0-11) - propagate to caller
+    // -----------------------------------------------------------------
+    if (r < SE_PIPELINE_CONTINUE) {
+        return r;
+    }
+    
+    // -----------------------------------------------------------------
+    // PIPELINE codes (12-17) - handle internally
+    // -----------------------------------------------------------------
+    switch (r) {
+        case SE_PIPELINE_CONTINUE:
+        case SE_PIPELINE_HALT:
+            // Action still running
+            return r;
+            
+        case SE_PIPELINE_DISABLE:
+        case SE_PIPELINE_TERMINATE:
+        case SE_PIPELINE_RESET:
+            // Action completed - terminate and reset for next activation
+            terminate_action_at_index(inst, params, action_idx);
+            s_expr_reset_recursive_at(inst, params, action_idx);
+            return SE_PIPELINE_CONTINUE;
+            
+        case SE_PIPELINE_SKIP_CONTINUE:
+            return SE_PIPELINE_CONTINUE;
+            
+        default:
+            EXCEPTION("se_event_dispatch: unknown result code");
+            return SE_PIPELINE_CONTINUE;
+    }
+}
 
 static s_expr_result_t se_event_dispatch(
     s_expr_tree_instance_t* inst,
@@ -1308,15 +1345,21 @@ static s_expr_result_t se_event_dispatch(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_data;
+    UNUSED(event_data);
     
+    // =========================================================================
+    // INIT/TERMINATE EVENTS
+    // =========================================================================
     if (event_type == SE_EVENT_INIT || event_type == SE_EVENT_TERMINATE) {
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
+    // =========================================================================
+    // TICK EVENT - Dispatch based on event_id
+    // =========================================================================
     uint16_t idx = 0;
     uint16_t default_action_idx = 0;
-    //printf("se_event_dispatch: event_id=%d, current_node=%d, param_count=%d\n", event_id, inst->current_node_index, param_count);
+    
     while (idx < param_count) {
         uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
         
@@ -1327,18 +1370,10 @@ static s_expr_result_t se_event_dispatch(
             if (action_idx < param_count) {
                 // Exact match - invoke immediately
                 if (case_event == (int32_t)event_id) {
-                    s_expr_result_t result = s_expr_invoke_any(inst, params, action_idx);
-                    //printf("se_event_dispatch: action_idx=%d, result=%d\n", action_idx, result);
-                    if (result == SE_PIPELINE_RESET) {
-                        reset_action_at_index(inst, params, action_idx);
-                        s_expr_set_user_flags(inst, action_idx);
-                        return SE_PIPELINE_CONTINUE;
-                    }
-                    
-                    return result;
+                    return invoke_and_handle_result(inst, params, action_idx);
                 }
                 
-                // Track default case
+                // Track default case (-1)
                 if (case_event == -1) {
                     default_action_idx = action_idx;
                 }
@@ -1353,21 +1388,12 @@ static s_expr_result_t se_event_dispatch(
     
     // No exact match - try default
     if (default_action_idx > 0) {
-        s_expr_result_t result = s_expr_invoke_any(inst, params, default_action_idx);
-        //printf("se_event_dispatch: default_action_idx=%d, result=%d\n", default_action_idx, result);
-        if (result == SE_PIPELINE_RESET) {
-            reset_action_at_index(inst, params, default_action_idx);
-            s_expr_set_user_flags(inst, default_action_idx);
-            //printf("se_event_dispatch: default_action_idx=%d, result=SE_PIPELINE_RESET\n", default_action_idx);
-            return SE_PIPELINE_CONTINUE;
-        }
-        
-        return result;
+        return invoke_and_handle_result(inst, params, default_action_idx);
     }
     
     // No match and no default - crash (Erlang-style)
     EXCEPTION("se_event_dispatch: no matching event handler");
-    return SE_CONTINUE;
+    return SE_PIPELINE_CONTINUE;
 }
 
 
@@ -1820,11 +1846,20 @@ static void se_queue_event(
     // Queue it
     s_expr_event_push(inst, ev_type, ev_id, ev_data);
 }
+
 // ============================================================================
-// SE_SEQUENCE
-// Execute children one at a time, advancing when each completes (SE_DISABLE)
-// Returns SE_HALT while working, SE_DISABLE when all complete
-// Fatal codes (TERMINATE, RESET, FUNCTION_TERMINATE, FUNCTION_RESET) propagate
+// SE_SEQUENCE - Sequential Execution
+// 
+// Executes children one at a time in order. Advances to next child when
+// current child completes. Sequence completes when all children finish.
+//
+// State: Current child index (0 to child_count-1)
+//
+// Child results:
+//   PIPELINE_CONTINUE/HALT  -> Child running, pause sequence
+//   PIPELINE_DISABLE/TERMINATE/RESET -> Child complete, advance to next
+//   PIPELINE_SKIP_CONTINUE  -> Pause sequence this tick
+//   Non-PIPELINE (0-11)     -> Propagate immediately to caller
 // ============================================================================
 
 static s_expr_result_t se_sequence(
@@ -1842,7 +1877,7 @@ static s_expr_result_t se_sequence(
     uint16_t child_count = s_expr_child_count(params, param_count);
     
     // =========================================================================
-    // TERMINATE: Clean up current child
+    // TERMINATE EVENT
     // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
         if (state < child_count) {
@@ -1855,7 +1890,7 @@ static s_expr_result_t se_sequence(
     }
     
     // =========================================================================
-    // INIT: Start at first child
+    // INIT EVENT
     // =========================================================================
     if (event_type == SE_EVENT_INIT) {
         s_expr_set_state(inst, 0);
@@ -1863,17 +1898,16 @@ static s_expr_result_t se_sequence(
     }
     
     // =========================================================================
-    // TICK: Execute current child, advance on completion
+    // TICK EVENT
     // =========================================================================
     while (state < child_count) {
-        // Skip non-callable children
+        // Skip non-callable parameters
         if (!s_expr_child_is_callable(params, param_count, state)) {
             state++;
             s_expr_set_state(inst, state);
             continue;
         }
         
-        // Invoke current child
         uint16_t phys_idx = s_expr_child_index(params, param_count, state);
         if (phys_idx == UINT16_MAX) {
             state++;
@@ -1881,52 +1915,60 @@ static s_expr_result_t se_sequence(
             continue;
         }
         
+        // Check child type BEFORE invoking
+        uint8_t func_type = s_expr_child_func_type(params, param_count, state);
+        
+        // Invoke current child
         s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
-        if(r == SE_FUNCTION_HALT) {
+        
+        // -----------------------------------------------------------------
+        // ONESHOT/PRED - always advance (they complete immediately)
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_ONESHOT || func_type == S_EXPR_PARAM_PRED) {
+            state++;
+            s_expr_set_state(inst, state);
+            continue;  // Next child same tick
+        }
+        
+        // -----------------------------------------------------------------
+        // MAIN - check result code
+        // -----------------------------------------------------------------
+        if (r == SE_FUNCTION_HALT) {
             return SE_PIPELINE_HALT;
         }
-        // -----------------------------------------------------------------
         // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
-        // -----------------------------------------------------------------
         if (r < SE_PIPELINE_CONTINUE) {
             return r;
         }
         
-        // -----------------------------------------------------------------
         // PIPELINE codes (12-17) - handle internally
-        // -----------------------------------------------------------------
         switch (r) {
             case SE_PIPELINE_CONTINUE:
             case SE_PIPELINE_HALT:
-                // Child still running - return, resume next tick
+                // Child still running - pause, resume next tick
                 return SE_PIPELINE_CONTINUE;
                 
             case SE_PIPELINE_DISABLE:
             case SE_PIPELINE_TERMINATE:
-            case SE_PIPELINE_RESET: // reset is not handled for this function
+            case SE_PIPELINE_RESET:
                 // Child complete - terminate and advance
                 s_expr_child_terminate(inst, params, param_count, state);
                 state++;
                 s_expr_set_state(inst, state);
-                continue;  // Try next child same tick
-                
-  
+                continue;
                 
             case SE_PIPELINE_SKIP_CONTINUE:
-                // Skip remaining children this tick
                 return SE_PIPELINE_CONTINUE;
                 
             default:
-                printf("se_sequence: unknown result code %d\n", r);
-                EXCEPTION("se_sequence: unknown result code\n");
+                EXCEPTION("se_sequence: unknown result code");
                 return SE_PIPELINE_CONTINUE;
         }
     }
     
-    // All children complete - sequence is done
+    // All children complete
     return SE_PIPELINE_DISABLE;
 }
-
 #define FORK_STATE_INIT      0
 #define FORK_STATE_RUNNING   1
 #define FORK_STATE_COMPLETE  2
@@ -2202,13 +2244,8 @@ static s_expr_result_t se_fork_join(
     // =========================================================================
     uint16_t count = s_expr_child_count(params, param_count);
     
-    // Invoke all active children
     for (uint16_t i = 0; i < count; i++) {
         if (!s_expr_child_is_callable(params, param_count, i)) {
-            continue;
-        }
-        
-        if (!s_expr_child_is_active(inst, params, param_count, i)) {
             continue;
         }
         
@@ -2217,59 +2254,90 @@ static s_expr_result_t se_fork_join(
             continue;
         }
         
-        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
         
         // -----------------------------------------------------------------
-        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
+        // ONESHOT - fire once, skip if already initialized
         // -----------------------------------------------------------------
-        if (r == SE_FUNCTION_HALT) {
-            return SE_PIPELINE_HALT;
+        if (func_type == S_EXPR_PARAM_ONESHOT) {
+            if (!s_expr_child_is_initialized(inst, params, param_count, i)) {
+                s_expr_invoke_any(inst, params, phys_idx);
+            }
+            continue;
         }
+        
+        // -----------------------------------------------------------------
+        // PRED - evaluate once, skip if already initialized
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_PRED) {
+            if (!s_expr_child_is_initialized(inst, params, param_count, i)) {
+                s_expr_invoke_any(inst, params, phys_idx);
+            }
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // MAIN - only invoke if still active
+        // -----------------------------------------------------------------
+        if (!s_expr_child_is_active(inst, params, param_count, i)) {
+            continue;
+        }
+        
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
         if (r < SE_PIPELINE_CONTINUE) {
             return r;
         }
         
-        // -----------------------------------------------------------------
         // PIPELINE codes (12-17) - handle internally
-        // -----------------------------------------------------------------
         switch (r) {
             case SE_PIPELINE_CONTINUE:
             case SE_PIPELINE_HALT:
-                // Child still running - continue to next child
+                // Child still running
                 break;
                 
             case SE_PIPELINE_DISABLE:
             case SE_PIPELINE_TERMINATE:
-                // Child complete - terminate it
-                s_expr_child_terminate(inst, params, param_count, i);
+                // Child complete - mark inactive
+                terminate_action_at_index(inst, params, phys_idx);
                 break;
                 
             case SE_PIPELINE_RESET:
-                // Child wants reset - terminate and reset
-                s_expr_child_terminate(inst, params, param_count, i);
-                s_expr_child_reset(inst, params, param_count, i);
+                // Child wants to restart
+                terminate_action_at_index(inst, params, phys_idx);
+                s_expr_reset_recursive_at(inst, params, phys_idx);
                 break;
                 
             case SE_PIPELINE_SKIP_CONTINUE:
-                // Skip remaining children this tick
                 goto check_completion;
                 
             default:
+                EXCEPTION("se_fork_join: unknown result code");
                 break;
         }
     }
     
 check_completion:
-    // Recount active children AFTER all have run
-    uint16_t active_count = 0;
+    // Count active MAIN children
+    uint16_t active_main_count = 0;
     for (uint16_t i = 0; i < count; i++) {
-        if (s_expr_child_is_callable(params, param_count, i) &&
-            s_expr_child_is_active(inst, params, param_count, i)) {
-            active_count++;
+        if (!s_expr_child_is_callable(params, param_count, i)) {
+            continue;
+        }
+        
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
+        
+        if (func_type != S_EXPR_PARAM_MAIN) {
+            continue;
+        }
+        
+        if (s_expr_child_is_active(inst, params, param_count, i)) {
+            active_main_count++;
         }
     }
     
-    if (active_count == 0) {
+    if (active_main_count == 0) {
         return SE_PIPELINE_DISABLE;
     }
     
@@ -2626,684 +2694,3 @@ static s_expr_result_t se_while(
 }
 
 
-
-#if 0
-static s_expr_result_t se_dispatch(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_type; (void)event_id; (void)event_data;
-    
-    if (param_count < 1) return SE_CONTINUE;
-    
-    int32_t val = params[0].int_val;
-    
-    uint16_t idx = s_expr_skip_param(params, 0);
-    
-    while (idx < param_count) {
-        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
-        
-        if (opcode == S_EXPR_PARAM_OPEN) {
-            uint16_t case_count;
-            const s_expr_param_t* case_params = s_expr_brace_contents(params, idx, &case_count);
-            
-            if (case_count >= 2) {
-                int32_t case_val = case_params[0].int_val;
-                if (case_val == val) {
-                    uint16_t body_start = s_expr_skip_param(case_params, 0);
-                    uint16_t body_count = case_count - body_start;
-                    
-                    uint16_t child_count = s_expr_child_count(&case_params[body_start], body_count);
-                    s_expr_result_t result = SE_CONTINUE;
-                    
-                    for (uint16_t i = 0; i < child_count; i++) {
-                        result = s_expr_child_invoke(inst, &case_params[body_start], body_count, i);
-                        if (result != SE_CONTINUE) {
-                            break;
-                        }
-                    }
-                    return result;
-                }
-            }
-        }
-        idx = s_expr_skip_param(params, idx);
-    }
-    
-    return SE_CONTINUE;
-}
-
-// SE_STRING_DISPATCH - dispatch based on string field value (computes hash)
-// params: [field_ref] [OPEN_DICT cases...]
-// Field contains a string pointer, we hash it and look up in dict
-static s_expr_result_t se_string_dispatch(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    uint16_t prev_action_idx = s_expr_get_user_flags(inst);
-    
-    // =========================================================================
-    // TERMINATE: Clean up active branch
-    // =========================================================================
-    if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            const s_expr_param_t* prev_content = &params[prev_action_idx];
-            uint16_t prev_count;
-            s_expr_key_contents(prev_content - 1, &prev_count);
-            s_expr_children_terminate_all(inst, prev_content, prev_count);
-        }
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // INIT: Validate and set sentinel
-    // =========================================================================
-    if (event_type == SE_EVENT_INIT) {
-        if (param_count < 2) {
-            EXCEPTION("se_string_dispatch: need field_ref and dict");
-            return SE_CONTINUE;
-        }
-        s_expr_set_user_flags(inst, 0xFFFF);  // Sentinel: no previous action
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // TICK: Dispatch based on string hash
-    // =========================================================================
-    
-    // Get string from field and compute hash
-    const char** str_ptr = S_EXPR_GET_FIELD(inst, &params[0], const char*);
-    if (!str_ptr || !*str_ptr) {
-        EXCEPTION("se_string_dispatch: field not found or null");
-        return SE_CONTINUE;
-    }
-    
-    uint32_t str_hash = s_expr_fnv1a_hash(*str_ptr);
-    
-    // Find dictionary (skip field_ref)
-    uint16_t dict_idx = s_expr_skip_param(params, 0);
-    if (dict_idx >= param_count) {
-        return SE_CONTINUE;
-    }
-    
-    uint8_t opcode = params[dict_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
-        EXCEPTION("se_string_dispatch: expected OPEN_DICT");
-        return SE_CONTINUE;
-    }
-    
-    // Look up key in dictionary
-    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[dict_idx], str_hash);
-    
-    if (!key_content) {
-        // No match - check for DEFAULT
-        uint32_t default_hash = s_expr_fnv1a_hash("DEFAULT");
-        key_content = s_expr_dict_find_key(&params[dict_idx], default_hash);
-        
-        if (!key_content) {
-            // No match and no default - terminate previous if any
-            if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-                const s_expr_param_t* prev_content = &params[prev_action_idx];
-                uint16_t prev_count;
-                s_expr_key_contents(prev_content - 1, &prev_count);
-                s_expr_children_terminate_all(inst, prev_content, prev_count);
-                s_expr_set_user_flags(inst, 0xFFFF);
-            }
-            return SE_CONTINUE;
-        }
-    }
-    
-    uint16_t action_idx = (uint16_t)(key_content - params);
-    uint16_t content_count;
-    s_expr_key_contents(key_content - 1, &content_count);
-    
-    // =========================================================================
-    // Handle branch change: terminate old, reset new
-    // =========================================================================
-    if (action_idx != prev_action_idx) {
-        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            const s_expr_param_t* prev_content = &params[prev_action_idx];
-            uint16_t prev_count;
-            s_expr_key_contents(prev_content - 1, &prev_count);
-            s_expr_children_terminate_all(inst, prev_content, prev_count);
-        }
-        
-        s_expr_children_reset_all(inst, key_content, content_count);
-        s_expr_set_user_flags(inst, action_idx);
-    }
-    
-    // =========================================================================
-    // Execute children in selected branch
-    // =========================================================================
-    uint16_t child_count = s_expr_child_count(key_content, content_count);
-    s_expr_result_t result = SE_CONTINUE;
-    
-    for (uint16_t i = 0; i < child_count; i++) {
-        result = s_expr_child_invoke(inst, key_content, content_count, i);
-        if (result != SE_CONTINUE) {
-            break;
-        }
-    }
-    
-    return result;
-}
-// SE_HASH_DISPATCH - dispatch based on pre-computed hash in field
-// params: [field_ref] [OPEN_DICT cases...]
-// Field already contains a hash value
-static s_expr_result_t se_hash_dispatch(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    uint16_t prev_action_idx = s_expr_get_user_flags(inst);
-    
-    // =========================================================================
-    // TERMINATE: Clean up active branch
-    // =========================================================================
-    if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            const s_expr_param_t* prev_content = &params[prev_action_idx];
-            uint16_t prev_count;
-            s_expr_key_contents(prev_content - 1, &prev_count);
-            s_expr_children_terminate_all(inst, prev_content, prev_count);
-        }
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // INIT: Validate and set sentinel
-    // =========================================================================
-    if (event_type == SE_EVENT_INIT) {
-        if (param_count < 2) {
-            EXCEPTION("se_hash_dispatch: need field_ref and dict");
-            return SE_CONTINUE;
-        }
-        s_expr_set_user_flags(inst, 0xFFFF);  // Sentinel: no previous action
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // TICK: Dispatch based on hash value
-    // =========================================================================
-    
-    // Get hash value from field
-    uint32_t* hash_ptr = S_EXPR_GET_FIELD(inst, &params[0], uint32_t);
-    if (!hash_ptr) {
-        EXCEPTION("se_hash_dispatch: field not found");
-        return SE_CONTINUE;
-    }
-    
-    uint32_t hash_val = *hash_ptr;
-    printf("hash_val: %x\n", hash_val);
-    
-    // Find dictionary (skip field_ref)
-    uint16_t dict_idx = s_expr_skip_param(params, 0);
-    if (dict_idx >= param_count) {
-        return SE_CONTINUE;
-    }
-    
-    uint8_t opcode = params[dict_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
-        EXCEPTION("se_hash_dispatch: expected OPEN_DICT");
-        return SE_CONTINUE;
-    }
-    
-    // Look up key in dictionary
-    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[dict_idx], hash_val);
-    
-    if (!key_content) {
-        // No match - check for DEFAULT
-        uint32_t default_hash = s_expr_fnv1a_hash("DEFAULT");
-        key_content = s_expr_dict_find_key(&params[dict_idx], default_hash);
-        
-        if (!key_content) {
-            // No match and no default - terminate previous if any
-            if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-                const s_expr_param_t* prev_content = &params[prev_action_idx];
-                uint16_t prev_count;
-                s_expr_key_contents(prev_content - 1, &prev_count);
-                s_expr_children_terminate_all(inst, prev_content, prev_count);
-                s_expr_set_user_flags(inst, 0xFFFF);
-            }
-            return SE_CONTINUE;
-        }
-    }
-    
-    uint16_t action_idx = (uint16_t)(key_content - params);
-    uint16_t content_count;
-    s_expr_key_contents(key_content - 1, &content_count);
-    
-    // =========================================================================
-    // Handle branch change: terminate old, reset new so it can re-init
-    // =========================================================================
-    if (action_idx != prev_action_idx) {
-        // Terminate previous branch children
-        if (prev_action_idx > 0 && prev_action_idx != 0xFFFF) {
-            const s_expr_param_t* prev_content = &params[prev_action_idx];
-            uint16_t prev_count;
-            s_expr_key_contents(prev_content - 1, &prev_count);
-            s_expr_children_terminate_all(inst, prev_content, prev_count);
-        }
-        
-        // Reset NEW branch children so they will receive INIT on invoke
-        s_expr_children_reset_all(inst, key_content, content_count);
-        
-        s_expr_set_user_flags(inst, action_idx);
-    }
-    
-    // =========================================================================
-    // Execute children in selected branch
-    // =========================================================================
-    uint16_t child_count = s_expr_child_count(key_content, content_count);
-    s_expr_result_t result = SE_CONTINUE;
-    
-    for (uint16_t i = 0; i < child_count; i++) {
-        result = s_expr_child_invoke(inst, key_content, content_count, i);
-        
-        // Stop on non-continue results (except DISABLE which child_invoke handles)
-        if (result != SE_CONTINUE) {
-            break;
-        }
-    }
-    
-    printf("result: %d\n", result);
-    return result;
-}
-// Terminate action at physical index
-
-// obsolete functions.
-// SE_STATE_ACTIONS - container that executes all children in sequence
-// Used to group multiple actions for a single state
-static s_expr_result_t se_state_actions(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
-    // TICK: invoke all children in sequence
-    uint16_t count = s_expr_child_count(params, param_count);
-    
-    for (uint16_t i = 0; i < count; i++) {
-        if (!s_expr_child_is_callable(params, param_count, i)) {
-            continue;
-        }
-        
-        if (!s_expr_child_is_active(inst, params, param_count, i)) {
-            continue;
-        }
-        
-        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-        
-        if (result != SE_CONTINUE) {
-            return result;
-        }
-    }
-    
-    return SE_CONTINUE;
-}
-
-// SE_STATE_MACHINE - state machine with integer state index
-// params: [field_ref] [action0] [action1] [action2] ...
-// Field contains state index (0, 1, 2, ...)
-// user_flags stores physical index of current action (0 = none)
-static s_expr_result_t se_state_machine(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    // Structure:
-    // Child 0: field_ref (state index variable) - not callable
-    // Child 1+: actions indexed by state value
-    //   state=0 -> child 1
-    //   state=1 -> child 2
-    //   etc.
-    
-    if (param_count < 1){
-        EXCEPTION("se_state_machine: need at least one parameter");
-        return SE_CONTINUE;
-    }
-    
-    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_FIELD) {
-        EXCEPTION("se_state_machine: first param must be field_ref");
-        return SE_CONTINUE;
-    }
-    
-    uint16_t prev_action_phys_idx = s_expr_get_user_flags(inst);
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    // TICK: Get state index from field
-    int32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-    if (!state_ptr){
-        EXCEPTION("se_state_machine: field not found");
-        return SE_CONTINUE;
-    }
-    
-    int32_t state = *state_ptr;
-    if (state < 0){
-        EXCEPTION("se_state_machine: state is negative");
-        return SE_CONTINUE;
-    }
-    
-    // Find action for this state
-    // state 0 -> logical child 1, state 1 -> logical child 2, etc.
-    uint16_t action_logical_idx = (uint16_t)(state + 1);
-    uint16_t action_phys_idx = s_expr_child_index(params, param_count, action_logical_idx);
-    
-    if (action_phys_idx == UINT16_MAX) {
-        EXCEPTION("se_state_machine: state out of range");
-        return SE_CONTINUE;
-
-    }
-    
-    // Handle state transition
-    if (action_phys_idx != prev_action_phys_idx) {
-        // Terminate previous action
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-            reset_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        // Reset new action (invoke will handle INIT)
-        reset_action_at_index(inst, params, action_phys_idx);
-        s_expr_set_user_flags(inst, action_phys_idx);
-    }
-    
-    // Invoke current state action
-    return s_expr_invoke_any(inst, params, action_phys_idx);
-}
-// ============================================================================
-// MAIN FUNCTION IMPLEMENTATIONS
-// ============================================================================
-
-static s_expr_result_t se_pipeline(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; 
-    (void)event_data;
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
-    uint16_t count = s_expr_child_count(params, param_count);
-    uint16_t active_count = 0;
-    
-    for (uint16_t i = 0; i < count; i++) {
-        bool callable = s_expr_child_is_callable(params, param_count, i);
-        bool active = s_expr_child_is_active(inst, params, param_count, i);
-        
-        if (!callable) {
-            continue;
-        }
-        
-        if (!active) {
-            continue;
-        }
-        
-        active_count++;
-        
-        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-        
-        // SE_PIPELINE_DISABLE is the signal from se_return_disable()
-        // Convert it to SE_DISABLE for our parent
-        if (result == SE_PIPELINE_DISABLE) {
-            return SE_DISABLE;
-        }
-        
-        if (result != SE_CONTINUE) {
-            return result;
-        }
-    }
-    
-    if (active_count == 0) {
-        return SE_DISABLE;
-    }
-    
-    return SE_CONTINUE;
-}
-
-
-// ============================================================================
-// se_named_state_machine
-// params: [field_ref] [OPEN_DICT states...]
-// Field contains state hash
-// user_flags stores physical index of current action (0 = none)
-// ============================================================================
-
-static s_expr_result_t se_named_state_machine(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; (void)event_data;
-    
-    // Structure:
-    // Child 0: field_ref (state hash variable) - not callable
-    // Child 1: OPEN_DICT containing state->action mappings
-    //   Key hashes are state names, values are actions
-    
-    uint16_t prev_action_phys_idx = s_expr_get_user_flags(inst);
-    
-    // =========================================================================
-    // TERMINATE: Clean up current action
-    // =========================================================================
-    if (event_type == SE_EVENT_TERMINATE) {
-        if (prev_action_phys_idx > 0 && prev_action_phys_idx < param_count) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // INIT: Validate structure
-    // =========================================================================
-    if (event_type == SE_EVENT_INIT) {
-        if (param_count < 2) {
-            EXCEPTION("se_named_state_machine: need field_ref and dict");
-            return SE_CONTINUE;
-        }
-        uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-        if (opcode != S_EXPR_PARAM_FIELD) {
-            EXCEPTION("se_named_state_machine: first param must be field_ref");
-            return SE_CONTINUE;
-        }
-        s_expr_set_user_flags(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // TICK: Get state hash from field and dispatch
-    // =========================================================================
-    
-    // Get state hash from blackboard field
-    uint32_t* state_ptr = S_EXPR_GET_FIELD(inst, &params[0], uint32_t);
-    if (!state_ptr) {
-        return SE_CONTINUE;
-    }
-    uint32_t state_hash = *state_ptr;
-    
-    // Find dictionary (child 1)
-    uint16_t dict_phys_idx = s_expr_child_index(params, param_count, 1);
-    if (dict_phys_idx == UINT16_MAX || dict_phys_idx >= param_count) {
-        return SE_CONTINUE;
-    }
-    
-    uint8_t opcode = params[dict_phys_idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
-        EXCEPTION("se_named_state_machine: expected OPEN_DICT");
-        return SE_CONTINUE;
-    }
-    
-    // Look up state in dictionary
-    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[dict_phys_idx], state_hash);
-    
-    if (!key_content) {
-        // State not found - terminate previous action if any
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-            s_expr_set_user_flags(inst, 0);
-        }
-        return SE_CONTINUE;
-    }
-    
-    // Calculate physical index of action within full params array
-    uint16_t action_phys_idx = (uint16_t)(key_content - params);
-    
-    // Handle state transition
-    if (action_phys_idx != prev_action_phys_idx) {
-        // Terminate previous action
-        if (prev_action_phys_idx > 0) {
-            terminate_action_at_index(inst, params, prev_action_phys_idx);
-        }
-        // Reset new action so it gets INIT on first invoke
-        reset_action_at_index(inst, params, action_phys_idx);
-        s_expr_set_user_flags(inst, action_phys_idx);
-    }
-    
-    // Invoke current state action
-    // key_content points to first param after OPEN_KEY
-    // We need to invoke the action at that position
-    return s_expr_invoke_any(inst, params, action_phys_idx);
-}
-
-// SE_NAMED_EVENT_DISPATCH - event dispatch with string event names
-// params: [OPEN_DICT events...]
-// event_data points to uint32_t hash of the event name
-// Handlers run fresh each time (terminate, reset, invoke)
-static s_expr_result_t se_named_event_dispatch(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id;
-    
-    // Structure:
-    // Child 0: OPEN_DICT containing event_hash -> action mappings
-    //   Key hashes are event names, values are handler actions
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        // Terminate all handlers in dictionary
-        if (param_count < 1) return SE_CONTINUE;
-        
-        uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-        if (opcode == S_EXPR_PARAM_OPEN_DICT) {
-            uint16_t dict_end = params[0].brace_idx;
-            // Walk dictionary and terminate any initialized actions
-            for (uint16_t idx = 1; idx < dict_end; ) {
-                uint8_t op = params[idx].type & S_EXPR_OPCODE_MASK;
-                if (op == S_EXPR_PARAM_OPEN_KEY) {
-                    // Skip key hash, find action inside
-                    uint16_t key_end = idx + params[idx].brace_idx;
-                    for (uint16_t action_idx = idx + 1; action_idx < key_end; ) {
-                        uint8_t action_op = params[action_idx].type & S_EXPR_OPCODE_MASK;
-                        if (action_op == S_EXPR_PARAM_OPEN_CALL) {
-                            terminate_action_at_index(inst, params, action_idx);
-                        }
-                        action_idx = s_expr_skip_param(params, action_idx);
-                    }
-                    idx = key_end + 1;
-                } else {
-                    idx = s_expr_skip_param(params, idx);
-                }
-            }
-        }
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
-    // TICK: Look up event by hash from event_data
-    if (param_count < 1) return SE_CONTINUE;
-    
-    // Get hash from event_data
-    if (!event_data) {
-        return SE_CONTINUE;  // No event hash provided
-    }
-    uint32_t event_hash = *(uint32_t*)event_data;
-    
-    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-    if (opcode != S_EXPR_PARAM_OPEN_DICT) {
-        EXCEPTION("se_named_event_dispatch: expected OPEN_DICT");
-        return SE_CONTINUE;
-    }
-    
-    // Look up event by hash
-    const s_expr_param_t* key_content = s_expr_dict_find_key(&params[0], event_hash);
-    
-    if (!key_content) {
-        return SE_CONTINUE;  // No handler for this event
-    }
-    
-    // Get action physical index
-    uint16_t action_phys_idx = (uint16_t)(key_content - params);
-    
-    // Event handlers run fresh each time: terminate, reset, invoke
-    terminate_action_at_index(inst, params, action_phys_idx);
-    reset_action_at_index(inst, params, action_phys_idx);
-    
-    return s_expr_invoke_any(inst, params, action_phys_idx);
-}
-#endif

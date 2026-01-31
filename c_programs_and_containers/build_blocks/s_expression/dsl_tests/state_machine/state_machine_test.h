@@ -21,24 +21,30 @@ extern "C" {
 
 // String table
 static const char* const state_machine_test_strings[] = {
+    "Fork Join Test Started",
+    "Fork Join Test Terminated",
     "State machine test started",
     "State 0",
+    "State 0 terminated",
     "State 1",
+    "State 1 terminated",
     "State 2",
+    "State 2 terminated",
     "State machine test finished"
 };
-#define STATE_MACHINE_TEST_STRING_COUNT 5
+#define STATE_MACHINE_TEST_STRING_COUNT 10
 
 // Function hashes
-#define SE_SET_FIELD_HASH 0xFFF84A15
 #define SE_LOG_HASH 0xCEBBEFA4
+#define SE_SET_FIELD_HASH 0xFFF84A15
 #define CFL_DISABLE_CHILDREN_HASH 0x5839B05B
 #define CFL_ENABLE_CHILD_HASH 0xD42E3453
 #define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
-#define SE_STATE_MACHINE_HASH 0x5EEDA8E9
-#define SE_FORK_HASH 0x0A24332A
+#define SE_FORK_JOIN_HASH 0xE404E1CF
 #define SE_TICK_DELAY_HASH 0x0C3460EB
-#define SE_RETURN_PIPELINE_HALT_HASH 0x4AC84487
+#define SE_STATE_MACHINE_HASH 0x5EEDA8E9
+#define SE_SEQUENCE_HASH 0xEC3EE7BF
+#define SE_RETURN_PIPELINE_DISABLE_HASH 0x6B7AA500
 #define SE_RETURN_FUNCTION_TERMINATE_HASH 0x0A5B8A85
 
 // Tree hashes
