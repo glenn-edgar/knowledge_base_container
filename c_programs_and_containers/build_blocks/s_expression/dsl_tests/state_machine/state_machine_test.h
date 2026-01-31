@@ -16,7 +16,7 @@ extern "C" {
 
 // Module: state_machine_test
 #define STATE_MACHINE_TEST_NAME_HASH 0x6824A885
-#define STATE_MACHINE_TEST_TREE_COUNT 2
+#define STATE_MACHINE_TEST_TREE_COUNT 1
 #define STATE_MACHINE_TEST_RECORD_COUNT 1
 
 // String table
@@ -25,7 +25,7 @@ static const char* const state_machine_test_strings[] = {
     "State 0",
     "State 1",
     "State 2",
-    "State 2 terminated"
+    "State machine test finished"
 };
 #define STATE_MACHINE_TEST_STRING_COUNT 5
 
@@ -34,14 +34,14 @@ static const char* const state_machine_test_strings[] = {
 #define SE_LOG_HASH 0xCEBBEFA4
 #define CFL_DISABLE_CHILDREN_HASH 0x5839B05B
 #define CFL_ENABLE_CHILD_HASH 0xD42E3453
-#define SE_SEQUENCE_HASH 0xEC3EE7BF
+#define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
 #define SE_STATE_MACHINE_HASH 0x5EEDA8E9
+#define SE_FORK_HASH 0x0A24332A
 #define SE_TICK_DELAY_HASH 0x0C3460EB
-#define SE_RETURN_HALT_HASH 0x056FB9EA
-#define SE_RETURN_TERMINATE_HASH 0xDFE64C74
+#define SE_RETURN_PIPELINE_HALT_HASH 0x4AC84487
+#define SE_RETURN_FUNCTION_TERMINATE_HASH 0x0A5B8A85
 
 // Tree hashes
-#define EVENT_DISPATCH_TEST_HASH 0x485F0413
 #define STATE_MACHINE_TEST_HASH 0x6824A885
 
 // Record hashes

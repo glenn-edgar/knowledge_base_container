@@ -8,6 +8,158 @@
 #include "s_engine_exception.h"
 #include <string.h>
 
+#include <stdio.h>
+// ============================================================================
+// USER REGISTRATION FUNCTION TYPEDEF
+// ============================================================================
+
+typedef void (*s_engine_user_register_fn)(s_engine_handle_t* engine);
+
+// ============================================================================
+// DEBUG CALLBACK TYPEDEF
+// ============================================================================
+
+typedef void (*s_engine_debug_callback_fn)(s_expr_tree_instance_t* inst, const char* msg);
+
+// ============================================================================
+// GENERAL PURPOSE ENGINE LOADER
+// ============================================================================
+
+bool s_engine_load_from_file(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const char* filepath,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+) {
+    printf("=== Initializing Engine ===\n");
+
+    memset(engine, 0, sizeof(s_engine_handle_t));
+    
+    uint8_t err = s_engine_init_from_file(
+        engine,
+        filepath,
+        *alloc,
+        NULL
+    );
+    
+    if (err != S_EXPR_ERR_OK) {
+        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
+        return false;
+    }
+    
+    printf("✅ Module loaded successfully\n");
+    printf("   Trees:    %d\n", engine->module.def->tree_count);
+    printf("   Records:  %d\n", engine->module.def->record_count);
+    printf("   Strings:  %d\n", engine->module.def->string_count);
+    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
+    printf("   Main:     %d\n", engine->module.def->main_count);
+    printf("   Pred:     %d\n", engine->module.def->pred_count);
+
+    printf("\n=== Registering Functions ===\n");
+    
+    s_engine_register_builtins(engine);
+    printf("✅ Built-in functions registered\n");
+    
+    for (size_t i = 0; i < user_fn_count; i++) {
+        if (user_fns[i]) {
+            user_fns[i](engine);
+        }
+    }
+    if (user_fn_count > 0) {
+        printf("✅ User functions registered (%zu modules)\n", user_fn_count);
+    }
+    
+    if (debug_cb) {
+        s_expr_module_set_debug(&engine->module, debug_cb);
+        printf("✅ Debug callback set\n");
+    }
+    
+    printf("\n=== Validating Function Resolution ===\n");
+    
+    err = s_engine_validate(engine);
+    if (err != S_EXPR_ERR_OK) {
+        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
+        printf("   Missing hash: 0x%08X at index %d\n", 
+               engine->module.error_hash, engine->module.error_index);
+        s_engine_free(engine);
+        return false;
+    }
+    
+    printf("✅ All functions resolved successfully\n");
+   
+    return true;
+}
+
+bool s_engine_load_from_rom(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const uint8_t* binary_data,
+    size_t binary_size,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+) {
+    printf("=== Initializing Engine ===\n");
+
+    memset(engine, 0, sizeof(s_engine_handle_t));
+    
+    uint8_t err = s_engine_init_from_rom(
+        engine,
+        binary_data,
+        binary_size,
+        *alloc,
+        NULL
+    );
+    
+    if (err != S_EXPR_ERR_OK) {
+        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
+        return false;
+    }
+    
+    printf("✅ Module loaded successfully\n");
+    printf("   Trees:    %d\n", engine->module.def->tree_count);
+    printf("   Records:  %d\n", engine->module.def->record_count);
+    printf("   Strings:  %d\n", engine->module.def->string_count);
+    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
+    printf("   Main:     %d\n", engine->module.def->main_count);
+    printf("   Pred:     %d\n", engine->module.def->pred_count);
+
+    printf("\n=== Registering Functions ===\n");
+    
+    s_engine_register_builtins(engine);
+    printf("✅ Built-in functions registered\n");
+    
+    for (size_t i = 0; i < user_fn_count; i++) {
+        if (user_fns[i]) {
+            user_fns[i](engine);
+        }
+    }
+    if (user_fn_count > 0) {
+        printf("✅ User functions registered (%zu modules)\n", user_fn_count);
+    }
+    
+    if (debug_cb) {
+        s_expr_module_set_debug(&engine->module, debug_cb);
+        printf("✅ Debug callback set\n");
+    }
+    
+    printf("\n=== Validating Function Resolution ===\n");
+    
+    err = s_engine_validate(engine);
+    if (err != S_EXPR_ERR_OK) {
+        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
+        printf("   Missing hash: 0x%08X at index %d\n", 
+               engine->module.error_hash, engine->module.error_index);
+        s_engine_free(engine);
+        return false;
+    }
+    
+    printf("✅ All functions resolved successfully\n");
+   
+    return true;
+}
 // ============================================================================
 // INIT FROM ROM
 // ============================================================================

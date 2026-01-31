@@ -16,13 +16,8 @@
 #include "s_engine_builtins.h"
 #include "s_engine_node.h"
 
-
- #include "return_tests.h"
-
+#include "return_tests.h"
 #include "return_tests_bin_32.h"
-#include "return_tests_user_functions.h"
-
-// Forward declaration for generated registration function
 
 // ============================================================================
 // SIMPLE ALLOCATOR
@@ -51,25 +46,33 @@ static void debug_callback(s_expr_tree_instance_t* inst, const char* msg) {
 // TEST RESULT TRACKING
 // ============================================================================
 
-
-
 static const char* result_to_str(s_expr_result_t r) {
     switch (r) {
-        case SE_CONTINUE:           return "CONTINUE";
-        case SE_HALT:               return "HALT";
-        case SE_TERMINATE:          return "TERMINATE";
-        case SE_RESET:              return "RESET";
-        case SE_DISABLE:            return "DISABLE";
-        case SE_FUNCTION_TERMINATE: return "FUNCTION_TERMINATE";
-        case SE_SKIP_CONTINUE:      return "SKIP_CONTINUE";
-        case SE_FUNCTION_HALT:      return "FUNCTION_HALT";
-        case SE_FUNCTION_RESET:     return "FUNCTION_RESET";
-        case SE_PIPELINE_TERMINATE: return "PIPELINE_TERMINATE";
-        case SE_PIPELINE_RESET_CONTINUE: return "PIPELINE_RESET_CONTINUE";
-        case SE_PIPELINE_RESET_HALT: return "PIPELINE_RESET_HALT";
-        default:                    return "UNKNOWN";
+        // Application (0-5)
+        case SE_CONTINUE:                return "CONTINUE";
+        case SE_HALT:                    return "HALT";
+        case SE_TERMINATE:               return "TERMINATE";
+        case SE_RESET:                   return "RESET";
+        case SE_DISABLE:                 return "DISABLE";
+        case SE_SKIP_CONTINUE:           return "SKIP_CONTINUE";
+        // Function (6-11)
+        case SE_FUNCTION_CONTINUE:       return "FUNCTION_CONTINUE";
+        case SE_FUNCTION_HALT:           return "FUNCTION_HALT";
+        case SE_FUNCTION_TERMINATE:      return "FUNCTION_TERMINATE";
+        case SE_FUNCTION_RESET:          return "FUNCTION_RESET";
+        case SE_FUNCTION_DISABLE:        return "FUNCTION_DISABLE";
+        case SE_FUNCTION_SKIP_CONTINUE:  return "FUNCTION_SKIP_CONTINUE";
+        // Pipeline (12-17)
+        case SE_PIPELINE_CONTINUE:       return "PIPELINE_CONTINUE";
+        case SE_PIPELINE_HALT:           return "PIPELINE_HALT";
+        case SE_PIPELINE_TERMINATE:      return "PIPELINE_TERMINATE";
+        case SE_PIPELINE_RESET:          return "PIPELINE_RESET";
+        case SE_PIPELINE_DISABLE:        return "PIPELINE_DISABLE";
+        case SE_PIPELINE_SKIP_CONTINUE:  return "PIPELINE_SKIP_CONTINUE";
+        default:                         return "UNKNOWN";
     }
 }
+
 // Linux monotonic time
 static double linux_get_time(void* ctx) {
     (void)ctx;
@@ -78,132 +81,147 @@ static double linux_get_time(void* ctx) {
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
-static bool load_from_rom(s_engine_handle_t* engine, s_expr_allocator_t* alloc, const uint8_t* binary_data, size_t binary_size) {
-    // ========================================================================
-    // INITIALIZE ENGINE
-    // ========================================================================
-    
-    printf("=== Initializing Engine ===\n");
-    
+// ============================================================================
+// INDIVIDUAL TEST FUNCTIONS
+// ============================================================================
 
-    memset(engine, 0, sizeof(s_engine_handle_t));
+static int tests_passed = 0;
+static int tests_failed = 0;
+
+static void test_return_code(s_engine_handle_t* engine, uint32_t tree_hash, const char* test_name, s_expr_result_t expected) {
+    printf("Testing %s...\n", test_name);
     
-    uint8_t err = s_engine_init_from_rom(
-        engine,
-        binary_data,
-        binary_size,
-        *alloc,
-        NULL
+    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+        &engine->module,
+        tree_hash,
+        0
     );
-    
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
-        return false;
+    if (!tree) {
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", tree_hash);
+        tests_failed++;
+        return;
     }
     
-    printf("✅ Module loaded successfully\n");
-    printf("   Trees:    %d\n", engine->module.def->tree_count);
-    printf("   Records:  %d\n", engine->module.def->record_count);
-    printf("   Strings:  %d\n", engine->module.def->string_count);
-    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
-    printf("   Main:     %d\n", engine->module.def->main_count);
-    printf("   Pred:     %d\n", engine->module.def->pred_count);
-
-    // ========================================================================
-    // REGISTER FUNCTIONS
-    // ========================================================================
+    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
     
-    printf("\n=== Registering Functions ===\n");
-    
-    s_engine_register_builtins(engine);
-    printf("✅ Built-in functions registered\n");
-    
-    
-    printf("✅ User functions registered\n");
-    
-    s_expr_module_set_debug(&engine->module, debug_callback);
-    printf("✅ Debug callback set\n");
-    printf("\n=== Validating Function Resolution ===\n");
-    
-    err = s_engine_validate(engine);
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
-        printf("   Missing hash: 0x%08X at index %d\n", 
-               engine->module.error_hash, engine->module.error_index);
-        s_engine_free(engine);
-        return false;
+    if (result == expected) {
+        printf("  ✅ PASS: %s (%d)\n", result_to_str(result), result);
+        tests_passed++;
+    } else {
+        printf("  ❌ FAIL: got %s (%d), expected %s (%d)\n", 
+               result_to_str(result), result,
+               result_to_str(expected), expected);
+        tests_failed++;
     }
     
-    printf("✅ All functions resolved successfully\n");
-   return true;
+    s_expr_tree_free(tree);
 }
 
+// ============================================================================
+// RUN ALL RETURN VALUE TESTS
+// ============================================================================
 
-static bool load_from_file(s_engine_handle_t* engine, s_expr_allocator_t* alloc, const char* filepath) {
+static void run_return_value_tests(s_engine_handle_t* engine) {
+    printf("\n");
+    printf("╔════════════════════════════════════════════════════════════════╗\n");
+    printf("║                    RETURN VALUE TESTS                          ║\n");
+    printf("╚════════════════════════════════════════════════════════════════╝\n\n");
+    
+    tests_passed = 0;
+    tests_failed = 0;
+    
     // ========================================================================
-    // INITIALIZE ENGINE
+    // APPLICATION RESULT CODES (0-5)
     // ========================================================================
+    printf("--- Application Result Codes (0-5) ---\n\n");
     
-    printf("=== Initializing Engine ===\n");
+    test_return_code(engine, RETURN_CONTINUE_TEST_HASH, 
+                     "SE_CONTINUE", SE_CONTINUE);
     
-
-    memset(engine, 0, sizeof(s_engine_handle_t));
+    test_return_code(engine, RETURN_HALT_TEST_HASH, 
+                     "SE_HALT", SE_HALT);
     
-    uint8_t err = s_engine_init_from_file(
-        engine,
-        filepath,
-        *alloc,
-        NULL
-    );
+    test_return_code(engine, RETURN_TERMINATE_TEST_HASH, 
+                     "SE_TERMINATE", SE_TERMINATE);
     
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
-        return false;
+    test_return_code(engine, RETURN_RESET_TEST_HASH, 
+                     "SE_RESET", SE_RESET);
+    
+    test_return_code(engine, RETURN_DISABLE_TEST_HASH, 
+                     "SE_DISABLE", SE_DISABLE);
+    
+    test_return_code(engine, RETURN_SKIP_CONTINUE_TEST_HASH, 
+                     "SE_SKIP_CONTINUE", SE_SKIP_CONTINUE);
+    
+    // ========================================================================
+    // FUNCTION RESULT CODES (6-11)
+    // ========================================================================
+    printf("\n--- Function Result Codes (6-11) ---\n\n");
+    
+    test_return_code(engine, RETURN_FUNCTION_CONTINUE_TEST_HASH, 
+                     "SE_FUNCTION_CONTINUE", SE_FUNCTION_CONTINUE);
+    
+    test_return_code(engine, RETURN_FUNCTION_HALT_TEST_HASH, 
+                     "SE_FUNCTION_HALT", SE_FUNCTION_HALT);
+    
+    test_return_code(engine, RETURN_FUNCTION_TERMINATE_TEST_HASH, 
+                     "SE_FUNCTION_TERMINATE", SE_FUNCTION_TERMINATE);
+    
+    test_return_code(engine, RETURN_FUNCTION_RESET_TEST_HASH, 
+                     "SE_FUNCTION_RESET", SE_FUNCTION_RESET);
+    
+    test_return_code(engine, RETURN_FUNCTION_DISABLE_TEST_HASH, 
+                     "SE_FUNCTION_DISABLE", SE_FUNCTION_DISABLE);
+    
+    test_return_code(engine, RETURN_FUNCTION_SKIP_CONTINUE_TEST_HASH, 
+                     "SE_FUNCTION_SKIP_CONTINUE", SE_FUNCTION_SKIP_CONTINUE);
+    
+    // ========================================================================
+    // PIPELINE RESULT CODES (12-17)
+    // ========================================================================
+    printf("\n--- Pipeline Result Codes (12-17) ---\n\n");
+    
+    test_return_code(engine, RETURN_PIPELINE_CONTINUE_TEST_HASH, 
+                     "SE_PIPELINE_CONTINUE", SE_PIPELINE_CONTINUE);
+    
+    test_return_code(engine, RETURN_PIPELINE_HALT_TEST_HASH, 
+                     "SE_PIPELINE_HALT", SE_PIPELINE_HALT);
+    
+    test_return_code(engine, RETURN_PIPELINE_TERMINATE_TEST_HASH, 
+                     "SE_PIPELINE_TERMINATE", SE_PIPELINE_TERMINATE);
+    
+    test_return_code(engine, RETURN_PIPELINE_RESET_TEST_HASH, 
+                     "SE_PIPELINE_RESET", SE_PIPELINE_RESET);
+    
+    test_return_code(engine, RETURN_PIPELINE_DISABLE_TEST_HASH, 
+                     "SE_PIPELINE_DISABLE", SE_PIPELINE_DISABLE);
+    
+    test_return_code(engine, RETURN_PIPELINE_SKIP_CONTINUE_TEST_HASH, 
+                     "SE_PIPELINE_SKIP_CONTINUE", SE_PIPELINE_SKIP_CONTINUE);
+    
+    // ========================================================================
+    // SUMMARY
+    // ========================================================================
+    printf("\n");
+    printf("╔════════════════════════════════════════════════════════════════╗\n");
+    printf("║                        TEST SUMMARY                            ║\n");
+    printf("╠════════════════════════════════════════════════════════════════╣\n");
+    printf("║  Passed: %2d                                                    ║\n", tests_passed);
+    printf("║  Failed: %2d                                                    ║\n", tests_failed);
+    printf("║  Total:  %2d                                                    ║\n", tests_passed + tests_failed);
+    printf("╚════════════════════════════════════════════════════════════════╝\n");
+    
+    if (tests_failed == 0) {
+        printf("\n✅ ALL TESTS PASSED\n\n");
+    } else {
+        printf("\n❌ SOME TESTS FAILED\n\n");
     }
-    
-    printf("✅ Module loaded successfully\n");
-    printf("   Trees:    %d\n", engine->module.def->tree_count);
-    printf("   Records:  %d\n", engine->module.def->record_count);
-    printf("   Strings:  %d\n", engine->module.def->string_count);
-    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
-    printf("   Main:     %d\n", engine->module.def->main_count);
-    printf("   Pred:     %d\n", engine->module.def->pred_count);
-
-    // ========================================================================
-    // REGISTER FUNCTIONS
-    // ========================================================================
-    
-    printf("\n=== Registering Functions ===\n");
-    
-    s_engine_register_builtins(engine);
-    printf("✅ Built-in functions registered\n");
-    
-    
-    printf("✅ User functions registered\n");
-    
-    s_expr_module_set_debug(&engine->module, debug_callback);
-    printf("✅ Debug callback set\n");
-    printf("\n=== Validating Function Resolution ===\n");
-    
-    err = s_engine_validate(engine);
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
-        printf("   Missing hash: 0x%08X at index %d\n", 
-               engine->module.error_hash, engine->module.error_index);
-        s_engine_free(engine);
-        return false;
-    }
-    
-    printf("✅ All functions resolved successfully\n");
-   
-   return true;
 }
+
 // ============================================================================
 // MAIN FUNCTION
 // ============================================================================
 
-void test_return_tests(void);
-static void run_return_value_tests(s_engine_handle_t* engine);
 int main(int argc, char* argv[]) {
     printf("\n");
     printf("╔════════════════════════════════════════════════════════════════╗\n");
@@ -220,287 +238,50 @@ int main(int argc, char* argv[]) {
         .ctx = NULL,
         .get_time = linux_get_time
     };
+    
     s_engine_handle_t engine;
+    bool result;
+    
+    // ========================================================================
+    // TEST: Load from ROM
+    // ========================================================================
     printf("\n\nLoading module from ROM...\n\n");
-    bool result = load_from_rom(&engine, &alloc, return_tests_module_bin_32, RETURN_TESTS_MODULE_BIN_32_SIZE);
+    result = s_engine_load_from_rom(
+        &engine,
+        &alloc,
+        return_tests_module_bin_32,
+        RETURN_TESTS_MODULE_BIN_32_SIZE,
+        debug_callback,
+        0,
+        NULL
+    );
     if (!result) {
-        printf("❌ FATAL: Failed to load module\n");
+        printf("❌ FATAL: Failed to load module from ROM\n");
         return 1;
     }
-    s_engine_free(&engine);
-
-    printf("\n\nLoading module from file...\n\n");
-    result = load_from_file(&engine, &alloc, "return_tests_32.bin");
-    if (!result) {
-        printf("❌ FATAL: Failed to load module\n");
-        return 1;
-    }
-    s_engine_free(&engine);
-    test_return_tests();
-
     
-
-    // ========================================================================
-    // INITIALIZE ENGINE
-    // ========================================================================
-    
-   
-   return 0;
-}
-
-
-void test_return_tests(void) {
-    printf("\n=== Return Tests ===\n");
-     // Setup allocator
-     s_expr_allocator_t alloc = {
-        .malloc = simple_malloc,
-        .free = simple_free,
-        .ctx = NULL,
-        .get_time = linux_get_time
-    };
-    s_engine_handle_t engine;
-    printf("\n\nLoading module from ROM...\n\n");
-    bool result = load_from_rom(&engine, &alloc, return_tests_module_bin_32, RETURN_TESTS_MODULE_BIN_32_SIZE);
-    if (!result) {
-        printf("❌ FATAL: Failed to load module\n");
-        return;
-    }
-    s_engine_free(&engine);
-
-    printf("\n\nLoading module from file...\n\n");
-    result = load_from_file(&engine, &alloc, "return_tests_32.bin");
-    if (!result) {
-        printf("❌ FATAL: Failed to load module\n");
-        return;
-    }
     run_return_value_tests(&engine);
-    
     s_engine_free(&engine);
-}   
-static void test_return_continue(s_engine_handle_t* engine) {
-    printf("Testing RETURN_CONTINUE...\n");
     
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_CONTINUE_TEST_HASH,
-        0
+    // ========================================================================
+    // TEST: Load from file
+    // ========================================================================
+    printf("\n\nLoading module from file...\n\n");
+    result = s_engine_load_from_file(
+        &engine,
+        &alloc,
+        "return_tests_32.bin",
+        debug_callback,
+        0,
+        NULL
     );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_CONTINUE_TEST_HASH);
-        exit(1);
+    if (!result) {
+        printf("❌ FATAL: Failed to load module from file\n");
+        return 1;
     }
     
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_CONTINUE=%d)\n", result, SE_CONTINUE);
-    
-    s_expr_tree_free(tree);
-}
+    run_return_value_tests(&engine);
+    s_engine_free(&engine);
 
-static void test_return_terminate(s_engine_handle_t* engine) {
-    printf("Testing RETURN_TERMINATE...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_TERMINATE_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_TERMINATE_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_TERMINATE=%d)\n", result, SE_TERMINATE);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_reset(s_engine_handle_t* engine) {
-    printf("Testing RETURN_RESET...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_RESET_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_RESET_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_RESET=%d)\n", result, SE_RESET);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_halt(s_engine_handle_t* engine) {
-    printf("Testing RETURN_HALT...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_HALT_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_HALT_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_HALT=%d)\n", result, SE_HALT);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_skip_continue(s_engine_handle_t* engine) {
-    printf("Testing RETURN_SKIP_CONTINUE...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_SKIP_CONTINUE_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_SKIP_CONTINUE_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_SKIP_CONTINUE=%d)\n", result, SE_SKIP_CONTINUE);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_function_halt(s_engine_handle_t* engine) {
-    printf("Testing RETURN_FUNCTION_HALT...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_FUNCTION_HALT_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_FUNCTION_HALT_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_FUNCTION_HALT=%d)\n", result, SE_FUNCTION_HALT);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_function_reset(s_engine_handle_t* engine) {
-    printf("Testing RETURN_FUNCTION_RESET...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_FUNCTION_RESET_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_FUNCTION_RESET_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_FUNCTION_RESET=%d)\n", result, SE_FUNCTION_RESET);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_function_terminate(s_engine_handle_t* engine) {
-    printf("Testing RETURN_FUNCTION_TERMINATE...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_FUNCTION_TERMINATE_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_FUNCTION_TERMINATE_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_FUNCTION_TERMINATE=%d)\n", result, SE_FUNCTION_TERMINATE);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_pipeline_terminate(s_engine_handle_t* engine) {
-    printf("Testing RETURN_PIPELINE_TERMINATE...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_PIPELINE_TERMINATE_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_PIPELINE_TERMINATE_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_PIPELINE_TERMINATE=%d)\n", result, SE_PIPELINE_TERMINATE);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_pipeline_reset_continue(s_engine_handle_t* engine) {
-    printf("Testing RETURN_PIPELINE_RESET_CONTINUE...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_PIPELINE_RESET_CONTINUE_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_PIPELINE_RESET_CONTINUE_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_PIPELINE_RESET_CONTINUE=%d)\n", result, SE_PIPELINE_RESET_CONTINUE);
-    
-    s_expr_tree_free(tree);
-}
-
-static void test_return_pipeline_reset_halt(s_engine_handle_t* engine) {
-    printf("Testing RETURN_PIPELINE_RESET_HALT...\n");
-    
-    s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-        &engine->module,
-        RETURN_PIPELINE_RESET_HALT_TEST_HASH,
-        0
-    );
-    if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", RETURN_PIPELINE_RESET_HALT_TEST_HASH);
-        exit(1);
-    }
-    
-    s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
-    printf("  result: %d (expected SE_PIPELINE_RESET_HALT=%d)\n", result, SE_PIPELINE_RESET_HALT);
-    
-    s_expr_tree_free(tree);
-}
-
-// Run all return value tests
-static void run_return_value_tests(s_engine_handle_t* engine) {
-    printf("\n=== Return Value Tests ===\n\n");
-    
-    test_return_continue(engine);
-    test_return_terminate(engine);
-    test_return_reset(engine);
-    test_return_halt(engine);
-    test_return_skip_continue(engine);
-    test_return_function_halt(engine);
-    test_return_function_reset(engine);
-    test_return_function_terminate(engine);
-    test_return_pipeline_terminate(engine);
-    test_return_pipeline_reset_continue(engine);
-    test_return_pipeline_reset_halt(engine);
-    
-    printf("\n=== All Return Value Tests Complete ===\n");
+    return 0;
 }

@@ -256,12 +256,18 @@ end
 -- PARAMETER DUMP GENERATOR
 -- ============================================================================
 
+-- ============================================================================
+-- PARAMETER DUMP GENERATOR (with full hex information)
+-- ============================================================================
+
 function M.to_debug_dump(bin_gen, base_name)
     local lines = {}
     local mod = bin_gen.module
     local is_64bit = bin_gen.is_64bit
     local mode_suffix = is_64bit and "_64" or "_32"
     local guard = base_name:upper() .. "_DUMP" .. mode_suffix:upper() .. "_H"
+    
+    local S_EXPR_PARAM = types_module.S_EXPR_PARAM
     
     table.insert(lines, "// ============================================================================")
     table.insert(lines, "// " .. base_name .. "_dump" .. mode_suffix .. ".h")
@@ -273,77 +279,262 @@ function M.to_debug_dump(bin_gen, base_name)
     table.insert(lines, "#ifndef " .. guard)
     table.insert(lines, "#define " .. guard)
     table.insert(lines, "")
+    
+    -- Type code reference
+    table.insert(lines, "/*")
+    table.insert(lines, " * PARAMETER TYPE CODES:")
+    table.insert(lines, " *   0x00 INT          0x01 UINT         0x02 FLOAT        0x03 STR_HASH")
+    table.insert(lines, " *   0x04 SLOT         0x05 OPEN         0x06 CLOSE        0x07 OPEN_CALL")
+    table.insert(lines, " *   0x08 ONESHOT      0x09 MAIN         0x0A PRED         0x0B FIELD")
+    table.insert(lines, " *   0x0C RESULT       0x0D STR_IDX      0x0E CONST_REF    0x0F RESERVED")
+    table.insert(lines, " *   0x10 OPEN_DICT    0x11 CLOSE_DICT   0x12 OPEN_KEY     0x13 CLOSE_KEY")
+    table.insert(lines, " *   0x14 OPEN_ARRAY   0x15 CLOSE_ARRAY  0x16 OPEN_TUPLE   0x17 CLOSE_TUPLE")
+    table.insert(lines, " *")
+    table.insert(lines, " * FLAGS:")
+    table.insert(lines, " *   0x40 SURVIVES_RESET (io_call, p_call_composite)")
+    table.insert(lines, " *   0x80 POINTER        (pt_m_call)")
+    table.insert(lines, " */")
+    table.insert(lines, "")
+    
     table.insert(lines, "/*")
     table.insert(lines, " * Module: " .. mod.name)
-    table.insert(lines, " * Hash:   " .. hash_module.fmt_hash(mod.name_hash))
+    table.insert(lines, string.format(" * Hash:   0x%08X", mod.name_hash))
     table.insert(lines, " * Trees:  " .. #mod.tree_order)
     table.insert(lines, " * Records: " .. #mod.record_order)
     table.insert(lines, " * Strings: " .. #mod.string_table)
     table.insert(lines, " * Constants: " .. #mod.const_order)
+    table.insert(lines, " * Param size: " .. (is_64bit and "16 bytes (64-bit)" or "8 bytes (32-bit)"))
     table.insert(lines, " */")
     table.insert(lines, "")
     
-    -- String table dump
+    -- String table dump with hex indices
     if #mod.string_table > 0 then
+        table.insert(lines, "// ============================================================================")
         table.insert(lines, "// STRING TABLE")
+        table.insert(lines, "// ============================================================================")
         table.insert(lines, "/*")
         for i, s in ipairs(mod.string_table) do
-            local escaped = s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n")
-            table.insert(lines, string.format(" * [%2d] \"%s\"", i - 1, escaped))
+            local escaped = s:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r")
+            local hash = hash_module.fnv1a_32(s)
+            table.insert(lines, string.format(" * [0x%04X] (%3d) hash=0x%08X \"%s\"", 
+                i - 1, i - 1, hash, escaped))
         end
         table.insert(lines, " */")
         table.insert(lines, "")
     end
     
-    -- Function tables dump
+    -- Function tables dump with hashes
+    table.insert(lines, "// ============================================================================")
     table.insert(lines, "// FUNCTION TABLES")
+    table.insert(lines, "// ============================================================================")
     table.insert(lines, "/*")
     if #mod.oneshot_funcs > 0 then
-        table.insert(lines, " * ONESHOT:")
+        table.insert(lines, " * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):")
         for i, name in ipairs(mod.oneshot_funcs) do
-            table.insert(lines, string.format(" *   [%2d] %s", i - 1, name))
+            local hash = hash_module.fnv1a_32(name)
+            table.insert(lines, string.format(" *   [0x%04X] (%2d) hash=0x%08X %s", 
+                i - 1, i - 1, hash, name))
         end
+        table.insert(lines, " *")
     end
     if #mod.main_funcs > 0 then
-        table.insert(lines, " * MAIN:")
+        table.insert(lines, " * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):")
         for i, name in ipairs(mod.main_funcs) do
-            table.insert(lines, string.format(" *   [%2d] %s", i - 1, name))
+            local hash = hash_module.fnv1a_32(name)
+            table.insert(lines, string.format(" *   [0x%04X] (%2d) hash=0x%08X %s", 
+                i - 1, i - 1, hash, name))
         end
+        table.insert(lines, " *")
     end
     if #mod.pred_funcs > 0 then
-        table.insert(lines, " * PRED:")
+        table.insert(lines, " * PRED FUNCTIONS (type=0x0A, with 0x40=p_call_composite):")
         for i, name in ipairs(mod.pred_funcs) do
-            table.insert(lines, string.format(" *   [%2d] %s", i - 1, name))
+            local hash = hash_module.fnv1a_32(name)
+            table.insert(lines, string.format(" *   [0x%04X] (%2d) hash=0x%08X %s", 
+                i - 1, i - 1, hash, name))
         end
     end
     table.insert(lines, " */")
     table.insert(lines, "")
     
+    -- Record table dump
+    if #mod.record_order > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// RECORD DEFINITIONS")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "/*")
+        for i, rec_name in ipairs(mod.record_order) do
+            local rec = mod.records[rec_name]
+            table.insert(lines, string.format(" * RECORD[0x%04X]: %s (size=%d, align=%d, hash=0x%08X)",
+                i - 1, rec_name, rec.size, rec.align, rec.name_hash))
+            for j, field in ipairs(rec.fields) do
+                local flags = ""
+                if field.is_pointer then flags = flags .. " PTR" end
+                if field.is_ptr64 then flags = flags .. "64" end
+                if field.is_char_array then flags = flags .. " CHAR[" .. field.array_len .. "]" end
+                if field.is_int32_array then flags = flags .. " INT32[" .. field.array_len .. "]" end
+                if field.is_float32_array then flags = flags .. " FLOAT32[" .. field.array_len .. "]" end
+                if field.is_embedded then flags = flags .. " EMBED:" .. field.embedded_record end
+                table.insert(lines, string.format(" *   [%2d] off=0x%04X size=%2d hash=0x%08X %s%s",
+                    j - 1, field.offset, field.size, field.name_hash, field.name, flags))
+            end
+            table.insert(lines, " *")
+        end
+        table.insert(lines, " */")
+        table.insert(lines, "")
+    end
+    
+    -- Constants dump
+    if #mod.const_order > 0 then
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "// CONSTANTS")
+        table.insert(lines, "// ============================================================================")
+        table.insert(lines, "/*")
+        for i, const_name in ipairs(mod.const_order) do
+            local cnst = mod.constants[const_name]
+            table.insert(lines, string.format(" * CONST[0x%04X]: %s (record=%s, hash=0x%08X)",
+                i - 1, const_name, cnst.record_type, cnst.name_hash))
+            if cnst.data_bytes then
+                local hex_line = " *   bytes: "
+                for j, b in ipairs(cnst.data_bytes) do
+                    hex_line = hex_line .. string.format("%02X ", b)
+                    if j % 16 == 0 and j < #cnst.data_bytes then
+                        table.insert(lines, hex_line)
+                        hex_line = " *          "
+                    end
+                end
+                table.insert(lines, hex_line)
+            end
+        end
+        table.insert(lines, " */")
+        table.insert(lines, "")
+    end
+    
     -- Tree parameter dumps
+    table.insert(lines, "// ============================================================================")
+    table.insert(lines, "// TREE PARAMETERS")
+    table.insert(lines, "// ============================================================================")
+    
     for _, tree_name in ipairs(mod.tree_order) do
         local tree = mod.trees[tree_name]
         
+        -- Get record info if available
+        local rec = nil
+        if tree.record_name then
+            rec = mod.records[tree.record_name]
+        end
+        
         table.insert(lines, "/*")
-        table.insert(lines, string.format(" * TREE: %s (nodes=%d, ptrs=%d)", 
-            tree_name, tree.node_count, tree.pointer_count or 0))
-        table.insert(lines, " * IDX  TYPE              DETAILS")
-        table.insert(lines, " * -------------------------------------------")
+        table.insert(lines, string.format(" * TREE: %s", tree_name))
+        table.insert(lines, string.format(" *   hash=0x%08X nodes=%d ptrs=%d", 
+            tree.name_hash, tree.node_count, tree.pointer_count or 0))
+        if tree.record_name then
+            table.insert(lines, string.format(" *   record=%s (hash=0x%08X)", 
+                tree.record_name, rec and rec.name_hash or 0))
+        end
+        if tree.defaults_name then
+            table.insert(lines, string.format(" *   defaults=%s (idx=0x%04X)", 
+                tree.defaults_name, tree.defaults_index))
+        end
+        table.insert(lines, " *")
+        table.insert(lines, " * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS")
+        table.insert(lines, " * -------------------------------------------------------------------------")
         
         local param_idx = 0
+        local brace_stack = {}
+        
+        local function resolve_field_offset(field_name)
+            if not rec then return nil, nil end
+            for _, field in ipairs(rec.fields) do
+                if field.name == field_name then
+                    return field.offset, field.size
+                end
+            end
+            return nil, nil
+        end
+        
+        local function resolve_nested_field_offset(path)
+            if not rec then return nil, nil end
+            local parts = {}
+            for part in path:gmatch("[^.]+") do
+                table.insert(parts, part)
+            end
+            
+            local offset = 0
+            local current_rec = rec
+            local field = nil
+            
+            for i, part in ipairs(parts) do
+                field = nil
+                for _, f in ipairs(current_rec.fields) do
+                    if f.name == part then
+                        field = f
+                        break
+                    end
+                end
+                if not field then return nil, nil end
+                offset = offset + field.offset
+                if i < #parts and field.is_embedded then
+                    current_rec = mod.records[field.embedded_record]
+                    if not current_rec then return nil, nil end
+                end
+            end
+            return offset, field and field.size or 0
+        end
+        
+        local function fmt_hex32(v)
+            if v < 0 then v = 0x100000000 + v end
+            return string.format("0x%08X", v)
+        end
         
         local function dump_node(node, depth)
             local indent = string.rep("  ", depth)
+            local pi = indent .. "  "  -- param indent (extra 2 spaces)
             
-            table.insert(lines, string.format(" * %3d  %sOPEN_CALL         %s",
-                param_idx, indent, node.func_name))
+            -- Determine opcode for this call type
+            local opcode, opcode_name
+            if node.call_type == "o_call" then
+                opcode = S_EXPR_PARAM.ONESHOT
+                opcode_name = "ONESHOT"
+            elseif node.call_type == "io_call" then
+                opcode = bit.bor(S_EXPR_PARAM.ONESHOT, 0x40)
+                opcode_name = "ONESHOT+SR"
+            elseif node.call_type == "m_call" then
+                opcode = S_EXPR_PARAM.MAIN
+                opcode_name = "MAIN"
+            elseif node.call_type == "pt_m_call" then
+                opcode = bit.bor(S_EXPR_PARAM.MAIN, 0x80)
+                opcode_name = "MAIN+PTR"
+            elseif node.call_type == "p_call" then
+                opcode = S_EXPR_PARAM.PRED
+                opcode_name = "PRED"
+            elseif node.call_type == "p_call_composite" then
+                opcode = bit.bor(S_EXPR_PARAM.PRED, 0x40)
+                opcode_name = "PRED+SR"
+            else
+                opcode = S_EXPR_PARAM.MAIN
+                opcode_name = "MAIN"
+            end
+            
+            local func_idx = bin_gen:get_func_index(node)
+            local node_idx = param_idx  -- Node index for this node
+            
+            -- Count content for OPEN_CALL
+            local content_count = bin_gen:count_node_params(node)
+            
+            -- OPEN_CALL
+            local ptr_idx = node.pointer_index or 0
+            table.insert(lines, string.format(" * %4d  %sOPEN_CALL[0x%02X]  %5d  %5d  %s hash=0x%08X",
+                param_idx, indent, S_EXPR_PARAM.OPEN_CALL, content_count, 0,
+                node.func_name, node.func_hash))
             param_idx = param_idx + 1
             
-            local func_type = node.call_type:upper():gsub("_CALL", "")
-            table.insert(lines, string.format(" * %3d  %s  %-15s idx=%d",
-                param_idx, indent, func_type, bin_gen:get_func_index(node)))
+            -- Function reference (ONESHOT/MAIN/PRED)
+            table.insert(lines, string.format(" * %4d  %s%-10s[0x%02X]  %5d  %5d  idx_to_ptr=%d",
+                param_idx, indent, opcode_name, opcode, node_idx, func_idx, ptr_idx))
             param_idx = param_idx + 1
             
-            -- Merge and sort params/children
+            -- Merge and sort params/children by order
             local items = {}
             for _, param in ipairs(node.params) do
                 table.insert(items, { type = "param", order = param.order or 0, data = param })
@@ -358,44 +549,146 @@ function M.to_debug_dump(bin_gen, base_name)
                     dump_node(item.data, depth + 1)
                 else
                     local p = item.data
-                    local pi = indent .. "    "
                     local pt = p.type
                     local pv = p.value
                     
                     if pt == "int" then
-                        table.insert(lines, string.format(" * %3d  %sINT               %d", param_idx, pi, pv))
+                        local hex_val = pv < 0 and (0x100000000 + pv) or pv
+                        table.insert(lines, string.format(" * %4d  %sINT[0x%02X]        %5s  %5s  %d (%s)",
+                            param_idx, pi, S_EXPR_PARAM.INT, "-", "-", pv, fmt_hex32(pv)))
+                            
                     elseif pt == "uint" then
-                        table.insert(lines, string.format(" * %3d  %sUINT              %d", param_idx, pi, pv))
+                        table.insert(lines, string.format(" * %4d  %sUINT[0x%02X]       %5s  %5s  %d (%s)",
+                            param_idx, pi, S_EXPR_PARAM.UINT, "-", "-", pv, fmt_hex32(pv)))
+                            
                     elseif pt == "float" then
-                        table.insert(lines, string.format(" * %3d  %sFLOAT             %g", param_idx, pi, pv))
+                        table.insert(lines, string.format(" * %4d  %sFLOAT[0x%02X]      %5s  %5s  %g",
+                            param_idx, pi, S_EXPR_PARAM.FLOAT, "-", "-", pv))
+                            
                     elseif pt == "str_idx" or pt == "str_ptr" then
-                        table.insert(lines, string.format(" * %3d  %sSTR_IDX           \"%s\"", param_idx, pi, pv))
+                        local str_idx = bin_gen.string_index[pv] or 0
+                        local str_len = #pv
+                        local escaped = pv:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n")
+                        if #escaped > 40 then escaped = escaped:sub(1, 37) .. "..." end
+                        table.insert(lines, string.format(" * %4d  %sSTR_IDX[0x%02X]    %5d  %5d  \"%s\"",
+                            param_idx, pi, S_EXPR_PARAM.STR_IDX, str_idx, str_len, escaped))
+                            
                     elseif pt == "str_hash" then
-                        table.insert(lines, string.format(" * %3d  %sSTR_HASH          \"%s\"", param_idx, pi, pv.str))
-                    elseif pt == "field_ref" or pt == "nested_field_ref" then
-                        table.insert(lines, string.format(" * %3d  %sFIELD             %s", param_idx, pi, pv))
+                        table.insert(lines, string.format(" * %4d  %sSTR_HASH[0x%02X]   %5s  %5s  \"%s\" hash=%s",
+                            param_idx, pi, S_EXPR_PARAM.STR_HASH, "-", "-", pv.str, fmt_hex32(pv.hash)))
+                            
+                    elseif pt == "field_ref" then
+                        local offset, size = resolve_field_offset(pv)
+                        local field_hash = hash_module.fnv1a_32(pv)
+                        if offset then
+                            table.insert(lines, string.format(" * %4d  %sFIELD[0x%02X]      %5d  %5d  %s (off=0x%04X, hash=%s)",
+                                param_idx, pi, S_EXPR_PARAM.FIELD, offset, size, pv, offset, fmt_hex32(field_hash)))
+                        else
+                            table.insert(lines, string.format(" * %4d  %sFIELD[0x%02X]      %5s  %5s  %s hash=%s (unresolved)",
+                                param_idx, pi, S_EXPR_PARAM.FIELD, "-", "-", pv, fmt_hex32(field_hash)))
+                        end
+                        
+                    elseif pt == "nested_field_ref" then
+                        local offset, size = resolve_nested_field_offset(pv)
+                        local field_hash = hash_module.fnv1a_32(pv)
+                        if offset then
+                            table.insert(lines, string.format(" * %4d  %sFIELD[0x%02X]      %5d  %5d  %s (off=0x%04X, hash=%s)",
+                                param_idx, pi, S_EXPR_PARAM.FIELD, offset, size, pv, offset, fmt_hex32(field_hash)))
+                        else
+                            table.insert(lines, string.format(" * %4d  %sFIELD[0x%02X]      %5s  %5s  %s hash=%s (unresolved)",
+                                param_idx, pi, S_EXPR_PARAM.FIELD, "-", "-", pv, fmt_hex32(field_hash)))
+                        end
+                        
                     elseif pt == "const_ref" then
-                        table.insert(lines, string.format(" * %3d  %sCONST_REF         %s", param_idx, pi, pv))
-                    elseif pt == "dict_start" then
-                        table.insert(lines, string.format(" * %3d  %sOPEN_DICT", param_idx, pi))
-                    elseif pt == "dict_end" then
-                        table.insert(lines, string.format(" * %3d  %sCLOSE_DICT", param_idx, pi))
-                    elseif pt == "dict_key" then
-                        table.insert(lines, string.format(" * %3d  %sOPEN_KEY          \"%s\"", param_idx, pi, pv))
-                    elseif pt == "end_dict_key" then
-                        table.insert(lines, string.format(" * %3d  %sCLOSE_KEY", param_idx, pi))
+                        local const_idx = bin_gen.const_index[pv] or 0
+                        local cnst = mod.constants[pv]
+                        local const_hash = cnst and cnst.name_hash or hash_module.fnv1a_32(pv)
+                        table.insert(lines, string.format(" * %4d  %sCONST_REF[0x%02X]  %5d  %5d  %s hash=%s",
+                            param_idx, pi, S_EXPR_PARAM.CONST_REF, const_idx, 0, pv, fmt_hex32(const_hash)))
+                        
+                    elseif pt == "result" then
+                        table.insert(lines, string.format(" * %4d  %sRESULT[0x%02X]     %5s  %5s  %d (%s)",
+                            param_idx, pi, S_EXPR_PARAM.RESULT, "-", "-", pv, fmt_hex32(pv)))
+                        
                     elseif pt == "list_start" then
-                        table.insert(lines, string.format(" * %3d  %sOPEN", param_idx, pi))
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "list", name = pv })
+                        table.insert(lines, string.format(" * %4d  %sOPEN[0x%02X]       %5s  %5s  list '%s'",
+                            param_idx, pi, S_EXPR_PARAM.OPEN, "?", "-", pv or ""))
+                            
                     elseif pt == "list_end" then
-                        table.insert(lines, string.format(" * %3d  %sCLOSE", param_idx, pi))
+                        local open_info = table.remove(brace_stack)
+                        local offset = open_info and (param_idx - open_info.idx) or 0
+                        table.insert(lines, string.format(" * %4d  %sCLOSE[0x%02X]      %5d  %5s  list '%s' (opened at %d)",
+                            param_idx, pi, S_EXPR_PARAM.CLOSE, offset, "-", 
+                            open_info and open_info.name or "", open_info and open_info.idx or 0))
+                            
+                    elseif pt == "dict_start" then
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "dict", name = pv })
+                        table.insert(lines, string.format(" * %4d  %sOPEN_DICT[0x%02X]  %5s  %5s  dict '%s'",
+                            param_idx, pi, S_EXPR_PARAM.OPEN_DICT, "?", "-", pv or ""))
+                            
+                    elseif pt == "dict_end" then
+                        local open_info = table.remove(brace_stack)
+                        local offset = open_info and (param_idx - open_info.idx) or 0
+                        table.insert(lines, string.format(" * %4d  %sCLOSE_DICT[0x%02X] %5d  %5s  dict '%s' (opened at %d)",
+                            param_idx, pi, S_EXPR_PARAM.CLOSE_DICT, offset, "-",
+                            open_info and open_info.name or "", open_info and open_info.idx or 0))
+                            
+                    elseif pt == "dict_key" then
+                        local key_hash = hash_module.fnv1a_32(pv)
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "dict_key", name = pv, hash = key_hash })
+                        table.insert(lines, string.format(" * %4d  %sOPEN_KEY[0x%02X]   %5s  %5s  \"%s\" hash=%s",
+                            param_idx, pi, S_EXPR_PARAM.OPEN_KEY, "-", "-", pv, fmt_hex32(key_hash)))
+                            
+                    elseif pt == "dict_key_hash" then
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "dict_key", name = tostring(pv), hash = pv })
+                        table.insert(lines, string.format(" * %4d  %sOPEN_KEY[0x%02X]   %5s  %5s  hash=%s",
+                            param_idx, pi, S_EXPR_PARAM.OPEN_KEY, "-", "-", fmt_hex32(pv)))
+                            
+                    elseif pt == "end_dict_key" then
+                        local open_info = table.remove(brace_stack)
+                        local offset = open_info and (param_idx - open_info.idx) or 0
+                        table.insert(lines, string.format(" * %4d  %sCLOSE_KEY[0x%02X]  %5d  %5s  key '%s' (opened at %d)",
+                            param_idx, pi, S_EXPR_PARAM.CLOSE_KEY, offset, "-",
+                            open_info and open_info.name or "", open_info and open_info.idx or 0))
+                            
+                    elseif pt == "array_start" then
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "array", name = pv })
+                        table.insert(lines, string.format(" * %4d  %sOPEN_ARRAY[0x%02X] %5s  %5s  array '%s'",
+                            param_idx, pi, S_EXPR_PARAM.OPEN_ARRAY, "?", "-", pv or ""))
+                            
+                    elseif pt == "array_end" then
+                        local open_info = table.remove(brace_stack)
+                        local offset = open_info and (param_idx - open_info.idx) or 0
+                        table.insert(lines, string.format(" * %4d  %sCLOSE_ARRAY[0x%02X]%5d  %5s  array '%s' (opened at %d)",
+                            param_idx, pi, S_EXPR_PARAM.CLOSE_ARRAY, offset, "-",
+                            open_info and open_info.name or "", open_info and open_info.idx or 0))
+                            
+                    elseif pt == "tuple_start" then
+                        table.insert(brace_stack, { idx = param_idx, brace_type = "tuple", name = pv })
+                        table.insert(lines, string.format(" * %4d  %sOPEN_TUPLE[0x%02X] %5s  %5s  tuple '%s'",
+                            param_idx, pi, S_EXPR_PARAM.OPEN_TUPLE, "?", "-", pv or ""))
+                            
+                    elseif pt == "tuple_end" then
+                        local open_info = table.remove(brace_stack)
+                        local offset = open_info and (param_idx - open_info.idx) or 0
+                        table.insert(lines, string.format(" * %4d  %sCLOSE_TUPLE[0x%02X]%5d  %5s  tuple '%s' (opened at %d)",
+                            param_idx, pi, S_EXPR_PARAM.CLOSE_TUPLE, offset, "-",
+                            open_info and open_info.name or "", open_info and open_info.idx or 0))
+                            
                     else
-                        table.insert(lines, string.format(" * %3d  %s%-17s %s", param_idx, pi, pt:upper(), tostring(pv)))
+                        -- Unknown/other types
+                        table.insert(lines, string.format(" * %4d  %s%s             %5s  %5s  %s",
+                            param_idx, pi, pt:upper(), "-", "-", tostring(pv)))
                     end
+                    
                     param_idx = param_idx + 1
                 end
             end
             
-            table.insert(lines, string.format(" * %3d  %sCLOSE             (end %s)", param_idx, indent, node.func_name))
+            -- CLOSE for this call
+            table.insert(lines, string.format(" * %4d  %sCLOSE[0x%02X]      %5d  %5s  (end %s)",
+                param_idx, indent, S_EXPR_PARAM.CLOSE, 0, "-", node.func_name))
             param_idx = param_idx + 1
         end
         
@@ -403,6 +696,8 @@ function M.to_debug_dump(bin_gen, base_name)
             dump_node(node, 0)
         end
         
+        table.insert(lines, " *")
+        table.insert(lines, string.format(" * Total params: %d", param_idx))
         table.insert(lines, " */")
         table.insert(lines, "")
     end
@@ -411,5 +706,4 @@ function M.to_debug_dump(bin_gen, base_name)
     
     return table.concat(lines, "\n")
 end
-
 return M

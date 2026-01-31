@@ -162,12 +162,9 @@ s_expr_result_t s_expr_node_tick(
     
     // Invoke root - it controls everything else
     s_expr_result_t result = s_expr_invoke_main(inst, params, 0);
+   
     
-    if ((result == SE_DISABLE) || (result == SE_PIPELINE_DISABLE)) {
-        // Root completed - terminate it
-        s_expr_child_terminate(inst, params, param_count, 0);
-        result = SE_FUNCTION_TERMINATE;
-    }
+    
     
     return result;
 }
@@ -203,7 +200,84 @@ void s_expr_node_reset(s_expr_tree_instance_t* inst) {
         }
     }
 }
+// ============================================================================
+// INTERNAL: Recursively reset all callables in params
+// ============================================================================
 
+static void reset_all_recursive(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count
+) {
+    uint16_t idx = 0;
+    
+    while (idx < param_count) {
+        uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            // Reset this callable's state
+            s_expr_node_state_t* state = get_callable_state(inst, params, idx);
+            if (state) {
+                uint8_t ever_init = state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
+                state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+                state->state = 0;
+                state->user_data = 0;
+            }
+            
+            // Recurse into this callable's arguments
+            uint16_t child_arg_count;
+            const s_expr_param_t* child_args = s_expr_call_args(params, idx, &child_arg_count);
+            if (child_args && child_arg_count > 0) {
+                reset_all_recursive(inst, child_args, child_arg_count);
+            }
+        }
+        
+        idx = skip_logical_param(params, idx);
+    }
+}
+
+// ============================================================================
+// PUBLIC: Recursively reset Nth child and all its descendants
+// ============================================================================
+
+void s_expr_child_reset_recursive(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index
+) {
+    if (!inst) {
+        EXCEPTION("s_expr_child_reset_recursive: NULL instance");
+        return;
+    }
+    
+    uint16_t phys_idx = s_expr_child_index(params, param_count, logical_index);
+    if (phys_idx == UINT16_MAX) {
+        EXCEPTION("s_expr_child_reset_recursive: logical_index out of range");
+        return;
+    }
+    
+    uint8_t opcode = params[phys_idx].type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_OPEN_CALL) {
+        return;  // Not a callable, nothing to reset
+    }
+    
+    // Reset the child itself
+    s_expr_node_state_t* state = get_callable_state(inst, params, phys_idx);
+    if (state) {
+        uint8_t ever_init = state->flags & S_EXPR_NODE_FLAG_EVER_INIT;
+        state->flags = S_EXPR_NODE_FLAG_ACTIVE | ever_init;
+        state->state = 0;
+        state->user_data = 0;
+    }
+    
+    // Recurse into child's arguments
+    uint16_t child_arg_count;
+    const s_expr_param_t* child_args = s_expr_call_args(params, phys_idx, &child_arg_count);
+    if (child_args && child_arg_count > 0) {
+        reset_all_recursive(inst, child_args, child_arg_count);
+    }
+}
 void s_expr_node_terminate(s_expr_tree_instance_t* inst) {
     if (!inst) {
         EXCEPTION("s_expr_node_terminate: NULL instance");
@@ -543,10 +617,10 @@ s_expr_result_t s_expr_child_invoke_main(
     
     s_expr_result_t result = s_expr_invoke_main(inst, params, phys_idx);
     
-    if (result == SE_DISABLE) {
+    if (result == SE_PIPELINE_DISABLE) {
         // Child completed - terminate it
         s_expr_child_terminate(inst, params, param_count, logical_index);
-        result = SE_CONTINUE;
+        result = SE_PIPELINE_CONTINUE;
     }
     
     return result;
@@ -840,7 +914,7 @@ void s_expr_child_invoke_oneshot_ex(
 // ============================================================================
 // EXTENDED BULK OPERATIONS
 // ============================================================================
-
+#if 0
 s_expr_result_t s_expr_children_broadcast_ex(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -884,7 +958,7 @@ s_expr_result_t s_expr_children_broadcast_ex(
     
     return result;
 }
-
+#endif
 // ============================================================================
 // EXECUTE PASSED S-EXPRESSION
 // ============================================================================

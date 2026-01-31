@@ -187,10 +187,10 @@ static s_expr_result_t dispatch_main(
     uint8_t pointer_base = func_param->index_to_pointer;
    
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return SE_TERMINATE;
+    if (!state) return SE_PIPELINE_TERMINATE;
     
     if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
     uint16_t saved_node = inst->current_node_index;
@@ -203,7 +203,7 @@ static s_expr_result_t dispatch_main(
         inst->pointer_base = pointer_base;
     }
     
-    s_expr_result_t result = SE_CONTINUE;
+    s_expr_result_t result = SE_PIPELINE_CONTINUE;
     
     if (func_idx >= mod->def->main_count) {
         EXCEPTION("dispatch_main: func_index out of range");
@@ -246,7 +246,7 @@ static s_expr_result_t dispatch_main(
     // PHASE 3b: TERMINATION (node completed or disabled)
     // Called with SE_EVENT_TERMINATE when result is SE_DISABLE
     // =========================================================================
-    if (result == SE_DISABLE) {
+    if (result == SE_PIPELINE_DISABLE) {
         fn(inst, args, arg_count, SE_EVENT_TERMINATE, event_id, event_data);
         state->flags &= ~S_EXPR_NODE_FLAG_ACTIVE;
     }
@@ -538,9 +538,9 @@ s_expr_result_t s_expr_invoke_any(
                 return s_expr_invoke_main(inst, params, idx);
             case S_EXPR_PARAM_ONESHOT:
                 s_expr_invoke_oneshot(inst, params, idx);
-                return SE_CONTINUE;
+                return SE_PIPELINE_CONTINUE;
             case S_EXPR_PARAM_PRED:
-                return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
+                return s_expr_invoke_pred(inst, params, idx) ? SE_PIPELINE_CONTINUE : SE_PIPELINE_HALT;
             default:
                 EXCEPTION("s_expr_invoke_any: unknown function type in OPEN_CALL");
                 return SE_TERMINATE;
@@ -552,9 +552,9 @@ s_expr_result_t s_expr_invoke_any(
             return s_expr_invoke_main(inst, params, idx);
         case S_EXPR_PARAM_ONESHOT:
             s_expr_invoke_oneshot(inst, params, idx);
-            return SE_CONTINUE;
+            return SE_PIPELINE_CONTINUE;
         case S_EXPR_PARAM_PRED:
-            return s_expr_invoke_pred(inst, params, idx) ? SE_CONTINUE : SE_HALT;
+            return s_expr_invoke_pred(inst, params, idx) ? SE_PIPELINE_CONTINUE : SE_PIPELINE_HALT;
         default:
             EXCEPTION("s_expr_invoke_any: param is not a callable type");
             return SE_TERMINATE;

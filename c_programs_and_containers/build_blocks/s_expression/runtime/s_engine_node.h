@@ -65,7 +65,14 @@ void s_expr_child_reset(
     uint16_t param_count,
     uint16_t logical_index
 );
-
+// Recursively reset Nth child and all its descendants
+// Clears flags, sets ACTIVE, recurses into nested callables
+void s_expr_child_reset_recursive(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    uint16_t logical_index
+);
 // Terminate Nth child: send TERMINATE if initialized
 // Child is responsible for propagating to its children
 void s_expr_child_terminate(

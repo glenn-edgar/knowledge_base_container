@@ -74,18 +74,44 @@ function se_false()
 end
 
 --============================================================================
--- RESULT CODE FUNCTIONS
--- 
--- These return specific result codes to control execution flow.
--- Only SE_CONTINUE and SE_DISABLE continue to next node.
--- All others terminate the current tick and propagate to caller.
+-- RESULT CODE CONSTANTS
 --============================================================================
 
+-- APPLICATION RESULT CODES (0-5)
+_G.SE_CONTINUE           = 0
+_G.SE_HALT               = 1
+_G.SE_TERMINATE          = 2
+_G.SE_RESET              = 3
+_G.SE_DISABLE            = 4
+_G.SE_SKIP_CONTINUE      = 5
 
+-- FUNCTION RESULT CODES (6-11)
+_G.SE_FUNCTION_CONTINUE      = 6
+_G.SE_FUNCTION_HALT          = 7
+_G.SE_FUNCTION_TERMINATE     = 8
+_G.SE_FUNCTION_RESET         = 9
+_G.SE_FUNCTION_DISABLE       = 10
+_G.SE_FUNCTION_SKIP_CONTINUE = 11
 
---- APPLICATION RESULT CODE FUNCTIONS
+-- PIPELINE RESULT CODES (12-17)
+_G.SE_PIPELINE_CONTINUE      = 12
+_G.SE_PIPELINE_HALT          = 13
+_G.SE_PIPELINE_TERMINATE     = 14
+_G.SE_PIPELINE_RESET         = 15
+_G.SE_PIPELINE_DISABLE       = 16
+_G.SE_PIPELINE_SKIP_CONTINUE = 17
+
+--============================================================================
+-- APPLICATION RESULT CODE FUNCTIONS (0-5)
+--============================================================================
+
 function se_return_continue()
     local c = m_call("SE_RETURN_CONTINUE")
+    end_call(c)
+end
+
+function se_return_halt()
+    local c = m_call("SE_RETURN_HALT")
     end_call(c)
 end
 
@@ -99,10 +125,8 @@ function se_return_reset()
     end_call(c)
 end
 
-
-
-function se_return_halt()
-    local c = m_call("SE_RETURN_HALT")
+function se_return_disable()
+    local c = m_call("SE_RETURN_DISABLE")
     end_call(c)
 end
 
@@ -111,9 +135,22 @@ function se_return_skip_continue()
     end_call(c)
 end
 
--- FUNCTION RESULT CODE FUNCTIONS
+--============================================================================
+-- FUNCTION RESULT CODE FUNCTIONS (6-11)
+--============================================================================
+
+function se_return_function_continue()
+    local c = m_call("SE_RETURN_FUNCTION_CONTINUE")
+    end_call(c)
+end
+
 function se_return_function_halt()
     local c = m_call("SE_RETURN_FUNCTION_HALT")
+    end_call(c)
+end
+
+function se_return_function_terminate()
+    local c = m_call("SE_RETURN_FUNCTION_TERMINATE")
     end_call(c)
 end
 
@@ -122,33 +159,55 @@ function se_return_function_reset()
     end_call(c)
 end
 
-function se_return_function_terminate()
-    local c = m_call("SE_RETURN_FUNCTION_TERMINATE")
+function se_return_function_disable()
+    local c = m_call("SE_RETURN_FUNCTION_DISABLE")
     end_call(c)
 end
-    
--- PIPELINE RESULT CODE FUNCTIONS
+
+function se_return_function_skip_continue()
+    local c = m_call("SE_RETURN_FUNCTION_SKIP_CONTINUE")
+    end_call(c)
+end
+
+--============================================================================
+-- PIPELINE RESULT CODE FUNCTIONS (12-17)
+--============================================================================
+
+function se_return_pipeline_continue()
+    local c = m_call("SE_RETURN_PIPELINE_CONTINUE")
+    end_call(c)
+end
+
+function se_return_pipeline_halt()
+    local c = m_call("SE_RETURN_PIPELINE_HALT")
+    end_call(c)
+end
 
 function se_return_pipeline_terminate()
     local c = m_call("SE_RETURN_PIPELINE_TERMINATE")
     end_call(c)
 end
 
-function se_return_pipeline_reset_continue()
-    local c = m_call("SE_RETURN_PIPELINE_RESET_CONTINUE")
+function se_return_pipeline_reset()
+    local c = m_call("SE_RETURN_PIPELINE_RESET")
     end_call(c)
 end
 
-function se_return_pipeline_reset_halt()
-    local c = m_call("SE_RETURN_PIPELINE_RESET_HALT")
+function se_return_pipeline_disable()
+    local c = m_call("SE_RETURN_PIPELINE_DISABLE")
+    end_call(c)
+end
+
+function se_return_pipeline_skip_continue()
+    local c = m_call("SE_RETURN_PIPELINE_SKIP_CONTINUE")
     end_call(c)
 end
 --============================================================================
 -- MAIN FUNCTIONS
 --============================================================================
 
-function se_pipeline(actions_fn)
-    local c = m_call("SE_PIPELINE")
+function  se_function_interface(actions_fn)
+    local c = m_call("SE_FUNCTION_INTERFACE")
         actions_fn()
     end_call(c)
 end
@@ -383,180 +442,24 @@ function se_state_machine(state_field, cases_fn)
         error(err)
     end
 end
---[[  -- Index-based state machine (original)
--- Usage: se_state_machine("state_field", {state0_fn, state1_fn, state2_fn})
-function se_state_machine(state_field, state_fns)
-    local c = m_call("SE_STATE_MACHINE")
-        field_ref(state_field)
-        for _, state_fn in ipairs(state_fns) do
-                state_fn()
-            
-        end
+
+
+function se_queue_event(event_type, event_id, slot_name)
+    if event_type > 0xFFFE then
+        dsl_error("se_queue_event: event_type must be <= 0xFFFE")
+    end
+    if event_id > 0xFFFE then
+        dsl_error("se_queue_event: event_id must be <= 0xFFFE")
+    end
+
+    local c = o_call("SE_QUEUE_EVENT")
+        uint(event_type)
+        uint(event_id)
+        field_ref(slot_name)
     end_call(c)
 end
 
 
--- State actions helper
-function se_state_actions(return_code, actions_fn)
-    local c = m_call("SE_STATE_ACTIONS")
-        actions_fn()
-        result(return_code)
-    end_call(c)
-end
---]]
-
--- NEW: Named state machine with dictionary (string state names)
--- Usage: se_named_state_machine("state_field", {
---     {"IDLE", idle_fn},
---     {"RUNNING", running_fn},
---     {"ERROR", error_fn},
--- })
-function se_named_state_machine(state_field, states)
-    local c = m_call("SE_NAMED_STATE_MACHINE")
-        field_ref(state_field)
-        local d = dict_start("states")
-            for _, state in ipairs(states) do
-                local state_name = state[1]
-                local state_fn = state[2]
-                local k = dict_key(state_name)
-                    local s = m_call("SE_STATE_ACTIONS")
-                        state_fn()
-                    end_call(s)
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
--- NEW: Named state machine with table syntax (unordered)
--- Usage: se_named_state_machine_table("state_field", {
---     IDLE = idle_fn,
---     RUNNING = running_fn,
---     ERROR = error_fn,
--- })
-function se_named_state_machine_table(state_field, states)
-    local c = m_call("SE_NAMED_STATE_MACHINE")
-        field_ref(state_field)
-        local d = dict_start("states")
-            for state_name, state_fn in pairs(states) do
-                local k = dict_key(state_name)
-                    local s = m_call("SE_STATE_ACTIONS")
-                        state_fn()
-                    end_call(s)
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
---============================================================================
--- DISPATCH FUNCTIONS
---============================================================================
-
--- Integer dispatch (original, with improved list structure)
--- Usage: se_dispatch({
---     {0, action0_fn},
---     {1, action1_fn},
---     {2, action2_fn},
--- })
-function se_dispatch(cases)
-    local c = m_call("SE_DISPATCH")
-        local case_list = list_start("cases")
-            for _, case in ipairs(cases) do
-                local case_val = case[1]
-                local action_fn = case[2]
-                local l = list_start("case")
-                    int(case_val)
-                    action_fn()
-                list_end(l)
-            end
-        list_end(case_list)
-    end_call(c)
-end
-
-
---[[
--- Field-based integer dispatch
-function se_field_dispatch(field_name, cases)
-    local c = m_call("SE_FIELD_DISPATCH")
-        field_ref(field_name)
-        for _, case in ipairs(cases) do
-            local case_val = case[1]
-            local action_fn = case[2]
-            int(case_val)
-            se_pipeline(action_fn)
-        end
-    end_call(c)
-end
-]]
--- NEW: String-based dispatch using dictionary (hash lookup)
--- Usage: se_string_dispatch("command_field", {
---     {"START", start_fn},
---     {"STOP", stop_fn},
---     {"RESET", reset_fn},
---     {"DEFAULT", default_fn},
--- })
-function se_string_dispatch(field_name, cases)
-    local c = m_call("SE_STRING_DISPATCH")
-        field_ref(field_name)
-        local d = dict_start("cases")
-            for _, case in ipairs(cases) do
-                local pattern = case[1]
-                local action_fn = case[2]
-                local k = dict_key(pattern)
-                    action_fn()
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
--- NEW: String dispatch with table syntax (unordered)
--- Usage: se_string_dispatch_table("command_field", {
---     START = start_fn,
---     STOP = stop_fn,
---     DEFAULT = default_fn,
--- })
-function se_string_dispatch_table(field_name, cases)
-    local c = m_call("SE_STRING_DISPATCH")
-        field_ref(field_name)
-        local d = dict_start("cases")
-            for pattern, action_fn in pairs(cases) do
-                local k = dict_key(pattern)
-                    action_fn()
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
---- Hash dispatch (dispatch on pre-computed hash value)
--- Usage: se_hash_dispatch("hash_state", {
---     {"idle",     function() int(0) str_ptr("System idle") se_log("idle") result(SE_HALT) end},
---     {"running",  function() int(1) str_ptr("System running") se_log("running") end},
---     {"error",    function() int(2) str_ptr("System error") se_log("error") end},
---     {"shutdown", function() int(3) str_ptr("System shutdown") se_log("shutdown") end},
--- }, SE_CONTINUE)
-function se_hash_dispatch(field_name, cases, default_result)
-    local c = m_call("SE_HASH_DISPATCH")
-        field_ref(field_name)
-        local d = dict_start("cases")
-            for _, case in ipairs(cases) do
-                local key_str    = case[1]
-                local content_fn = case[2]
-                
-                local k = key(key_str)
-                    if content_fn then
-                        content_fn()
-                    end
-                key_end(k)
-            end
-        dict_end(d)
-        if default_result then
-            se_set_result(default_result)
-        end
-    end_call(c)
-end
 --============================================================================
 -- EVENT DISPATCH FUNCTIONS
 --============================================================================
@@ -588,40 +491,7 @@ function se_event_dispatch(cases)
         end
     end_call(c)
 end
--- NEW: Named event dispatch using dictionary (string event names)
--- Usage: se_named_event_dispatch({
---     {"BUTTON_PRESS", button_handler},
---     {"TIMEOUT", timeout_handler},
---     {"DATA_READY", data_handler},
--- })
-function se_named_event_dispatch(cases)
-    local c = m_call("SE_NAMED_EVENT_DISPATCH")
-        local d = dict_start("events")
-            for _, case in ipairs(cases) do
-                local event_name = case[1]
-                local action_fn = case[2]
-                local k = dict_key(event_name)
-                    se_pipeline(action_fn)
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
--- NEW: Named event dispatch with table syntax
-function se_named_event_dispatch_table(cases)
-    local c = m_call("SE_NAMED_EVENT_DISPATCH")
-        local d = dict_start("events")
-            for event_name, action_fn in pairs(cases) do
-                local k = dict_key(event_name)
-                    se_pipeline(action_fn)
-                end_dict_key(k)
-            end
-        dict_end(d)
-    end_call(c)
-end
-
---============================================================================
+--=========================================
 -- EVENT CHECK FUNCTIONS
 --============================================================================
 
@@ -634,12 +504,7 @@ function se_check_event(...)
     end_call(c)
 end
 
--- NEW: Check named event (string-based)
-function se_check_named_event(event_name)
-    local c = p_call("SE_CHECK_NAMED_EVENT")
-        str(event_name)
-    end_call(c)
-end
+
 
 --============================================================================
 -- ONESHOT FUNCTIONS
@@ -1156,57 +1021,38 @@ function se_dict(name, tbl)
     return d
 end
 
--- NEW: Create dictionary from ordered array of key-value pairs
--- Usage: se_ordered_dict("config", {{"a", 1}, {"b", 2}, {"c", 3}})
-function se_ordered_dict(name, pairs_array)
-    local d = dict_start(name)
-        for _, pair in ipairs(pairs_array) do
-            local key = pair[1]
-            local value = pair[2]
-            local k = dict_key(tostring(key))
-                local t = type(value)
-                if t == "number" then
-                    if math.floor(value) == value then
-                        int(value)
-                    else
-                        flt(value)
-                    end
-                elseif t == "string" then
-                    str(value)
-                elseif t == "boolean" then
-                    int(value and 1 or 0)
-                end
-            end_dict_key(k)
+local function emit_typed_value(value)
+    local t = type(value)
+    if t == "number" then
+        if math.floor(value) == value then
+            if value < 0 then
+                int(value)
+            else
+                uint(value)
+            end
+        else
+            flt(value)
         end
-    dict_end(d)
-    return d
-end
-
-function se_set_hash(target_field, string_value)
-    local c = o_call("SE_SET_HASH")
-        field_ref(target_field)
-        str_hash(string_value)  -- emits precomputed hash instead of str_ptr
-    end_call(c)
-end
-
-function se_i_set_hash(target_field, string_value)
-    local c = io_call("SE_SET_HASH")
-        field_ref(target_field)
-        str_hash(string_value)  -- emits precomputed hash instead of str_ptr
-    end_call(c)
+    elseif t == "string" then
+        str_hash(value)  -- String becomes hash
+    elseif t == "boolean" then
+        uint(value and 1 or 0)
+    else
+        dsl_error("emit_typed_value: unsupported type: " .. t)
+    end
 end
 
 function se_set_field(target_field, value)
     local c = o_call("SE_SET_FIELD")
         field_ref(target_field)
-        int(value)
+        emit_typed_value(value)
     end_call(c)
 end
 
 function se_i_set_field(target_field, value)
     local c = io_call("SE_SET_FIELD")
         field_ref(target_field)
-        int(value)
+        emit_typed_value(value)
     end_call(c)
 end
 -- ============================================================================

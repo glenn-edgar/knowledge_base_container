@@ -1,5 +1,0 @@
-local result = end_module(mod)
-print("Module compiled successfully: " .. result.name)
-
---print(M.write_debug_header(result))
-return result

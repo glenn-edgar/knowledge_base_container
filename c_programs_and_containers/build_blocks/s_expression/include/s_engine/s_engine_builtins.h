@@ -63,7 +63,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_GREATER_EQUAL_INT_HASH 0xBB057075
 
 // Main functions
-#define SE_PIPELINE_HASH              0x4D6E2B18
+#define SE_FUNCTION_INTERFACE_HASH    0xC7FEA7F6
 #define SE_TICK_DELAY_HASH            0x0C3460EB
 #define SE_TIME_DELAY_HASH            0xA60CE767
 #define SE_WAIT_EVENT_HASH            0xAD4917EC
@@ -87,20 +87,31 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_NAMED_STATE_MACHINE_HASH   0x876B8A33
 #define SE_NAMED_EVENT_DISPATCH_HASH  0x5E99A787
 
-// Result code functions
-#define SE_RETURN_CONTINUE_HASH           0xB4243714
-#define SE_RETURN_TERMINATE_HASH          0xDFE64C74
-#define SE_RETURN_RESET_HASH              0x70EAA030
-#define SE_RETURN_DISABLE_HASH            0x02C11A13
-#define SE_RETURN_HALT_HASH               0x056FB9EA
-#define SE_RETURN_SKIP_CONTINUE_HASH      0xEAE5524E
-#define SE_RETURN_FUNCTION_HALT_HASH      0x891F0675
-#define SE_RETURN_FUNCTION_RESET_HASH     0xF6027E85
-#define SE_RETURN_FUNCTION_TERMINATE_HASH 0x0A5B8A85
-#define SE_RETURN_PIPELINE_TERMINATE_HASH 0x0933AC9B
-#define SE_RETURN_PIPELINE_RESET_CONTINUE_HASH 0xE921B7D5
-#define SE_RETURN_PIPELINE_RESET_HALT_HASH 0xF51C6737
-// Oneshots
+// Main functions
+// Application result code function hashes (0-5)
+#define SE_RETURN_CONTINUE_HASH                0xB4243714
+#define SE_RETURN_HALT_HASH                    0x056FB9EA
+#define SE_RETURN_TERMINATE_HASH               0xDFE64C74
+#define SE_RETURN_RESET_HASH                   0x70EAA030
+#define SE_RETURN_DISABLE_HASH                 0x02C11A13
+#define SE_RETURN_SKIP_CONTINUE_HASH           0xEAE5524E
+
+// Function result code function hashes (6-11)
+#define SE_RETURN_FUNCTION_CONTINUE_HASH       0xF7191B5B
+#define SE_RETURN_FUNCTION_HALT_HASH           0x891F0675
+#define SE_RETURN_FUNCTION_TERMINATE_HASH      0x0A5B8A85
+#define SE_RETURN_FUNCTION_RESET_HASH          0xF6027E85
+#define SE_RETURN_FUNCTION_DISABLE_HASH        0x7E3D3A4A
+#define SE_RETURN_FUNCTION_SKIP_CONTINUE_HASH  0x338AC3DB
+
+// Pipeline result code function hashes (12-17)
+#define SE_RETURN_PIPELINE_CONTINUE_HASH       0x5A902F85
+#define SE_RETURN_PIPELINE_HALT_HASH           0x4AC84487
+#define SE_RETURN_PIPELINE_TERMINATE_HASH      0x0933AC9B
+#define SE_RETURN_PIPELINE_RESET_HASH          0x8CD80263
+#define SE_RETURN_PIPELINE_DISABLE_HASH        0x6B7AA500
+#define SE_RETURN_PIPELINE_SKIP_CONTINUE_HASH  0xD3A0766D
+
 #define SE_LOG_HASH                   0xCEBBEFA4
 #define SE_LOG_INT_HASH               0x2442CEA2
 #define SE_LOG_FLOAT_HASH             0xA8949A19
@@ -218,7 +229,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 
 #define SE_STACK_PUSH_HASH_HASH   0x9F783538U
 #define SE_STACK_HASH_EQ_HASH     0x4DD42786U
-
+#define SE_QUEUE_EVENT_HASH       0xCF729BCEU
 
 #ifdef __cplusplus
 }

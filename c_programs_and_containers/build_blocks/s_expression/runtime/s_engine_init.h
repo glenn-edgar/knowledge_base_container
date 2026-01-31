@@ -47,6 +47,36 @@ static inline double s_expr_tree_get_time(s_expr_tree_instance_t* inst) {
     }
     return 0.0;
 }
+
+typedef void (*s_engine_user_register_fn)(s_engine_handle_t* engine);
+
+// ============================================================================
+// DEBUG CALLBACK TYPEDEF
+// ============================================================================
+
+typedef void (*s_engine_debug_callback_fn)(s_expr_tree_instance_t* inst, const char* msg);
+
+
+bool s_engine_load_from_file(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const char* filepath,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+);
+
+bool s_engine_load_from_rom(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const uint8_t* binary_data,
+    size_t binary_size,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+);
+
+
 // ============================================================================
 // INITIALIZATION
 // 
