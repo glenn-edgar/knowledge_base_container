@@ -137,7 +137,7 @@ static void test_state_machine(s_engine_handle_t* engine) {
         return;
     }
     
-    for (int i = 0; i < 350; i++) {
+    for (int i = 0; i < 500; i++) {
         s_expr_result_t result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         printf("Tick %3d: %s\n", i + 1, result_to_str(result));
         if (result == SE_FUNCTION_TERMINATE) {

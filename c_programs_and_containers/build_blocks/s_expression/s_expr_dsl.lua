@@ -1,12 +1,16 @@
 -- ============================================================================
 -- s_expr_dsl.lua
--- S-Expression Engine DSL Core Library - Version 5.2
+-- S-Expression Engine DSL Core Library - Version 5.3
 -- 
 -- This is the main DSL library that provides:
 --   1. DSL functions for defining modules, records, trees, etc.
 --   2. C header generation (via s_expr_generators.lua)
 --   3. Binary module generation (via s_expr_generators.lua)
 --   4. Debug output generation (via s_expr_debug.lua)
+--
+-- VERSION 5.3 CHANGES:
+--   - Added tree validation: exactly one top-level node required
+--   - Better error messages for tree structure violations
 --
 -- VERSION 5.2 CHANGES:
 --   - Split into 3 files for easier maintenance
@@ -160,6 +164,18 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_FORK",
    "SE_FORK_JOIN",
    "SE_FUNCTION_INTERFACE",
+   "SE_TRIGGER_ON_CHANGE",
+
+
+
+   "SE_PRED_AND",
+   "SE_PRED_OR",
+   "SE_PRED_NOT",
+   "SE_PRED_NOR",
+   "SE_PRED_NAND",
+   "SE_PRED_XOR",
+   "SE_TRUE",
+   "SE_FALSE",
 
 }
 
@@ -776,6 +792,36 @@ function _G.end_tree(name)
     end
     
     check_brace_balance()
+    
+    -- ========================================================================
+    -- TREE STRUCTURE VALIDATION (v5.3)
+    -- ========================================================================
+    -- A tree must have exactly ONE top-level node. The runtime engine only
+    -- processes the first element of the nodes array. Multiple top-level
+    -- nodes indicate a structural error - they should be wrapped in a
+    -- container like SE_SEQUENCE, SE_FORK, or SE_STATE_MACHINE.
+    -- ========================================================================
+    
+    local top_level_count = #current_tree.nodes
+    if top_level_count == 0 then
+        dsl_error("Tree '" .. current_tree.name .. "' has no top-level function.\n" ..
+                  "  A tree must have exactly one root node (e.g., m_call, o_call, etc.)")
+    elseif top_level_count > 1 then
+        -- Collect info about all top-level nodes for a helpful error message
+        local node_names = {}
+        for i, node in ipairs(current_tree.nodes) do
+            table.insert(node_names, string.format("  %d. %s (%s)", i, node.func_name, node.call_type))
+        end
+        dsl_error("Tree '" .. current_tree.name .. "' has " .. top_level_count .. 
+                  " top-level functions.\n" ..
+                  "  The runtime engine only executes the FIRST root node.\n" ..
+                  "  Top-level nodes found:\n" .. table.concat(node_names, "\n") ..
+                  "\n\n  FIX: Wrap multiple functions in a container:\n" ..
+                  "    - SE_SEQUENCE: Execute in order, stop on non-CONTINUE\n" ..
+                  "    - SE_FORK: Execute all in parallel\n" ..
+                  "    - SE_STATE_MACHINE: State-based execution\n" ..
+                  "    - SE_CHAIN_FLOW: Pipeline processing")
+    end
     
     current_module.trees[current_tree.name] = current_tree
     table.insert(current_module.tree_order, current_tree.name)

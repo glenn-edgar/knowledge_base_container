@@ -58,19 +58,28 @@ static void error_callback(s_expr_tree_instance_t* inst, uint8_t error_code, con
 
 static const char* result_to_str(s_expr_result_t r) {
     switch (r) {
-        case SE_CONTINUE:           return "CONTINUE";
-        case SE_HALT:               return "HALT";
-        case SE_TERMINATE:          return "TERMINATE";
-        case SE_RESET:              return "RESET";
-        case SE_DISABLE:            return "DISABLE";
-        case SE_FUNCTION_TERMINATE: return "FUNCTION_TERMINATE";
-        case SE_SKIP_CONTINUE:      return "SKIP_CONTINUE";
-        case SE_FUNCTION_HALT:      return "FUNCTION_HALT";
-        case SE_FUNCTION_RESET:     return "FUNCTION_RESET";
-        case SE_PIPELINE_TERMINATE: return "PIPELINE_TERMINATE";
-        case SE_PIPELINE_RESET_CONTINUE: return "PIPELINE_RESET_CONTINUE";
-        case SE_PIPELINE_RESET_HALT: return "PIPELINE_RESET_HALT";
-        default:                    return "UNKNOWN";
+        // Application (0-5)
+        case SE_CONTINUE:                return "CONTINUE";
+        case SE_HALT:                    return "HALT";
+        case SE_TERMINATE:               return "TERMINATE";
+        case SE_RESET:                   return "RESET";
+        case SE_DISABLE:                 return "DISABLE";
+        case SE_SKIP_CONTINUE:           return "SKIP_CONTINUE";
+        // Function (6-11)
+        case SE_FUNCTION_CONTINUE:       return "FUNCTION_CONTINUE";
+        case SE_FUNCTION_HALT:           return "FUNCTION_HALT";
+        case SE_FUNCTION_TERMINATE:      return "FUNCTION_TERMINATE";
+        case SE_FUNCTION_RESET:          return "FUNCTION_RESET";
+        case SE_FUNCTION_DISABLE:        return "FUNCTION_DISABLE";
+        case SE_FUNCTION_SKIP_CONTINUE:  return "FUNCTION_SKIP_CONTINUE";
+        // Pipeline (12-17)
+        case SE_PIPELINE_CONTINUE:       return "PIPELINE_CONTINUE";
+        case SE_PIPELINE_HALT:           return "PIPELINE_HALT";
+        case SE_PIPELINE_TERMINATE:      return "PIPELINE_TERMINATE";
+        case SE_PIPELINE_RESET:          return "PIPELINE_RESET";
+        case SE_PIPELINE_DISABLE:        return "PIPELINE_DISABLE";
+        case SE_PIPELINE_SKIP_CONTINUE:  return "PIPELINE_SKIP_CONTINUE";
+        default:                         return "UNKNOWN";
     }
 }
 
@@ -81,121 +90,15 @@ static double linux_get_time(void* ctx) {
     clock_gettime(CLOCK_REALTIME, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
+
 extern void black_board_register_all(s_expr_module_t* module);
+
 // ============================================================================
-// ENGINE LOADING
+// USER FUNCTION REGISTRATION WRAPPER
 // ============================================================================
 
-static bool load_from_rom(s_engine_handle_t* engine, s_expr_allocator_t* alloc, 
-                          const uint8_t* binary_data, size_t binary_size) {
-    printf("=== Initializing Engine from ROM ===\n");
-    
-    memset(engine, 0, sizeof(s_engine_handle_t));
-    
-    uint8_t err = s_engine_init_from_rom(
-        engine,
-        binary_data,
-        binary_size,
-        *alloc,
-        NULL
-    );
-    
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
-        return false;
-    }
-    
-    printf("✅ Module loaded successfully\n");
-    printf("   Trees:    %d\n", engine->module.def->tree_count);
-    printf("   Records:  %d\n", engine->module.def->record_count);
-    printf("   Strings:  %d\n", engine->module.def->string_count);
-    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
-    printf("   Main:     %d\n", engine->module.def->main_count);
-    printf("   Pred:     %d\n", engine->module.def->pred_count);
-
-    // Register functions
-    printf("\n=== Registering Functions ===\n");
-    
-    s_engine_register_builtins(engine);
-    printf("✅ Built-in functions registered\n");
-    
-    // Initialize and register tutorial user functions
+static void register_black_board_functions(s_engine_handle_t* engine) {
     black_board_register_all(&engine->module);
-    printf("✅ Tutorial user functions registered\n");
-    
-    s_expr_module_set_debug(&engine->module, debug_callback);
-    s_expr_module_set_error(&engine->module, error_callback);
-    printf("✅ Debug/error callbacks set\n");
-    
-    printf("\n=== Validating Function Resolution ===\n");
-    
-    err = s_engine_validate(engine);
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
-        printf("   Missing hash: 0x%08X at index %d\n", 
-               engine->module.error_hash, engine->module.error_index);
-        s_engine_free(engine);
-        return false;
-    }
-    
-    printf("✅ All functions resolved successfully\n");
-    return true;
-}
-
-static bool load_from_file(s_engine_handle_t* engine, s_expr_allocator_t* alloc, 
-                           const char* filepath) {
-    printf("=== Initializing Engine from File ===\n");
-    
-    memset(engine, 0, sizeof(s_engine_handle_t));
-    
-    uint8_t err = s_engine_init_from_file(
-        engine,
-        filepath,
-        *alloc,
-        NULL
-    );
-    
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Failed to init engine: %s\n", s_engine_error_str(engine));
-        return false;
-    }
-    
-    printf("✅ Module loaded successfully\n");
-    printf("   Trees:    %d\n", engine->module.def->tree_count);
-    printf("   Records:  %d\n", engine->module.def->record_count);
-    printf("   Strings:  %d\n", engine->module.def->string_count);
-    printf("   Oneshot:  %d\n", engine->module.def->oneshot_count);
-    printf("   Main:     %d\n", engine->module.def->main_count);
-    printf("   Pred:     %d\n", engine->module.def->pred_count);
-
-    // Register functions
-    printf("\n=== Registering Functions ===\n");
-    
-    s_engine_register_builtins(engine);
-    printf("✅ Built-in functions registered\n");
-    
-    // Initialize and register tutorial user functions
-    black_board_register_all(&engine->module);
-    
-    printf("✅ Tutorial user functions registered\n");
-    
-    s_expr_module_set_debug(&engine->module, debug_callback);
-    s_expr_module_set_error(&engine->module, error_callback);
-    printf("✅ Debug/error callbacks set\n");
-    
-    printf("\n=== Validating Function Resolution ===\n");
-    
-    err = s_engine_validate(engine);
-    if (err != S_EXPR_ERR_OK) {
-        printf("❌ FATAL: Validation failed: %s\n", s_expr_error_str(err));
-        printf("   Missing hash: 0x%08X at index %d\n", 
-               engine->module.error_hash, engine->module.error_index);
-        s_engine_free(engine);
-        return false;
-    }
-    
-    printf("✅ All functions resolved successfully\n");
-    return true;
 }
 
 // ============================================================================
@@ -244,8 +147,6 @@ static bool run_tree_test(s_engine_handle_t* engine, s_expr_hash_t tree_hash,
 // BLACKBOARD ACCESS TESTS
 // ============================================================================
 
-
-
 static void test_blackboard_access(s_engine_handle_t* engine) {
     printf("\n╔════════════════════════════════════════╗\n");
     printf("║    BLACKBOARD ACCESS TESTS             ║\n");
@@ -274,8 +175,6 @@ static void test_slot_access(s_engine_handle_t* engine) {
 // ARRAY ACCESS TESTS
 // ============================================================================
 
-
-
 static void test_array_access(s_engine_handle_t* engine) {
     printf("\n╔════════════════════════════════════════╗\n");
     printf("║    ARRAY ACCESS TESTS                  ║\n");
@@ -289,8 +188,6 @@ static void test_array_access(s_engine_handle_t* engine) {
 // ============================================================================
 // NESTED RECORD ACCESS TESTS
 // ============================================================================
-
-
 
 static void test_nested_access(s_engine_handle_t* engine) {
     printf("\n╔════════════════════════════════════════╗\n");
@@ -511,16 +408,32 @@ int main(int argc, char* argv[]) {
     s_engine_handle_t engine;
     bool result;
     
+    // User function registration list
+    s_engine_user_register_fn user_fns[] = {
+        register_black_board_functions
+    };
+    
     // ========================================================================
     // TEST 1: Load from ROM
     // ========================================================================
     
     printf("\n=== Loading module from ROM ===\n\n");
-    result = load_from_rom(&engine, &alloc, black_board_module_bin_32, BLACK_BOARD_MODULE_BIN_32_SIZE);
+    result = s_engine_load_from_rom(
+        &engine,
+        &alloc,
+        black_board_module_bin_32,
+        BLACK_BOARD_MODULE_BIN_32_SIZE,
+        debug_callback,
+        1,
+        user_fns
+    );
     if (!result) {
         printf("❌ FATAL: Failed to load module from ROM\n");
         return 1;
     }
+    
+    // Set error callback (not part of load function)
+    s_expr_module_set_error(&engine.module, error_callback);
     
     run_tutorial_tests(&engine);
     s_engine_free(&engine);
@@ -530,11 +443,21 @@ int main(int argc, char* argv[]) {
     // ========================================================================
     
     printf("\n\n=== Loading module from file ===\n\n");
-    result = load_from_file(&engine, &alloc, "black_board_32.bin");
+    result = s_engine_load_from_file(
+        &engine,
+        &alloc,
+        "black_board_32.bin",
+        debug_callback,
+        1,
+        user_fns
+    );
     if (!result) {
         printf("⚠️  WARNING: Could not load from file (may not exist)\n");
         printf("   This is OK if running without the binary file.\n");
     } else {
+        // Set error callback
+        s_expr_module_set_error(&engine.module, error_callback);
+        
         run_tutorial_tests(&engine);
         s_engine_free(&engine);
     }

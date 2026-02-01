@@ -947,7 +947,7 @@ static s_expr_result_t se_trigger_on_change(
     uint16_t count = s_expr_child_count(params, param_count);
     if (count < 3) {
         EXCEPTION("se_trigger_on_change: need at least 3 children");
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
     const uint16_t INIT_STATE_CHILD = 0;
@@ -956,11 +956,17 @@ static s_expr_result_t se_trigger_on_change(
     const uint16_t FALLING_CHILD = 3;
     bool has_falling = (count >= 4);
     
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
         s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
     if (event_type == SE_EVENT_INIT) {
         // Get initial state from child 0
         uint16_t init_phys_idx = s_expr_child_index(params, param_count, INIT_STATE_CHILD);
@@ -968,15 +974,19 @@ static s_expr_result_t se_trigger_on_change(
         
         if (type0 != S_EXPR_PARAM_INT && type0 != S_EXPR_PARAM_UINT) {
             EXCEPTION("se_trigger_on_change: child 0 must be INT or UINT");
-            return SE_CONTINUE;
+            return SE_PIPELINE_CONTINUE;
         }
         
         int32_t initial_state = (int32_t)params[init_phys_idx].int_val;
         s_expr_set_state(inst, initial_state ? 1 : 0);
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
-    // TICK: evaluate predicate and detect edges
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    
+    // Evaluate predicate and detect edges
     bool current = s_expr_child_invoke_pred(inst, params, param_count, PRED_CHILD);
     uint8_t prev = s_expr_get_state(inst);
     
@@ -995,7 +1005,34 @@ static s_expr_result_t se_trigger_on_change(
         // Restart rising action: terminate, reset, invoke
         s_expr_child_terminate(inst, params, param_count, RISING_CHILD);
         s_expr_child_reset(inst, params, param_count, RISING_CHILD);
-        return s_expr_child_invoke(inst, params, param_count, RISING_CHILD);
+        
+        uint16_t phys_idx = s_expr_child_index(params, param_count, RISING_CHILD);
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // Non-PIPELINE codes (0-11) - propagate to caller
+        if (r < SE_PIPELINE_CONTINUE) {
+            return r;
+        }
+        
+        // PIPELINE codes (12-17) - handle internally
+        switch (r) {
+            case SE_PIPELINE_CONTINUE:
+            case SE_PIPELINE_HALT:
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_DISABLE:
+            case SE_PIPELINE_TERMINATE:
+            case SE_PIPELINE_RESET:
+                s_expr_child_terminate(inst, params, param_count, RISING_CHILD);
+                s_expr_child_reset(inst, params, param_count, RISING_CHILD);
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_SKIP_CONTINUE:
+                return SE_PIPELINE_CONTINUE;
+                
+            default:
+                return SE_PIPELINE_CONTINUE;
+        }
     } 
     else if (falling && has_falling) {
         // Terminate rising action (was running, now stopping)
@@ -1005,10 +1042,37 @@ static s_expr_result_t se_trigger_on_change(
         // Restart falling action: terminate, reset, invoke
         s_expr_child_terminate(inst, params, param_count, FALLING_CHILD);
         s_expr_child_reset(inst, params, param_count, FALLING_CHILD);
-        return s_expr_child_invoke(inst, params, param_count, FALLING_CHILD);
+        
+        uint16_t phys_idx = s_expr_child_index(params, param_count, FALLING_CHILD);
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // Non-PIPELINE codes (0-11) - propagate to caller
+        if (r < SE_PIPELINE_CONTINUE) {
+            return r;
+        }
+        
+        // PIPELINE codes (12-17) - handle internally
+        switch (r) {
+            case SE_PIPELINE_CONTINUE:
+            case SE_PIPELINE_HALT:
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_DISABLE:
+            case SE_PIPELINE_TERMINATE:
+            case SE_PIPELINE_RESET:
+                s_expr_child_terminate(inst, params, param_count, FALLING_CHILD);
+                s_expr_child_reset(inst, params, param_count, FALLING_CHILD);
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_SKIP_CONTINUE:
+                return SE_PIPELINE_CONTINUE;
+                
+            default:
+                return SE_PIPELINE_CONTINUE;
+        }
     }
     
-    return SE_CONTINUE;
+    return SE_PIPELINE_CONTINUE;
 }
 
 // SE_FIELD_DISPATCH - dispatch based on integer field value
@@ -1915,29 +1979,43 @@ static s_expr_result_t se_sequence(
             continue;
         }
         
-        // Check child type BEFORE invoking
         uint8_t func_type = s_expr_child_func_type(params, param_count, state);
         
-        // Invoke current child
-        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
-        
         // -----------------------------------------------------------------
-        // ONESHOT/PRED - always advance (they complete immediately)
+        // ONESHOT - invoke and advance immediately
         // -----------------------------------------------------------------
-        if (func_type == S_EXPR_PARAM_ONESHOT || func_type == S_EXPR_PARAM_PRED) {
+        if (func_type == S_EXPR_PARAM_ONESHOT) {
+            s_expr_invoke_any(inst, params, phys_idx);
             state++;
             s_expr_set_state(inst, state);
-            continue;  // Next child same tick
+            continue;
         }
         
         // -----------------------------------------------------------------
-        // MAIN - check result code
+        // PRED - invoke and advance immediately
         // -----------------------------------------------------------------
-        if (r == SE_FUNCTION_HALT) {
-            return SE_PIPELINE_HALT;
+        if (func_type == S_EXPR_PARAM_PRED) {
+            s_expr_invoke_any(inst, params, phys_idx);
+            state++;
+            s_expr_set_state(inst, state);
+            continue;
         }
-        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
-        if (r < SE_PIPELINE_CONTINUE) {
+        
+        // -----------------------------------------------------------------
+        // MAIN - invoke and check result
+        // -----------------------------------------------------------------
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // APPLICATION codes (0-5) - propagate immediately
+        if (r <= SE_SKIP_CONTINUE) {
+            return r;
+        }
+        
+        // FUNCTION codes (6-11) - propagate, except HALT which converts
+        if (r >= SE_FUNCTION_CONTINUE && r <= SE_FUNCTION_SKIP_CONTINUE) {
+            if (r == SE_FUNCTION_HALT) {
+                return SE_PIPELINE_HALT;
+            }
             return r;
         }
         
@@ -1974,9 +2052,6 @@ static s_expr_result_t se_sequence(
 #define FORK_STATE_COMPLETE  2
 
 
-#define FORK_STATE_INIT      0
-#define FORK_STATE_RUNNING   1
-#define FORK_STATE_COMPLETE  2
 
 static s_expr_result_t se_function_interface(
     s_expr_tree_instance_t* inst,

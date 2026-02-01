@@ -80,8 +80,8 @@ case_fn[3] = function()
         end)
     end) 
 end
---[[
-case_fn[3] = function() 
+
+case_fn[4] = function() 
     se_case('default', function()
         se_sequence(function()
             se_log("State 2")
@@ -96,7 +96,7 @@ case_fn[3] = function()
         end)
     end) 
 end
-]]
+
 start_tree("state_machine_test")
     use_record("state_machine_blackboard")
 
@@ -106,6 +106,12 @@ start_tree("state_machine_test")
             se_log("Fork Join Test Started")
             se_tick_delay(10)
             se_log("Fork Join Test Terminated")
+        end)
+
+        se_fork(function()
+            se_log("Fork 1 Test Started")
+            se_tick_delay(10)
+            se_log("Fork 1 Test Terminated")
         end)
         -- Removed the extra end) here
         

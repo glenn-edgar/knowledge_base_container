@@ -154,7 +154,14 @@ static void test_dispatch(s_engine_handle_t* engine) {
             printf("-------------------------------->      Event: tick_type=%d, event_id=%d, event_data=%p\n", 
                    tick_type, event_id, event_data);
             
+            // Save, set, execute, restore
+            uint16_t saved_tick_type = tree->tick_type;
+            tree->tick_type = tick_type;
+            
             s_expr_result_t event_result = s_expr_node_tick(tree, event_id, event_data);
+            
+            tree->tick_type = saved_tick_type;
+            
             printf("-------------------------------->      Event result: %s\n", result_to_str(event_result));
             
             if (result_is_complete(event_result)) {
