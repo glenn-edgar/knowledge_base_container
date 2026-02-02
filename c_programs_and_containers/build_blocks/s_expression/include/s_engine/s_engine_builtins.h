@@ -81,6 +81,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_CHAIN_FLOW_HASH            0xFFC1FAA4  
 #define SE_FOR_HASH                   0xA11A2225
 #define SE_WHILE_HASH                 0xA08B6DD3  
+#define SE_COND_HASH                  0xCE0831A2
 // NEW v5.2: Dictionary-based dispatch functions
 #define SE_STRING_DISPATCH_HASH       0x6A3A4922
 #define SE_HASH_DISPATCH_HASH         0xDE8E6F0D

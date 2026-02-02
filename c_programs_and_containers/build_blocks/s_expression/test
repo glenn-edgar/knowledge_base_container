@@ -1,0 +1,379 @@
+S-Expression Engine helpers loaded (v5.2)
+S-Expression Engine helpers loaded (v5.2)
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_records.h
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test.h
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_debug.h
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_user_functions.h
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_user_registration.c
+emit_node: SE_FUNCTION_INTERFACE type=m_call children=5
+  child[1]: SE_SET_FIELD type=io_call order=0
+  child[2]: SE_LOG type=o_call order=1
+  child[3]: SE_EVENT_DISPATCH type=m_call order=2
+  child[4]: SE_COND type=m_call order=3
+  child[5]: SE_STATE_MACHINE type=m_call order=4
+emit_node: SE_SET_FIELD type=io_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_EVENT_DISPATCH type=m_call children=5
+  child[1]: SE_CHAIN_FLOW type=m_call order=1
+  child[2]: SE_CHAIN_FLOW type=m_call order=3
+  child[3]: SE_CHAIN_FLOW type=m_call order=5
+  child[4]: SE_CHAIN_FLOW type=m_call order=7
+  child[5]: SE_CHAIN_FLOW type=m_call order=9
+emit_node: SE_CHAIN_FLOW type=m_call children=6
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_IF_THEN_ELSE type=m_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_LOG type=o_call order=4
+  child[6]: SE_RETURN_PIPELINE_RESET type=m_call order=5
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_IF_THEN_ELSE type=m_call children=3
+  child[1]: SE_CHECK_EVENT type=p_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+emit_node: SE_CHECK_EVENT type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=5
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_LOG type=o_call order=3
+  child[5]: SE_RETURN_PIPELINE_RESET type=m_call order=4
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=5
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_IF_THEN_ELSE type=m_call order=1
+  child[3]: DISPLAY_EVENT_INFO type=o_call order=2
+  child[4]: SE_LOG type=o_call order=3
+  child[5]: SE_RETURN_PIPELINE_RESET type=m_call order=4
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_IF_THEN_ELSE type=m_call children=3
+  child[1]: SE_CHECK_EVENT type=p_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+emit_node: SE_CHECK_EVENT type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=1
+  child[1]: SE_RETURN_PIPELINE_HALT type=m_call order=0
+emit_node: SE_RETURN_PIPELINE_HALT type=m_call children=0
+emit_node: SE_COND type=m_call children=5
+  child[1]: SE_CHAIN_FLOW type=m_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+  child[4]: SE_TRUE type=p_call order=3
+  child[5]: SE_CHAIN_FLOW type=m_call order=4
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_TRUE type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=1
+  child[1]: SE_RETURN_PIPELINE_RESET type=m_call order=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_STATE_MACHINE type=m_call children=3
+  child[1]: SE_CHAIN_FLOW type=m_call order=2
+  child[2]: SE_CHAIN_FLOW type=m_call order=4
+  child[3]: SE_FORK type=m_call order=6
+emit_node: SE_CHAIN_FLOW type=m_call children=7
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_QUEUE_EVENT type=o_call order=4
+  child[6]: SE_QUEUE_EVENT type=o_call order=5
+  child[7]: SE_RETURN_PIPELINE_RESET type=m_call order=6
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=7
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_QUEUE_EVENT type=o_call order=4
+  child[6]: SE_QUEUE_EVENT type=o_call order=5
+  child[7]: SE_RETURN_PIPELINE_RESET type=m_call order=6
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_FORK type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_TERMINATE type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_TERMINATE type=m_call children=0
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_32.bin (3416 bytes)
+emit_node: SE_FUNCTION_INTERFACE type=m_call children=5
+  child[1]: SE_SET_FIELD type=io_call order=0
+  child[2]: SE_LOG type=o_call order=1
+  child[3]: SE_EVENT_DISPATCH type=m_call order=2
+  child[4]: SE_COND type=m_call order=3
+  child[5]: SE_STATE_MACHINE type=m_call order=4
+emit_node: SE_SET_FIELD type=io_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_EVENT_DISPATCH type=m_call children=5
+  child[1]: SE_CHAIN_FLOW type=m_call order=1
+  child[2]: SE_CHAIN_FLOW type=m_call order=3
+  child[3]: SE_CHAIN_FLOW type=m_call order=5
+  child[4]: SE_CHAIN_FLOW type=m_call order=7
+  child[5]: SE_CHAIN_FLOW type=m_call order=9
+emit_node: SE_CHAIN_FLOW type=m_call children=6
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_IF_THEN_ELSE type=m_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_LOG type=o_call order=4
+  child[6]: SE_RETURN_PIPELINE_RESET type=m_call order=5
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_IF_THEN_ELSE type=m_call children=3
+  child[1]: SE_CHECK_EVENT type=p_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+emit_node: SE_CHECK_EVENT type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=5
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_LOG type=o_call order=3
+  child[5]: SE_RETURN_PIPELINE_RESET type=m_call order=4
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=5
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_IF_THEN_ELSE type=m_call order=1
+  child[3]: DISPLAY_EVENT_INFO type=o_call order=2
+  child[4]: SE_LOG type=o_call order=3
+  child[5]: SE_RETURN_PIPELINE_RESET type=m_call order=4
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_IF_THEN_ELSE type=m_call children=3
+  child[1]: SE_CHECK_EVENT type=p_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+emit_node: SE_CHECK_EVENT type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_PIPELINE_RESET type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=1
+  child[1]: SE_RETURN_PIPELINE_HALT type=m_call order=0
+emit_node: SE_RETURN_PIPELINE_HALT type=m_call children=0
+emit_node: SE_COND type=m_call children=5
+  child[1]: SE_CHAIN_FLOW type=m_call order=0
+  child[2]: SE_CHAIN_FLOW type=m_call order=1
+  child[3]: SE_CHAIN_FLOW type=m_call order=2
+  child[4]: SE_TRUE type=p_call order=3
+  child[5]: SE_CHAIN_FLOW type=m_call order=4
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=3
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: DISPLAY_EVENT_INFO type=o_call order=1
+  child[3]: SE_RETURN_PIPELINE_RESET type=m_call order=2
+emit_node: SE_LOG type=o_call children=0
+emit_node: DISPLAY_EVENT_INFO type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_TRUE type=p_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=1
+  child[1]: SE_RETURN_PIPELINE_RESET type=m_call order=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_STATE_MACHINE type=m_call children=3
+  child[1]: SE_CHAIN_FLOW type=m_call order=2
+  child[2]: SE_CHAIN_FLOW type=m_call order=4
+  child[3]: SE_FORK type=m_call order=6
+emit_node: SE_CHAIN_FLOW type=m_call children=7
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_QUEUE_EVENT type=o_call order=4
+  child[6]: SE_QUEUE_EVENT type=o_call order=5
+  child[7]: SE_RETURN_PIPELINE_RESET type=m_call order=6
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_CHAIN_FLOW type=m_call children=7
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_SET_FIELD type=o_call order=2
+  child[4]: SE_SET_FIELD type=o_call order=3
+  child[5]: SE_QUEUE_EVENT type=o_call order=4
+  child[6]: SE_QUEUE_EVENT type=o_call order=5
+  child[7]: SE_RETURN_PIPELINE_RESET type=m_call order=6
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_SET_FIELD type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_QUEUE_EVENT type=o_call children=0
+emit_node: SE_RETURN_PIPELINE_RESET type=m_call children=0
+emit_node: SE_FORK type=m_call children=4
+  child[1]: SE_LOG type=o_call order=0
+  child[2]: SE_TICK_DELAY type=pt_m_call order=1
+  child[3]: SE_LOG type=o_call order=2
+  child[4]: SE_RETURN_TERMINATE type=m_call order=3
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_TICK_DELAY type=pt_m_call children=0
+emit_node: SE_LOG type=o_call children=0
+emit_node: SE_RETURN_TERMINATE type=m_call children=0
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_bin_32.h
+Generated: dsl_tests/advanced_primitive_test//advanced_primitive_test_dump_32.h
+
+Module: advanced_primitive_test
+  Trees: 1
+  Records: 1
+  Constants: 0
+  Strings: 20
+  Oneshot functions: 4
+  Main functions: 11
+  Pred functions: 2
+  Mode: 32-bit
+  Binary format: v5.1 (direct s_expr_param_t, zero-copy)

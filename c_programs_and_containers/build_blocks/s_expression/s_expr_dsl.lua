@@ -165,6 +165,8 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_FORK_JOIN",
    "SE_FUNCTION_INTERFACE",
    "SE_TRIGGER_ON_CHANGE",
+   "SE_IF_THEN_ELSE",
+   "SE_COND",
 
 
 
@@ -176,7 +178,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_PRED_XOR",
    "SE_TRUE",
    "SE_FALSE",
-
+   "SE_CHECK_EVENT",
 }
 
 builtins_module.BUILTIN_SET = {}

@@ -3,17 +3,47 @@ local mod = start_module("basic_primitive_test")
 use_32bit()
 set_debug(true)
 
+-- ============================================================================
+-- Predicate Definitions
+-- ============================================================================
+
+-- Trigger 1: Simple single bit test
+local pred_bit0 = se_pred_with("TEST_BIT", function() int(0) end)
+
+-- Trigger 2: AND of two bits
+pred_begin()
+    local and1 = se_pred_and()
+        se_pred_with("TEST_BIT", function() int(1) end)
+        se_pred_with("TEST_BIT", function() int(2) end)
+    pred_close(and1)
+local pred_bits_12 = pred_end()
+
+-- Trigger 3: OR of two bits
+pred_begin()
+    local or1 = se_pred_or()
+        se_pred_with("TEST_BIT", function() int(3) end)
+        se_pred_with("TEST_BIT", function() int(4) end)
+    pred_close(or1)
+local pred_bits_34 = pred_end()
+
+-- Trigger 4: NOT of a bit
+pred_begin()
+    local not1 = se_pred_not()
+    
+        se_pred_with("TEST_BIT", function() int(5) end)
+    pred_close(not1)
+    
+local pred_not_bit5 = pred_end()
+
+-- ============================================================================
+-- Tree Definition
+-- ============================================================================
+
 start_tree("basic_primitive_test")
     
     se_function_interface(function()
         
-        -- Trigger 1: Simple single bit test
-        se_trigger_on_change(0,
-            function()
-                local pred = p_call("TEST_BIT")
-                    int(0)  -- bit index
-                end_call(pred)
-            end,
+        se_trigger_on_change(0, pred_bit0,
             function()
                 se_chain_flow(function()
                     local rise = o_call("ON_BIT0_RISE")
@@ -32,14 +62,7 @@ start_tree("basic_primitive_test")
             end
         )
         
-        -- Trigger 2: AND of two bits
-        se_trigger_on_change(0,
-            function()
-                local pred = p_call("SE_PRED_AND")
-                    local p1 = p_call("TEST_BIT") int(1) end_call(p1)
-                    local p2 = p_call("TEST_BIT") int(2) end_call(p2)
-                end_call(pred)
-            end,
+        se_trigger_on_change(0, pred_bits_12,
             function()
                 se_chain_flow(function()
                     local rise = o_call("ON_BITS_12_RISE")
@@ -58,14 +81,7 @@ start_tree("basic_primitive_test")
             end
         )
         
-        -- Trigger 3: OR of two bits
-        se_trigger_on_change(0,
-            function()
-                local pred = p_call("SE_PRED_OR")
-                    local p1 = p_call("TEST_BIT") int(3) end_call(p1)
-                    local p2 = p_call("TEST_BIT") int(4) end_call(p2)
-                end_call(pred)
-            end,
+        se_trigger_on_change(0, pred_bits_34,
             function()
                 se_chain_flow(function()
                     local rise = o_call("ON_BITS_34_RISE")
@@ -84,13 +100,7 @@ start_tree("basic_primitive_test")
             end
         )
         
-        -- Trigger 4: NOT of a bit (inverted logic)
-        se_trigger_on_change(1,
-            function()
-                local pred = p_call("SE_PRED_NOT")
-                    local p1 = p_call("TEST_BIT") int(5) end_call(p1)
-                end_call(pred)
-            end,
+        se_trigger_on_change(1, pred_not_bit5,
             function()
                 se_chain_flow(function()
                     local clear = o_call("ON_BIT5_CLEAR")

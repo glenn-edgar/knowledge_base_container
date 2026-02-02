@@ -14,92 +14,37 @@
 --   - Added parameter block helper (se_params)
 --============================================================================
 
---============================================================================
--- COMPOSABLE PREDICATE API
--- 
--- Build complex boolean expressions from any child predicates.
--- Children can be p_call() user predicates or nested se_pred_*() blocks.
---
--- Usage:
---   local p1 = se_pred_or()
---       local p2 = se_pred_and()
---           p_call("SENSOR_A_READY") end_call()
---           p_call("SENSOR_B_READY") end_call()
---       end_call(p2)
---       p_call("OVERRIDE_ENABLED") end_call()
---   end_call(p1)  -- (A AND B) OR OVERRIDE
---============================================================================
 
-function se_pred(name)
-    local c = p_call(name)
-    end_call(c)
-end
 
-function se_pred_or()
-    return p_call_composite("SE_PRED_OR")
-end
 
-function se_pred_and()
-    return p_call_composite("SE_PRED_AND")
-end
-
-function se_pred_nor()
-    return p_call_composite("SE_PRED_NOR")
-end
-
-function se_pred_nand()
-    return p_call_composite("SE_PRED_NAND")
-end
-
-function se_pred_xor()
-    return p_call_composite("SE_PRED_XOR")
-end
-
-function se_pred_not()
-    return p_call_composite("SE_PRED_NOT")  -- single child, inverts result
-end
-
---============================================================================
--- PREDICATE CONSTANTS
---============================================================================
-
-function se_true()
-    local c = p_call("SE_TRUE")
-    end_call(c)
-end
-
-function se_false()
-    local c = p_call("SE_FALSE")
-    end_call(c)
-end
 
 --============================================================================
 -- RESULT CODE CONSTANTS
 --============================================================================
 
 -- APPLICATION RESULT CODES (0-5)
-_G.SE_CONTINUE           = 0
-_G.SE_HALT               = 1
-_G.SE_TERMINATE          = 2
-_G.SE_RESET              = 3
-_G.SE_DISABLE            = 4
-_G.SE_SKIP_CONTINUE      = 5
+--_G.SE_CONTINUE           = 0
+--_G.SE_HALT               = 1
+--_G.SE_TERMINATE          = 2
+--_G.SE_RESET              = 3
+--_G.SE_DISABLE            = 4
+--_G.SE_SKIP_CONTINUE      = 5
 
 -- FUNCTION RESULT CODES (6-11)
-_G.SE_FUNCTION_CONTINUE      = 6
-_G.SE_FUNCTION_HALT          = 7
-_G.SE_FUNCTION_TERMINATE     = 8
-_G.SE_FUNCTION_RESET         = 9
-_G.SE_FUNCTION_DISABLE       = 10
-_G.SE_FUNCTION_SKIP_CONTINUE = 11
+--_G.SE_FUNCTION_CONTINUE      = 6
+--_G.SE_FUNCTION_HALT          = 7
+--_G.SE_FUNCTION_TERMINATE     = 8
+--_G.SE_FUNCTION_RESET         = 9
+--_G.SE_FUNCTION_DISABLE       = 10
+--_G.SE_FUNCTION_SKIP_CONTINUE = 11
 
 -- PIPELINE RESULT CODES (12-17)
-_G.SE_PIPELINE_CONTINUE      = 12
-_G.SE_PIPELINE_HALT          = 13
-_G.SE_PIPELINE_TERMINATE     = 14
-_G.SE_PIPELINE_RESET         = 15
-_G.SE_PIPELINE_DISABLE       = 16
-_G.SE_PIPELINE_SKIP_CONTINUE = 17
+--_G.SE_PIPELINE_CONTINUE      = 12
+--_G.SE_PIPELINE_HALT          = 13
+--_G.SE_PIPELINE_TERMINATE     = 14
+--_G.SE_PIPELINE_RESET         = 15
+--_G.SE_PIPELINE_DISABLE       = 16
+--_G.SE_PIPELINE_SKIP_CONTINUE = 17
 
 --============================================================================
 -- APPLICATION RESULT CODE FUNCTIONS (0-5)
@@ -491,19 +436,94 @@ function se_event_dispatch(cases)
         end
     end_call(c)
 end
+
+
+--============================================================================
+-- SE_COND - Lisp-style conditional dispatch
+--============================================================================
+
+--============================================================================
+-- SE_COND - Lisp-style conditional dispatch
+--============================================================================
+
+local cond_case_count = 0
+local cond_has_default = false
+local in_cond = false
+
+function se_cond(cases)
+    -- Reset tracking
+    cond_case_count = 0
+    cond_has_default = false
+    in_cond = true
+    
+    local success, err = pcall(function()
+        local c = m_call("SE_COND")
+            if type(cases) == "function" then
+                cases()
+            elseif type(cases) == "table" then
+                for _, case_fn in ipairs(cases) do
+                    case_fn()
+                end
+            else
+                error("se_cond: cases must be function or table")
+            end
+        end_call(c)
+    end)
+    
+    -- Validate before cleanup
+    local case_count = cond_case_count
+    local has_default = cond_has_default
+    
+    -- Cleanup
+    in_cond = false
+    cond_case_count = 0
+    cond_has_default = false
+    
+    if not success then
+        error(err)
+    end
+    
+    if case_count == 0 then
+        error("se_cond: must have at least one case")
+    end
+    
+    if not has_default then
+        error("se_cond: must have a default case (use se_cond_default)")
+    end
+end
+
+function se_cond_case(pred_fn, action_fn)
+    return function()
+        if not in_cond then
+            error("se_cond_case: must be used inside se_cond")
+        end
+        if cond_has_default then
+            error("se_cond_case: cannot add cases after se_cond_default (default must be last)")
+        end
+        cond_case_count = cond_case_count + 1
+        pred_fn()
+        action_fn()
+    end
+end
+
+function se_cond_default(action_fn)
+    return function()
+        if not in_cond then
+            error("se_cond_default: must be used inside se_cond")
+        end
+        if cond_has_default then
+            error("se_cond_default: duplicate default case")
+        end
+        cond_has_default = true
+        cond_case_count = cond_case_count + 1
+        local pred = p_call("SE_TRUE")
+        end_call(pred)
+        action_fn()
+    end
+end
 --=========================================
 -- EVENT CHECK FUNCTIONS
 --============================================================================
-
-function se_check_event(...)
-    local event_ids = {...}
-    local c = p_call("SE_CHECK_EVENT")
-        for _, id in ipairs(event_ids) do
-            int(id)
-        end
-    end_call(c)
-end
-
 
 
 --============================================================================
@@ -516,510 +536,8 @@ function se_log(message)
     end_call(c)
 end
 
-function se_debug_log(message)
-    if is_debug and is_debug() then
-        se_log(message)
-    end
-end
 
-function se_debug_log_field(message, field_name)
-    if is_debug and is_debug() then
-        local c = o_call("SE_LOG")
-            str(message)
-            field_ref(field_name)
-        end_call(c)
-    end
-end
 
--- NEW: Log with integer value
-function se_log_int(message, value)
-    local c = o_call("SE_LOG_INT")
-        str_ptr(message)
-        int(value)
-    end_call(c)
-end
-
--- NEW: Log with float value
-function se_log_float(message, value)
-    local c = o_call("SE_LOG_FLOAT")
-        str_ptr(message)
-        flt(value)
-    end_call(c)
-end
-
--- NEW: Log field value
-function se_log_field(message, field_name)
-    local c = o_call("SE_LOG_FIELD")
-        str_ptr(message)
-        field_ref(field_name)
-    end_call(c)
-end
-
---============================================================================
--- CONFIGURATION DICTIONARY HELPERS
---============================================================================
-
--- NEW: Create a configuration block as dictionary
--- Usage: se_config({
---     {"interval", "int", 1000},
---     {"threshold", "float", 25.5},
---     {"name", "str", "sensor1"},
---     {"enable", "bool", true},
--- })
-function se_config(entries)
-    local d = dict_start("config")
-        for _, entry in ipairs(entries) do
-            local key = entry[1]
-            local vtype = entry[2]
-            local value = entry[3]
-            local k = dict_key(key)
-                if vtype == "int" then
-                    int(value)
-                elseif vtype == "uint" then
-                    uint(value)
-                elseif vtype == "float" or vtype == "flt" then
-                    flt(value)
-                elseif vtype == "str" or vtype == "string" then
-                    str(value)
-                elseif vtype == "str_ptr" then
-                    str_ptr(value)
-                elseif vtype == "field" then
-                    field_ref(value)
-                elseif vtype == "bool" then
-                    int(value and 1 or 0)
-                else
-                    -- Default to int
-                    int(value)
-                end
-            end_dict_key(k)
-        end
-    dict_end(d)
-    return d
-end
-
--- NEW: Create named configuration with explicit name
-function se_named_config(name, entries)
-    local d = dict_start(name)
-        for _, entry in ipairs(entries) do
-            local key = entry[1]
-            local vtype = entry[2]
-            local value = entry[3]
-            local k = dict_key(key)
-                if vtype == "int" then
-                    int(value)
-                elseif vtype == "uint" then
-                    uint(value)
-                elseif vtype == "float" or vtype == "flt" then
-                    flt(value)
-                elseif vtype == "str" or vtype == "string" then
-                    str(value)
-                elseif vtype == "str_ptr" then
-                    str_ptr(value)
-                elseif vtype == "field" then
-                    field_ref(value)
-                elseif vtype == "bool" then
-                    int(value and 1 or 0)
-                else
-                    int(value)
-                end
-            end_dict_key(k)
-        end
-    dict_end(d)
-    return d
-end
-
--- NEW: Simple key-value pair inside dict context
--- Usage inside dict_start/dict_end block:
---   se_kv("name", "str", "sensor1")
---   se_kv("count", "int", 42)
-function se_kv(key, vtype, value)
-    local k = dict_key(key)
-        if vtype == "int" then
-            int(value)
-        elseif vtype == "uint" then
-            uint(value)
-        elseif vtype == "float" or vtype == "flt" then
-            flt(value)
-        elseif vtype == "str" or vtype == "string" then
-            str(value)
-        elseif vtype == "str_ptr" then
-            str_ptr(value)
-        elseif vtype == "field" then
-            field_ref(value)
-        elseif vtype == "bool" then
-            int(value and 1 or 0)
-        else
-            int(value)
-        end
-    end_dict_key(k)
-    return k
-end
-
--- NEW: Typed key-value shortcuts
-function se_kv_int(key, value)
-    local k = dict_key(key)
-        int(value)
-    end_dict_key(k)
-    return k
-end
-
-function se_kv_uint(key, value)
-    local k = dict_key(key)
-        uint(value)
-    end_dict_key(k)
-    return k
-end
-
-function se_kv_float(key, value)
-    local k = dict_key(key)
-        flt(value)
-    end_dict_key(k)
-    return k
-end
-
-function se_kv_str(key, value)
-    local k = dict_key(key)
-        str(value)
-    end_dict_key(k)
-    return k
-end
-
-function se_kv_bool(key, value)
-    local k = dict_key(key)
-        int(value and 1 or 0)
-    end_dict_key(k)
-    return k
-end
-
-function se_kv_field(key, field_name)
-    local k = dict_key(key)
-        field_ref(field_name)
-    end_dict_key(k)
-    return k
-end
-
---============================================================================
--- LIST BUILDER HELPERS
---============================================================================
-
--- NEW: Integer list shorthand
--- Usage: se_int_list(1, 2, 3, 4, 5)
-function se_int_list(...)
-    local l = list_start("ints")
-        for _, v in ipairs({...}) do
-            int(v)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Unsigned integer list
-function se_uint_list(...)
-    local l = list_start("uints")
-        for _, v in ipairs({...}) do
-            uint(v)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Float list shorthand
-function se_float_list(...)
-    local l = list_start("floats")
-        for _, v in ipairs({...}) do
-            flt(v)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: String list shorthand
-function se_str_list(...)
-    local l = list_start("strings")
-        for _, v in ipairs({...}) do
-            str(v)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Field reference list
-function se_field_list(...)
-    local l = list_start("fields")
-        for _, v in ipairs({...}) do
-            field_ref(v)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Mixed list with type tags
--- Usage: se_list({"int", 1}, {"str", "hello"}, {"float", 3.14})
-function se_list(...)
-    local l = list_start("mixed")
-        for _, item in ipairs({...}) do
-            local vtype = item[1]
-            local value = item[2]
-            if vtype == "int" then
-                int(value)
-            elseif vtype == "uint" then
-                uint(value)
-            elseif vtype == "float" or vtype == "flt" then
-                flt(value)
-            elseif vtype == "str" or vtype == "string" then
-                str(value)
-            elseif vtype == "str_ptr" then
-                str_ptr(value)
-            elseif vtype == "field" then
-                field_ref(value)
-            elseif vtype == "bool" then
-                int(value and 1 or 0)
-            end
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Named list with explicit name
-function se_named_list(name, ...)
-    local l = list_start(name)
-        for _, v in ipairs({...}) do
-            local t = type(v)
-            if t == "number" then
-                if math.floor(v) == v then
-                    int(v)
-                else
-                    flt(v)
-                end
-            elseif t == "string" then
-                str(v)
-            elseif t == "boolean" then
-                int(v and 1 or 0)
-            end
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Empty list
-function se_empty_list(name)
-    local l = list_start(name or "empty")
-    list_end(l)
-    return l
-end
-
--- NEW: Range list [start, stop] or [start, stop, step]
--- Usage: se_range(1, 5) -> [1, 2, 3, 4, 5]
--- Usage: se_range(0, 10, 2) -> [0, 2, 4, 6, 8, 10]
-function se_range(start_val, stop_val, step_val)
-    step_val = step_val or 1
-    local l = list_start("range")
-        for i = start_val, stop_val, step_val do
-            int(i)
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Repeat value N times
--- Usage: se_repeat(0, 5) -> [0, 0, 0, 0, 0]
-function se_repeat_val(value, count)
-    local l = list_start("repeat")
-        local t = type(value)
-        for i = 1, count do
-            if t == "number" then
-                if math.floor(value) == value then
-                    int(value)
-                else
-                    flt(value)
-                end
-            elseif t == "string" then
-                str(value)
-            end
-        end
-    list_end(l)
-    return l
-end
-
---============================================================================
--- COORDINATE / VECTOR HELPERS
---============================================================================
-
--- NEW: 2D point (integers)
-function se_point2(x, y)
-    local l = list_start("point2")
-        int(x)
-        int(y)
-    list_end(l)
-    return l
-end
-
--- NEW: 3D point (integers)
-function se_point3(x, y, z)
-    local l = list_start("point3")
-        int(x)
-        int(y)
-        int(z)
-    list_end(l)
-    return l
-end
-
--- NEW: 2D vector (floats)
-function se_vec2(x, y)
-    local l = list_start("vec2")
-        flt(x)
-        flt(y)
-    list_end(l)
-    return l
-end
-
--- NEW: 3D vector (floats)
-function se_vec3(x, y, z)
-    local l = list_start("vec3")
-        flt(x)
-        flt(y)
-        flt(z)
-    list_end(l)
-    return l
-end
-
--- NEW: Rectangle (x, y, width, height)
-function se_rect(x, y, w, h)
-    local l = list_start("rect")
-        int(x)
-        int(y)
-        int(w)
-        int(h)
-    list_end(l)
-    return l
-end
-
--- NEW: RGB color
-function se_rgb(r, g, b)
-    local l = list_start("rgb")
-        int(r)
-        int(g)
-        int(b)
-    list_end(l)
-    return l
-end
-
--- NEW: RGBA color
-function se_rgba(r, g, b, a)
-    local l = list_start("rgba")
-        int(r)
-        int(g)
-        int(b)
-        int(a)
-    list_end(l)
-    return l
-end
-
---============================================================================
--- PARAMETER BLOCK HELPERS
---============================================================================
-
--- NEW: Wrap parameters in a labeled list
--- Usage inside m_call:
---   se_params("sensor_config",
---       {"threshold", "int", 100},
---       {"name", "str", "temp_sensor"}
---   )
-function se_params(name, ...)
-    local l = list_start(name)
-        for _, param in ipairs({...}) do
-            local pname = param[1]
-            local ptype = param[2]
-            local pvalue = param[3]
-            -- Emit as key-value pairs (name string, then value)
-            str(pname)
-            if ptype == "int" then
-                int(pvalue)
-            elseif ptype == "uint" then
-                uint(pvalue)
-            elseif ptype == "float" or ptype == "flt" then
-                flt(pvalue)
-            elseif ptype == "str" or ptype == "string" then
-                str(pvalue)
-            elseif ptype == "str_ptr" then
-                str_ptr(pvalue)
-            elseif ptype == "field" then
-                field_ref(pvalue)
-            elseif ptype == "bool" then
-                int(pvalue and 1 or 0)
-            else
-                int(pvalue)
-            end
-        end
-    list_end(l)
-    return l
-end
-
--- NEW: Parameter block as dictionary (better for lookup)
-function se_params_dict(name, ...)
-    local d = dict_start(name)
-        for _, param in ipairs({...}) do
-            local pname = param[1]
-            local ptype = param[2]
-            local pvalue = param[3]
-            local k = dict_key(pname)
-                if ptype == "int" then
-                    int(pvalue)
-                elseif ptype == "uint" then
-                    uint(pvalue)
-                elseif ptype == "float" or ptype == "flt" then
-                    flt(pvalue)
-                elseif ptype == "str" or ptype == "string" then
-                    str(pvalue)
-                elseif ptype == "str_ptr" then
-                    str_ptr(pvalue)
-                elseif ptype == "field" then
-                    field_ref(pvalue)
-                elseif ptype == "bool" then
-                    int(pvalue and 1 or 0)
-                else
-                    int(pvalue)
-                end
-            end_dict_key(k)
-        end
-    dict_end(d)
-    return d
-end
-
---============================================================================
--- TABLE/DICTIONARY HELPERS
---============================================================================
-
--- NEW: Create empty dictionary
-function se_empty_dict(name)
-    local d = dict_start(name or "empty")
-    dict_end(d)
-    return d
-end
-
--- NEW: Create dictionary from Lua table (unordered)
--- Usage: se_dict("config", {count = 5, name = "test", enabled = true})
-function se_dict(name, tbl)
-    local d = dict_start(name)
-        for key, value in pairs(tbl) do
-            local k = dict_key(tostring(key))
-                local t = type(value)
-                if t == "number" then
-                    if math.floor(value) == value then
-                        int(value)
-                    else
-                        flt(value)
-                    end
-                elseif t == "string" then
-                    str(value)
-                elseif t == "boolean" then
-                    int(value and 1 or 0)
-                end
-            end_dict_key(k)
-        end
-    dict_end(d)
-    return d
-end
 
 local function emit_typed_value(value)
     local t = type(value)
@@ -1054,6 +572,260 @@ function se_i_set_field(target_field, value)
         field_ref(target_field)
         emit_typed_value(value)
     end_call(c)
+end  
+
+--============================================================================
+-- Predicate Builder - Stack-based generator for composable predicates
+--============================================================================
+
+--============================================================================
+-- Predicate Builder - Stack-based generator for composable predicates
+--============================================================================
+
+--============================================================================
+-- Predicate Builder - Recursive tree builder
+--============================================================================
+
+local pred_builder_active = false
+local pred_id_counter = 0
+local pred_current_children = nil  -- current children list
+local pred_parent_stack = {}       -- stack of parent children lists
+
+function pred_begin()
+    if pred_builder_active then
+        error("pred_begin: already in predicate builder")
+    end
+    pred_builder_active = true
+    pred_id_counter = 0
+    pred_current_children = {}
+    pred_parent_stack = {}
+end
+
+function pred_end()
+    if not pred_builder_active then
+        error("pred_end: not in predicate builder")
+    end
+    if #pred_parent_stack > 0 then
+        error("pred_end: unclosed composite predicate")
+    end
+    if #pred_current_children == 0 then
+        error("pred_end: empty predicate")
+    end
+
+    pred_builder_active = false
+
+    local ops = {}
+    for i, op in ipairs(pred_current_children) do
+        ops[i] = op
+    end
+    pred_current_children = nil
+    pred_parent_stack = {}
+
+    return function()
+        for _, op in ipairs(ops) do
+            op()
+        end
+    end
+end
+
+local function next_pred_id()
+    pred_id_counter = pred_id_counter + 1
+    return pred_id_counter
+end
+
+local function pred_push_leaf(emit_fn)
+    if pred_builder_active then
+        table.insert(pred_current_children, emit_fn)
+        return nil
+    else
+        return emit_fn
+    end
+end
+
+local function pred_open_composite(name)
+    if not pred_builder_active then
+        error(name .. ": must be inside pred_begin/pred_end")
+    end
+
+    local id = next_pred_id()
+
+    -- Save current children list, start new one
+    table.insert(pred_parent_stack, { name = name, id = id, children = pred_current_children })
+    pred_current_children = {}
+
+    return id
+end
+
+function pred_close(id)
+    if not pred_builder_active then
+        error("pred_close: not in predicate builder")
+    end
+    if type(id) ~= "number" then
+        error("pred_close: expected numeric id, got " .. type(id))
+    end
+    if #pred_parent_stack == 0 then
+        error("pred_close: no open composite")
+    end
+
+    local top = pred_parent_stack[#pred_parent_stack]
+    if top.id ~= id then
+        error("pred_close: expected id=" .. top.id .. " (" .. top.name .. "), got id=" .. id)
+    end
+
+    table.remove(pred_parent_stack)
+
+    local name = top.name
+    local children = pred_current_children
+
+    if #children == 0 then
+        error("pred_close: composite " .. name .. " (id=" .. id .. ") has no children")
+    end
+
+    -- Restore parent children list
+    pred_current_children = top.children
+
+    -- Push composite closure onto parent
+    table.insert(pred_current_children, function()
+        local c = p_call_composite(name)
+            for _, child_fn in ipairs(children) do
+                child_fn()
+            end
+        end_call(c)
+    end)
+end
+--============================================================================
+-- Composite Predicates (only inside pred_begin/pred_end)
+--============================================================================
+
+function se_pred_or()
+    return pred_open_composite("SE_PRED_OR")
+end
+
+function se_pred_and()
+    return pred_open_composite("SE_PRED_AND")
+end
+
+function se_pred_nor()
+    return pred_open_composite("SE_PRED_NOR")
+end
+
+function se_pred_nand()
+    return pred_open_composite("SE_PRED_NAND")
+end
+
+function se_pred_xor()
+    return pred_open_composite("SE_PRED_XOR")
+end
+
+function se_pred_not()
+    return pred_open_composite("SE_PRED_NOT")
+end
+
+--============================================================================
+-- Leaf Predicates (inside builder: pushed to stack, outside: return closure)
+--============================================================================
+
+function se_pred(name)
+    return pred_push_leaf(function()
+        local c = p_call(name)
+        end_call(c)
+    end)
+end
+
+function se_pred_with(name, param_fn)
+    return pred_push_leaf(function()
+        local c = p_call(name)
+            param_fn()
+        end_call(c)
+    end)
+end
+function se_true()
+    return pred_push_leaf(function()
+        local c = p_call("SE_TRUE")
+        end_call(c)
+    end)
+end
+
+function se_false()
+    return pred_push_leaf(function()
+        local c = p_call("SE_FALSE")
+        end_call(c)
+    end)
+end
+
+function se_check_event(...)
+    local event_ids = {...}
+    return pred_push_leaf(function()
+        local c = p_call("SE_CHECK_EVENT")
+            for _, id in ipairs(event_ids) do
+                int(id)
+            end
+        end_call(c)
+    end)
+end
+
+function se_field_eq(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_EQ")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_ne(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_NE")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_gt(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_GT")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_ge(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_GE")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_lt(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_LT")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_le(field_name, value)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_LE")
+            field_ref(field_name)
+            emit_typed_value(value)
+        end_call(c)
+    end)
+end
+
+function se_field_in_range(field_name, min, max)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_IN_RANGE")
+            field_ref(field_name)
+            emit_typed_value(min)
+            emit_typed_value(max)
+        end_call(c)
+    end)
 end
 -- ============================================================================
 -- s_engine_stack_ops_helpers.lua

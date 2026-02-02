@@ -991,6 +991,12 @@ function BinaryModuleGenerator:emit_tree_params(e, tree)
     local brace_stack = {}
     
     local function emit_node(node)
+    --[[
+        print("emit_node: " .. node.func_name .. " type=" .. node.call_type .. " children=" .. #node.children)
+    for i, child in ipairs(node.children) do
+        print("  child[" .. i .. "]: " .. child.func_name .. " type=" .. child.call_type .. " order=" .. (child.order or "nil"))
+    end
+    ]]
         local opcode, func_index
         
         if node.call_type == "o_call" then

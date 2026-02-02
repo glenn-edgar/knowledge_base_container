@@ -120,7 +120,6 @@ static bool se_pred_xor(s_expr_tree_instance_t* inst, const s_expr_param_t* para
 static bool se_true(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_false(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_check_event(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-static bool se_check_named_event(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
 // Field comparison predicates
 static bool se_field_eq(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -149,6 +148,7 @@ static s_expr_result_t se_fork_join(s_expr_tree_instance_t* inst, const s_expr_p
 static s_expr_result_t se_chain_flow(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_for(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_while(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_cond(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Result code functions
 static s_expr_result_t se_return_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_return_halt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -324,6 +324,7 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_CHAIN_FLOW_HASH, (void*)se_chain_flow },
     { SE_FOR_HASH, (void*)se_for },
     { SE_WHILE_HASH, (void*)se_while },
+    { SE_COND_HASH, (void*)se_cond },
     // NEW v5.2: Dictionary-based dispatch
     
     // Result code functions
@@ -360,7 +361,7 @@ static s_expr_fn_entry_t builtin_pred_entries[] = {
     { SE_TRUE_HASH, (void*)se_true },
     { SE_FALSE_HASH, (void*)se_false },
     { SE_CHECK_EVENT_HASH, (void*)se_check_event },
-    { SE_CHECK_NAMED_EVENT_HASH, (void*)se_check_named_event },
+    
     // Field comparison predicates
     { SE_FIELD_EQ_HASH, (void*)se_field_eq },
     { SE_FIELD_NE_HASH, (void*)se_field_ne },
@@ -560,40 +561,20 @@ static bool se_check_event(
 ) {
     (void)inst; (void)event_type; (void)event_data;
     
+    
     for (uint16_t i = 0; i < param_count; i++) {
         uint8_t opcode = params[i].type & S_EXPR_OPCODE_MASK;
         if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
             if ((uint16_t)params[i].int_val == event_id) {
+                
                 return true;
             }
         }
     }
+    
     return false;
 }
 
-// SE_CHECK_NAMED_EVENT - check event by string hash
-// params: [str] - event name to match
-static bool se_check_named_event(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_type; (void)event_data;
-    
-    if (param_count < 1) return false;
-    
-    // Get event name and compute hash
-    const char* event_name = s_expr_get_string(inst, &params[0]);
-    if (!event_name) return false;
-    
-    uint32_t name_hash = s_expr_fnv1a_hash(event_name);
-    
-    // Compare with event_id (which should be a hash)
-    return (name_hash == (uint32_t)event_id);
-}
 
 // ============================================================================
 // FIELD COMPARISON PREDICATES
@@ -890,15 +871,6 @@ static s_expr_result_t se_if_then_else(
     (void)event_id; 
     (void)event_data;
     
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
     // Expected structure: (if_then_else predicate then_action [else_action])
     // Child 0: predicate
     // Child 1: then branch
@@ -907,26 +879,191 @@ static s_expr_result_t se_if_then_else(
     uint16_t count = s_expr_child_count(params, param_count);
     if (count < 2) {
         EXCEPTION("se_if_then_else: need at least predicate and then branch");
-        return SE_CONTINUE;  // Need at least predicate and then branch
+        return SE_PIPELINE_CONTINUE;
     }
     
+    bool has_else = (count >= 3);
+    
+    const uint16_t PRED_CHILD = 0;
+    const uint16_t THEN_CHILD = 1;
+    const uint16_t ELSE_CHILD = 2;
+    
+    // =========================================================================
+    // TERMINATE EVENT - pass through to all children
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // INIT EVENT - pass through
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    
     // Evaluate predicate (child 0)
-    bool condition = s_expr_child_invoke_pred(inst, params, param_count, 0);
-    //printf("se_if_then_else: condition=%d\n", condition);
+    uint16_t pred_phys_idx = s_expr_child_index(params, param_count, PRED_CHILD);
+    bool condition = s_expr_invoke_pred(inst, params, pred_phys_idx);
+    
+    s_expr_result_t r;
+    
     if (condition) {
         // Execute then branch (child 1)
-        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, 1);
-        //printf("se_if_then_else: then branch result=%d\n", result);
-        return result;
-    } else if (count >= 3) {
+        uint16_t phys_idx = s_expr_child_index(params, param_count, THEN_CHILD);
+        r = s_expr_invoke_any(inst, params, phys_idx);
+    } else if (has_else) {
         // Execute else branch (child 2)
-        s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, 2);
-        //printf("se_if_then_else: else branch result=%d\n", result);
-        return result;
+        uint16_t phys_idx = s_expr_child_index(params, param_count, ELSE_CHILD);
+        r = s_expr_invoke_any(inst, params, phys_idx);
+    } else {
+        // No else branch, condition false
+        return SE_PIPELINE_CONTINUE;
     }
-    //printf("se_if_then_else: returning SE_CONTINUE\n");
-    return SE_CONTINUE;
+    
+    // =========================================================================
+    // RESULT HANDLING
+    // =========================================================================
+    
+    // Non-PIPELINE codes (0-11): propagate to caller
+    if (r < SE_PIPELINE_CONTINUE) {
+        return r;
+    }
+    
+    switch (r) {
+        case SE_PIPELINE_CONTINUE:
+        case SE_PIPELINE_HALT:
+            return r;
+            
+        case SE_PIPELINE_RESET:
+            // Recursive reset: terminate and reset all children
+            s_expr_child_terminate(inst, params, param_count, THEN_CHILD);
+            s_expr_child_reset(inst, params, param_count, THEN_CHILD);
+            if (has_else) {
+                s_expr_child_terminate(inst, params, param_count, ELSE_CHILD);
+                s_expr_child_reset(inst, params, param_count, ELSE_CHILD);
+            }
+            return SE_PIPELINE_RESET;
+            
+        case SE_PIPELINE_DISABLE:
+        case SE_PIPELINE_TERMINATE:
+            s_expr_child_terminate(inst, params, param_count, THEN_CHILD);
+            s_expr_child_reset(inst, params, param_count, THEN_CHILD);
+            if (has_else) {
+                s_expr_child_terminate(inst, params, param_count, ELSE_CHILD);
+                s_expr_child_reset(inst, params, param_count, ELSE_CHILD);
+            }
+            return SE_PIPELINE_CONTINUE;
+            
+        case SE_PIPELINE_SKIP_CONTINUE:
+            return SE_PIPELINE_CONTINUE;
+            
+        default:
+            printf("se_if_then_else: unexpected result code %d\n", r);
+            EXCEPTION("se_if_then_else: unexpected result code");
+            return SE_PIPELINE_CONTINUE;
+    }
 }
+
+
+static s_expr_result_t se_cond(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_id; (void)event_data;
+
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        s_expr_set_user_flags(inst, 0xFFFF);
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    if (event_type == SE_EVENT_INIT) {
+        s_expr_set_user_flags(inst, 0xFFFF);
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // Parameter layout: [pred0] [action0] [pred1] [action1] ... [predN] [actionN]
+    // Both predicates and actions are OPEN_CALL and counted as logical children.
+    // Predicates are at even child indices: 0, 2, 4, ...
+    // Actions are at odd child indices:    1, 3, 5, ...
+
+    uint16_t active_child = s_expr_get_user_flags(inst);
+    uint16_t matched_action = 0xFFFF;
+    uint16_t child_index = 0;
+
+    for (uint16_t i = 0; i < param_count; ) {
+        if (s_expr_param_is_predicate(&params[i])) {
+            bool result = s_expr_invoke_pred(inst, params, i);
+            // Skip predicate
+            i = s_expr_skip_param(params, i);
+            child_index++;
+            
+            if (result && matched_action == 0xFFFF) {
+                matched_action = child_index;  // action is next child
+                break;
+            }
+            
+            // Skip action
+            i = s_expr_skip_param(params, i);
+            child_index++;
+        } else {
+            i = s_expr_skip_param(params, i);
+            child_index++;
+        }
+    }
+
+    if (matched_action == 0xFFFF) {
+        EXCEPTION("se_cond: no matching case (missing default)");
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // Active child changed: terminate old, reset new
+    if (matched_action != active_child) {
+        if (active_child != 0xFFFF) {
+            s_expr_child_terminate(inst, params, param_count, active_child);
+            s_expr_child_reset_recursive(inst, params, param_count, active_child);
+        }
+        s_expr_child_terminate(inst, params, param_count, matched_action);
+        s_expr_child_reset_recursive(inst, params, param_count, matched_action);
+        s_expr_set_user_flags(inst, matched_action);
+    }
+
+    s_expr_result_t r = s_expr_child_invoke(inst, params, param_count, matched_action);
+
+    // Non-PIPELINE codes (0-11): propagate to caller
+    if (r < SE_PIPELINE_CONTINUE) {
+        return r;
+    }
+
+    switch (r) {
+        case SE_PIPELINE_CONTINUE:
+        case SE_PIPELINE_HALT:
+            return SE_PIPELINE_CONTINUE;
+        case SE_PIPELINE_RESET:
+            s_expr_child_terminate(inst, params, param_count, matched_action);
+            s_expr_child_reset_recursive(inst, params, param_count, matched_action);
+            return SE_PIPELINE_CONTINUE;
+        case SE_PIPELINE_DISABLE:
+        case SE_PIPELINE_TERMINATE:
+        case SE_PIPELINE_SKIP_CONTINUE:
+            return r;
+        default:
+            EXCEPTION("se_cond: unexpected result code");
+            return SE_PIPELINE_CONTINUE;
+    }
+}
+
+
 static s_expr_result_t se_trigger_on_change(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,

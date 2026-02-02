@@ -123,7 +123,7 @@
  *   37    MAIN      [0x09]     36      1  idx_to_ptr=0
  *   38      INT[0x00]            -      -  0 (0x00000000)
  *   39      OPEN_CALL[0x07]     10      0  SE_PRED_AND hash=0x7C0DF5F3
- *   40      PRED      [0x0A]     39      1  idx_to_ptr=0
+ *   40      PRED+SR   [0x4A]     39      1  idx_to_ptr=0
  *   41        OPEN_CALL[0x07]      3      0  TEST_BIT hash=0x2D749139
  *   42        PRED      [0x0A]     41      0  idx_to_ptr=0
  *   43          INT[0x00]            -      -  1 (0x00000001)
@@ -164,7 +164,7 @@
  *   78    MAIN      [0x09]     77      1  idx_to_ptr=0
  *   79      INT[0x00]            -      -  0 (0x00000000)
  *   80      OPEN_CALL[0x07]     10      0  SE_PRED_OR hash=0x0CF6212F
- *   81      PRED      [0x0A]     80      2  idx_to_ptr=0
+ *   81      PRED+SR   [0x4A]     80      2  idx_to_ptr=0
  *   82        OPEN_CALL[0x07]      3      0  TEST_BIT hash=0x2D749139
  *   83        PRED      [0x0A]     82      0  idx_to_ptr=0
  *   84          INT[0x00]            -      -  3 (0x00000003)
@@ -205,7 +205,7 @@
  *  119    MAIN      [0x09]    118      1  idx_to_ptr=0
  *  120      INT[0x00]            -      -  1 (0x00000001)
  *  121      OPEN_CALL[0x07]      6      0  SE_PRED_NOT hash=0x217DEB8F
- *  122      PRED      [0x0A]    121      3  idx_to_ptr=0
+ *  122      PRED+SR   [0x4A]    121      3  idx_to_ptr=0
  *  123        OPEN_CALL[0x07]      3      0  TEST_BIT hash=0x2D749139
  *  124        PRED      [0x0A]    123      0  idx_to_ptr=0
  *  125          INT[0x00]            -      -  5 (0x00000005)
