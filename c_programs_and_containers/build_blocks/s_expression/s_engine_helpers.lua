@@ -260,36 +260,13 @@ function se_chain_flow(...)
     end_call(f)
 end
 
-function se_for(count, ...)
-    local children = {...}
-    local f = m_call("SE_FOR")
-    
-    -- Emit count parameter
-    if type(count) == "number" then
-        int(count)
-    elseif type(count) == "function" then
-        count()  -- Slot reference or other param emitter
-    end
-    
-    -- Emit children
-    for _, child in ipairs(children) do
-        if type(child) == "function" then
-            child()
-        end
-    end
-    
-    end_call(f)
-end
+
 
 function se_while(condition, ...)
     local children = {...}
     local w = m_call("SE_WHILE")
     condition()
-    for _, child in ipairs(children) do
-        if type(child) == "function" then
-            child()
-        end
-    end
+    se_fork_join(unpack(children))
     end_call(w)
 end
 
@@ -538,6 +515,25 @@ end
 
 
 
+function se_log_slot_integer(message, slot_name)
+    if slot_name == nil or slot_name == "" then
+        error("se_log_slot: slot_name cannot be nil or empty")
+    end
+    local c = o_call("SE_LOG_INT")
+        str_ptr(message)
+        field_ref(slot_name)
+    end_call(c)
+end
+
+function se_log_slot_float(message, slot_name)
+    if slot_name == nil or slot_name == "" then
+        error("se_log_slot: slot_name cannot be nil or empty")
+    end
+    local c = o_call("SE_LOG_FLOAT")
+        str_ptr(message)
+        field_ref(slot_name)
+    end_call(c)
+end
 
 local function emit_typed_value(value)
     local t = type(value)
@@ -573,6 +569,22 @@ function se_i_set_field(target_field, value)
         emit_typed_value(value)
     end_call(c)
 end  
+
+function se_increment_field(target_field, increment_value)
+    local c = o_call("SE_INC_FIELD")
+        field_ref(target_field)
+        uint(increment_value)
+    end_call(c)
+end
+
+function se_decrement_field(target_field, decrement_value)
+    local c = o_call("SE_DEC_FIELD")
+        field_ref(target_field)
+        uint(decrement_value)
+    end_call(c)
+end
+
+
 
 --============================================================================
 -- Predicate Builder - Stack-based generator for composable predicates
@@ -824,6 +836,37 @@ function se_field_in_range(field_name, min, max)
             field_ref(field_name)
             emit_typed_value(min)
             emit_typed_value(max)
+        end_call(c)
+    end)
+end
+
+function se_field_increment_and_test(field_name, increment_value, value_to_test)
+    return pred_push_leaf(function()
+        local c = p_call("SE_FIELD_INCREMENT_AND_TEST")
+            field_ref(field_name)
+            uint(increment_value)
+            uint(value_to_test)
+        end_call(c)
+    end)
+end
+
+
+ 
+
+function se_state_increment_and_test(increment_value, value_to_test)
+    increment_value = math.floor(increment_value)
+    value_to_test = math.floor(value_to_test)
+    if increment_value <= 0 or increment_value > 0xFFFF then
+        error("se_state_increment_and_test: increment_value must be 0-0xFFFF, got: " .. tostring(increment_value))
+    end
+    if value_to_test < 0 or value_to_test > 0xFFFF then
+        error("se_state_increment_and_test: value_to_test must be 0-0xFFFF, got: " .. tostring(value_to_test))
+    end
+    
+    return pred_push_leaf(function()
+        local c = p_call("SE_STATE_INCREMENT_AND_TEST")
+            uint(increment_value)
+            uint(value_to_test)
         end_call(c)
     end)
 end

@@ -131,6 +131,7 @@ M.S_EXPR_PARAM = types_module.S_EXPR_PARAM
 local builtins_module = {}
 
 builtins_module.BUILTIN_FUNCTIONS = {
+    ---- main functions
    "SE_RETURN_CONTINUE",
    "SE_RETURN_TERMINATE",
    "SE_RETURN_RESET",
@@ -154,9 +155,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
 
    "SE_SEQUENCE",
    "SE_STATE_MACHINE",
-   "SE_LOG",
-   "SE_TICK_DELAY",
-   "SE_SET_FIELD",
+   
    "SE_QUEUE_EVENT",
    "SE_CHAIN_FLOW",
    "SE_FIELD_DISPATCH",
@@ -167,9 +166,20 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_TRIGGER_ON_CHANGE",
    "SE_IF_THEN_ELSE",
    "SE_COND",
+   "SE_WHILE",
+   "SE_TICK_DELAY",
+   "SE_TIME_DELAY",
+
+   --- oneshot functions
+   "SE_INC_FIELD",
+   "SE_DEC_FIELD",
+   "SE_LOG",
+   "SE_LOG_INT",
+   "SE_LOG_FLOAT",
+   "SE_SET_FIELD",
 
 
-
+--- predicate functions
    "SE_PRED_AND",
    "SE_PRED_OR",
    "SE_PRED_NOT",
@@ -179,6 +189,17 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_TRUE",
    "SE_FALSE",
    "SE_CHECK_EVENT",
+  
+    "SE_FIELD_EQ",
+    "SE_FIELD_NE",
+    "SE_FIELD_GT",
+    "SE_FIELD_GE",
+    "SE_FIELD_LT",
+    "SE_FIELD_LE",
+    "SE_FIELD_IN_RANGE",
+    "SE_FIELD_INCREMENT_AND_TEST",
+ 
+    "SE_STATE_INCREMENT_AND_TEST",
 }
 
 builtins_module.BUILTIN_SET = {}

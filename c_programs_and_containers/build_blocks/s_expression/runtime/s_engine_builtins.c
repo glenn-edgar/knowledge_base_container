@@ -129,8 +129,9 @@ static bool se_field_ge(s_expr_tree_instance_t* inst, const s_expr_param_t* para
 static bool se_field_lt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_field_le(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_field_in_range(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static bool se_field_increment_and_test(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static bool se_state_increment_and_test(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
-//static s_expr_result_t se_pipeline(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_tick_delay(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_time_delay(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_wait_event(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -146,7 +147,7 @@ static s_expr_result_t se_sequence(s_expr_tree_instance_t* inst, const s_expr_pa
 static s_expr_result_t se_fork(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_fork_join(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_chain_flow(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-static s_expr_result_t se_for(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+
 static s_expr_result_t se_while(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_cond(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Result code functions
@@ -322,7 +323,7 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_FORK_HASH, (void*)se_fork },
     { SE_FORK_JOIN_HASH, (void*)se_fork_join },
     { SE_CHAIN_FLOW_HASH, (void*)se_chain_flow },
-    { SE_FOR_HASH, (void*)se_for },
+    
     { SE_WHILE_HASH, (void*)se_while },
     { SE_COND_HASH, (void*)se_cond },
     // NEW v5.2: Dictionary-based dispatch
@@ -370,6 +371,12 @@ static s_expr_fn_entry_t builtin_pred_entries[] = {
     { SE_FIELD_LT_HASH, (void*)se_field_lt },
     { SE_FIELD_LE_HASH, (void*)se_field_le },
     { SE_FIELD_IN_RANGE_HASH, (void*)se_field_in_range },
+
+
+    { SE_FIELD_INCREMENT_AND_TEST_HASH, (void*)se_field_increment_and_test },
+   
+    { SE_STATE_INCREMENT_AND_TEST_HASH, (void*)se_state_increment_and_test },
+
 
     
 };
@@ -715,6 +722,139 @@ static bool se_field_in_range(
     
     return (*field_ptr >= min_val && *field_ptr <= max_val);
 }
+
+// ============================================================================
+// SE_FIELD_INCREMENT_AND_TEST (predicate)
+// Param layout: [FIELD slot_ref] [INT or UINT limit]
+// On INIT: stores 0 in field, returns true
+// On TICK: increments field, returns (field <= limit)
+// ============================================================================
+
+static bool se_field_increment_and_test(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    UNUSED(event_type);
+
+    if (param_count < 3) {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: param_count < 2");
+        return false;
+    }
+
+    // Validate field reference
+    if (!S_EXPR_PARAM_IS_FIELD(params[0].type)) {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: params[0] is not a field");
+        return false;
+    }
+    if (!inst->blackboard) return false;
+
+    ct_int_t* field = S_EXPR_GET_FIELD(inst, &params[0], ct_int_t);
+
+    // Get limit from second parameter (INT or UINT)
+    uint8_t opcode = params[1].type & S_EXPR_OPCODE_MASK;
+    ct_int_t limit;
+    ct_int_t increment;
+
+   if (opcode == S_EXPR_PARAM_INT) {
+        increment = params[1].int_val;
+    } else if (opcode == S_EXPR_PARAM_UINT) {
+        increment = (ct_int_t)params[1].uint_val;
+    }  else {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: invalid parameter type");
+        return false;
+    }
+    if (opcode == S_EXPR_PARAM_INT) {
+        limit = params[2].int_val;
+    } else if (opcode == S_EXPR_PARAM_UINT) {
+        limit = (ct_int_t)params[2].uint_val;
+    }  else {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: invalid parameter type");
+        return false;
+    }
+    uint8_t system_flag = s_expr_get_system_flags(inst);
+    if (!(system_flag & S_EXPR_NODE_FLAG_INITIALIZED)) {
+        s_expr_set_system_flags(inst, system_flag | S_EXPR_NODE_FLAG_INITIALIZED);
+        s_expr_set_user_flags(inst, 0);
+    
+    }
+
+    // TICK: increment field and test
+    (*field) += increment;
+
+    return (*field <= limit);
+}
+
+// ============================================================================
+// SE_STATE_INCREMENT_AND_TEST (predicate)
+// Param layout: [INT or UINT limit]
+// On INIT: stores 0 in user_data, returns true
+// On TICK: increments user_data, returns (user_data <= limit)
+// ============================================================================
+
+static bool se_state_increment_and_test(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    UNUSED(event_type);
+
+    if (param_count < 2) {
+        EXCEPTION("SE_STATE_INCREMENT_AND_TEST: param_count < 1");
+        return false;
+    }
+
+    // Get limit from first parameter (INT or UINT)
+    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
+    
+    uint16_t increment;
+    uint16_t limit;
+
+    if (opcode == S_EXPR_PARAM_INT) {
+        increment = (uint16_t)params[0].int_val;
+    } else if (opcode == S_EXPR_PARAM_UINT) {
+        increment = (uint16_t)params[0].uint_val;
+    } else {
+        EXCEPTION("SE_STATE_INCREMENT_AND_TEST: invalid parameter type");
+        return false;
+    }
+
+    if (opcode == S_EXPR_PARAM_INT) {
+        limit = (uint16_t)params[1].int_val;
+    } else if (opcode == S_EXPR_PARAM_UINT) {
+        limit = (uint16_t)params[1].uint_val;
+    } else {
+        EXCEPTION("SE_STATE_INCREMENT_AND_TEST: invalid parameter type");
+        return false;
+    }
+
+   
+    uint8_t system_flag = s_expr_get_system_flags(inst);
+    if (!(system_flag & S_EXPR_NODE_FLAG_INITIALIZED)) {
+        s_expr_set_system_flags(inst, system_flag | S_EXPR_NODE_FLAG_INITIALIZED);
+        s_expr_set_user_flags(inst, 0);
+    
+    }
+
+    // TICK: increment and test
+    uint16_t count = s_expr_get_user_flags(inst);
+    count += increment;
+    s_expr_set_user_flags(inst, count);
+    //printf("SE_STATE_INCREMENT_AND_TEST: TICK: count = %d, increment = %d, limit = %d\n", count, increment, limit);
+    return (count <= limit);
+}
+
+
 
 
 
@@ -1488,7 +1628,7 @@ static s_expr_result_t se_field_dispatch(
     s_expr_result_t result = s_expr_invoke_any(inst, params, action_idx);
     
     if (result == SE_PIPELINE_RESET) {
-        printf("se_field_dispatch: action_idx=%d, result=SE_PIPELINE_RESET\n", action_idx);
+       // printf("se_field_dispatch: action_idx=%d, result=SE_PIPELINE_RESET\n", action_idx);
         
         terminate_action_at_index(inst, params, action_idx);
         reset_action_at_index(inst, params, action_idx);
@@ -1644,6 +1784,13 @@ static void se_log(
 
 // SE_LOG_INT - log message with integer value
 // params: [str_ptr] [int]
+// ============================================================================
+// SE_LOG_INT (oneshot)
+// Param layout: [STR_IDX format_string] [FIELD slot_ref]
+// Retrieves the field value as ct_int_t and prints using the format string.
+// Format string should contain one %d/%ld placeholder.
+// ============================================================================
+
 static void se_log_int(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1652,34 +1799,47 @@ static void se_log_int(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_type; (void)event_id; (void)event_data;
-    
-    if (param_count < 2) return;
-    
-    const char* msg = s_expr_get_string(inst, &params[0]);
-    if (!msg) return;
-    
-    int32_t val = (int32_t)params[1].int_val;
-    
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    if (param_count < 2) {
+        EXCEPTION("SE_LOG_INT: param_count < 2");
+        return;
+    }
+
+    const s_expr_module_def_t* def = s_expr_tree_get_module_def(inst);
+    const char* fmt = s_expr_param_string(def, &params[0]);
+    if (!fmt) {
+        EXCEPTION("SE_LOG_INT: fmt not found");
+        return;
+    }
+
+    if (!S_EXPR_PARAM_IS_FIELD(params[1].type)) return;
+    if (!inst->blackboard) {
+        EXCEPTION("SE_LOG_INT: no blackboard");
+        return;
+    }
+
+    ct_int_t val = *S_EXPR_GET_FIELD(inst, &params[1], ct_int_t);
+
     double timestamp = 0.0;
     s_expr_module_t* mod = inst->module;
     if (mod && mod->alloc.get_time) {
         timestamp = mod->alloc.get_time(mod->alloc.ctx);
     }
-    
-    if (mod && mod->debug_fn) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "[%.6f] %s %d", timestamp, msg, val);
-        mod->debug_fn(inst, buf);
-    } else {
-        #ifndef S_ENGINE_NO_STDIO
-        printf("[SE_LOG %.6f] %s %d\n", timestamp, msg, val);
-        #endif
-    }
-}
 
-// SE_LOG_FLOAT - log message with float value
-// params: [str_ptr] [float]
+    printf("[%.6f] ", timestamp);
+    printf(fmt, val);
+    printf("\n");
+}
+// ============================================================================
+// SE_LOG_FLOAT (oneshot)
+// Param layout: [STR_IDX format_string] [FIELD slot_ref]
+// Retrieves the field value as ct_float_t and prints using the format string.
+// Format string should contain one %f/%e/%g placeholder.
+// ============================================================================
+
 static void se_log_float(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -1688,30 +1848,42 @@ static void se_log_float(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_type; (void)event_id; (void)event_data;
-    
-    if (param_count < 2) return;
-    
-    const char* msg = s_expr_get_string(inst, &params[0]);
-    if (!msg) return;
-    
-    float val = params[1].float_val;
-    
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    if (param_count < 2) {
+        EXCEPTION("SE_LOG_FLOAT: param_count < 2");
+        return;
+    }
+
+    const s_expr_module_def_t* def = s_expr_tree_get_module_def(inst);
+    const char* fmt = s_expr_param_string(def, &params[0]);
+    if (!fmt) {
+        EXCEPTION("SE_LOG_FLOAT: fmt not found");
+        return;
+    }
+
+    if (!S_EXPR_PARAM_IS_FIELD(params[1].type)) {
+        EXCEPTION("SE_LOG_FLOAT: params[1] is not a field");
+        return;
+    }
+    if (!inst->blackboard) {
+        EXCEPTION("SE_LOG_FLOAT: no blackboard");
+        return;
+    }
+
+    ct_float_t val = *S_EXPR_GET_FIELD(inst, &params[1], ct_float_t);
+
     double timestamp = 0.0;
     s_expr_module_t* mod = inst->module;
     if (mod && mod->alloc.get_time) {
         timestamp = mod->alloc.get_time(mod->alloc.ctx);
     }
-    
-    if (mod && mod->debug_fn) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "[%.6f] %s %.6f", timestamp, msg, val);
-        mod->debug_fn(inst, buf);
-    } else {
-        #ifndef S_ENGINE_NO_STDIO
-        printf("[SE_LOG %.6f] %s %.6f\n", timestamp, msg, (double)val);
-        #endif
-    }
+
+    printf("[%.6f] ", timestamp);
+    printf(fmt, (double)val);
+    printf("\n");
 }
 
 // SE_LOG_FIELD - log message with field value
@@ -2496,6 +2668,10 @@ static s_expr_result_t se_fork_join(
         }
         
         s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        //printf("SE_FORK_JOIN: node %d child %d result=%d\n", inst->current_node_index, i, r);
+        if (r == SE_FUNCTION_HALT) {
+            r = SE_PIPELINE_HALT;
+        }
         
         // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
         if (r < SE_PIPELINE_CONTINUE) {
@@ -2503,7 +2679,9 @@ static s_expr_result_t se_fork_join(
         }
         
         // PIPELINE codes (12-17) - handle internally
+       
         switch (r) {
+            
             case SE_PIPELINE_CONTINUE:
             case SE_PIPELINE_HALT:
                 // Child still running
@@ -2511,7 +2689,7 @@ static s_expr_result_t se_fork_join(
                 
             case SE_PIPELINE_DISABLE:
             case SE_PIPELINE_TERMINATE:
-                // Child complete - mark inactive
+                //printf("SE_FORK_JOIN: child %d result=%d terminating\n", i, r);
                 terminate_action_at_index(inst, params, phys_idx);
                 break;
                 
@@ -2553,7 +2731,7 @@ check_completion:
         return SE_PIPELINE_DISABLE;
     }
     
-    return SE_PIPELINE_HALT;
+    return SE_FUNCTION_HALT;
 }
 // ============================================================================
 // SE_CHAIN_FLOW
@@ -2595,9 +2773,7 @@ static s_expr_result_t se_chain_flow(
     // =========================================================================
     uint16_t count = s_expr_child_count(params, param_count);
     uint16_t active_count = 0;
-    //printf("se_chain_flow: count=%d\n", count);
 
-    //printf("se_chain_flow: child 0 is_callable=%d is_active=%d\n", s_expr_child_is_callable(params, param_count, 0), s_expr_child_is_active(inst, params, param_count, 0));
     for (uint16_t i = 0; i < count; i++) {
         if (!s_expr_child_is_callable(params, param_count, i)) {
             continue;
@@ -2612,36 +2788,51 @@ static s_expr_result_t se_chain_flow(
             continue;
         }
         
-        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
-        //printf("se_chain_flow: child %d result=%d\n", i, r);
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
         
         // -----------------------------------------------------------------
-        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
+        // ONESHOT - fire and mark inactive, don't count as active
         // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_ONESHOT) {
+            s_expr_invoke_any(inst, params, phys_idx);
+            s_expr_child_terminate(inst, params, param_count, i);
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // PRED - evaluate and mark inactive, don't count as active
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_PRED) {
+            s_expr_invoke_any(inst, params, phys_idx);
+            s_expr_child_terminate(inst, params, param_count, i);
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // MAIN - invoke and handle result
+        // -----------------------------------------------------------------
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
         if (r == SE_FUNCTION_HALT) {
-            return SE_PIPELINE_CONTINUE;
+            return SE_PIPELINE_HALT;
         }
         if (r < SE_PIPELINE_CONTINUE) {
-            printf("se_chain_flow: child %d result=%d propagating to caller\n", i, r);
             return r;
         }
         
-        // -----------------------------------------------------------------
         // PIPELINE codes (12-17) - handle internally
-        // -----------------------------------------------------------------
         switch (r) {
             case SE_PIPELINE_CONTINUE:
                 active_count++;
                 continue;
                 
             case SE_PIPELINE_HALT:
-                
                 return SE_PIPELINE_CONTINUE;
                 
             case SE_PIPELINE_DISABLE:
-               s_expr_child_terminate(inst, params, param_count, i);
-               continue;
-
+                s_expr_child_terminate(inst, params, param_count, i);
+                continue;
 
             case SE_PIPELINE_TERMINATE:
                 s_expr_children_terminate_all(inst, params, param_count);
@@ -2651,7 +2842,6 @@ static s_expr_result_t se_chain_flow(
                 s_expr_children_terminate_all(inst, params, param_count);
                 s_expr_children_reset_all(inst, params, param_count);
                 return SE_PIPELINE_CONTINUE;
-            
                 
             case SE_PIPELINE_SKIP_CONTINUE:
                 active_count++;
@@ -2671,150 +2861,23 @@ tick_complete:
     return SE_PIPELINE_CONTINUE;
 }
 // ============================================================================
-// SE_FOR
-// Pipeline variant that executes children N times
-// First parameter: iteration count (int/uint or slot reference)
-// Resets all children before each iteration
-// Returns SE_PIPELINE_DISABLE when all iterations complete
-// ============================================================================
-
-// ============================================================================
-// SE_FOR
-// Pipeline variant that executes children N times
-// First parameter: iteration count (int/uint or field reference)
-// Resets all children before each iteration
-// Returns SE_PIPELINE_DISABLE when all iterations complete
-// ============================================================================
-
-static s_expr_result_t se_for(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)event_id; 
-    (void)event_data;
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        s_expr_set_state(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_INIT) {
-        s_expr_set_state(inst, 0);
-        return SE_CONTINUE;
-    }
-    
-    // Get iteration count from first parameter
-    if (param_count < 1) {
-        EXCEPTION("se_for: missing count parameter");
-        return SE_TERMINATE;
-    }
-    
-    int32_t count = 0;
-    uint8_t opcode = params[0].type & S_EXPR_OPCODE_MASK;
-    
-    if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
-        count = params[0].int_val;
-    } else {
-        // Try field reference
-        int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[0], int32_t);
-        if (field_ptr) {
-            count = *field_ptr;
-        } else {
-            EXCEPTION("se_for: invalid count parameter");
-            return SE_TERMINATE;
-        }
-    }
-    
-    if (count <= 0) {
-        return SE_PIPELINE_DISABLE;
-    }
-    
-    uint8_t iteration = s_expr_get_state(inst);
-    uint16_t child_count = s_expr_child_count(params + 1, param_count - 1);
-    
-    // Loop until we need to wait or all iterations complete
-    while (iteration < (uint8_t)count) {
-        
-        // Invoke all active children
-        for (uint16_t i = 0; i < child_count; i++) {
-            bool callable = s_expr_child_is_callable(params + 1, param_count - 1, i);
-            bool active = s_expr_child_is_active(inst, params + 1, param_count - 1, i);
-            
-            if (!callable || !active) {
-                continue;
-            }
-            
-            s_expr_result_t result = s_expr_child_invoke(inst, params + 1, param_count - 1, i);
-            
-            // Propagate fatal/halt results
-            switch (result) {
-                case SE_CONTINUE:
-                    continue;
-                case SE_TERMINATE:
-                case SE_RESET:
-                case SE_FUNCTION_TERMINATE:
-                case SE_FUNCTION_RESET:
-                case SE_HALT:
-                case SE_FUNCTION_HALT:
-                    s_expr_set_state(inst, iteration);
-                    return result;
-                default:
-                    continue;
-            }
-        }
-        
-        // Recount active children AFTER all have run
-        uint16_t active_count = 0;
-        for (uint16_t i = 0; i < child_count; i++) {
-            if (s_expr_child_is_callable(params + 1, param_count - 1, i) &&
-                s_expr_child_is_active(inst, params + 1, param_count - 1, i)) {
-                active_count++;
-            }
-        }
-        
-        // Children still working - wait
-        if (active_count > 0) {
-            s_expr_set_state(inst, iteration);
-            return SE_CONTINUE;
-        }
-        
-        // All children complete this iteration - advance
-        iteration++;
-        s_expr_set_state(inst, iteration);
-        
-        // Check if all iterations complete
-        if (iteration >= (uint8_t)count) {
-            return SE_PIPELINE_DISABLE;
-        }
-        
-        // Reset all children for next iteration
-        for (uint16_t i = 0; i < child_count; i++) {
-            if (s_expr_child_is_callable(params + 1, param_count - 1, i)) {
-                s_expr_child_reset(inst, params + 1, param_count - 1, i);
-            }
-        }
-        
-        // Continue while loop for next iteration (same tick)
-    }
-    
-    // All iterations complete
-    return SE_PIPELINE_DISABLE;
-}
-// ============================================================================
 // SE_WHILE
-// Pipeline variant that loops while predicate returns true
-// First child: boolean predicate (receives all events)
-//   - SE_CONTINUE = true, continue loop
-//   - SE_DISABLE/SE_PIPELINE_DISABLE = false, exit loop
-// Remaining children: loop body
-// Resets body children before each iteration
+// Loop: evaluate predicate, if true run body (fork_join) to completion, repeat.
+// Param layout: [PRED] [MAIN(se_fork_join)]
+//   child 0 = predicate
+//   child 1 = main body (typically se_fork_join)
+//
+// States:
+//   0 = EVAL_PRED  - evaluate predicate, transition to RUN_BODY or DISABLE
+//   1 = RUN_BODY   - tick body until it completes, then back to EVAL_PRED
+//
+// Returns SE_PIPELINE_HALT while looping
 // Returns SE_PIPELINE_DISABLE when predicate returns false
+// Fatal codes (0-11) propagate immediately from body
 // ============================================================================
+
+#define SE_WHILE_STATE_EVAL_PRED  0
+#define SE_WHILE_STATE_RUN_BODY   1
 
 static s_expr_result_t se_while(
     s_expr_tree_instance_t* inst,
@@ -2824,85 +2887,97 @@ static s_expr_result_t se_while(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_id; 
-    (void)event_data;
-    
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        return SE_CONTINUE;
+        // Terminate body child if it was running
+        if (s_expr_child_is_initialized(inst, params, param_count, 1)) {
+            s_expr_child_terminate(inst, params, param_count, 1);
+        }
+        return SE_PIPELINE_CONTINUE;
     }
-    
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
     if (event_type == SE_EVENT_INIT) {
-        return SE_CONTINUE;
-    }
-    
-    uint16_t child_count = s_expr_child_count(params, param_count);
-    
-    if (child_count < 1) {
-        EXCEPTION("se_while: missing predicate");
-        return SE_TERMINATE;
-    }
-    
-    if (!s_expr_child_is_callable(params, param_count, 0)) {
-        EXCEPTION("se_while: predicate not callable");
-        return SE_TERMINATE;
-    }
-    
-    // Loop until predicate fails or we need to yield
-    while (1) {
-        // Invoke predicate
-        bool pred_result = s_expr_child_invoke_pred(inst, params, param_count, 0);
-        if (!pred_result) {
-            s_expr_children_terminate_all(inst, params, param_count);
-            
-            return SE_PIPELINE_DISABLE;
-        }
-        
-        // Execute body children (skip predicate at index 0)
-        bool any_still_running = false;
-        
-        for (uint16_t i = 1; i < child_count; i++) {
-            if (!s_expr_child_is_callable(params, param_count, i)) {
-                continue;
-            }
-            
-            if (!s_expr_child_is_active(inst, params, param_count, i)) {
-                // Already completed this iteration
-                continue;
-            }
-            
-            s_expr_result_t result = s_expr_child_invoke(inst, params, param_count, i);
-            
-            if (result == SE_PIPELINE_DISABLE || result == SE_DISABLE) {
-                // This child completed, check next
-                continue;
-            }
-            
-            if (result == SE_CONTINUE) {
-                // Child still running - need to yield
-                any_still_running = true;
-                continue;
-            }
-            
-            // Fatal or halt - propagate
-            return result;
-        }
-        
-        if (any_still_running) {
-            // Yield, come back next tick
-            return SE_FUNCTION_HALT;
-        }
+        s_expr_set_state(inst, SE_WHILE_STATE_EVAL_PRED);
        
-        // All body children complete - reset for next iteration
-        s_expr_child_reset(inst, params, param_count, 0);
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    uint8_t state = s_expr_get_state(inst);
+
+    switch (state) {
+
+        // -----------------------------------------------------------------
+        // EVAL_PRED: invoke predicate, decide whether to enter body or exit
+        // -----------------------------------------------------------------
+        case SE_WHILE_STATE_EVAL_PRED: {
+            bool cond = s_expr_child_invoke_pred(inst, params, param_count, 0);
+           // printf("SE_WHILE: EVAL_PRED: cond = %d\n", cond);
+            
+            if (!cond) {
+                return SE_PIPELINE_DISABLE;
+            }
+
+            // Predicate true - ensure body is reset and ready
+            s_expr_child_reset_recursive(inst, params, param_count, 1);
+            s_expr_set_state(inst, SE_WHILE_STATE_RUN_BODY);
+
+            // Fall through to run body on same tick
+        }
+        /* FALLTHROUGH */
+
+        // -----------------------------------------------------------------
+        // RUN_BODY: tick the body (fork_join) until it completes
+        // -----------------------------------------------------------------
+        case SE_WHILE_STATE_RUN_BODY: {
+            s_expr_result_t r = s_expr_child_invoke(inst, params, param_count, 1);
+            //printf("SE_WHILE: RUN_BODY: r = %d\n", r);
         
-        for (uint16_t i = 1; i < child_count; i++) {
-            if (s_expr_child_is_callable(params, param_count, i)) {
-                s_expr_child_reset(inst, params, param_count, i);
+           
+            // Non-PIPELINE codes (0-11) - fatal, propagate immediately
+            if (r < SE_PIPELINE_CONTINUE) {
+                return r;
+            }
+
+            switch (r) {
+                case SE_PIPELINE_CONTINUE:
+                case SE_PIPELINE_HALT:
+                case SE_PIPELINE_SKIP_CONTINUE:
+                    //("SE_WHILE: RUN_BODY: body still running\n");
+                    // Body still running
+                    return SE_FUNCTION_HALT;
+
+                case SE_PIPELINE_DISABLE:
+                case SE_PIPELINE_TERMINATE:
+                case SE_PIPELINE_RESET:
+                    // Body completed - terminate it, loop back to predicate
+                    s_expr_child_terminate(inst, params, param_count, 1);
+                    s_expr_child_reset_recursive(inst, params, param_count, 1);
+                    s_expr_set_state(inst, SE_WHILE_STATE_EVAL_PRED);
+                    
+                    return SE_PIPELINE_HALT;
+
+                
+
+                default:
+                    EXCEPTION("se_while: unknown result code");
+                    return SE_PIPELINE_DISABLE;
             }
         }
-        // Loop back to check predicate again
+
+        default:
+            EXCEPTION("se_while: invalid state");
+            return SE_PIPELINE_DISABLE;
     }
 }
-
 

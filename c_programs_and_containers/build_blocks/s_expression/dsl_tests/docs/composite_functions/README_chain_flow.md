@@ -2,223 +2,238 @@
 
 ## Overview
 
-`se_chain_flow` emulates the default sequencing behavior of ChainTree's tree walker. Unlike other composites, it processes children in a **chain** where each child's result determines whether to continue, halt, reset, or terminate the entire chain.
+`se_chain_flow` emulates the default sequencing behavior of ChainTree's tree walker. It processes children in a **chain** where each child's result determines whether to continue, halt, reset, or terminate the entire chain.
 
 This is the fundamental control flow primitive that ChainTree is built around.
 
-## Key Differences from Other Composites
+## Lua DSL
 
-| Aspect | `se_chain_flow` | `se_fork` | `se_sequence` |
-|--------|-----------------|-----------|---------------|
-| **PIPELINE_HALT** | Stops chain, returns CONTINUE | Counts as active | Pauses sequence |
-| **PIPELINE_CONTINUE** | Advances to next child | Counts as active | N/A (uses HALT) |
-| **PIPELINE_RESET** | Resets ALL children | Resets that child | Advances |
-| **PIPELINE_TERMINATE** | Terminates ALL children | Terminates that child | Propagates |
-| **Execution model** | Sequential with control | Parallel | Sequential |
+```lua
+function se_chain_flow(...)
+    local children = {...}
+    local f = m_call("SE_CHAIN_FLOW")
+    for _, child in ipairs(children) do
+        if type(child) == "function" then
+            child()
+        end
+    end
+    end_call(f)
+end
+```
 
-## Behavior
+## Child Type Handling
 
-### Result Code Handling
+`se_chain_flow` handles the three function types differently:
+
+### ONESHOT Functions
+
+ONESHOT children are **fire-and-forget** actions. They execute exactly once per chain activation:
+
+1. Check if child is active
+2. If active: invoke the function
+3. Immediately terminate (mark inactive)
+4. Do not add to active count
+5. Continue to next child
+
+This means oneshots:
+- Execute on their first tick only
+- Are skipped on all subsequent ticks
+- Do not block chain progression
+- Do not contribute to completion detection
+
+```lua
+se_chain_flow(
+    function() se_log("Fires once on tick 1") end,      -- ONESHOT
+    function() se_tick_delay(10) end,                    -- MAIN: halts chain
+    function() se_log("Fires once on tick 11") end,     -- ONESHOT
+    function() se_log("Also fires once on tick 11") end -- ONESHOT
+)
+```
+
+### PRED Functions
+
+Predicate children follow the same pattern as oneshots:
+
+1. Check if child is active
+2. If active: invoke the predicate
+3. Immediately terminate (mark inactive)
+4. Do not add to active count
+5. Continue to next child
+
+The predicate's return value is ignored in chain_flow context. Use `se_if` or `se_while` for conditional behavior based on predicates.
+
+### MAIN Functions
+
+MAIN children are **stateful actions** that control chain flow through result codes:
+
+1. Check if child is active
+2. If active: invoke the function
+3. Handle the result code (see table below)
+4. Result determines whether to continue, halt, reset, or terminate
+
+Only MAIN children:
+- Can halt chain progression
+- Contribute to active count
+- Control chain lifecycle via result codes
+
+## Result Code Handling (MAIN children only)
 
 | Child Returns | Chain Flow Action |
 |---------------|-------------------|
-| `SE_FUNCTION_HALT` (7) | Convert to `SE_PIPELINE_CONTINUE` - continue chain |
+| `SE_FUNCTION_HALT` (7) | Return `SE_PIPELINE_HALT` to caller |
 | **APPLICATION (0-5)** | Propagate immediately to caller |
-| **FUNCTION (6,8-11)** | Propagate immediately to caller |
-| `SE_PIPELINE_CONTINUE` (12) | Continue to next child |
+| **FUNCTION (6, 8-11)** | Propagate immediately to caller |
+| `SE_PIPELINE_CONTINUE` (12) | Increment active count, continue to next child |
 | `SE_PIPELINE_HALT` (13) | **Stop chain this tick**, return CONTINUE |
-| `SE_PIPELINE_DISABLE` (16) | Terminate child, continue to next |
-| `SE_PIPELINE_TERMINATE` (14) | **Terminate ALL children**, return TERMINATE |
-| `SE_PIPELINE_RESET` (15) | **Reset ALL children**, return CONTINUE |
-| `SE_PIPELINE_SKIP_CONTINUE` (17) | Skip remaining children this tick |
-
-### Critical Behaviors
-
-#### PIPELINE_HALT Stops the Chain
-
-When a child returns `SE_PIPELINE_HALT`, the chain **stops processing** for this tick but returns `SE_PIPELINE_CONTINUE` to its parent. The chain resumes from that child on the next tick.
-
-```lua
-se_chain_flow(function()
-    se_log("A")           -- Tick 1: executes
-    se_tick_delay(10)     -- Tick 1: returns HALT, chain stops
-    se_log("B")           -- Tick 11: executes (after delay completes)
-end)
-```
-
-#### PIPELINE_RESET Resets the Entire Chain
-
-When a child returns `SE_PIPELINE_RESET`, ALL children are terminated and reset. This allows cyclic/looping behavior.
-
-```lua
-se_chain_flow(function()
-    se_log("Loop iteration")
-    se_tick_delay(10)
-    se_queue_event(...)
-    se_return_pipeline_reset()  -- Resets entire chain, loops forever
-end)
-```
-
-#### PIPELINE_TERMINATE Stops Everything
-
-When a child returns `SE_PIPELINE_TERMINATE`, ALL children are terminated and the chain returns `SE_PIPELINE_TERMINATE` to its parent.
+| `SE_PIPELINE_DISABLE` (14) | Terminate child, continue to next |
+| `SE_PIPELINE_TERMINATE` (15) | **Terminate ALL children**, return TERMINATE |
+| `SE_PIPELINE_RESET` (16) | **Reset ALL children**, return CONTINUE |
+| `SE_PIPELINE_SKIP_CONTINUE` (17) | Increment active count, skip remaining children this tick |
 
 ## Lifecycle Events
 
 ### INIT
 - Returns `SE_PIPELINE_CONTINUE`
-- Children start active by default
+- All children start active
 
 ### TERMINATE
-- Terminates all children
+- Terminates all children (ONESHOT, PRED, and MAIN)
 - Returns `SE_PIPELINE_CONTINUE`
 
 ### TICK
-- Iterates through active children
-- Processes each child's result
-- Returns based on chain state
+- Iterates through children in order
+- Skips inactive children
+- ONESHOT: fire, terminate, continue
+- PRED: fire, terminate, continue
+- MAIN: invoke, handle result code
+- Returns `SE_PIPELINE_DISABLE` when `active_count == 0`
 
-## Usage
+## Key Behaviors
 
-### Lua DSL
+### ONESHOT Execution Timing
+
+ONESHOTs execute when the chain reaches them, not necessarily on the first tick:
 
 ```lua
-se_chain_flow(function()
-    se_log("Step 1")
-    se_tick_delay(10)
-    se_log("Step 2")
-    se_set_field("value", 42)
-    se_return_pipeline_disable()  -- Chain completes
-end)
+se_chain_flow(
+    function() se_tick_delay(10) end,    -- MAIN: halts on tick 1
+    function() se_log("Delayed") end     -- ONESHOT: fires on tick 11
+)
+```
+
+### ONESHOT After Reset
+
+When `SE_PIPELINE_RESET` resets the chain, all children (including oneshots) are reset to active and will fire again:
+
+```lua
+se_chain_flow(
+    function() se_log("Fires every loop") end,  -- ONESHOT: reset reactivates
+    function() se_tick_delay(10) end,
+    function() se_return_pipeline_reset() end   -- Resets all children
+)
+-- Output: "Fires every loop" on tick 1, 12, 23, 34, ...
+```
+
+### PIPELINE_HALT Stops the Chain
+
+When a MAIN child returns `SE_PIPELINE_HALT`, the chain stops processing for this tick but returns `SE_PIPELINE_CONTINUE` to its parent. ONESHOTs after the halt point wait until the chain resumes.
+
+```lua
+se_chain_flow(
+    function() se_log("A") end,           -- Tick 1: fires
+    function() se_tick_delay(10) end,     -- Tick 1: HALT, chain stops
+    function() se_log("B") end            -- Tick 11: fires
+)
+```
+
+### PIPELINE_RESET Resets Everything
+
+When a child returns `SE_PIPELINE_RESET`, ALL children are terminated and reset. This reactivates oneshots for the next iteration.
+
+```lua
+se_chain_flow(
+    function() se_log("Loop start") end,   -- Fires each iteration
+    function() se_tick_delay(10) end,
+    function() se_queue_event(...) end,    -- Fires each iteration
+    function() se_return_pipeline_reset() end
+)
+```
+
+### Automatic Completion
+
+When all MAIN children have completed (returned DISABLE or been terminated), `active_count` reaches zero and the chain returns `SE_PIPELINE_DISABLE`. ONESHOT and PRED children do not affect completion — a chain with only oneshots completes immediately after firing them all.
+
+```lua
+se_chain_flow(
+    function() se_log("A") end,  -- ONESHOT: fires, doesn't count
+    function() se_log("B") end,  -- ONESHOT: fires, doesn't count
+    function() se_log("C") end   -- ONESHOT: fires, doesn't count
+)
+-- Returns SE_PIPELINE_DISABLE on tick 1 (active_count = 0)
+```
+
+## Usage Examples
+
+### Sequential Actions with Delays
+
+```lua
+se_chain_flow(
+    function() se_log("Step 1") end,
+    function() se_tick_delay(10) end,
+    function() se_log("Step 2") end,
+    function() se_tick_delay(10) end,
+    function() se_log("Step 3") end,
+    function() se_return_pipeline_disable() end
+)
 ```
 
 ### Cyclic Event Generator
 
-The primary use case - a looping chain that periodically generates events:
-
 ```lua
 se_case(1, function()
-    se_chain_flow(function()
-        se_log("State 1")
-        se_tick_delay(20)
-        se_set_field("event_data_3", 3.3)
-        se_set_field("event_data_4", 4.4)
-        se_queue_event(USER_EVENT_TYPE, USER_EVENT_3, "event_data_3")
-        se_queue_event(USER_EVENT_TYPE, USER_EVENT_4, "event_data_4")
-        se_return_pipeline_reset()  -- Loop back to start
-    end)
+    se_chain_flow(
+        function() se_log("State 1") end,
+        function() se_tick_delay(20) end,
+        function() se_set_field("event_data", 3.3) end,
+        function() se_queue_event(USER_EVENT_TYPE, USER_EVENT_ID, "event_data") end,
+        function() se_return_pipeline_reset() end
+    )
 end)
 ```
 
-**Execution:**
-```
-Tick 1:  "State 1" logs, delay starts, chain halts
-Tick 2-20: Delay running, chain halted
-Tick 21: Delay completes, fields set, events queued
-         RESET: all children terminated and reset
-Tick 22: Chain starts over - "State 1" logs again
-...
-```
-
-### Conditional Termination
+### Initialization Pattern
 
 ```lua
-se_chain_flow(function()
-    se_log("Processing...")
-    se_tick_delay(10)
+se_chain_flow(
+    -- Initialization oneshots (fire once at start)
+    function() se_set_field("counter", 0) end,
+    function() se_log("Initialized") end,
     
-    -- Predicate check could go here
-    se_if(some_condition, function()
-        se_return_pipeline_terminate()  -- Stop everything
-    end)
+    -- Main loop
+    function() se_while(some_condition, 
+        function() se_tick_delay(10) end,
+        function() se_increment_field("counter") end
+    ) end,
     
-    se_log("Continuing...")
-    se_return_pipeline_reset()  -- Loop if not terminated
-end)
+    -- Cleanup oneshot (fires when while completes)
+    function() se_log("Complete") end
+)
 ```
 
-## Comparison: Chain Flow vs Sequence
+## Comparison with Other Composites
 
-### se_sequence
-
-Sequential execution, advances on child completion:
-
-```lua
-se_sequence(function()
-    se_log("A")           -- Tick 1
-    se_tick_delay(10)     -- Ticks 1-10
-    se_log("B")           -- Tick 11
-end)
--- Returns DISABLE when all children complete
-```
-
-- Child returns `PIPELINE_HALT` → sequence pauses
-- Child returns `PIPELINE_DISABLE` → sequence advances
-- No looping capability
-
-### se_chain_flow
-
-Chain execution, explicit control flow:
-
-```lua
-se_chain_flow(function()
-    se_log("A")           -- Tick 1
-    se_tick_delay(10)     -- Tick 1: HALT stops chain
-    se_log("B")           -- Tick 11: continues
-    se_return_pipeline_reset()  -- Loops back
-end)
--- Returns CONTINUE while running, can loop forever
-```
-
-- Child returns `PIPELINE_HALT` → chain stops, resumes next tick
-- Child returns `PIPELINE_RESET` → entire chain resets
-- Built for looping/cyclic behavior
-
-## ChainTree Walker Emulation
-
-`se_chain_flow` emulates how ChainTree's default tree walker processes nodes:
-
-1. **Walk children in order**
-2. **CONTINUE** → move to next sibling
-3. **HALT** → stop walking, resume next tick
-4. **RESET** → restart from first child
-5. **TERMINATE** → stop everything
-
-This allows porting ChainTree behavior patterns directly to the S-Expression engine.
-
-## Important Notes
-
-### Return Codes Work Here
-
-Unlike `se_fork` and `se_fork_join`, return code functions work correctly in `se_chain_flow`:
-
-```lua
-se_chain_flow(function()
-    se_tick_delay(10)
-    se_return_pipeline_reset()   -- Loops the chain
-    -- or
-    se_return_pipeline_disable() -- Completes the chain
-end)
-```
-
-### FUNCTION_HALT Conversion
-
-`SE_FUNCTION_HALT` from children (like `se_tick_delay`) is converted to `SE_PIPELINE_CONTINUE`, which then **continues to the next child**. This is different from `se_sequence` which would pause.
-
-However, `SE_PIPELINE_HALT` (returned by composites) **stops the chain** for this tick.
-
-### Active Count Tracking
-
-The chain tracks active children. When `active_count == 0`, the chain returns `SE_PIPELINE_DISABLE` (complete).
+| Aspect | `se_chain_flow` | `se_fork_join` |
+|--------|-----------------|----------------|
+| **Execution** | Sequential with control | Parallel |
+| **ONESHOT** | Fire once, terminate, continue | Fire once, skip thereafter |
+| **PRED** | Fire once, terminate, continue | Fire once, skip thereafter |
+| **PIPELINE_HALT** | Stops chain, returns CONTINUE | Child still running |
+| **PIPELINE_RESET** | Resets ALL children | Resets that child |
+| **Looping** | Yes (via RESET) | No |
+| **Completion** | When active_count == 0 | When all MAIN complete |
 
 ## State Storage
 
 - No state variable used
 - No user_flags used
 - Active status tracked per-child via node flags
-
-## Error Handling
-
-- Unknown result codes increment active count and continue
-- Invalid child indices are skipped
-- Non-callable parameters are skipped

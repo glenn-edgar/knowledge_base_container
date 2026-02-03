@@ -115,6 +115,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 
 #define SE_LOG_HASH                   0xCEBBEFA4
 #define SE_LOG_INT_HASH               0x2442CEA2
+
 #define SE_LOG_FLOAT_HASH             0xA8949A19
 #define SE_LOG_FIELD_HASH             0xBA2925AB
 #define SE_SET_HASH_HASH              0xEF5AD4AB
@@ -125,6 +126,9 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_INC_FIELD_HASH             0x09391555
 #define SE_DEC_FIELD_HASH             0xC3053EA5
 
+
+
+
 // Field comparison predicates
 #define SE_FIELD_EQ_HASH              0xD9FBED0D
 #define SE_FIELD_NE_HASH              0xF5E4BFD2
@@ -133,6 +137,8 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FIELD_LT_HASH              0xD2EA98E7
 #define SE_FIELD_LE_HASH              0xC1EA7E24
 #define SE_FIELD_IN_RANGE_HASH        0x7BC1968E
+#define SE_FIELD_INCREMENT_AND_TEST_HASH 0x275252DB
+#define SE_STATE_INCREMENT_AND_TEST_HASH 0x42A88A80
 
 // ============================================================================
 // HASH CONSTANTS (FNV-1a 32-bit)

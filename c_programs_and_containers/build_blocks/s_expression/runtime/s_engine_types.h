@@ -809,6 +809,15 @@ static inline void s_expr_set_user_flags(s_expr_tree_instance_t* inst, uint16_t 
     inst->node_states[inst->current_node_index].user_data = flags;
 }
 
+static inline uint8_t s_expr_get_system_flags(s_expr_tree_instance_t* inst) {
+    if (!inst || inst->current_node_index >= inst->node_count) return 0;
+    return inst->node_states[inst->current_node_index].flags;
+}
+
+static inline void s_expr_set_system_flags(s_expr_tree_instance_t* inst, uint8_t flags) {
+    if (!inst || inst->current_node_index >= inst->node_count) return;
+    inst->node_states[inst->current_node_index].flags = flags;
+}
 #ifdef __cplusplus
 }
 #endif
