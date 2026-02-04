@@ -14,10 +14,17 @@
 #include "s_engine_init.h"
 #include "s_engine_node.h"
 #include "s_engine_event_queue.h"
-#include "loop_test.h"
-#include "loop_test_bin_32.h"
+#include "complex_sequence.h"
+#include "complex_sequence_bin_32.h"
 
+#include <time.h>
 
+static void delay_seconds(double seconds) {
+    struct timespec delay;
+    delay.tv_sec = (time_t)seconds;
+    delay.tv_nsec = (long)((seconds - delay.tv_sec) * 1e9);
+    nanosleep(&delay, NULL);
+}
 
 
 // ============================================================================
@@ -119,12 +126,12 @@ static void test_dispatch(s_engine_handle_t* engine) {
     
     s_expr_tree_instance_t* tree = s_engine_create_tree_by_hash(
         engine,
-        LOOP_TEST_HASH,
+        COMPLEX_SEQUENCE_TEST_HASH,
         0
     );
     
     if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", LOOP_TEST_HASH); 
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", COMPLEX_SEQUENCE_TEST_HASH); 
         return;
     }
     
@@ -137,7 +144,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     do {
         result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         tick_count++;
-        
+        delay_seconds(0.1);
         printf("------------------------>    Tick %3d: result=%s\n", tick_count, result_to_str(result));
         
         // Process queued events
@@ -186,7 +193,6 @@ static void test_dispatch(s_engine_handle_t* engine) {
     }
     
     s_expr_tree_free(tree);
-    
 }
 
 // ============================================================================
@@ -220,8 +226,8 @@ int main(int argc, char* argv[]) {
     bool result = s_engine_load_from_rom(
         &engine,
         &alloc,
-        loop_test_module_bin_32,
-        LOOP_TEST_MODULE_BIN_32_SIZE,
+        complex_sequence_module_bin_32,
+        COMPLEX_SEQUENCE_MODULE_BIN_32_SIZE,
         debug_callback,
         0,
         NULL
@@ -252,7 +258,7 @@ int main(int argc, char* argv[]) {
     result = s_engine_load_from_file(
         &engine,
         &alloc,
-        "loop_test_32.bin",
+        "complex_sequence_32.bin",
         debug_callback,
         0,
         NULL

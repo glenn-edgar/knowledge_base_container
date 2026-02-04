@@ -150,6 +150,11 @@ static s_expr_result_t se_chain_flow(s_expr_tree_instance_t* inst, const s_expr_
 
 static s_expr_result_t se_while(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_cond(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_verify_and_check_elapsed_time(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_verify_and_check_elapsed_events(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_verify(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_wait(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_wait_timeout(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Result code functions
 static s_expr_result_t se_return_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_return_halt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -326,6 +331,11 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     
     { SE_WHILE_HASH, (void*)se_while },
     { SE_COND_HASH, (void*)se_cond },
+    { SE_VERIFY_AND_CHECK_ELAPSED_TIME_HASH, (void*)se_verify_and_check_elapsed_time },
+    { SE_VERIFY_AND_CHECK_ELAPSED_EVENTS_HASH, (void*)se_verify_and_check_elapsed_events },
+    { SE_VERIFY_HASH, (void*)se_verify },
+    { SE_WAIT_HASH, (void*)se_wait },
+    { SE_WAIT_TIMEOUT_HASH, (void*)se_wait_timeout },
     // NEW v5.2: Dictionary-based dispatch
     
     // Result code functions
@@ -752,42 +762,37 @@ static bool se_field_increment_and_test(
         EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: params[0] is not a field");
         return false;
     }
-    if (!inst->blackboard) return false;
-
+    if (!S_EXPR_PARAM_IS_FIELD(params[1].type)) {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: params[1] is not a field");
+        return false;
+    }
+    if (!S_EXPR_PARAM_IS_FIELD(params[2].type)) {
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: params[2] is not a field");
+        return false;
+    }
+    if (!inst->blackboard){
+        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: no blackboard bound");
+        return false;
+    }
     ct_int_t* field = S_EXPR_GET_FIELD(inst, &params[0], ct_int_t);
-
+    ct_int_t *increment_field = S_EXPR_GET_FIELD(inst, &params[1], ct_int_t);
+    ct_int_t *limit_field = S_EXPR_GET_FIELD(inst, &params[2], ct_int_t);
     // Get limit from second parameter (INT or UINT)
-    uint8_t opcode = params[1].type & S_EXPR_OPCODE_MASK;
-    ct_int_t limit;
-    ct_int_t increment;
-
-   if (opcode == S_EXPR_PARAM_INT) {
-        increment = params[1].int_val;
-    } else if (opcode == S_EXPR_PARAM_UINT) {
-        increment = (ct_int_t)params[1].uint_val;
-    }  else {
-        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: invalid parameter type");
-        return false;
-    }
-    if (opcode == S_EXPR_PARAM_INT) {
-        limit = params[2].int_val;
-    } else if (opcode == S_EXPR_PARAM_UINT) {
-        limit = (ct_int_t)params[2].uint_val;
-    }  else {
-        EXCEPTION("SE_FIELD_INCREMENT_AND_TEST: invalid parameter type");
-        return false;
-    }
+    
+    
+   
+    
     uint8_t system_flag = s_expr_get_system_flags(inst);
     if (!(system_flag & S_EXPR_NODE_FLAG_INITIALIZED)) {
         s_expr_set_system_flags(inst, system_flag | S_EXPR_NODE_FLAG_INITIALIZED);
-        s_expr_set_user_flags(inst, 0);
+        *field = 0;
     
     }
-
+ 
     // TICK: increment field and test
-    (*field) += increment;
+    *field += *increment_field;
 
-    return (*field <= limit);
+    return (*field <= *limit_field);
 }
 
 // ============================================================================
@@ -942,6 +947,14 @@ static s_expr_result_t se_time_delay(
     return SE_FUNCTION_HALT;
 }
 
+// ============================================================================
+// SE_WAIT_EVENT (main)
+// Wait for a specific event to occur a specified number of times.
+// Param layout: [INT/UINT target_event_id] [INT/UINT count]
+// Returns SE_PIPELINE_HALT while waiting
+// Returns SE_PIPELINE_DISABLE when count reached
+// ============================================================================
+
 static s_expr_result_t se_wait_event(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -950,43 +963,59 @@ static s_expr_result_t se_wait_event(
     uint16_t event_id,
     void* event_data
 ) {
-    (void)event_data;
-    
-    if (event_type == SE_EVENT_INIT) {
-        uint32_t target_event = (param_count > 0) ? (uint32_t)params[0].int_val : 0;
-        uint32_t count = (param_count > 1) ? (uint32_t)params[1].int_val : 1;
-        
-        uint64_t state = ((uint64_t)target_event << 32) | count;
-        s_expr_set_u64(inst, state);
-        
-        return SE_CONTINUE;
-    }
-    
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
     if (event_type == SE_EVENT_TERMINATE) {
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
-    
-    uint64_t state = s_expr_get_u64(inst);
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 2) {
+            EXCEPTION("se_wait_event: requires 2 parameters (target_event, count)");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        uint32_t target_event = (uint32_t)params[0].int_val;
+        uint32_t count = (uint32_t)params[1].int_val;
+
+        // Pack target_event and count into 64-bit state
+        uint64_t state = ((uint64_t)target_event << 32) | count;
+        s_expr_set_user_u64(inst, state);
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    uint64_t state = s_expr_get_user_u64(inst);
     uint32_t target_event = (uint32_t)(state >> 32);
     uint32_t remaining = (uint32_t)(state & 0xFFFFFFFF);
-    
-    if (remaining <= 0) {
-        return SE_DISABLE;
+
+    // Already complete
+    if (remaining == 0) {
+        return SE_PIPELINE_DISABLE;
     }
-    
+
+    // Check if this is the event we're waiting for
     if (event_id == target_event) {
         remaining--;
         state = ((uint64_t)target_event << 32) | remaining;
-        s_expr_set_u64(inst, state);
-        
+        s_expr_set_user_u64(inst, state);
+
         if (remaining == 0) {
-            return SE_DISABLE;
+            return SE_PIPELINE_DISABLE;
         }
     }
-    
-    return SE_HALT;
-}
 
+    return SE_PIPELINE_HALT;
+}
 static s_expr_result_t se_nop(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -2495,6 +2524,15 @@ s_expr_result_t se_fork(
     uint16_t child_count = s_expr_child_count(params, param_count);
     
     // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        s_expr_set_state(inst, FORK_STATE_COMPLETE);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // =========================================================================
     // INIT EVENT
     // =========================================================================
     if (event_type == SE_EVENT_INIT) {
@@ -2507,16 +2545,7 @@ s_expr_result_t se_fork(
             }
         }
         
-        return SE_CONTINUE;
-    }
-    
-    // =========================================================================
-    // TERMINATE EVENT
-    // =========================================================================
-    if (event_type == SE_EVENT_TERMINATE) {
-        s_expr_children_terminate_all(inst, params, param_count);
-        s_expr_set_state(inst, FORK_STATE_COMPLETE);
-        return SE_CONTINUE;
+        return SE_PIPELINE_CONTINUE;
     }
     
     // =========================================================================
@@ -2525,29 +2554,57 @@ s_expr_result_t se_fork(
     uint8_t state = s_expr_get_state(inst);
     
     if (state != FORK_STATE_RUNNING) {
-        return SE_DISABLE;
+        return SE_PIPELINE_DISABLE;
     }
     
-    uint16_t active_count = 0;
-    //printf("se_fork: child_count=%d\n", child_count);
     for (uint16_t i = 0; i < child_count; i++) {
-        //printf("se_fork: child %d is_callable=%d is_active=%d\n", i, s_expr_child_is_callable(params, param_count, i), s_expr_child_is_active(inst, params, param_count, i));
         if (!s_expr_child_is_callable(params, param_count, i)) {
             continue;
         }
         
+        uint16_t phys_idx = s_expr_child_index(params, param_count, i);
+        if (phys_idx == UINT16_MAX) {
+            continue;
+        }
+        
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
+        
+        // -----------------------------------------------------------------
+        // ONESHOT - fire once, skip if already initialized
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_ONESHOT) {
+            if (!s_expr_child_is_initialized(inst, params, param_count, i)) {
+                s_expr_invoke_any(inst, params, phys_idx);
+            }
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // PRED - evaluate once, skip if already initialized
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_PRED) {
+            if (!s_expr_child_is_initialized(inst, params, param_count, i)) {
+                s_expr_invoke_any(inst, params, phys_idx);
+            }
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // MAIN - only invoke if still active
+        // -----------------------------------------------------------------
         if (!s_expr_child_is_active(inst, params, param_count, i)) {
             continue;
         }
         
-        s_expr_result_t r = s_expr_child_invoke(inst, params, param_count, i);
-        //printf("se_fork: child %d result=%d\n", i, r);
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
         // -----------------------------------------------------------------
         // Regular (0-5) and FUNCTION (6-11) codes - pass to outer node
         // -----------------------------------------------------------------
         if (r == SE_FUNCTION_HALT) {
-            return SE_PIPELINE_HALT;
+            r = SE_PIPELINE_HALT;
         }
+        
         if (r < SE_PIPELINE_CONTINUE) {
             return r;
         }
@@ -2558,7 +2615,6 @@ s_expr_result_t se_fork(
         switch (r) {
             case SE_PIPELINE_CONTINUE:
             case SE_PIPELINE_HALT:
-                active_count++;
                 break;
                 
             case SE_PIPELINE_DISABLE:
@@ -2568,22 +2624,37 @@ s_expr_result_t se_fork(
                 
             case SE_PIPELINE_RESET:
                 s_expr_child_terminate(inst, params, param_count, i);
-                s_expr_child_reset(inst, params, param_count, i);
-                active_count++;
+                s_expr_child_reset_recursive(inst, params, param_count, i);
                 break;
                 
             case SE_PIPELINE_SKIP_CONTINUE:
-                active_count++;
-                goto tick_complete;
+                goto check_completion;
                 
             default:
-                active_count++;
                 break;
         }
     }
     
-tick_complete:
-    if (active_count == 0) {
+check_completion:
+    // Count active MAIN children only
+    uint16_t active_main_count = 0;
+    for (uint16_t i = 0; i < child_count; i++) {
+        if (!s_expr_child_is_callable(params, param_count, i)) {
+            continue;
+        }
+        
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
+        
+        if (func_type != S_EXPR_PARAM_MAIN) {
+            continue;
+        }
+        
+        if (s_expr_child_is_active(inst, params, param_count, i)) {
+            active_main_count++;
+        }
+    }
+    
+    if (active_main_count == 0) {
         s_expr_set_state(inst, FORK_STATE_COMPLETE);
         return SE_PIPELINE_DISABLE;
     }
@@ -2835,6 +2906,7 @@ static s_expr_result_t se_chain_flow(
                 continue;
 
             case SE_PIPELINE_TERMINATE:
+    
                 s_expr_children_terminate_all(inst, params, param_count);
                 return SE_PIPELINE_TERMINATE;
                 
@@ -2981,3 +3053,396 @@ static s_expr_result_t se_while(
     }
 }
 
+// ============================================================================
+// SE_VERIFY_AND_CHECK_ELAPSED_TIME (main, pt_m_call)
+// Monitors elapsed time and invokes error handler if timeout exceeded.
+// Param layout: [FLOAT timeout] [INT reset_flag] [ONESHOT error_function]
+//
+// On INIT: stores current time in pointer slot
+// On TICK (SE_EVENT_TICK only): checks if elapsed time > timeout
+//          If timeout: invokes error_function, returns RESET or TERMINATE
+//
+// reset_flag = true:  returns SE_PIPELINE_RESET on timeout
+// reset_flag = false: returns SE_PIPELINE_TERMINATE on timeout
+//
+// Ignores all events except SE_EVENT_TICK
+// ============================================================================
+
+static s_expr_result_t se_verify_and_check_elapsed_time(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 3) {
+            EXCEPTION("se_verify_and_check_elapsed_time: requires 3 parameters");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        // Store start time in pointer slot
+        double start_time = 0.0;
+        s_expr_module_t* mod = inst->module;
+        if (mod && mod->alloc.get_time) {
+            start_time = mod->alloc.get_time(mod->alloc.ctx);
+        }
+        s_expr_set_user_f64(inst, start_time);
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT - only process SE_EVENT_TICK
+    // =========================================================================
+    if (event_id != SE_EVENT_TICK) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    ct_float_t timeout = params[0].float_val;
+    bool reset_flag = (params[1].int_val != 0);
+
+    double start_time = s_expr_get_user_f64(inst);
+    double current_time = 0.0;
+    s_expr_module_t* mod = inst->module;
+    if (mod && mod->alloc.get_time) {
+        current_time = mod->alloc.get_time(mod->alloc.ctx);
+    }
+
+    double elapsed = current_time - start_time;
+
+    if (elapsed > (double)timeout) {
+        // Reset and invoke error function at logical child 2
+        s_expr_child_reset(inst, params, param_count, 2);
+        s_expr_child_invoke_oneshot(inst, params, param_count, 2);
+
+        if (reset_flag) {
+            return SE_PIPELINE_RESET;
+        } else {
+            return SE_PIPELINE_TERMINATE;
+        }
+    }
+
+    return SE_PIPELINE_CONTINUE;
+}
+// ============================================================================
+// SE_VERIFY_AND_CHECK_ELAPSED_EVENTS (main, pt_m_call)
+// Monitors for a specific event and invokes error handler if count exceeded.
+// Param layout: [UINT event_id] [UINT count] [INT reset_flag] [ONESHOT error_function]
+//
+// On INIT: stores 0 in pointer slot (event counter)
+// On TICK: if event_id matches, increment counter
+//          If counter > count: invokes error_function, returns RESET or TERMINATE
+//
+// reset_flag = true:  returns SE_PIPELINE_RESET on count exceeded
+// reset_flag = false: returns SE_PIPELINE_TERMINATE on count exceeded
+//
+// Only counts events matching the target event_id
+// ============================================================================
+
+static s_expr_result_t se_verify_and_check_elapsed_events(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 4) {
+            EXCEPTION("se_verify_and_check_elapsed_events: requires 4 parameters");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        // Store initial count (0) in pointer slot
+        s_expr_set_user_u64(inst, 0);
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    uint32_t target_event = (uint32_t)params[0].uint_val;
+    uint32_t max_count = (uint32_t)params[1].uint_val;
+    bool reset_flag = (params[2].int_val != 0);
+
+    // Only count matching events
+    if (event_id != target_event) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // Increment counter
+    uint64_t current_count = s_expr_get_user_u64(inst);
+    current_count++;
+    s_expr_set_user_u64(inst, current_count);
+
+    // Check if count exceeded
+    if (current_count > max_count) {
+        // Reset and invoke error function at logical child 3
+        s_expr_child_reset(inst, params, param_count, 3);
+        s_expr_child_invoke_oneshot(inst, params, param_count, 3);
+
+        if (reset_flag) {
+            return SE_PIPELINE_RESET;
+        } else {
+            return SE_PIPELINE_TERMINATE;
+        }
+    }
+
+    return SE_PIPELINE_CONTINUE;
+}
+
+// ============================================================================
+// SE_VERIFY (main, m_call)
+// Evaluates a predicate and invokes error handler if predicate returns false.
+// Param layout: [PRED pred_function] [INT reset_flag] [ONESHOT error_function]
+//
+// On INIT: return SE_PIPELINE_CONTINUE
+// On TICK (SE_EVENT_TICK only): evaluate predicate
+//          If predicate returns false: invoke error_function, return RESET or TERMINATE
+//          If predicate returns true: return SE_PIPELINE_CONTINUE
+//
+// reset_flag = true:  returns SE_PIPELINE_RESET on failure
+// reset_flag = false: returns SE_PIPELINE_TERMINATE on failure
+//
+// Ignores all events except SE_EVENT_TICK
+// ============================================================================
+
+static s_expr_result_t se_verify(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 3) {
+            EXCEPTION("se_verify: requires 3 parameters");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT - only process SE_EVENT_TICK
+    // =========================================================================
+    if (event_id != SE_EVENT_TICK) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // Get reset_flag at logical child 1
+    uint16_t reset_flag_idx = s_expr_child_index(params, param_count, 1);
+    if (reset_flag_idx == UINT16_MAX) {
+        EXCEPTION("se_verify: reset_flag not found");
+        return SE_PIPELINE_DISABLE;
+    }
+    bool reset_flag = (params[reset_flag_idx].int_val != 0);
+
+    // Evaluate predicate at logical child 0
+    bool pred_result = s_expr_child_invoke_pred(inst, params, param_count, 0);
+
+    if (pred_result) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // Predicate failed - reset and invoke error function at logical child 2
+    s_expr_child_reset(inst, params, param_count, 2);
+    s_expr_child_invoke_oneshot(inst, params, param_count, 2);
+
+    if (reset_flag) {
+        return SE_PIPELINE_RESET;
+    } else {
+        return SE_PIPELINE_TERMINATE;
+    }
+}
+static s_expr_result_t se_wait(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 1) {
+            EXCEPTION("se_wait: requires 1 parameter");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    bool pred_result = s_expr_child_invoke_pred(inst, params, param_count, 0);
+
+    if (pred_result) {
+        return SE_PIPELINE_DISABLE;
+    }
+
+    return SE_PIPELINE_HALT;
+}
+
+// ============================================================================
+// SE_WAIT_TIMEOUT (main, pt_m_call)
+// Wait for a predicate to become true, with timeout protection.
+// Param layout: [PRED pred_function] [FLOAT timeout] [INT reset_flag] [ONESHOT error_function]
+//
+// Logical children:
+//   0: OPEN_CALL(PRED) pred_function
+//   1: FLOAT timeout
+//   2: INT reset_flag
+//   3: OPEN_CALL(ONESHOT) error_function
+//
+// On INIT: store start time in f64 slot
+// On TICK (SE_EVENT_TICK only):
+//   - If predicate true: return SE_PIPELINE_DISABLE (complete)
+//   - If elapsed > timeout: invoke error_function, return RESET or TERMINATE
+//   - Else: return SE_PIPELINE_HALT (waiting)
+// ============================================================================
+
+static s_expr_result_t se_wait_timeout(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_data);
+
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 4) {
+            EXCEPTION("se_wait_timeout: requires 4 parameters");
+            return SE_PIPELINE_DISABLE;
+        }
+
+        // Store start time in pointer slot
+        double start_time = 0.0;
+        s_expr_module_t* mod = inst->module;
+        if (mod && mod->alloc.get_time) {
+            start_time = mod->alloc.get_time(mod->alloc.ctx);
+        }
+        s_expr_set_user_f64(inst, start_time);
+
+        return SE_PIPELINE_CONTINUE;
+    }
+
+    // =========================================================================
+    // TICK EVENT - only process SE_EVENT_TICK
+    // =========================================================================
+    if (event_id != SE_EVENT_TICK) {
+        return SE_PIPELINE_HALT;
+    }
+
+    // Evaluate predicate at logical child 0
+    bool pred_result = s_expr_child_invoke_pred(inst, params, param_count, 0);
+
+    if (pred_result) {
+        return SE_PIPELINE_DISABLE;
+    }
+
+    // Get timeout at logical child 1
+    uint16_t timeout_idx = s_expr_child_index(params, param_count, 1);
+    if (timeout_idx == UINT16_MAX) {
+        EXCEPTION("se_wait_timeout: timeout not found");
+        return SE_PIPELINE_DISABLE;
+    }
+    ct_float_t timeout = params[timeout_idx].float_val;
+
+    // Get reset_flag at logical child 2
+    uint16_t reset_flag_idx = s_expr_child_index(params, param_count, 2);
+    if (reset_flag_idx == UINT16_MAX) {
+        EXCEPTION("se_wait_timeout: reset_flag not found");
+        return SE_PIPELINE_DISABLE;
+    }
+    bool reset_flag = (params[reset_flag_idx].int_val != 0);
+
+    // Check elapsed time
+    double start_time = s_expr_get_user_f64(inst);
+    double current_time = 0.0;
+    s_expr_module_t* mod = inst->module;
+    if (mod && mod->alloc.get_time) {
+        current_time = mod->alloc.get_time(mod->alloc.ctx);
+    }
+
+    double elapsed = current_time - start_time;
+
+    if (elapsed > (double)timeout) {
+        // Reset and invoke error function at logical child 3
+        s_expr_child_reset(inst, params, param_count, 3);
+        s_expr_child_invoke_oneshot(inst, params, param_count, 3);
+
+        if (reset_flag) {
+            return SE_PIPELINE_RESET;
+        } else {
+            return SE_PIPELINE_TERMINATE;
+        }
+    }
+
+    return SE_PIPELINE_HALT;
+}

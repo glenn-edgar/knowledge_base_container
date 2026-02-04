@@ -569,60 +569,104 @@ Invocation 6: count=5+1=6, return (6 <= 5) = false → loop exits
 
 ---
 
-### se_field_increment_and_test
+#se_field_increment_and_test
+Purpose: Loop counter using blackboard fields for storage, increment, and limit — all values are runtime-configurable.
+Param layout: [FIELD counter_ref] [FIELD increment_ref] [FIELD limit_ref]
+Lua DSL:
+luase_field_increment_and_test(counter_field, increment_field, limit_field)
+Parameters:
+ParameterTypeDescriptioncounter_fieldstringBlackboard field name for the counterincrement_fieldstringBlackboard field name for the increment valuelimit_fieldstringBlackboard field name for the limit value
+Behavior:
 
-**Purpose:** Loop counter using a blackboard field for storage.
+On first invocation (not initialized):
 
-**Param layout:** `[FIELD slot_ref] [UINT increment] [UINT limit]`
+Set S_EXPR_NODE_FLAG_INITIALIZED
+Set counter field to 0
 
-**Lua DSL:**
-```lua
-se_field_increment_and_test("field_name", increment, limit)
+
+On every invocation:
+
+counter += increment
+Return (counter <= limit)
+
+
+
+Storage: Uses three blackboard fields (ct_int_t) — all visible to other functions and modifiable at runtime.
+Example:
+luase_chain_flow(function()
+    -- Initialize fields
+    se_set_field("counter", 0)
+    se_set_field("increment", 1)
+    se_set_field("limit", 10)
+    
+    se_while(se_field_increment_and_test("counter", "increment", "limit"),
+        function()
+            se_log_int("counter = %d", "counter")
+        end,
+        function()
+            se_tick_delay(10)
+        end
+    )
+    
+    se_log("Loop complete")
+    se_return_pipeline_disable()
+end)
 ```
 
-**Behavior:**
-1. On first invocation (not initialized):
-   - Set `S_EXPR_NODE_FLAG_INITIALIZED`
-   - Set `user_flags` to 0 (field is NOT zeroed)
-2. On every invocation:
-   - `field += increment`
-   - Return `(field <= limit)`
-
-**Storage:** Uses a blackboard field (`ct_int_t`) — visible to other functions.
-
-**Important:** The field is **not** zeroed on initialization. Initialize externally before the loop:
-
-```lua
-se_function_interface(function()
-    se_i_set_field("counter", 0)  -- Initialize field
+**Execution timeline (increment=1, limit=5):**
+```
+Invocation 1: init counter=0, counter=0+1=1, return (1 <= 5) = true
+Invocation 2: counter=1+1=2, return (2 <= 5) = true
+Invocation 3: counter=2+1=3, return (3 <= 5) = true
+Invocation 4: counter=3+1=4, return (4 <= 5) = true
+Invocation 5: counter=4+1=5, return (5 <= 5) = true
+Invocation 6: counter=5+1=6, return (6 <= 5) = false → loop exits
+Runtime Configuration:
+Because all three parameters are field references, you can modify loop behavior at runtime:
+luase_chain_flow(function()
+    se_set_field("counter", 0)
+    se_set_field("increment", 1)
+    se_set_field("limit", 5)
     
-    se_while(se_field_increment_and_test("counter", 1, 5),
-        function() se_log_int("counter = %d", "counter") end,
-        function() se_tick_delay(10) end
+    se_while(se_field_increment_and_test("counter", "increment", "limit"),
+        function()
+            se_log_int("Iteration %d", "counter")
+            
+            -- Double the increment after iteration 3
+            se_cond({
+                se_cond_case(se_field_eq("counter", 3), function()
+                    se_set_field("increment", 2)
+                    se_log("Doubled increment!")
+                end),
+                se_cond_default(function() end)
+            })
+        end
     )
 end)
 ```
 
-**Advantages over se_state_increment_and_test:**
-- Counter visible to other functions (logging, conditional logic)
-- Can be reset externally during execution
-- Supports larger values (ct_int_t: 32-bit or 64-bit)
+**Output:**
+```
+Iteration 1
+Iteration 2
+Iteration 3
+Doubled increment!
+Iteration 5   (jumped from 3+2=5)
+Loop exits    (5+2=7 > 5)
+Advantages:
 
+Counter, increment, and limit all visible to other functions
+Runtime modification of loop parameters
+Can implement variable-rate loops
+Useful for adaptive algorithms
+
+
+Comparison: State vs Field Counter
+Aspectse_state_increment_and_testse_field_increment_and_testStorageNode's user_flags (16-bit)Blackboard fields (ct_int_t)Counter visibilityPrivate to predicateVisible to all functionsIncrementFixed at compile timeRuntime-configurable fieldLimitFixed at compile timeRuntime-configurable fieldAuto-zeroedYes (on init)Yes (counter field on init)Max value65535Platform-dependent (32/64-bit)Parameters2 values (increment, limit)3 field names (counter, increment, limit)Use caseSimple fixed loopsDynamic loops, shared counters
+
+Stateful Counters Quick Reference
+PredicateParametersStorageRuntime Configse_state_increment_and_test(inc, limit)2 values16-bit node stateNose_field_increment_and_test(counter, inc, limit)3 field namesBlackboard fieldsYes
 ---
-
-## Comparison: State vs Field Counter
-
-| Aspect | `se_state_increment_and_test` | `se_field_increment_and_test` |
-|--------|-------------------------------|-------------------------------|
-| **Storage** | Node's `user_flags` (16-bit) | Blackboard field (ct_int_t) |
-| **Visibility** | Private to predicate | Visible to all functions |
-| **Auto-zeroed** | Yes (on init) | No (must initialize externally) |
-| **Max value** | 65535 | Platform-dependent (32/64-bit) |
-| **Parameters** | 2 (increment, limit) | 3 (field, increment, limit) |
-| **Use case** | Simple loop counting | Shared counter, logging |
-
----
-
 ## Predicate Quick Reference
 
 ### Composite (Boolean Logic)

@@ -82,11 +82,11 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FOR_HASH                   0xA11A2225
 #define SE_WHILE_HASH                 0xA08B6DD3  
 #define SE_COND_HASH                  0xCE0831A2
-// NEW v5.2: Dictionary-based dispatch functions
-#define SE_STRING_DISPATCH_HASH       0x6A3A4922
-#define SE_HASH_DISPATCH_HASH         0xDE8E6F0D
-#define SE_NAMED_STATE_MACHINE_HASH   0x876B8A33
-#define SE_NAMED_EVENT_DISPATCH_HASH  0x5E99A787
+#define SE_VERIFY_AND_CHECK_ELAPSED_TIME_HASH 0x0D3E0C4F
+#define SE_VERIFY_AND_CHECK_ELAPSED_EVENTS_HASH 0x1C4FF9A3
+#define SE_VERIFY_HASH                      0xC1DED4CF
+#define SE_WAIT_HASH                        0xDD7F6663
+#define SE_WAIT_TIMEOUT_HASH                0xA16E37EF
 
 // Main functions
 // Application result code function hashes (0-5)

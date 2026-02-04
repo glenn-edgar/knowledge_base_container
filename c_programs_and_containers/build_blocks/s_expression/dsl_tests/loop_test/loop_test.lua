@@ -17,6 +17,8 @@ RECORD("loop_test_blackboard")
     FIELD("outer_sequence_counter", "uint32")
     FIELD("inner_sequence_counter", "uint32")
     FIELD("field_test_counter", "uint32")
+    FIELD("field_test_increment", "uint32")
+    FIELD("field_test_limit", "uint32")
 END_RECORD()
 
 
@@ -48,7 +50,9 @@ loop_test_fn_1 = function()
     se_while(se_state_increment_and_test(1,10),loop_sequence_fn)
 end
 loop_test_fn_2 = function()
-    se_while(se_field_increment_and_test("field_test_counter",1,10),loop_sequence_fn)
+    se_set_field("field_test_increment", 1)
+    se_set_field("field_test_limit", 10)
+    se_while(se_field_increment_and_test("field_test_counter","field_test_increment","field_test_limit"),loop_sequence_fn)
 end
 start_tree("loop_test")
     use_record("loop_test_blackboard")

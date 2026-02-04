@@ -72,10 +72,12 @@
 // RECORD DEFINITIONS
 // ============================================================================
 /*
- * RECORD[0x0000]: loop_test_blackboard (size=12, align=4, hash=0x033C03AC)
+ * RECORD[0x0000]: loop_test_blackboard (size=20, align=4, hash=0x033C03AC)
  *   [ 0] off=0x0000 size= 4 hash=0x24954557 outer_sequence_counter
  *   [ 1] off=0x0004 size= 4 hash=0xD0B76C4E inner_sequence_counter
  *   [ 2] off=0x0008 size= 4 hash=0x6542B7E7 field_test_counter
+ *   [ 3] off=0x000C size= 4 hash=0x696CDE6A field_test_increment
+ *   [ 4] off=0x0010 size= 4 hash=0x1CAA35D8 field_test_limit
  *
  */
 
@@ -84,12 +86,12 @@
 // ============================================================================
 /*
  * TREE: loop_test
- *   hash=0xD1A777D8 nodes=40 ptrs=4
+ *   hash=0xD1A777D8 nodes=42 ptrs=4
  *   record=loop_test_blackboard (hash=0x033C03AC)
  *
  * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
  * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    156      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    0  OPEN_CALL[0x07]    166      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
  *    2    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
  *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
@@ -171,83 +173,93 @@
  *   79        CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
  *   80      CLOSE[0x06]          0      -  (end SE_WHILE)
  *   81    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
- *   82    OPEN_CALL[0x07]     70      0  SE_FORK_JOIN hash=0xE404E1CF
+ *   82    OPEN_CALL[0x07]     80      0  SE_FORK_JOIN hash=0xE404E1CF
  *   83    MAIN      [0x09]     82      1  idx_to_ptr=0
- *   84      OPEN_CALL[0x07]     67      0  SE_WHILE hash=0xA08B6DD3
- *   85      MAIN      [0x09]     84      2  idx_to_ptr=0
- *   86        OPEN_CALL[0x07]      5      0  SE_FIELD_INCREMENT_AND_TEST hash=0x275252DB
- *   87        PRED      [0x0A]     86      1  idx_to_ptr=0
- *   88          FIELD[0x0B]          8      4  field_test_counter (off=0x0008, hash=0x6542B7E7)
- *   89          UINT[0x01]           -      -  1 (0x00000001)
- *   90          UINT[0x01]           -      -  10 (0x0000000A)
- *   91        CLOSE[0x06]          0      -  (end SE_FIELD_INCREMENT_AND_TEST)
- *   92        OPEN_CALL[0x07]     58      0  SE_FORK_JOIN hash=0xE404E1CF
- *   93        MAIN      [0x09]     92      1  idx_to_ptr=0
- *   94          OPEN_CALL[0x07]     55      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
- *   95          MAIN      [0x09]     94      3  idx_to_ptr=0
- *   96            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *   97            ONESHOT   [0x08]     96      1  idx_to_ptr=0
- *   98              STR_IDX[0x0D]        0     22  "loop_sequence_fn start"
- *   99            CLOSE[0x06]          0      -  (end SE_LOG)
- *  100            OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  101            ONESHOT   [0x08]    100      2  idx_to_ptr=0
- *  102              STR_IDX[0x0D]        1     25  "outer_sequence_counter %d"
- *  103              FIELD[0x0B]          0      4  outer_sequence_counter (off=0x0000, hash=0x24954557)
- *  104            CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  105            OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  106            ONESHOT   [0x08]    105      3  idx_to_ptr=0
- *  107              FIELD[0x0B]          0      4  outer_sequence_counter (off=0x0000, hash=0x24954557)
- *  108              UINT[0x01]           -      -  1 (0x00000001)
- *  109            CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  110            OPEN_CALL[0x07]     27      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
- *  111            MAIN      [0x09]    110      3  idx_to_ptr=0
- *  112              OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  113              ONESHOT   [0x08]    112      1  idx_to_ptr=0
- *  114                STR_IDX[0x0D]        2     23  "inner_sequence_fn start"
- *  115              CLOSE[0x06]          0      -  (end SE_LOG)
- *  116              OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  117              ONESHOT   [0x08]    116      2  idx_to_ptr=0
- *  118                STR_IDX[0x0D]        3     25  "inner_sequence_counter %d"
- *  119                FIELD[0x0B]          4      4  inner_sequence_counter (off=0x0004, hash=0xD0B76C4E)
- *  120              CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  121              OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  122              ONESHOT   [0x08]    121      3  idx_to_ptr=0
- *  123                FIELD[0x0B]          4      4  inner_sequence_counter (off=0x0004, hash=0xD0B76C4E)
- *  124                UINT[0x01]           -      -  1 (0x00000001)
- *  125              CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  126              OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *  127              MAIN+PTR  [0x89]    126      4  idx_to_ptr=2
- *  128                INT[0x00]            -      -  3 (0x00000003)
- *  129              CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *  130              OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  131              ONESHOT   [0x08]    130      1  idx_to_ptr=0
- *  132                STR_IDX[0x0D]        4     21  "inner_sequence_fn end"
- *  133              CLOSE[0x06]          0      -  (end SE_LOG)
- *  134              OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
- *  135              MAIN      [0x09]    134      5  idx_to_ptr=0
- *  136              CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
- *  137            CLOSE[0x06]          0      -  (end SE_CHAIN_FLOW)
- *  138            OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
- *  139            MAIN+PTR  [0x89]    138      4  idx_to_ptr=3
- *  140              INT[0x00]            -      -  5 (0x00000005)
- *  141            CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *  142            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  143            ONESHOT   [0x08]    142      1  idx_to_ptr=0
- *  144              STR_IDX[0x0D]        5     20  "loop_sequence_fn end"
- *  145            CLOSE[0x06]          0      -  (end SE_LOG)
- *  146            OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
- *  147            MAIN      [0x09]    146      5  idx_to_ptr=0
- *  148            CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
- *  149          CLOSE[0x06]          0      -  (end SE_CHAIN_FLOW)
- *  150        CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
- *  151      CLOSE[0x06]          0      -  (end SE_WHILE)
- *  152    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
- *  153    OPEN_CALL[0x07]      2      0  SE_RETURN_TERMINATE hash=0xDFE64C74
- *  154    MAIN      [0x09]    153      6  idx_to_ptr=0
- *  155    CLOSE[0x06]          0      -  (end SE_RETURN_TERMINATE)
- *  156  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *   84      OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   85      ONESHOT   [0x08]     84      0  idx_to_ptr=0
+ *   86        FIELD[0x0B]         12      4  field_test_increment (off=0x000C, hash=0x696CDE6A)
+ *   87        UINT[0x01]           -      -  1 (0x00000001)
+ *   88      CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   89      OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   90      ONESHOT   [0x08]     89      0  idx_to_ptr=0
+ *   91        FIELD[0x0B]         16      4  field_test_limit (off=0x0010, hash=0x1CAA35D8)
+ *   92        UINT[0x01]           -      -  10 (0x0000000A)
+ *   93      CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   94      OPEN_CALL[0x07]     67      0  SE_WHILE hash=0xA08B6DD3
+ *   95      MAIN      [0x09]     94      2  idx_to_ptr=0
+ *   96        OPEN_CALL[0x07]      5      0  SE_FIELD_INCREMENT_AND_TEST hash=0x275252DB
+ *   97        PRED      [0x0A]     96      1  idx_to_ptr=0
+ *   98          FIELD[0x0B]          8      4  field_test_counter (off=0x0008, hash=0x6542B7E7)
+ *   99          FIELD[0x0B]         12      4  field_test_increment (off=0x000C, hash=0x696CDE6A)
+ *  100          FIELD[0x0B]         16      4  field_test_limit (off=0x0010, hash=0x1CAA35D8)
+ *  101        CLOSE[0x06]          0      -  (end SE_FIELD_INCREMENT_AND_TEST)
+ *  102        OPEN_CALL[0x07]     58      0  SE_FORK_JOIN hash=0xE404E1CF
+ *  103        MAIN      [0x09]    102      1  idx_to_ptr=0
+ *  104          OPEN_CALL[0x07]     55      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
+ *  105          MAIN      [0x09]    104      3  idx_to_ptr=0
+ *  106            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  107            ONESHOT   [0x08]    106      1  idx_to_ptr=0
+ *  108              STR_IDX[0x0D]        0     22  "loop_sequence_fn start"
+ *  109            CLOSE[0x06]          0      -  (end SE_LOG)
+ *  110            OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  111            ONESHOT   [0x08]    110      2  idx_to_ptr=0
+ *  112              STR_IDX[0x0D]        1     25  "outer_sequence_counter %d"
+ *  113              FIELD[0x0B]          0      4  outer_sequence_counter (off=0x0000, hash=0x24954557)
+ *  114            CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  115            OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
+ *  116            ONESHOT   [0x08]    115      3  idx_to_ptr=0
+ *  117              FIELD[0x0B]          0      4  outer_sequence_counter (off=0x0000, hash=0x24954557)
+ *  118              UINT[0x01]           -      -  1 (0x00000001)
+ *  119            CLOSE[0x06]          0      -  (end SE_INC_FIELD)
+ *  120            OPEN_CALL[0x07]     27      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
+ *  121            MAIN      [0x09]    120      3  idx_to_ptr=0
+ *  122              OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  123              ONESHOT   [0x08]    122      1  idx_to_ptr=0
+ *  124                STR_IDX[0x0D]        2     23  "inner_sequence_fn start"
+ *  125              CLOSE[0x06]          0      -  (end SE_LOG)
+ *  126              OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  127              ONESHOT   [0x08]    126      2  idx_to_ptr=0
+ *  128                STR_IDX[0x0D]        3     25  "inner_sequence_counter %d"
+ *  129                FIELD[0x0B]          4      4  inner_sequence_counter (off=0x0004, hash=0xD0B76C4E)
+ *  130              CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  131              OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
+ *  132              ONESHOT   [0x08]    131      3  idx_to_ptr=0
+ *  133                FIELD[0x0B]          4      4  inner_sequence_counter (off=0x0004, hash=0xD0B76C4E)
+ *  134                UINT[0x01]           -      -  1 (0x00000001)
+ *  135              CLOSE[0x06]          0      -  (end SE_INC_FIELD)
+ *  136              OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *  137              MAIN+PTR  [0x89]    136      4  idx_to_ptr=2
+ *  138                INT[0x00]            -      -  3 (0x00000003)
+ *  139              CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *  140              OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  141              ONESHOT   [0x08]    140      1  idx_to_ptr=0
+ *  142                STR_IDX[0x0D]        4     21  "inner_sequence_fn end"
+ *  143              CLOSE[0x06]          0      -  (end SE_LOG)
+ *  144              OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
+ *  145              MAIN      [0x09]    144      5  idx_to_ptr=0
+ *  146              CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
+ *  147            CLOSE[0x06]          0      -  (end SE_CHAIN_FLOW)
+ *  148            OPEN_CALL[0x07]      3      0  SE_TICK_DELAY hash=0x0C3460EB
+ *  149            MAIN+PTR  [0x89]    148      4  idx_to_ptr=3
+ *  150              INT[0x00]            -      -  5 (0x00000005)
+ *  151            CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
+ *  152            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  153            ONESHOT   [0x08]    152      1  idx_to_ptr=0
+ *  154              STR_IDX[0x0D]        5     20  "loop_sequence_fn end"
+ *  155            CLOSE[0x06]          0      -  (end SE_LOG)
+ *  156            OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_DISABLE hash=0x6B7AA500
+ *  157            MAIN      [0x09]    156      5  idx_to_ptr=0
+ *  158            CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_DISABLE)
+ *  159          CLOSE[0x06]          0      -  (end SE_CHAIN_FLOW)
+ *  160        CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
+ *  161      CLOSE[0x06]          0      -  (end SE_WHILE)
+ *  162    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
+ *  163    OPEN_CALL[0x07]      2      0  SE_RETURN_TERMINATE hash=0xDFE64C74
+ *  164    MAIN      [0x09]    163      6  idx_to_ptr=0
+ *  165    CLOSE[0x06]          0      -  (end SE_RETURN_TERMINATE)
+ *  166  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
  *
- * Total params: 157
+ * Total params: 167
  */
 
 #endif // LOOP_TEST_DUMP_32_H

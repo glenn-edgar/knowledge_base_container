@@ -13,11 +13,13 @@
 // Forward declarations
 typedef struct loop_test_blackboard_s loop_test_blackboard_t;
 
-// Record: loop_test_blackboard (size=12, align=4)
+// Record: loop_test_blackboard (size=20, align=4)
 struct loop_test_blackboard_s {
     uint32_t outer_sequence_counter;  // offset=0, size=4
     uint32_t inner_sequence_counter;  // offset=4, size=4
     uint32_t field_test_counter;  // offset=8, size=4
+    uint32_t field_test_increment;  // offset=12, size=4
+    uint32_t field_test_limit;  // offset=16, size=4
 };
 
 #endif // LOOP_TEST_RECORDS_H

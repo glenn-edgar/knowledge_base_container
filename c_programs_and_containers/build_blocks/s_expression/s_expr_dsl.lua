@@ -169,6 +169,12 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_WHILE",
    "SE_TICK_DELAY",
    "SE_TIME_DELAY",
+   "SE_WAIT_EVENT",
+   "SE_VERIFY_AND_CHECK_ELAPSED_TIME",
+   "SE_VERIFY_AND_CHECK_ELAPSED_EVENTS",
+   "SE_VERIFY",
+   "SE_WAIT",
+   "SE_WAIT_TIMEOUT",
 
    --- oneshot functions
    "SE_INC_FIELD",
@@ -589,20 +595,220 @@ function _G.END_RECORD()
     
     current_record = nil
 end
+-- Add to s_expr_dsl.lua, modify emit_json_value:
+-- ============================================================================
+-- HELPER CONSTRUCTORS FOR EMBEDDED FUNCTIONS (Generic)
+-- ============================================================================
+
+-- Function reference (just a hash for runtime lookup)
+function _G.func(name)
+    return {_type = "func_ref", name = name}
+end
+
+-- Inline main call
+function _G.main(name, ...)
+    return {_type = "m_call", name = name, params = {...}}
+end
+
+-- Inline main call with pointer (survives reset)
+function _G.main_pt(name, ...)
+    return {_type = "pt_m_call", name = name, params = {...}}
+end
+
+-- Inline oneshot call
+function _G.oneshot(name, ...)
+    return {_type = "o_call", name = name, params = {...}}
+end
+
+-- Inline oneshot call (survives reset)
+function _G.oneshot_i(name, ...)
+    return {_type = "io_call", name = name, params = {...}}
+end
+
+-- Inline predicate call
+function _G.pred(name, ...)
+    return {_type = "p_call", name = name, params = {...}}
+end
+
+-- Inline composite predicate call
+function _G.pred_c(name, ...)
+    return {_type = "p_call_composite", name = name, params = {...}}
+end
+
+-- Field reference helper
+function _G.field(name)
+    return {_type = "field", name = name}
+end
+
+-- Nested field reference helper
+function _G.nfield(path)
+    return {_type = "nested_field", path = path}
+end
+
+-- Constant reference helper
+function _G.const(name)
+    return {_type = "const_ref", name = name}
+end
+
+-- String hash helper (for runtime lookup keys)
+function _G.hash(str)
+    return {_type = "str_hash", value = str}
+end
+
+-- Explicit list constructor
+function _G.list(...)
+    return {_type = "list", items = {...}}
+end
+
+-- Explicit tuple constructor
+function _G.tuple(...)
+    return {_type = "tuple", items = {...}}
+end
 local function emit_json_value(value, use_hash_keys)
     local vtype = type(value)
     
-    if vtype == "number" then
+    if vtype == "nil" then
+        -- nil emits 0
+        int(0)
+        
+    elseif vtype == "number" then
         if math.floor(value) == value then
             int(value)
         else
             flt(value)
         end
+        
     elseif vtype == "string" then
         str(value)
+        
     elseif vtype == "boolean" then
         int(value and 1 or 0)
+        
+    elseif vtype == "function" then
+        -- Call the function to get its specification
+        local spec = value()
+        if spec == nil then
+            int(0)
+        elseif type(spec) == "string" then
+            -- Simple string returned = function name hash
+            str_hash(spec)
+        elseif type(spec) == "table" then
+            -- Recurse to handle the spec table
+            emit_json_value(spec, use_hash_keys)
+        else
+            dsl_error("Function must return spec table, string, or nil")
+        end
+        
     elseif vtype == "table" then
+        -- Check for special marker tables first
+        if value._type then
+            local spec = value
+            
+            if spec._type == "m_call" then
+                local n = m_call(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "pt_m_call" then
+                local n = pt_m_call(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "o_call" then
+                local n = o_call(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "io_call" then
+                local n = io_call(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "p_call" then
+                local n = p_call(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "p_call_composite" then
+                local n = p_call_composite(spec.name)
+                if spec.params then
+                    for _, p in ipairs(spec.params) do
+                        emit_json_value(p, use_hash_keys)
+                    end
+                end
+                end_call(n)
+                
+            elseif spec._type == "func_ref" then
+                -- Just emit a hash reference
+                str_hash(spec.name)
+                
+            elseif spec._type == "field" then
+                -- Field reference
+                field_ref(spec.name)
+                
+            elseif spec._type == "nested_field" then
+                -- Nested field reference
+                nested_field_ref(spec.path)
+                
+            elseif spec._type == "const_ref" then
+                -- Constant reference
+                const_ref(spec.name)
+                
+            elseif spec._type == "str_hash" then
+                -- String hash
+                str_hash(spec.value)
+                
+            elseif spec._type == "result" then
+                -- Result code
+                add_param("result", spec.value)
+                
+            elseif spec._type == "list" then
+                -- Explicit list
+                local l = list_start()
+                if spec.items then
+                    for _, item in ipairs(spec.items) do
+                        emit_json_value(item, use_hash_keys)
+                    end
+                end
+                list_end(l)
+                
+            elseif spec._type == "tuple" then
+                -- Explicit tuple
+                local t = tuple_start()
+                if spec.items then
+                    for _, item in ipairs(spec.items) do
+                        emit_json_value(item, use_hash_keys)
+                    end
+                end
+                tuple_end(t)
+                
+            else
+                dsl_error("Unknown spec type: " .. tostring(spec._type))
+            end
+            
+            return
+        end
+        
         -- Check if array (sequential integer keys starting at 1)
         local is_array = true
         local max_idx = 0
@@ -621,7 +827,11 @@ local function emit_json_value(value, use_hash_keys)
             is_array = false  -- Sparse array
         end
         
-        if is_array then
+        if count == 0 then
+            -- Empty table - emit as empty dict
+            local d = dict_start()
+            dict_end(d)
+        elseif is_array then
             local a = array_start()
             for _, v in ipairs(value) do
                 emit_json_value(v, use_hash_keys)
@@ -629,7 +839,17 @@ local function emit_json_value(value, use_hash_keys)
             array_end(a)
         else
             local d = dict_start()
-            for k, v in pairs(value) do
+            -- Sort keys for deterministic output
+            local keys = {}
+            for k, _ in pairs(value) do
+                table.insert(keys, k)
+            end
+            table.sort(keys, function(a, b)
+                return tostring(a) < tostring(b)
+            end)
+            
+            for _, k in ipairs(keys) do
+                local v = value[k]
                 local key_marker
                 if use_hash_keys then
                     key_marker = key_hash(fnv1a_32(tostring(k)))
@@ -642,8 +862,7 @@ local function emit_json_value(value, use_hash_keys)
             dict_end(d)
         end
     else
-        -- nil or unsupported type - emit 0
-        int(0)
+        dsl_error("Unsupported type in json(): " .. vtype)
     end
 end
 

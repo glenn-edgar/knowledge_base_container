@@ -20,6 +20,8 @@ RECORD("loop_test_blackboard")
     FIELD("outer_sequence_counter", "uint32")
     FIELD("inner_sequence_counter", "uint32")
     FIELD("field_test_counter", "uint32")
+    FIELD("field_test_increment", "uint32")
+    FIELD("field_test_limit", "uint32")
 END_RECORD()
 
 -- ============================================================================
@@ -29,7 +31,7 @@ END_RECORD()
 inner_sequence_fn = function()
     se_chain_flow(function()
         se_log("inner_sequence_fn start")
-        se_log_slot_integer("inner_sequence_counter %d","inner_sequence_counter")
+        se_log_slot_integer("inner_sequence_counter %d", "inner_sequence_counter")
         se_increment_field("inner_sequence_counter", 1)
         se_tick_delay(3)
         se_log("inner_sequence_fn end")
@@ -44,7 +46,7 @@ end
 loop_sequence_fn = function()
     se_chain_flow(function()
         se_log("loop_sequence_fn start")
-        se_log_slot_integer("outer_sequence_counter %d","outer_sequence_counter")
+        se_log_slot_integer("outer_sequence_counter %d", "outer_sequence_counter")
         se_increment_field("outer_sequence_counter", 1)
         inner_sequence_fn()
         se_tick_delay(5)
@@ -62,9 +64,11 @@ loop_test_fn_1 = function()
     se_while(se_state_increment_and_test(1, 10), loop_sequence_fn)
 end
 
--- Test 2: Field-based counter (uses blackboard field)
+-- Test 2: Field-based counter (uses blackboard fields for counter, increment, limit)
 loop_test_fn_2 = function()
-    se_while(se_field_increment_and_test("field_test_counter", 1, 10), loop_sequence_fn)
+    se_set_field("field_test_increment", 1)
+    se_set_field("field_test_limit", 10)
+    se_while(se_field_increment_and_test("field_test_counter", "field_test_increment", "field_test_limit"), loop_sequence_fn)
 end
 
 -- ============================================================================
@@ -109,8 +113,13 @@ se_function_interface
 │           ├── se_log("loop_sequence_fn end")
 │           └── se_return_pipeline_disable()
 ├── se_fork_join                                   [MAIN - blocking]
-│   └── se_while(se_field_increment_and_test("field_test_counter", 1, 10))
-│       └── loop_sequence_fn (same as above)
+│   └── loop_test_fn_2
+│       ├── se_set_field("field_test_increment", 1)  [ONESHOT]
+│       ├── se_set_field("field_test_limit", 10)     [ONESHOT]
+│       └── se_while(se_field_increment_and_test("field_test_counter", 
+│                                                  "field_test_increment", 
+│                                                  "field_test_limit"))
+│           └── loop_sequence_fn (same as above)
 └── se_return_terminate()                          [MAIN]
 ```
 
@@ -137,9 +146,14 @@ The first `se_fork_join` blocks until all 10 iterations of `loop_test_fn_1` comp
 
 ### Phase 2: Second se_fork_join (Ticks 111-220)
 
-The second `se_fork_join` runs identically to the first, but uses `se_field_increment_and_test` instead of `se_state_increment_and_test`.
+The second `se_fork_join` runs `loop_test_fn_2`, which:
+1. Sets `field_test_increment` to 1 (ONESHOT)
+2. Sets `field_test_limit` to 10 (ONESHOT)
+3. Runs `se_while` with field-based counter
 
-**Ticks per iteration:** ~11 ticks (same pattern)
+The loop uses `se_field_increment_and_test("field_test_counter", "field_test_increment", "field_test_limit")` — all three parameters are field references, allowing runtime configuration of the loop.
+
+**Ticks per iteration:** ~11 ticks (same pattern as first loop)
 
 **Total for 10 iterations:** ~110 ticks
 
@@ -175,7 +189,27 @@ outer_sequence_counter 19   (iteration 10, second loop)
 inner_sequence_counter 19
 ```
 
-The counters are **not** reset between the two loops because they're blackboard fields shared across both test functions. This demonstrates that `se_field_increment_and_test` does not zero the field it tests — only the predicate's internal state is initialized.
+The `outer_sequence_counter` and `inner_sequence_counter` fields are **not** reset between the two loops because they're blackboard fields shared across both test functions.
+
+### Field-Based Loop Configuration
+
+The second loop demonstrates runtime-configurable loop parameters:
+
+```lua
+loop_test_fn_2 = function()
+    se_set_field("field_test_increment", 1)   -- Set increment at runtime
+    se_set_field("field_test_limit", 10)      -- Set limit at runtime
+    se_while(se_field_increment_and_test("field_test_counter", 
+                                          "field_test_increment", 
+                                          "field_test_limit"), 
+             loop_sequence_fn)
+end
+```
+
+This pattern allows:
+- Dynamic loop counts based on runtime conditions
+- Modifying increment during loop execution
+- Adjusting limit based on external factors
 
 ### Blocking Behavior
 
@@ -203,18 +237,28 @@ The `+1` at the end accounts for the tick where the while loop evaluates the pre
 ### se_state_increment_and_test(1, 10)
 
 - **Storage:** Node's `user_flags` (16-bit)
-- **Auto-initialized:** Yes (zeros on first invocation)
+- **Parameters:** 2 values (increment, limit) — fixed at compile time
+- **Auto-initialized:** Yes (zeros counter on first invocation)
 - **Visibility:** Private to predicate
 - **Iterations:** 10 (counter goes 1→10, fails at 11)
 
-### se_field_increment_and_test("field_test_counter", 1, 10)
+### se_field_increment_and_test("field_test_counter", "field_test_increment", "field_test_limit")
 
-- **Storage:** Blackboard field `field_test_counter`
-- **Auto-initialized:** No (field not zeroed)
-- **Visibility:** Shared across all functions
+- **Storage:** Three blackboard fields (all `ct_int_t`)
+- **Parameters:** 3 field names (counter, increment, limit) — runtime-configurable
+- **Auto-initialized:** Yes (zeros counter field on first invocation)
+- **Visibility:** All fields visible and modifiable by any function
 - **Iterations:** 10 (counter goes 1→10, fails at 11)
 
-In this test, both produce the same iteration count because the test doesn't modify `field_test_counter` before the second loop.
+### Key Difference
+
+| Aspect | State-Based | Field-Based |
+|--------|-------------|-------------|
+| Increment | Fixed value: `1` | Field reference: `"field_test_increment"` |
+| Limit | Fixed value: `10` | Field reference: `"field_test_limit"` |
+| Counter storage | 16-bit node state | Blackboard field |
+| Runtime modifiable | No | Yes |
+| Use case | Simple fixed loops | Dynamic/adaptive loops |
 
 ## Test Validation
 
@@ -223,10 +267,11 @@ The test validates:
 1. ✅ **Nested loops** — Inner chain_flow inside outer chain_flow
 2. ✅ **Blocking fork_join** — Second loop waits for first to complete
 3. ✅ **State-based counter** — `se_state_increment_and_test` counts correctly
-4. ✅ **Field-based counter** — `se_field_increment_and_test` counts correctly
-5. ✅ **se_tick_delay** — Proper halting and resumption
-6. ✅ **ONESHOT execution** — Logs fire once per chain activation
-7. ✅ **Termination** — Clean exit with `SE_TERMINATE`
+4. ✅ **Field-based counter** — `se_field_increment_and_test` with 3 field references counts correctly
+5. ✅ **Runtime configuration** — Increment and limit set via `se_set_field` before loop
+6. ✅ **se_tick_delay** — Proper halting and resumption
+7. ✅ **ONESHOT execution** — Logs fire once per chain activation
+8. ✅ **Termination** — Clean exit with `SE_TERMINATE`
 
 ## Files
 
@@ -236,5 +281,3 @@ The test validates:
 | `loop_test.h` | Generated C header (hashes, tree names) |
 | `loop_test_bin_32.h` | Generated binary data (32-bit) |
 | `loop_test_32.bin` | Binary file for file-based loading |
-
-
