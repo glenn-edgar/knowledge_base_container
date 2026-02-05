@@ -973,6 +973,389 @@ function se_state_increment_and_test(increment_value, value_to_test)
         end_call(c)
     end)
 end
+
+
+-- ============================================================================
+-- SE_LOAD_DICTIONARY with compile-time validation
+-- 
+-- Validates that the target field is a PTR64_FIELD before emitting code.
+-- ============================================================================
+
+-- ============================================================================
+-- Field validation helpers
+-- ============================================================================
+
+local function validate_field_exists(field_name, func_name)
+    if not current_tree or not current_tree.record_name then
+        return nil  -- Can't validate without tree context
+    end
+    
+    local rec = current_module.records[current_tree.record_name]
+    if not rec then
+        return nil
+    end
+    
+    for _, f in ipairs(rec.fields) do
+        if f.name == field_name then
+            return f
+        end
+    end
+    
+    dsl_error(string.format(
+        "%s: field '%s' not found in record '%s'",
+        func_name, field_name, current_tree.record_name))
+end
+
+local function validate_field_is_ptr64(field_name, func_name)
+    local f = validate_field_exists(field_name, func_name)
+    if not f then return end
+    
+    if not f.is_ptr64 then
+        dsl_error(string.format(
+            "%s: field '%s' must be a PTR64_FIELD (got type='%s', size=%d)\n" ..
+            "  Hint: Use PTR64_FIELD(\"%s\", \"void\") in record '%s'",
+            func_name,
+            field_name, 
+            f.type or "unknown",
+            f.size or 0,
+            field_name,
+            current_tree.record_name))
+    end
+    
+    return f
+end
+
+local function validate_field_is_numeric(field_name, func_name)
+    local f = validate_field_exists(field_name, func_name)
+    if not f then return end
+    
+    local numeric_types = {
+        int32 = true, uint32 = true,
+        int64 = true, uint64 = true,
+        float = true, double = true
+    }
+    
+    if not numeric_types[f.type] then
+        dsl_error(string.format(
+            "%s: field '%s' must be a numeric type (got '%s')",
+            func_name, field_name, f.type or "unknown"))
+    end
+    
+    return f
+end
+
+local function validate_field_type(field_name, expected_type, func_name)
+    local f = validate_field_exists(field_name, func_name)
+    if not f then return end
+    
+    if f.type ~= expected_type then
+        dsl_error(string.format(
+            "%s: field '%s' must be type '%s' (got '%s')",
+            func_name, field_name, expected_type, f.type or "unknown"))
+    end
+    
+    return f
+end
+
+
+-- ============================================================================
+-- DICTIONARY/JSON HELPERS
+-- 
+-- These helpers provide convenient access to JSON-style dictionary data
+-- loaded into blackboard PTR64 fields.
+--
+-- Two storage formats:
+--   - json()      : String-keyed, use dot-path strings for access
+--   - json_hash() : Hash-keyed, use hash paths for access
+--
+-- Dictionary must first be loaded with se_load_dictionary() or 
+-- se_load_dictionary_hash(), then values can be extracted to blackboard fields.
+-- ============================================================================
+
+-- ============================================================================
+-- DICTIONARY LOADING
+-- Stores pointer to dictionary structure in a PTR64 blackboard field
+-- ============================================================================
+
+-- Load string-keyed dictionary (use with se_dict_extract_* functions)
+-- blackboard_field: PTR64_FIELD name to store dictionary pointer
+-- json_expression: Lua table in JSON-like format
+function se_load_dictionary(blackboard_field, json_expression)
+    validate_field_is_ptr64(blackboard_field, "se_load_dictionary")
+    
+    local c = o_call("SE_LOAD_DICTIONARY")
+        field_ref(blackboard_field)
+        json(json_expression)
+    end_call(c)
+    return c
+end
+
+-- Load hash-keyed dictionary (use with se_dict_extract_*_h functions)
+-- blackboard_field: PTR64_FIELD name to store dictionary pointer
+-- json_expression: Lua table in JSON-like format
+function se_load_dictionary_hash(blackboard_field, json_expression)
+    validate_field_is_ptr64(blackboard_field, "se_load_dictionary_hash")
+    
+    local c = o_call("SE_LOAD_DICTIONARY")
+        field_ref(blackboard_field)
+        json_hash(json_expression)
+    end_call(c)
+    return c
+end
+
+-- ============================================================================
+-- STRING PATH EXTRACTION (for json() dictionaries)
+-- Path is dot-separated: "system.irrigation.zones.zone_1.enabled"
+-- ============================================================================
+
+-- Extract integer value from dictionary using string path
+-- dict_field: PTR64_FIELD containing dictionary pointer
+-- path: dot-separated path string (e.g., "system.config.timeout")
+-- dest_field: destination field to store extracted value
+function se_dict_extract_int(dict_field, path, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_int")
+    
+    local c = o_call("SE_DICT_EXTRACT_INT")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract float value from dictionary using string path
+function se_dict_extract_float(dict_field, path, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_float")
+    
+    local c = o_call("SE_DICT_EXTRACT_FLOAT")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract unsigned integer value from dictionary using string path
+function se_dict_extract_uint(dict_field, path, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_uint")
+    
+    local c = o_call("SE_DICT_EXTRACT_UINT")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract boolean (as int 0/1) from dictionary using string path
+function se_dict_extract_bool(dict_field, path, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_bool")
+    
+    local c = o_call("SE_DICT_EXTRACT_BOOL")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract hash value from dictionary using string path
+function se_dict_extract_hash(dict_field, path, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_hash")
+    
+    local c = o_call("SE_DICT_EXTRACT_HASH")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- ============================================================================
+-- HASH PATH EXTRACTION (for json_hash() dictionaries)
+-- Path segments are individual hash keys, more efficient at runtime
+-- ============================================================================
+
+-- Extract integer value using hash path
+-- dict_field: PTR64_FIELD containing dictionary pointer
+-- path_keys: table of path segment strings {"system", "config", "timeout"}
+-- dest_field: destination field to store extracted value
+function se_dict_extract_int_h(dict_field, path_keys, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_int_h")
+    
+    if type(path_keys) ~= "table" or #path_keys == 0 then
+        dsl_error("se_dict_extract_int_h: path_keys must be non-empty table")
+    end
+    
+    local c = o_call("SE_DICT_EXTRACT_INT_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract float value using hash path
+function se_dict_extract_float_h(dict_field, path_keys, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_float_h")
+    
+    if type(path_keys) ~= "table" or #path_keys == 0 then
+        dsl_error("se_dict_extract_float_h: path_keys must be non-empty table")
+    end
+    
+    local c = o_call("SE_DICT_EXTRACT_FLOAT_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract unsigned integer using hash path
+function se_dict_extract_uint_h(dict_field, path_keys, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_uint_h")
+    
+    if type(path_keys) ~= "table" or #path_keys == 0 then
+        dsl_error("se_dict_extract_uint_h: path_keys must be non-empty table")
+    end
+    
+    local c = o_call("SE_DICT_EXTRACT_UINT_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract boolean (as int 0/1) using hash path
+function se_dict_extract_bool_h(dict_field, path_keys, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_bool_h")
+    
+    if type(path_keys) ~= "table" or #path_keys == 0 then
+        dsl_error("se_dict_extract_bool_h: path_keys must be non-empty table")
+    end
+    
+    local c = o_call("SE_DICT_EXTRACT_BOOL_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Extract hash value using hash path
+function se_dict_extract_hash_h(dict_field, path_keys, dest_field)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_hash_h")
+    
+    if type(path_keys) ~= "table" or #path_keys == 0 then
+        dsl_error("se_dict_extract_hash_h: path_keys must be non-empty table")
+    end
+    
+    local c = o_call("SE_DICT_EXTRACT_HASH_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_field)
+    end_call(c)
+    return c
+end
+
+-- Store pointer to sub-dictionary/array at path
+function se_dict_store_ptr(dict_field, path, dest_ptr_field)
+    validate_field_is_ptr64(dict_field)
+    validate_field_is_ptr64(dest_ptr_field)
+    
+    local call = o_call("SE_DICT_STORE_PTR")
+        field_ref(dict_field)
+        str(path)
+        field_ref(dest_ptr_field)
+    end_call(call)
+end
+
+-- Hash path variant
+function se_dict_store_ptr_h(dict_field, path_keys, dest_ptr_field)
+    validate_field_is_ptr64(dict_field)
+    validate_field_is_ptr64(dest_ptr_field)
+    
+    local call = o_call("SE_DICT_STORE_PTR_H")
+        field_ref(dict_field)
+        for _, key in ipairs(path_keys) do
+            str_hash(key)
+        end
+        field_ref(dest_ptr_field)
+    end_call(call)
+end
+-- ============================================================================
+-- CONVENIENCE HELPERS
+-- Higher-level helpers for common patterns
+-- ============================================================================
+
+-- Extract multiple fields from dictionary using string paths
+-- dict_field: PTR64_FIELD containing dictionary pointer
+-- extractions: table of {path = "...", dest = "field_name", type = "int"|"float"|"uint"|"bool"|"hash"}
+function se_dict_extract_all(dict_field, extractions)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_all")
+    
+    for _, ext in ipairs(extractions) do
+        if not ext.path or not ext.dest then
+            dsl_error("se_dict_extract_all: each extraction needs 'path' and 'dest'")
+        end
+        
+        local typ = ext.type or "int"
+        
+        if typ == "int" then
+            se_dict_extract_int(dict_field, ext.path, ext.dest)
+        elseif typ == "float" then
+            se_dict_extract_float(dict_field, ext.path, ext.dest)
+        elseif typ == "uint" then
+            se_dict_extract_uint(dict_field, ext.path, ext.dest)
+        elseif typ == "bool" then
+            se_dict_extract_bool(dict_field, ext.path, ext.dest)
+        elseif typ == "hash" then
+            se_dict_extract_hash(dict_field, ext.path, ext.dest)
+        else
+            dsl_error("se_dict_extract_all: unknown type '" .. typ .. "'")
+        end
+    end
+end
+
+-- Extract multiple fields using hash paths
+-- dict_field: PTR64_FIELD containing dictionary pointer
+-- extractions: table of {path = {"key1", "key2"}, dest = "field_name", type = "int"|"float"|...}
+function se_dict_extract_all_h(dict_field, extractions)
+    validate_field_is_ptr64(dict_field, "se_dict_extract_all_h")
+    
+    for _, ext in ipairs(extractions) do
+        if not ext.path or not ext.dest then
+            dsl_error("se_dict_extract_all_h: each extraction needs 'path' and 'dest'")
+        end
+        
+        local typ = ext.type or "int"
+        
+        if typ == "int" then
+            se_dict_extract_int_h(dict_field, ext.path, ext.dest)
+        elseif typ == "float" then
+            se_dict_extract_float_h(dict_field, ext.path, ext.dest)
+        elseif typ == "uint" then
+            se_dict_extract_uint_h(dict_field, ext.path, ext.dest)
+        elseif typ == "bool" then
+            se_dict_extract_bool_h(dict_field, ext.path, ext.dest)
+        elseif typ == "hash" then
+            se_dict_extract_hash_h(dict_field, ext.path, ext.dest)
+        else
+            dsl_error("se_dict_extract_all_h: unknown type '" .. typ .. "'")
+        end
+    end
+end
 -- ============================================================================
 -- s_engine_stack_ops_helpers.lua
 -- S-Expression Engine Stack Operations DSL Helpers
@@ -987,7 +1370,7 @@ end
 -- ============================================================================
 -- BASIC ARITHMETIC [-2, +1]
 -- ============================================================================
-
+--[[
 -- Add top two values: a + b
 function se_stack_add()
     local c = o_call("SE_STACK_ADD")
@@ -1693,6 +2076,6 @@ function se_stack_field_op(field_name, op, value)
     end
     se_stack_store_int(field_name)
 end
-
+--]]
 print("S-Expression Engine helpers loaded (v5.2)")
 

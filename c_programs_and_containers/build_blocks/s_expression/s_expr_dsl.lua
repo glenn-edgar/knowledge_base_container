@@ -176,6 +176,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_WAIT",
    "SE_WAIT_TIMEOUT",
 
+
    --- oneshot functions
    "SE_INC_FIELD",
    "SE_DEC_FIELD",
@@ -183,6 +184,19 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_LOG_INT",
    "SE_LOG_FLOAT",
    "SE_SET_FIELD",
+   "SE_LOAD_DICTIONARY",
+   "SE_DICT_EXTRACT_INT",
+   "SE_DICT_EXTRACT_UINT",
+   "SE_DICT_EXTRACT_FLOAT",
+   "SE_DICT_EXTRACT_BOOL",
+   "SE_DICT_EXTRACT_HASH",
+   "SE_DICT_EXTRACT_INT_H",
+   "SE_DICT_EXTRACT_UINT_H",
+   "SE_DICT_EXTRACT_FLOAT_H",
+   "SE_DICT_EXTRACT_BOOL_H",
+   "SE_DICT_EXTRACT_HASH_H",
+   "SE_DICT_STORE_PTR",
+   "SE_DICT_STORE_PTR_H",
 
 
 --- predicate functions
@@ -204,7 +218,6 @@ builtins_module.BUILTIN_FUNCTIONS = {
     "SE_FIELD_LE",
     "SE_FIELD_IN_RANGE",
     "SE_FIELD_INCREMENT_AND_TEST",
- 
     "SE_STATE_INCREMENT_AND_TEST",
 }
 
