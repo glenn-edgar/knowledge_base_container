@@ -975,6 +975,15 @@ function BinaryModuleGenerator:emit_dsl_param(e, param)
     elseif ptype == "list_end" then
         self:emit_param_struct(e, S_EXPR_PARAM.CLOSE, 0, 0, 0)
         return 1
+    elseif ptype == "stack_tos" then
+        self:emit_param_struct(e, S_EXPR_PARAM.STACK_TOS, 0, nil, nil, value)
+        return 1
+    elseif ptype == "stack_local" then
+        self:emit_param_struct(e, S_EXPR_PARAM.STACK_LOCAL, 0, nil, nil, value)
+        return 1
+    elseif ptype == "null_param" then
+        self:emit_param_struct(e, S_EXPR_PARAM.NULL_PARAM, 0, 0, 0)
+        return 1
     else
         self:emit_param_struct(e, S_EXPR_PARAM.UINT, 0, nil, nil, value or 0)
         return 1

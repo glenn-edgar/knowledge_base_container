@@ -125,7 +125,7 @@ s_expr_result_t s_expr_node_tick(
     
     // Reset stack at start of each tick
     if (inst->stack) {
-        s_expr_stack_reset(inst->stack);
+        s_expr_tree_reset_stack(inst);
     }
     
     const s_expr_param_t* params = inst->tree->params;

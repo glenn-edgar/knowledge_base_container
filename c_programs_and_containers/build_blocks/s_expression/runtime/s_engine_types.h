@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -61,6 +62,10 @@ extern "C" {
     #define FNV_OFFSET 0x811C9DC5U
 #endif
 
+
+// Forward declaration (near top)
+typedef struct s_expr_stack s_expr_stack_t;
+
 // ============================================================================
 // RESULT CODES (returned by main functions)
 // ============================================================================
@@ -89,6 +94,9 @@ typedef enum {
     SE_PIPELINE_RESET         = 15,
     SE_PIPELINE_DISABLE       = 16,
     SE_PIPELINE_SKIP_CONTINUE = 17,
+    S_EXPR_PARAM_STACK_TOS    = 0x18,   // stack_tos(offset)
+    S_EXPR_PARAM_STACK_LOCAL  = 0x19,   // stack_local(index)
+    S_EXPR_PARAM_NULL         = 0x1A,   // null_param()
 } s_expr_result_t;
 // ============================================================================
 // EVENT TYPES (passed to functions)
@@ -223,7 +231,9 @@ typedef struct {
 #define S_EXPR_PARAM_SURVIVES_RESET(t) (((t) & S_EXPR_FLAG_SURVIVES_RESET) != 0)
 #define S_EXPR_PARAM_IS_STR_IDX(t)   (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_STR_IDX)
 #define S_EXPR_PARAM_IS_CONST_REF(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_CONST_REF)
-
+#define S_EXPR_PARAM_IS_STACK_TOS(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_STACK_TOS)
+#define S_EXPR_PARAM_IS_STACK_LOCAL(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_STACK_LOCAL)
+#define S_EXPR_PARAM_IS_NULL(t) (((t) & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_NULL)
 // ============================================================================
 // NODE FLAGS (runtime state per func_node)
 // ============================================================================
@@ -256,6 +266,11 @@ typedef struct {
     uint8_t  type;              // opcode + flags
     uint8_t  index_to_pointer;  // pointer array index (for pt_m_call)
     union {
+        // Stack references (STACK_TOS, STACK_LOCAL)
+        struct {
+            uint16_t stack_offset;  // offset from TOS or local index
+            uint16_t stack_reserved;
+        };
         struct {
             uint16_t const_index;   // -> module->constants[]
             uint16_t const_size;    // size of constant data
@@ -540,14 +555,14 @@ struct s_expr_tree_instance {
     // User context
     void*                     user_ctx;
     
-    // Parameter stack (attached after instantiation)
+    // Parameter stack (created via s_expr_tree_create_stack)
     s_expr_stack_t*           stack;
-    bool                      stack_owned;
+    
+    // Event queue (created via s_expr_tree_create_event_queue)
     s_expr_queued_event_t    event_queue[S_EXPR_EVENT_QUEUE_SIZE];
     uint8_t                   event_queue_head;
     uint8_t                   event_queue_count;
-    
-    uint16_t                  tick_type; // SE_EVENT_TICK, SE_EVENT_INIT, SE_EVENT_TERMINATE, SE_EVENT_USER
+    uint16_t                  tick_type;
 };
 
 // ============================================================================

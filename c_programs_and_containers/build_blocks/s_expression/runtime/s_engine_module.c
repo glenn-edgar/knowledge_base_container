@@ -6,6 +6,7 @@
 #include "s_engine_module.h"
 #include "s_engine_stack.h"
 #include "s_engine_exception.h"
+#include "s_engine_event_queue.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -495,7 +496,7 @@ s_expr_tree_instance_t* s_expr_tree_create(
     
     memset(inst, 0, sizeof(*inst));
     inst->stack = NULL;
-    inst->stack_owned = false;
+    
     inst->ct_node_id = ct_node_id;
     inst->module = mod;
     inst->tree = tree_def;
@@ -633,8 +634,12 @@ void s_expr_tree_free(s_expr_tree_instance_t* inst) {
         }
     }
     
-    // Free stack if attached and owned
-    s_expr_tree_stack_terminate(inst);
+    // Free stack if present
+    s_expr_tree_free_stack(inst);
+    
+    // Free event queue if present
+    inst->event_queue_count = 0;
+    inst->event_queue_head = 0;
     
     if (inst->slot_flags) {
         alloc->free(alloc->ctx, inst->slot_flags);

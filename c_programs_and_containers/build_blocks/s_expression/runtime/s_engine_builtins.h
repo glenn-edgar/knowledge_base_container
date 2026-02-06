@@ -87,7 +87,8 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_VERIFY_HASH                      0xC1DED4CF
 #define SE_WAIT_HASH                        0xDD7F6663
 #define SE_WAIT_TIMEOUT_HASH                0xA16E37EF
-
+#define SE_SEQUENCE_ONCE_HASH               0x4F4BB2E1
+#define SE_STACK_FRAME_INSTANCE_HASH        0x753D7572
 // Main functions
 // Application result code function hashes (0-5)
 #define SE_RETURN_CONTINUE_HASH                0xB4243714
@@ -152,7 +153,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_DICT_EXTRACT_HASH_H_HASH        0x284A5F7A
 #define SE_DICT_STORE_PTR_H_HASH 0x136CCC16
 #define SE_DICT_STORE_PTR_HASH 0xA5B18AE1
-
+#define SE_PUSH_STACK_HASH 0x08E351ED
 // ============================================================================
 // HASH CONSTANTS (FNV-1a 32-bit)
 // ============================================================================
@@ -250,7 +251,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_STACK_PUSH_HASH_HASH   0x9F783538U
 #define SE_STACK_HASH_EQ_HASH     0x4DD42786U
 #define SE_QUEUE_EVENT_HASH       0xCF729BCEU
-
+#define SE_QUAD_HASH              0x596C457D
 #ifdef __cplusplus
 }
 #endif

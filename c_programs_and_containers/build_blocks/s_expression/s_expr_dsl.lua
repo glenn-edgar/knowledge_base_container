@@ -116,6 +116,9 @@ types_module.S_EXPR_PARAM = {
     CLOSE_ARRAY = 0x15,
     OPEN_TUPLE  = 0x16,
     CLOSE_TUPLE = 0x17,
+    STACK_TOS   = 0x18,
+    STACK_LOCAL = 0x19,
+    NULL_PARAM  = 0x1A,
 }
 
 types_module.S_EXPR_FLAG_SURVIVES_RESET = 0x40
@@ -175,6 +178,9 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_VERIFY",
    "SE_WAIT",
    "SE_WAIT_TIMEOUT",
+   "SE_STACK_FRAME_INSTANCE",
+   "SE_SEQUENCE_ONCE",
+   "SE_QUAD",
 
 
    --- oneshot functions
@@ -197,6 +203,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_DICT_EXTRACT_HASH_H",
    "SE_DICT_STORE_PTR",
    "SE_DICT_STORE_PTR_H",
+   "SE_PUSH_STACK",
 
 
 --- predicate functions
@@ -246,6 +253,7 @@ local current_call_stack = {}
 local order_stack = {0}
 local in_composite_block = false
 local debug_mode = false
+_G.frame_stack = {}
 
 -- ============================================================================
 -- BRACE STACK VALIDATION
@@ -357,7 +365,7 @@ function _G.end_module(mod)
     current_tree = nil
     current_const = nil
     current_call_stack = {}
-    
+    frame_stack = {}
     return result
 end
 
@@ -1013,6 +1021,7 @@ function _G.start_tree(name)
     current_call_stack = {}
     order_stack = {0}
     reset_brace_stack()
+    frame_stack = {}
 end
 
 function _G.use_record(name)
@@ -1047,6 +1056,10 @@ function _G.end_tree(name)
     end
     
     check_brace_balance()
+    if #frame_stack > 0 then
+        dsl_error("Tree '" .. current_tree.name .. "' has " .. #frame_stack ..
+                  " unclosed stack frame(s)")
+    end
     
     -- ========================================================================
     -- TREE STRUCTURE VALIDATION (v5.3)
@@ -1192,6 +1205,49 @@ end
 function _G.int(value) add_param("int", value) end
 function _G.uint(value) add_param("uint", value) end
 function _G.flt(value) add_param("float", value) end
+
+function _G.stack_tos(offset)
+    offset = offset or 0
+    if type(offset) ~= "number" or offset < 0 then
+        dsl_error("stack_tos: offset must be a non-negative number")
+    end
+    offset = math.floor(offset)
+
+    if #frame_stack == 0 then
+        dsl_error("stack_tos: no active stack frame (use inside se_call)")
+    end
+    local frame = frame_stack[#frame_stack]
+    if offset >= frame.scratch_depth then
+        dsl_error("stack_tos(" .. offset .. "): out of range, scratch_depth = " ..
+                  frame.scratch_depth .. " (valid: 0.." .. (frame.scratch_depth - 1) .. ")")
+    end
+
+    add_param("stack_tos", offset)
+end
+
+function _G.stack_local(index)
+    if type(index) ~= "number" or index < 0 then
+        dsl_error("stack_local: index must be a non-negative number")
+    end
+    index = math.floor(index)
+
+    if #frame_stack == 0 then
+        dsl_error("stack_local: no active stack frame (use inside se_call)")
+    end
+    local frame = frame_stack[#frame_stack]
+    local max = frame.num_params + frame.num_locals
+    if index >= max then
+        dsl_error("stack_local(" .. index .. "): out of range, frame has " ..
+                  frame.num_params .. " params + " .. frame.num_locals ..
+                  " locals = " .. max .. " slots (valid: 0.." .. (max - 1) .. ")")
+    end
+
+    add_param("stack_local", index)
+end
+
+function _G.null_param()
+    add_param("null_param", 0)
+end
 
 function _G.str(value)
     if not current_module.string_index[value] then

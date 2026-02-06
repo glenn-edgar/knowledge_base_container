@@ -1357,725 +1357,248 @@ function se_dict_extract_all_h(dict_field, extractions)
     end
 end
 -- ============================================================================
--- s_engine_stack_ops_helpers.lua
--- S-Expression Engine Stack Operations DSL Helpers
--- 
--- Provides convenient Lua functions for emitting stack-based arithmetic
--- operations in the DSL. Each helper generates the appropriate o_call
--- with any required const parameters.
+-- Execute children sequentially, each gets one tick, then terminate.
+-- Wraps SE_SEQUENCE_ONCE builtin (m_call).
+function se_sequence_once(...)
+    local children = {...}
+    if #children == 0 then
+        dsl_error("se_sequence_once: requires at least one child function")
+    end
+    local c = m_call("SE_SEQUENCE_ONCE")
+        for _, child_fn in ipairs(children) do
+            if type(child_fn) ~= "function" then
+                dsl_error("se_sequence_once: all arguments must be functions")
+            end
+            child_fn()
+        end
+    end_call(c)
+end
+
+-- Low-level: emits SE_STACK_FRAME_INSTANCE builtin node
+function se_stack_frame_instance(num_params, num_locals, scratch_depth, return_vars)
+    if type(num_params) ~= "number" or num_params < 0 then
+        dsl_error("se_stack_frame_instance: num_params must be non-negative number")
+    end
+    if type(num_locals) ~= "number" or num_locals < 0 then
+        dsl_error("se_stack_frame_instance: num_locals must be non-negative number")
+    end
+    if type(scratch_depth) ~= "number" or scratch_depth < 0 then
+        dsl_error("se_stack_frame_instance: scratch_depth must be non-negative number")
+    end
+    if type(return_vars) ~= "table" then
+        dsl_error("se_stack_frame_instance: return_vars must be a table")
+    end
+
+    local max_local = num_params + num_locals
+    for i, idx in ipairs(return_vars) do
+        if type(idx) ~= "number" or idx < 0 or idx >= max_local then
+            dsl_error("se_stack_frame_instance: return_vars[" .. i .. "] = " .. tostring(idx) ..
+                      " out of range (valid: 0.." .. (max_local - 1) .. ")")
+        end
+    end
+
+    num_params    = math.floor(num_params)
+    num_locals    = math.floor(num_locals)
+    scratch_depth = math.floor(scratch_depth)
+
+    local c = pt_m_call("SE_STACK_FRAME_INSTANCE")
+        uint(num_params)
+        uint(num_locals)
+        uint(scratch_depth)
+        local l = list_start()
+            for _, idx in ipairs(return_vars) do
+                uint(math.floor(idx))
+            end
+        list_end(l)
+    end_call(c)
+end
+
+-- Wrapper: establishes a stack frame around a list of body functions.
+-- Emits SE_SEQUENCE_ONCE containing SE_STACK_FRAME_INSTANCE + body children.
+-- Manages compile-time frame_stack for bounds checking stack_local/stack_tos.
 --
--- Stack Notation: [-n, +m] means pop n values, push m values
--- ============================================================================
-
--- ============================================================================
--- BASIC ARITHMETIC [-2, +1]
--- ============================================================================
---[[
--- Add top two values: a + b
-function se_stack_add()
-    local c = o_call("SE_STACK_ADD")
-    end_call(c)
-end
-
--- Subtract: a - b (second from top minus top)
-function se_stack_sub()
-    local c = o_call("SE_STACK_SUB")
-    end_call(c)
-end
-
--- Multiply: a * b
-function se_stack_mul()
-    local c = o_call("SE_STACK_MUL")
-    end_call(c)
-end
-
--- Divide (float): a / b
-function se_stack_div()
-    local c = o_call("SE_STACK_DIV")
-    end_call(c)
-end
-
--- Modulo (float fmod): a % b
-function se_stack_mod()
-    local c = o_call("SE_STACK_MOD")
-    end_call(c)
-end
-
--- Integer divide: a / b (truncates)
-function se_stack_idiv()
-    local c = o_call("SE_STACK_IDIV")
-    end_call(c)
-end
-
--- Integer modulo: a % b
-function se_stack_imod()
-    local c = o_call("SE_STACK_IMOD")
-    end_call(c)
-end
-
--- ============================================================================
--- UNARY ARITHMETIC [-1, +1]
--- ============================================================================
-
--- Negate: -a
-function se_stack_neg()
-    local c = o_call("SE_STACK_NEG")
-    end_call(c)
-end
-
--- Absolute value: |a|
-function se_stack_abs()
-    local c = o_call("SE_STACK_ABS")
-    end_call(c)
-end
-
--- Increment: a + 1
-function se_stack_inc()
-    local c = o_call("SE_STACK_INC")
-    end_call(c)
-end
-
--- Decrement: a - 1
-function se_stack_dec()
-    local c = o_call("SE_STACK_DEC")
-    end_call(c)
-end
-
--- ============================================================================
--- BITWISE OPERATIONS [-2, +1]
--- ============================================================================
-
--- Bitwise AND: a & b
-function se_stack_band()
-    local c = o_call("SE_STACK_BAND")
-    end_call(c)
-end
-
--- Bitwise OR: a | b
-function se_stack_bor()
-    local c = o_call("SE_STACK_BOR")
-    end_call(c)
-end
-
--- Bitwise XOR: a ^ b
-function se_stack_bxor()
-    local c = o_call("SE_STACK_BXOR")
-    end_call(c)
-end
-
--- Shift left: a << b
-function se_stack_shl()
-    local c = o_call("SE_STACK_SHL")
-    end_call(c)
-end
-
--- Logical shift right: a >> b (unsigned)
-function se_stack_shr()
-    local c = o_call("SE_STACK_SHR")
-    end_call(c)
-end
-
--- Arithmetic shift right: a >> b (signed, preserves sign)
-function se_stack_sar()
-    local c = o_call("SE_STACK_SAR")
-    end_call(c)
-end
-
--- ============================================================================
--- UNARY BITWISE [-1, +1]
--- ============================================================================
-
--- Bitwise NOT: ~a
-function se_stack_bnot()
-    local c = o_call("SE_STACK_BNOT")
-    end_call(c)
-end
-
--- ============================================================================
--- COMPARISON [-2, +1] - push 1 or 0
--- ============================================================================
-
--- Equal: a == b
-function se_stack_eq()
-    local c = o_call("SE_STACK_EQ")
-    end_call(c)
-end
-
--- Not equal: a != b
-function se_stack_ne()
-    local c = o_call("SE_STACK_NE")
-    end_call(c)
-end
-
--- Less than: a < b
-function se_stack_lt()
-    local c = o_call("SE_STACK_LT")
-    end_call(c)
-end
-
--- Less or equal: a <= b
-function se_stack_le()
-    local c = o_call("SE_STACK_LE")
-    end_call(c)
-end
-
--- Greater than: a > b
-function se_stack_gt()
-    local c = o_call("SE_STACK_GT")
-    end_call(c)
-end
-
--- Greater or equal: a >= b
-function se_stack_ge()
-    local c = o_call("SE_STACK_GE")
-    end_call(c)
-end
-
--- ============================================================================
--- LOGICAL OPERATIONS [-2, +1]
--- ============================================================================
-
--- Logical AND: a && b (push 0 or 1)
-function se_stack_and()
-    local c = o_call("SE_STACK_AND")
-    end_call(c)
-end
-
--- Logical OR: a || b (push 0 or 1)
-function se_stack_or()
-    local c = o_call("SE_STACK_OR")
-    end_call(c)
-end
-
--- ============================================================================
--- UNARY LOGICAL [-1, +1]
--- ============================================================================
-
--- Logical NOT: !a (push 0 or 1)
-function se_stack_not()
-    local c = o_call("SE_STACK_NOT")
-    end_call(c)
-end
-
--- ============================================================================
--- MATH FUNCTIONS [-1, +1]
--- ============================================================================
-
-function se_stack_sqrt()
-    local c = o_call("SE_STACK_SQRT")
-    end_call(c)
-end
-
-function se_stack_exp()
-    local c = o_call("SE_STACK_EXP")
-    end_call(c)
-end
-
-function se_stack_log()
-    local c = o_call("SE_STACK_LOG")
-    end_call(c)
-end
-
-function se_stack_log10()
-    local c = o_call("SE_STACK_LOG10")
-    end_call(c)
-end
-
-function se_stack_sin()
-    local c = o_call("SE_STACK_SIN")
-    end_call(c)
-end
-
-function se_stack_cos()
-    local c = o_call("SE_STACK_COS")
-    end_call(c)
-end
-
-function se_stack_tan()
-    local c = o_call("SE_STACK_TAN")
-    end_call(c)
-end
-
-function se_stack_asin()
-    local c = o_call("SE_STACK_ASIN")
-    end_call(c)
-end
-
-function se_stack_acos()
-    local c = o_call("SE_STACK_ACOS")
-    end_call(c)
-end
-
-function se_stack_atan()
-    local c = o_call("SE_STACK_ATAN")
-    end_call(c)
-end
-
-function se_stack_floor()
-    local c = o_call("SE_STACK_FLOOR")
-    end_call(c)
-end
-
-function se_stack_ceil()
-    local c = o_call("SE_STACK_CEIL")
-    end_call(c)
-end
-
-function se_stack_round()
-    local c = o_call("SE_STACK_ROUND")
-    end_call(c)
-end
-
-function se_stack_trunc()
-    local c = o_call("SE_STACK_TRUNC")
-    end_call(c)
-end
-
--- ============================================================================
--- MATH FUNCTIONS [-2, +1]
--- ============================================================================
-
--- Power: a^b
-function se_stack_pow()
-    local c = o_call("SE_STACK_POW")
-    end_call(c)
-end
-
--- atan2(y, x)
-function se_stack_atan2()
-    local c = o_call("SE_STACK_ATAN2")
-    end_call(c)
-end
-
--- min(a, b)
-function se_stack_min()
-    local c = o_call("SE_STACK_MIN")
-    end_call(c)
-end
-
--- max(a, b)
-function se_stack_max()
-    local c = o_call("SE_STACK_MAX")
-    end_call(c)
-end
-
--- ============================================================================
--- MATH FUNCTIONS [-3, +1]
--- ============================================================================
-
--- clamp(val, min_val, max_val)
-function se_stack_clamp()
-    local c = o_call("SE_STACK_CLAMP")
-    end_call(c)
-end
-
--- ============================================================================
--- TYPE CONVERSION [-1, +1]
--- ============================================================================
-
--- Convert to signed integer
-function se_stack_toint()
-    local c = o_call("SE_STACK_TOINT")
-    end_call(c)
-end
-
--- Convert to unsigned integer
-function se_stack_touint()
-    local c = o_call("SE_STACK_TOUINT")
-    end_call(c)
-end
-
--- Convert to float
-function se_stack_tofloat()
-    local c = o_call("SE_STACK_TOFLOAT")
-    end_call(c)
-end
-
--- ============================================================================
--- CONSTANT PUSH [+1]
--- ============================================================================
-
--- Push integer constant
-function se_stack_push_int(value)
-    local c = o_call("SE_STACK_PUSH_CONST")
-        int(value)
-    end_call(c)
-end
-
--- Push unsigned constant
-function se_stack_push_uint(value)
-    local c = o_call("SE_STACK_PUSH_CONST")
-        uint(value)
-    end_call(c)
-end
-
--- Push float constant
-function se_stack_push_float(value)
-    local c = o_call("SE_STACK_PUSH_CONST")
-        flt(value)
-    end_call(c)
-end
-
--- Push hash constant from string
-function se_stack_push_hash(str_value)
-    local c = o_call("SE_STACK_PUSH_HASH")
-        str_hash(str_value)
-    end_call(c)
-end
-
--- Push pre-computed hash value
-function se_stack_push_hash_value(hash_value)
-    local c = o_call("SE_STACK_PUSH_HASH")
-        uint(hash_value)
-    end_call(c)
-end
-
--- ============================================================================
--- IMMEDIATE OPERATIONS [-1, +1]
--- Operations with inline constant second operand
--- ============================================================================
-
--- Add immediate: a + const
-function se_stack_addi(value)
-    local c = o_call("SE_STACK_ADDI")
-        int(value)
-    end_call(c)
-end
-
--- Subtract immediate: a - const
-function se_stack_subi(value)
-    local c = o_call("SE_STACK_SUBI")
-        int(value)
-    end_call(c)
-end
-
--- Multiply immediate: a * const
-function se_stack_muli(value)
-    local c = o_call("SE_STACK_MULI")
-        int(value)
-    end_call(c)
-end
-
--- Divide immediate: a / const
-function se_stack_divi(value)
-    local c = o_call("SE_STACK_DIVI")
-        int(value)
-    end_call(c)
-end
-
--- Modulo immediate: a % const
-function se_stack_modi(value)
-    local c = o_call("SE_STACK_MODI")
-        int(value)
-    end_call(c)
-end
-
--- Shift left immediate: a << const
-function se_stack_shli(value)
-    local c = o_call("SE_STACK_SHLI")
-        uint(value)
-    end_call(c)
-end
-
--- Shift right immediate (logical): a >> const
-function se_stack_shri(value)
-    local c = o_call("SE_STACK_SHRI")
-        uint(value)
-    end_call(c)
-end
-
--- Shift right immediate (arithmetic): a >> const
-function se_stack_sari(value)
-    local c = o_call("SE_STACK_SARI")
-        uint(value)
-    end_call(c)
-end
-
--- Bitwise AND immediate: a & const
-function se_stack_bandi(value)
-    local c = o_call("SE_STACK_BANDI")
-        uint(value)
-    end_call(c)
-end
-
--- Bitwise OR immediate: a | const
-function se_stack_bori(value)
-    local c = o_call("SE_STACK_BORI")
-        uint(value)
-    end_call(c)
-end
-
--- Bitwise XOR immediate: a ^ const
-function se_stack_bxori(value)
-    local c = o_call("SE_STACK_BXORI")
-        uint(value)
-    end_call(c)
-end
-
--- ============================================================================
--- BLACKBOARD FIELD OPERATIONS
--- ============================================================================
-
--- Load field as signed integer [+1]
-function se_stack_load_int(field_name)
-    local c = o_call("SE_STACK_LOAD_INT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Load field as unsigned integer [+1]
-function se_stack_load_uint(field_name)
-    local c = o_call("SE_STACK_LOAD_UINT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Load field as float [+1]
-function se_stack_load_float(field_name)
-    local c = o_call("SE_STACK_LOAD_FLOAT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Load 8-byte field as pointer [+1]
-function se_stack_load_ptr64(field_name)
-    local c = o_call("SE_STACK_LOAD_PTR64")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Store top as signed integer [-1]
-function se_stack_store_int(field_name)
-    local c = o_call("SE_STACK_STORE_INT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Store top as unsigned integer [-1]
-function se_stack_store_uint(field_name)
-    local c = o_call("SE_STACK_STORE_UINT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Store top as float [-1]
-function se_stack_store_float(field_name)
-    local c = o_call("SE_STACK_STORE_FLOAT")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Store top as 8-byte pointer [-1]
-function se_stack_store_ptr64(field_name)
-    local c = o_call("SE_STACK_STORE_PTR64")
-        field_ref(field_name)
-    end_call(c)
-end
-
--- Nested field variants
-function se_stack_load_int_nested(field_path)
-    local c = o_call("SE_STACK_LOAD_INT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
-function se_stack_load_uint_nested(field_path)
-    local c = o_call("SE_STACK_LOAD_UINT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
-function se_stack_load_float_nested(field_path)
-    local c = o_call("SE_STACK_LOAD_FLOAT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
-function se_stack_store_int_nested(field_path)
-    local c = o_call("SE_STACK_STORE_INT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
-function se_stack_store_uint_nested(field_path)
-    local c = o_call("SE_STACK_STORE_UINT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
-function se_stack_store_float_nested(field_path)
-    local c = o_call("SE_STACK_STORE_FLOAT")
-        nested_field_ref(field_path)
-    end_call(c)
-end
-
--- ============================================================================
--- STACK MANIPULATION
--- ============================================================================
-
--- Drop top value [-1, +0]
-function se_stack_drop()
-    local c = o_call("SE_STACK_DROP")
-    end_call(c)
-end
-
--- Drop top two values [-2, +0]
-function se_stack_drop2()
-    local c = o_call("SE_STACK_DROP2")
-    end_call(c)
-end
-
--- Drop n values [-n, +0]
-function se_stack_dropn(count)
-    local c = o_call("SE_STACK_DROPN")
-        uint(count)
-    end_call(c)
-end
-
--- Duplicate top [-1, +2] (a -- a a)
-function se_stack_dup()
-    local c = o_call("SE_STACK_DUP")
-    end_call(c)
-end
-
--- Duplicate top two [-2, +4] (a b -- a b a b)
-function se_stack_dup2()
-    local c = o_call("SE_STACK_DUP2")
-    end_call(c)
-end
-
--- Swap top two [-2, +2] (a b -- b a)
-function se_stack_swap()
-    local c = o_call("SE_STACK_SWAP")
-    end_call(c)
-end
-
--- Copy second to top [-2, +3] (a b -- a b a)
-function se_stack_over()
-    local c = o_call("SE_STACK_OVER")
-    end_call(c)
-end
-
--- Rotate three [-3, +3] (a b c -- b c a)
-function se_stack_rot()
-    local c = o_call("SE_STACK_ROT")
-    end_call(c)
-end
-
--- Reverse rotate [-3, +3] (a b c -- c a b)
-function se_stack_nrot()
-    local c = o_call("SE_STACK_NROT")
-    end_call(c)
-end
-
--- Pick nth item (0 = top) and copy to top
-function se_stack_pick(index)
-    local c = o_call("SE_STACK_PICK")
-        uint(index)
-    end_call(c)
-end
-
--- Roll: rotate n items
-function se_stack_roll(count)
-    local c = o_call("SE_STACK_ROLL")
-        uint(count)
-    end_call(c)
-end
-
--- ============================================================================
--- CONDITIONAL OPERATIONS
--- ============================================================================
-
--- Select: (cond a b -- result) if cond!=0 then a else b
-function se_stack_select()
-    local c = o_call("SE_STACK_SELECT")
-    end_call(c)
-end
-
--- ============================================================================
--- HASH OPERATIONS
--- ============================================================================
-
--- Compare two hashes on stack
-function se_stack_hash_eq()
-    local c = o_call("SE_STACK_HASH_EQ")
-    end_call(c)
-end
-
--- ============================================================================
--- COMPOUND OPERATIONS (convenience macros)
--- ============================================================================
-
--- Load field, add constant, store back
-function se_stack_field_add(field_name, value)
-    se_stack_load_int(field_name)
-    se_stack_addi(value)
-    se_stack_store_int(field_name)
-end
-
--- Load field, increment, store back
-function se_stack_field_inc(field_name)
-    se_stack_load_int(field_name)
-    se_stack_inc()
-    se_stack_store_int(field_name)
-end
-
--- Load field, decrement, store back
-function se_stack_field_dec(field_name)
-    se_stack_load_int(field_name)
-    se_stack_dec()
-    se_stack_store_int(field_name)
-end
-
--- Load two fields, compare, leave result on stack
-function se_stack_compare_fields(field_a, field_b, op)
-    se_stack_load_int(field_a)
-    se_stack_load_int(field_b)
-    if op == "==" or op == "eq" then
-        se_stack_eq()
-    elseif op == "!=" or op == "ne" then
-        se_stack_ne()
-    elseif op == "<" or op == "lt" then
-        se_stack_lt()
-    elseif op == "<=" or op == "le" then
-        se_stack_le()
-    elseif op == ">" or op == "gt" then
-        se_stack_gt()
-    elseif op == ">=" or op == "ge" then
-        se_stack_ge()
-    else
-        dsl_error("Unknown comparison operator: " .. tostring(op))
+-- num_params:     number of parameters (already on stack from caller)
+-- num_locals:     number of local variable slots (zeroed on init)
+-- scratch_depth:  maximum scratch stack space
+-- return_vars:    list of stack_local indices to return to caller
+-- body_fns:       list of functions, each emitting child nodes with frame active
+function se_call(num_params, num_locals, scratch_depth, return_vars, body_fns)
+    if type(body_fns) ~= "table" or #body_fns == 0 then
+        dsl_error("se_call: body_fns must be a non-empty list of functions")
     end
+    for i, fn in ipairs(body_fns) do
+        if type(fn) ~= "function" then
+            dsl_error("se_call: body_fns[" .. i .. "] must be a function")
+        end
+    end
+
+    -- Validate return_vars against frame size before pushing frame
+    local max_local = num_params + num_locals
+    for i, idx in ipairs(return_vars) do
+        if type(idx) ~= "number" or idx < 0 or idx >= max_local then
+            dsl_error("se_call: return_vars[" .. i .. "] = " .. tostring(idx) ..
+                      " out of range (valid: 0.." .. (max_local - 1) .. ")")
+        end
+    end
+
+    -- Push compile-time frame for bounds checking stack_local/stack_tos
+    table.insert(frame_stack, {
+        num_params    = num_params,
+        num_locals    = num_locals,
+        scratch_depth = scratch_depth,
+    })
+
+    se_sequence_once(
+        function()
+            se_push_stack(function() uint(num_params) end)
+            se_stack_frame_instance(num_params, num_locals, scratch_depth, return_vars)
+            for _, fn in ipairs(body_fns) do
+                fn()
+            end
+        end
+    )
+        
+    
+
+    -- Pop compile-time frame
+    table.remove(frame_stack)
 end
 
--- Load field, apply binary op with constant, store back
-function se_stack_field_op(field_name, op, value)
-    se_stack_load_int(field_name)
-    if op == "+" then
-        se_stack_addi(value)
-    elseif op == "-" then
-        se_stack_subi(value)
-    elseif op == "*" then
-        se_stack_muli(value)
-    elseif op == "/" then
-        se_stack_divi(value)
-    elseif op == "%" then
-        se_stack_modi(value)
-    elseif op == "&" then
-        se_stack_bandi(value)
-    elseif op == "|" then
-        se_stack_bori(value)
-    elseif op == "^" then
-        se_stack_bxori(value)
-    elseif op == "<<" then
-        se_stack_shli(value)
-    elseif op == ">>" then
-        se_stack_shri(value)
-    else
-        dsl_error("Unknown operator: " .. tostring(op))
-    end
-    se_stack_store_int(field_name)
+
+SE_QUAD_OP = {
+    -- Integer Arithmetic
+    IADD         = 0x00,   -- dest = src1 + src2
+    ISUB         = 0x01,   -- dest = src1 - src2
+    IMUL         = 0x02,   -- dest = src1 * src2
+    IDIV         = 0x03,   -- dest = src1 / src2
+    IMOD         = 0x04,   -- dest = src1 % src2
+    INEG         = 0x05,   -- dest = -src1 (src2 = null_param)
+
+    -- Float Arithmetic
+    FADD         = 0x08,   -- dest = src1 + src2
+    FSUB         = 0x09,   -- dest = src1 - src2
+    FMUL         = 0x0A,   -- dest = src1 * src2
+    FDIV         = 0x0B,   -- dest = src1 / src2
+    FMOD         = 0x0C,   -- dest = src1 % src2
+    FNEG         = 0x0D,   -- dest = -src1 (src2 = null_param)
+
+    -- Bitwise (integer only)
+    BIT_AND      = 0x10,   -- dest = src1 & src2
+    BIT_OR       = 0x11,   -- dest = src1 | src2
+    BIT_XOR      = 0x12,   -- dest = src1 ^ src2
+    BIT_NOT      = 0x13,   -- dest = ~src1 (src2 = null_param)
+    BIT_SHL      = 0x14,   -- dest = src1 << src2
+    BIT_SHR      = 0x15,   -- dest = src1 >> src2
+
+    -- Integer Comparison (dest = 1 or 0)
+    ICMP_EQ      = 0x20,   -- dest = (src1 == src2)
+    ICMP_NE      = 0x21,   -- dest = (src1 != src2)
+    ICMP_LT      = 0x22,   -- dest = (src1 < src2)
+    ICMP_LE      = 0x23,   -- dest = (src1 <= src2)
+    ICMP_GT      = 0x24,   -- dest = (src1 > src2)
+    ICMP_GE      = 0x25,   -- dest = (src1 >= src2)
+
+    -- Float Comparison (dest = 1 or 0)
+    FCMP_EQ      = 0x28,   -- dest = (src1 == src2)
+    FCMP_NE      = 0x29,   -- dest = (src1 != src2)
+    FCMP_LT      = 0x2A,   -- dest = (src1 < src2)
+    FCMP_LE      = 0x2B,   -- dest = (src1 <= src2)
+    FCMP_GT      = 0x2C,   -- dest = (src1 > src2)
+    FCMP_GE      = 0x2D,   -- dest = (src1 >= src2)
+
+    -- Logical (dest = 1 or 0)
+    LOG_AND      = 0x30,   -- dest = (src1 && src2)
+    LOG_OR       = 0x31,   -- dest = (src1 || src2)
+    LOG_NOT      = 0x32,   -- dest = !src1 (src2 = null_param)
+    LOG_NAND     = 0x33,   -- dest = !(src1 && src2)
+    LOG_NOR      = 0x34,   -- dest = !(src1 || src2)
+    LOG_XOR      = 0x35,   -- dest = (src1 && !src2) || (!src1 && src2)
+
+    -- Move
+    MOVE         = 0x40,   -- dest = src1 (src2 = null_param)
+
+    -- Float Math Functions (src2 = null_param unless noted)
+    FSQRT        = 0x50,   -- dest = sqrt(src1)
+    FPOW         = 0x51,   -- dest = src1 ^ src2
+    FEXP         = 0x52,   -- dest = e^src1
+    FLOG         = 0x53,   -- dest = ln(src1)
+    FLOG10       = 0x54,   -- dest = log10(src1)
+    FLOG2        = 0x55,   -- dest = log2(src1)
+    FABS         = 0x56,   -- dest = |src1|
+
+    -- Trigonometric (float, radians)
+    FSIN         = 0x58,   -- dest = sin(src1)
+    FCOS         = 0x59,   -- dest = cos(src1)
+    FTAN         = 0x5A,   -- dest = tan(src1)
+    FASIN        = 0x5B,   -- dest = asin(src1)
+    FACOS        = 0x5C,   -- dest = acos(src1)
+    FATAN        = 0x5D,   -- dest = atan(src1)
+    FATAN2       = 0x5E,   -- dest = atan2(src1, src2)
+
+    -- Hyperbolic (float)
+    FSINH        = 0x60,   -- dest = sinh(src1)
+    FCOSH        = 0x61,   -- dest = cosh(src1)
+    FTANH        = 0x62,   -- dest = tanh(src1)
+
+    -- Integer Math
+    IABS         = 0x68,   -- dest = |src1| (src2 = null_param)
+    IMIN         = 0x69,   -- dest = min(src1, src2)
+    IMAX         = 0x6A,   -- dest = max(src1, src2)
+
+    -- Float Min/Max
+    FMIN         = 0x6C,   -- dest = min(src1, src2)
+    FMAX         = 0x6D,   -- dest = max(src1, src2)
+    MOV          = 0x6E,   -- dest = src1 (src2 = null_param)
+}
+
+
+-- ============================================================================
+-- QUAD OPERATOR (oneshot)
+-- Single three-address instruction: dest = op(src1, src2)
+-- Parameters can be any DSL param type: stack_local, stack_tos, field_ref,
+-- const_ref, int, flt, null_param, etc.
+-- ============================================================================
+
+-- Lookup set for compile-time validation
+local SE_QUAD_OP_SET = {}
+for name, val in pairs(SE_QUAD_OP) do
+    SE_QUAD_OP_SET[val] = name
 end
---]]
+
+function se_quad(opcode, src1_fn, src2_fn, dest_fn)
+    if type(opcode) ~= "number" then
+        dsl_error("se_quad: opcode must be a number")
+    end
+    if not SE_QUAD_OP_SET[opcode] then
+        dsl_error("se_quad: unknown opcode 0x" .. string.format("%02X", opcode) ..
+                  " - not a valid SE_QUAD_OP")
+    end
+    if type(src1_fn) ~= "function" then
+        dsl_error("se_quad: src1 must be a function emitting a parameter")
+    end
+    if type(src2_fn) ~= "function" then
+        dsl_error("se_quad: src2 must be a function emitting a parameter")
+    end
+    if type(dest_fn) ~= "function" then
+        dsl_error("se_quad: dest must be a function emitting a parameter")
+    end
+
+    local c = o_call("SE_QUAD")
+        uint(opcode)
+        src1_fn()
+        src2_fn()
+        dest_fn()
+    end_call(c)
+end
+function se_push_stack(value_fn)
+    if type(value_fn) ~= "function" then
+        dsl_error("se_push_stack: value must be a function emitting a parameter")
+    end
+    
+    local c = o_call("SE_PUSH_STACK")
+        value_fn()
+    end_call(c)
+end
+
 print("S-Expression Engine helpers loaded (v5.2)")
 
