@@ -1464,6 +1464,18 @@ function se_call(num_params, num_locals, scratch_depth, return_vars, body_fns)
     table.remove(frame_stack)
 end
 
+function se_frame_allocate(num_params, num_locals, scratch_depth)
+    local c = m_call("SE_FRAME_ALLOCATE")
+        uint(num_params)
+        uint(num_locals)
+        uint(scratch_depth)
+    end_call(c)
+end
+
+function se_frame_free()
+    local c = m_call("SE_FRAME_FREE")
+    end_call(c)
+end
 
 SE_QUAD_OP = {
     -- Integer Arithmetic
@@ -1590,6 +1602,8 @@ function se_quad(opcode, src1_fn, src2_fn, dest_fn)
         dest_fn()
     end_call(c)
 end
+
+
 function se_push_stack(value_fn)
     if type(value_fn) ~= "function" then
         dsl_error("se_push_stack: value must be a function emitting a parameter")
@@ -1961,3 +1975,220 @@ quad_mov(
     function() stack_local(0) end
 )
 --]]
+
+
+-- ============================================================================
+-- QUAD OPERATOR (oneshot)
+-- Single three-address instruction: dest = op(src1, src2)
+-- Parameters can be any DSL param type: stack_local, stack_tos, field_ref,
+-- const_ref, int, flt, null_param, etc.
+-- ============================================================================
+
+SE_P_QUAD_OP = {
+    -- Bitwise (integer only)
+    BIT_AND      = 0x10,   -- dest = src1 & src2
+    BIT_OR       = 0x11,   -- dest = src1 | src2
+    BIT_XOR      = 0x12,   -- dest = src1 ^ src2
+    BIT_NOT      = 0x13,   -- dest = ~src1 (src2 = null_param)
+    BIT_SHL      = 0x14,   -- dest = src1 << src2
+    BIT_SHR      = 0x15,   -- dest = src1 >> src2
+
+    -- Integer Comparison (dest = 1 or 0)
+    ICMP_EQ      = 0x20,   -- dest = (src1 == src2)
+    ICMP_NE      = 0x21,   -- dest = (src1 != src2)
+    ICMP_LT      = 0x22,   -- dest = (src1 < src2)
+    ICMP_LE      = 0x23,   -- dest = (src1 <= src2)
+    ICMP_GT      = 0x24,   -- dest = (src1 > src2)
+    ICMP_GE      = 0x25,   -- dest = (src1 >= src2)
+
+    -- Float Comparison (dest = 1 or 0)
+    FCMP_EQ      = 0x28,   -- dest = (src1 == src2)
+    FCMP_NE      = 0x29,   -- dest = (src1 != src2)
+    FCMP_LT      = 0x2A,   -- dest = (src1 < src2)
+    FCMP_LE      = 0x2B,   -- dest = (src1 <= src2)
+    FCMP_GT      = 0x2C,   -- dest = (src1 > src2)
+    FCMP_GE      = 0x2D,   -- dest = (src1 >= src2)
+
+    -- Logical (dest = 1 or 0)
+    LOG_AND      = 0x30,   -- dest = (src1 && src2)
+    LOG_OR       = 0x31,   -- dest = (src1 || src2)
+    LOG_NOT      = 0x32,   -- dest = !src1 (src2 = null_param)
+    LOG_NAND     = 0x33,   -- dest = !(src1 && src2)
+    LOG_NOR      = 0x34,   -- dest = !(src1 || src2)
+    LOG_XOR      = 0x35,   -- dest = (src1 && !src2) || (!src1 && src2)
+}
+
+
+-- Lookup set for compile-time validation
+local SE_P_QUAD_OP_SET = {}
+for name, val in pairs(SE_QUAD_OP) do
+    SE_QUAD_OP_SET[val] = name
+end
+
+-- Add SE_QUAD to BUILTIN_FUNCTIONS predicate section
+-- "SE_QUAD",
+
+
+
+function se_p_quad(opcode, src1_fn, src2_fn, dest_fn)
+    if type(opcode) ~= "number" then
+        dsl_error("se_quad: opcode must be a number")
+    end
+    if not SE_P_QUAD_OP_SET[opcode] then
+        dsl_error("se_quad: unknown opcode 0x" .. string.format("%02X", opcode) ..
+                  " - not a valid SE_QUAD_OP")
+    end
+    if type(src1_fn) ~= "function" then
+        dsl_error("se_quad: src1 must be a function emitting a parameter")
+    end
+    if type(src2_fn) ~= "function" then
+        dsl_error("se_quad: src2 must be a function emitting a parameter")
+    end
+    if type(dest_fn) ~= "function" then
+        dsl_error("se_quad: dest must be a function emitting a parameter")
+    end
+
+    local c = p_call("SE_QUAD")
+        uint(opcode)
+        src1_fn()
+        src2_fn()
+        dest_fn()
+    end_call(c)
+end
+
+--- ============================================================================
+-- QUAD BOOLEAN HELPER FUNCTIONS
+-- Convenience wrappers for se_quad predicate operations.
+-- Each takes parameter-emitting functions for src1, src2 (where applicable),
+-- and dest (where the 1/0 result is stored).
+-- ============================================================================
+
+-- Bitwise
+function p_bit_and(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+end
+
+function p_bit_or(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+end
+
+function p_bit_xor(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+end
+
+function p_bit_not(src1_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_NOT, src1_fn, function() null_param() end, dest_fn)
+end
+
+function p_bit_shl(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+end
+
+function p_bit_shr(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+end
+
+-- Integer Comparison
+function p_icmp_eq(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+end
+
+function p_icmp_ne(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+end
+
+function p_icmp_lt(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+end
+
+function p_icmp_le(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+end
+
+function p_icmp_gt(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+end
+
+function p_icmp_ge(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+end
+
+-- Float Comparison
+function p_fcmp_eq(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+end
+
+function p_fcmp_ne(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+end
+
+function p_fcmp_lt(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+end
+
+function p_fcmp_le(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+end
+
+function p_fcmp_gt(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+end
+
+function p_fcmp_ge(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+end
+
+-- Logical
+function p_log_and(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+end
+
+function p_log_or(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+end
+
+function p_log_not(src1_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_NOT, src1_fn, function() null_param() end, dest_fn)
+end
+
+function p_log_nand(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+end
+
+function se_log_nor(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+end
+
+function p_log_xor(src1_fn, src2_fn, dest_fn)
+    se_p_quad(SE_P_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+end
+
+-- Range check: dest = (low <= src && src <= high)
+-- Emits two comparisons and a logical AND using scratch locations.
+-- Requires 2 scratch slots for intermediate results.
+--
+-- src_fn:     function emitting the value to test
+-- low_fn:     function emitting the low bound (inclusive)
+-- high_fn:    function emitting the high bound (inclusive)
+-- dest_fn:    function emitting the destination for result (1/0)
+-- scratch1_fn: function emitting scratch location for (low <= src)
+-- scratch2_fn: function emitting scratch location for (src <= high)
+
+function p_icmp_in_range(src_fn, low_fn, high_fn, dest_fn, scratch1_fn, scratch2_fn)
+    -- scratch1 = (low <= src)
+    p_icmp_le(low_fn, src_fn, scratch1_fn)
+    -- scratch2 = (src <= high)
+    p_icmp_le(src_fn, high_fn, scratch2_fn)
+    -- dest = scratch1 && scratch2
+    p_log_and(scratch1_fn, scratch2_fn, dest_fn)
+end
+
+function p_fcmp_in_range(src_fn, low_fn, high_fn, dest_fn, scratch1_fn, scratch2_fn)
+    -- scratch1 = (low <= src)
+    p_fcmp_le(low_fn, src_fn, scratch1_fn)
+    -- scratch2 = (src <= high)
+    p_fcmp_le(src_fn, high_fn, scratch2_fn)
+    -- dest = scratch1 && scratch2
+    p_log_and(scratch1_fn, scratch2_fn, dest_fn)
+end
+

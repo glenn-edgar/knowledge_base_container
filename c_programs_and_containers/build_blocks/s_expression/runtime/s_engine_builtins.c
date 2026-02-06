@@ -123,7 +123,7 @@ static bool se_pred_xor(s_expr_tree_instance_t* inst, const s_expr_param_t* para
 static bool se_true(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_false(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_check_event(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-
+static bool se_p_quad(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Field comparison predicates
 static bool se_field_eq(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_field_ne(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -135,6 +135,8 @@ static bool se_field_in_range(s_expr_tree_instance_t* inst, const s_expr_param_t
 static bool se_field_increment_and_test(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static bool se_state_increment_and_test(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
+
+// Main functions
 static s_expr_result_t se_tick_delay(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_time_delay(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_wait_event(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -160,7 +162,8 @@ static s_expr_result_t se_verify(s_expr_tree_instance_t* inst, const s_expr_para
 static s_expr_result_t se_wait(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_wait_timeout(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_stack_frame_instance(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-
+static s_expr_result_t se_frame_allocate(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_frame_free(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
 // Result code functions
 static s_expr_result_t se_return_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -385,6 +388,8 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_WAIT_HASH, (void*)se_wait },
     { SE_WAIT_TIMEOUT_HASH, (void*)se_wait_timeout },
     { SE_STACK_FRAME_INSTANCE_HASH, (void*)se_stack_frame_instance },
+    { SE_FRAME_ALLOCATE_HASH, (void*)se_frame_allocate },
+    { SE_FRAME_FREE_HASH, (void*)se_frame_free },
     // NEW v5.2: Dictionary-based dispatch
     
     // Result code functions
@@ -435,7 +440,7 @@ static s_expr_fn_entry_t builtin_pred_entries[] = {
     { SE_FIELD_INCREMENT_AND_TEST_HASH, (void*)se_field_increment_and_test },
    
     { SE_STATE_INCREMENT_AND_TEST_HASH, (void*)se_state_increment_and_test },
-
+    { SE_P_QUAD_HASH, (void*)se_p_quad },
 
     
 };
@@ -4991,3 +4996,209 @@ if (event_type == SE_EVENT_INIT) {
     return SE_PIPELINE_CONTINUE;
 }
 
+/*
+ * se_quad.c
+ * SE_QUAD predicate function implementation
+ * 
+ * Three-address instruction: dest = op(src1, src2)
+ * Returns: predicate true (non-zero dest) or false (zero dest)
+ *
+ * Parameter layout:
+ *   param[0]: uint  - opcode (SE_QUAD_OP enum)
+ *   param[1]: any   - src1
+ *   param[2]: any   - src2 (null_param for unary ops)
+ *   param[3]: any   - dest (must be writable: stack_local or stack_tos)
+ */
+
+ // ============================================================================
+// SE_QUAD_PRED - Predicate version of SE_QUAD
+// Three-address instruction: dest = op(src1, src2)
+// Returns: true if dest is non-zero, false if dest is zero
+//
+// params[0] = opcode (uint)
+// params[1] = src1
+// params[2] = src2 (or null_param for unary ops)
+// params[3] = dest
+// ============================================================================
+
+static bool se_p_quad(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (!inst || param_count < 4) return false;
+    
+    uint32_t opcode = params[0].uint_val;
+    const s_expr_param_t* src1 = &params[1];
+    const s_expr_param_t* src2 = &params[2];
+    const s_expr_param_t* dest = &params[3];
+    
+    ct_int_t result = 0;
+    
+    // Read src1 and src2 as both int and float for type-appropriate ops
+    ct_int_t s1_i = quad_read_int(inst, src1);
+    ct_int_t s2_i = quad_read_int(inst, src2);
+    ct_float_t s1_f = quad_read_float(inst, src1);
+    ct_float_t s2_f = quad_read_float(inst, src2);
+    
+    switch (opcode) {
+        // Bitwise
+        case SE_QUAD_BIT_AND:
+            result = s1_i & s2_i;
+            break;
+        case SE_QUAD_BIT_OR:
+            result = s1_i | s2_i;
+            break;
+        case SE_QUAD_BIT_XOR:
+            result = s1_i ^ s2_i;
+            break;
+        case SE_QUAD_BIT_NOT:
+            result = ~s1_i;
+            break;
+        case SE_QUAD_BIT_SHL:
+            result = s1_i << (s2_i & 0x1F);
+            break;
+        case SE_QUAD_BIT_SHR:
+            result = (ct_uint_t)s1_i >> (s2_i & 0x1F);
+            break;
+            
+        // Integer Comparison
+        case SE_QUAD_ICMP_EQ:
+            result = (s1_i == s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_ICMP_NE:
+            result = (s1_i != s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_ICMP_LT:
+            result = (s1_i < s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_ICMP_LE:
+            result = (s1_i <= s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_ICMP_GT:
+            result = (s1_i > s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_ICMP_GE:
+            result = (s1_i >= s2_i) ? 1 : 0;
+            break;
+            
+        // Float Comparison
+        case SE_QUAD_FCMP_EQ:
+            result = (s1_f == s2_f) ? 1 : 0;
+            break;
+        case SE_QUAD_FCMP_NE:
+            result = (s1_f != s2_f) ? 1 : 0;
+            break;
+        case SE_QUAD_FCMP_LT:
+            result = (s1_f < s2_f) ? 1 : 0;
+            break;
+        case SE_QUAD_FCMP_LE:
+            result = (s1_f <= s2_f) ? 1 : 0;
+            break;
+        case SE_QUAD_FCMP_GT:
+            result = (s1_f > s2_f) ? 1 : 0;
+            break;
+        case SE_QUAD_FCMP_GE:
+            result = (s1_f >= s2_f) ? 1 : 0;
+            break;
+            
+        // Logical
+        case SE_QUAD_LOG_AND:
+            result = (s1_i && s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_LOG_OR:
+            result = (s1_i || s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_LOG_NOT:
+            result = (!s1_i) ? 1 : 0;
+            break;
+        case SE_QUAD_LOG_NAND:
+            result = !(s1_i && s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_LOG_NOR:
+            result = !(s1_i || s2_i) ? 1 : 0;
+            break;
+        case SE_QUAD_LOG_XOR:
+            result = (!s1_i != !s2_i) ? 1 : 0;
+            break;
+            
+        default:
+            EXCEPTION("SE_QUAD_PRED: unknown opcode 0x%02X");
+            return false;
+    }
+    
+    // Write result to dest
+    quad_write_int(inst, dest, result);
+    
+    return (result != 0);
+}
+
+static s_expr_result_t se_frame_allocate(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    
+    UNUSED(event_id);
+    UNUSED(params);
+    UNUSED(event_data);
+    
+    if (!inst || !inst->stack || param_count < 2) {
+        EXCEPTION("SE_FRAME_ALLOCATE: invalid parameters");
+        return SE_PIPELINE_TERMINATE;
+    }
+    if (event_type != SE_EVENT_INIT) {
+        
+        return SE_PIPELINE_CONTINUE;
+    }
+    if(event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    uint16_t num_params = (uint16_t)params[0].uint_val;
+    uint16_t num_locals = (uint16_t)params[1].uint_val;
+    
+    
+   s_expr_stack_push_frame(inst->stack, num_params, num_locals);
+    
+    return SE_PIPELINE_CONTINUE;
+}
+
+static s_expr_result_t se_frame_free(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    
+    UNUSED(event_id);
+    UNUSED(params);
+    UNUSED(param_count);
+    UNUSED(event_data);
+    
+    if (event_type != SE_EVENT_INIT) {
+        
+        return SE_PIPELINE_CONTINUE;
+    }
+    if(event_type == SE_EVENT_TERMINATE) {
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    
+    s_expr_stack_pop_frame(inst->stack);
+    
+    
+    return SE_PIPELINE_CONTINUE;
+}

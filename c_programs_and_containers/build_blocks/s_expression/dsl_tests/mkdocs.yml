@@ -1,0 +1,40 @@
+site_name: C S_ENGINE
+nav:
+  - Design Overview: README_top_design.md
+  - DSL: README_DSL.md
+  - Return Codes: README_return_codes.md
+  - Predicate System: README_predicate_system.md
+  - User Defined Functions: README_user_defined_functions.md
+  - User Events: README_user_events.md
+  - JSON Support: README_json_support.md
+  - JSON Array Support: README_json_array_support.md
+  - Reading Debug Map: README_reading_debug_map.md
+  - Composite Functions:
+    - Overview: composite_functions/README_composite_functions.md
+    - Chain Flow: composite_functions/README_chain_flow.md
+    - Sequence: composite_functions/README_sequence.md
+    - State Machine: composite_functions/README_state_machine.md
+    - Cond: composite_functions/README_cond.md
+    - Fork: composite_functions/README_fork.md
+    - Fork Join: composite_functions/README_fork_join.md
+    - While: composite_functions/README_while.md
+    - Event Dispatch: composite_functions/README_event_dispatch.md
+    - Field Dispatch: composite_functions/README_field_dispatch.md
+    - Trigger on Change: composite_functions/README_trigger_on_change.md
+    - Engine Interface: composite_functions/README_engine_interface.md
+  - Simple Functions:
+    - Main Functions:
+      - Wait: simple_functions/main_functions/README_wait.md
+      - Wait Event: simple_functions/main_functions/README_wait_event.md
+      - Wait Timeout: simple_functions/main_functions/README_wait_time_out.md
+      - Verify: simple_functions/main_functions/README_verify.md
+      - Verify Elapsed Events: simple_functions/main_functions/README_verify_elasped_events.md
+      - Verify Elapsed Time: simple_functions/main_functions/README_verify_elasped_time.md
+      - Tick Time Delay: simple_functions/main_functions/README_tick_time_delay.md
+    - One Shot Functions:
+      - Dictionary Functions: simple_functions/one_shot_functions/README_dictionary_functions.md
+      - Queue Event: simple_functions/one_shot_functions/README_queue_event.md
+      - SE Log: simple_functions/one_shot_functions/README_se_log.md
+      - Set Field: simple_functions/one_shot_functions/README_set_field.md
+    - Predicate Functions: simple_functions/predicate_functions/README.md
+

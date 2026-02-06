@@ -1,0 +1,4 @@
+site_name: C Embedded AVRO packets
+nav:
+  -  Avro DSL for Embedded C : README.md
+

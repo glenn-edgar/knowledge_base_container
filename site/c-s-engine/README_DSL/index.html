@@ -1,0 +1,3370 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../README_top_design/">
+      
+      
+        <link rel="next" href="../README_return_codes/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>DSL - Knowledge Based Container Utilities</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#s-expression-engine-dsl-v52" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Knowledge Based Container Utilities" class="md-header__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Knowledge Based Container Utilities
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              DSL
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Knowledge Based Container Utilities" class="md-nav__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Knowledge Based Container Utilities
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C Programs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C Programs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded_AVRO_PACKETS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Embedded_AVRO_PACKETS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-embedded-avro-packets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avro DSL for Embedded C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-dsl-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core DSL Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference-dsl-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference DSL Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generated-output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated Output Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dsl-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DSL Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#record-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Record Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Record Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scalar-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#array-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Array Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#embedded-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded Records
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tree-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tree Definition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tree Definition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#helper-functions-s_engine_helperslua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Helper Functions (s_engine_helpers.lua)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Helper Functions (s_engine_helpers.lua)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-dispatch-with-se_case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Dispatch (with se_case)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delays-and-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delays and Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compilation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compilation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-state_machinelua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference: state_machine.lua
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reference: state_machine.lua">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-se_field_dispatch-with-se_case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: se_field_dispatch with se_case
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-se_state_machine-with-index-based-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: se_state_machine with index-based dispatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-s_expr_tutoriallua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference: s_expr_tutorial.lua
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engine-built-in-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine Built-in Functions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Binary Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#32-bit-vs-64-bit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        32-bit vs 64-bit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_reading_debug_map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_10" id="__nav_2_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_chain_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_trigger_on_change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11" id="__nav_2_2_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_1" id="__nav_2_2_11_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_2" id="__nav_2_2_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-dsl-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core DSL Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference-dsl-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference DSL Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generated-output-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generated Output Files
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dsl-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DSL Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DSL Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#record-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Record Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Record Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scalar-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#array-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Array Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#embedded-records" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedded Records
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tree-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tree Definition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tree Definition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#helper-functions-s_engine_helperslua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Helper Functions (s_engine_helpers.lua)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Helper Functions (s_engine_helpers.lua)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequence-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequence Control
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-dispatch-with-se_case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Dispatch (with se_case)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#field-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Field Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delays-and-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Delays and Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#return-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Return Codes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-codes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Codes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compilation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compilation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command Line Options
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-state_machinelua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference: state_machine.lua
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reference: state_machine.lua">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-se_field_dispatch-with-se_case" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 1: se_field_dispatch with se_case
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-se_state_machine-with-index-based-dispatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern 2: se_state_machine with index-based dispatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reference-s_expr_tutoriallua" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference: s_expr_tutorial.lua
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#engine-built-in-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Engine Built-in Functions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#binary-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binary Format
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Binary Format">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#32-bit-vs-64-bit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        32-bit vs 64-bit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="s-expression-engine-dsl-v52">S-Expression Engine DSL v5.2</h1>
+<p>A LuaJIT-based domain-specific language for defining behavior trees, state machines, and sequential control flows that compile to zero-copy binary modules for embedded systems.</p>
+<h2 id="overview">Overview</h2>
+<p>The S-Expression Engine DSL provides a high-level Lua API for defining structured control flow that compiles to efficient binary bytecode. The system targets embedded platforms from 32KB ARM Cortex-M microcontrollers to full ARM64/AMD64 systems with 8GB+ RAM.</p>
+<p><strong>Key Features:</strong>
+- Zero-copy binary loading (cast pointer directly from ROM)
+- Two binary formats: 32-bit (8-byte params) and 64-bit (16-byte params)
+- FNV-1a 32-bit hash-based function dispatch
+- Typed blackboard fields with compile-time layout
+- Nested record support with embedded structures
+- Dict/list/array/tuple data structures
+- Composable predicate API</p>
+<hr />
+<h2 id="file-structure">File Structure</h2>
+<h3 id="core-dsl-files">Core DSL Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s_expr_dsl.lua</code></td>
+<td>Main DSL library - provides all DSL functions, type system, hash functions</td>
+</tr>
+<tr>
+<td><code>s_expr_generators.lua</code></td>
+<td>Code generators for C headers and binary modules (loaded by s_expr_dsl.lua)</td>
+</tr>
+<tr>
+<td><code>s_expr_debug.lua</code></td>
+<td>Debug output generation (loaded by s_expr_dsl.lua)</td>
+</tr>
+<tr>
+<td><code>s_compile.lua</code></td>
+<td>Command-line compiler that processes DSL files</td>
+</tr>
+<tr>
+<td><code>s_engine_helpers.lua</code></td>
+<td>High-level helper functions wrapping engine builtins</td>
+</tr>
+</tbody>
+</table>
+<h3 id="reference-dsl-files">Reference DSL Files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s_expr_tutorial.lua</code></td>
+<td>Basic record types, field access, arrays, constants</td>
+</tr>
+<tr>
+<td><code>state_machine.lua</code></td>
+<td>State machine patterns using <code>se_state_machine</code> and <code>se_field_dispatch</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="generated-output-files">Generated Output Files</h3>
+<table>
+<thead>
+<tr>
+<th>File Pattern</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;base&gt;_records.h</code></td>
+<td>C struct definitions for records</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;.h</code></td>
+<td>Module header with hashes and string table</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_debug.h</code></td>
+<td>Debug hash-to-name mappings</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_user_functions.h</code></td>
+<td>User function prototypes</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_user_registration.c</code></td>
+<td>Function registration code</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_32.bin</code> / <code>&lt;base&gt;_64.bin</code></td>
+<td>Binary module for runtime loading</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_bin_32.h</code> / <code>&lt;base&gt;_bin_64.h</code></td>
+<td>Binary as C array for ROM embedding</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;_dump_32.h</code> / <code>&lt;base&gt;_dump_64.h</code></td>
+<td>Human-readable parameter dump</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="dsl-structure">DSL Structure</h2>
+<h3 id="module-definition">Module Definition</h3>
+<p>Every DSL file follows this structure:</p>
+<pre><code class="language-lua">local M = require(&quot;s_expr_dsl&quot;)
+local mod = start_module(&quot;module_name&quot;)
+use_32bit()  -- or use_64bit()
+set_debug(true)  -- optional
+
+-- Records (data structures)
+RECORD(&quot;my_record&quot;)
+    FIELD(&quot;counter&quot;, &quot;int32&quot;)
+    FIELD(&quot;temperature&quot;, &quot;float&quot;)
+END_RECORD()
+
+-- Constants (pre-initialized records)
+CONST(&quot;defaults&quot;, &quot;my_record&quot;)
+    VALUE(&quot;counter&quot;, 0)
+    VALUE(&quot;temperature&quot;, 20.0)
+END_CONST()
+
+-- Trees (behavior trees)
+start_tree(&quot;my_tree&quot;)
+    use_record(&quot;my_record&quot;)
+    use_defaults(&quot;defaults&quot;)
+    -- tree content
+end_tree(&quot;my_tree&quot;)
+
+return end_module(mod)
+</code></pre>
+<hr />
+<h2 id="record-types">Record Types</h2>
+<h3 id="scalar-fields">Scalar Fields</h3>
+<pre><code class="language-lua">RECORD(&quot;ScalarDemo&quot;)
+    FIELD(&quot;counter&quot;, &quot;int32&quot;)      -- 32-bit signed integer
+    FIELD(&quot;flags&quot;, &quot;uint32&quot;)       -- 32-bit unsigned integer
+    FIELD(&quot;temperature&quot;, &quot;float&quot;)  -- 32-bit float
+    FIELD(&quot;timestamp&quot;, &quot;int64&quot;)    -- 64-bit signed integer
+    FIELD(&quot;checksum&quot;, &quot;uint64&quot;)    -- 64-bit unsigned integer
+    FIELD(&quot;precise&quot;, &quot;double&quot;)     -- 64-bit float
+END_RECORD()
+</code></pre>
+<p><strong>Note:</strong> Sub-32-bit types (<code>int8</code>, <code>uint8</code>, <code>int16</code>, <code>uint16</code>, <code>bool</code>, <code>char</code>) are NOT allowed in <code>FIELD()</code> because 32-bit writes would corrupt adjacent fields. Use <code>CHAR_ARRAY()</code> for strings.</p>
+<h3 id="array-fields">Array Fields</h3>
+<pre><code class="language-lua">RECORD(&quot;ArrayDemo&quot;)
+    CHAR_ARRAY(&quot;name&quot;, 32)           -- Character buffer (min 4 bytes)
+    INT32_ARRAY(&quot;int_values&quot;, 4)     -- Array of 4 int32
+    FLOAT32_ARRAY(&quot;float_values&quot;, 4) -- Array of 4 float
+END_RECORD()
+</code></pre>
+<h3 id="embedded-records">Embedded Records</h3>
+<pre><code class="language-lua">RECORD(&quot;Vector3&quot;)
+    FIELD(&quot;x&quot;, &quot;float&quot;)
+    FIELD(&quot;y&quot;, &quot;float&quot;)
+    FIELD(&quot;z&quot;, &quot;float&quot;)
+END_RECORD()
+
+RECORD(&quot;Transform&quot;)
+    FIELD(&quot;position&quot;, &quot;Vector3&quot;)  -- Embedded record
+    FIELD(&quot;rotation&quot;, &quot;Vector3&quot;)
+    FIELD(&quot;scale&quot;, &quot;float&quot;)
+END_RECORD()
+</code></pre>
+<h3 id="pointer-fields">Pointer Fields</h3>
+<pre><code class="language-lua">RECORD(&quot;LinkedNode&quot;)
+    FIELD(&quot;value&quot;, &quot;int32&quot;)
+    FIELD(&quot;pad&quot;, &quot;uint32&quot;)
+    PTR64_FIELD(&quot;next&quot;, &quot;LinkedNode&quot;)  -- Always 64-bit storage
+    PTR64_FIELD(&quot;data&quot;, &quot;void&quot;)
+END_RECORD()
+</code></pre>
+<hr />
+<h2 id="tree-definition">Tree Definition</h2>
+<h3 id="basic-structure">Basic Structure</h3>
+<pre><code class="language-lua">start_tree(&quot;tree_name&quot;)
+    use_record(&quot;blackboard_record&quot;)      -- Associate blackboard type
+    use_defaults(&quot;constant_name&quot;)        -- Optional: initialize from constant
+
+    -- Tree content goes here
+
+end_tree(&quot;tree_name&quot;)
+</code></pre>
+<h3 id="call-types">Call Types</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Type</th>
+<th>Returns</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>o_call("NAME")</code></td>
+<td>Oneshot</td>
+<td>void</td>
+<td>Fire-once initialization</td>
+</tr>
+<tr>
+<td><code>io_call("NAME")</code></td>
+<td>Init-oneshot</td>
+<td>void</td>
+<td>Survives reset, runs once</td>
+</tr>
+<tr>
+<td><code>m_call("NAME")</code></td>
+<td>Main</td>
+<td>result code</td>
+<td>Primary execution</td>
+</tr>
+<tr>
+<td><code>p_call("NAME")</code></td>
+<td>Predicate</td>
+<td>bool</td>
+<td>Condition checking</td>
+</tr>
+<tr>
+<td><code>pt_m_call("NAME")</code></td>
+<td>Pointer main</td>
+<td>result code</td>
+<td>Allocates pointer slot</td>
+</tr>
+</tbody>
+</table>
+<h3 id="parameter-functions">Parameter Functions</h3>
+<pre><code class="language-lua">local c = m_call(&quot;FUNCTION_NAME&quot;)
+    int(42)              -- 32/64-bit signed integer
+    uint(0xDEADBEEF)     -- 32/64-bit unsigned integer
+    flt(3.14159)         -- 32/64-bit float
+    str(&quot;hello&quot;)         -- String (indexed in string table)
+    str_ptr(&quot;world&quot;)     -- String pointer
+    str_hash(&quot;key&quot;)      -- Pre-computed FNV-1a hash
+    field_ref(&quot;counter&quot;) -- Field offset reference
+    nested_field_ref(&quot;position.x&quot;)  -- Nested field path
+    const_ref(&quot;defaults&quot;)           -- Constant reference
+end_call(c)
+</code></pre>
+<h3 id="data-structures">Data Structures</h3>
+<pre><code class="language-lua">-- List
+local l = list_start(&quot;my_list&quot;)
+    int(1)
+    int(2)
+    int(3)
+list_end(l)
+
+-- Dictionary
+local d = dict_start(&quot;my_dict&quot;)
+    local k1 = key(&quot;name&quot;)
+        str(&quot;value&quot;)
+    key_end(k1)
+dict_end(d)
+
+-- Array
+local a = array_start(&quot;my_array&quot;)
+    int(10)
+    int(20)
+array_end(a)
+
+-- Tuple
+local t = tuple_start(&quot;my_tuple&quot;)
+    int(1)
+    str(&quot;two&quot;)
+tuple_end(t)
+
+-- JSON shorthand
+json({ key1 = &quot;value1&quot;, key2 = 123, nested = { a = 1, b = 2 } })
+json_hash({ key1 = &quot;value1&quot; })  -- Uses hash keys for faster lookup
+</code></pre>
+<hr />
+<h2 id="helper-functions-s_engine_helperslua">Helper Functions (s_engine_helpers.lua)</h2>
+<h3 id="sequence-control">Sequence Control</h3>
+<pre><code class="language-lua">se_sequence(function()
+    -- Children execute in order
+    se_log(&quot;Step 1&quot;)
+    se_tick_delay(100)
+    se_log(&quot;Step 2&quot;)
+end)
+</code></pre>
+<h3 id="state-machine">State Machine</h3>
+<pre><code class="language-lua">-- Pattern 1: Using se_state_machine with action functions
+actions_fn = {}
+
+actions_fn[1] = function()
+    se_log(&quot;State 0&quot;)
+    se_tick_delay(100)
+    se_set_field(&quot;state&quot;, 1)
+    se_return_halt()
+end
+
+actions_fn[2] = function()
+    se_log(&quot;State 1&quot;)
+    se_tick_delay(100)
+    se_set_field(&quot;state&quot;, 2)
+    se_return_halt()
+end
+
+actions_fn[3] = function()
+    se_log(&quot;State 2 - final&quot;)
+    se_return_terminate()
+end
+
+se_state_machine(&quot;state&quot;, actions_fn)
+</code></pre>
+<h3 id="field-dispatch-with-se_case">Field Dispatch (with se_case)</h3>
+<pre><code class="language-lua">-- Pattern 2: Using se_field_dispatch with se_case
+case_fn = {}
+
+case_fn[1] = function() 
+    se_case(0, function()
+        se_sequence(function()
+            se_log(&quot;Case 0&quot;)
+            se_tick_delay(100)
+            se_set_field(&quot;state&quot;, 1)
+            se_return_halt()
+        end)
+    end) 
+end
+
+case_fn[2] = function() 
+    se_case(1, function()
+        se_sequence(function()
+            se_log(&quot;Case 1&quot;)
+            se_return_terminate()
+        end)
+    end) 
+end
+
+case_fn[3] = function() 
+    se_case('default', function()
+        se_log(&quot;Default case&quot;)
+        se_return_halt()
+    end) 
+end
+
+se_field_dispatch(&quot;state&quot;, case_fn)
+</code></pre>
+<h3 id="field-operations">Field Operations</h3>
+<pre><code class="language-lua">se_set_field(&quot;counter&quot;, 42)     -- Set field value (oneshot)
+se_i_set_field(&quot;state&quot;, 0)      -- Set field on init only (io-oneshot)
+</code></pre>
+<h3 id="delays-and-timing">Delays and Timing</h3>
+<pre><code class="language-lua">se_tick_delay(100)              -- Wait 100 ticks
+</code></pre>
+<h3 id="logging">Logging</h3>
+<pre><code class="language-lua">se_log(&quot;Debug message&quot;)         -- Output via debug callback
+</code></pre>
+<h3 id="return-codes">Return Codes</h3>
+<pre><code class="language-lua">se_return_continue()            -- SE_CONTINUE (0) - keep going
+se_return_halt()                -- SE_HALT (1) - stop this tick
+se_return_terminate()           -- SE_TERMINATE (2) - shut down tree
+se_return_reset()               -- SE_RESET (3) - reset node
+se_return_disable()             -- SE_DISABLE (4) - disable node
+se_return_skip_continue()       -- SE_SKIP_CONTINUE (5)
+se_return_function_halt()       -- SE_FUNCTION_HALT (6)
+se_return_function_reset()      -- SE_FUNCTION_RESET (7)
+se_return_function_terminate()  -- SE_FUNCTION_TERMINATE (8)
+</code></pre>
+<hr />
+<h2 id="result-codes">Result Codes</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Name</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SE_CONTINUE</td>
+<td>Continue</td>
+<td>0</td>
+<td>Keep processing siblings</td>
+</tr>
+<tr>
+<td>SE_HALT</td>
+<td>Halt</td>
+<td>1</td>
+<td>Stop this tick, resume next tick</td>
+</tr>
+<tr>
+<td>SE_TERMINATE</td>
+<td>Terminate</td>
+<td>2</td>
+<td>Shut down the tree</td>
+</tr>
+<tr>
+<td>SE_RESET</td>
+<td>Reset</td>
+<td>3</td>
+<td>Reset current node</td>
+</tr>
+<tr>
+<td>SE_DISABLE</td>
+<td>Disable</td>
+<td>4</td>
+<td>Disable current node</td>
+</tr>
+<tr>
+<td>SE_SKIP_CONTINUE</td>
+<td>Skip Continue</td>
+<td>5</td>
+<td>Skip to next sibling</td>
+</tr>
+<tr>
+<td>SE_FUNCTION_HALT</td>
+<td>Function Halt</td>
+<td>6</td>
+<td>Halt at function level</td>
+</tr>
+<tr>
+<td>SE_FUNCTION_RESET</td>
+<td>Function Reset</td>
+<td>7</td>
+<td>Reset function</td>
+</tr>
+<tr>
+<td>SE_FUNCTION_TERMINATE</td>
+<td>Function Terminate</td>
+<td>8</td>
+<td>Terminate function</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_TERMINATE</td>
+<td>Pipeline Terminate</td>
+<td>9</td>
+<td>Terminate pipeline</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_RESET_CONTINUE</td>
+<td>Pipeline Reset Continue</td>
+<td>10</td>
+<td>Reset and continue</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_RESET_HALT</td>
+<td>Pipeline Reset Halt</td>
+<td>11</td>
+<td>Reset and halt</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_DISABLE</td>
+<td>Pipeline Disable</td>
+<td>12</td>
+<td>Disable pipeline</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="compilation">Compilation</h2>
+<h3 id="basic-usage">Basic Usage</h3>
+<pre><code class="language-bash">luajit s_compile.lua input.lua --all --outdir=output/
+</code></pre>
+<h3 id="command-line-options">Command Line Options</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--header=&lt;file&gt;</code></td>
+<td>Generate main C header</td>
+</tr>
+<tr>
+<td><code>--user=&lt;file&gt;</code></td>
+<td>Generate user function header</td>
+</tr>
+<tr>
+<td><code>--reg=&lt;file&gt;</code></td>
+<td>Generate user registration code</td>
+</tr>
+<tr>
+<td><code>--records=&lt;file&gt;</code></td>
+<td>Generate records header</td>
+</tr>
+<tr>
+<td><code>--debug=&lt;file&gt;</code></td>
+<td>Generate debug header</td>
+</tr>
+<tr>
+<td><code>--binary=&lt;file&gt;</code></td>
+<td>Generate binary module (.bin)</td>
+</tr>
+<tr>
+<td><code>--binary-h=&lt;file&gt;</code></td>
+<td>Generate binary as C header</td>
+</tr>
+<tr>
+<td><code>--dump-h=&lt;file&gt;</code></td>
+<td>Generate parameter dump header</td>
+</tr>
+<tr>
+<td><code>--helpers=&lt;file&gt;</code></td>
+<td>Load helper functions</td>
+</tr>
+<tr>
+<td><code>--dump</code></td>
+<td>Print debug dump to stdout</td>
+</tr>
+<tr>
+<td><code>--all</code></td>
+<td>Generate all text outputs</td>
+</tr>
+<tr>
+<td><code>--all-bin</code></td>
+<td>Generate all outputs including binary</td>
+</tr>
+<tr>
+<td><code>--outdir=&lt;dir&gt;</code></td>
+<td>Output directory</td>
+</tr>
+<tr>
+<td><code>--32bit</code></td>
+<td>Force 32-bit mode (default)</td>
+</tr>
+<tr>
+<td><code>--64bit</code></td>
+<td>Force 64-bit mode</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples</h3>
+<pre><code class="language-bash"># Generate all files for 32-bit target
+luajit s_compile.lua state_machine.lua --helpers=s_engine_helpers.lua --all-bin --outdir=generated/
+
+# Generate only binary header for 64-bit
+luajit s_compile.lua my_module.lua --binary-h=my_module_bin_64.h --64bit
+
+# Debug dump only
+luajit s_compile.lua my_module.lua --dump
+</code></pre>
+<hr />
+<h2 id="reference-state_machinelua">Reference: state_machine.lua</h2>
+<p>The <code>state_machine.lua</code> file demonstrates two patterns for implementing state machines:</p>
+<h3 id="pattern-1-se_field_dispatch-with-se_case">Pattern 1: se_field_dispatch with se_case</h3>
+<p>Uses explicit case values with duplicate detection:</p>
+<pre><code class="language-lua">case_fn = {}
+
+case_fn[1] = function() 
+    se_case(0, function()
+        se_sequence(function()
+            se_log(&quot;State 0&quot;)
+            se_tick_delay(100)
+            se_set_field(&quot;state&quot;, 1)
+            se_return_halt()
+        end)
+    end) 
+end
+-- ... more cases ...
+
+start_tree(&quot;state_machine_test&quot;)
+    use_record(&quot;state_machine_blackboard&quot;)
+    se_sequence(function()
+        se_i_set_field(&quot;state&quot;, 0)
+        se_log(&quot;State machine test started&quot;)
+        se_state_machine(&quot;state&quot;, case_fn)
+    end)
+end_tree(&quot;state_machine_test&quot;)
+</code></pre>
+<h3 id="pattern-2-se_state_machine-with-index-based-dispatch">Pattern 2: se_state_machine with index-based dispatch</h3>
+<p>Uses array index as state value (0-indexed internally):</p>
+<pre><code class="language-lua">actions_fn = {}
+
+actions_fn[1] = function()  -- State 0
+    se_log(&quot;State 0&quot;)
+    se_tick_delay(100)
+    se_set_field(&quot;state&quot;, 1)
+    se_return_halt()
+end
+-- ... more actions ...
+
+start_tree(&quot;state_machine_test_alt&quot;)
+    use_record(&quot;state_machine_blackboard&quot;)
+    local seq0 = m_call(&quot;SE_SEQUENCE&quot;)
+        se_i_set_field(&quot;state&quot;, 0)
+        se_log(&quot;State machine test started (alt)&quot;)
+        se_state_machine(&quot;state&quot;, actions_fn)
+    end_call(seq0)
+end_tree(&quot;state_machine_test_alt&quot;)
+</code></pre>
+<h3 id="state-flow">State Flow</h3>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│  Tick 0-99:   state=0, State 0 running, returns SE_HALT │
+│  Tick 99:     State 0 sets state=1                      │
+│  Tick 100-199: state=1, State 1 running, returns SE_HALT│
+│  Tick 199:    State 1 sets state=2                      │
+│  Tick 200-299: state=2, State 2 running                 │
+│  Tick 299:    State 2 returns SE_TERMINATE              │
+└─────────────────────────────────────────────────────────┘
+</code></pre>
+<hr />
+<h2 id="reference-s_expr_tutoriallua">Reference: s_expr_tutorial.lua</h2>
+<p>The <code>s_expr_tutorial.lua</code> file demonstrates:</p>
+<ol>
+<li><strong>Basic scalar types</strong> - int32, uint32, float, int64, uint64, double</li>
+<li><strong>Array types</strong> - CHAR_ARRAY, INT32_ARRAY, FLOAT32_ARRAY</li>
+<li><strong>Embedded records</strong> - Vector3 inside Transform</li>
+<li><strong>Pointer slots</strong> - PTR64_FIELD for runtime-assigned pointers</li>
+<li><strong>Constants</strong> - Pre-initialized record values</li>
+<li><strong>Blackboard access</strong> - Direct struct access in C</li>
+<li><strong>Slot access</strong> - field_ref parameter passing</li>
+<li><strong>Nested field access</strong> - nested_field_ref for embedded records</li>
+</ol>
+<p>Each tree uses a "verify pattern": write a value, then verify with an expected value parameter.</p>
+<hr />
+<h2 id="engine-built-in-functions">Engine Built-in Functions</h2>
+<p>These are registered automatically via <code>s_engine_register_builtins()</code>:</p>
+<table>
+<thead>
+<tr>
+<th>DSL Helper</th>
+<th>Engine Function</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_sequence</code></td>
+<td><code>SE_SEQUENCE</code></td>
+<td>main</td>
+<td>Execute children in order</td>
+</tr>
+<tr>
+<td><code>se_state_machine</code></td>
+<td><code>SE_STATE_MACHINE</code></td>
+<td>main</td>
+<td>Field-based state dispatch</td>
+</tr>
+<tr>
+<td><code>se_field_dispatch</code></td>
+<td><code>SE_FIELD_DISPATCH</code></td>
+<td>main</td>
+<td>Value-based dispatch</td>
+</tr>
+<tr>
+<td><code>se_tick_delay</code></td>
+<td><code>SE_TICK_DELAY</code></td>
+<td>main</td>
+<td>Wait N ticks</td>
+</tr>
+<tr>
+<td><code>se_set_field</code></td>
+<td><code>SE_SET_FIELD</code></td>
+<td>oneshot</td>
+<td>Set blackboard field</td>
+</tr>
+<tr>
+<td><code>se_log</code></td>
+<td><code>SE_LOG</code></td>
+<td>oneshot</td>
+<td>Debug output</td>
+</tr>
+<tr>
+<td><code>se_return_*</code></td>
+<td><code>SE_RETURN_*</code></td>
+<td>main</td>
+<td>Return specific codes</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="binary-format">Binary Format</h2>
+<p>The binary module format (v5.2) provides:</p>
+<ul>
+<li><strong>Magic</strong>: <code>0x42584553</code> ("SEXB")</li>
+<li><strong>Version</strong>: <code>0x0502</code></li>
+<li><strong>Direct s_expr_param_t structs</strong> - no decoding needed</li>
+<li><strong>Zero-copy loading</strong> - cast pointer directly from ROM</li>
+<li><strong>Position-independent</strong> - no absolute addresses</li>
+</ul>
+<h3 id="32-bit-vs-64-bit">32-bit vs 64-bit</h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Param Size</th>
+<th>Pointer Size</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>32-bit</td>
+<td>8 bytes</td>
+<td>4 bytes</td>
+<td>ARM Cortex-M, ESP32</td>
+</tr>
+<tr>
+<td>64-bit</td>
+<td>16 bytes</td>
+<td>8 bytes</td>
+<td>ARM64, AMD64, servers</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="license">License</h2>
+<p>MIT License - See individual repository LICENSE files.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

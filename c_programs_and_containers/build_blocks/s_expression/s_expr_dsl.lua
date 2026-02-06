@@ -181,6 +181,8 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_STACK_FRAME_INSTANCE",
    "SE_SEQUENCE_ONCE",
    "SE_QUAD",
+   "SE_FRAME_ALLOCATE",
+   "SE_FRAME_FREE",
 
 
    --- oneshot functions
@@ -226,6 +228,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
     "SE_FIELD_IN_RANGE",
     "SE_FIELD_INCREMENT_AND_TEST",
     "SE_STATE_INCREMENT_AND_TEST",
+    "SE_P_QUAD",
 }
 
 builtins_module.BUILTIN_SET = {}

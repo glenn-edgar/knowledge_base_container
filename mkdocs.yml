@@ -1,0 +1,12 @@
+site_name: Knowledge Based Container Utilities
+theme:
+  name: material
+plugins:
+  - search
+  - monorepo
+nav:
+  - Home: index.md
+  - C Programs:
+    - Embedded_AVRO_PACKETS: '!include ./c_programs_and_containers/build_blocks/c_avro_packets/mkdocs.yml'
+    - S_ENGINE: '!include ./c_programs_and_containers/build_blocks/s_expression/dsl_tests/mkdocs.yml'
+

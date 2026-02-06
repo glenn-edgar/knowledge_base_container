@@ -1,0 +1,2523 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../README_composite_functions/">
+      
+      
+        <link rel="next" href="../README_sequence/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Chain Flow - Knowledge Based Container Utilities</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#se_chain_flow-chaintree-walker-emulation-composite" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-header__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Knowledge Based Container Utilities
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Chain Flow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-nav__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Knowledge Based Container Utilities
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C Programs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C Programs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded_AVRO_PACKETS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Embedded_AVRO_PACKETS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../c-embedded-avro-packets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avro DSL for Embedded C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_reading_debug_map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_10" id="__nav_2_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lua-dsl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua DSL
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#child-type-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child Type Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Child Type Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pred-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PRED Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#main-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAIN Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-code-handling-main-children-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Code Handling (MAIN children only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Events
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lifecycle Events">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        INIT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TERMINATE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TICK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Behaviors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Behaviors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-execution-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT Execution Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-after-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT After Reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_halt-stops-the-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_HALT Stops the Chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_reset-resets-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_RESET Resets Everything
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Completion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequential-actions-with-delays" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential Actions with Delays
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cyclic-event-generator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cyclic Event Generator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initialization-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-other-composites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Other Composites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_trigger_on_change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11" id="__nav_2_2_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_1" id="__nav_2_2_11_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_2" id="__nav_2_2_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lua-dsl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua DSL
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#child-type-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child Type Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Child Type Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pred-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PRED Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#main-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MAIN Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-code-handling-main-children-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Code Handling (MAIN children only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lifecycle-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lifecycle Events
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lifecycle Events">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#init" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        INIT
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#terminate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TERMINATE
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tick" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TICK
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-behaviors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Behaviors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Behaviors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-execution-timing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT Execution Timing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#oneshot-after-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ONESHOT After Reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_halt-stops-the-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_HALT Stops the Chain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_reset-resets-everything" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_RESET Resets Everything
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automatic Completion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequential-actions-with-delays" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential Actions with Delays
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cyclic-event-generator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cyclic Event Generator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initialization-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initialization Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-other-composites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Other Composites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="se_chain_flow-chaintree-walker-emulation-composite">SE_CHAIN_FLOW - ChainTree Walker Emulation Composite</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_chain_flow</code> emulates the default sequencing behavior of ChainTree's tree walker. It processes children in a <strong>chain</strong> where each child's result determines whether to continue, halt, reset, or terminate the entire chain.</p>
+<p>This is the fundamental control flow primitive that ChainTree is built around.</p>
+<h2 id="lua-dsl">Lua DSL</h2>
+<pre><code class="language-lua">function se_chain_flow(...)
+    local children = {...}
+    local f = m_call(&quot;SE_CHAIN_FLOW&quot;)
+    for _, child in ipairs(children) do
+        if type(child) == &quot;function&quot; then
+            child()
+        end
+    end
+    end_call(f)
+end
+</code></pre>
+<h2 id="child-type-handling">Child Type Handling</h2>
+<p><code>se_chain_flow</code> handles the three function types differently:</p>
+<h3 id="oneshot-functions">ONESHOT Functions</h3>
+<p>ONESHOT children are <strong>fire-and-forget</strong> actions. They execute exactly once per chain activation:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the function</li>
+<li>Immediately terminate (mark inactive)</li>
+<li>Do not add to active count</li>
+<li>Continue to next child</li>
+</ol>
+<p>This means oneshots:
+- Execute on their first tick only
+- Are skipped on all subsequent ticks
+- Do not block chain progression
+- Do not contribute to completion detection</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Fires once on tick 1&quot;) end,      -- ONESHOT
+    function() se_tick_delay(10) end,                    -- MAIN: halts chain
+    function() se_log(&quot;Fires once on tick 11&quot;) end,     -- ONESHOT
+    function() se_log(&quot;Also fires once on tick 11&quot;) end -- ONESHOT
+)
+</code></pre>
+<h3 id="pred-functions">PRED Functions</h3>
+<p>Predicate children follow the same pattern as oneshots:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the predicate</li>
+<li>Immediately terminate (mark inactive)</li>
+<li>Do not add to active count</li>
+<li>Continue to next child</li>
+</ol>
+<p>The predicate's return value is ignored in chain_flow context. Use <code>se_if</code> or <code>se_while</code> for conditional behavior based on predicates.</p>
+<h3 id="main-functions">MAIN Functions</h3>
+<p>MAIN children are <strong>stateful actions</strong> that control chain flow through result codes:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the function</li>
+<li>Handle the result code (see table below)</li>
+<li>Result determines whether to continue, halt, reset, or terminate</li>
+</ol>
+<p>Only MAIN children:
+- Can halt chain progression
+- Contribute to active count
+- Control chain lifecycle via result codes</p>
+<h2 id="result-code-handling-main-children-only">Result Code Handling (MAIN children only)</h2>
+<table>
+<thead>
+<tr>
+<th>Child Returns</th>
+<th>Chain Flow Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SE_FUNCTION_HALT</code> (7)</td>
+<td>Return <code>SE_PIPELINE_HALT</code> to caller</td>
+</tr>
+<tr>
+<td><strong>APPLICATION (0-5)</strong></td>
+<td>Propagate immediately to caller</td>
+</tr>
+<tr>
+<td><strong>FUNCTION (6, 8-11)</strong></td>
+<td>Propagate immediately to caller</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_CONTINUE</code> (12)</td>
+<td>Increment active count, continue to next child</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_HALT</code> (13)</td>
+<td><strong>Stop chain this tick</strong>, return CONTINUE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_DISABLE</code> (14)</td>
+<td>Terminate child, continue to next</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_TERMINATE</code> (15)</td>
+<td><strong>Terminate ALL children</strong>, return TERMINATE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_RESET</code> (16)</td>
+<td><strong>Reset ALL children</strong>, return CONTINUE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_SKIP_CONTINUE</code> (17)</td>
+<td>Increment active count, skip remaining children this tick</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lifecycle-events">Lifecycle Events</h2>
+<h3 id="init">INIT</h3>
+<ul>
+<li>Returns <code>SE_PIPELINE_CONTINUE</code></li>
+<li>All children start active</li>
+</ul>
+<h3 id="terminate">TERMINATE</h3>
+<ul>
+<li>Terminates all children (ONESHOT, PRED, and MAIN)</li>
+<li>Returns <code>SE_PIPELINE_CONTINUE</code></li>
+</ul>
+<h3 id="tick">TICK</h3>
+<ul>
+<li>Iterates through children in order</li>
+<li>Skips inactive children</li>
+<li>ONESHOT: fire, terminate, continue</li>
+<li>PRED: fire, terminate, continue</li>
+<li>MAIN: invoke, handle result code</li>
+<li>Returns <code>SE_PIPELINE_DISABLE</code> when <code>active_count == 0</code></li>
+</ul>
+<h2 id="key-behaviors">Key Behaviors</h2>
+<h3 id="oneshot-execution-timing">ONESHOT Execution Timing</h3>
+<p>ONESHOTs execute when the chain reaches them, not necessarily on the first tick:</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_tick_delay(10) end,    -- MAIN: halts on tick 1
+    function() se_log(&quot;Delayed&quot;) end     -- ONESHOT: fires on tick 11
+)
+</code></pre>
+<h3 id="oneshot-after-reset">ONESHOT After Reset</h3>
+<p>When <code>SE_PIPELINE_RESET</code> resets the chain, all children (including oneshots) are reset to active and will fire again:</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Fires every loop&quot;) end,  -- ONESHOT: reset reactivates
+    function() se_tick_delay(10) end,
+    function() se_return_pipeline_reset() end   -- Resets all children
+)
+-- Output: &quot;Fires every loop&quot; on tick 1, 12, 23, 34, ...
+</code></pre>
+<h3 id="pipeline_halt-stops-the-chain">PIPELINE_HALT Stops the Chain</h3>
+<p>When a MAIN child returns <code>SE_PIPELINE_HALT</code>, the chain stops processing for this tick but returns <code>SE_PIPELINE_CONTINUE</code> to its parent. ONESHOTs after the halt point wait until the chain resumes.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;A&quot;) end,           -- Tick 1: fires
+    function() se_tick_delay(10) end,     -- Tick 1: HALT, chain stops
+    function() se_log(&quot;B&quot;) end            -- Tick 11: fires
+)
+</code></pre>
+<h3 id="pipeline_reset-resets-everything">PIPELINE_RESET Resets Everything</h3>
+<p>When a child returns <code>SE_PIPELINE_RESET</code>, ALL children are terminated and reset. This reactivates oneshots for the next iteration.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Loop start&quot;) end,   -- Fires each iteration
+    function() se_tick_delay(10) end,
+    function() se_queue_event(...) end,    -- Fires each iteration
+    function() se_return_pipeline_reset() end
+)
+</code></pre>
+<h3 id="automatic-completion">Automatic Completion</h3>
+<p>When all MAIN children have completed (returned DISABLE or been terminated), <code>active_count</code> reaches zero and the chain returns <code>SE_PIPELINE_DISABLE</code>. ONESHOT and PRED children do not affect completion — a chain with only oneshots completes immediately after firing them all.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;A&quot;) end,  -- ONESHOT: fires, doesn't count
+    function() se_log(&quot;B&quot;) end,  -- ONESHOT: fires, doesn't count
+    function() se_log(&quot;C&quot;) end   -- ONESHOT: fires, doesn't count
+)
+-- Returns SE_PIPELINE_DISABLE on tick 1 (active_count = 0)
+</code></pre>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="sequential-actions-with-delays">Sequential Actions with Delays</h3>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Step 1&quot;) end,
+    function() se_tick_delay(10) end,
+    function() se_log(&quot;Step 2&quot;) end,
+    function() se_tick_delay(10) end,
+    function() se_log(&quot;Step 3&quot;) end,
+    function() se_return_pipeline_disable() end
+)
+</code></pre>
+<h3 id="cyclic-event-generator">Cyclic Event Generator</h3>
+<pre><code class="language-lua">se_case(1, function()
+    se_chain_flow(
+        function() se_log(&quot;State 1&quot;) end,
+        function() se_tick_delay(20) end,
+        function() se_set_field(&quot;event_data&quot;, 3.3) end,
+        function() se_queue_event(USER_EVENT_TYPE, USER_EVENT_ID, &quot;event_data&quot;) end,
+        function() se_return_pipeline_reset() end
+    )
+end)
+</code></pre>
+<h3 id="initialization-pattern">Initialization Pattern</h3>
+<pre><code class="language-lua">se_chain_flow(
+    -- Initialization oneshots (fire once at start)
+    function() se_set_field(&quot;counter&quot;, 0) end,
+    function() se_log(&quot;Initialized&quot;) end,
+
+    -- Main loop
+    function() se_while(some_condition, 
+        function() se_tick_delay(10) end,
+        function() se_increment_field(&quot;counter&quot;) end
+    ) end,
+
+    -- Cleanup oneshot (fires when while completes)
+    function() se_log(&quot;Complete&quot;) end
+)
+</code></pre>
+<h2 id="comparison-with-other-composites">Comparison with Other Composites</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_chain_flow</code></th>
+<th><code>se_fork_join</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Execution</strong></td>
+<td>Sequential with control</td>
+<td>Parallel</td>
+</tr>
+<tr>
+<td><strong>ONESHOT</strong></td>
+<td>Fire once, terminate, continue</td>
+<td>Fire once, skip thereafter</td>
+</tr>
+<tr>
+<td><strong>PRED</strong></td>
+<td>Fire once, terminate, continue</td>
+<td>Fire once, skip thereafter</td>
+</tr>
+<tr>
+<td><strong>PIPELINE_HALT</strong></td>
+<td>Stops chain, returns CONTINUE</td>
+<td>Child still running</td>
+</tr>
+<tr>
+<td><strong>PIPELINE_RESET</strong></td>
+<td>Resets ALL children</td>
+<td>Resets that child</td>
+</tr>
+<tr>
+<td><strong>Looping</strong></td>
+<td>Yes (via RESET)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Completion</strong></td>
+<td>When active_count == 0</td>
+<td>When all MAIN complete</td>
+</tr>
+</tbody>
+</table>
+<h2 id="state-storage">State Storage</h2>
+<ul>
+<li>No state variable used</li>
+<li>No user_flags used</li>
+<li>Active status tracked per-child via node flags</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
