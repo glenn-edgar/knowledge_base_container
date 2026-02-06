@@ -1,0 +1,2875 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../README_field_dispatch/">
+      
+      
+        <link rel="next" href="../README_engine_interface/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Trigger on Change - Knowledge Based Container Utilities</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#se_trigger_on_change-edge-detection-composite" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-header__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Knowledge Based Container Utilities
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Trigger on Change
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-nav__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Knowledge Based Container Utilities
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C Programs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C Programs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded_AVRO_PACKETS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Embedded_AVRO_PACKETS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../c-embedded-avro-packets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avro DSL for Embedded C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_reading_debug_map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_10" id="__nav_2_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_chain_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lua-dsl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua DSL
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lua DSL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#convenience-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Convenience Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rising-edge-false-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rising Edge (false → true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#falling-edge-true-false" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Falling Edge (true → false)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initial-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial State
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Initial State">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-predicate-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT Predicate Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-code-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Code Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Result Code Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#non-pipeline-codes-0-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-PIPELINE Codes (0-11)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-codes-12-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE Codes (12-17)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C Implementation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#child-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tick-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tick Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-bit-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simple Bit Monitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compound-condition-and" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compound Condition (AND)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rising-edge-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rising Edge Only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#falling-edge-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Falling Edge Only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#looping-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Looping Actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-triggers-in-parallel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Triggers in Parallel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-other-dispatch-mechanisms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Other Dispatch Mechanisms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Points
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11" id="__nav_2_2_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_1" id="__nav_2_2_11_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_2" id="__nav_2_2_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lua-dsl" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lua DSL
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Lua DSL">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#primary-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Primary Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#convenience-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Convenience Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Behavior">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rising-edge-false-true" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rising Edge (false → true)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#falling-edge-true-false" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Falling Edge (true → false)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#initial-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial State
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Initial State">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#not-predicate-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NOT Predicate Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-code-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Code Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Result Code Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#non-pipeline-codes-0-11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-PIPELINE Codes (0-11)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline-codes-12-17" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE Codes (12-17)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#c-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C Implementation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="C Implementation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#child-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Child Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#event-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Event Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tick-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tick Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-bit-monitor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simple Bit Monitor
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compound-condition-and" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compound Condition (AND)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rising-edge-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rising Edge Only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#falling-edge-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Falling Edge Only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#looping-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Looping Actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multiple-triggers-in-parallel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multiple Triggers in Parallel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-other-dispatch-mechanisms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Other Dispatch Mechanisms
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Points
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Files
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="se_trigger_on_change-edge-detection-composite">se_trigger_on_change - Edge Detection Composite</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_trigger_on_change</code> is a composite function that monitors a predicate and fires actions when the predicate transitions between true and false states. It provides edge detection for boolean conditions, enabling reactive behavior in behavior trees.</p>
+<h2 id="lua-dsl">Lua DSL</h2>
+<h3 id="primary-function">Primary Function</h3>
+<pre><code class="language-lua">function se_trigger_on_change(initial_state, pred_fn, then_fn, else_fn)
+    local c = m_call(&quot;SE_TRIGGER_ON_CHANGE&quot;)
+        int(initial_state)
+        pred_fn()
+        then_fn()
+        else_fn()
+    end_call(c)
+end
+</code></pre>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>initial_state</code></td>
+<td>int (0 or 1)</td>
+<td>Starting state of the predicate (prevents spurious trigger on first tick)</td>
+</tr>
+<tr>
+<td><code>pred_fn</code></td>
+<td>function</td>
+<td>Predicate that returns true/false</td>
+</tr>
+<tr>
+<td><code>then_fn</code></td>
+<td>function</td>
+<td>Action executed on rising edge (false → true)</td>
+</tr>
+<tr>
+<td><code>else_fn</code></td>
+<td>function</td>
+<td>Action executed on falling edge (true → false)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="convenience-functions">Convenience Functions</h3>
+<pre><code class="language-lua">-- Rising edge only - fires when predicate goes from false to true
+function se_on_rising_edge(pred_fn, action_fn)
+    se_trigger_on_change(0, pred_fn, action_fn, function()
+        se_nop()
+    end)
+end
+
+-- Falling edge only - fires when predicate goes from true to false
+function se_on_falling_edge(pred_fn, action_fn)
+    se_trigger_on_change(1, pred_fn, function()
+        se_nop()
+    end, action_fn)
+end
+</code></pre>
+<h2 id="behavior">Behavior</h2>
+<h3 id="state-machine">State Machine</h3>
+<pre><code>                    ┌──────────────────────────────────────────┐
+                    │         se_trigger_on_change             │
+                    │                                          │
+                    │   ┌─────────────────────────────────┐   │
+                    │   │         State Machine           │   │
+                    │   │                                 │   │
+   predicate        │   │    ┌───────┐     ┌───────┐     │   │
+   becomes ────────►│   │    │ FALSE │────►│ TRUE  │     │   │
+   true             │   │    │ state │     │ state │     │   │
+                    │   │    └───────┘◄────└───────┘     │   │
+   predicate        │   │         ▲           │         │   │
+   becomes ◄────────│   │         │           │         │   │
+   false            │   │         │           ▼         │   │
+                    │   │    ┌─────────────────────┐    │   │
+                    │   │    │   Execute Action    │    │   │
+                    │   │    │  (rising/falling)   │    │   │
+                    │   │    └─────────────────────┘    │   │
+                    │   │                                 │   │
+                    │   └─────────────────────────────────┘   │
+                    │                                          │
+                    └──────────────────────────────────────────┘
+</code></pre>
+<h3 id="execution-flow">Execution Flow</h3>
+<p>Each tick:</p>
+<ol>
+<li><strong>Evaluate predicate</strong> - Call the predicate function to get current boolean state</li>
+<li><strong>Compare with stored state</strong> - Check if predicate result differs from last known state</li>
+<li><strong>On state change:</strong></li>
+<li>Terminate and reset the previously running action (if any)</li>
+<li>Reset the new action to be invoked</li>
+<li>Invoke the appropriate action (rising or falling)</li>
+<li>Update stored state</li>
+<li><strong>No state change:</strong></li>
+<li>Continue running the current action (if any)</li>
+</ol>
+<h3 id="rising-edge-false-true">Rising Edge (false → true)</h3>
+<pre><code>Tick N:   predicate = false, state = 0
+Tick N+1: predicate = true,  state = 0 → RISING EDGE DETECTED
+          → terminate falling action (if running)
+          → reset falling action
+          → reset rising action
+          → invoke rising action
+          → state = 1
+</code></pre>
+<h3 id="falling-edge-true-false">Falling Edge (true → false)</h3>
+<pre><code>Tick N:   predicate = true,  state = 1
+Tick N+1: predicate = false, state = 1 → FALLING EDGE DETECTED
+          → terminate rising action (if running)
+          → reset rising action
+          → reset falling action
+          → invoke falling action
+          → state = 0
+</code></pre>
+<h2 id="initial-state">Initial State</h2>
+<p>The <code>initial_state</code> parameter is critical for preventing spurious triggers on the first tick:</p>
+<table>
+<thead>
+<tr>
+<th>initial_state</th>
+<th>Predicate on first tick</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>false</td>
+<td>No action (state matches)</td>
+</tr>
+<tr>
+<td>0</td>
+<td>true</td>
+<td>Rising action fires</td>
+</tr>
+<tr>
+<td>1</td>
+<td>true</td>
+<td>No action (state matches)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>false</td>
+<td>Falling action fires</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule of thumb:</strong>
+- Set <code>initial_state = 0</code> if predicate is expected to start false
+- Set <code>initial_state = 1</code> if predicate is expected to start true</p>
+<h3 id="not-predicate-example">NOT Predicate Example</h3>
+<p>For a NOT predicate (inverted logic), the initial state is inverted:</p>
+<pre><code class="language-lua">-- NOT bit5: When bit5=0, predicate is TRUE
+-- So initial_state should be 1 (predicate starts true when bit5=0)
+se_trigger_on_change(1,
+    function()
+        local pred = p_call(&quot;SE_PRED_NOT&quot;)
+            local p1 = p_call(&quot;TEST_BIT&quot;) int(5) end_call(p1)
+        end_call(pred)
+    end,
+    function()
+        -- Rising: NOT bit5 went true (bit5 was cleared)
+        se_chain_flow(function()
+            se_log(&quot;Bit 5 cleared!&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        -- Falling: NOT bit5 went false (bit5 was set)
+        se_chain_flow(function()
+            se_log(&quot;Bit 5 set!&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h2 id="result-code-handling">Result Code Handling</h2>
+<p><code>se_trigger_on_change</code> uses the three-tier result code system:</p>
+<h3 id="non-pipeline-codes-0-11">Non-PIPELINE Codes (0-11)</h3>
+<p>Propagated immediately to caller without modification:</p>
+<pre><code class="language-c">if (r &lt; SE_PIPELINE_CONTINUE) return r;
+</code></pre>
+<h3 id="pipeline-codes-12-17">PIPELINE Codes (12-17)</h3>
+<p>Handled internally:</p>
+<table>
+<thead>
+<tr>
+<th>Result Code</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SE_PIPELINE_CONTINUE</td>
+<td>Action running, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_HALT</td>
+<td>Action paused, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_DISABLE</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_TERMINATE</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_RESET</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_SKIP_CONTINUE</td>
+<td>Return CONTINUE</td>
+</tr>
+</tbody>
+</table>
+<p>The trigger always returns <code>SE_PIPELINE_CONTINUE</code> to keep the parent composite running.</p>
+<h2 id="c-implementation">C Implementation</h2>
+<h3 id="child-structure">Child Structure</h3>
+<pre><code class="language-c">// Child indices
+const uint16_t INIT_STATE_CHILD = 0;  // Initial state (INT 0 or 1)
+const uint16_t PRED_CHILD = 1;        // Predicate function
+const uint16_t RISING_CHILD = 2;      // Rising edge action
+const uint16_t FALLING_CHILD = 3;     // Falling edge action (optional)
+</code></pre>
+<h3 id="event-handling">Event Handling</h3>
+<pre><code class="language-c">// TERMINATE EVENT
+if (event_type == SE_EVENT_TERMINATE) {
+    s_expr_children_terminate_all(inst, params, param_count);
+    return SE_PIPELINE_CONTINUE;
+}
+
+// INIT EVENT
+if (event_type == SE_EVENT_INIT) {
+    uint16_t init_phys_idx = s_expr_child_index(params, param_count, INIT_STATE_CHILD);
+    int32_t initial_state = (int32_t)params[init_phys_idx].int_val;
+    s_expr_set_state(inst, initial_state ? 1 : 0);
+    return SE_PIPELINE_CONTINUE;
+}
+</code></pre>
+<h3 id="tick-handling">Tick Handling</h3>
+<pre><code class="language-c">// TICK EVENT
+// 1. Evaluate predicate
+uint16_t pred_phys_idx = s_expr_child_index(params, param_count, PRED_CHILD);
+bool pred_result = s_expr_invoke_pred(inst, params, pred_phys_idx);
+
+// 2. Get current state
+uint8_t current_state = s_expr_get_state(inst);
+bool rising = (pred_result &amp;&amp; current_state == 0);
+bool falling = (!pred_result &amp;&amp; current_state == 1);
+
+// 3. Handle rising edge
+if (rising) {
+    // Terminate and reset falling action (if exists)
+    if (has_falling) {
+        s_expr_child_terminate(inst, params, param_count, FALLING_CHILD);
+        s_expr_child_reset(inst, params, param_count, FALLING_CHILD);
+    }
+    // Reset rising action
+    s_expr_child_terminate(inst, params, param_count, RISING_CHILD);
+    s_expr_child_reset(inst, params, param_count, RISING_CHILD);
+
+    // Invoke rising action
+    uint16_t phys_idx = s_expr_child_index(params, param_count, RISING_CHILD);
+    s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+
+    // Update state
+    s_expr_set_state(inst, 1);
+
+    // Handle result...
+}
+
+// 4. Handle falling edge (similar)
+</code></pre>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="simple-bit-monitor">Simple Bit Monitor</h3>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;TEST_BIT&quot;)
+            int(0)  -- bit index
+        end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Bit 0 went HIGH&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Bit 0 went LOW&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="compound-condition-and">Compound Condition (AND)</h3>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;SE_PRED_AND&quot;)
+            local p1 = p_call(&quot;IS_ENABLED&quot;) end_call(p1)
+            local p2 = p_call(&quot;HAS_DATA&quot;) end_call(p2)
+        end_call(pred)
+    end,
+    function()
+        -- Both conditions now true
+        se_chain_flow(function()
+            se_log(&quot;System ready: enabled AND has data&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        -- At least one condition now false
+        se_chain_flow(function()
+            se_log(&quot;System not ready&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="rising-edge-only">Rising Edge Only</h3>
+<pre><code class="language-lua">se_on_rising_edge(
+    function()
+        local pred = p_call(&quot;BUTTON_PRESSED&quot;) end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Button pressed!&quot;)
+            se_set_field(&quot;button_count&quot;, 1)  -- Increment would need custom function
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="falling-edge-only">Falling Edge Only</h3>
+<pre><code class="language-lua">se_on_falling_edge(
+    function()
+        local pred = p_call(&quot;MOTOR_RUNNING&quot;) end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Motor stopped&quot;)
+            se_queue_event(SE_EVENT_USER, MOTOR_STOPPED_EVENT, &quot;motor_id&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="looping-actions">Looping Actions</h3>
+<p>Actions can loop by returning <code>SE_PIPELINE_RESET</code>:</p>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;ALARM_ACTIVE&quot;) end_call(pred)
+    end,
+    function()
+        -- Continuously flash while alarm is active
+        se_chain_flow(function()
+            se_set_field(&quot;led&quot;, 1)
+            se_tick_delay(10)
+            se_set_field(&quot;led&quot;, 0)
+            se_tick_delay(10)
+            se_return_pipeline_reset()  -- Loop until alarm clears
+        end)
+    end,
+    function()
+        -- Turn off LED when alarm clears
+        se_chain_flow(function()
+            se_set_field(&quot;led&quot;, 0)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h2 id="multiple-triggers-in-parallel">Multiple Triggers in Parallel</h2>
+<p>Use <code>se_function_interface</code> to run multiple triggers simultaneously:</p>
+<pre><code class="language-lua">se_function_interface(function()
+
+    -- Monitor bit 0
+    se_trigger_on_change(0,
+        function() local p = p_call(&quot;TEST_BIT&quot;) int(0) end_call(p) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 0 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 0 LOW&quot;) se_return_continue() end) end
+    )
+
+    -- Monitor bit 1
+    se_trigger_on_change(0,
+        function() local p = p_call(&quot;TEST_BIT&quot;) int(1) end_call(p) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 1 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 1 LOW&quot;) se_return_continue() end) end
+    )
+
+    -- Monitor bits 2 AND 3
+    se_trigger_on_change(0,
+        function()
+            local pred = p_call(&quot;SE_PRED_AND&quot;)
+                local p1 = p_call(&quot;TEST_BIT&quot;) int(2) end_call(p1)
+                local p2 = p_call(&quot;TEST_BIT&quot;) int(3) end_call(p2)
+            end_call(pred)
+        end,
+        function() se_chain_flow(function() se_log(&quot;Bits 2&amp;3 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bits 2&amp;3 LOW&quot;) se_return_continue() end) end
+    )
+
+    se_return_continue()
+end)
+</code></pre>
+<h2 id="comparison-with-other-dispatch-mechanisms">Comparison with Other Dispatch Mechanisms</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>se_trigger_on_change</th>
+<th>se_field_dispatch</th>
+<th>se_state_machine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trigger</td>
+<td>Predicate edge</td>
+<td>Field value change</td>
+<td>Action completion</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>2 (rise/fall)</td>
+<td>N (one per value)</td>
+<td>N (one per state)</td>
+</tr>
+<tr>
+<td>Looping</td>
+<td>Via PIPELINE_RESET</td>
+<td>Via PIPELINE_RESET</td>
+<td>Via next_state</td>
+</tr>
+<tr>
+<td>Use Case</td>
+<td>Boolean conditions</td>
+<td>Multi-value selection</td>
+<td>State-driven flow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-points">Key Points</h2>
+<ol>
+<li><strong>Edge Detection</strong> - Only fires on transitions, not while condition holds</li>
+<li><strong>Initial State</strong> - Prevents spurious trigger on first tick</li>
+<li><strong>Action Reset</strong> - Actions automatically reset after completion, enabling re-trigger</li>
+<li><strong>Mutual Exclusion</strong> - Rising and falling actions are mutually exclusive (one terminates the other)</li>
+<li><strong>Predicate Flexibility</strong> - Any predicate (simple or composite) can be used</li>
+<li><strong>PIPELINE_CONTINUE</strong> - Always returns CONTINUE to keep parent running</li>
+<li><strong>Parallel Operation</strong> - Multiple triggers can run simultaneously in <code>se_function_interface</code></li>
+</ol>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s_expr_primitives.c</code></td>
+<td>C implementation of se_trigger_on_change</td>
+</tr>
+<tr>
+<td><code>s_expr_dsl_primitives.lua</code></td>
+<td>Lua DSL helper functions</td>
+</tr>
+<tr>
+<td><code>s_engine_eval.c</code></td>
+<td>Predicate invocation (s_expr_invoke_pred)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
