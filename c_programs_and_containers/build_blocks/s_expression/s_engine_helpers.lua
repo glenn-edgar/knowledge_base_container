@@ -1602,3 +1602,362 @@ end
 
 print("S-Expression Engine helpers loaded (v5.2)")
 
+-- ============================================================================
+-- QUAD HELPER FUNCTIONS
+-- Convenience wrappers for SE_QUAD opcodes
+-- ============================================================================
+
+-- ============================================================================
+-- INTEGER ARITHMETIC
+-- ============================================================================
+
+function local_ref(idx)
+    return function() stack_local(idx) end
+end
+
+function tos_ref(offset)
+    return function() stack_tos(offset) end
+end
+
+function int_val(v)
+    return function() int(v) end
+end
+
+function uint_val(v)
+    return function() uint(v) end
+end
+
+function float_val(v)
+    return function() flt(v) end
+end
+
+function field_val(name)
+    return function() field_ref(name) end
+end
+
+function const_val(name)
+    return function() const_ref(name) end
+end
+
+function hash_val(s)
+    return function() str_hash(s) end
+end
+
+function null_val()
+    return function() null_param() end
+end
+
+function quad_iadd(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IADD, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_isub(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ISUB, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_imul(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IMUL, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_idiv(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IDIV, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_imod(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IMOD, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_ineg(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.INEG, src_fn, null_param, dest_fn)
+end
+
+-- ============================================================================
+-- FLOAT ARITHMETIC
+-- ============================================================================
+
+function quad_fadd(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FADD, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fsub(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FSUB, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fmul(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FMUL, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fdiv(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FDIV, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fmod(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FMOD, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fneg(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FNEG, src_fn, null_param, dest_fn)
+end
+
+-- ============================================================================
+-- BITWISE OPERATIONS
+-- ============================================================================
+
+function quad_and(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_or(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_xor(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_not(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_NOT, src_fn, null_param, dest_fn)
+end
+
+function quad_shl(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_shr(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- INTEGER COMPARISON
+-- ============================================================================
+
+function quad_ieq(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_ine(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_ilt(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_ile(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_igt(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_ige(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- FLOAT COMPARISON
+-- ============================================================================
+
+function quad_feq(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fne(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_flt(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fle(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fgt(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fge(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- LOGICAL OPERATIONS
+-- ============================================================================
+
+function quad_log_and(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_log_or(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_log_not(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_NOT, src_fn, null_param, dest_fn)
+end
+
+function quad_log_nand(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_log_nor(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_log_xor(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- MOVE
+-- ============================================================================
+
+function quad_mov(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.MOVE, src_fn, null_param, dest_fn)
+end
+
+-- ============================================================================
+-- FLOAT MATH FUNCTIONS
+-- ============================================================================
+
+function quad_sqrt(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FSQRT, src_fn, null_param, dest_fn)
+end
+
+function quad_pow(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FPOW, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_exp(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FEXP, src_fn, null_param, dest_fn)
+end
+
+function quad_log(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FLOG, src_fn, null_param, dest_fn)
+end
+
+function quad_log10(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FLOG10, src_fn, null_param, dest_fn)
+end
+
+function quad_log2(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FLOG2, src_fn, null_param, dest_fn)
+end
+
+function quad_fabs(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FABS, src_fn, null_param, dest_fn)
+end
+
+-- ============================================================================
+-- TRIGONOMETRIC
+-- ============================================================================
+
+function quad_sin(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FSIN, src_fn, null_param, dest_fn)
+end
+
+function quad_cos(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCOS, src_fn, null_param, dest_fn)
+end
+
+function quad_tan(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FTAN, src_fn, null_param, dest_fn)
+end
+
+function quad_asin(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FASIN, src_fn, null_param, dest_fn)
+end
+
+function quad_acos(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FACOS, src_fn, null_param, dest_fn)
+end
+
+function quad_atan(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FATAN, src_fn, null_param, dest_fn)
+end
+
+function quad_atan2(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FATAN2, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- HYPERBOLIC
+-- ============================================================================
+
+function quad_sinh(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FSINH, src_fn, null_param, dest_fn)
+end
+
+function quad_cosh(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FCOSH, src_fn, null_param, dest_fn)
+end
+
+function quad_tanh(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FTANH, src_fn, null_param, dest_fn)
+end
+
+-- ============================================================================
+-- INTEGER MATH
+-- ============================================================================
+
+function quad_iabs(src_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IABS, src_fn, null_param, dest_fn)
+end
+
+function quad_imin(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IMIN, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_imax(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.IMAX, src1_fn, src2_fn, dest_fn)
+end
+
+-- ============================================================================
+-- FLOAT MIN/MAX
+-- ============================================================================
+
+function quad_fmin(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FMIN, src1_fn, src2_fn, dest_fn)
+end
+
+function quad_fmax(src1_fn, src2_fn, dest_fn)
+    se_quad(SE_QUAD_OP.FMAX, src1_fn, src2_fn, dest_fn)
+end
+
+--[[
+
+-- Add two locals, store in third
+quad_iadd(
+    function() stack_local(0) end,
+    function() stack_local(1) end,
+    function() stack_local(2) end
+)
+
+-- Negate a field into a local
+quad_ineg(
+    function() field_ref("counter") end,
+    function() stack_local(0) end
+)
+
+-- Compare TOS values
+quad_ilt(
+    function() stack_tos(0) end,
+    function() stack_tos(1) end,
+    function() stack_local(3) end
+)
+
+-- Compute sine of field
+quad_sin(
+    function() field_ref("angle") end,
+    function() field_ref("sin_angle") end
+)
+
+-- Move constant to local
+quad_mov(
+    function() int(42) end,
+    function() stack_local(0) end
+)
+--]]
