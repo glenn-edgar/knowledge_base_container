@@ -1,0 +1,2902 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../README_advanced_predicates/">
+      
+      
+        <link rel="next" href="../README_loop_test/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Complex Sequence Test - Knowledge Based Container Utilities</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#complex-sequence-test" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-header__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Knowledge Based Container Utilities
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Complex Sequence Test
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Knowledge Based Container Utilities" class="md-nav__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Knowledge Based Container Utilities
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C Programs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C Programs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded_AVRO_PACKETS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Embedded_AVRO_PACKETS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../c-embedded-avro-packets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avro DSL for Embedded C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../README_reading_debug_map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_10" id="__nav_2_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_chain_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_trigger_on_change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../composite_functions/README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11" id="__nav_2_2_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_1" id="__nav_2_2_11_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_11_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_11_2" id="__nav_2_2_11_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_11_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_11_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_12" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_12" id="__nav_2_2_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unit Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_2_12_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_2_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unit Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_test_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_return_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2_12_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2_12_3" id="__nav_2_2_12_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_2_12_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2_12_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Black Board Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_test_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_black_board_initializations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Initialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_field_ref_nested_field_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Nested Fields
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_MAIN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board main.c test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../black_board/README_USER_FUNCTIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board user_functions.c test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dispatch Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_basic_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_advanced_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complex Sequence Test
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complex Sequence Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blackboard-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blackboard Definition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-1-wait-event-test-ticks-1-110" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 1: Wait Event Test (Ticks 1-110)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-2-verify-time-test-ticks-111-160" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 2: Verify Time Test (Ticks 111-160)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-3-verify-events-test-ticks-161-270" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 3: Verify Events Test (Ticks 161-270)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-4-complex-sequence-test-ticks-271-336" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 4: Complex Sequence Test (Ticks 271-336)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-5-wait-timeout-test-ticks-337-437" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 5: Wait Timeout Test (Ticks 337-437)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions Tested
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-function-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Function Behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_loop_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loop Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_json/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Json Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#blackboard-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Blackboard Definition
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-sequence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Sequence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-1-wait-event-test-ticks-1-110" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 1: Wait Event Test (Ticks 1-110)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-2-verify-time-test-ticks-111-160" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 2: Verify Time Test (Ticks 111-160)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-3-verify-events-test-ticks-161-270" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 3: Verify Events Test (Ticks 161-270)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-4-complex-sequence-test-ticks-271-336" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 4: Complex Sequence Test (Ticks 271-336)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-5-wait-timeout-test-ticks-337-437" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test 5: Wait Timeout Test (Ticks 337-437)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functions Tested
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-function-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Function Behavior
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="complex-sequence-test">Complex Sequence Test</h1>
+<h2 id="overview">Overview</h2>
+<p>This test suite validates the ChainTree S-Expression engine's verification, waiting, and timeout functions. It runs a series of sequential tests that exercise parallel execution, event-based synchronization, time-based watchdogs, and predicate-based verification.</p>
+<h2 id="test-configuration">Test Configuration</h2>
+<ul>
+<li><strong>Tick Rate:</strong> 0.1 seconds (100ms per tick)</li>
+<li><strong>Total Duration:</strong> ~43.7 seconds (437 ticks)</li>
+<li><strong>Module:</strong> <code>complex_sequence</code></li>
+</ul>
+<h2 id="blackboard-definition">Blackboard Definition</h2>
+<pre><code class="language-lua">RECORD(&quot;complex_sequence_blackboard&quot;)
+    FIELD(&quot;complex_sequence_condition_1&quot;, &quot;uint32&quot;)  -- Condition flag 1
+    FIELD(&quot;complex_sequence_condition_2&quot;, &quot;uint32&quot;)  -- Condition flag 2
+    FIELD(&quot;event_field&quot;, &quot;float&quot;)                    -- Event data payload
+    FIELD(&quot;field_test_counter&quot;, &quot;uint32&quot;)            -- Loop counter
+    FIELD(&quot;field_test_increment&quot;, &quot;uint32&quot;)          -- Loop increment
+    FIELD(&quot;field_test_limit&quot;, &quot;uint32&quot;)              -- Loop limit
+END_RECORD()
+</code></pre>
+<h2 id="test-sequence">Test Sequence</h2>
+<p>The tests run sequentially via <code>se_fork_join</code>, ensuring each test completes before the next begins.</p>
+<pre><code>se_function_interface
+├── se_fork_join(wait_event_test_fn)           -- Test 1: Event waiting
+├── se_fork_join(verify_time_test_fn)          -- Test 2: Time-based verification
+├── se_fork_join(verify_events_test_fn)        -- Test 3: Event count verification
+├── se_fork_join(complex_sequence_test_fn)     -- Test 4: Predicate verification
+├── se_fork_join(wait_timeout_test_fn)         -- Test 5: Wait with timeout
+└── se_return_terminate()                      -- Clean termination
+</code></pre>
+<hr />
+<h2 id="test-1-wait-event-test-ticks-1-110">Test 1: Wait Event Test (Ticks 1-110)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait_event</code> — waiting for a specific event to occur N times.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Event Generator (se_chain_flow)
+│   └── se_while loop: 10 iterations, 1.0s delay each
+│       └── se_queue_event(1, 43, &quot;event_field&quot;)
+└── Event Waiter (se_chain_flow)
+    └── se_wait_event(43, 10)  -- Wait for event 43 to occur 10 times
+</code></pre>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 1 | 0.0s | Generator and waiter start |
+| Iterations | 1-100 | 0-10.0s | Generator sends events every 1.0s |
+| Complete | 100-110 | 10.0s | Waiter receives 10th event, completes |</p>
+<p><strong>Output:</strong></p>
+<pre><code>event generator start
+event generator iteration 1
+wait event test start
+...
+event generator iteration 10
+wait event test end
+event generator end
+</code></pre>
+<hr />
+<h2 id="test-2-verify-time-test-ticks-111-160">Test 2: Verify Time Test (Ticks 111-160)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_verify_and_check_elapsed_time</code> — time-based watchdog that terminates on timeout.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_chain_flow
+├── se_log(&quot;verify time test start&quot;)
+├── se_verify_and_check_elapsed_time(5.0, false, error_function)
+├── se_log(&quot;waiting for termination...&quot;)
+└── se_return_pipeline_continue()  -- Keep running until timeout
+</code></pre>
+<p><strong>Configuration:</strong>
+- Timeout: 5.0 seconds
+- Reset flag: <code>false</code> (terminate on timeout)
+- Error function: Logs "verify timeout expired this is expected"</p>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 111 | 0.0s | Verification starts, timer begins |
+| Waiting | 111-159 | 0-4.9s | Monitoring elapsed time |
+| Timeout | 160 | 5.0s | Timeout exceeded, error function fires, terminates |</p>
+<p><strong>Output:</strong></p>
+<pre><code>verify time test start
+waiting for termination due to elapsed time
+... (50 ticks waiting) ...
+verify timeout expired this is expected
+</code></pre>
+<hr />
+<h2 id="test-3-verify-events-test-ticks-161-270">Test 3: Verify Events Test (Ticks 161-270)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_verify_and_check_elapsed_events</code> — event count watchdog that terminates when count exceeded.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Event Generator (se_chain_flow)
+│   └── se_while loop: 10 iterations, 1.0s delay each
+│       └── se_queue_event(1, 43, &quot;event_field&quot;)
+└── Event Monitor (se_chain_flow)
+    └── se_verify_and_check_elapsed_events(43, 9, false, error_function)
+</code></pre>
+<p><strong>Configuration:</strong>
+- Target event: 43
+- Max count: 9 (triggers on 10th event)
+- Reset flag: <code>false</code> (terminate on count exceeded)</p>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 161 | 0.0s | Generator starts, monitor watches event 43 |
+| Events 1-9 | 161-259 | 0-9.9s | Events counted, within limit |
+| Event 10 | 260 | 10.0s | 10th event exceeds limit, error function fires |
+| Complete | 270 | 11.0s | Generator finishes |</p>
+<p><strong>Output:</strong></p>
+<pre><code>event generator start
+event generator iteration 1
+verify events test start
+waiting for termination due to elapsed events
+...
+event generator iteration 10
+verify timeout expired this is expected
+...
+event generator end
+</code></pre>
+<hr />
+<h2 id="test-4-complex-sequence-test-ticks-271-336">Test 4: Complex Sequence Test (Ticks 271-336)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait</code>, <code>se_verify</code>, and the interaction between parallel condition generator and sequence verifier.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Condition Generator (se_chain_flow)
+│   ├── Set (0,0) → delay 10 ticks
+│   ├── Set (1,0) → delay 10 ticks
+│   ├── Set (1,1) → delay 10 ticks
+│   ├── Set (0,1) → delay 10 ticks  ← Triggers reset!
+│   ├── Set (1,1) → delay 10 ticks
+│   ├── Set (1,0) → delay 10 ticks  ← Triggers terminate!
+│   └── se_return_pipeline_terminate()
+└── Sequence Verifier (se_chain_flow)
+    ├── se_wait(condition_1 == 1)
+    ├── se_verify(condition_1 == 1, reset=true, error_fn_1)
+    ├── se_wait(condition_2 == 1)
+    ├── se_verify(condition_2 == 1, reset=false, error_fn_2)
+    └── se_return_pipeline_continue()
+</code></pre>
+<p><strong>Condition Sequence:</strong>
+| State | Cond1 | Cond2 | Verifier Action |
+|-------|-------|-------|-----------------|
+| 0,0 | 0 | 0 | Waiting for cond1 |
+| 1,0 | 1 | 0 | Pass test 1, wait for cond2 |
+| 1,1 | 1 | 1 | Pass test 2, monitoring |
+| 0,1 | 0 | 1 | <strong>Verify fails!</strong> Reset triggered |
+| 1,1 | 1 | 1 | Pass both tests again |
+| 1,0 | 1 | 0 | <strong>Verify fails!</strong> Terminate triggered |</p>
+<p><strong>Timeline:</strong>
+| Ticks | State | Event |
+|-------|-------|-------|
+| 271-281 | (0,0) | Verifier waiting for condition_1 |
+| 282 | (1,0) | condition_1=1, pass test 1, wait for condition_2 |
+| 293 | (1,1) | condition_2=1, pass test 2, monitoring |
+| 304 | (0,1) | condition_1=0, <strong>verify fails → RESET</strong> |
+| 305-314 | (0,1) | Verifier reset, waiting for condition_1 |
+| 315 | (1,1) | condition_1=1, pass test 1 &amp; 2 quickly |
+| 326 | (1,0) | condition_2=0, <strong>verify fails → TERMINATE</strong> |</p>
+<p><strong>Output:</strong></p>
+<pre><code>condition generator start
+condition generator set 0,0
+complex sequence test start
+condition generator set 1,0
+complex sequence pass test 1
+condition generator set 1,1
+complex sequence pass test 2
+waiting for error actions
+condition generator set 0,1
+error function 1 when high condition is expected and will produce a reset
+complex sequence test start              ← Reset occurred!
+condition generator set 1,1
+complex sequence pass test 1
+complex sequence pass test 2
+waiting for error actions
+condition generator set 1,0
+error function 2 when low condition is expected and will produce a terminate
+condition generator end
+</code></pre>
+<hr />
+<h2 id="test-5-wait-timeout-test-ticks-337-437">Test 5: Wait Timeout Test (Ticks 337-437)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait_timeout</code> — waiting for a predicate with timeout protection.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Terminate Test (se_chain_flow)
+│   └── se_wait_timeout(se_false(), 5.0, false, error_fn_2)
+│       └── Will timeout after 5s and TERMINATE
+├── Reset Test (se_chain_flow)
+│   └── se_wait_timeout(se_false(), 2.0, true, error_fn_1)
+│       └── Will timeout after 2s and RESET repeatedly
+└── Normal Test (se_chain_flow)
+    ├── se_wait_timeout(se_true(), 5.0, false, error_fn_1)
+    │   └── Completes immediately (predicate true)
+    ├── se_time_delay(10.0)
+    └── se_return_terminate()
+</code></pre>
+<p><strong>Test Cases:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Predicate</th>
+<th>Timeout</th>
+<th>Reset</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Terminate</td>
+<td><code>se_false()</code></td>
+<td>5.0s</td>
+<td>false</td>
+<td>Times out, terminates</td>
+</tr>
+<tr>
+<td>Reset</td>
+<td><code>se_false()</code></td>
+<td>2.0s</td>
+<td>true</td>
+<td>Times out, resets, repeats</td>
+</tr>
+<tr>
+<td>Normal</td>
+<td><code>se_true()</code></td>
+<td>5.0s</td>
+<td>false</td>
+<td>Completes immediately</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Timeline:</strong>
+| Ticks | Time | Event |
+|-------|------|-------|
+| 337 | 0.0s | All three chains start |
+| 356 | 2.0s | Reset test times out (1st), resets |
+| 377 | 4.0s | Reset test times out (2nd), resets |
+| 386 | 5.0s | Terminate test times out, terminates |
+| 398 | 6.0s | Reset test times out (3rd), resets |
+| 420 | 8.0s | Reset test times out (4th), resets |
+| 436 | 10.0s | Normal test's time delay completes |
+| 437 | 10.0s | Normal test returns TERMINATE, tree ends |</p>
+<p><strong>Output:</strong></p>
+<pre><code>wait timeout terminate test start
+wait timeout resettest start
+wait normal timeout test start
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #1
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #2
+... (8 ticks) ...
+error function 2 when low condition is expected and will produce a terminate  ← 5s timeout
+... (12 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #3
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #4
+... (16 ticks) ...
+ending timeout test             ← 10s delay complete
+</code></pre>
+<hr />
+<h2 id="functions-tested">Functions Tested</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Test</th>
+<th>Behavior Validated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_wait_event</code></td>
+<td>1</td>
+<td>Wait for N occurrences of event</td>
+</tr>
+<tr>
+<td><code>se_verify_and_check_elapsed_time</code></td>
+<td>2</td>
+<td>Timeout-based watchdog</td>
+</tr>
+<tr>
+<td><code>se_verify_and_check_elapsed_events</code></td>
+<td>3</td>
+<td>Event count watchdog</td>
+</tr>
+<tr>
+<td><code>se_wait</code></td>
+<td>4</td>
+<td>Wait for predicate</td>
+</tr>
+<tr>
+<td><code>se_verify</code></td>
+<td>4</td>
+<td>Continuous predicate verification</td>
+</tr>
+<tr>
+<td><code>se_wait_timeout</code></td>
+<td>5</td>
+<td>Wait with timeout protection</td>
+</tr>
+<tr>
+<td><code>se_fork</code></td>
+<td>1,3,4,5</td>
+<td>Parallel execution</td>
+</tr>
+<tr>
+<td><code>se_fork_join</code></td>
+<td>All</td>
+<td>Sequential test execution</td>
+</tr>
+<tr>
+<td><code>se_chain_flow</code></td>
+<td>All</td>
+<td>Sequential step execution</td>
+</tr>
+<tr>
+<td><code>se_while</code></td>
+<td>1,3</td>
+<td>Predicate-controlled loops</td>
+</tr>
+<tr>
+<td><code>se_queue_event</code></td>
+<td>1,3</td>
+<td>Event generation</td>
+</tr>
+<tr>
+<td><code>se_time_delay</code></td>
+<td>1,3,5</td>
+<td>Time-based delays</td>
+</tr>
+<tr>
+<td><code>se_tick_delay</code></td>
+<td>4</td>
+<td>Tick-based delays</td>
+</tr>
+<tr>
+<td><code>se_field_increment_and_test</code></td>
+<td>1,3</td>
+<td>Counter-based loop predicate</td>
+</tr>
+<tr>
+<td><code>se_field_eq</code></td>
+<td>4</td>
+<td>Field equality predicate</td>
+</tr>
+<tr>
+<td><code>se_true</code> / <code>se_false</code></td>
+<td>5</td>
+<td>Constant predicates</td>
+</tr>
+</tbody>
+</table>
+<h2 id="result-summary">Result Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+<th>Key Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wait Event</td>
+<td>~11s (110 ticks)</td>
+<td>✅</td>
+<td>Event synchronization</td>
+</tr>
+<tr>
+<td>Verify Time</td>
+<td>~5s (50 ticks)</td>
+<td>✅</td>
+<td>Time watchdog, terminate</td>
+</tr>
+<tr>
+<td>Verify Events</td>
+<td>~11s (110 ticks)</td>
+<td>✅</td>
+<td>Event count watchdog</td>
+</tr>
+<tr>
+<td>Complex Sequence</td>
+<td>~6.6s (66 ticks)</td>
+<td>✅</td>
+<td>Reset and terminate behavior</td>
+</tr>
+<tr>
+<td>Wait Timeout</td>
+<td>~10s (101 ticks)</td>
+<td>✅</td>
+<td>Timeout with reset/terminate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Final Result:</strong> <code>TERMINATE</code> after 437 ticks (~43.7 seconds)</p>
+<h2 id="error-function-behavior">Error Function Behavior</h2>
+<p>The test validates that error functions fire correctly:</p>
+<ol>
+<li><strong>Single fire on terminate:</strong> Error function fires once before termination</li>
+<li><strong>Repeated fire on reset:</strong> Error function fires on each reset cycle (validated by reset test firing 4+ times)</li>
+<li><strong>Reset clears ONESHOT flag:</strong> <code>s_expr_child_reset()</code> is called before <code>s_expr_child_invoke_oneshot()</code> to allow repeated firing</li>
+</ol>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
