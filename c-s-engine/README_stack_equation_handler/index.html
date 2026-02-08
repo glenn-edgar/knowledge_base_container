@@ -9,10 +9,10 @@
       
       
       
-        <link rel="prev" href="../README_predicate_system/">
+        <link rel="prev" href="../README_stack_operations/">
       
       
-        <link rel="next" href="../README_user_events/">
+        <link rel="next" href="../composite_functions/README_composite_functions/">
       
       
         
@@ -23,7 +23,7 @@
     
     
       
-        <title>User Defined Functions - Knowledge Based Container Utilities</title>
+        <title>Stack Equations - Knowledge Based Container Utilities</title>
       
     
     
@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#user-defined-external-functions" class="md-skip">
+        <a href="#s_expr_compiler-expression-compiler-for-chaintree-quad-operations" class="md-skip">
           Skip to content
         </a>
       
@@ -100,7 +100,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              User Defined Functions
+              Stack Equations
             
           </span>
         </div>
@@ -513,37 +513,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User Defined Functions
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../README_user_defined_functions/" class="md-nav__link">
         
   
   
@@ -559,309 +532,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How It Works
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="How It Works">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-declare-in-lua-dsl" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Declare in Lua DSL
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-dsl-generates-scaffolding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. DSL Generates Scaffolding
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. DSL Generates Scaffolding">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#xxx_user_functionsh-function-prototypes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        xxx_user_functions.h - Function Prototypes
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#xxx_user_registrationc-registration-tables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        xxx_user_registration.c - Registration Tables
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-user-implements-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. User Implements Functions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-register-at-engine-load" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Register at Engine Load
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#function-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Types
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Function Types">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#oneshot-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Oneshot Functions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#main-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Functions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#predicate-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Predicate Functions
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#function-name-convention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Name Convention
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#accessing-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Accessing Parameters
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#parameter-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parameter Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#event-handling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Event Handling
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Event Handling">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#oneshot-event-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Oneshot Event Pattern
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#main-event-pattern" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Main Event Pattern
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#file-organization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        File Organization
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example-chain-flow-control-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Example: Chain Flow Control Functions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Example: Chain Flow Control Functions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#cfl_disable_children" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CFL_DISABLE_CHILDREN
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#cfl_enable_child" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CFL_ENABLE_CHILD
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1011,10 +681,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../README_stack_equation_handler/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Equations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1030,6 +727,375 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#frame_varslocals-scratch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        frame_vars(locals, scratch)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_exprexpr_str-vars-scratch_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_expr(expr_str, vars, scratch_names)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_predexpr_str-vars-scratch_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_pred(expr_str, vars, scratch_names)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_multiexpr_str-vars-scratch_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_multi(expr_str, vars, scratch_names)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_pred_accconditions-vars-count_var" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_pred_acc(conditions, vars, count_var)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_expr_debug-quad_pred_debug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_expr_debug / quad_pred_debug
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#expression-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Expression Syntax
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Expression Syntax">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operand-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operand Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operators-by-precedence-low-to-high" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operators (by precedence, low to high)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compound-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compound Assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#built-in-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Functions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#type-inference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Type Inference
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constant-folding" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Constant Folding
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scratch-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scratch Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#loading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#frame_vars-conflict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        frame_vars Conflict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inside-se_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inside se_call
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compiler-internals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compiler Internals
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compiler Internals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ast-node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AST Node Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation List
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version History
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Version History">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2566,111 +2632,33 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-it-works" class="md-nav__link">
+  <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How It Works
+        Architecture
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="How It Works">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-declare-in-lua-dsl" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Declare in Lua DSL
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-dsl-generates-scaffolding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. DSL Generates Scaffolding
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. DSL Generates Scaffolding">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#xxx_user_functionsh-function-prototypes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        xxx_user_functions.h - Function Prototypes
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#xxx_user_registrationc-registration-tables" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        xxx_user_registration.c - Registration Tables
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-user-implements-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. User Implements Functions
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-register-at-engine-load" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Register at Engine Load
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#function-types" class="md-nav__link">
+  <a href="#api-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Function Types
+        API Reference
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Function Types">
+    <nav class="md-nav" aria-label="API Reference">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#oneshot-functions" class="md-nav__link">
+  <a href="#frame_varslocals-scratch" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Oneshot Functions
+        frame_vars(locals, scratch)
       
     </span>
   </a>
@@ -2678,10 +2666,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#main-functions" class="md-nav__link">
+  <a href="#quad_exprexpr_str-vars-scratch_names" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Main Functions
+        quad_expr(expr_str, vars, scratch_names)
       
     </span>
   </a>
@@ -2689,10 +2677,43 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#predicate-functions" class="md-nav__link">
+  <a href="#quad_predexpr_str-vars-scratch_names" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Predicate Functions
+        quad_pred(expr_str, vars, scratch_names)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_multiexpr_str-vars-scratch_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_multi(expr_str, vars, scratch_names)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_pred_accconditions-vars-count_var" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_pred_acc(conditions, vars, count_var)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#quad_expr_debug-quad_pred_debug" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        quad_expr_debug / quad_pred_debug
       
     </span>
   </a>
@@ -2705,55 +2726,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#function-name-convention" class="md-nav__link">
+  <a href="#expression-syntax" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Function Name Convention
+        Expression Syntax
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#accessing-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Accessing Parameters
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#parameter-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Parameter Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#event-handling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Event Handling
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Event Handling">
+    <nav class="md-nav" aria-label="Expression Syntax">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#oneshot-event-pattern" class="md-nav__link">
+  <a href="#operand-types" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Oneshot Event Pattern
+        Operand Types
       
     </span>
   </a>
@@ -2761,10 +2749,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#main-event-pattern" class="md-nav__link">
+  <a href="#operators-by-precedence-low-to-high" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Main Event Pattern
+        Operators (by precedence, low to high)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compound-assignment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compound Assignment
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#built-in-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Built-in Functions
       
     </span>
   </a>
@@ -2777,10 +2787,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#file-organization" class="md-nav__link">
+  <a href="#type-inference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        File Organization
+        Type Inference
       
     </span>
   </a>
@@ -2788,22 +2798,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example-chain-flow-control-functions" class="md-nav__link">
+  <a href="#constant-folding" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Example: Chain Flow Control Functions
+        Constant Folding
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Example: Chain Flow Control Functions">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scratch-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scratch Variables
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#cfl_disable_children" class="md-nav__link">
+  <a href="#loading" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CFL_DISABLE_CHILDREN
+        Loading
       
     </span>
   </a>
@@ -2811,10 +2843,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#cfl_enable_child" class="md-nav__link">
+  <a href="#frame_vars-conflict" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CFL_ENABLE_CHILD
+        frame_vars Conflict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#usage-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inside-se_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inside se_call
       
     </span>
   </a>
@@ -2827,13 +2881,91 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#summary" class="md-nav__link">
+  <a href="#compiler-internals" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Summary
+        Compiler Internals
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Compiler Internals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ast-node-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AST Node Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Generation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#operation-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Operation List
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Version History
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Version History">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v11" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.1
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v10" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        v1.0
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2854,350 +2986,638 @@
 
 
 
-<h1 id="user-defined-external-functions">User-Defined External Functions</h1>
+<h1 id="s_expr_compiler-expression-compiler-for-chaintree-quad-operations">s_expr_compiler — Expression Compiler for ChainTree Quad Operations</h1>
 <h2 id="overview">Overview</h2>
-<p>The S-Expression DSL supports <strong>external functions</strong> that are not built into the system. When the DSL encounters a function call that isn't a registered builtin, it treats it as an external function and generates the necessary scaffolding for user implementation.</p>
-<p>This allows extending the engine with application-specific functionality like:
-- Hardware control
-- Custom I/O operations
-- Application-specific logic
-- Integration with external systems</p>
-<h2 id="how-it-works">How It Works</h2>
-<h3 id="1-declare-in-lua-dsl">1. Declare in Lua DSL</h3>
-<p>Use <code>o_call</code> (oneshot), <code>m_call</code> (main), or <code>p_call</code> (predicate) with any function name:</p>
-<pre><code class="language-lua">-- Custom oneshot functions
-local o0 = o_call(&quot;CFL_DISABLE_CHILDREN&quot;)
-end_call(o0)
+<p><code>s_expr_compiler.lua</code> is a compile-time expression compiler that translates C-like
+arithmetic expressions into sequences of quad and p_quad operations for the
+S-Expression DSL engine. It runs inside LuaJIT during tree compilation, not at
+runtime on the target. The generated quad operations become binary tree nodes
+that execute on platforms ranging from 32KB ARM Cortex-M microcontrollers to
+multi-gigabyte servers.</p>
+<p>The compiler replaces hand-written chains of <code>quad_iadd</code>, <code>quad_fsub</code>, <code>quad_mov</code>,
+etc. with readable infix expressions while producing identical output.</p>
+<pre><code class="language-lua">-- Before: 4 lines of raw quad calls
+quad_iadd(field_val(&quot;x&quot;), uint_val(5), field_val(&quot;tmp&quot;))()
+quad_imul(field_val(&quot;tmp&quot;), field_val(&quot;y&quot;), field_val(&quot;tmp&quot;))()
+quad_isub(field_val(&quot;tmp&quot;), uint_val(2), field_val(&quot;result&quot;))()
 
-local o1 = o_call(&quot;CFL_ENABLE_CHILD&quot;)
-    int(2)  -- Parameter: child index
-end_call(o1)
+-- After: 1 line
+quad_expr(&quot;@result = (@x + 5) * @y - 2&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
 </code></pre>
-<h3 id="2-dsl-generates-scaffolding">2. DSL Generates Scaffolding</h3>
-<p>The DSL compiler generates three files:</p>
-<h4 id="xxx_user_functionsh-function-prototypes"><code>xxx_user_functions.h</code> - Function Prototypes</h4>
-<pre><code class="language-c">#ifndef STATE_MACHINE_TEST_USER_FUNCTIONS_H
-#define STATE_MACHINE_TEST_USER_FUNCTIONS_H
-
-#include &quot;s_engine_types.h&quot;
-
-// Oneshot function prototypes
-void cfl_disable_children(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-
-void cfl_enable_child(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-
-#endif
+<h2 id="architecture">Architecture</h2>
+<pre><code>Expression string
+       │
+       ▼
+   Tokenizer ──────► Token stream
+       │
+       ▼
+   Parser (Pratt) ──► AST
+       │
+       ▼
+   Constant Folder ─► Optimized AST
+       │
+       ▼
+   Type Inference ──► float/int decision per node
+       │
+       ▼
+   Code Generator ──► {fn, args} operation list
+       │
+       ▼
+   Closure ─────────► Emits quad DSL nodes when called
 </code></pre>
-<h4 id="xxx_user_registrationc-registration-tables"><code>xxx_user_registration.c</code> - Registration Tables</h4>
-<pre><code class="language-c">#include &quot;state_machine_test.h&quot;
-#include &quot;state_machine_test_user_functions.h&quot;
-#include &quot;s_engine_module.h&quot;
-
-// Oneshot function entries (hash -&gt; function pointer)
-static s_expr_fn_entry_t state_machine_test_oneshot_entries[] = {
-    { 0x5839B05B, (void*)cfl_disable_children },
-    { 0xD42E3453, (void*)cfl_enable_child },
-};
-
-static const s_expr_fn_table_t state_machine_test_oneshot_table = {
-    .entries = state_machine_test_oneshot_entries,
-    .count = 2
-};
-
-// Register all user functions with module
-void state_machine_test_register_all(s_expr_module_t* module) {
-    s_expr_module_register_oneshot(module, &amp;state_machine_test_oneshot_table);
-}
+<p>All phases run at DSL compile time in LuaJIT. The returned closure, when
+invoked with <code>()</code>, emits binary tree node parameters into the compilation
+stream. No parsing or AST traversal happens at runtime on the target.</p>
+<h2 id="api-reference">API Reference</h2>
+<h3 id="frame_varslocals-scratch">frame_vars(locals, scratch)</h3>
+<p>Creates a variable table mapping names to stack frame parameter emitters.
+Must be called inside <code>se_frame_allocate</code> where the stack frame exists.</p>
+<pre><code class="language-lua">local v = frame_vars(
+    {&quot;x:float&quot;, &quot;y:float&quot;, &quot;count:int&quot;},   -- locals (stack_local)
+    {&quot;t0:float&quot;, &quot;t1:int&quot;, &quot;t2:float&quot;}     -- scratch (stack_tos)
+)
 </code></pre>
-<h3 id="3-user-implements-functions">3. User Implements Functions</h3>
-<p>Create a source file (e.g., <code>user_functions.c</code>) with implementations:</p>
-<pre><code class="language-c">#include &quot;state_machine_test_user_functions.h&quot;
-#include &quot;s_engine_exception.h&quot;
-#include &lt;stdio.h&gt;
-
-void cfl_disable_children(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)param_count;
-    (void)event_id; (void)event_data;
-
-    // Oneshots typically only act on INIT (first invocation)
-    if (event_type != SE_EVENT_INIT) {
-        return;
-    }
-
-    printf(&quot;cfl_disable_children\n&quot;);
-    // TODO: Actual implementation
-}
-
-void cfl_enable_child(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)event_id; (void)event_data;
-
-    if (event_type != SE_EVENT_INIT) {
-        return;
-    }
-
-    // Validate parameters
-    if (param_count &lt; 1) {
-        EXCEPTION(&quot;cfl_enable_child: need at least one parameter&quot;);
-        return;
-    }
-
-    if (params[0].type != S_EXPR_PARAM_INT &amp;&amp; 
-        params[0].type != S_EXPR_PARAM_UINT) {
-        EXCEPTION(&quot;cfl_enable_child: first parameter must be integer&quot;);
-        return;
-    }
-
-    uint16_t child_index = params[0].int_val;
-    printf(&quot;cfl_enable_child: enabling child %d\n&quot;, child_index);
-    // TODO: Actual implementation
-}
+<p>Each declaration is <code>"name"</code> or <code>"name:type"</code> where type is <code>float</code> or <code>int</code>
+(default: <code>int</code>). The type annotation drives the compiler's type inference
+for operations involving that variable.</p>
+<p>Returns a table where <code>v[name]</code> is a parameter-emitting closure, plus metadata
+fields <code>v[name.."_is_float"]</code>, <code>v[name.."_type"]</code>, <code>v._local_count</code>, and
+<code>v._scratch_count</code>.</p>
+<p><strong>Important:</strong> This <code>frame_vars</code> replaces the simpler version in
+<code>s_engine_helpers.lua</code>. The helpers file must not redefine <code>frame_vars</code>
+after loading the compiler, or type annotations will be lost.</p>
+<h3 id="quad_exprexpr_str-vars-scratch_names">quad_expr(expr_str, vars, scratch_names)</h3>
+<p>Compiles a single assignment expression into quad operations.</p>
+<pre><code class="language-lua">quad_expr(&quot;dest = expression&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
 </code></pre>
-<h3 id="4-register-at-engine-load">4. Register at Engine Load</h3>
-<p>Pass the registration callback when loading the engine:</p>
-<pre><code class="language-c">// Registration callback array
-s_engine_user_register_fn user_fns[] = {
-    state_machine_test_register_all
-};
+<p><strong>Parameters:</strong>
+- <code>expr_str</code> — Assignment in the form <code>"dest = expr"</code> or compound <code>"dest += expr"</code>.
+  Destination can be a variable name or <code>@field_name</code>.
+- <code>vars</code> — Table from <code>frame_vars()</code>.
+- <code>scratch_names</code> — List of scratch variable names from <code>vars</code> for intermediate results.</p>
+<p><strong>Returns:</strong> A closure. Call it with <code>()</code> to emit the compiled quad operations.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-lua">-- Simple field arithmetic
+quad_expr(&quot;@result = @x + 5&quot;, v, {&quot;t0&quot;})()
 
-// Load engine with user functions
-s_engine_load_from_rom(
-    &amp;engine,
-    &amp;alloc,
-    rom_data,
-    rom_size,
-    debug_callback,
-    1,          // user_fn_count
-    user_fns    // user function registration callbacks
-);
-</code></pre>
-<h2 id="function-types">Function Types</h2>
-<h3 id="oneshot-functions">Oneshot Functions</h3>
-<p>Declared with <code>o_call()</code>, return <code>void</code>:</p>
-<pre><code class="language-lua">local o = o_call(&quot;MY_ONESHOT&quot;)
-    int(42)
-    str_ptr(&quot;hello&quot;)
-end_call(o)
-</code></pre>
-<pre><code class="language-c">void my_oneshot(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-</code></pre>
-<h3 id="main-functions">Main Functions</h3>
-<p>Declared with <code>m_call()</code>, return <code>s_expr_result_t</code>:</p>
-<pre><code class="language-lua">local m = m_call(&quot;MY_MAIN&quot;)
-    int(100)
-end_call(m)
-</code></pre>
-<pre><code class="language-c">s_expr_result_t my_main(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-</code></pre>
-<h3 id="predicate-functions">Predicate Functions</h3>
-<p>Declared with <code>p_call()</code>, return <code>bool</code>:</p>
-<pre><code class="language-lua">local p = p_call(&quot;MY_PREDICATE&quot;)
-    field_ref(&quot;value&quot;)
-end_call(p)
-</code></pre>
-<pre><code class="language-c">bool my_predicate(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-</code></pre>
-<h2 id="function-name-convention">Function Name Convention</h2>
-<ul>
-<li><strong>Lua DSL</strong>: Use <code>UPPER_SNAKE_CASE</code> (e.g., <code>CFL_ENABLE_CHILD</code>)</li>
-<li><strong>C function</strong>: Use <code>lower_snake_case</code> (e.g., <code>cfl_enable_child</code>)</li>
-</ul>
-<p>The DSL automatically converts the name and generates a hash for runtime lookup.</p>
-<h2 id="accessing-parameters">Accessing Parameters</h2>
-<p>Parameters are passed as an array of <code>s_expr_param_t</code>:</p>
-<pre><code class="language-c">void my_function(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    ...
-) {
-    // Check parameter count
-    if (param_count &lt; 2) {
-        EXCEPTION(&quot;my_function: need 2 parameters&quot;);
-        return;
-    }
+-- Float with parenthesized subexpression
+quad_expr(&quot;@out = (@a + 1.0) * sqrt(@b)&quot;, v, {&quot;t0&quot;, &quot;t1&quot;, &quot;t2&quot;})()
 
-    // Access integer parameter
-    if (params[0].type == S_EXPR_PARAM_INT) {
-        int32_t value = params[0].int_val;
-    }
+-- Variable-to-variable
+quad_expr(&quot;result = x + y&quot;, v, {&quot;t0&quot;})()
 
-    // Access string parameter
-    const char* str = s_expr_get_string(inst, &amp;params[1]);
+-- Pure assignment (emits quad_mov)
+quad_expr(&quot;@field_a = @field_b&quot;, v, {})()
 
-    // Access field reference
-    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &amp;params[2], int32_t);
-}
+-- Compound assignment
+quad_expr(&quot;@counter += 1&quot;, v, {&quot;t0&quot;})()
+
+-- Constant folding: compiles to single quad_mov of 14
+quad_expr(&quot;result = 2 + 3 * 4&quot;, v, {})()
 </code></pre>
-<h2 id="parameter-types">Parameter Types</h2>
+<h3 id="quad_predexpr_str-vars-scratch_names">quad_pred(expr_str, vars, scratch_names)</h3>
+<p>Compiles a boolean expression into p_quad (predicate) operations for use
+as conditions in <code>se_if_then</code>, <code>se_while</code>, and other control structures.</p>
+<pre><code class="language-lua">se_while(quad_pred(&quot;@count &lt; 100&quot;, v, {}), function()
+    -- loop body
+end)
+
+se_if_then(quad_pred(&quot;@x &gt; 5.0 &amp;&amp; @y &lt;= 10.0&quot;, v, {&quot;t0&quot;, &quot;t1&quot;}), function()
+    -- then branch
+end)
+</code></pre>
+<p>Comparisons emit <code>p_icmp_*</code> / <code>p_fcmp_*</code> and logical connectives emit
+<code>p_log_and</code> / <code>p_log_or</code> instead of the oneshot <code>quad_*</code> variants.</p>
+<h3 id="quad_multiexpr_str-vars-scratch_names">quad_multi(expr_str, vars, scratch_names)</h3>
+<p>Compiles multiple semicolon-separated assignments as a single batch.
+Variables assigned in earlier statements are available to later ones.</p>
+<pre><code class="language-lua">quad_multi(
+    &quot;a = @sensor + 1.0; &quot;  ..
+    &quot;@filtered = a * 0.5; &quot; ..
+    &quot;b = @filtered - @offset&quot;,
+    v, {&quot;t0&quot;, &quot;t1&quot;}
+)()
+</code></pre>
+<p>Each statement is compiled independently via <code>quad_expr</code>, so scratch is
+reused across statements. Local variables (<code>a</code>, <code>b</code>) persist within the
+enclosing <code>se_frame_allocate</code> scope.</p>
+<h3 id="quad_pred_accconditions-vars-count_var">quad_pred_acc(conditions, vars, count_var)</h3>
+<p>Compiles multiple independent comparison conditions with accumulate semantics.
+Each true condition increments a counter variable. Useful for multi-condition
+evaluation where you need a count of passing conditions rather than a
+short-circuit boolean.</p>
+<pre><code class="language-lua">quad_pred_acc(
+    {&quot;@temp &gt; 100&quot;, &quot;@pressure &gt; 50.0&quot;, &quot;@flow_rate &lt; 2.0&quot;},
+    v, &quot;alarm_count&quot;
+)()
+-- alarm_count = number of true conditions (0–3)
+</code></pre>
+<p><strong>Restrictions:</strong> Each condition must be a single comparison with leaf operands
+(variables, fields, or constants). No compound expressions in individual conditions.</p>
+<h3 id="quad_expr_debug-quad_pred_debug">quad_expr_debug / quad_pred_debug</h3>
+<p>Debug variants that print the AST before and after constant folding, the
+generated operation sequence, and scratch usage, then return a working closure.</p>
+<pre><code class="language-lua">quad_expr_debug(&quot;result = (x + 5.0) * y - 2.0&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+-- Output:
+--   === quad_expr_debug: result = (x + 5.0) * y - 2.0 ===
+--     AST (before fold): (((x + 5) * y) - 2)
+--     AST (after fold):  (((x + 5) * y) - 2)
+--     1: quad_fadd(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     2: quad_fmul(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     3: quad_fsub(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     scratch used: 2 / 2
+--   ===
+</code></pre>
+<h2 id="expression-syntax">Expression Syntax</h2>
+<h3 id="operand-types">Operand Types</h3>
 <table>
 <thead>
 <tr>
-<th>Lua DSL</th>
-<th>C Type</th>
-<th>Access</th>
+<th>Syntax</th>
+<th>Type</th>
+<th>Example</th>
+<th>Emits</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>int(n)</code></td>
-<td><code>S_EXPR_PARAM_INT</code></td>
-<td><code>params[i].int_val</code></td>
+<td><code>@name</code></td>
+<td>Blackboard field</td>
+<td><code>@sensor_val</code></td>
+<td><code>field_val("sensor_val")</code></td>
 </tr>
 <tr>
-<td><code>uint(n)</code></td>
-<td><code>S_EXPR_PARAM_UINT</code></td>
-<td><code>params[i].uint_val</code></td>
+<td><code>name</code></td>
+<td>Frame variable</td>
+<td><code>x</code>, <code>t0</code></td>
+<td><code>vars[name]</code> closure</td>
 </tr>
 <tr>
-<td><code>flt(n)</code></td>
-<td><code>S_EXPR_PARAM_FLOAT</code></td>
-<td><code>params[i].float_val</code></td>
+<td><code>42</code></td>
+<td>Integer literal</td>
+<td><code>42</code>, <code>0</code></td>
+<td><code>uint_val(42)</code></td>
 </tr>
 <tr>
-<td><code>str_ptr("s")</code></td>
-<td><code>S_EXPR_PARAM_STR_IDX</code></td>
-<td><code>s_expr_get_string(inst, &amp;params[i])</code></td>
+<td><code>-5</code></td>
+<td>Negative integer</td>
+<td><code>-5</code></td>
+<td><code>int_val(-5)</code></td>
 </tr>
 <tr>
-<td><code>field_ref("f")</code></td>
-<td><code>S_EXPR_PARAM_FIELD</code></td>
-<td><code>S_EXPR_GET_FIELD(inst, &amp;params[i], type)</code></td>
+<td><code>3.14</code></td>
+<td>Float literal</td>
+<td><code>3.14</code>, <code>0.0</code></td>
+<td><code>float_val(3.14)</code></td>
+</tr>
+<tr>
+<td><code>3f</code></td>
+<td>Float (suffix)</td>
+<td><code>3f</code>, <code>42f</code></td>
+<td><code>float_val(3.0)</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="event-handling">Event Handling</h2>
-<p>External functions receive lifecycle events:</p>
-<pre><code class="language-c">void my_oneshot(..., s_expr_event_type_t event_type, ...) {
-    switch (event_type) {
-        case SE_EVENT_INIT:
-            // First invocation - do the work
-            break;
-
-        case SE_EVENT_TERMINATE:
-            // Cleanup (rare for oneshots)
-            break;
-
-        case SE_EVENT_TICK:
-            // Only for MAIN functions
-            break;
-    }
-}
+<h3 id="operators-by-precedence-low-to-high">Operators (by precedence, low to high)</h3>
+<table>
+<thead>
+<tr>
+<th>Prec</th>
+<th>Operators</th>
+<th>Category</th>
+<th>Result Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>\|\|</code></td>
+<td>Logical OR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>&amp;&amp;</code></td>
+<td>Logical AND</td>
+<td>int</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>\|</code></td>
+<td>Bitwise OR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>^</code></td>
+<td>Bitwise XOR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>&amp;</code></td>
+<td>Bitwise AND</td>
+<td>int</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>==</code> <code>!=</code></td>
+<td>Equality</td>
+<td>int (0/1)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td>
+<td>Relational</td>
+<td>int (0/1)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>&lt;&lt;</code> <code>&gt;&gt;</code></td>
+<td>Shift</td>
+<td>int</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>+</code> <code>-</code></td>
+<td>Additive</td>
+<td>float if either operand float</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>*</code> <code>/</code> <code>%</code></td>
+<td>Multiplicative</td>
+<td>float if either operand float</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>-x</code> <code>!x</code> <code>~x</code></td>
+<td>Unary (prefix)</td>
+<td>inherits / int / int</td>
+</tr>
+</tbody>
+</table>
+<p>All operators are left-associative. Parentheses override precedence.</p>
+<h3 id="compound-assignment">Compound Assignment</h3>
+<p>Supported for both variables and <code>@field</code> destinations:</p>
+<pre><code>+=  -=  *=  /=  %=  &amp;=  |=  ^=  &lt;&lt;=  &gt;&gt;=
 </code></pre>
-<h3 id="oneshot-event-pattern">Oneshot Event Pattern</h3>
-<p>Oneshots typically only act on <code>SE_EVENT_INIT</code>:</p>
-<pre><code class="language-c">void my_oneshot(...) {
-    if (event_type != SE_EVENT_INIT) {
-        return;  // Ignore other events
-    }
-
-    // Do the work
-}
-</code></pre>
-<h3 id="main-event-pattern">Main Event Pattern</h3>
-<p>Main functions handle all three events:</p>
-<pre><code class="language-c">s_expr_result_t my_main(...) {
-    if (event_type == SE_EVENT_INIT) {
-        // Initialize state
-        return SE_PIPELINE_CONTINUE;
-    }
-
-    if (event_type == SE_EVENT_TERMINATE) {
-        // Cleanup
-        return SE_PIPELINE_CONTINUE;
-    }
-
-    // SE_EVENT_TICK - do the work
-    // Return appropriate result code
-    return SE_PIPELINE_DISABLE;  // Complete
-}
-</code></pre>
-<h2 id="file-organization">File Organization</h2>
-<pre><code>project/
-├── state_machine.lua              # DSL source
-├── generated/
-│   ├── state_machine_test.h       # Tree hashes, constants
-│   ├── state_machine_test_bin_32.h  # Binary ROM data
-│   ├── state_machine_test_records.h # Record definitions
-│   ├── state_machine_test_user_functions.h    # Function prototypes
-│   └── state_machine_test_user_registration.c # Registration tables
-└── src/
-    ├── user_functions.c           # User implementations
-    └── main.c                     # Test harness
-</code></pre>
-<h2 id="example-chain-flow-control-functions">Example: Chain Flow Control Functions</h2>
-<p>The state machine test uses two external oneshots for chain flow control:</p>
-<h3 id="cfl_disable_children">CFL_DISABLE_CHILDREN</h3>
-<p>Disables all children in the current chain flow context:</p>
-<pre><code class="language-lua">local o0 = o_call(&quot;CFL_DISABLE_CHILDREN&quot;)
-end_call(o0)
-</code></pre>
-<h3 id="cfl_enable_child">CFL_ENABLE_CHILD</h3>
-<p>Enables a specific child by index:</p>
-<pre><code class="language-lua">local o1 = o_call(&quot;CFL_ENABLE_CHILD&quot;)
-    int(0)  -- Enable child at index 0
-end_call(o1)
-</code></pre>
-<p>These would typically interact with a chain flow composite to control which branches are active.</p>
-<h2 id="summary">Summary</h2>
+<p>Desugared at compile time: <code>@x += 5</code> becomes <code>@x = @x + (5)</code>.</p>
+<h3 id="built-in-functions">Built-in Functions</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Arity</th>
+<th>Float</th>
+<th>Int</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sqrt(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>abs(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sin(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>cos(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>tan(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>asin(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>acos(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>atan(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>exp(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log10(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log2(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>sinh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>cosh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>tanh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>neg(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>min(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>max(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>pow(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>atan2(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+</tbody>
+</table>
+<p>Functions without an integer variant (<code>fn_i</code>) always produce float results
+regardless of argument types.</p>
+<h2 id="type-inference">Type Inference</h2>
+<p>The compiler infers float vs. integer for each operation bottom-up through
+the AST. No explicit casts are needed.</p>
+<p><strong>Rules:</strong></p>
 <ol>
-<li><strong>Declare</strong> external functions in Lua DSL using <code>o_call</code>, <code>m_call</code>, or <code>p_call</code></li>
-<li><strong>Generate</strong> scaffolding with DSL compiler</li>
-<li><strong>Implement</strong> functions in C matching the generated prototypes</li>
-<li><strong>Register</strong> via callback when loading the engine</li>
+<li>Numeric literals: float if they contain <code>.</code> or <code>f</code> suffix, otherwise int.</li>
+<li>Variables: float if <code>frame_vars</code> declared with <code>:float</code>, otherwise int.</li>
+<li>Field references (<code>@field</code>): default to int. Use float literals on the
+   other side of the operation to force float dispatch.</li>
+<li>Arithmetic (<code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code>): float if <strong>either</strong> operand infers float.</li>
+<li>Bitwise (<code>&amp;</code> <code>|</code> <code>^</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code>): always int.</li>
+<li>Comparison (<code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code>): always int result (0 or 1),
+   but operand comparison uses <code>fcmp</code> if either side is float.</li>
+<li>Logical (<code>&amp;&amp;</code> <code>||</code> <code>!</code>): always int.</li>
+<li>Function calls: float if function has no <code>fn_i</code> variant, otherwise
+   follows argument types.</li>
 </ol>
-<p>This pattern allows clean separation between:
-- <strong>DSL/Tree definition</strong> (Lua)
-- <strong>Engine core</strong> (builtin functions)
-- <strong>Application logic</strong> (user-defined functions)</p>
+<p><strong>Example type dispatch:</strong></p>
+<pre><code class="language-lua">quad_expr(&quot;@out = @x + 5&quot;, v, {&quot;t0&quot;})()     -- int + int → quad_iadd
+quad_expr(&quot;@out = @x + 5.0&quot;, v, {&quot;t0&quot;})()   -- int + float → quad_fadd
+quad_expr(&quot;@out = @x + 5f&quot;, v, {&quot;t0&quot;})()    -- int + float → quad_fadd
+</code></pre>
+<p><strong>Tip:</strong> When operating on float blackboard fields, use float literals
+(<code>1.0</code> not <code>1</code>) to ensure the compiler selects float operations. The
+compiler has no access to the record schema at compile time, so <code>@field</code>
+alone does not carry type information.</p>
+<h2 id="constant-folding">Constant Folding</h2>
+<p>The compiler evaluates constant subexpressions at compile time using LuaJIT
+math, reducing them to single literal values. This eliminates runtime
+operations and can reduce scratch usage.</p>
+<pre><code class="language-lua">-- Folds to: quad_mov(14, result)
+quad_expr(&quot;result = 2 + 3 * 4&quot;, v, {})()
+
+-- Folds 1.0 + 5.0 → 6.0, then compiles (p0 + 6.0) - 2.0
+-- Uses 1 scratch instead of 2
+quad_expr(&quot;r0 = (p0 + 1.0 + 5.0) - 2.0&quot;, cv, {&quot;ct0&quot;})()
+
+-- Folds sqrt(2.0) at compile time
+quad_expr(&quot;scale = sqrt(2.0) * @amplitude&quot;, v, {&quot;t0&quot;})()
+</code></pre>
+<p>Folding applies to all operators, all unary/binary math functions, and
+propagates through nested expressions. Division by zero and <code>sqrt</code> of
+negative values are not folded (left for runtime).</p>
+<h2 id="scratch-variables">Scratch Variables</h2>
+<p>Complex expressions need temporary storage for intermediate results. The
+compiler allocates scratch variables from the list you provide, in order.
+Scratch is freed after the parent operation consumes the intermediate, so
+deep expression trees may reuse slots.</p>
+<p><strong>How many scratch slots do I need?</strong></p>
+<p>For a simple binary operation on two leaves: 0 extra (result goes to dest).
+Each level of nesting where both sides are non-leaf adds 1 scratch.</p>
+<pre><code class="language-lua">-- 0 scratch: both operands are leaves
+quad_expr(&quot;@out = @a + @b&quot;, v, {})()
+
+-- 0 scratch: one operand is leaf, result goes to dest
+quad_expr(&quot;@out = @a + 5&quot;, v, {})()
+
+-- 1 scratch: (a+5) needs a temp, then temp*b goes to dest
+quad_expr(&quot;@out = (@a + 5) * @b&quot;, v, {&quot;t0&quot;})()
+
+-- 2 scratch: both sides of * are non-leaf
+quad_expr(&quot;@out = (@a + 5) * (@b - 2)&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+
+-- Function call: argument computation may need scratch
+quad_expr(&quot;@out = sqrt(@a + @b)&quot;, v, {&quot;t0&quot;})()
+</code></pre>
+<p>If you provide too few scratch variables, the compiler errors at compile time
+with a message showing how many were needed. Over-allocating is safe but
+wastes stack space on constrained targets.</p>
+<h2 id="integration">Integration</h2>
+<h3 id="loading">Loading</h3>
+<p>The compiler is loaded by <code>s_engine_helpers.lua</code> at startup:</p>
+<pre><code class="language-lua">dofile(&quot;s_engine_equation.lua&quot;)  -- loads s_expr_compiler.lua
+</code></pre>
+<p>This defines <code>frame_vars</code>, <code>quad_expr</code>, <code>quad_pred</code>, <code>quad_multi</code>,
+<code>quad_pred_acc</code>, and the debug variants as globals.</p>
+<h3 id="frame_vars-conflict">frame_vars Conflict</h3>
+<p><strong>Critical:</strong> <code>s_engine_helpers.lua</code> historically defines its own simpler
+<code>frame_vars</code> function (without type annotations) that overwrites the
+compiler's version. This must be removed from the helpers file. The
+compiler's <code>frame_vars</code> handles both typed (<code>"x:float"</code>) and untyped
+(<code>"x"</code>) declarations, defaulting untyped to <code>int</code>.</p>
+<p>Without type annotations, the compiler cannot determine whether local/scratch
+variables are float or int, and will default all operations to integer.
+Field references (<code>@field</code>) are unaffected since they bypass the vars table.</p>
+<h3 id="usage-pattern">Usage Pattern</h3>
+<pre><code class="language-lua">se_frame_allocate(0, num_locals, num_scratch, function()
+    local v = frame_vars(
+        {&quot;a:float&quot;, &quot;b:float&quot;, &quot;result:float&quot;},
+        {&quot;t0:float&quot;, &quot;t1:float&quot;}
+    )
+
+    -- Arithmetic assignment
+    quad_expr(&quot;a = @sensor_1 + @offset&quot;, v, {&quot;t0&quot;})()
+
+    -- Multi-statement batch
+    quad_multi(&quot;b = a * 0.95; @output = b + @bias&quot;, v, {&quot;t0&quot;})()
+
+    -- Predicate for control flow
+    se_if_then(quad_pred(&quot;@output &gt; @threshold&quot;, v, {}), function()
+        quad_expr(&quot;@alarm = 1&quot;, v, {})()
+    end)
+
+    -- Compound assignment
+    quad_expr(&quot;@counter += 1&quot;, v, {&quot;t0&quot;})()
+end)
+</code></pre>
+<h3 id="inside-se_call">Inside se_call</h3>
+<p>Call bodies create their own <code>frame_vars</code> scope. Parameters are locals at
+the start of the frame, return values are locals at designated indices.</p>
+<pre><code class="language-lua">se_call(2, 2, 3, {2, 3}, {
+    function()
+        local cv = frame_vars(
+            {&quot;p0:float&quot;, &quot;p1:float&quot;, &quot;r0:float&quot;, &quot;r1:float&quot;},
+            {&quot;ct0:float&quot;, &quot;ct1:float&quot;, &quot;ct2:float&quot;}
+        )
+        quad_expr(&quot;r0 = (p0 + 1.0 + 5.0) - 2.0&quot;, cv, {&quot;ct0&quot;, &quot;ct1&quot;})()
+        quad_expr(&quot;r1 = p1 * 2.0&quot;, cv, {&quot;ct0&quot;})()
+        se_return_pipeline_terminate()
+    end
+})
+</code></pre>
+<h2 id="compiler-internals">Compiler Internals</h2>
+<h3 id="ast-node-types">AST Node Types</h3>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Fields</th>
+<th>Produced By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>num</code></td>
+<td><code>value</code>, <code>is_float</code></td>
+<td>Numeric literals</td>
+</tr>
+<tr>
+<td><code>var</code></td>
+<td><code>name</code></td>
+<td>Identifiers not followed by <code>(</code></td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td><code>name</code></td>
+<td><code>@identifier</code> tokens</td>
+</tr>
+<tr>
+<td><code>binop</code></td>
+<td><code>op</code>, <code>left</code>, <code>right</code></td>
+<td>Binary operators</td>
+</tr>
+<tr>
+<td><code>unop</code></td>
+<td><code>op</code>, <code>operand</code></td>
+<td>Unary <code>-</code>, <code>!</code>, <code>~</code></td>
+</tr>
+<tr>
+<td><code>call</code></td>
+<td><code>name</code>, <code>args</code></td>
+<td><code>ident(args)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="code-generation">Code Generation</h3>
+<p>The <code>emit(node, dest_name)</code> function recursively walks the AST:</p>
+<ol>
+<li><strong>Leaf nodes</strong> with <code>dest_name</code>: emit <code>quad_mov</code> from source to destination.</li>
+<li><strong>Leaf nodes</strong> without <code>dest_name</code>: return the parameter-emitting closure directly (no quad op).</li>
+<li><strong>Binary operations</strong>: emit children first (allocating scratch for non-leaf intermediates),
+   then emit the operation targeting <code>dest_name</code> or a fresh scratch slot.</li>
+<li><strong>Function calls</strong>: emit argument sub-trees, then emit the function quad with
+   all argument refs followed by the destination ref.</li>
+</ol>
+<p>The scratch allocator is a simple stack: <code>alloc_scratch()</code> increments an index
+and returns the next name from the scratch list, <code>free_scratch()</code> decrements it.
+A high-water mark tracks peak usage for the debug output.</p>
+<h3 id="operation-list">Operation List</h3>
+<p>The code generator produces a list of <code>{fn = "quad_name", args = {ref, ref, ...}}</code>
+entries. The outer closure iterates this list, resolving each <code>fn</code> from <code>_G</code> and
+calling it with the argument refs. Each quad function returns a closure that is
+immediately invoked with <code>()</code> to emit the tree node.</p>
+<h2 id="version-history">Version History</h2>
+<h3 id="v11">v1.1</h3>
+<ul>
+<li><code>@field_name</code> works as assignment destination in <code>quad_expr</code> and <code>quad_multi</code></li>
+<li><code>ref_for()</code> detects <code>@</code> prefix and delegates to <code>field_val()</code></li>
+<li>Leaf-to-dest assignment emits <code>quad_mov</code> (previously silently dropped)</li>
+<li>Compound assignment patterns extended for <code>@field</code> destinations</li>
+<li>Destination regex updated to <code>@?[%w_.]+</code></li>
+</ul>
+<h3 id="v10">v1.0</h3>
+<ul>
+<li>Initial release with full expression parsing, type inference, constant folding</li>
+<li><code>quad_expr</code>, <code>quad_pred</code>, <code>quad_multi</code>, <code>quad_pred_acc</code> API</li>
+<li>Debug variants for AST inspection</li>
+<li>Typed <code>frame_vars</code> with <code>:float</code> / <code>:int</code> annotations</li>
+</ul>
 
 
 
