@@ -206,6 +206,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_DICT_STORE_PTR",
    "SE_DICT_STORE_PTR_H",
    "SE_PUSH_STACK",
+   "SE_LOG_STACK",
 
 
 --- predicate functions

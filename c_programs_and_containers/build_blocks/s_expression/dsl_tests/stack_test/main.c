@@ -145,7 +145,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     s_expr_tree_create_stack(tree, 128);
     
     int tick_count = 0;
-    int max_ticks = 500;
+    int max_ticks = 5000;
     s_expr_result_t result;
     
     printf("\n  Running tick loop...\n");
@@ -153,7 +153,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     do {
         result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
         tick_count++;
-        delay_seconds(0.1);
+        //conds(0.1);
         printf("------------------------>    Tick %3d: result=%s\n", tick_count, result_to_str(result));
         
         // Process queued events

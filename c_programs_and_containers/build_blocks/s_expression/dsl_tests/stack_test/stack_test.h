@@ -19,12 +19,34 @@ extern "C" {
 #define STACK_TEST_TREE_COUNT 1
 #define STACK_TEST_RECORD_COUNT 1
 
+// String table
+static const char* const stack_test_strings[] = {
+    "frame allocated started",
+    "int_val_1 %d",
+    "int_val_2 %d",
+    "int_val_3 %d",
+    "frame allocated finished",
+    "float_val_1 %f",
+    "float_val_2 %f",
+    "float_val_3 %f"
+};
+#define STACK_TEST_STRING_COUNT 8
+
 // Function hashes
-#define SE_PUSH_STACK_HASH 0x08E351ED
+#define SE_LOG_STACK_HASH 0x9D0EA7BB
 #define SE_QUAD_HASH 0x596C457D
+#define SE_LOG_HASH 0xCEBBEFA4
+#define SE_LOG_INT_HASH 0x2442CEA2
+#define SE_LOG_FLOAT_HASH 0xA8949A19
 #define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
-#define SE_SEQUENCE_ONCE_HASH 0x4F4BB2E1
-#define SE_STACK_FRAME_INSTANCE_HASH 0x753D7572
+#define SE_FORK_JOIN_HASH 0xE404E1CF
+#define SE_WHILE_HASH 0xA08B6DD3
+#define SE_FRAME_ALLOCATE_HASH 0x5C5AC947
+#define SE_TICK_DELAY_HASH 0x0C3460EB
+#define SE_RETURN_PIPELINE_TERMINATE_HASH 0x0933AC9B
+#define SE_RETURN_TERMINATE_HASH 0xDFE64C74
+#define SE_STATE_INCREMENT_AND_TEST_HASH 0x42A88A80
+#define SE_P_QUAD_HASH 0x4D8ADF00
 
 // Tree hashes
 #define STACK_TEST_HASH 0x152726E4
@@ -42,6 +64,7 @@ extern "C" {
 #define FIELD_FLOAT_VAL_1_HASH 0x5B48D16D
 #define FIELD_FLOAT_VAL_2_HASH 0x5848CCB4
 #define FIELD_FLOAT_VAL_3_HASH 0x5948CE47
+#define FIELD_LOOP_COUNT_HASH 0xF29B1E63
 
 #ifdef __cplusplus
 }

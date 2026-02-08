@@ -13,7 +13,7 @@
 // Forward declarations
 typedef struct stack_test_state_s stack_test_state_t;
 
-// Record: stack_test_state (size=36, align=4)
+// Record: stack_test_state (size=40, align=4)
 struct stack_test_state_s {
     int32_t int_val_1;  // offset=0, size=4
     int32_t int_val_2;  // offset=4, size=4
@@ -24,6 +24,7 @@ struct stack_test_state_s {
     float float_val_1;  // offset=24, size=4
     float float_val_2;  // offset=28, size=4
     float float_val_3;  // offset=32, size=4
+    uint32_t loop_count;  // offset=36, size=4
 };
 
 #endif // STACK_TEST_RECORDS_H

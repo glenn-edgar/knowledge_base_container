@@ -218,7 +218,7 @@ static void se_dict_store_ptr(s_expr_tree_instance_t* inst, const s_expr_param_t
 static void se_dict_store_ptr_h(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static void se_push_stack(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static void se_quad(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-
+static void se_log_stack(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 
 // ============================================================================
 // FUNCTION TABLES
@@ -252,6 +252,7 @@ static s_expr_fn_entry_t builtin_oneshot_entries[] = {
     { SE_QUEUE_EVENT_HASH,       (void*)se_queue_event },     // SE_QUEUE_EVENT
     {SE_PUSH_STACK_HASH,         (void*)se_push_stack},         // SE_PUSH_STACK
     {SE_QUAD_HASH,               (void*)se_quad},               // SE_QUAD
+    {SE_LOG_STACK_HASH,          (void*)se_log_stack},          // SE_LOG_STACK
 #if 0
     { SE_STACK_ADD_HASH,         (void*)se_stack_add },         // SE_STACK_ADD
     { SE_STACK_SUB_HASH,         (void*)se_stack_sub },         // SE_STACK_SUB
@@ -4554,6 +4555,7 @@ void se_quad(
     ct_int_t i1, i2;
     ct_float_t f1, f2;
     
+    
     switch (opcode) {
         // Integer Arithmetic
         case SE_QUAD_IADD:
@@ -5021,6 +5023,54 @@ if (event_type == SE_EVENT_INIT) {
 // params[3] = dest
 // ============================================================================
 
+// Bitwise
+#define SE_P_QUAD_BIT_AND      0x10
+#define SE_P_QUAD_BIT_OR       0x11
+#define SE_P_QUAD_BIT_XOR      0x12
+#define SE_P_QUAD_BIT_NOT      0x13
+#define SE_P_QUAD_BIT_SHL      0x14
+#define SE_P_QUAD_BIT_SHR      0x15
+
+// Integer Comparison
+#define SE_P_QUAD_ICMP_EQ      0x20
+#define SE_P_QUAD_ICMP_NE      0x21
+#define SE_P_QUAD_ICMP_LT      0x22
+#define SE_P_QUAD_ICMP_LE      0x23
+#define SE_P_QUAD_ICMP_GT      0x24
+#define SE_P_QUAD_ICMP_GE      0x25
+
+// Float Comparison
+#define SE_P_QUAD_FCMP_EQ      0x28
+#define SE_P_QUAD_FCMP_NE      0x29
+#define SE_P_QUAD_FCMP_LT      0x2A
+#define SE_P_QUAD_FCMP_LE      0x2B
+#define SE_P_QUAD_FCMP_GT      0x2C
+#define SE_P_QUAD_FCMP_GE      0x2D
+
+// Logical
+#define SE_P_QUAD_LOG_AND      0x30
+#define SE_P_QUAD_LOG_OR       0x31
+#define SE_P_QUAD_LOG_NOT      0x32
+#define SE_P_QUAD_LOG_NAND     0x33
+#define SE_P_QUAD_LOG_NOR      0x34
+#define SE_P_QUAD_LOG_XOR      0x35
+
+// Integer Comparison + Accumulate (dest += result)
+#define SE_P_QUAD_ICMP_EQ_ACC  0x40
+#define SE_P_QUAD_ICMP_NE_ACC  0x41
+#define SE_P_QUAD_ICMP_LT_ACC  0x42
+#define SE_P_QUAD_ICMP_LE_ACC  0x43
+#define SE_P_QUAD_ICMP_GT_ACC  0x44
+#define SE_P_QUAD_ICMP_GE_ACC  0x45
+
+// Float Comparison + Accumulate (dest += result)
+#define SE_P_QUAD_FCMP_EQ_ACC  0x48
+#define SE_P_QUAD_FCMP_NE_ACC  0x49
+#define SE_P_QUAD_FCMP_LT_ACC  0x4A
+#define SE_P_QUAD_FCMP_LE_ACC  0x4B
+#define SE_P_QUAD_FCMP_GT_ACC  0x4C
+#define SE_P_QUAD_FCMP_GE_ACC  0x4D
+
 static bool se_p_quad(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -5042,7 +5092,6 @@ static bool se_p_quad(
     
     ct_int_t result = 0;
     
-    // Read src1 and src2 as both int and float for type-appropriate ops
     ct_int_t s1_i = quad_read_int(inst, src1);
     ct_int_t s2_i = quad_read_int(inst, src2);
     ct_float_t s1_f = quad_read_float(inst, src1);
@@ -5050,96 +5099,251 @@ static bool se_p_quad(
     
     switch (opcode) {
         // Bitwise
-        case SE_QUAD_BIT_AND:
-            result = s1_i & s2_i;
-            break;
-        case SE_QUAD_BIT_OR:
-            result = s1_i | s2_i;
-            break;
-        case SE_QUAD_BIT_XOR:
-            result = s1_i ^ s2_i;
-            break;
-        case SE_QUAD_BIT_NOT:
-            result = ~s1_i;
-            break;
-        case SE_QUAD_BIT_SHL:
-            result = s1_i << (s2_i & 0x1F);
-            break;
-        case SE_QUAD_BIT_SHR:
-            result = (ct_uint_t)s1_i >> (s2_i & 0x1F);
-            break;
+        case SE_P_QUAD_BIT_AND:  result = s1_i & s2_i;                    break;
+        case SE_P_QUAD_BIT_OR:   result = s1_i | s2_i;                    break;
+        case SE_P_QUAD_BIT_XOR:  result = s1_i ^ s2_i;                    break;
+        case SE_P_QUAD_BIT_NOT:  result = ~s1_i;                          break;
+        case SE_P_QUAD_BIT_SHL:  result = s1_i << (s2_i & 0x1F);         break;
+        case SE_P_QUAD_BIT_SHR:  result = (ct_uint_t)s1_i >> (s2_i & 0x1F); break;
             
         // Integer Comparison
-        case SE_QUAD_ICMP_EQ:
-            result = (s1_i == s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_ICMP_NE:
-            result = (s1_i != s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_ICMP_LT:
-            result = (s1_i < s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_ICMP_LE:
-            result = (s1_i <= s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_ICMP_GT:
-            result = (s1_i > s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_ICMP_GE:
-            result = (s1_i >= s2_i) ? 1 : 0;
-            break;
+        case SE_P_QUAD_ICMP_EQ:  result = (s1_i == s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_ICMP_NE:  result = (s1_i != s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_ICMP_LT:  result = (s1_i <  s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_ICMP_LE:  result = (s1_i <= s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_ICMP_GT:  result = (s1_i >  s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_ICMP_GE:  result = (s1_i >= s2_i) ? 1 : 0;        break;
             
         // Float Comparison
-        case SE_QUAD_FCMP_EQ:
-            result = (s1_f == s2_f) ? 1 : 0;
-            break;
-        case SE_QUAD_FCMP_NE:
-            result = (s1_f != s2_f) ? 1 : 0;
-            break;
-        case SE_QUAD_FCMP_LT:
-            result = (s1_f < s2_f) ? 1 : 0;
-            break;
-        case SE_QUAD_FCMP_LE:
-            result = (s1_f <= s2_f) ? 1 : 0;
-            break;
-        case SE_QUAD_FCMP_GT:
-            result = (s1_f > s2_f) ? 1 : 0;
-            break;
-        case SE_QUAD_FCMP_GE:
-            result = (s1_f >= s2_f) ? 1 : 0;
-            break;
+        case SE_P_QUAD_FCMP_EQ:  result = (s1_f == s2_f) ? 1 : 0;        break;
+        case SE_P_QUAD_FCMP_NE:  result = (s1_f != s2_f) ? 1 : 0;        break;
+        case SE_P_QUAD_FCMP_LT:  result = (s1_f <  s2_f) ? 1 : 0;        break;
+        case SE_P_QUAD_FCMP_LE:  result = (s1_f <= s2_f) ? 1 : 0;        break;
+        case SE_P_QUAD_FCMP_GT:  result = (s1_f >  s2_f) ? 1 : 0;        break;
+        case SE_P_QUAD_FCMP_GE:  result = (s1_f >= s2_f) ? 1 : 0;        break;
             
         // Logical
-        case SE_QUAD_LOG_AND:
-            result = (s1_i && s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_LOG_OR:
-            result = (s1_i || s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_LOG_NOT:
-            result = (!s1_i) ? 1 : 0;
-            break;
-        case SE_QUAD_LOG_NAND:
-            result = !(s1_i && s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_LOG_NOR:
-            result = !(s1_i || s2_i) ? 1 : 0;
-            break;
-        case SE_QUAD_LOG_XOR:
-            result = (!s1_i != !s2_i) ? 1 : 0;
-            break;
+        case SE_P_QUAD_LOG_AND:  result = (s1_i && s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_LOG_OR:   result = (s1_i || s2_i) ? 1 : 0;        break;
+        case SE_P_QUAD_LOG_NOT:  result = (!s1_i) ? 1 : 0;               break;
+        case SE_P_QUAD_LOG_NAND: result = !(s1_i && s2_i) ? 1 : 0;       break;
+        case SE_P_QUAD_LOG_NOR:  result = !(s1_i || s2_i) ? 1 : 0;       break;
+        case SE_P_QUAD_LOG_XOR:  result = (!s1_i != !s2_i) ? 1 : 0;      break;
+
+// Integer Comparison + Accumulate
+        case SE_P_QUAD_ICMP_EQ_ACC: {
+            ct_int_t cmp = (s1_i == s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_ICMP_NE_ACC: {
+            ct_int_t cmp = (s1_i != s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_ICMP_LT_ACC: {
+            ct_int_t cmp = (s1_i < s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_ICMP_LE_ACC: {
+            ct_int_t cmp = (s1_i <= s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_ICMP_GT_ACC: {
+            ct_int_t cmp = (s1_i > s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_ICMP_GE_ACC: {
+            ct_int_t cmp = (s1_i >= s2_i) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+
+        // Float Comparison + Accumulate
+        case SE_P_QUAD_FCMP_EQ_ACC: {
+            ct_int_t cmp = (s1_f == s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_FCMP_NE_ACC: {
+            ct_int_t cmp = (s1_f != s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_FCMP_LT_ACC: {
+            ct_int_t cmp = (s1_f < s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_FCMP_LE_ACC: {
+            ct_int_t cmp = (s1_f <= s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_FCMP_GT_ACC: {
+            ct_int_t cmp = (s1_f > s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
+        case SE_P_QUAD_FCMP_GE_ACC: {
+            ct_int_t cmp = (s1_f >= s2_f) ? 1 : 0;
+            quad_write_int(inst, dest, quad_read_int(inst, dest) + cmp);
+            return (cmp != 0);
+        }
             
         default:
-            EXCEPTION("SE_QUAD_PRED: unknown opcode 0x%02X");
+            EXCEPTION("SE_P_QUAD: unknown opcode 0x%02X");
             return false;
     }
     
-    // Write result to dest
     quad_write_int(inst, dest, result);
     
     return (result != 0);
 }
 
+static s_expr_result_t se_frame_allocate(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (!inst || !inst->stack || param_count < 4) {
+        EXCEPTION("SE_FRAME_ALLOCATE: invalid parameters");
+        return SE_PIPELINE_TERMINATE;
+    }
+    // =========================================================================
+    // TERMINATE EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_children_terminate_all(inst, params, param_count);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // INIT EVENT
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // =========================================================================
+    // TICK EVENT
+    // =========================================================================
+    uint16_t count = s_expr_child_count(params, param_count);
+    uint16_t active_count = 0;
+    uint16_t num_params = (uint16_t)params[0].uint_val;
+    uint16_t num_locals = (uint16_t)params[1].uint_val;
+    uint16_t scratch_depth = (uint16_t)params[2].uint_val;
+    
+    // Push stack frame BEFORE executing children
+    if (!s_expr_stack_push_frame(inst->stack, num_params, num_locals)) {
+        EXCEPTION("SE_FRAME_ALLOCATE: stack push failed");
+        return SE_PIPELINE_TERMINATE;
+    }
+    for (uint16_t i = 0; i < scratch_depth; i++) {
+        s_expr_stack_push_int(inst->stack, 0);
+    }
+    for (uint16_t i = 3; i < count; i++) {
+        if (!s_expr_child_is_callable(params, param_count, i)) {
+            continue;
+        }
+        
+        if (!s_expr_child_is_active(inst, params, param_count, i)) {
+            continue;
+        }
+        
+        uint16_t phys_idx = s_expr_child_index(params, param_count, i);
+        if (phys_idx == UINT16_MAX) {
+            continue;
+        }
+        
+        uint8_t func_type = s_expr_child_func_type(params, param_count, i);
+        
+        // -----------------------------------------------------------------
+        // ONESHOT - fire and mark inactive, don't count as active
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_ONESHOT) {
+            s_expr_invoke_any(inst, params, phys_idx);
+            s_expr_child_terminate(inst, params, param_count, i);
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // PRED - evaluate and mark inactive, don't count as active
+        // -----------------------------------------------------------------
+        if (func_type == S_EXPR_PARAM_PRED) {
+            s_expr_invoke_any(inst, params, phys_idx);
+            s_expr_child_terminate(inst, params, param_count, i);
+            continue;
+        }
+        
+        // -----------------------------------------------------------------
+        // MAIN - invoke and handle result
+        // -----------------------------------------------------------------
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+        
+        // Non-PIPELINE codes (0-11) - immediate exit, propagate to caller
+        if (r == SE_FUNCTION_HALT) {
+            s_expr_stack_pop_frame(inst->stack);
+            return SE_PIPELINE_HALT;
+        }
+        if (r < SE_PIPELINE_CONTINUE) {
+            s_expr_stack_pop_frame(inst->stack);
+            return r;
+        }
+        
+        // PIPELINE codes (12-17) - handle internally
+        switch (r) {
+            case SE_PIPELINE_CONTINUE:
+                active_count++;
+                continue;
+                
+            case SE_PIPELINE_HALT:
+                s_expr_stack_pop_frame(inst->stack);
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_DISABLE:
+                s_expr_child_terminate(inst, params, param_count, i);
+                continue;
+
+            case SE_PIPELINE_TERMINATE:
+                s_expr_children_terminate_all(inst, params, param_count);
+                s_expr_stack_pop_frame(inst->stack);
+                return SE_PIPELINE_TERMINATE;
+                
+            case SE_PIPELINE_RESET:
+                s_expr_children_terminate_all(inst, params, param_count);
+                s_expr_children_reset_all(inst, params, param_count);
+                s_expr_stack_pop_frame(inst->stack);
+                return SE_PIPELINE_CONTINUE;
+                
+            case SE_PIPELINE_SKIP_CONTINUE:
+                active_count++;
+                goto tick_complete;
+                
+            default:
+                active_count++;
+                continue;
+        }
+    }
+    
+tick_complete:
+    if (active_count == 0) {
+        s_expr_stack_pop_frame(inst->stack);
+        return SE_PIPELINE_DISABLE;
+    }
+    s_expr_stack_pop_frame(inst->stack);
+    return SE_PIPELINE_CONTINUE;
+}
+#if 0
 static s_expr_result_t se_frame_allocate(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -5173,7 +5377,7 @@ static s_expr_result_t se_frame_allocate(
     
     return SE_PIPELINE_CONTINUE;
 }
-
+#endif
 static s_expr_result_t se_frame_free(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -5201,4 +5405,27 @@ static s_expr_result_t se_frame_free(
     
     
     return SE_PIPELINE_CONTINUE;
+}
+
+static void se_log_stack(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    UNUSED(params);
+    UNUSED(param_count);
+    UNUSED(event_type);
+    
+    
+    printf("SE_LOG_STACK: stack capacity = %d\n", inst->stack->capacity);
+    printf("SE_LOG_STACK: stack free space = %u\n", inst->stack->capacity-inst->stack->sp);
+    printf("SE_LOG_STACK: stack stack pointer = %u\n", inst->stack->sp);
+    
+    printf("SE_LOG_STACK: stack frame count = %d\n", inst->stack->frame_count);
+    
+    if(inst->stack->frame_count > 0) {
+        printf("SE_LOG_STACK: stack frame base ptr = %u\n", inst->stack->frames[inst->stack->frame_count - 1].base_ptr);
+        printf("SE_LOG_STACK: stack frame num params = %d\n", inst->stack->frames[inst->stack->frame_count - 1].num_params);
+        printf("SE_LOG_STACK: stack frame num locals = %d\n", inst->stack->frames[inst->stack->frame_count - 1].num_locals);
+        printf("SE_LOG_STACK: stack frame scratch base = %u\n", inst->stack->frames[inst->stack->frame_count - 1].scratch_base);
+    }
+   
 }

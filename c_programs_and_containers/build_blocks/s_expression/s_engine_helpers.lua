@@ -15,7 +15,7 @@
 --============================================================================
 
 
-
+dofile("s_engine_equation.lua")
 
 
 --============================================================================
@@ -1464,18 +1464,59 @@ function se_call(num_params, num_locals, scratch_depth, return_vars, body_fns)
     table.remove(frame_stack)
 end
 
-function se_frame_allocate(num_params, num_locals, scratch_depth)
-    local c = m_call("SE_FRAME_ALLOCATE")
+
+
+function se_frame_allocate(num_params, num_locals, scratch_depth, ...)
+    local children = {...}
+    
+    table.insert(frame_stack, {
+        num_params = num_params,
+        num_locals = num_locals,
+        scratch_depth = scratch_depth,
+    })
+    
+    local f = m_call("SE_FRAME_ALLOCATE")
         uint(num_params)
         uint(num_locals)
         uint(scratch_depth)
-    end_call(c)
+        for _, child in ipairs(children) do
+            if type(child) == "function" then
+                child()
+            end
+        end
+    end_call(f)
+    
+    table.remove(frame_stack)
 end
 
-function se_frame_free()
-    local c = m_call("SE_FRAME_FREE")
-    end_call(c)
+
+function frame_vars(locals, scratch)
+    locals = locals or {}
+    scratch = scratch or {}
+    
+    local vars = {}
+    
+    for i, name in ipairs(locals) do
+        if vars[name] then
+            dsl_error("frame_vars: duplicate name '" .. name .. "'")
+        end
+        local idx = i - 1
+        vars[name] = function() stack_local(idx) end
+    end
+    
+    for i, name in ipairs(scratch) do
+        if vars[name] then
+            dsl_error("frame_vars: duplicate name '" .. name .. "'")
+        end
+        local offset = i - 1
+        vars[name] = function() stack_tos(offset) end
+    end
+    
+    return vars
 end
+
+
+
 
 SE_QUAD_OP = {
     -- Integer Arithmetic
@@ -1662,27 +1703,39 @@ function null_val()
 end
 
 function quad_iadd(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IADD, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IADD, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_isub(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ISUB, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ISUB, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_imul(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IMUL, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IMUL, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_idiv(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IDIV, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IDIV, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_imod(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IMOD, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IMOD, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_ineg(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.INEG, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.INEG, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1690,27 +1743,39 @@ end
 -- ============================================================================
 
 function quad_fadd(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FADD, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FADD, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fsub(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FSUB, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FSUB, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fmul(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FMUL, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FMUL, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fdiv(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FDIV, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FDIV, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fmod(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FMOD, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FMOD, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fneg(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FNEG, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FNEG, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1718,27 +1783,39 @@ end
 -- ============================================================================
 
 function quad_and(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_or(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_xor(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_not(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_NOT, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_NOT, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_shl(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_shr(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1746,27 +1823,39 @@ end
 -- ============================================================================
 
 function quad_ieq(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_ine(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_ilt(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_ile(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_igt(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_ige(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1774,27 +1863,39 @@ end
 -- ============================================================================
 
 function quad_feq(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fne(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_flt(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fle(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fgt(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fge(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1802,27 +1903,39 @@ end
 -- ============================================================================
 
 function quad_log_and(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_log_or(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_log_not(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_NOT, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_NOT, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_log_nand(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_log_nor(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_log_xor(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1830,7 +1943,9 @@ end
 -- ============================================================================
 
 function quad_mov(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.MOVE, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.MOVE, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1838,31 +1953,45 @@ end
 -- ============================================================================
 
 function quad_sqrt(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FSQRT, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FSQRT, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_pow(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FPOW, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FPOW, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_exp(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FEXP, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FEXP, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_log(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FLOG, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FLOG, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_log10(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FLOG10, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FLOG10, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_log2(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FLOG2, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FLOG2, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_fabs(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FABS, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FABS, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1870,31 +1999,45 @@ end
 -- ============================================================================
 
 function quad_sin(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FSIN, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FSIN, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_cos(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCOS, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCOS, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_tan(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FTAN, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FTAN, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_asin(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FASIN, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FASIN, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_acos(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FACOS, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FACOS, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_atan(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FATAN, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FATAN, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_atan2(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FATAN2, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FATAN2, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1902,15 +2045,21 @@ end
 -- ============================================================================
 
 function quad_sinh(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FSINH, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FSINH, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_cosh(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FCOSH, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FCOSH, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_tanh(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FTANH, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FTANH, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1918,15 +2067,21 @@ end
 -- ============================================================================
 
 function quad_iabs(src_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IABS, src_fn, null_param, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IABS, src_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function quad_imin(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IMIN, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IMIN, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_imax(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.IMAX, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.IMAX, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- ============================================================================
@@ -1934,13 +2089,16 @@ end
 -- ============================================================================
 
 function quad_fmin(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FMIN, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FMIN, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function quad_fmax(src1_fn, src2_fn, dest_fn)
-    se_quad(SE_QUAD_OP.FMAX, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_quad(SE_QUAD_OP.FMAX, src1_fn, src2_fn, dest_fn)
+    end
 end
-
 --[[
 
 -- Add two locals, store in third
@@ -2016,13 +2174,29 @@ SE_P_QUAD_OP = {
     LOG_NAND     = 0x33,   -- dest = !(src1 && src2)
     LOG_NOR      = 0x34,   -- dest = !(src1 || src2)
     LOG_XOR      = 0x35,   -- dest = (src1 && !src2) || (!src1 && src2)
+
+    -- Integer Comparison + Accumulate (dest += result)
+    ICMP_EQ_ACC  = 0x40,   -- dest += (src1 == src2)
+    ICMP_NE_ACC  = 0x41,   -- dest += (src1 != src2)
+    ICMP_LT_ACC  = 0x42,   -- dest += (src1 < src2)
+    ICMP_LE_ACC  = 0x43,   -- dest += (src1 <= src2)
+    ICMP_GT_ACC  = 0x44,   -- dest += (src1 > src2)
+    ICMP_GE_ACC  = 0x45,   -- dest += (src1 >= src2)
+
+    -- Float Comparison + Accumulate (dest += result)
+    FCMP_EQ_ACC  = 0x48,   -- dest += (src1 == src2)
+    FCMP_NE_ACC  = 0x49,   -- dest += (src1 != src2)
+    FCMP_LT_ACC  = 0x4A,   -- dest += (src1 < src2)
+    FCMP_LE_ACC  = 0x4B,   -- dest += (src1 <= src2)
+    FCMP_GT_ACC  = 0x4C,   -- dest += (src1 > src2)
+    FCMP_GE_ACC  = 0x4D,   -- dest += (src1 >= src2)
 }
 
 
 -- Lookup set for compile-time validation
 local SE_P_QUAD_OP_SET = {}
-for name, val in pairs(SE_QUAD_OP) do
-    SE_QUAD_OP_SET[val] = name
+for name, val in pairs(SE_P_QUAD_OP) do
+    SE_P_QUAD_OP_SET[val] = name
 end
 
 -- Add SE_QUAD to BUILTIN_FUNCTIONS predicate section
@@ -2048,7 +2222,7 @@ function se_p_quad(opcode, src1_fn, src2_fn, dest_fn)
         dsl_error("se_quad: dest must be a function emitting a parameter")
     end
 
-    local c = p_call("SE_QUAD")
+    local c = p_call("SE_P_QUAD")
         uint(opcode)
         src1_fn()
         src2_fn()
@@ -2063,104 +2237,232 @@ end
 -- and dest (where the 1/0 result is stored).
 -- ============================================================================
 
--- Bitwise
+
 function p_bit_and(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_AND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_bit_or(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_OR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_bit_xor(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_XOR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_bit_not(src1_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_NOT, src1_fn, function() null_param() end, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_NOT, src1_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function p_bit_shl(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_SHL, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_bit_shr(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.BIT_SHR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- Integer Comparison
 function p_icmp_eq(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_EQ, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_icmp_ne(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_NE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_icmp_lt(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_LT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_icmp_le(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_LE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_icmp_gt(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_GT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_icmp_ge(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_GE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- Float Comparison
 function p_fcmp_eq(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_EQ, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_fcmp_ne(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_NE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_fcmp_lt(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_LT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_fcmp_le(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_LE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_fcmp_gt(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_GT, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_fcmp_ge(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_GE, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- Logical
 function p_log_and(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_AND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_log_or(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_OR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_log_not(src1_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_NOT, src1_fn, function() null_param() end, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_NOT, src1_fn, function() null_param() end, dest_fn)
+    end
 end
 
 function p_log_nand(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_NAND, src1_fn, src2_fn, dest_fn)
+    end
 end
 
-function se_log_nor(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+function p_log_nor(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_NOR, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 function p_log_xor(src1_fn, src2_fn, dest_fn)
-    se_p_quad(SE_P_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.LOG_XOR, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+-- ============================================================================
+-- Integer Comparison + Accumulate
+-- ============================================================================
+
+function p_icmp_eq_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_EQ_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_icmp_ne_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_NE_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_icmp_lt_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_LT_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_icmp_le_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_LE_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_icmp_gt_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_GT_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_icmp_ge_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.ICMP_GE_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+-- ============================================================================
+-- Float Comparison + Accumulate
+-- ============================================================================
+
+function p_fcmp_eq_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_EQ_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_fcmp_ne_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_NE_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_fcmp_lt_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_LT_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_fcmp_le_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_LE_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_fcmp_gt_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_GT_ACC, src1_fn, src2_fn, dest_fn)
+    end
+end
+
+function p_fcmp_ge_acc(src1_fn, src2_fn, dest_fn)
+    return function()
+        se_p_quad(SE_P_QUAD_OP.FCMP_GE_ACC, src1_fn, src2_fn, dest_fn)
+    end
 end
 
 -- Range check: dest = (low <= src && src <= high)
@@ -2175,20 +2477,29 @@ end
 -- scratch2_fn: function emitting scratch location for (src <= high)
 
 function p_icmp_in_range(src_fn, low_fn, high_fn, dest_fn, scratch1_fn, scratch2_fn)
-    -- scratch1 = (low <= src)
-    p_icmp_le(low_fn, src_fn, scratch1_fn)
-    -- scratch2 = (src <= high)
-    p_icmp_le(src_fn, high_fn, scratch2_fn)
-    -- dest = scratch1 && scratch2
-    p_log_and(scratch1_fn, scratch2_fn, dest_fn)
+    return function()
+        -- scratch1 = (low <= src)
+        p_icmp_le(low_fn, src_fn, scratch1_fn)()
+        -- scratch2 = (src <= high)
+        p_icmp_le(src_fn, high_fn, scratch2_fn)()
+        -- dest = scratch1 && scratch2
+        p_log_and(scratch1_fn, scratch2_fn, dest_fn)()
+    end
 end
 
 function p_fcmp_in_range(src_fn, low_fn, high_fn, dest_fn, scratch1_fn, scratch2_fn)
-    -- scratch1 = (low <= src)
-    p_fcmp_le(low_fn, src_fn, scratch1_fn)
-    -- scratch2 = (src <= high)
-    p_fcmp_le(src_fn, high_fn, scratch2_fn)
-    -- dest = scratch1 && scratch2
-    p_log_and(scratch1_fn, scratch2_fn, dest_fn)
+    return function()
+        -- scratch1 = (low <= src)
+        p_fcmp_le(low_fn, src_fn, scratch1_fn)()
+        -- scratch2 = (src <= high)
+        p_fcmp_le(src_fn, high_fn, scratch2_fn)()
+        -- dest = scratch1 && scratch2
+        p_log_and(scratch1_fn, scratch2_fn, dest_fn)()
+    end
 end
 
+function se_log_stack()
+   local c = o_call("SE_LOG_STACK")
+    end_call(c)
+    
+end
