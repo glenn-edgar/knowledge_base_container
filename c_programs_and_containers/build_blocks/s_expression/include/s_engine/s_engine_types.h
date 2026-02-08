@@ -97,6 +97,8 @@ typedef enum {
     S_EXPR_PARAM_STACK_TOS    = 0x18,   // stack_tos(offset)
     S_EXPR_PARAM_STACK_LOCAL  = 0x19,   // stack_local(index)
     S_EXPR_PARAM_NULL         = 0x1A,   // null_param()
+    S_EXPR_PARAM_STACK_PUSH   = 0x1B,   // stack_push(value)
+    S_EXPR_PARAM_STACK_POP    = 0x1C,   // stack_pop()
 } s_expr_result_t;
 // ============================================================================
 // EVENT TYPES (passed to functions)

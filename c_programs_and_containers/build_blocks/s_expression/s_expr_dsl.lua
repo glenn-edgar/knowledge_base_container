@@ -119,6 +119,8 @@ types_module.S_EXPR_PARAM = {
     STACK_TOS   = 0x18,
     STACK_LOCAL = 0x19,
     NULL_PARAM  = 0x1A,
+    STACK_PUSH  = 0x1B,
+    STACK_POP   = 0x1C,
 }
 
 types_module.S_EXPR_FLAG_SURVIVES_RESET = 0x40
@@ -1209,6 +1211,14 @@ end
 function _G.int(value) add_param("int", value) end
 function _G.uint(value) add_param("uint", value) end
 function _G.flt(value) add_param("float", value) end
+
+function _G.stack_push()
+    add_param("stack_push", 0)
+end
+
+function _G.stack_pop()
+    add_param("stack_pop", 0)
+end
 
 function _G.stack_tos(offset)
     offset = offset or 0

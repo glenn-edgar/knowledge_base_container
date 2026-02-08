@@ -1489,7 +1489,7 @@ function se_frame_allocate(num_params, num_locals, scratch_depth, ...)
     table.remove(frame_stack)
 end
 
-
+--[[
 function frame_vars(locals, scratch)
     locals = locals or {}
     scratch = scratch or {}
@@ -1514,6 +1514,7 @@ function frame_vars(locals, scratch)
     
     return vars
 end
+--]]
 
 
 
@@ -1645,6 +1646,8 @@ function se_quad(opcode, src1_fn, src2_fn, dest_fn)
 end
 
 
+
+
 function se_push_stack(value_fn)
     if type(value_fn) ~= "function" then
         dsl_error("se_push_stack: value must be a function emitting a parameter")
@@ -1665,6 +1668,14 @@ print("S-Expression Engine helpers loaded (v5.2)")
 -- ============================================================================
 -- INTEGER ARITHMETIC
 -- ============================================================================
+function stack_push_ref()
+    return function() stack_push() end
+end
+
+function stack_pop_ref()
+    return function() stack_pop() end
+end
+
 
 function local_ref(idx)
     return function() stack_local(idx) end

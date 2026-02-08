@@ -1,7 +1,7 @@
 -- ============================================================================
 -- s_expr_compiler.lua
 -- Expression Compiler for S-Expression Engine Quad Operations
--- Version 1.0
+-- Version 1.1
 --
 -- Compiles C-like expressions into sequences of quad and p_quad operations.
 -- Runs at DSL compile time (in LuaJIT) to generate binary tree nodes.
@@ -13,7 +13,7 @@
 --   - Logical: &&, ||, !
 --   - Unary: -, !, ~
 --   - Parentheses for grouping
---   - Field references: @field_name
+--   - Field references: @field_name (in expressions AND as destinations)
 --   - Math functions: sqrt, sin, cos, abs, min, max, pow, etc.
 --   - Compound assignment: +=, -=, *=, /=, etc.
 --   - Multi-statement: semicolon separated
@@ -21,12 +21,18 @@
 --   - Type annotations for float/int dispatch
 --   - Debug output of generated operations
 --
+-- VERSION 1.1 CHANGES:
+--   - @field_name now works as assignment destination in quad_expr/quad_multi
+--   - ref_for() handles @field prefix by delegating to field_val()
+--   - quad_expr destination regex accepts @field.path syntax
+--
 -- Usage:
 --   local v = frame_vars(
 --       {"x:float", "y:float", "result:float", "count:int"},
 --       {"t0:float", "t1:float", "t2:float"}
 --   )
 --   quad_expr("result = (x + 5.0) * y - 2.0", v, {"t0", "t1"})()
+--   quad_expr("@blackboard_field = x + 1.0", v, {"t0"})()
 --   quad_pred("x > 5.0 && y <= 10.0", v, {"t0", "t1"})()
 --
 -- Loaded by s_engine_helpers.lua via dofile()
@@ -651,7 +657,20 @@ local function compile_ast(ast, vars, scratch_names, is_pred)
         end
     end
 
+    -- ========================================================================
+    -- ref_for: resolve a name to a parameter-emitting closure
+    --
+    -- Handles three cases:
+    --   1. "@field_name"  -> field_val(field_name)  (blackboard field)
+    --   2. "var_name"     -> vars[var_name]          (frame local/scratch)
+    --   3. unknown        -> error
+    -- ========================================================================
     local function ref_for(name)
+        -- Handle @field references (blackboard fields)
+        if name:sub(1, 1) == "@" then
+            local field_name = name:sub(2)
+            return field_val(field_name)
+        end
         -- Check frame_vars table
         if vars[name] then
             return vars[name]
@@ -705,9 +724,18 @@ local function compile_ast(ast, vars, scratch_names, is_pred)
     -- Main recursive emit function
     -- Returns the ref function for where the result is stored
     local function emit(node, dest_name)
-        -- Leaf nodes: no quad op needed, return ref directly
+        -- Leaf nodes: if no destination specified, return ref directly.
+        -- If destination IS specified (top-level assignment like "b = @field"),
+        -- we must emit a mov to copy the value.
         local lr = leaf_ref(node)
-        if lr then return lr end
+        if lr then
+            if dest_name then
+                local dest_ref = ref_for(dest_name)
+                table.insert(ops, {fn = "quad_mov", args = {lr, dest_ref}})
+                return dest_ref
+            end
+            return lr
+        end
 
         if node.tag == "unop" then
             local operand_ref = emit(node.operand)
@@ -828,7 +856,29 @@ local compound_patterns = {
     {pat = "(%w+)%s*>>=%s*(.+)",  op = ">>"},
 }
 
+-- Compound assignment patterns that support @field destinations
+local compound_patterns_field = {
+    {pat = "(@[%w_.]+)%s*%+=%s*(.+)",  op = "+"},
+    {pat = "(@[%w_.]+)%s*%-=%s*(.+)",  op = "-"},
+    {pat = "(@[%w_.]+)%s*%*=%s*(.+)",  op = "*"},
+    {pat = "(@[%w_.]+)%s*/=%s*(.+)",   op = "/"},
+    {pat = "(@[%w_.]+)%s*%%=%s*(.+)",  op = "%%"},
+    {pat = "(@[%w_.]+)%s*&=%s*(.+)",   op = "&"},
+    {pat = "(@[%w_.]+)%s*|=%s*(.+)",   op = "|"},
+    {pat = "(@[%w_.]+)%s*%^=%s*(.+)",  op = "^"},
+    {pat = "(@[%w_.]+)%s*<<=%s*(.+)",  op = "<<"},
+    {pat = "(@[%w_.]+)%s*>>=%s*(.+)",  op = ">>"},
+}
+
 local function desugar_compound(expr_str)
+    -- Try @field compound patterns first
+    for _, cp in ipairs(compound_patterns_field) do
+        local dest, body = expr_str:match("^%s*" .. cp.pat .. "%s*$")
+        if dest then
+            return dest .. " = " .. dest .. " " .. cp.op .. " (" .. body .. ")"
+        end
+    end
+    -- Then try regular variable compound patterns
     for _, cp in ipairs(compound_patterns) do
         local dest, body = expr_str:match("^%s*" .. cp.pat .. "%s*$")
         if dest then
@@ -893,6 +943,7 @@ end
 -- Returns a closure that emits DSL nodes when called.
 --
 -- expr_str: "dest = expression" or compound "dest += expression"
+--           dest can be a variable name or @field_name
 -- v: frame_vars table
 -- scratch: list of scratch variable names (from v) for temporaries
 -- ============================================================================
@@ -903,8 +954,8 @@ function _G.quad_expr(expr_str, v, scratch)
     -- Desugar compound assignment
     expr_str = desugar_compound(expr_str)
 
-    -- Parse "dest = expr"
-    local dest_name, body = expr_str:match("^%s*([%w_@.]+)%s*=%s*(.+)%s*$")
+    -- Parse "dest = expr" - dest can be @field.path or variable name
+    local dest_name, body = expr_str:match("^%s*(@?[%w_.]+)%s*=%s*(.+)%s*$")
     if not dest_name then
         dsl_error("quad_expr: expected 'dest = expression', got: " .. expr_str)
     end
@@ -1103,7 +1154,7 @@ function _G.quad_expr_debug(expr_str, v, scratch)
 
     expr_str = desugar_compound(expr_str)
 
-    local dest_name, body = expr_str:match("^%s*([%w_@.]+)%s*=%s*(.+)%s*$")
+    local dest_name, body = expr_str:match("^%s*(@?[%w_.]+)%s*=%s*(.+)%s*$")
     if not dest_name then
         dsl_error("quad_expr_debug: expected 'dest = expression', got: " .. expr_str)
     end
@@ -1169,5 +1220,4 @@ function _G.quad_pred_debug(expr_str, v, scratch)
     return quad_pred(expr_str, v, scratch)
 end
 
-print("S-Expression compiler loaded (v1.0)")
-
+print("S-Expression compiler loaded (v1.1)")

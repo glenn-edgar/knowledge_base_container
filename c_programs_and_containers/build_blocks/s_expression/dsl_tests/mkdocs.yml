@@ -9,6 +9,8 @@ nav:
   - JSON Support: README_json_support.md
   - JSON Array Support: README_json_array_support.md
   - Reading Debug Map: README_reading_debug_map.md
+  - Stack Operations and Runtime: README_stack_operations.md
+  - Stack Equations: README_stack_equation_handler.md
   - Composite Functions:
     - Overview: composite_functions/README_composite_functions.md
     - Chain Flow: composite_functions/README_chain_flow.md
@@ -54,6 +56,8 @@ nav:
     - Complex Sequence Test: tests/README_complex_sequence.md
     - Loop Test: tests/README_loop_test.md
     - Json Test: tests/README_json.md
+    - Stack Test: tests/README_stack_test.md
+    - Stack Equations Test: tests/README_stack_equation_test.md
 
   
 

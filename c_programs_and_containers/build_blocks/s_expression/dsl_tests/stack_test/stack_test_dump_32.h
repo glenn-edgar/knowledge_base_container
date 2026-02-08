@@ -27,7 +27,7 @@
  * Hash:   0x152726E4
  * Trees:  1
  * Records: 1
- * Strings: 8
+ * Strings: 10
  * Constants: 0
  * Param size: 8 bytes (32-bit)
  */
@@ -44,6 +44,8 @@
  * [0x0005] (  5) hash=0xB5803B90 "float_val_1 %f"
  * [0x0006] (  6) hash=0x99014947 "float_val_2 %f"
  * [0x0007] (  7) hash=0x5AD56C92 "float_val_3 %f"
+ * [0x0008] (  8) hash=0x3F380748 "call result float_val_2 %f"
+ * [0x0009] (  9) hash=0x87B0986D "call result float_val_3 %f"
  */
 
 // ============================================================================
@@ -56,6 +58,7 @@
  *   [0x0002] ( 2) hash=0xCEBBEFA4 SE_LOG
  *   [0x0003] ( 3) hash=0x2442CEA2 SE_LOG_INT
  *   [0x0004] ( 4) hash=0xA8949A19 SE_LOG_FLOAT
+ *   [0x0005] ( 5) hash=0x08E351ED SE_PUSH_STACK
  *
  * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
  *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
@@ -64,7 +67,9 @@
  *   [0x0003] ( 3) hash=0x5C5AC947 SE_FRAME_ALLOCATE
  *   [0x0004] ( 4) hash=0x0C3460EB SE_TICK_DELAY
  *   [0x0005] ( 5) hash=0x0933AC9B SE_RETURN_PIPELINE_TERMINATE
- *   [0x0006] ( 6) hash=0xDFE64C74 SE_RETURN_TERMINATE
+ *   [0x0006] ( 6) hash=0x4F4BB2E1 SE_SEQUENCE_ONCE
+ *   [0x0007] ( 7) hash=0x753D7572 SE_STACK_FRAME_INSTANCE
+ *   [0x0008] ( 8) hash=0xDFE64C74 SE_RETURN_TERMINATE
  *
  * PRED FUNCTIONS (type=0x0A, with 0x40=p_call_composite):
  *   [0x0000] ( 0) hash=0x42A88A80 SE_STATE_INCREMENT_AND_TEST
@@ -94,12 +99,12 @@
 // ============================================================================
 /*
  * TREE: stack_test
- *   hash=0x152726E4 nodes=64 ptrs=3
+ *   hash=0x152726E4 nodes=78 ptrs=4
  *   record=stack_test_state (hash=0xF3C5B992)
  *
  * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
  * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    321      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    0  OPEN_CALL[0x07]    409      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
  *    2    OPEN_CALL[0x07]      2      0  SE_LOG_STACK hash=0x9D0EA7BB
  *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
@@ -308,7 +313,7 @@
  *  206      NULL_PARAM                 -      -  0
  *  207      FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
  *  208    CLOSE[0x06]          0      -  (end SE_QUAD)
- *  209    OPEN_CALL[0x07]    105      0  SE_FORK_JOIN hash=0xE404E1CF
+ *  209    OPEN_CALL[0x07]    193      0  SE_FORK_JOIN hash=0xE404E1CF
  *  210    MAIN      [0x09]    209      1  idx_to_ptr=0
  *  211      OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
  *  212      ONESHOT   [0x08]    211      1  idx_to_ptr=0
@@ -317,7 +322,7 @@
  *  215        NULL_PARAM                 -      -  0
  *  216        FIELD[0x0B]         36      4  loop_count (off=0x0024, hash=0xF29B1E63)
  *  217      CLOSE[0x06]          0      -  (end SE_QUAD)
- *  218      OPEN_CALL[0x07]     95      0  SE_WHILE hash=0xA08B6DD3
+ *  218      OPEN_CALL[0x07]    183      0  SE_WHILE hash=0xA08B6DD3
  *  219      MAIN      [0x09]    218      2  idx_to_ptr=0
  *  220        OPEN_CALL[0x07]      6      0  SE_P_QUAD hash=0x4D8ADF00
  *  221        PRED      [0x0A]    220      1  idx_to_ptr=0
@@ -326,9 +331,9 @@
  *  224          UINT[0x01]           -      -  10 (0x0000000A)
  *  225          FIELD[0x0B]         36      4  loop_count (off=0x0024, hash=0xF29B1E63)
  *  226        CLOSE[0x06]          0      -  (end SE_P_QUAD)
- *  227        OPEN_CALL[0x07]     85      0  SE_FORK_JOIN hash=0xE404E1CF
+ *  227        OPEN_CALL[0x07]    173      0  SE_FORK_JOIN hash=0xE404E1CF
  *  228        MAIN      [0x09]    227      1  idx_to_ptr=0
- *  229          OPEN_CALL[0x07]     82      0  SE_FRAME_ALLOCATE hash=0x5C5AC947
+ *  229          OPEN_CALL[0x07]    170      0  SE_FRAME_ALLOCATE hash=0x5C5AC947
  *  230          MAIN      [0x09]    229      3  idx_to_ptr=0
  *  231            UINT[0x01]           -      -  0 (0x00000000)
  *  232            UINT[0x01]           -      -  5 (0x00000005)
@@ -341,25 +346,25 @@
  *  239            MAIN+PTR  [0x89]    238      4  idx_to_ptr=2
  *  240              INT[0x00]            -      -  5 (0x00000005)
  *  241            CLOSE[0x06]          0      -  (end SE_TICK_DELAY)
- *  242            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
- *  243            ONESHOT   [0x08]    242      4  idx_to_ptr=0
- *  244              STR_IDX[0x0D]        5     14  "float_val_1 %f"
+ *  242            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  243            ONESHOT   [0x08]    242      1  idx_to_ptr=0
+ *  244              UINT[0x01]           -      -  8 (0x00000008)
  *  245              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
- *  246            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
- *  247            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  248            ONESHOT   [0x08]    247      1  idx_to_ptr=0
- *  249              UINT[0x01]           -      -  8 (0x00000008)
- *  250              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
- *  251              FLOAT[0x02]          -      -  1
+ *  246              FLOAT[0x02]          -      -  1
+ *  247              STACK_LOCAL                 -      -  0
+ *  248            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  249            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  250            ONESHOT   [0x08]    249      1  idx_to_ptr=0
+ *  251              UINT[0x01]           -      -  8 (0x00000008)
  *  252              STACK_LOCAL                 -      -  0
- *  253            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  254            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  255            ONESHOT   [0x08]    254      1  idx_to_ptr=0
- *  256              UINT[0x01]           -      -  8 (0x00000008)
- *  257              STACK_LOCAL                 -      -  0
- *  258              FLOAT[0x02]          -      -  5
+ *  253              FLOAT[0x02]          -      -  5
+ *  254              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
+ *  255            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  256            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
+ *  257            ONESHOT   [0x08]    256      4  idx_to_ptr=0
+ *  258              STR_IDX[0x0D]        6     14  "float_val_2 %f"
  *  259              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
- *  260            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  260            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
  *  261            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
  *  262            ONESHOT   [0x08]    261      1  idx_to_ptr=0
  *  263              UINT[0x01]           -      -  64 (0x00000040)
@@ -367,62 +372,150 @@
  *  265              NULL_PARAM                 -      -  0
  *  266              STACK_LOCAL                 -      -  1
  *  267            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  268            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
- *  269            ONESHOT   [0x08]    268      4  idx_to_ptr=0
- *  270              STR_IDX[0x0D]        6     14  "float_val_2 %f"
- *  271              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
- *  272            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
- *  273            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  274            ONESHOT   [0x08]    273      1  idx_to_ptr=0
- *  275              UINT[0x01]           -      -  9 (0x00000009)
- *  276              STACK_LOCAL                 -      -  1
- *  277              UINT[0x01]           -      -  2 (0x00000002)
+ *  268            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  269            ONESHOT   [0x08]    268      1  idx_to_ptr=0
+ *  270              UINT[0x01]           -      -  9 (0x00000009)
+ *  271              STACK_LOCAL                 -      -  1
+ *  272              FLOAT[0x02]          -      -  2
+ *  273              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
+ *  274            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  275            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
+ *  276            ONESHOT   [0x08]    275      4  idx_to_ptr=0
+ *  277              STR_IDX[0x0D]        7     14  "float_val_3 %f"
  *  278              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
- *  279            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  279            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
  *  280            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
  *  281            ONESHOT   [0x08]    280      1  idx_to_ptr=0
  *  282              UINT[0x01]           -      -  64 (0x00000040)
  *  283              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
  *  284              NULL_PARAM                 -      -  0
- *  285              STACK_TOS                 -      -  0
+ *  285              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
  *  286            CLOSE[0x06]          0      -  (end SE_QUAD)
  *  287            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
  *  288            ONESHOT   [0x08]    287      4  idx_to_ptr=0
- *  289              STR_IDX[0x0D]        7     14  "float_val_3 %f"
- *  290              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
+ *  289              STR_IDX[0x0D]        5     14  "float_val_1 %f"
+ *  290              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
  *  291            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
  *  292            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
  *  293            ONESHOT   [0x08]    292      1  idx_to_ptr=0
  *  294              UINT[0x01]           -      -  64 (0x00000040)
- *  295              STACK_TOS                 -      -  0
+ *  295              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
  *  296              NULL_PARAM                 -      -  0
- *  297              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
+ *  297              STACK_PUSH                 -      -  0
  *  298            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  299            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
- *  300            ONESHOT   [0x08]    299      4  idx_to_ptr=0
- *  301              STR_IDX[0x0D]        5     14  "float_val_1 %f"
- *  302              FIELD[0x0B]         24      4  float_val_1 (off=0x0018, hash=0x5B48D16D)
- *  303            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
- *  304            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  305            ONESHOT   [0x08]    304      2  idx_to_ptr=0
- *  306              STR_IDX[0x0D]        4     24  "frame allocated finished"
- *  307            CLOSE[0x06]          0      -  (end SE_LOG)
- *  308            OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_TERMINATE hash=0x0933AC9B
- *  309            MAIN      [0x09]    308      5  idx_to_ptr=0
- *  310            CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_TERMINATE)
- *  311          CLOSE[0x06]          0      -  (end SE_FRAME_ALLOCATE)
- *  312        CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
- *  313      CLOSE[0x06]          0      -  (end SE_WHILE)
- *  314    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
- *  315    OPEN_CALL[0x07]      2      0  SE_LOG_STACK hash=0x9D0EA7BB
- *  316    ONESHOT   [0x08]    315      0  idx_to_ptr=0
- *  317    CLOSE[0x06]          0      -  (end SE_LOG_STACK)
- *  318    OPEN_CALL[0x07]      2      0  SE_RETURN_TERMINATE hash=0xDFE64C74
- *  319    MAIN      [0x09]    318      6  idx_to_ptr=0
- *  320    CLOSE[0x06]          0      -  (end SE_RETURN_TERMINATE)
- *  321  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *  299            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  300            ONESHOT   [0x08]    299      1  idx_to_ptr=0
+ *  301              UINT[0x01]           -      -  64 (0x00000040)
+ *  302              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
+ *  303              NULL_PARAM                 -      -  0
+ *  304              STACK_PUSH                 -      -  0
+ *  305            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  306            OPEN_CALL[0x07]     47      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  307            MAIN      [0x09]    306      6  idx_to_ptr=0
+ *  308              OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  309              ONESHOT   [0x08]    308      5  idx_to_ptr=0
+ *  310                UINT[0x01]           -      -  2 (0x00000002)
+ *  311              CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  312              OPEN_CALL[0x07]      9      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  313              MAIN+PTR  [0x89]    312      7  idx_to_ptr=3
+ *  314                UINT[0x01]           -      -  2 (0x00000002)
+ *  315                UINT[0x01]           -      -  2 (0x00000002)
+ *  316                UINT[0x01]           -      -  3 (0x00000003)
+ *  317                OPEN[0x05]           ?      -  list '__list_1'
+ *  318                UINT[0x01]           -      -  2 (0x00000002)
+ *  319                UINT[0x01]           -      -  3 (0x00000003)
+ *  320                CLOSE[0x06]          3      -  list '__list_1' (opened at 317)
+ *  321              CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  322              OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  323              ONESHOT   [0x08]    322      1  idx_to_ptr=0
+ *  324                UINT[0x01]           -      -  8 (0x00000008)
+ *  325                STACK_LOCAL                 -      -  0
+ *  326                FLOAT[0x02]          -      -  1
+ *  327                STACK_TOS                 -      -  0
+ *  328              CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  329              OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  330              ONESHOT   [0x08]    329      1  idx_to_ptr=0
+ *  331                UINT[0x01]           -      -  8 (0x00000008)
+ *  332                STACK_TOS                 -      -  0
+ *  333                FLOAT[0x02]          -      -  5
+ *  334                STACK_TOS                 -      -  1
+ *  335              CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  336              OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  337              ONESHOT   [0x08]    336      1  idx_to_ptr=0
+ *  338                UINT[0x01]           -      -  9 (0x00000009)
+ *  339                STACK_TOS                 -      -  1
+ *  340                FLOAT[0x02]          -      -  2
+ *  341                STACK_LOCAL                 -      -  2
+ *  342              CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  343              OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  344              ONESHOT   [0x08]    343      1  idx_to_ptr=0
+ *  345                UINT[0x01]           -      -  10 (0x0000000A)
+ *  346                STACK_LOCAL                 -      -  1
+ *  347                FLOAT[0x02]          -      -  2
+ *  348                STACK_LOCAL                 -      -  3
+ *  349              CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  350              OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_TERMINATE hash=0x0933AC9B
+ *  351              MAIN      [0x09]    350      5  idx_to_ptr=0
+ *  352              CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_TERMINATE)
+ *  353            CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  354            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  355            ONESHOT   [0x08]    354      1  idx_to_ptr=0
+ *  356              UINT[0x01]           -      -  64 (0x00000040)
+ *  357              STACK_POP                 -      -  0
+ *  358              NULL_PARAM                 -      -  0
+ *  359              STACK_LOCAL                 -      -  3
+ *  360            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  361            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  362            ONESHOT   [0x08]    361      1  idx_to_ptr=0
+ *  363              UINT[0x01]           -      -  64 (0x00000040)
+ *  364              STACK_POP                 -      -  0
+ *  365              NULL_PARAM                 -      -  0
+ *  366              STACK_LOCAL                 -      -  4
+ *  367            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  368            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  369            ONESHOT   [0x08]    368      1  idx_to_ptr=0
+ *  370              UINT[0x01]           -      -  64 (0x00000040)
+ *  371              STACK_LOCAL                 -      -  3
+ *  372              NULL_PARAM                 -      -  0
+ *  373              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
+ *  374            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  375            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  376            ONESHOT   [0x08]    375      1  idx_to_ptr=0
+ *  377              UINT[0x01]           -      -  64 (0x00000040)
+ *  378              STACK_LOCAL                 -      -  4
+ *  379              NULL_PARAM                 -      -  0
+ *  380              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
+ *  381            CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  382            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
+ *  383            ONESHOT   [0x08]    382      4  idx_to_ptr=0
+ *  384              STR_IDX[0x0D]        8     26  "call result float_val_2 %f"
+ *  385              FIELD[0x0B]         28      4  float_val_2 (off=0x001C, hash=0x5848CCB4)
+ *  386            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
+ *  387            OPEN_CALL[0x07]      4      0  SE_LOG_FLOAT hash=0xA8949A19
+ *  388            ONESHOT   [0x08]    387      4  idx_to_ptr=0
+ *  389              STR_IDX[0x0D]        9     26  "call result float_val_3 %f"
+ *  390              FIELD[0x0B]         32      4  float_val_3 (off=0x0020, hash=0x5948CE47)
+ *  391            CLOSE[0x06]          0      -  (end SE_LOG_FLOAT)
+ *  392            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  393            ONESHOT   [0x08]    392      2  idx_to_ptr=0
+ *  394              STR_IDX[0x0D]        4     24  "frame allocated finished"
+ *  395            CLOSE[0x06]          0      -  (end SE_LOG)
+ *  396            OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_TERMINATE hash=0x0933AC9B
+ *  397            MAIN      [0x09]    396      5  idx_to_ptr=0
+ *  398            CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_TERMINATE)
+ *  399          CLOSE[0x06]          0      -  (end SE_FRAME_ALLOCATE)
+ *  400        CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
+ *  401      CLOSE[0x06]          0      -  (end SE_WHILE)
+ *  402    CLOSE[0x06]          0      -  (end SE_FORK_JOIN)
+ *  403    OPEN_CALL[0x07]      2      0  SE_LOG_STACK hash=0x9D0EA7BB
+ *  404    ONESHOT   [0x08]    403      0  idx_to_ptr=0
+ *  405    CLOSE[0x06]          0      -  (end SE_LOG_STACK)
+ *  406    OPEN_CALL[0x07]      2      0  SE_RETURN_TERMINATE hash=0xDFE64C74
+ *  407    MAIN      [0x09]    406      8  idx_to_ptr=0
+ *  408    CLOSE[0x06]          0      -  (end SE_RETURN_TERMINATE)
+ *  409  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
  *
- * Total params: 322
+ * Total params: 410
  */
 
 #endif // STACK_TEST_DUMP_32_H

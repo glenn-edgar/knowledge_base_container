@@ -953,6 +953,12 @@ function BinaryModuleGenerator:emit_dsl_param(e, param)
             self:emit_param_struct(e, S_EXPR_PARAM.FIELD, 0, nil, nil, h)
         end
         return 1
+    elseif ptype == "stack_push" then
+        self:emit_param_struct(e, S_EXPR_PARAM.STACK_PUSH, 0, nil, nil, value)
+        return 1
+    elseif ptype == "stack_pop" then
+        self:emit_param_struct(e, S_EXPR_PARAM.STACK_POP, 0, nil, nil, value)
+        return 1
     elseif ptype == "nested_field_ref" then
         local offset, size = self:resolve_nested_field_offset(value)
         if offset then

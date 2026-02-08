@@ -3202,17 +3202,9 @@ static s_expr_result_t se_sequence_once(
         // -----------------------------------------------------------------
         // MAIN - invoke, check for early exit
         // -----------------------------------------------------------------
-        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
-        
-        // APPLICATION codes (0-5) - propagate immediately
-        if (r <= SE_SKIP_CONTINUE) {
-            return r;
-        }
-        
-        // FUNCTION codes (6-11) - propagate immediately
-        if (r >= SE_FUNCTION_CONTINUE && r <= SE_FUNCTION_SKIP_CONTINUE) {
-            return r;
-        }
+        s_expr_invoke_any(inst, params, phys_idx);
+
+       
         
         // PIPELINE codes (12-17) - ignore, continue to next child
     }
@@ -4373,9 +4365,6 @@ static s_expr_result_t se_wait_timeout(
 #define SE_QUAD_FMAX      0x6D
 #define SE_QUAD_MOV       0x6E
 
-// ============================================================================
-// Helper: Read value from param as integer
-// ============================================================================
 static ct_int_t quad_read_int(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* p
@@ -4404,6 +4393,11 @@ static ct_int_t quad_read_int(
             const s_expr_param_t* sp = s_expr_stack_get_local(inst->stack, p->stack_offset);
             return sp ? s_expr_param_int(sp) : 0;
         }
+        case S_EXPR_PARAM_STACK_POP: {
+            const s_expr_param_t *sp;
+            sp = s_expr_stack_pop(inst->stack);
+            return s_expr_param_int(sp);
+        }
         case S_EXPR_PARAM_CONST_REF:
             if (inst->module && inst->module->def && p->const_index < inst->module->def->const_count) {
                 const void* cdata = inst->module->def->constants[p->const_index];
@@ -4415,9 +4409,6 @@ static ct_int_t quad_read_int(
     }
 }
 
-// ============================================================================
-// Helper: Read value from param as float
-// ============================================================================
 static ct_float_t quad_read_float(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* p
@@ -4446,6 +4437,11 @@ static ct_float_t quad_read_float(
             const s_expr_param_t* sp = s_expr_stack_get_local(inst->stack, p->stack_offset);
             return sp ? s_expr_param_float(sp) : 0.0f;
         }
+        case S_EXPR_PARAM_STACK_POP: {
+            const s_expr_param_t *sp;
+            sp = s_expr_stack_pop(inst->stack);
+            return s_expr_param_float(sp);
+        }
         case S_EXPR_PARAM_CONST_REF:
             if (inst->module && inst->module->def && p->const_index < inst->module->def->const_count) {
                 const void* cdata = inst->module->def->constants[p->const_index];
@@ -4457,7 +4453,6 @@ static ct_float_t quad_read_float(
             return 0.0f;
     }
 }
-
 // ============================================================================
 // Helper: Write integer result to dest
 // ============================================================================
@@ -4489,11 +4484,18 @@ static void quad_write_int(
             }
             break;
         }
+        case S_EXPR_PARAM_STACK_PUSH: {
+            s_expr_param_t p;
+            memset(&p, 0, sizeof(p));
+            p.type = S_EXPR_PARAM_INT;
+            p.int_val = val;
+            s_expr_stack_push(inst->stack, &p);
+            break;
+        }
         default:
             break;
     }
 }
-
 // ============================================================================
 // Helper: Write float result to dest
 // ============================================================================
@@ -4525,11 +4527,18 @@ static void quad_write_float(
             }
             break;
         }
+        case S_EXPR_PARAM_STACK_PUSH: {
+            s_expr_param_t p;
+            memset(&p, 0, sizeof(p));
+            p.type = S_EXPR_PARAM_FLOAT;
+            p.float_val = val;
+            s_expr_stack_push(inst->stack, &p);
+            break;
+        }
         default:
             break;
     }
 }
-
 // ============================================================================
 // SE_QUAD Implementation
 // ============================================================================
@@ -4879,34 +4888,30 @@ static void copy_return_vars_and_pop(
     const s_expr_param_t* p = return_list + 1;
     const s_expr_param_t* end = return_list + list_len;
     
-    // Push return values to scratch area (above locals)
+    // Read return values into temp buffer before destroying frame
+    s_expr_param_t temp[16];
     uint16_t return_count = 0;
-    while (p < end) {
+    
+    while (p < end && return_count < 16) {
         uint8_t p_opcode = p->type & S_EXPR_OPCODE_MASK;
         if (p_opcode == S_EXPR_PARAM_UINT || p_opcode == S_EXPR_PARAM_INT) {
             uint16_t local_idx = (uint16_t)p->uint_val;
             const s_expr_param_t* local = s_expr_stack_get_local(inst->stack, local_idx);
             if (local) {
-                s_expr_stack_push(inst->stack, local);
-                return_count++;
+                temp[return_count++] = *local;
             }
         }
         p++;
     }
     
-    // Remember where return values are
-    uint16_t sp_before_pop = inst->stack->sp;
-    
-    // Pop frame (resets sp to base_ptr, but data still in buffer)
+    // Pop frame
     s_expr_stack_pop_frame(inst->stack);
     
-    // Copy return values from old location to new top
-    uint16_t src = sp_before_pop - return_count;
+    // Push return values from temp buffer
     for (uint16_t i = 0; i < return_count; i++) {
-        inst->stack->data[inst->stack->sp++] = inst->stack->data[src + i];
+        s_expr_stack_push(inst->stack, &temp[i]);
     }
 }
-
 
 // ============================================================================
 // SE_STACK_FRAME_INSTANCE - Stack Frame Management
@@ -4967,37 +4972,37 @@ static s_expr_result_t se_stack_frame_instance(
     }
     
     // =========================================================================
-// INIT EVENT - validate param count, push frame
-// =========================================================================
-if (event_type == SE_EVENT_INIT) {
-    // Pop passed param count from stack (pushed by se_call wrapper)
-    const s_expr_param_t* count_param = s_expr_stack_pop(inst->stack);
-    if (!count_param) {
-        EXCEPTION("SE_STACK_FRAME_INSTANCE: missing param count on stack");
-        return SE_PIPELINE_TERMINATE;
+    // INIT EVENT - validate param count, push frame
+    // =========================================================================
+    if (event_type == SE_EVENT_INIT) {
+        // Pop passed param count from stack (pushed by se_call wrapper)
+        const s_expr_param_t* count_param = s_expr_stack_pop(inst->stack);
+        if (!count_param) {
+            EXCEPTION("SE_STACK_FRAME_INSTANCE: missing param count on stack");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        uint16_t passed_params = (uint16_t)count_param->uint_val;
+        
+        if (passed_params != num_params) {
+            EXCEPTION("SE_STACK_FRAME_INSTANCE: param mismatch");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        if (!s_expr_stack_push_frame(inst->stack, num_params, num_locals)) {
+            EXCEPTION("SE_STACK_FRAME_INSTANCE: failed to push frame");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        s_expr_set_state(inst, 1);
+        return SE_PIPELINE_CONTINUE;
     }
-    
-    uint16_t passed_params = (uint16_t)count_param->uint_val;
-    
-    if (passed_params != num_params) {
-        EXCEPTION("SE_STACK_FRAME_INSTANCE: param mismatch");
-        return SE_PIPELINE_TERMINATE;
-    }
-    
-    if (!s_expr_stack_push_frame(inst->stack, num_params, num_locals)) {
-        EXCEPTION("SE_STACK_FRAME_INSTANCE: failed to push frame");
-        return SE_PIPELINE_TERMINATE;
-    }
-    
-    return SE_PIPELINE_CONTINUE;
-}
     
     // =========================================================================
     // TICK EVENT - frame stays active, do nothing
     // =========================================================================
     return SE_PIPELINE_CONTINUE;
 }
-
 /*
  * se_quad.c
  * SE_QUAD predicate function implementation
