@@ -1,0 +1,188 @@
+metadata:
+  exported_at: '2025-11-04T11:14:15.580507'
+  table_name: knowledge_base
+  database_type: sqlite3
+record_counts:
+  knowledge_base: 13
+  knowledge_base_info: 1
+  knowledge_base_link: 1
+  knowledge_base_link_mount: 1
+data:
+  knowledge_base:
+  - id: 1
+    knowledge_base: kb1
+    label: header1_link
+    name: header1_name
+    properties:
+      prop1: val1
+    data:
+      data: header1_data
+    has_link: 0
+    has_link_mount: 1
+    path: kb1.header1_link.header1_name
+  - id: 7
+    knowledge_base: kb1
+    label: KB_JOB_QUEUE
+    name: info1_job
+    properties:
+      job_length: 100
+      description: info1_job_description
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_JOB_QUEUE.info1_job
+  - id: 9
+    knowledge_base: kb1
+    label: KB_RPC_CLIENT_FIELD
+    name: info1_client
+    properties:
+      queue_depth: 10
+      description: info1_client_description
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_RPC_CLIENT_FIELD.info1_client
+  - id: 3
+    knowledge_base: kb1
+    label: KB_RPC_SERVER_FIELD
+    name: info1_server
+    properties:
+      queue_depth: 25
+      description: info1_server_data
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_RPC_SERVER_FIELD.info1_server
+  - id: 4
+    knowledge_base: kb1
+    label: KB_STATUS_FIELD
+    name: info1_status
+    properties:
+      prop3: val3
+      description: info1_status_description
+    data:
+      prop3: val3
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_STATUS_FIELD.info1_status
+  - id: 5
+    knowledge_base: kb1
+    label: KB_STATUS_FIELD
+    name: info2_status
+    properties:
+      prop3: val3
+      description: info2_status_description
+    data:
+      prop3: val3
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_STATUS_FIELD.info2_status
+  - id: 6
+    knowledge_base: kb1
+    label: KB_STATUS_FIELD
+    name: info3_status
+    properties:
+      prop3: val3
+      description: info3_status_description
+    data:
+      prop3: val3
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_STATUS_FIELD.info3_status
+  - id: 8
+    knowledge_base: kb1
+    label: KB_STREAM_FIELD
+    name: info1_stream
+    properties:
+      stream_length: 95
+      description: info1_stream
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.KB_STREAM_FIELD.info1_stream
+  - id: 2
+    knowledge_base: kb1
+    label: info1_link
+    name: info1_name
+    properties:
+      prop2: val2
+    data:
+      data: info1_data
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header1_link.header1_name.info1_link.info1_name
+  - id: 10
+    knowledge_base: kb1
+    label: header2_link
+    name: header2_name
+    properties:
+      prop3: val3
+    data:
+      data: header2_data
+    has_link: 1
+    has_link_mount: 0
+    path: kb1.header2_link.header2_name
+  - id: 13
+    knowledge_base: kb1
+    label: KB_BIT_MASK
+    name: info1_bit_mask
+    properties:
+      user_name: user_1
+      mask_size: 5
+      bit_mask: 0
+      flag_dictionary: '{"F": {"bit": 0, "description": "F_description"}, "G": {"bit":
+        1, "description": "G_description"}, "H": {"bit": 2, "description": "H_description"},
+        "I": {"bit": 3, "description": "I_description"}, "J": {"bit": 4, "description":
+        "J_description"}}'
+      record_id: kb1_header2_link_header2_name_kb_bit_mask_info1_bit_mask
+      description: info1_bit_mask_description
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header2_link.header2_name.KB_BIT_MASK.info1_bit_mask
+  - id: 12
+    knowledge_base: kb1
+    label: KB_BIT_MASK
+    name: info2_bit_mask
+    properties:
+      user_name: user_2
+      mask_size: 5
+      bit_mask: 0
+      flag_dictionary: '{"A": {"bit": 0, "description": "A_description"}, "B": {"bit":
+        1, "description": "B_description"}, "C": {"bit": 2, "description": "C_description"},
+        "D": {"bit": 3, "description": "D_description"}, "E": {"bit": 4, "description":
+        "E_description"}}'
+      record_id: kb1_header2_link_header2_name_kb_bit_mask_info2_bit_mask
+      description: info2_bit_mask_description
+    data: null
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header2_link.header2_name.KB_BIT_MASK.info2_bit_mask
+  - id: 11
+    knowledge_base: kb1
+    label: info2_link
+    name: info2_name
+    properties:
+      prop4: val4
+    data:
+      data: info2_data
+    has_link: 0
+    has_link_mount: 0
+    path: kb1.header2_link.header2_name.info2_link.info2_name
+  knowledge_base_info:
+  - id: 1
+    knowledge_base: kb1
+    description: First knowledge base
+  knowledge_base_link:
+  - id: 1
+    link_name: info1_link_mount
+    parent_node_kb: kb1
+    parent_path: kb1.header2_link.header2_name
+    created_at: '2025-11-04 19:11:36'
+  knowledge_base_link_mount:
+  - id: 1
+    link_name: info1_link_mount
+    knowledge_base: kb1
+    mount_path: kb1.header1_link.header1_name
+    description: info1_link_mount_description
+    created_at: '2025-11-04 19:11:36'

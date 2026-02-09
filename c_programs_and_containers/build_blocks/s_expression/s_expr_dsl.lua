@@ -185,6 +185,9 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_QUAD",
    "SE_FRAME_ALLOCATE",
    "SE_FRAME_FREE",
+   "SE_LOAD_FUNCTION_DICT",
+   "SE_EXEC_DICT_INTERNAL",
+   "SE_EXEC_DICT_FN",
 
 
    --- oneshot functions

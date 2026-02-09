@@ -1489,32 +1489,7 @@ function se_frame_allocate(num_params, num_locals, scratch_depth, ...)
     table.remove(frame_stack)
 end
 
---[[
-function frame_vars(locals, scratch)
-    locals = locals or {}
-    scratch = scratch or {}
-    
-    local vars = {}
-    
-    for i, name in ipairs(locals) do
-        if vars[name] then
-            dsl_error("frame_vars: duplicate name '" .. name .. "'")
-        end
-        local idx = i - 1
-        vars[name] = function() stack_local(idx) end
-    end
-    
-    for i, name in ipairs(scratch) do
-        if vars[name] then
-            dsl_error("frame_vars: duplicate name '" .. name .. "'")
-        end
-        local offset = i - 1
-        vars[name] = function() stack_tos(offset) end
-    end
-    
-    return vars
-end
---]]
+
 
 
 
@@ -2513,4 +2488,108 @@ function se_log_stack()
    local c = o_call("SE_LOG_STACK")
     end_call(c)
     
+end
+
+
+-- ============================================================================
+-- FUNCTION DICTIONARY
+-- 
+-- Compile-time: emits function subtrees as hash-keyed dictionary entries.
+-- Runtime: single-pass execution with init/term events for stack frame 
+-- management. Internal calls inherit dictionary context from the outer
+-- SE_EXEC_DICT_FN call via a runtime return stack.
+--
+-- Usage:
+--   se_load_function_dict("fn_dict", {
+--       {"process_a", function()
+--           se_log("running A")
+--           se_exec_dict_internal("process_b")
+--       end},
+--       {"process_b", function()
+--           se_call(0, 2, 4, {}, {
+--               function()
+--                   quad_iadd(local_ref(0), int_val(1), local_ref(0))()
+--               end
+--           })
+--       end},
+--   })
+--
+--   -- Entry point: establishes dictionary context
+--   se_exec_dict_fn("fn_dict", "process_a")
+--
+--   -- With parameters:
+--   se_push_stack(function() int(42) end)
+--   se_exec_dict_fn("fn_dict", "process_b")
+-- ============================================================================
+
+function se_load_function_dict(blackboard_field, func_list)
+validate_field_is_ptr64(blackboard_field, "se_load_function_dict")
+
+if type(func_list) ~= "table" or #func_list == 0 then
+    dsl_error("se_load_function_dict: func_list must not be empty")
+end
+
+-- Validate structure and check for duplicate keys
+local seen_keys = {}
+for i, entry in ipairs(func_list) do
+    if type(entry) ~= "table" or #entry ~= 2 then
+        dsl_error("se_load_function_dict: entry[" .. i .. 
+                  "] must be {\"name\", function}")
+    end
+    local name, fn = entry[1], entry[2]
+    if type(name) ~= "string" or name == "" then
+        dsl_error("se_load_function_dict: entry[" .. i .. 
+                  "] key must be non-empty string")
+    end
+    if type(fn) ~= "function" then
+        dsl_error("se_load_function_dict: entry[" .. i .. 
+                  "] value must be a function")
+    end
+    if seen_keys[name] then
+        dsl_error("se_load_function_dict: duplicate key '" .. name .. "'")
+    end
+    seen_keys[name] = true
+end
+
+local c = o_call("SE_LOAD_FUNCTION_DICT")
+    field_ref(blackboard_field)
+    local outer = array_start()
+        for _, entry in ipairs(func_list) do
+            local name, fn = entry[1], entry[2]
+            local inner = array_start()
+                str(name)
+                fn()
+                int(0)
+            array_end(inner)
+        end
+    array_end(outer)
+end_call(c)
+end
+
+-- External entry point: establishes dictionary context on runtime return stack
+-- blackboard_field: PTR64_FIELD containing dictionary pointer
+-- key_name: string key to look up and execute
+function se_exec_dict_fn(blackboard_field, key_name)
+    validate_field_is_ptr64(blackboard_field, "se_exec_dict_fn")
+    
+    if type(key_name) ~= "string" or key_name == "" then
+        dsl_error("se_exec_dict_fn: key_name must be non-empty string")
+    end
+    
+    local c = m_call("SE_EXEC_DICT_FN")
+        field_ref(blackboard_field)
+        str_hash(key_name)
+    end_call(c)
+end
+
+-- Internal call: uses dictionary context from enclosing SE_EXEC_DICT_FN
+-- key_name: string key to look up and execute within current dictionary
+function se_exec_dict_internal(key_name)
+    if type(key_name) ~= "string" or key_name == "" then
+        dsl_error("se_exec_dict_internal: key_name must be non-empty string")
+    end
+    
+    local c = m_call("SE_EXEC_DICT_INTERNAL")
+        str_hash(key_name)
+    end_call(c)
 end
