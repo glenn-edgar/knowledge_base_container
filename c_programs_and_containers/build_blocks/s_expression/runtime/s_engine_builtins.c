@@ -3198,15 +3198,11 @@ static s_expr_result_t se_sequence_once(
             s_expr_invoke_any(inst, params, phys_idx);
             continue;
         }
+        s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
         
-        // -----------------------------------------------------------------
-        // MAIN - invoke, check for early exit
-        // -----------------------------------------------------------------
-        s_expr_invoke_any(inst, params, phys_idx);
-
-       
-        
-        // PIPELINE codes (12-17) - ignore, continue to next child
+        if((r != SE_PIPELINE_CONTINUE) && (r != SE_PIPELINE_DISABLE  )) {
+           break;
+        }
     }
     
     // All children executed once - terminate all and disable
