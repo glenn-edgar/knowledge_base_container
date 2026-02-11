@@ -2566,30 +2566,46 @@ local c = o_call("SE_LOAD_FUNCTION_DICT")
 end_call(c)
 end
 
--- External entry point: establishes dictionary context on runtime return stack
+-- used to execute a call back function   
 -- blackboard_field: PTR64_FIELD containing dictionary pointer
 -- key_name: string key to look up and execute
-function se_exec_dict_fn(blackboard_field, key_name)
+function se_exec_fn(blackboard_field)
     validate_field_is_ptr64(blackboard_field, "se_exec_dict_fn")
     
-    if type(key_name) ~= "string" or key_name == "" then
-        dsl_error("se_exec_dict_fn: key_name must be non-empty string")
+ 
+    
+    local c = m_call("SE_EXEC_FN")
+        field_ref(blackboard_field)
+    end_call(c)
+end
+
+-- used to execute a call back function within a internal dictionary with a pointer
+-- black board field is the dictionary pointer
+-- key_name: string key to look up and execute within current dictionary
+function se_exec_dict_internal(blackboard_field,key_name)
+    validate_field_is_ptr64(blackboard_field, "se_exec_dict_internal")
+    if type(key_name) ~= "string"  then
+        dsl_error("se_exec_dict_internal: key_name must be non-empty string")
     end
     
-    local c = m_call("SE_EXEC_DICT_FN")
+    local c = m_call("SE_EXEC_DICT_INTERNAL")
         field_ref(blackboard_field)
         str_hash(key_name)
     end_call(c)
 end
 
--- Internal call: uses dictionary context from enclosing SE_EXEC_DICT_FN
--- key_name: string key to look up and execute within current dictionary
-function se_exec_dict_internal(key_name)
-    if type(key_name) ~= "string" or key_name == "" then
-        dsl_error("se_exec_dict_internal: key_name must be non-empty string")
+
+function se_spawn_and_tick_tree(tree_name, stack_size)
+    if type(tree_name) ~= "string" then
+        dsl_error("se_spawn_and_tick_tree: tree_name must be a string")
     end
-    
-    local c = m_call("SE_EXEC_DICT_INTERNAL")
-        str_hash(key_name)
+    if type(stack_size) ~= "number" then
+        dsl_error("se_spawn_and_tick_tree: stack_size must be a number")
+    end
+    stack_size = stack_size or 0
+    local c = pt_m_call("SE_SPAWN_AND_TICK_TREE")
+        str_hash(tree_name)
+        uint(stack_size)
     end_call(c)
 end
+

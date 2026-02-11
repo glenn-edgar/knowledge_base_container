@@ -164,7 +164,9 @@ static s_expr_result_t se_wait_timeout(s_expr_tree_instance_t* inst, const s_exp
 static s_expr_result_t se_stack_frame_instance(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_frame_allocate(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_frame_free(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
-
+static s_expr_result_t se_spawn_and_tick_tree(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_exec_fn(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
+static s_expr_result_t se_exec_dict_internal(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 // Result code functions
 static s_expr_result_t se_return_continue(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
 static s_expr_result_t se_return_halt(s_expr_tree_instance_t* inst, const s_expr_param_t* params, uint16_t param_count, s_expr_event_type_t event_type, uint16_t event_id, void* event_data);
@@ -253,113 +255,7 @@ static s_expr_fn_entry_t builtin_oneshot_entries[] = {
     {SE_PUSH_STACK_HASH,         (void*)se_push_stack},         // SE_PUSH_STACK
     {SE_QUAD_HASH,               (void*)se_quad},               // SE_QUAD
     {SE_LOG_STACK_HASH,          (void*)se_log_stack},          // SE_LOG_STACK
-#if 0
-    { SE_STACK_ADD_HASH,         (void*)se_stack_add },         // SE_STACK_ADD
-    { SE_STACK_SUB_HASH,         (void*)se_stack_sub },         // SE_STACK_SUB
-    { SE_STACK_MUL_HASH,         (void*)se_stack_mul },         // SE_STACK_MUL
-    { SE_STACK_DIV_HASH,         (void*)se_stack_div },         // SE_STACK_DIV
-    { SE_STACK_MOD_HASH,         (void*)se_stack_mod },         // SE_STACK_MOD
-    { SE_STACK_IDIV_HASH,        (void*)se_stack_idiv },        // SE_STACK_IDIV
-    { SE_STACK_IMOD_HASH,        (void*)se_stack_imod },        // SE_STACK_IMOD
-    
-    // Unary arithmetic
-    { SE_STACK_NEG_HASH,         (void*)se_stack_neg },         // SE_STACK_NEG
-    { SE_STACK_ABS_HASH,         (void*)se_stack_abs },         // SE_STACK_ABS
-    { SE_STACK_INC_HASH,         (void*)se_stack_inc },         // SE_STACK_INC
-    { SE_STACK_DEC_HASH,         (void*)se_stack_dec },         // SE_STACK_DEC
-    
-    // Bitwise
-    { SE_STACK_BAND_HASH,        (void*)se_stack_band },        // SE_STACK_BAND
-    { SE_STACK_BOR_HASH,         (void*)se_stack_bor },         // SE_STACK_BOR
-    { SE_STACK_BXOR_HASH,        (void*)se_stack_bxor },        // SE_STACK_BXOR
-    { SE_STACK_SHL_HASH,         (void*)se_stack_shl },         // SE_STACK_SHL
-    { SE_STACK_SHR_HASH,         (void*)se_stack_shr },         // SE_STACK_SHR
-    { SE_STACK_SAR_HASH,         (void*)se_stack_sar },         // SE_STACK_SAR
-    { SE_STACK_BNOT_HASH,        (void*)se_stack_bnot },        // SE_STACK_BNOT
-    
-    // Comparison
-    { SE_STACK_EQ_HASH,          (void*)se_stack_eq },          // SE_STACK_EQ
-    { SE_STACK_NE_HASH,          (void*)se_stack_ne },          // SE_STACK_NE
-    { SE_STACK_LT_HASH,          (void*)se_stack_lt },          // SE_STACK_LT
-    { SE_STACK_LE_HASH,          (void*)se_stack_le },          // SE_STACK_LE
-    { SE_STACK_GT_HASH,          (void*)se_stack_gt },          // SE_STACK_GT
-    { SE_STACK_GE_HASH,          (void*)se_stack_ge },          // SE_STACK_GE
-    
-    // Logical
-    { SE_STACK_AND_HASH,         (void*)se_stack_and },         // SE_STACK_AND
-    { SE_STACK_OR_HASH,          (void*)se_stack_or },          // SE_STACK_OR
-    { SE_STACK_NOT_HASH,         (void*)se_stack_not },         // SE_STACK_NOT
-    
-    // Math functions
-    { SE_STACK_SQRT_HASH,        (void*)se_stack_sqrt },        // SE_STACK_SQRT
-    { SE_STACK_EXP_HASH,         (void*)se_stack_exp },         // SE_STACK_EXP
-    { SE_STACK_LOG_HASH,         (void*)se_stack_log },         // SE_STACK_LOG
-    { SE_STACK_LOG10_HASH,       (void*)se_stack_log10 },       // SE_STACK_LOG10
-    { SE_STACK_SIN_HASH,         (void*)se_stack_sin },         // SE_STACK_SIN
-    { SE_STACK_COS_HASH,         (void*)se_stack_cos },         // SE_STACK_COS
-    { SE_STACK_TAN_HASH,         (void*)se_stack_tan },         // SE_STACK_TAN
-    { SE_STACK_ASIN_HASH,        (void*)se_stack_asin },        // SE_STACK_ASIN
-    { SE_STACK_ACOS_HASH,        (void*)se_stack_acos },        // SE_STACK_ACOS
-    { SE_STACK_ATAN_HASH,        (void*)se_stack_atan },        // SE_STACK_ATAN
-    { SE_STACK_FLOOR_HASH,       (void*)se_stack_floor },       // SE_STACK_FLOOR
-    { SE_STACK_CEIL_HASH,        (void*)se_stack_ceil },        // SE_STACK_CEIL
-    { SE_STACK_ROUND_HASH,       (void*)se_stack_round },       // SE_STACK_ROUND
-    { SE_STACK_TRUNC_HASH,       (void*)se_stack_trunc },       // SE_STACK_TRUNC
-    { SE_STACK_POW_HASH,         (void*)se_stack_pow },         // SE_STACK_POW
-    { SE_STACK_ATAN2_HASH,       (void*)se_stack_atan2 },       // SE_STACK_ATAN2
-    { SE_STACK_MIN_HASH,         (void*)se_stack_min },         // SE_STACK_MIN
-    { SE_STACK_MAX_HASH,         (void*)se_stack_max },         // SE_STACK_MAX
-    { SE_STACK_CLAMP_HASH,       (void*)se_stack_clamp },       // SE_STACK_CLAMP
-    
-    // Type conversion
-    { SE_STACK_TOINT_HASH,       (void*)se_stack_to_int },      // SE_STACK_TOINT
-    { SE_STACK_TOUINT_HASH,      (void*)se_stack_to_uint },     // SE_STACK_TOUINT
-    { SE_STACK_TOFLOAT_HASH,     (void*)se_stack_to_float },    // SE_STACK_TOFLOAT
-    
-    // Constant/immediate
-    { SE_STACK_PUSH_CONST_HASH,  (void*)se_stack_push_const },  // SE_STACK_PUSH_CONST
-    { SE_STACK_ADDI_HASH,        (void*)se_stack_addi },        // SE_STACK_ADDI
-    { SE_STACK_SUBI_HASH,        (void*)se_stack_subi },        // SE_STACK_SUBI
-    { SE_STACK_MULI_HASH,        (void*)se_stack_muli },        // SE_STACK_MULI
-    { SE_STACK_DIVI_HASH,        (void*)se_stack_divi },        // SE_STACK_DIVI
-    { SE_STACK_MODI_HASH,        (void*)se_stack_modi },        // SE_STACK_MODI
-    { SE_STACK_SHLI_HASH,        (void*)se_stack_shli },        // SE_STACK_SHLI
-    { SE_STACK_SHRI_HASH,        (void*)se_stack_shri },        // SE_STACK_SHRI
-    { SE_STACK_SARI_HASH,        (void*)se_stack_sari },        // SE_STACK_SARI
-    { SE_STACK_BANDI_HASH,       (void*)se_stack_bandi },       // SE_STACK_BANDI
-    { SE_STACK_BORI_HASH,        (void*)se_stack_bori },        // SE_STACK_BORI
-    { SE_STACK_BXORI_HASH,       (void*)se_stack_bxori },       // SE_STACK_BXORI
-    
-    // Field operations
-    { SE_STACK_LOAD_INT_HASH,    (void*)se_stack_load_int },    // SE_STACK_LOAD_INT
-    { SE_STACK_LOAD_UINT_HASH,   (void*)se_stack_load_uint },   // SE_STACK_LOAD_UINT
-    { SE_STACK_LOAD_FLOAT_HASH,  (void*)se_stack_load_float },  // SE_STACK_LOAD_FLOAT
 
-    { SE_STACK_STORE_INT_HASH,   (void*)se_stack_store_int },   // SE_STACK_STORE_INT
-    { SE_STACK_STORE_UINT_HASH,  (void*)se_stack_store_uint },  // SE_STACK_STORE_UINT
-    { SE_STACK_STORE_FLOAT_HASH, (void*)se_stack_store_float }, // SE_STACK_STORE_FLOAT
-    
-    // Stack manipulation
-    { SE_STACK_DROP_HASH,        (void*)se_stack_drop },     // SE_STACK_DROP
-    { SE_STACK_DROP2_HASH,       (void*)se_stack_drop2 },    // SE_STACK_DROP2
-    { SE_STACK_DROPN_HASH,       (void*)se_stack_dropn },    // SE_STACK_DROPN
-    { SE_STACK_DUP_HASH,         (void*)se_stack_dup },      // SE_STACK_DUP
-    { SE_STACK_DUP2_HASH,        (void*)se_stack_dup2 },     // SE_STACK_DUP2
-    { SE_STACK_SWAP_HASH,        (void*)se_stack_swap },     // SE_STACK_SWAP
-    { SE_STACK_OVER_HASH,        (void*)se_stack_over },     // SE_STACK_OVER
-    { SE_STACK_ROT_HASH,         (void*)se_stack_rot },      // SE_STACK_ROT
-    { SE_STACK_NROT_HASH,        (void*)se_stack_nrot },     // SE_STACK_NROT
-    { SE_STACK_PICK_HASH,        (void*)se_stack_pick },     // SE_STACK_PICK
-    { SE_STACK_ROLL_HASH,        (void*)se_stack_roll },     // SE_STACK_ROLL
-    
-    // Conditional
-    { SE_STACK_SELECT_HASH,      (void*)se_stack_select },   // SE_STACK_SELECT
-    
-    // Hash
-    { SE_STACK_PUSH_HASH_HASH,   (void*)se_stack_push_hash }, // SE_STACK_PUSH_HASH
-    { SE_STACK_HASH_EQ_HASH,     (void*)se_stack_hash_eq },   // SE_STACK_HASH_EQ
-   
-#endif
 };
 
 static s_expr_fn_entry_t builtin_main_entries[] = {
@@ -392,7 +288,9 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_FRAME_ALLOCATE_HASH, (void*)se_frame_allocate },
     { SE_FRAME_FREE_HASH, (void*)se_frame_free },
     // NEW v5.2: Dictionary-based dispatch
-    
+    { SE_SPAWN_AND_TICK_TREE_HASH, (void*)se_spawn_and_tick_tree },
+    { SE_EXEC_FN_HASH, (void*)se_exec_fn },
+    { SE_EXEC_DICT_INTERNAL_HASH, (void*)se_exec_dict_internal },
     // Result code functions
     { SE_RETURN_CONTINUE_HASH, (void*)se_return_continue },
     { SE_RETURN_HALT_HASH, (void*)se_return_halt },
@@ -5344,41 +5242,7 @@ tick_complete:
     s_expr_stack_pop_frame(inst->stack);
     return SE_PIPELINE_CONTINUE;
 }
-#if 0
-static s_expr_result_t se_frame_allocate(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    
-    UNUSED(event_id);
-    UNUSED(params);
-    UNUSED(event_data);
-    
-    if (!inst || !inst->stack || param_count < 2) {
-        EXCEPTION("SE_FRAME_ALLOCATE: invalid parameters");
-        return SE_PIPELINE_TERMINATE;
-    }
-    if (event_type != SE_EVENT_INIT) {
-        
-        return SE_PIPELINE_CONTINUE;
-    }
-    if(event_type == SE_EVENT_TERMINATE) {
-        return SE_PIPELINE_CONTINUE;
-    }
-    
-    uint16_t num_params = (uint16_t)params[0].uint_val;
-    uint16_t num_locals = (uint16_t)params[1].uint_val;
-    
-    
-   s_expr_stack_push_frame(inst->stack, num_params, num_locals);
-    
-    return SE_PIPELINE_CONTINUE;
-}
-#endif
+
 static s_expr_result_t se_frame_free(
     s_expr_tree_instance_t* inst,
     const s_expr_param_t* params,
@@ -5429,4 +5293,252 @@ static void se_log_stack(s_expr_tree_instance_t* inst, const s_expr_param_t* par
         printf("SE_LOG_STACK: stack frame scratch base = %u\n", inst->stack->frames[inst->stack->frame_count - 1].scratch_base);
     }
    
+}
+
+// ============================================================================
+// spawn_and_tick_tree
+// Creates a child tree, stores in pointer slot, forwards ticks with event queue
+// params[0]: ptr_idx (index_to_pointer for child storage)
+// params[1]: tree name hash
+// params[2]: ct_node_id
+// params[3]: stack_size (0 = no stack)
+// ============================================================================
+
+static bool result_is_complete(s_expr_result_t result) {
+    return result != SE_PIPELINE_CONTINUE && 
+           result != SE_PIPELINE_DISABLE;
+}
+
+
+static s_expr_result_t tick_with_event_queue(s_expr_tree_instance_t* child,
+                                              uint16_t event_id,
+                                              void* event_data)
+{
+    s_expr_result_t result = s_expr_node_tick(child, event_id, event_data);
+    
+    uint16_t event_count = s_expr_event_queue_count(child);
+    while (event_count > 0 && !result_is_complete(result)) {
+        uint16_t tick_type;
+        uint16_t ev_id;
+        void* ev_data;
+        
+        s_expr_event_pop(child, &tick_type, &ev_id, &ev_data);
+        
+        uint16_t saved_tick_type = child->tick_type;
+        child->tick_type = tick_type;
+        
+        s_expr_result_t event_result = s_expr_node_tick(child, ev_id, ev_data);
+        
+        child->tick_type = saved_tick_type;
+        
+        if (result_is_complete(event_result)) {
+            result = event_result;
+            break;
+        }
+        
+        event_count = s_expr_event_queue_count(child);
+    }
+    
+    return result;
+}
+
+static s_expr_result_t se_spawn_and_tick_tree(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t*   params,
+    uint16_t                param_count,
+    s_expr_event_type_t     event_type,
+    uint16_t                event_id,
+    void*                   event_data
+) {
+    if (param_count < 3) {
+        EXCEPTION("spawn_and_tick_tree: expected 3 params (ptr, tree_hash, stack_size)");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    uint8_t state = s_expr_get_state(inst);
+    
+    uint8_t ptr_idx = params[0].index_to_pointer;
+    s_expr_slot_t* slot = &inst->pointer_array[ptr_idx];
+    
+    if (event_type == SE_EVENT_INIT || state == 0) {
+        s_expr_hash_t tree_hash = s_expr_param_str_hash(&params[1]);
+        uint16_t stack_size = (uint16_t)s_expr_param_uint(&params[2]);
+        
+        s_expr_tree_instance_t* child = s_expr_tree_create_by_hash(
+            inst->module, tree_hash, inst->ct_node_id
+        );
+        if (!child) {
+            EXCEPTION("spawn_and_tick_tree: failed to create child tree");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        if (stack_size > 0) {
+            s_expr_tree_create_stack(child, stack_size);
+        }
+        
+        slot->ptr = child;
+        inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_ALLOCATED;
+        
+        tick_with_event_queue(child, 0, NULL);
+        s_expr_set_state(inst, 1);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_tree_instance_t* child = (s_expr_tree_instance_t*)slot->ptr;
+        if (child) {
+            s_expr_tree_free(child);
+            slot->ptr = NULL;
+            inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_NONE;
+        }
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    s_expr_tree_instance_t* child = (s_expr_tree_instance_t*)slot->ptr;
+    if (!child) {
+        EXCEPTION("spawn_and_tick_tree: child tree not found");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    s_expr_result_t result = tick_with_event_queue(child, event_id, event_data);
+    
+    uint16_t event_count = s_expr_event_queue_count(inst);
+    while (event_count > 0 && !result_is_complete(result)) {
+        uint16_t tick_type;
+        uint16_t ev_id;
+        void* ev_data;
+        
+        s_expr_event_pop(inst, &tick_type, &ev_id, &ev_data);
+        
+        uint16_t saved_tick_type = child->tick_type;
+        child->tick_type = tick_type;
+        
+        result = tick_with_event_queue(child, ev_id, ev_data);
+        
+        child->tick_type = saved_tick_type;
+        
+        event_count = s_expr_event_queue_count(inst);
+    }
+    
+    if (result_is_complete(result)) {
+        s_expr_tree_free(child);
+        slot->ptr = NULL;
+        inst->slot_flags[ptr_idx] = S_EXPR_SLOT_FLAG_NONE;
+    }
+    
+    return result;
+}
+
+
+s_expr_result_t se_exec_fn(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t*   params,
+    uint16_t                param_count,
+    s_expr_event_type_t     event_type,
+    uint16_t                event_id,
+    void*                   event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (param_count < 1) {
+        EXCEPTION("se_exec_fn: expected 1 param (field_ref)");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        if (!inst->blackboard) {
+            EXCEPTION("se_exec_fn: no blackboard bound");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t** fn_ptr = S_EXPR_GET_FIELD(inst, &params[0], const s_expr_param_t*);
+        if (!fn_ptr || !*fn_ptr) {
+            EXCEPTION("se_exec_fn: NULL s-expression pointer in blackboard");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        s_expr_set_user_u64(inst, (uint64_t)(uintptr_t)*fn_ptr);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        const s_expr_param_t* callable = (const s_expr_param_t*)(uintptr_t)s_expr_get_user_u64(inst);
+        if (callable) {
+            s_expr_invoke_any(inst, callable, 0);
+        }
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // Normal tick
+    const s_expr_param_t* callable = (const s_expr_param_t*)(uintptr_t)s_expr_get_user_u64(inst);
+    return s_expr_invoke_any(inst, callable, 0);
+}
+
+s_expr_result_t se_exec_dict_internal(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t*   params,
+    uint16_t                param_count,
+    s_expr_event_type_t     event_type,
+    uint16_t                event_id,
+    void*                   event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (param_count < 2) {
+        EXCEPTION("se_exec_dict_internal: expected 2 params (field_ref, key_hash)");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        // Terminate the cached callable
+        const s_expr_param_t* callable = (const s_expr_param_t*)(uintptr_t)s_expr_get_user_u64(inst);
+        if (callable) {
+            s_expr_invoke_any(inst, callable, 0);
+        }
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    uint8_t state = s_expr_get_state(inst);
+    
+    if (event_type == SE_EVENT_INIT || state == 0) {
+        if (!inst->blackboard) {
+            EXCEPTION("se_exec_dict_internal: no blackboard bound");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t** dict_ptr = S_EXPR_GET_FIELD(inst, &params[0], const s_expr_param_t*);
+        if (!dict_ptr || !*dict_ptr) {
+            EXCEPTION("se_exec_dict_internal: NULL dictionary pointer in blackboard");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t* dict = *dict_ptr;
+        
+        if (!se_dicth_is_dict(dict)) {
+            EXCEPTION("se_exec_dict_internal: blackboard field does not point to a dictionary");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        s_expr_hash_t key_hash = s_expr_param_str_hash(&params[1]);
+        const s_expr_param_t* value = se_dicth_find(dict, key_hash);
+        if (!value) {
+            EXCEPTION("se_exec_dict_internal: key not found in dictionary");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        if (!se_dicth_is_callable(value)) {
+            EXCEPTION("se_exec_dict_internal: dictionary value is not a callable");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        s_expr_set_user_u64(inst, (uint64_t)(uintptr_t)value);
+        s_expr_set_state(inst, 1);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // Normal tick - cached callable already validated at init
+    const s_expr_param_t* callable = (const s_expr_param_t*)(uintptr_t)s_expr_get_user_u64(inst);
+    return s_expr_invoke_any(inst, callable, 0);
 }

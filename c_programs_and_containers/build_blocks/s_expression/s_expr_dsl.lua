@@ -188,6 +188,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_LOAD_FUNCTION_DICT",
    "SE_EXEC_DICT_INTERNAL",
    "SE_EXEC_DICT_FN",
+   "SE_SPAWN_AND_TICK_TREE",
 
 
    --- oneshot functions
