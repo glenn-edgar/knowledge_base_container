@@ -4,7 +4,7 @@
 # Usage: bash create_kb_c_structure.sh [base_dir]
 #   base_dir defaults to current directory
 
-BASE_DIR="${1:-.}/knowledge_base_c_a"
+BASE_DIR="${1:-.}/knowledge_base_c"
 
 echo "Creating knowledge_base_c directory structure in: $BASE_DIR"
 
