@@ -95,6 +95,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_SPAWN_AND_TICK_TREE_HASH         0x00000000
 #define SE_EXEC_FN_HASH                     0x00000000
 #define SE_EXEC_DICT_INTERNAL_HASH          0x00000000
+#define SE_EXEC_DICT_DISPATCH_HASH          0x00000000
 // Main functions
 // Application result code function hashes (0-5)
 #define SE_RETURN_CONTINUE_HASH                0xB4243714

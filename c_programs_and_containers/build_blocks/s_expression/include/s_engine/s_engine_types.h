@@ -555,8 +555,8 @@ struct s_expr_tree_instance {
     uint32_t                  ct_node_id;
     
     // User context
-    void*                     user_ctx;
-    
+    void*                     user_ctx;    
+    void*                     current_dict;
     // Parameter stack (created via s_expr_tree_create_stack)
     s_expr_stack_t*           stack;
     
