@@ -21,33 +21,49 @@ extern "C" {
 
 // String table
 static const char* const function_dictionary_strings[] = {
-    "write_register",
-    "read_modify_write",
-    "enable_peripheral_clock",
-    "configure_gpio_pin",
-    "configure_uart",
-    "configure_spi",
     "init_all_peripherals",
     "UART configured",
     "UART skipped - channel not set",
     "SPI configured",
-    "SPI skipped - channel not set"
+    "SPI skipped - channel not set",
+    "--- Configuration Results ---",
+    "config_state 0x%08X",
+    "peripherals_ready 0x%08X",
+    "error_code 0x%08X",
+    "--- UART ---",
+    "uart_channel 0x%08X",
+    "uart_baud 0x%08X",
+    "uart_parity 0x%08X",
+    "uart_stop_bits 0x%08X",
+    "--- SPI ---",
+    "spi_channel 0x%08X",
+    "spi_clock_div 0x%08X",
+    "spi_mode 0x%08X",
+    "spi_bit_order 0x%08X",
+    "--- GPIO ---",
+    "gpio_port 0x%08X",
+    "gpio_pin 0x%08X",
+    "gpio_mode 0x%08X",
+    "gpio_speed 0x%08X",
+    "gpio_pull 0x%08X"
 };
-#define FUNCTION_DICTIONARY_STRING_COUNT 11
+#define FUNCTION_DICTIONARY_STRING_COUNT 25
 
 // Function hashes
+#define SE_SET_FIELD_HASH 0xFFF84A15
 #define SE_LOAD_FUNCTION_DICT_HASH 0xC0225974
 #define SE_PUSH_STACK_HASH 0x08E351ED
-#define SE_LOG_HASH 0xCEBBEFA4
+#define WRITE_REGISTER_HASH 0x8A22E5B4
 #define SE_QUAD_HASH 0x596C457D
-#define SE_SET_FIELD_HASH 0xFFF84A15
+#define SE_LOG_HASH 0xCEBBEFA4
+#define SE_LOG_INT_HASH 0x2442CEA2
 #define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
 #define SE_SEQUENCE_ONCE_HASH 0x4F4BB2E1
 #define SE_STACK_FRAME_INSTANCE_HASH 0x753D7572
 #define SE_EXEC_DICT_INTERNAL_HASH 0x2D91A4AC
 #define SE_IF_THEN_ELSE_HASH 0x1E860193
-#define SE_EXEC_DICT_FN_HASH 0x5391CC89
-#define SE_RETURN_PIPELINE_TERMINATE_HASH 0x0933AC9B
+#define SE_EXEC_DICT_DISPATCH_HASH 0xA9BCEF3F
+#define SE_RETURN_FUNCTION_TERMINATE_HASH 0x0A5B8A85
 #define SE_FIELD_NE_HASH 0xF5E4BFD2
 
 // Tree hashes
@@ -58,6 +74,7 @@ static const char* const function_dictionary_strings[] = {
 
 // Field hashes
 #define FIELD_FN_DICT_HASH 0x6A747A52
+#define FIELD_FN_PTR_HASH 0xE4D06AB8
 #define FIELD_GPIO_PORT_HASH 0x3A9A56E8
 #define FIELD_GPIO_PIN_HASH 0x8BECDAB6
 #define FIELD_GPIO_MODE_HASH 0xC10EF3F8

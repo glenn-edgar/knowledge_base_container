@@ -27,7 +27,7 @@
  * Hash:   0x36895436
  * Trees:  1
  * Records: 1
- * Strings: 11
+ * Strings: 25
  * Constants: 0
  * Param size: 8 bytes (32-bit)
  */
@@ -36,17 +36,31 @@
 // STRING TABLE
 // ============================================================================
 /*
- * [0x0000] (  0) hash=0x8A22E5B4 "write_register"
- * [0x0001] (  1) hash=0x8EC38A38 "read_modify_write"
- * [0x0002] (  2) hash=0x8CFC65CE "enable_peripheral_clock"
- * [0x0003] (  3) hash=0x44DE0763 "configure_gpio_pin"
- * [0x0004] (  4) hash=0xB16465B0 "configure_uart"
- * [0x0005] (  5) hash=0x12EF495A "configure_spi"
- * [0x0006] (  6) hash=0xBF310A69 "init_all_peripherals"
- * [0x0007] (  7) hash=0xEBF65E3F "UART configured"
- * [0x0008] (  8) hash=0xF9547BE8 "UART skipped - channel not set"
- * [0x0009] (  9) hash=0xEBABBA57 "SPI configured"
- * [0x000A] ( 10) hash=0x39F4C630 "SPI skipped - channel not set"
+ * [0x0000] (  0) hash=0xBF310A69 "init_all_peripherals"
+ * [0x0001] (  1) hash=0xEBF65E3F "UART configured"
+ * [0x0002] (  2) hash=0xF9547BE8 "UART skipped - channel not set"
+ * [0x0003] (  3) hash=0xEBABBA57 "SPI configured"
+ * [0x0004] (  4) hash=0x39F4C630 "SPI skipped - channel not set"
+ * [0x0005] (  5) hash=0x5B84284F "--- Configuration Results ---"
+ * [0x0006] (  6) hash=0xEEB15582 "config_state 0x%08X"
+ * [0x0007] (  7) hash=0x296C889B "peripherals_ready 0x%08X"
+ * [0x0008] (  8) hash=0x07E49270 "error_code 0x%08X"
+ * [0x0009] (  9) hash=0x5F2184B3 "--- UART ---"
+ * [0x000A] ( 10) hash=0x691D071E "uart_channel 0x%08X"
+ * [0x000B] ( 11) hash=0x2A1DD287 "uart_baud 0x%08X"
+ * [0x000C] ( 12) hash=0x62F04EF8 "uart_parity 0x%08X"
+ * [0x000D] ( 13) hash=0xCBD6F808 "uart_stop_bits 0x%08X"
+ * [0x000E] ( 14) hash=0x2F1CEBC9 "--- SPI ---"
+ * [0x000F] ( 15) hash=0xA097CD06 "spi_channel 0x%08X"
+ * [0x0010] ( 16) hash=0x339BDFD5 "spi_clock_div 0x%08X"
+ * [0x0011] ( 17) hash=0xD3B75892 "spi_mode 0x%08X"
+ * [0x0012] ( 18) hash=0x9B6276FB "spi_bit_order 0x%08X"
+ * [0x0013] ( 19) hash=0x9C884AF0 "--- GPIO ---"
+ * [0x0014] ( 20) hash=0xFABB7BE5 "gpio_port 0x%08X"
+ * [0x0015] ( 21) hash=0x3E0F003F "gpio_pin 0x%08X"
+ * [0x0016] ( 22) hash=0x689F8F35 "gpio_mode 0x%08X"
+ * [0x0017] ( 23) hash=0x80106A43 "gpio_speed 0x%08X"
+ * [0x0018] ( 24) hash=0x81F9860D "gpio_pull 0x%08X"
  */
 
 // ============================================================================
@@ -54,11 +68,13 @@
 // ============================================================================
 /*
  * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):
- *   [0x0000] ( 0) hash=0xC0225974 SE_LOAD_FUNCTION_DICT
- *   [0x0001] ( 1) hash=0x08E351ED SE_PUSH_STACK
- *   [0x0002] ( 2) hash=0xCEBBEFA4 SE_LOG
- *   [0x0003] ( 3) hash=0x596C457D SE_QUAD
- *   [0x0004] ( 4) hash=0xFFF84A15 SE_SET_FIELD
+ *   [0x0000] ( 0) hash=0xFFF84A15 SE_SET_FIELD
+ *   [0x0001] ( 1) hash=0xC0225974 SE_LOAD_FUNCTION_DICT
+ *   [0x0002] ( 2) hash=0x08E351ED SE_PUSH_STACK
+ *   [0x0003] ( 3) hash=0x8A22E5B4 write_register
+ *   [0x0004] ( 4) hash=0x596C457D SE_QUAD
+ *   [0x0005] ( 5) hash=0xCEBBEFA4 SE_LOG
+ *   [0x0006] ( 6) hash=0x2442CEA2 SE_LOG_INT
  *
  * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
  *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
@@ -66,8 +82,8 @@
  *   [0x0002] ( 2) hash=0x753D7572 SE_STACK_FRAME_INSTANCE
  *   [0x0003] ( 3) hash=0x2D91A4AC SE_EXEC_DICT_INTERNAL
  *   [0x0004] ( 4) hash=0x1E860193 SE_IF_THEN_ELSE
- *   [0x0005] ( 5) hash=0x5391CC89 SE_EXEC_DICT_FN
- *   [0x0006] ( 6) hash=0x0933AC9B SE_RETURN_PIPELINE_TERMINATE
+ *   [0x0005] ( 5) hash=0xA9BCEF3F SE_EXEC_DICT_DISPATCH
+ *   [0x0006] ( 6) hash=0x0A5B8A85 SE_RETURN_FUNCTION_TERMINATE
  *
  * PRED FUNCTIONS (type=0x0A, with 0x40=p_call_composite):
  *   [0x0000] ( 0) hash=0xF5E4BFD2 SE_FIELD_NE
@@ -77,27 +93,28 @@
 // RECORD DEFINITIONS
 // ============================================================================
 /*
- * RECORD[0x0000]: cpu_config_blackboard (size=88, align=8, hash=0xD0E22358)
+ * RECORD[0x0000]: cpu_config_blackboard (size=96, align=8, hash=0xD0E22358)
  *   [ 0] off=0x0000 size= 8 hash=0x6A747A52 fn_dict PTR64
- *   [ 1] off=0x0008 size= 4 hash=0x3A9A56E8 gpio_port
- *   [ 2] off=0x000C size= 4 hash=0x8BECDAB6 gpio_pin
- *   [ 3] off=0x0010 size= 4 hash=0xC10EF3F8 gpio_mode
- *   [ 4] off=0x0014 size= 4 hash=0x12296A9A gpio_speed
- *   [ 5] off=0x0018 size= 4 hash=0x007B7F30 gpio_pull
- *   [ 6] off=0x001C size= 4 hash=0x34D80DE9 uart_channel
- *   [ 7] off=0x0020 size= 4 hash=0x1BF9B37E uart_baud
- *   [ 8] off=0x0024 size= 4 hash=0x823E20EF uart_parity
- *   [ 9] off=0x0028 size= 4 hash=0x54A34E7F uart_stop_bits
- *   [10] off=0x002C size= 4 hash=0xCE2DA19E uart_flow_ctrl
- *   [11] off=0x0030 size= 4 hash=0x8623DA71 spi_channel
- *   [12] off=0x0034 size= 4 hash=0xF716F858 spi_clock_div
- *   [13] off=0x0038 size= 4 hash=0x2341FFDD spi_mode
- *   [14] off=0x003C size= 4 hash=0xB921B332 spi_bit_order
- *   [15] off=0x0040 size= 4 hash=0x715AEACD config_state
- *   [16] off=0x0044 size= 4 hash=0x14FC1187 error_code
- *   [17] off=0x0048 size= 4 hash=0x1DBED692 peripherals_ready
- *   [18] off=0x004C size= 4 hash=0x9C4D2960 temp_reg_addr
- *   [19] off=0x0050 size= 4 hash=0xBAA73FDC temp_reg_value
+ *   [ 1] off=0x0008 size= 8 hash=0xE4D06AB8 fn_ptr PTR64
+ *   [ 2] off=0x0010 size= 4 hash=0x3A9A56E8 gpio_port
+ *   [ 3] off=0x0014 size= 4 hash=0x8BECDAB6 gpio_pin
+ *   [ 4] off=0x0018 size= 4 hash=0xC10EF3F8 gpio_mode
+ *   [ 5] off=0x001C size= 4 hash=0x12296A9A gpio_speed
+ *   [ 6] off=0x0020 size= 4 hash=0x007B7F30 gpio_pull
+ *   [ 7] off=0x0024 size= 4 hash=0x34D80DE9 uart_channel
+ *   [ 8] off=0x0028 size= 4 hash=0x1BF9B37E uart_baud
+ *   [ 9] off=0x002C size= 4 hash=0x823E20EF uart_parity
+ *   [10] off=0x0030 size= 4 hash=0x54A34E7F uart_stop_bits
+ *   [11] off=0x0034 size= 4 hash=0xCE2DA19E uart_flow_ctrl
+ *   [12] off=0x0038 size= 4 hash=0x8623DA71 spi_channel
+ *   [13] off=0x003C size= 4 hash=0xF716F858 spi_clock_div
+ *   [14] off=0x0040 size= 4 hash=0x2341FFDD spi_mode
+ *   [15] off=0x0044 size= 4 hash=0xB921B332 spi_bit_order
+ *   [16] off=0x0048 size= 4 hash=0x715AEACD config_state
+ *   [17] off=0x004C size= 4 hash=0x14FC1187 error_code
+ *   [18] off=0x0050 size= 4 hash=0x1DBED692 peripherals_ready
+ *   [19] off=0x0054 size= 4 hash=0x9C4D2960 temp_reg_addr
+ *   [20] off=0x0058 size= 4 hash=0xBAA73FDC temp_reg_value
  *
  */
 
@@ -106,751 +123,874 @@
 // ============================================================================
 /*
  * TREE: function_dictionary
- *   hash=0x36895436 nodes=122 ptrs=6
+ *   hash=0x36895436 nodes=161 ptrs=25
  *   record=cpu_config_blackboard (hash=0xD0E22358)
  *
  * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
  * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    737      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    0  OPEN_CALL[0x07]    860      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
- *    2    OPEN_CALL[0x07]    726      0  SE_LOAD_FUNCTION_DICT hash=0xC0225974
+ *    2    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
  *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
- *    4      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
- *    5      OPEN_ARRAY[0x14]     ?      -  array '__array_1'
- *    6      OPEN_ARRAY[0x14]     ?      -  array '__array_2'
- *    7      STR_IDX[0x0D]        0     14  "write_register"
- *    8      OPEN_CALL[0x07]     18      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *    9      MAIN      [0x09]      8      1  idx_to_ptr=0
- *   10        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *   11        ONESHOT   [0x08]     10      1  idx_to_ptr=0
- *   12          UINT[0x01]           -      -  2 (0x00000002)
- *   13        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *   14        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *   15        MAIN+PTR  [0x89]     14      2  idx_to_ptr=0
- *   16          UINT[0x01]           -      -  2 (0x00000002)
- *   17          UINT[0x01]           -      -  0 (0x00000000)
- *   18          UINT[0x01]           -      -  0 (0x00000000)
- *   19          OPEN[0x05]           ?      -  list '__list_3'
- *   20          CLOSE[0x06]          1      -  list '__list_3' (opened at 19)
- *   21        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
- *   22        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *   23        ONESHOT   [0x08]     22      2  idx_to_ptr=0
- *   24          STR_IDX[0x0D]        0     14  "write_register"
- *   25        CLOSE[0x06]          0      -  (end SE_LOG)
- *   26      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *   27      INT[0x00]            -      -  0 (0x00000000)
- *   28      CLOSE_ARRAY[0x15]   22      -  array '__array_2' (opened at 6)
- *   29      OPEN_ARRAY[0x14]     ?      -  array '__array_4'
- *   30      STR_IDX[0x0D]        1     17  "read_modify_write"
- *   31      OPEN_CALL[0x07]     60      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *   32      MAIN      [0x09]     31      1  idx_to_ptr=0
- *   33        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *   34        ONESHOT   [0x08]     33      1  idx_to_ptr=0
- *   35          UINT[0x01]           -      -  3 (0x00000003)
- *   36        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *   37        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *   38        MAIN+PTR  [0x89]     37      2  idx_to_ptr=1
- *   39          UINT[0x01]           -      -  3 (0x00000003)
- *   40          UINT[0x01]           -      -  1 (0x00000001)
- *   41          UINT[0x01]           -      -  2 (0x00000002)
- *   42          OPEN[0x05]           ?      -  list '__list_5'
- *   43          CLOSE[0x06]          1      -  list '__list_5' (opened at 42)
- *   44        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
- *   45        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   46        ONESHOT   [0x08]     45      3  idx_to_ptr=0
- *   47          UINT[0x01]           -      -  64 (0x00000040)
- *   48          STACK_LOCAL                 -      -  0
- *   49          NULL_PARAM                 -      -  0
- *   50          STACK_LOCAL                 -      -  3
- *   51        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   52        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   53        ONESHOT   [0x08]     52      3  idx_to_ptr=0
- *   54          UINT[0x01]           -      -  19 (0x00000013)
- *   55          STACK_LOCAL                 -      -  1
- *   56          NULL_PARAM                 -      -  0
- *   57          STACK_TOS                 -      -  0
- *   58        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   59        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   60        ONESHOT   [0x08]     59      3  idx_to_ptr=0
- *   61          UINT[0x01]           -      -  16 (0x00000010)
- *   62          STACK_LOCAL                 -      -  3
- *   63          STACK_TOS                 -      -  0
- *   64          STACK_LOCAL                 -      -  3
- *   65        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   66        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   67        ONESHOT   [0x08]     66      3  idx_to_ptr=0
- *   68          UINT[0x01]           -      -  17 (0x00000011)
- *   69          STACK_LOCAL                 -      -  3
- *   70          STACK_LOCAL                 -      -  2
- *   71          STACK_LOCAL                 -      -  3
- *   72        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   73        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   74        ONESHOT   [0x08]     73      3  idx_to_ptr=0
- *   75          UINT[0x01]           -      -  64 (0x00000040)
- *   76          STACK_LOCAL                 -      -  0
- *   77          NULL_PARAM                 -      -  0
- *   78          STACK_PUSH                 -      -  0
- *   79        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   80        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *   81        ONESHOT   [0x08]     80      3  idx_to_ptr=0
- *   82          UINT[0x01]           -      -  64 (0x00000040)
- *   83          STACK_LOCAL                 -      -  3
- *   84          NULL_PARAM                 -      -  0
- *   85          STACK_PUSH                 -      -  0
- *   86        CLOSE[0x06]          0      -  (end SE_QUAD)
- *   87        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *   88        MAIN      [0x09]     87      3  idx_to_ptr=0
- *   89          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
- *   90        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *   91      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *   92      INT[0x00]            -      -  0 (0x00000000)
- *   93      CLOSE_ARRAY[0x15]   64      -  array '__array_4' (opened at 29)
- *   94      OPEN_ARRAY[0x14]     ?      -  array '__array_6'
- *   95      STR_IDX[0x0D]        2     23  "enable_peripheral_clock"
- *   96      OPEN_CALL[0x07]     39      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *   97      MAIN      [0x09]     96      1  idx_to_ptr=0
- *   98        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *   99        ONESHOT   [0x08]     98      1  idx_to_ptr=0
- *  100          UINT[0x01]           -      -  1 (0x00000001)
- *  101        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *  102        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *  103        MAIN+PTR  [0x89]    102      2  idx_to_ptr=2
- *  104          UINT[0x01]           -      -  1 (0x00000001)
- *  105          UINT[0x01]           -      -  0 (0x00000000)
- *  106          UINT[0x01]           -      -  1 (0x00000001)
- *  107          OPEN[0x05]           ?      -  list '__list_7'
- *  108          CLOSE[0x06]          1      -  list '__list_7' (opened at 107)
- *  109        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
- *  110        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  111        ONESHOT   [0x08]    110      3  idx_to_ptr=0
- *  112          UINT[0x01]           -      -  64 (0x00000040)
- *  113          UINT[0x01]           -      -  1073876992 (0x40021000)
- *  114          NULL_PARAM                 -      -  0
- *  115          STACK_PUSH                 -      -  0
- *  116        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  117        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  118        ONESHOT   [0x08]    117      3  idx_to_ptr=0
- *  119          UINT[0x01]           -      -  64 (0x00000040)
- *  120          UINT[0x01]           -      -  0 (0x00000000)
- *  121          NULL_PARAM                 -      -  0
- *  122          STACK_PUSH                 -      -  0
- *  123        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  124        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  125        ONESHOT   [0x08]    124      3  idx_to_ptr=0
- *  126          UINT[0x01]           -      -  64 (0x00000040)
- *  127          STACK_LOCAL                 -      -  0
- *  128          NULL_PARAM                 -      -  0
- *  129          STACK_PUSH                 -      -  0
- *  130        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  131        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  132        MAIN      [0x09]    131      3  idx_to_ptr=0
- *  133          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  134        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  135      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  136      INT[0x00]            -      -  0 (0x00000000)
- *  137      CLOSE_ARRAY[0x15]   43      -  array '__array_6' (opened at 94)
- *  138      OPEN_ARRAY[0x14]     ?      -  array '__array_8'
- *  139      STR_IDX[0x0D]        3     18  "configure_gpio_pin"
- *  140      OPEN_CALL[0x07]    138      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  141      MAIN      [0x09]    140      1  idx_to_ptr=0
- *  142        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *  143        ONESHOT   [0x08]    142      1  idx_to_ptr=0
- *  144          UINT[0x01]           -      -  5 (0x00000005)
- *  145        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *  146        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *  147        MAIN+PTR  [0x89]    146      2  idx_to_ptr=3
- *  148          UINT[0x01]           -      -  5 (0x00000005)
- *  149          UINT[0x01]           -      -  2 (0x00000002)
- *  150          UINT[0x01]           -      -  4 (0x00000004)
- *  151          OPEN[0x05]           ?      -  list '__list_9'
- *  152          CLOSE[0x06]          1      -  list '__list_9' (opened at 151)
- *  153        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *    4      FIELD[0x0B]         36      4  uart_channel (off=0x0024, hash=0x34D80DE9)
+ *    5      UINT[0x01]           -      -  1 (0x00000001)
+ *    6    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *    7    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *    8    ONESHOT   [0x08]      7      0  idx_to_ptr=0
+ *    9      FIELD[0x0B]         40      4  uart_baud (off=0x0028, hash=0x1BF9B37E)
+ *   10      UINT[0x01]           -      -  1667 (0x00000683)
+ *   11    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   12    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   13    ONESHOT   [0x08]     12      0  idx_to_ptr=0
+ *   14      FIELD[0x0B]         44      4  uart_parity (off=0x002C, hash=0x823E20EF)
+ *   15      UINT[0x01]           -      -  0 (0x00000000)
+ *   16    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   17    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   18    ONESHOT   [0x08]     17      0  idx_to_ptr=0
+ *   19      FIELD[0x0B]         48      4  uart_stop_bits (off=0x0030, hash=0x54A34E7F)
+ *   20      UINT[0x01]           -      -  1 (0x00000001)
+ *   21    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   22    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   23    ONESHOT   [0x08]     22      0  idx_to_ptr=0
+ *   24      FIELD[0x0B]         52      4  uart_flow_ctrl (off=0x0034, hash=0xCE2DA19E)
+ *   25      UINT[0x01]           -      -  0 (0x00000000)
+ *   26    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   27    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   28    ONESHOT   [0x08]     27      0  idx_to_ptr=0
+ *   29      FIELD[0x0B]         56      4  spi_channel (off=0x0038, hash=0x8623DA71)
+ *   30      UINT[0x01]           -      -  1 (0x00000001)
+ *   31    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   32    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   33    ONESHOT   [0x08]     32      0  idx_to_ptr=0
+ *   34      FIELD[0x0B]         60      4  spi_clock_div (off=0x003C, hash=0xF716F858)
+ *   35      UINT[0x01]           -      -  2 (0x00000002)
+ *   36    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   37    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   38    ONESHOT   [0x08]     37      0  idx_to_ptr=0
+ *   39      FIELD[0x0B]         64      4  spi_mode (off=0x0040, hash=0x2341FFDD)
+ *   40      UINT[0x01]           -      -  0 (0x00000000)
+ *   41    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   42    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   43    ONESHOT   [0x08]     42      0  idx_to_ptr=0
+ *   44      FIELD[0x0B]         68      4  spi_bit_order (off=0x0044, hash=0xB921B332)
+ *   45      UINT[0x01]           -      -  0 (0x00000000)
+ *   46    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   47    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   48    ONESHOT   [0x08]     47      0  idx_to_ptr=0
+ *   49      FIELD[0x0B]         16      4  gpio_port (off=0x0010, hash=0x3A9A56E8)
+ *   50      UINT[0x01]           -      -  1073872896 (0x40020000)
+ *   51    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   52    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   53    ONESHOT   [0x08]     52      0  idx_to_ptr=0
+ *   54      FIELD[0x0B]         20      4  gpio_pin (off=0x0014, hash=0x8BECDAB6)
+ *   55      UINT[0x01]           -      -  5 (0x00000005)
+ *   56    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   57    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   58    ONESHOT   [0x08]     57      0  idx_to_ptr=0
+ *   59      FIELD[0x0B]         24      4  gpio_mode (off=0x0018, hash=0xC10EF3F8)
+ *   60      UINT[0x01]           -      -  2 (0x00000002)
+ *   61    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   62    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   63    ONESHOT   [0x08]     62      0  idx_to_ptr=0
+ *   64      FIELD[0x0B]         28      4  gpio_speed (off=0x001C, hash=0x12296A9A)
+ *   65      UINT[0x01]           -      -  2 (0x00000002)
+ *   66    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   67    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   68    ONESHOT   [0x08]     67      0  idx_to_ptr=0
+ *   69      FIELD[0x0B]         32      4  gpio_pull (off=0x0020, hash=0x007B7F30)
+ *   70      UINT[0x01]           -      -  0 (0x00000000)
+ *   71    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   72    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   73    ONESHOT   [0x08]     72      0  idx_to_ptr=0
+ *   74      FIELD[0x0B]         72      4  config_state (off=0x0048, hash=0x715AEACD)
+ *   75      UINT[0x01]           -      -  0 (0x00000000)
+ *   76    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   77    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   78    ONESHOT   [0x08]     77      0  idx_to_ptr=0
+ *   79      FIELD[0x0B]         76      4  error_code (off=0x004C, hash=0x14FC1187)
+ *   80      UINT[0x01]           -      -  0 (0x00000000)
+ *   81    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   82    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *   83    ONESHOT   [0x08]     82      0  idx_to_ptr=0
+ *   84      FIELD[0x0B]         80      4  peripherals_ready (off=0x0050, hash=0x1DBED692)
+ *   85      UINT[0x01]           -      -  0 (0x00000000)
+ *   86    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   87    OPEN_CALL[0x07]    668      0  SE_LOAD_FUNCTION_DICT hash=0xC0225974
+ *   88    ONESHOT   [0x08]     87      1  idx_to_ptr=0
+ *   89      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
+ *   90      OPEN_DICT[0x10]      ?      -  dict 'fn_dict'
+ *   91      OPEN_KEY[0x12]       -      -  "write_register" hash=0x8A22E5B4
+ *   92      OPEN_CALL[0x07]     17      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *   93      MAIN      [0x09]     92      1  idx_to_ptr=0
+ *   94        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *   95        ONESHOT   [0x08]     94      2  idx_to_ptr=0
+ *   96          UINT[0x01]           -      -  2 (0x00000002)
+ *   97        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *   98        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *   99        MAIN+PTR  [0x89]     98      2  idx_to_ptr=0
+ *  100          UINT[0x01]           -      -  2 (0x00000002)
+ *  101          UINT[0x01]           -      -  0 (0x00000000)
+ *  102          UINT[0x01]           -      -  0 (0x00000000)
+ *  103          OPEN[0x05]           ?      -  list '__list_1'
+ *  104          CLOSE[0x06]          1      -  list '__list_1' (opened at 103)
+ *  105        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  106        OPEN_CALL[0x07]      2      0  write_register hash=0x8A22E5B4
+ *  107        ONESHOT   [0x08]    106      3  idx_to_ptr=0
+ *  108        CLOSE[0x06]          0      -  (end write_register)
+ *  109      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  110      CLOSE_KEY[0x13]     19      -  key 'write_register' (opened at 91)
+ *  111      OPEN_KEY[0x12]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  112      OPEN_CALL[0x07]     60      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  113      MAIN      [0x09]    112      1  idx_to_ptr=0
+ *  114        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  115        ONESHOT   [0x08]    114      2  idx_to_ptr=0
+ *  116          UINT[0x01]           -      -  3 (0x00000003)
+ *  117        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  118        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  119        MAIN+PTR  [0x89]    118      2  idx_to_ptr=1
+ *  120          UINT[0x01]           -      -  3 (0x00000003)
+ *  121          UINT[0x01]           -      -  2 (0x00000002)
+ *  122          UINT[0x01]           -      -  0 (0x00000000)
+ *  123          OPEN[0x05]           ?      -  list '__list_2'
+ *  124          CLOSE[0x06]          1      -  list '__list_2' (opened at 123)
+ *  125        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  126        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  127        ONESHOT   [0x08]    126      4  idx_to_ptr=0
+ *  128          UINT[0x01]           -      -  64 (0x00000040)
+ *  129          UINT[0x01]           -      -  0 (0x00000000)
+ *  130          NULL_PARAM                 -      -  0
+ *  131          STACK_LOCAL                 -      -  3
+ *  132        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  133        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  134        ONESHOT   [0x08]    133      4  idx_to_ptr=0
+ *  135          UINT[0x01]           -      -  19 (0x00000013)
+ *  136          STACK_LOCAL                 -      -  1
+ *  137          NULL_PARAM                 -      -  0
+ *  138          STACK_LOCAL                 -      -  4
+ *  139        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  140        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  141        ONESHOT   [0x08]    140      4  idx_to_ptr=0
+ *  142          UINT[0x01]           -      -  16 (0x00000010)
+ *  143          STACK_LOCAL                 -      -  3
+ *  144          STACK_LOCAL                 -      -  4
+ *  145          STACK_LOCAL                 -      -  3
+ *  146        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  147        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  148        ONESHOT   [0x08]    147      4  idx_to_ptr=0
+ *  149          UINT[0x01]           -      -  17 (0x00000011)
+ *  150          STACK_LOCAL                 -      -  3
+ *  151          STACK_LOCAL                 -      -  2
+ *  152          STACK_LOCAL                 -      -  3
+ *  153        CLOSE[0x06]          0      -  (end SE_QUAD)
  *  154        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  155        ONESHOT   [0x08]    154      3  idx_to_ptr=0
- *  156          UINT[0x01]           -      -  2 (0x00000002)
- *  157          STACK_LOCAL                 -      -  1
- *  158          INT[0x00]            -      -  2 (0x00000002)
- *  159          STACK_LOCAL                 -      -  5
+ *  155        ONESHOT   [0x08]    154      4  idx_to_ptr=0
+ *  156          UINT[0x01]           -      -  64 (0x00000040)
+ *  157          STACK_LOCAL                 -      -  0
+ *  158          NULL_PARAM                 -      -  0
+ *  159          STACK_PUSH                 -      -  0
  *  160        CLOSE[0x06]          0      -  (end SE_QUAD)
  *  161        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  162        ONESHOT   [0x08]    161      3  idx_to_ptr=0
- *  163          UINT[0x01]           -      -  20 (0x00000014)
- *  164          INT[0x00]            -      -  3 (0x00000003)
- *  165          STACK_LOCAL                 -      -  5
- *  166          STACK_LOCAL                 -      -  6
+ *  162        ONESHOT   [0x08]    161      4  idx_to_ptr=0
+ *  163          UINT[0x01]           -      -  64 (0x00000040)
+ *  164          STACK_LOCAL                 -      -  3
+ *  165          NULL_PARAM                 -      -  0
+ *  166          STACK_PUSH                 -      -  0
  *  167        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  168        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  169        ONESHOT   [0x08]    168      3  idx_to_ptr=0
- *  170          UINT[0x01]           -      -  20 (0x00000014)
- *  171          STACK_LOCAL                 -      -  2
- *  172          STACK_LOCAL                 -      -  5
- *  173          STACK_TOS                 -      -  0
- *  174        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  175        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  176        ONESHOT   [0x08]    175      3  idx_to_ptr=0
- *  177          UINT[0x01]           -      -  64 (0x00000040)
- *  178          STACK_LOCAL                 -      -  0
- *  179          NULL_PARAM                 -      -  0
- *  180          STACK_PUSH                 -      -  0
- *  181        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  182        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  183        ONESHOT   [0x08]    182      3  idx_to_ptr=0
- *  184          UINT[0x01]           -      -  64 (0x00000040)
- *  185          STACK_LOCAL                 -      -  6
- *  186          NULL_PARAM                 -      -  0
- *  187          STACK_PUSH                 -      -  0
- *  188        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  168        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  169        MAIN+PTR  [0x89]    168      3  idx_to_ptr=2
+ *  170          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
+ *  171        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  172      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  173      CLOSE_KEY[0x13]     62      -  key 'read_modify_write' (opened at 111)
+ *  174      OPEN_KEY[0x12]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
+ *  175      OPEN_CALL[0x07]     39      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  176      MAIN      [0x09]    175      1  idx_to_ptr=0
+ *  177        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  178        ONESHOT   [0x08]    177      2  idx_to_ptr=0
+ *  179          UINT[0x01]           -      -  2 (0x00000002)
+ *  180        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  181        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  182        MAIN+PTR  [0x89]    181      2  idx_to_ptr=3
+ *  183          UINT[0x01]           -      -  2 (0x00000002)
+ *  184          UINT[0x01]           -      -  0 (0x00000000)
+ *  185          UINT[0x01]           -      -  0 (0x00000000)
+ *  186          OPEN[0x05]           ?      -  list '__list_3'
+ *  187          CLOSE[0x06]          1      -  list '__list_3' (opened at 186)
+ *  188        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
  *  189        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  190        ONESHOT   [0x08]    189      3  idx_to_ptr=0
+ *  190        ONESHOT   [0x08]    189      4  idx_to_ptr=0
  *  191          UINT[0x01]           -      -  64 (0x00000040)
- *  192          STACK_TOS                 -      -  2
+ *  192          STACK_LOCAL                 -      -  0
  *  193          NULL_PARAM                 -      -  0
  *  194          STACK_PUSH                 -      -  0
  *  195        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  196        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  197        MAIN      [0x09]    196      3  idx_to_ptr=0
- *  198          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  199        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  200        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  201        ONESHOT   [0x08]    200      3  idx_to_ptr=0
- *  202          UINT[0x01]           -      -  0 (0x00000000)
- *  203          STACK_LOCAL                 -      -  0
- *  204          INT[0x00]            -      -  8 (0x00000008)
- *  205          STACK_TOS                 -      -  0
- *  206        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  207        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  208        ONESHOT   [0x08]    207      3  idx_to_ptr=0
- *  209          UINT[0x01]           -      -  20 (0x00000014)
- *  210          STACK_LOCAL                 -      -  3
- *  211          STACK_LOCAL                 -      -  5
- *  212          STACK_TOS                 -      -  1
- *  213        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  214        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  215        ONESHOT   [0x08]    214      3  idx_to_ptr=0
- *  216          UINT[0x01]           -      -  64 (0x00000040)
- *  217          STACK_TOS                 -      -  0
- *  218          NULL_PARAM                 -      -  0
- *  219          STACK_PUSH                 -      -  0
- *  220        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  221        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  222        ONESHOT   [0x08]    221      3  idx_to_ptr=0
- *  223          UINT[0x01]           -      -  64 (0x00000040)
- *  224          STACK_LOCAL                 -      -  6
- *  225          NULL_PARAM                 -      -  0
- *  226          STACK_PUSH                 -      -  0
- *  227        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  228        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  229        ONESHOT   [0x08]    228      3  idx_to_ptr=0
- *  230          UINT[0x01]           -      -  64 (0x00000040)
- *  231          STACK_TOS                 -      -  3
- *  232          NULL_PARAM                 -      -  0
- *  233          STACK_PUSH                 -      -  0
- *  234        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  235        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  236        MAIN      [0x09]    235      3  idx_to_ptr=0
- *  237          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  238        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  239        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  240        ONESHOT   [0x08]    239      3  idx_to_ptr=0
- *  241          UINT[0x01]           -      -  0 (0x00000000)
- *  242          STACK_LOCAL                 -      -  0
- *  243          INT[0x00]            -      -  12 (0x0000000C)
- *  244          STACK_TOS                 -      -  0
- *  245        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  246        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  247        ONESHOT   [0x08]    246      3  idx_to_ptr=0
- *  248          UINT[0x01]           -      -  20 (0x00000014)
- *  249          STACK_LOCAL                 -      -  4
- *  250          STACK_LOCAL                 -      -  5
- *  251          STACK_TOS                 -      -  1
- *  252        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  253        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  254        ONESHOT   [0x08]    253      3  idx_to_ptr=0
- *  255          UINT[0x01]           -      -  64 (0x00000040)
- *  256          STACK_TOS                 -      -  0
- *  257          NULL_PARAM                 -      -  0
- *  258          STACK_PUSH                 -      -  0
- *  259        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  260        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  261        ONESHOT   [0x08]    260      3  idx_to_ptr=0
- *  262          UINT[0x01]           -      -  64 (0x00000040)
- *  263          STACK_LOCAL                 -      -  6
- *  264          NULL_PARAM                 -      -  0
- *  265          STACK_PUSH                 -      -  0
- *  266        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  267        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  268        ONESHOT   [0x08]    267      3  idx_to_ptr=0
- *  269          UINT[0x01]           -      -  64 (0x00000040)
- *  270          STACK_TOS                 -      -  3
- *  271          NULL_PARAM                 -      -  0
- *  272          STACK_PUSH                 -      -  0
- *  273        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  274        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  275        MAIN      [0x09]    274      3  idx_to_ptr=0
- *  276          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  277        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  278      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  279      INT[0x00]            -      -  0 (0x00000000)
- *  280      CLOSE_ARRAY[0x15]  142      -  array '__array_8' (opened at 138)
- *  281      OPEN_ARRAY[0x14]     ?      -  array '__array_10'
- *  282      STR_IDX[0x0D]        4     14  "configure_uart"
- *  283      OPEN_CALL[0x07]    135      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  284      MAIN      [0x09]    283      1  idx_to_ptr=0
- *  285        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *  286        ONESHOT   [0x08]    285      1  idx_to_ptr=0
- *  287          UINT[0x01]           -      -  3 (0x00000003)
- *  288        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *  289        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *  290        MAIN+PTR  [0x89]    289      2  idx_to_ptr=4
- *  291          UINT[0x01]           -      -  3 (0x00000003)
- *  292          UINT[0x01]           -      -  0 (0x00000000)
- *  293          UINT[0x01]           -      -  2 (0x00000002)
- *  294          OPEN[0x05]           ?      -  list '__list_11'
- *  295          CLOSE[0x06]          1      -  list '__list_11' (opened at 294)
- *  296        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
- *  297        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  298        ONESHOT   [0x08]    297      3  idx_to_ptr=0
- *  299          UINT[0x01]           -      -  0 (0x00000000)
- *  300          STACK_LOCAL                 -      -  0
- *  301          INT[0x00]            -      -  12 (0x0000000C)
- *  302          STACK_TOS                 -      -  0
- *  303        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  304        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  305        ONESHOT   [0x08]    304      3  idx_to_ptr=0
- *  306          UINT[0x01]           -      -  64 (0x00000040)
- *  307          STACK_TOS                 -      -  0
- *  308          NULL_PARAM                 -      -  0
- *  309          STACK_PUSH                 -      -  0
- *  310        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  311        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  312        ONESHOT   [0x08]    311      3  idx_to_ptr=0
- *  313          UINT[0x01]           -      -  64 (0x00000040)
- *  314          UINT[0x01]           -      -  1 (0x00000001)
- *  315          NULL_PARAM                 -      -  0
- *  316          STACK_PUSH                 -      -  0
- *  317        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  318        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  319        ONESHOT   [0x08]    318      3  idx_to_ptr=0
- *  320          UINT[0x01]           -      -  64 (0x00000040)
- *  321          UINT[0x01]           -      -  0 (0x00000000)
- *  322          NULL_PARAM                 -      -  0
- *  323          STACK_PUSH                 -      -  0
- *  324        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  325        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  326        MAIN      [0x09]    325      3  idx_to_ptr=0
- *  327          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  328        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  329        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  330        ONESHOT   [0x08]    329      3  idx_to_ptr=0
- *  331          UINT[0x01]           -      -  0 (0x00000000)
- *  332          STACK_LOCAL                 -      -  0
- *  333          INT[0x00]            -      -  8 (0x00000008)
- *  334          STACK_TOS                 -      -  0
- *  335        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  336        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  337        ONESHOT   [0x08]    336      3  idx_to_ptr=0
- *  338          UINT[0x01]           -      -  64 (0x00000040)
- *  339          STACK_TOS                 -      -  0
- *  340          NULL_PARAM                 -      -  0
- *  341          STACK_PUSH                 -      -  0
- *  342        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  343        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  344        ONESHOT   [0x08]    343      3  idx_to_ptr=0
- *  345          UINT[0x01]           -      -  64 (0x00000040)
- *  346          STACK_LOCAL                 -      -  1
- *  347          NULL_PARAM                 -      -  0
- *  348          STACK_PUSH                 -      -  0
- *  349        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  350        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  351        MAIN      [0x09]    350      3  idx_to_ptr=0
- *  352          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
- *  353        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  354        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  355        ONESHOT   [0x08]    354      3  idx_to_ptr=0
- *  356          UINT[0x01]           -      -  0 (0x00000000)
- *  357          STACK_LOCAL                 -      -  0
- *  358          INT[0x00]            -      -  12 (0x0000000C)
- *  359          STACK_TOS                 -      -  0
- *  360        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  361        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  362        ONESHOT   [0x08]    361      3  idx_to_ptr=0
- *  363          UINT[0x01]           -      -  64 (0x00000040)
- *  364          STACK_TOS                 -      -  0
- *  365          NULL_PARAM                 -      -  0
- *  366          STACK_PUSH                 -      -  0
- *  367        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  368        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  369        ONESHOT   [0x08]    368      3  idx_to_ptr=0
- *  370          UINT[0x01]           -      -  64 (0x00000040)
- *  371          UINT[0x01]           -      -  0 (0x00000000)
- *  372          NULL_PARAM                 -      -  0
- *  373          STACK_PUSH                 -      -  0
- *  374        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  375        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  376        ONESHOT   [0x08]    375      3  idx_to_ptr=0
- *  377          UINT[0x01]           -      -  64 (0x00000040)
- *  378          STACK_LOCAL                 -      -  2
- *  379          NULL_PARAM                 -      -  0
- *  380          STACK_PUSH                 -      -  0
- *  381        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  382        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  383        MAIN      [0x09]    382      3  idx_to_ptr=0
- *  384          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  385        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  196        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  197        ONESHOT   [0x08]    196      4  idx_to_ptr=0
+ *  198          UINT[0x01]           -      -  64 (0x00000040)
+ *  199          UINT[0x01]           -      -  0 (0x00000000)
+ *  200          NULL_PARAM                 -      -  0
+ *  201          STACK_PUSH                 -      -  0
+ *  202        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  203        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  204        ONESHOT   [0x08]    203      4  idx_to_ptr=0
+ *  205          UINT[0x01]           -      -  64 (0x00000040)
+ *  206          STACK_LOCAL                 -      -  1
+ *  207          NULL_PARAM                 -      -  0
+ *  208          STACK_PUSH                 -      -  0
+ *  209        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  210        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  211        MAIN+PTR  [0x89]    210      3  idx_to_ptr=4
+ *  212          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  213        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  214      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  215      CLOSE_KEY[0x13]     41      -  key 'enable_peripheral_clock' (opened at 174)
+ *  216      OPEN_KEY[0x12]       -      -  "configure_gpio_pin" hash=0x44DE0763
+ *  217      OPEN_CALL[0x07]    138      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  218      MAIN      [0x09]    217      1  idx_to_ptr=0
+ *  219        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  220        ONESHOT   [0x08]    219      2  idx_to_ptr=0
+ *  221          UINT[0x01]           -      -  5 (0x00000005)
+ *  222        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  223        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  224        MAIN+PTR  [0x89]    223      2  idx_to_ptr=5
+ *  225          UINT[0x01]           -      -  5 (0x00000005)
+ *  226          UINT[0x01]           -      -  4 (0x00000004)
+ *  227          UINT[0x01]           -      -  1 (0x00000001)
+ *  228          OPEN[0x05]           ?      -  list '__list_4'
+ *  229          CLOSE[0x06]          1      -  list '__list_4' (opened at 228)
+ *  230        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  231        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  232        ONESHOT   [0x08]    231      4  idx_to_ptr=0
+ *  233          UINT[0x01]           -      -  2 (0x00000002)
+ *  234          STACK_LOCAL                 -      -  1
+ *  235          UINT[0x01]           -      -  2 (0x00000002)
+ *  236          STACK_LOCAL                 -      -  5
+ *  237        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  238        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  239        ONESHOT   [0x08]    238      4  idx_to_ptr=0
+ *  240          UINT[0x01]           -      -  20 (0x00000014)
+ *  241          UINT[0x01]           -      -  3 (0x00000003)
+ *  242          STACK_LOCAL                 -      -  5
+ *  243          STACK_LOCAL                 -      -  6
+ *  244        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  245        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  246        ONESHOT   [0x08]    245      4  idx_to_ptr=0
+ *  247          UINT[0x01]           -      -  20 (0x00000014)
+ *  248          STACK_LOCAL                 -      -  2
+ *  249          STACK_LOCAL                 -      -  5
+ *  250          STACK_LOCAL                 -      -  8
+ *  251        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  252        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  253        ONESHOT   [0x08]    252      4  idx_to_ptr=0
+ *  254          UINT[0x01]           -      -  64 (0x00000040)
+ *  255          STACK_LOCAL                 -      -  0
+ *  256          NULL_PARAM                 -      -  0
+ *  257          STACK_PUSH                 -      -  0
+ *  258        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  259        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  260        ONESHOT   [0x08]    259      4  idx_to_ptr=0
+ *  261          UINT[0x01]           -      -  64 (0x00000040)
+ *  262          STACK_LOCAL                 -      -  6
+ *  263          NULL_PARAM                 -      -  0
+ *  264          STACK_PUSH                 -      -  0
+ *  265        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  266        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  267        ONESHOT   [0x08]    266      4  idx_to_ptr=0
+ *  268          UINT[0x01]           -      -  64 (0x00000040)
+ *  269          STACK_LOCAL                 -      -  8
+ *  270          NULL_PARAM                 -      -  0
+ *  271          STACK_PUSH                 -      -  0
+ *  272        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  273        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  274        MAIN+PTR  [0x89]    273      3  idx_to_ptr=6
+ *  275          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  276        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  277        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  278        ONESHOT   [0x08]    277      4  idx_to_ptr=0
+ *  279          UINT[0x01]           -      -  0 (0x00000000)
+ *  280          STACK_LOCAL                 -      -  0
+ *  281          UINT[0x01]           -      -  8 (0x00000008)
+ *  282          STACK_LOCAL                 -      -  7
+ *  283        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  284        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  285        ONESHOT   [0x08]    284      4  idx_to_ptr=0
+ *  286          UINT[0x01]           -      -  20 (0x00000014)
+ *  287          STACK_LOCAL                 -      -  3
+ *  288          STACK_LOCAL                 -      -  5
+ *  289          STACK_LOCAL                 -      -  8
+ *  290        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  291        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  292        ONESHOT   [0x08]    291      4  idx_to_ptr=0
+ *  293          UINT[0x01]           -      -  64 (0x00000040)
+ *  294          STACK_LOCAL                 -      -  7
+ *  295          NULL_PARAM                 -      -  0
+ *  296          STACK_PUSH                 -      -  0
+ *  297        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  298        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  299        ONESHOT   [0x08]    298      4  idx_to_ptr=0
+ *  300          UINT[0x01]           -      -  64 (0x00000040)
+ *  301          STACK_LOCAL                 -      -  6
+ *  302          NULL_PARAM                 -      -  0
+ *  303          STACK_PUSH                 -      -  0
+ *  304        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  305        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  306        ONESHOT   [0x08]    305      4  idx_to_ptr=0
+ *  307          UINT[0x01]           -      -  64 (0x00000040)
+ *  308          STACK_LOCAL                 -      -  8
+ *  309          NULL_PARAM                 -      -  0
+ *  310          STACK_PUSH                 -      -  0
+ *  311        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  312        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  313        MAIN+PTR  [0x89]    312      3  idx_to_ptr=7
+ *  314          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  315        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  316        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  317        ONESHOT   [0x08]    316      4  idx_to_ptr=0
+ *  318          UINT[0x01]           -      -  0 (0x00000000)
+ *  319          STACK_LOCAL                 -      -  0
+ *  320          UINT[0x01]           -      -  12 (0x0000000C)
+ *  321          STACK_LOCAL                 -      -  7
+ *  322        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  323        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  324        ONESHOT   [0x08]    323      4  idx_to_ptr=0
+ *  325          UINT[0x01]           -      -  20 (0x00000014)
+ *  326          STACK_LOCAL                 -      -  4
+ *  327          STACK_LOCAL                 -      -  5
+ *  328          STACK_LOCAL                 -      -  8
+ *  329        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  330        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  331        ONESHOT   [0x08]    330      4  idx_to_ptr=0
+ *  332          UINT[0x01]           -      -  64 (0x00000040)
+ *  333          STACK_LOCAL                 -      -  7
+ *  334          NULL_PARAM                 -      -  0
+ *  335          STACK_PUSH                 -      -  0
+ *  336        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  337        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  338        ONESHOT   [0x08]    337      4  idx_to_ptr=0
+ *  339          UINT[0x01]           -      -  64 (0x00000040)
+ *  340          STACK_LOCAL                 -      -  6
+ *  341          NULL_PARAM                 -      -  0
+ *  342          STACK_PUSH                 -      -  0
+ *  343        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  344        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  345        ONESHOT   [0x08]    344      4  idx_to_ptr=0
+ *  346          UINT[0x01]           -      -  64 (0x00000040)
+ *  347          STACK_LOCAL                 -      -  8
+ *  348          NULL_PARAM                 -      -  0
+ *  349          STACK_PUSH                 -      -  0
+ *  350        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  351        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  352        MAIN+PTR  [0x89]    351      3  idx_to_ptr=8
+ *  353          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  354        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  355      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  356      CLOSE_KEY[0x13]    140      -  key 'configure_gpio_pin' (opened at 216)
+ *  357      OPEN_KEY[0x12]       -      -  "configure_uart" hash=0xB16465B0
+ *  358      OPEN_CALL[0x07]    128      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  359      MAIN      [0x09]    358      1  idx_to_ptr=0
+ *  360        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  361        ONESHOT   [0x08]    360      2  idx_to_ptr=0
+ *  362          UINT[0x01]           -      -  3 (0x00000003)
+ *  363        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  364        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  365        MAIN+PTR  [0x89]    364      2  idx_to_ptr=9
+ *  366          UINT[0x01]           -      -  3 (0x00000003)
+ *  367          UINT[0x01]           -      -  1 (0x00000001)
+ *  368          UINT[0x01]           -      -  1 (0x00000001)
+ *  369          OPEN[0x05]           ?      -  list '__list_5'
+ *  370          CLOSE[0x06]          1      -  list '__list_5' (opened at 369)
+ *  371        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  372        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  373        ONESHOT   [0x08]    372      4  idx_to_ptr=0
+ *  374          UINT[0x01]           -      -  0 (0x00000000)
+ *  375          STACK_LOCAL                 -      -  0
+ *  376          UINT[0x01]           -      -  12 (0x0000000C)
+ *  377          STACK_LOCAL                 -      -  3
+ *  378        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  379        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  380        ONESHOT   [0x08]    379      4  idx_to_ptr=0
+ *  381          UINT[0x01]           -      -  64 (0x00000040)
+ *  382          STACK_LOCAL                 -      -  3
+ *  383          NULL_PARAM                 -      -  0
+ *  384          STACK_PUSH                 -      -  0
+ *  385        CLOSE[0x06]          0      -  (end SE_QUAD)
  *  386        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  387        ONESHOT   [0x08]    386      3  idx_to_ptr=0
- *  388          UINT[0x01]           -      -  0 (0x00000000)
- *  389          STACK_LOCAL                 -      -  0
- *  390          INT[0x00]            -      -  12 (0x0000000C)
- *  391          STACK_TOS                 -      -  0
+ *  387        ONESHOT   [0x08]    386      4  idx_to_ptr=0
+ *  388          UINT[0x01]           -      -  64 (0x00000040)
+ *  389          UINT[0x01]           -      -  8192 (0x00002000)
+ *  390          NULL_PARAM                 -      -  0
+ *  391          STACK_PUSH                 -      -  0
  *  392        CLOSE[0x06]          0      -  (end SE_QUAD)
  *  393        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  394        ONESHOT   [0x08]    393      3  idx_to_ptr=0
+ *  394        ONESHOT   [0x08]    393      4  idx_to_ptr=0
  *  395          UINT[0x01]           -      -  64 (0x00000040)
- *  396          STACK_TOS                 -      -  0
+ *  396          UINT[0x01]           -      -  0 (0x00000000)
  *  397          NULL_PARAM                 -      -  0
  *  398          STACK_PUSH                 -      -  0
  *  399        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  400        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  401        ONESHOT   [0x08]    400      3  idx_to_ptr=0
- *  402          UINT[0x01]           -      -  64 (0x00000040)
- *  403          UINT[0x01]           -      -  0 (0x00000000)
- *  404          NULL_PARAM                 -      -  0
- *  405          STACK_PUSH                 -      -  0
- *  406        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  407        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  408        ONESHOT   [0x08]    407      3  idx_to_ptr=0
- *  409          UINT[0x01]           -      -  64 (0x00000040)
- *  410          UINT[0x01]           -      -  1 (0x00000001)
- *  411          NULL_PARAM                 -      -  0
- *  412          STACK_PUSH                 -      -  0
- *  413        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  414        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  415        MAIN      [0x09]    414      3  idx_to_ptr=0
- *  416          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  417        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  418      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  419      INT[0x00]            -      -  0 (0x00000000)
- *  420      CLOSE_ARRAY[0x15]  139      -  array '__array_10' (opened at 281)
- *  421      OPEN_ARRAY[0x14]     ?      -  array '__array_12'
- *  422      STR_IDX[0x0D]        5     13  "configure_spi"
- *  423      OPEN_CALL[0x07]    117      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  424      MAIN      [0x09]    423      1  idx_to_ptr=0
- *  425        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
- *  426        ONESHOT   [0x08]    425      1  idx_to_ptr=0
- *  427          UINT[0x01]           -      -  4 (0x00000004)
- *  428        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
- *  429        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
- *  430        MAIN+PTR  [0x89]    429      2  idx_to_ptr=5
- *  431          UINT[0x01]           -      -  4 (0x00000004)
- *  432          UINT[0x01]           -      -  1 (0x00000001)
- *  433          UINT[0x01]           -      -  4 (0x00000004)
- *  434          OPEN[0x05]           ?      -  list '__list_13'
- *  435          CLOSE[0x06]          1      -  list '__list_13' (opened at 434)
- *  436        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
- *  437        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  438        ONESHOT   [0x08]    437      3  idx_to_ptr=0
- *  439          UINT[0x01]           -      -  0 (0x00000000)
- *  440          STACK_LOCAL                 -      -  0
- *  441          INT[0x00]            -      -  0 (0x00000000)
- *  442          STACK_TOS                 -      -  0
- *  443        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  444        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  445        ONESHOT   [0x08]    444      3  idx_to_ptr=0
- *  446          UINT[0x01]           -      -  64 (0x00000040)
- *  447          STACK_TOS                 -      -  0
- *  448          NULL_PARAM                 -      -  0
- *  449          STACK_PUSH                 -      -  0
- *  450        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  451        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  452        ONESHOT   [0x08]    451      3  idx_to_ptr=0
- *  453          UINT[0x01]           -      -  64 (0x00000040)
- *  454          UINT[0x01]           -      -  64 (0x00000040)
- *  455          NULL_PARAM                 -      -  0
- *  456          STACK_PUSH                 -      -  0
- *  457        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  458        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  459        ONESHOT   [0x08]    458      3  idx_to_ptr=0
- *  460          UINT[0x01]           -      -  64 (0x00000040)
- *  461          UINT[0x01]           -      -  0 (0x00000000)
- *  462          NULL_PARAM                 -      -  0
- *  463          STACK_PUSH                 -      -  0
- *  464        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  465        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  466        MAIN      [0x09]    465      3  idx_to_ptr=0
- *  467          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  468        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  469        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  470        ONESHOT   [0x08]    469      3  idx_to_ptr=0
- *  471          UINT[0x01]           -      -  20 (0x00000014)
- *  472          STACK_LOCAL                 -      -  1
- *  473          INT[0x00]            -      -  3 (0x00000003)
- *  474          STACK_LOCAL                 -      -  4
- *  475        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  476        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  477        ONESHOT   [0x08]    476      3  idx_to_ptr=0
- *  478          UINT[0x01]           -      -  17 (0x00000011)
- *  479          STACK_LOCAL                 -      -  4
- *  480          STACK_LOCAL                 -      -  2
- *  481          STACK_LOCAL                 -      -  4
- *  482        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  483        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  484        ONESHOT   [0x08]    483      3  idx_to_ptr=0
- *  485          UINT[0x01]           -      -  20 (0x00000014)
- *  486          STACK_LOCAL                 -      -  3
- *  487          INT[0x00]            -      -  7 (0x00000007)
- *  488          STACK_TOS                 -      -  0
- *  489        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  490        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  491        ONESHOT   [0x08]    490      3  idx_to_ptr=0
- *  492          UINT[0x01]           -      -  17 (0x00000011)
- *  493          STACK_LOCAL                 -      -  4
- *  494          STACK_TOS                 -      -  0
- *  495          STACK_LOCAL                 -      -  4
- *  496        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  497        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  498        ONESHOT   [0x08]    497      3  idx_to_ptr=0
- *  499          UINT[0x01]           -      -  64 (0x00000040)
- *  500          STACK_LOCAL                 -      -  0
- *  501          NULL_PARAM                 -      -  0
- *  502          STACK_PUSH                 -      -  0
- *  503        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  504        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  505        ONESHOT   [0x08]    504      3  idx_to_ptr=0
- *  506          UINT[0x01]           -      -  64 (0x00000040)
- *  507          STACK_LOCAL                 -      -  4
- *  508          NULL_PARAM                 -      -  0
- *  509          STACK_PUSH                 -      -  0
- *  510        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  511        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  512        MAIN      [0x09]    511      3  idx_to_ptr=0
- *  513          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
- *  514        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  515        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  516        ONESHOT   [0x08]    515      3  idx_to_ptr=0
- *  517          UINT[0x01]           -      -  64 (0x00000040)
- *  518          STACK_LOCAL                 -      -  0
- *  519          NULL_PARAM                 -      -  0
- *  520          STACK_PUSH                 -      -  0
- *  521        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  522        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  523        ONESHOT   [0x08]    522      3  idx_to_ptr=0
- *  524          UINT[0x01]           -      -  64 (0x00000040)
- *  525          UINT[0x01]           -      -  0 (0x00000000)
- *  526          NULL_PARAM                 -      -  0
- *  527          STACK_PUSH                 -      -  0
- *  528        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  529        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  530        ONESHOT   [0x08]    529      3  idx_to_ptr=0
- *  531          UINT[0x01]           -      -  64 (0x00000040)
- *  532          UINT[0x01]           -      -  64 (0x00000040)
- *  533          NULL_PARAM                 -      -  0
- *  534          STACK_PUSH                 -      -  0
- *  535        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  536        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  537        MAIN      [0x09]    536      3  idx_to_ptr=0
- *  538          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
- *  539        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  540      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  541      INT[0x00]            -      -  0 (0x00000000)
- *  542      CLOSE_ARRAY[0x15]  121      -  array '__array_12' (opened at 421)
- *  543      OPEN_ARRAY[0x14]     ?      -  array '__array_14'
- *  544      STR_IDX[0x0D]        6     20  "init_all_peripherals"
- *  545      OPEN_CALL[0x07]    179      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  546      MAIN      [0x09]    545      1  idx_to_ptr=0
- *  547        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  548        ONESHOT   [0x08]    547      3  idx_to_ptr=0
- *  549          UINT[0x01]           -      -  64 (0x00000040)
- *  550          UINT[0x01]           -      -  1 (0x00000001)
- *  551          NULL_PARAM                 -      -  0
- *  552          STACK_PUSH                 -      -  0
- *  553        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  554        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  555        MAIN      [0x09]    554      3  idx_to_ptr=0
- *  556          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
- *  557        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  558        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  559        ONESHOT   [0x08]    558      3  idx_to_ptr=0
- *  560          UINT[0x01]           -      -  64 (0x00000040)
- *  561          UINT[0x01]           -      -  16384 (0x00004000)
- *  562          NULL_PARAM                 -      -  0
- *  563          STACK_PUSH                 -      -  0
- *  564        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  565        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  566        MAIN      [0x09]    565      3  idx_to_ptr=0
- *  567          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
- *  568        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  569        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  570        ONESHOT   [0x08]    569      3  idx_to_ptr=0
- *  571          UINT[0x01]           -      -  64 (0x00000040)
- *  572          UINT[0x01]           -      -  4096 (0x00001000)
- *  573          NULL_PARAM                 -      -  0
- *  574          STACK_PUSH                 -      -  0
- *  575        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  576        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  577        MAIN      [0x09]    576      3  idx_to_ptr=0
- *  578          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
- *  579        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  580        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  581        ONESHOT   [0x08]    580      3  idx_to_ptr=0
- *  582          UINT[0x01]           -      -  64 (0x00000040)
- *  583          UINT[0x01]           -      -  1207959552 (0x48000000)
- *  584          NULL_PARAM                 -      -  0
- *  585          STACK_PUSH                 -      -  0
- *  586        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  587        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  588        ONESHOT   [0x08]    587      3  idx_to_ptr=0
- *  589          UINT[0x01]           -      -  64 (0x00000040)
- *  590          UINT[0x01]           -      -  5 (0x00000005)
- *  591          NULL_PARAM                 -      -  0
- *  592          STACK_PUSH                 -      -  0
- *  593        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  594        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  595        ONESHOT   [0x08]    594      3  idx_to_ptr=0
- *  596          UINT[0x01]           -      -  64 (0x00000040)
- *  597          UINT[0x01]           -      -  2 (0x00000002)
- *  598          NULL_PARAM                 -      -  0
- *  599          STACK_PUSH                 -      -  0
- *  600        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  601        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  602        ONESHOT   [0x08]    601      3  idx_to_ptr=0
- *  603          UINT[0x01]           -      -  64 (0x00000040)
- *  604          UINT[0x01]           -      -  2 (0x00000002)
- *  605          NULL_PARAM                 -      -  0
- *  606          STACK_PUSH                 -      -  0
- *  607        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  608        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  609        ONESHOT   [0x08]    608      3  idx_to_ptr=0
- *  610          UINT[0x01]           -      -  64 (0x00000040)
- *  611          UINT[0x01]           -      -  0 (0x00000000)
- *  612          NULL_PARAM                 -      -  0
- *  613          STACK_PUSH                 -      -  0
- *  614        CLOSE[0x06]          0      -  (end SE_QUAD)
- *  615        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  616        MAIN      [0x09]    615      3  idx_to_ptr=0
- *  617          STR_HASH[0x03]       -      -  "configure_gpio_pin" hash=0x44DE0763
- *  618        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  619        OPEN_CALL[0x07]     43      0  SE_IF_THEN_ELSE hash=0x1E860193
- *  620        MAIN      [0x09]    619      4  idx_to_ptr=0
- *  621          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
- *  622          PRED      [0x0A]    621      0  idx_to_ptr=0
- *  623            FIELD[0x0B]         28      4  uart_channel (off=0x001C, hash=0x34D80DE9)
- *  624            UINT[0x01]           -      -  0 (0x00000000)
- *  625          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
- *  626          OPEN_CALL[0x07]     31      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  627          MAIN      [0x09]    626      1  idx_to_ptr=0
- *  628            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  629            ONESHOT   [0x08]    628      3  idx_to_ptr=0
- *  630              UINT[0x01]           -      -  64 (0x00000040)
- *  631              FIELD[0x0B]         28      4  uart_channel (off=0x001C, hash=0x34D80DE9)
- *  632              NULL_PARAM                 -      -  0
- *  633              STACK_PUSH                 -      -  0
- *  634            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  635            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  636            ONESHOT   [0x08]    635      3  idx_to_ptr=0
- *  637              UINT[0x01]           -      -  64 (0x00000040)
- *  638              FIELD[0x0B]         32      4  uart_baud (off=0x0020, hash=0x1BF9B37E)
- *  639              NULL_PARAM                 -      -  0
- *  640              STACK_PUSH                 -      -  0
- *  641            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  642            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  643            ONESHOT   [0x08]    642      3  idx_to_ptr=0
- *  644              UINT[0x01]           -      -  64 (0x00000040)
- *  645              UINT[0x01]           -      -  13 (0x0000000D)
- *  646              NULL_PARAM                 -      -  0
- *  647              STACK_PUSH                 -      -  0
- *  648            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  649            OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  650            MAIN      [0x09]    649      3  idx_to_ptr=0
- *  651              STR_HASH[0x03]       -      -  "configure_uart" hash=0xB16465B0
- *  652            CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  653            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  654            ONESHOT   [0x08]    653      2  idx_to_ptr=0
- *  655              STR_IDX[0x0D]        7     15  "UART configured"
- *  656            CLOSE[0x06]          0      -  (end SE_LOG)
- *  657          CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  658          OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  659          ONESHOT   [0x08]    658      2  idx_to_ptr=0
- *  660            STR_IDX[0x0D]        8     30  "UART skipped - channel not set"
- *  661          CLOSE[0x06]          0      -  (end SE_LOG)
- *  662        CLOSE[0x06]          0      -  (end SE_IF_THEN_ELSE)
- *  663        OPEN_CALL[0x07]     50      0  SE_IF_THEN_ELSE hash=0x1E860193
- *  664        MAIN      [0x09]    663      4  idx_to_ptr=0
- *  665          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
- *  666          PRED      [0x0A]    665      0  idx_to_ptr=0
- *  667            FIELD[0x0B]         48      4  spi_channel (off=0x0030, hash=0x8623DA71)
- *  668            UINT[0x01]           -      -  0 (0x00000000)
- *  669          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
- *  670          OPEN_CALL[0x07]     38      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
- *  671          MAIN      [0x09]    670      1  idx_to_ptr=0
- *  672            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  673            ONESHOT   [0x08]    672      3  idx_to_ptr=0
- *  674              UINT[0x01]           -      -  64 (0x00000040)
- *  675              FIELD[0x0B]         48      4  spi_channel (off=0x0030, hash=0x8623DA71)
- *  676              NULL_PARAM                 -      -  0
- *  677              STACK_PUSH                 -      -  0
- *  678            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  679            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  680            ONESHOT   [0x08]    679      3  idx_to_ptr=0
- *  681              UINT[0x01]           -      -  64 (0x00000040)
- *  682              FIELD[0x0B]         52      4  spi_clock_div (off=0x0034, hash=0xF716F858)
- *  683              NULL_PARAM                 -      -  0
- *  684              STACK_PUSH                 -      -  0
- *  685            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  686            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  687            ONESHOT   [0x08]    686      3  idx_to_ptr=0
- *  688              UINT[0x01]           -      -  64 (0x00000040)
- *  689              FIELD[0x0B]         56      4  spi_mode (off=0x0038, hash=0x2341FFDD)
- *  690              NULL_PARAM                 -      -  0
- *  691              STACK_PUSH                 -      -  0
- *  692            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  693            OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
- *  694            ONESHOT   [0x08]    693      3  idx_to_ptr=0
- *  695              UINT[0x01]           -      -  64 (0x00000040)
- *  696              FIELD[0x0B]         60      4  spi_bit_order (off=0x003C, hash=0xB921B332)
- *  697              NULL_PARAM                 -      -  0
- *  698              STACK_PUSH                 -      -  0
- *  699            CLOSE[0x06]          0      -  (end SE_QUAD)
- *  700            OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
- *  701            MAIN      [0x09]    700      3  idx_to_ptr=0
- *  702              STR_HASH[0x03]       -      -  "configure_spi" hash=0x12EF495A
- *  703            CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
- *  704            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  705            ONESHOT   [0x08]    704      2  idx_to_ptr=0
- *  706              STR_IDX[0x0D]        9     14  "SPI configured"
- *  707            CLOSE[0x06]          0      -  (end SE_LOG)
- *  708          CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  709          OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  710          ONESHOT   [0x08]    709      2  idx_to_ptr=0
- *  711            STR_IDX[0x0D]       10     29  "SPI skipped - channel not set"
- *  712          CLOSE[0x06]          0      -  (end SE_LOG)
- *  713        CLOSE[0x06]          0      -  (end SE_IF_THEN_ELSE)
- *  714        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  715        ONESHOT   [0x08]    714      4  idx_to_ptr=0
- *  716          FIELD[0x0B]         72      4  peripherals_ready (off=0x0048, hash=0x1DBED692)
- *  717          UINT[0x01]           -      -  1 (0x00000001)
- *  718        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *  719        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  720        ONESHOT   [0x08]    719      4  idx_to_ptr=0
- *  721          FIELD[0x0B]         64      4  config_state (off=0x0040, hash=0x715AEACD)
- *  722          UINT[0x01]           -      -  4 (0x00000004)
- *  723        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *  724      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
- *  725      INT[0x00]            -      -  0 (0x00000000)
- *  726      CLOSE_ARRAY[0x15]  183      -  array '__array_14' (opened at 543)
- *  727      CLOSE_ARRAY[0x15]  722      -  array '__array_1' (opened at 5)
- *  728    CLOSE[0x06]          0      -  (end SE_LOAD_FUNCTION_DICT)
- *  729    OPEN_CALL[0x07]      4      0  SE_EXEC_DICT_FN hash=0x5391CC89
- *  730    MAIN      [0x09]    729      5  idx_to_ptr=0
- *  731      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
- *  732      STR_HASH[0x03]       -      -  "init_all_peripherals" hash=0xBF310A69
- *  733    CLOSE[0x06]          0      -  (end SE_EXEC_DICT_FN)
- *  734    OPEN_CALL[0x07]      2      0  SE_RETURN_PIPELINE_TERMINATE hash=0x0933AC9B
- *  735    MAIN      [0x09]    734      6  idx_to_ptr=0
- *  736    CLOSE[0x06]          0      -  (end SE_RETURN_PIPELINE_TERMINATE)
- *  737  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *  400        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  401        MAIN+PTR  [0x89]    400      3  idx_to_ptr=10
+ *  402          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  403        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  404        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  405        ONESHOT   [0x08]    404      4  idx_to_ptr=0
+ *  406          UINT[0x01]           -      -  0 (0x00000000)
+ *  407          STACK_LOCAL                 -      -  0
+ *  408          UINT[0x01]           -      -  8 (0x00000008)
+ *  409          STACK_LOCAL                 -      -  3
+ *  410        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  411        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  412        ONESHOT   [0x08]    411      4  idx_to_ptr=0
+ *  413          UINT[0x01]           -      -  64 (0x00000040)
+ *  414          STACK_LOCAL                 -      -  3
+ *  415          NULL_PARAM                 -      -  0
+ *  416          STACK_PUSH                 -      -  0
+ *  417        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  418        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  419        ONESHOT   [0x08]    418      4  idx_to_ptr=0
+ *  420          UINT[0x01]           -      -  64 (0x00000040)
+ *  421          STACK_LOCAL                 -      -  1
+ *  422          NULL_PARAM                 -      -  0
+ *  423          STACK_PUSH                 -      -  0
+ *  424        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  425        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  426        MAIN+PTR  [0x89]    425      3  idx_to_ptr=11
+ *  427          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
+ *  428        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  429        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  430        ONESHOT   [0x08]    429      4  idx_to_ptr=0
+ *  431          UINT[0x01]           -      -  0 (0x00000000)
+ *  432          STACK_LOCAL                 -      -  0
+ *  433          UINT[0x01]           -      -  12 (0x0000000C)
+ *  434          STACK_LOCAL                 -      -  3
+ *  435        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  436        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  437        ONESHOT   [0x08]    436      4  idx_to_ptr=0
+ *  438          UINT[0x01]           -      -  64 (0x00000040)
+ *  439          STACK_LOCAL                 -      -  3
+ *  440          NULL_PARAM                 -      -  0
+ *  441          STACK_PUSH                 -      -  0
+ *  442        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  443        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  444        ONESHOT   [0x08]    443      4  idx_to_ptr=0
+ *  445          UINT[0x01]           -      -  64 (0x00000040)
+ *  446          UINT[0x01]           -      -  0 (0x00000000)
+ *  447          NULL_PARAM                 -      -  0
+ *  448          STACK_PUSH                 -      -  0
+ *  449        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  450        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  451        ONESHOT   [0x08]    450      4  idx_to_ptr=0
+ *  452          UINT[0x01]           -      -  64 (0x00000040)
+ *  453          STACK_LOCAL                 -      -  2
+ *  454          NULL_PARAM                 -      -  0
+ *  455          STACK_PUSH                 -      -  0
+ *  456        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  457        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  458        MAIN+PTR  [0x89]    457      3  idx_to_ptr=12
+ *  459          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  460        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  461        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  462        ONESHOT   [0x08]    461      4  idx_to_ptr=0
+ *  463          UINT[0x01]           -      -  64 (0x00000040)
+ *  464          STACK_LOCAL                 -      -  3
+ *  465          NULL_PARAM                 -      -  0
+ *  466          STACK_PUSH                 -      -  0
+ *  467        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  468        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  469        ONESHOT   [0x08]    468      4  idx_to_ptr=0
+ *  470          UINT[0x01]           -      -  64 (0x00000040)
+ *  471          UINT[0x01]           -      -  0 (0x00000000)
+ *  472          NULL_PARAM                 -      -  0
+ *  473          STACK_PUSH                 -      -  0
+ *  474        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  475        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  476        ONESHOT   [0x08]    475      4  idx_to_ptr=0
+ *  477          UINT[0x01]           -      -  64 (0x00000040)
+ *  478          UINT[0x01]           -      -  8192 (0x00002000)
+ *  479          NULL_PARAM                 -      -  0
+ *  480          STACK_PUSH                 -      -  0
+ *  481        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  482        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  483        MAIN+PTR  [0x89]    482      3  idx_to_ptr=13
+ *  484          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  485        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  486      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  487      CLOSE_KEY[0x13]    130      -  key 'configure_uart' (opened at 357)
+ *  488      OPEN_KEY[0x12]       -      -  "configure_spi" hash=0x12EF495A
+ *  489      OPEN_CALL[0x07]    110      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  490      MAIN      [0x09]    489      1  idx_to_ptr=0
+ *  491        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  492        ONESHOT   [0x08]    491      2  idx_to_ptr=0
+ *  493          UINT[0x01]           -      -  4 (0x00000004)
+ *  494        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  495        OPEN_CALL[0x07]      7      0  SE_STACK_FRAME_INSTANCE hash=0x753D7572
+ *  496        MAIN+PTR  [0x89]    495      2  idx_to_ptr=14
+ *  497          UINT[0x01]           -      -  4 (0x00000004)
+ *  498          UINT[0x01]           -      -  1 (0x00000001)
+ *  499          UINT[0x01]           -      -  1 (0x00000001)
+ *  500          OPEN[0x05]           ?      -  list '__list_6'
+ *  501          CLOSE[0x06]          1      -  list '__list_6' (opened at 500)
+ *  502        CLOSE[0x06]          0      -  (end SE_STACK_FRAME_INSTANCE)
+ *  503        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  504        ONESHOT   [0x08]    503      4  idx_to_ptr=0
+ *  505          UINT[0x01]           -      -  64 (0x00000040)
+ *  506          STACK_LOCAL                 -      -  0
+ *  507          NULL_PARAM                 -      -  0
+ *  508          STACK_PUSH                 -      -  0
+ *  509        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  510        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  511        ONESHOT   [0x08]    510      4  idx_to_ptr=0
+ *  512          UINT[0x01]           -      -  64 (0x00000040)
+ *  513          UINT[0x01]           -      -  64 (0x00000040)
+ *  514          NULL_PARAM                 -      -  0
+ *  515          STACK_PUSH                 -      -  0
+ *  516        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  517        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  518        ONESHOT   [0x08]    517      4  idx_to_ptr=0
+ *  519          UINT[0x01]           -      -  64 (0x00000040)
+ *  520          UINT[0x01]           -      -  0 (0x00000000)
+ *  521          NULL_PARAM                 -      -  0
+ *  522          STACK_PUSH                 -      -  0
+ *  523        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  524        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  525        MAIN+PTR  [0x89]    524      3  idx_to_ptr=15
+ *  526          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  527        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  528        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  529        ONESHOT   [0x08]    528      4  idx_to_ptr=0
+ *  530          UINT[0x01]           -      -  20 (0x00000014)
+ *  531          STACK_LOCAL                 -      -  1
+ *  532          UINT[0x01]           -      -  3 (0x00000003)
+ *  533          STACK_LOCAL                 -      -  4
+ *  534        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  535        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  536        ONESHOT   [0x08]    535      4  idx_to_ptr=0
+ *  537          UINT[0x01]           -      -  17 (0x00000011)
+ *  538          STACK_LOCAL                 -      -  4
+ *  539          STACK_LOCAL                 -      -  2
+ *  540          STACK_LOCAL                 -      -  4
+ *  541        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  542        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  543        ONESHOT   [0x08]    542      4  idx_to_ptr=0
+ *  544          UINT[0x01]           -      -  20 (0x00000014)
+ *  545          STACK_LOCAL                 -      -  3
+ *  546          UINT[0x01]           -      -  7 (0x00000007)
+ *  547          STACK_TOS                 -      -  0
+ *  548        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  549        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  550        ONESHOT   [0x08]    549      4  idx_to_ptr=0
+ *  551          UINT[0x01]           -      -  17 (0x00000011)
+ *  552          STACK_LOCAL                 -      -  4
+ *  553          STACK_TOS                 -      -  0
+ *  554          STACK_LOCAL                 -      -  4
+ *  555        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  556        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  557        ONESHOT   [0x08]    556      4  idx_to_ptr=0
+ *  558          UINT[0x01]           -      -  64 (0x00000040)
+ *  559          STACK_LOCAL                 -      -  0
+ *  560          NULL_PARAM                 -      -  0
+ *  561          STACK_PUSH                 -      -  0
+ *  562        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  563        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  564        ONESHOT   [0x08]    563      4  idx_to_ptr=0
+ *  565          UINT[0x01]           -      -  64 (0x00000040)
+ *  566          STACK_LOCAL                 -      -  4
+ *  567          NULL_PARAM                 -      -  0
+ *  568          STACK_PUSH                 -      -  0
+ *  569        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  570        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  571        MAIN+PTR  [0x89]    570      3  idx_to_ptr=16
+ *  572          STR_HASH[0x03]       -      -  "write_register" hash=0x8A22E5B4
+ *  573        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  574        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  575        ONESHOT   [0x08]    574      4  idx_to_ptr=0
+ *  576          UINT[0x01]           -      -  64 (0x00000040)
+ *  577          STACK_LOCAL                 -      -  0
+ *  578          NULL_PARAM                 -      -  0
+ *  579          STACK_PUSH                 -      -  0
+ *  580        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  581        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  582        ONESHOT   [0x08]    581      4  idx_to_ptr=0
+ *  583          UINT[0x01]           -      -  64 (0x00000040)
+ *  584          UINT[0x01]           -      -  0 (0x00000000)
+ *  585          NULL_PARAM                 -      -  0
+ *  586          STACK_PUSH                 -      -  0
+ *  587        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  588        OPEN_CALL[0x07]      6      0  SE_QUAD hash=0x596C457D
+ *  589        ONESHOT   [0x08]    588      4  idx_to_ptr=0
+ *  590          UINT[0x01]           -      -  64 (0x00000040)
+ *  591          UINT[0x01]           -      -  64 (0x00000040)
+ *  592          NULL_PARAM                 -      -  0
+ *  593          STACK_PUSH                 -      -  0
+ *  594        CLOSE[0x06]          0      -  (end SE_QUAD)
+ *  595        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  596        MAIN+PTR  [0x89]    595      3  idx_to_ptr=17
+ *  597          STR_HASH[0x03]       -      -  "read_modify_write" hash=0x8EC38A38
+ *  598        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  599      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  600      CLOSE_KEY[0x13]    112      -  key 'configure_spi' (opened at 488)
+ *  601      OPEN_KEY[0x12]       -      -  "init_all_peripherals" hash=0xBF310A69
+ *  602      OPEN_CALL[0x07]    150      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  603      MAIN      [0x09]    602      1  idx_to_ptr=0
+ *  604        OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  605        ONESHOT   [0x08]    604      5  idx_to_ptr=0
+ *  606          STR_IDX[0x0D]        0     20  "init_all_peripherals"
+ *  607        CLOSE[0x06]          0      -  (end SE_LOG)
+ *  608        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  609        ONESHOT   [0x08]    608      2  idx_to_ptr=0
+ *  610          UINT[0x01]           -      -  1073887280 (0x40023830)
+ *  611        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  612        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  613        ONESHOT   [0x08]    612      2  idx_to_ptr=0
+ *  614          UINT[0x01]           -      -  1 (0x00000001)
+ *  615        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  616        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  617        MAIN+PTR  [0x89]    616      3  idx_to_ptr=18
+ *  618          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
+ *  619        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  620        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  621        ONESHOT   [0x08]    620      2  idx_to_ptr=0
+ *  622          UINT[0x01]           -      -  1073887300 (0x40023844)
+ *  623        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  624        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  625        ONESHOT   [0x08]    624      2  idx_to_ptr=0
+ *  626          UINT[0x01]           -      -  16 (0x00000010)
+ *  627        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  628        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  629        MAIN+PTR  [0x89]    628      3  idx_to_ptr=19
+ *  630          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
+ *  631        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  632        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  633        ONESHOT   [0x08]    632      2  idx_to_ptr=0
+ *  634          UINT[0x01]           -      -  1073887300 (0x40023844)
+ *  635        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  636        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  637        ONESHOT   [0x08]    636      2  idx_to_ptr=0
+ *  638          UINT[0x01]           -      -  4096 (0x00001000)
+ *  639        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  640        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  641        MAIN+PTR  [0x89]    640      3  idx_to_ptr=20
+ *  642          STR_HASH[0x03]       -      -  "enable_peripheral_clock" hash=0x8CFC65CE
+ *  643        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  644        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  645        ONESHOT   [0x08]    644      2  idx_to_ptr=0
+ *  646          UINT[0x01]           -      -  1073872896 (0x40020000)
+ *  647        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  648        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  649        ONESHOT   [0x08]    648      2  idx_to_ptr=0
+ *  650          UINT[0x01]           -      -  5 (0x00000005)
+ *  651        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  652        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  653        ONESHOT   [0x08]    652      2  idx_to_ptr=0
+ *  654          UINT[0x01]           -      -  2 (0x00000002)
+ *  655        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  656        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  657        ONESHOT   [0x08]    656      2  idx_to_ptr=0
+ *  658          UINT[0x01]           -      -  2 (0x00000002)
+ *  659        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  660        OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  661        ONESHOT   [0x08]    660      2  idx_to_ptr=0
+ *  662          UINT[0x01]           -      -  0 (0x00000000)
+ *  663        CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  664        OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  665        MAIN+PTR  [0x89]    664      3  idx_to_ptr=21
+ *  666          STR_HASH[0x03]       -      -  "configure_gpio_pin" hash=0x44DE0763
+ *  667        CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  668        OPEN_CALL[0x07]     34      0  SE_IF_THEN_ELSE hash=0x1E860193
+ *  669        MAIN      [0x09]    668      4  idx_to_ptr=0
+ *  670          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
+ *  671          PRED      [0x0A]    670      0  idx_to_ptr=0
+ *  672            FIELD[0x0B]         36      4  uart_channel (off=0x0024, hash=0x34D80DE9)
+ *  673            UINT[0x01]           -      -  0 (0x00000000)
+ *  674          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
+ *  675          OPEN_CALL[0x07]     22      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  676          MAIN      [0x09]    675      1  idx_to_ptr=0
+ *  677            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  678            ONESHOT   [0x08]    677      2  idx_to_ptr=0
+ *  679              UINT[0x01]           -      -  1073811456 (0x40011000)
+ *  680            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  681            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  682            ONESHOT   [0x08]    681      2  idx_to_ptr=0
+ *  683              FIELD[0x0B]         40      4  uart_baud (off=0x0028, hash=0x1BF9B37E)
+ *  684            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  685            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  686            ONESHOT   [0x08]    685      2  idx_to_ptr=0
+ *  687              UINT[0x01]           -      -  8204 (0x0000200C)
+ *  688            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  689            OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  690            MAIN+PTR  [0x89]    689      3  idx_to_ptr=22
+ *  691              STR_HASH[0x03]       -      -  "configure_uart" hash=0xB16465B0
+ *  692            CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  693            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  694            ONESHOT   [0x08]    693      5  idx_to_ptr=0
+ *  695              STR_IDX[0x0D]        1     15  "UART configured"
+ *  696            CLOSE[0x06]          0      -  (end SE_LOG)
+ *  697          CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  698          OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  699          ONESHOT   [0x08]    698      5  idx_to_ptr=0
+ *  700            STR_IDX[0x0D]        2     30  "UART skipped - channel not set"
+ *  701          CLOSE[0x06]          0      -  (end SE_LOG)
+ *  702        CLOSE[0x06]          0      -  (end SE_IF_THEN_ELSE)
+ *  703        OPEN_CALL[0x07]     38      0  SE_IF_THEN_ELSE hash=0x1E860193
+ *  704        MAIN      [0x09]    703      4  idx_to_ptr=0
+ *  705          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
+ *  706          PRED      [0x0A]    705      0  idx_to_ptr=0
+ *  707            FIELD[0x0B]         56      4  spi_channel (off=0x0038, hash=0x8623DA71)
+ *  708            UINT[0x01]           -      -  0 (0x00000000)
+ *  709          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
+ *  710          OPEN_CALL[0x07]     26      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
+ *  711          MAIN      [0x09]    710      1  idx_to_ptr=0
+ *  712            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  713            ONESHOT   [0x08]    712      2  idx_to_ptr=0
+ *  714              UINT[0x01]           -      -  1073819648 (0x40013000)
+ *  715            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  716            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  717            ONESHOT   [0x08]    716      2  idx_to_ptr=0
+ *  718              FIELD[0x0B]         60      4  spi_clock_div (off=0x003C, hash=0xF716F858)
+ *  719            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  720            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  721            ONESHOT   [0x08]    720      2  idx_to_ptr=0
+ *  722              FIELD[0x0B]         64      4  spi_mode (off=0x0040, hash=0x2341FFDD)
+ *  723            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  724            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
+ *  725            ONESHOT   [0x08]    724      2  idx_to_ptr=0
+ *  726              FIELD[0x0B]         68      4  spi_bit_order (off=0x0044, hash=0xB921B332)
+ *  727            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
+ *  728            OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
+ *  729            MAIN+PTR  [0x89]    728      3  idx_to_ptr=23
+ *  730              STR_HASH[0x03]       -      -  "configure_spi" hash=0x12EF495A
+ *  731            CLOSE[0x06]          0      -  (end SE_EXEC_DICT_INTERNAL)
+ *  732            OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  733            ONESHOT   [0x08]    732      5  idx_to_ptr=0
+ *  734              STR_IDX[0x0D]        3     14  "SPI configured"
+ *  735            CLOSE[0x06]          0      -  (end SE_LOG)
+ *  736          CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  737          OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  738          ONESHOT   [0x08]    737      5  idx_to_ptr=0
+ *  739            STR_IDX[0x0D]        4     29  "SPI skipped - channel not set"
+ *  740          CLOSE[0x06]          0      -  (end SE_LOG)
+ *  741        CLOSE[0x06]          0      -  (end SE_IF_THEN_ELSE)
+ *  742        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *  743        ONESHOT   [0x08]    742      0  idx_to_ptr=0
+ *  744          FIELD[0x0B]         80      4  peripherals_ready (off=0x0050, hash=0x1DBED692)
+ *  745          UINT[0x01]           -      -  1 (0x00000001)
+ *  746        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *  747        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *  748        ONESHOT   [0x08]    747      0  idx_to_ptr=0
+ *  749          FIELD[0x0B]         72      4  config_state (off=0x0048, hash=0x715AEACD)
+ *  750          UINT[0x01]           -      -  4 (0x00000004)
+ *  751        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *  752      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
+ *  753      CLOSE_KEY[0x13]    152      -  key 'init_all_peripherals' (opened at 601)
+ *  754      CLOSE_DICT[0x11]   664      -  dict 'fn_dict' (opened at 90)
+ *  755    CLOSE[0x06]          0      -  (end SE_LOAD_FUNCTION_DICT)
+ *  756    OPEN_CALL[0x07]      4      0  SE_EXEC_DICT_DISPATCH hash=0xA9BCEF3F
+ *  757    MAIN+PTR  [0x89]    756      5  idx_to_ptr=24
+ *  758      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
+ *  759      STR_HASH[0x03]       -      -  "init_all_peripherals" hash=0xBF310A69
+ *  760    CLOSE[0x06]          0      -  (end SE_EXEC_DICT_DISPATCH)
+ *  761    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  762    ONESHOT   [0x08]    761      5  idx_to_ptr=0
+ *  763      STR_IDX[0x0D]        5     29  "--- Configuration Results ---"
+ *  764    CLOSE[0x06]          0      -  (end SE_LOG)
+ *  765    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  766    ONESHOT   [0x08]    765      6  idx_to_ptr=0
+ *  767      STR_IDX[0x0D]        6     19  "config_state 0x%08X"
+ *  768      FIELD[0x0B]         72      4  config_state (off=0x0048, hash=0x715AEACD)
+ *  769    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  770    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  771    ONESHOT   [0x08]    770      6  idx_to_ptr=0
+ *  772      STR_IDX[0x0D]        7     24  "peripherals_ready 0x%08X"
+ *  773      FIELD[0x0B]         80      4  peripherals_ready (off=0x0050, hash=0x1DBED692)
+ *  774    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  775    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  776    ONESHOT   [0x08]    775      6  idx_to_ptr=0
+ *  777      STR_IDX[0x0D]        8     17  "error_code 0x%08X"
+ *  778      FIELD[0x0B]         76      4  error_code (off=0x004C, hash=0x14FC1187)
+ *  779    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  780    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  781    ONESHOT   [0x08]    780      5  idx_to_ptr=0
+ *  782      STR_IDX[0x0D]        9     12  "--- UART ---"
+ *  783    CLOSE[0x06]          0      -  (end SE_LOG)
+ *  784    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  785    ONESHOT   [0x08]    784      6  idx_to_ptr=0
+ *  786      STR_IDX[0x0D]       10     19  "uart_channel 0x%08X"
+ *  787      FIELD[0x0B]         36      4  uart_channel (off=0x0024, hash=0x34D80DE9)
+ *  788    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  789    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  790    ONESHOT   [0x08]    789      6  idx_to_ptr=0
+ *  791      STR_IDX[0x0D]       11     16  "uart_baud 0x%08X"
+ *  792      FIELD[0x0B]         40      4  uart_baud (off=0x0028, hash=0x1BF9B37E)
+ *  793    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  794    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  795    ONESHOT   [0x08]    794      6  idx_to_ptr=0
+ *  796      STR_IDX[0x0D]       12     18  "uart_parity 0x%08X"
+ *  797      FIELD[0x0B]         44      4  uart_parity (off=0x002C, hash=0x823E20EF)
+ *  798    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  799    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  800    ONESHOT   [0x08]    799      6  idx_to_ptr=0
+ *  801      STR_IDX[0x0D]       13     21  "uart_stop_bits 0x%08X"
+ *  802      FIELD[0x0B]         48      4  uart_stop_bits (off=0x0030, hash=0x54A34E7F)
+ *  803    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  804    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  805    ONESHOT   [0x08]    804      5  idx_to_ptr=0
+ *  806      STR_IDX[0x0D]       14     11  "--- SPI ---"
+ *  807    CLOSE[0x06]          0      -  (end SE_LOG)
+ *  808    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  809    ONESHOT   [0x08]    808      6  idx_to_ptr=0
+ *  810      STR_IDX[0x0D]       15     18  "spi_channel 0x%08X"
+ *  811      FIELD[0x0B]         56      4  spi_channel (off=0x0038, hash=0x8623DA71)
+ *  812    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  813    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  814    ONESHOT   [0x08]    813      6  idx_to_ptr=0
+ *  815      STR_IDX[0x0D]       16     20  "spi_clock_div 0x%08X"
+ *  816      FIELD[0x0B]         60      4  spi_clock_div (off=0x003C, hash=0xF716F858)
+ *  817    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  818    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  819    ONESHOT   [0x08]    818      6  idx_to_ptr=0
+ *  820      STR_IDX[0x0D]       17     15  "spi_mode 0x%08X"
+ *  821      FIELD[0x0B]         64      4  spi_mode (off=0x0040, hash=0x2341FFDD)
+ *  822    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  823    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  824    ONESHOT   [0x08]    823      6  idx_to_ptr=0
+ *  825      STR_IDX[0x0D]       18     20  "spi_bit_order 0x%08X"
+ *  826      FIELD[0x0B]         68      4  spi_bit_order (off=0x0044, hash=0xB921B332)
+ *  827    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  828    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *  829    ONESHOT   [0x08]    828      5  idx_to_ptr=0
+ *  830      STR_IDX[0x0D]       19     12  "--- GPIO ---"
+ *  831    CLOSE[0x06]          0      -  (end SE_LOG)
+ *  832    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  833    ONESHOT   [0x08]    832      6  idx_to_ptr=0
+ *  834      STR_IDX[0x0D]       20     16  "gpio_port 0x%08X"
+ *  835      FIELD[0x0B]         16      4  gpio_port (off=0x0010, hash=0x3A9A56E8)
+ *  836    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  837    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  838    ONESHOT   [0x08]    837      6  idx_to_ptr=0
+ *  839      STR_IDX[0x0D]       21     15  "gpio_pin 0x%08X"
+ *  840      FIELD[0x0B]         20      4  gpio_pin (off=0x0014, hash=0x8BECDAB6)
+ *  841    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  842    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  843    ONESHOT   [0x08]    842      6  idx_to_ptr=0
+ *  844      STR_IDX[0x0D]       22     16  "gpio_mode 0x%08X"
+ *  845      FIELD[0x0B]         24      4  gpio_mode (off=0x0018, hash=0xC10EF3F8)
+ *  846    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  847    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  848    ONESHOT   [0x08]    847      6  idx_to_ptr=0
+ *  849      STR_IDX[0x0D]       23     17  "gpio_speed 0x%08X"
+ *  850      FIELD[0x0B]         28      4  gpio_speed (off=0x001C, hash=0x12296A9A)
+ *  851    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  852    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
+ *  853    ONESHOT   [0x08]    852      6  idx_to_ptr=0
+ *  854      STR_IDX[0x0D]       24     16  "gpio_pull 0x%08X"
+ *  855      FIELD[0x0B]         32      4  gpio_pull (off=0x0020, hash=0x007B7F30)
+ *  856    CLOSE[0x06]          0      -  (end SE_LOG_INT)
+ *  857    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
+ *  858    MAIN      [0x09]    857      6  idx_to_ptr=0
+ *  859    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
+ *  860  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
  *
- * Total params: 738
+ * Total params: 861
  */
 
 #endif // FUNCTION_DICTIONARY_DUMP_32_H

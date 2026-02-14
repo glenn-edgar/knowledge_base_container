@@ -9,9 +9,19 @@
 #include "function_dictionary_user_functions.h"
 #include "s_engine_module.h"
 
+// Oneshot function entries
+static s_expr_fn_entry_t function_dictionary_oneshot_entries[] = {
+    { 0x8A22E5B4, (void*)write_register },
+};
+
+static const s_expr_fn_table_t function_dictionary_oneshot_table = {
+    .entries = function_dictionary_oneshot_entries,
+    .count = 1
+};
+
 // Table accessors
 const s_expr_fn_table_t* function_dictionary_get_oneshot_table(void) {
-    return NULL;
+    return &function_dictionary_oneshot_table;
 }
 
 const s_expr_fn_table_t* function_dictionary_get_main_table(void) {
@@ -24,4 +34,5 @@ const s_expr_fn_table_t* function_dictionary_get_pred_table(void) {
 
 // Register all user functions with module
 void function_dictionary_register_all(s_expr_module_t* module) {
+    s_expr_module_register_oneshot(module, &function_dictionary_oneshot_table);
 }

@@ -58,6 +58,8 @@ nav:
     - Json Test: tests/README_json.md
     - Stack Test: tests/README_stack_test.md
     - Stack Equations Test: tests/README_stack_equation_test.md
+    - Function Dictionary Test: tests/README_function_dictionary.md
+    - Callback Function Test: tests/README_callback_function_test.md
 
   
 

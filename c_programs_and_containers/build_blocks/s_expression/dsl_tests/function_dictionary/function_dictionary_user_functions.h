@@ -14,6 +14,16 @@
 extern "C" {
 #endif
 
+// Oneshot functions
+void write_register(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+);
+
 #ifdef __cplusplus
 }
 #endif

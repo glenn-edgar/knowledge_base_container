@@ -15,16 +15,16 @@
 #include "s_engine_node.h"
 #include "s_engine_event_queue.h"
 #include "s_engine_stack.h"
-#include "function_dictionary.h"
-#include "function_dictionary_bin_32.h"
+#include "callback_function.h"
+#include "callback_function_bin_32.h"
 
 #include <time.h>
 
 
-extern void function_dictionary_register_all(s_expr_module_t* module);
+extern void callback_function_register_all(s_expr_module_t* module);
 
 static void register_user_functions(s_engine_handle_t* engine) {
-    function_dictionary_register_all(&engine->module);
+    callback_function_register_all(&engine->module);
 }
 
 static void delay_seconds(double seconds) {
@@ -127,19 +127,19 @@ static bool result_is_complete(s_expr_result_t r) {
 
 static void test_dispatch(s_engine_handle_t* engine) {
     printf("\n╔════════════════════════════════════════╗\n");
-    printf("║    FUNCTION DICTIONARY TEST           ║\n");
+    printf("║    CALLBACK FUNCTION TEST           ║\n");
     printf("╚════════════════════════════════════════╝\n");
     
     printf("\nTesting function dictionary test with tick loop...\n");
     
     s_expr_tree_instance_t* tree = s_engine_create_tree_by_hash(
         engine,
-        FUNCTION_DICTIONARY_HASH,
+        CALLBACK_FUNCTION_HASH,
         0
     );
     
     if (!tree) {
-        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", FUNCTION_DICTIONARY_HASH); 
+        printf("  ❌ FAILED: Could not create tree (hash=0x%08X)\n", CALLBACK_FUNCTION_HASH); 
         return;
     }
     s_expr_tree_create_stack(tree, 128);
@@ -235,8 +235,8 @@ int main(int argc, char* argv[]) {
     bool result = s_engine_load_from_rom(
         &engine,
         &alloc,
-        function_dictionary_module_bin_32,
-        FUNCTION_DICTIONARY_MODULE_BIN_32_SIZE,
+        callback_function_module_bin_32,
+        CALLBACK_FUNCTION_MODULE_BIN_32_SIZE,
         debug_callback,
         1,
         user_fns
@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
     result = s_engine_load_from_file(
         &engine,
         &alloc,
-        "function_dictionary_32.bin",
+        "callback_function_32.bin",
         debug_callback,
         1,
         user_fns

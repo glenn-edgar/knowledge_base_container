@@ -628,6 +628,8 @@ function se_log_slot_integer(message, slot_name)
     end_call(c)
 end
 
+
+
 function se_log_slot_float(message, slot_name)
     if slot_name == nil or slot_name == "" then
         error("se_log_slot: slot_name cannot be nil or empty")
@@ -2523,73 +2525,56 @@ end
 -- ============================================================================
 
 function se_load_function_dict(blackboard_field, func_list)
-validate_field_is_ptr64(blackboard_field, "se_load_function_dict")
+    validate_field_is_ptr64(blackboard_field, "se_load_function_dict")
 
-if type(func_list) ~= "table" or #func_list == 0 then
-    dsl_error("se_load_function_dict: func_list must not be empty")
-end
+    if type(func_list) ~= "table" or #func_list == 0 then
+        dsl_error("se_load_function_dict: func_list must not be empty")
+    end
 
--- Validate structure and check for duplicate keys
-local seen_keys = {}
-for i, entry in ipairs(func_list) do
-    if type(entry) ~= "table" or #entry ~= 2 then
-        dsl_error("se_load_function_dict: entry[" .. i .. 
-                  "] must be {\"name\", function}")
-    end
-    local name, fn = entry[1], entry[2]
-    if type(name) ~= "string" or name == "" then
-        dsl_error("se_load_function_dict: entry[" .. i .. 
-                  "] key must be non-empty string")
-    end
-    if type(fn) ~= "function" then
-        dsl_error("se_load_function_dict: entry[" .. i .. 
-                  "] value must be a function")
-    end
-    if seen_keys[name] then
-        dsl_error("se_load_function_dict: duplicate key '" .. name .. "'")
-    end
-    seen_keys[name] = true
-end
-
-local c = o_call("SE_LOAD_FUNCTION_DICT")
-    field_ref(blackboard_field)
-    local outer = array_start()
-        for _, entry in ipairs(func_list) do
-            local name, fn = entry[1], entry[2]
-            local inner = array_start()
-                str(name)
-                fn()
-                int(0)
-            array_end(inner)
+    local seen_keys = {}
+    for i, entry in ipairs(func_list) do
+        if type(entry) ~= "table" or #entry ~= 2 then
+            dsl_error("se_load_function_dict: entry[" .. i .. 
+                      "] must be {\"name\", function}")
         end
-    array_end(outer)
-end_call(c)
-end
+        local name, fn = entry[1], entry[2]
+        if type(name) ~= "string" or name == "" then
+            dsl_error("se_load_function_dict: entry[" .. i .. 
+                      "] key must be non-empty string")
+        end
+        if type(fn) ~= "function" then
+            dsl_error("se_load_function_dict: entry[" .. i .. 
+                      "] value must be a function")
+        end
+        if seen_keys[name] then
+            dsl_error("se_load_function_dict: duplicate key '" .. name .. "'")
+        end
+        seen_keys[name] = true
+    end
 
--- used to execute a call back function   
--- blackboard_field: PTR64_FIELD containing dictionary pointer
--- key_name: string key to look up and execute
-function se_exec_fn(blackboard_field)
-    validate_field_is_ptr64(blackboard_field, "se_exec_dict_fn")
-    
- 
-    
-    local c = m_call("SE_EXEC_FN")
+    local c = o_call("SE_LOAD_FUNCTION_DICT")
         field_ref(blackboard_field)
+        local d = dict_start("fn_dict")
+            for _, entry in ipairs(func_list) do
+                local name, fn = entry[1], entry[2]
+                local k = dict_key(name)
+                    fn()
+                end_dict_key(k)
+            end
+        dict_end(d)
     end_call(c)
 end
 
 -- used to execute a call back function within a internal dictionary with a pointer
 -- black board field is the dictionary pointer
 -- key_name: string key to look up and execute within current dictionary
-function se_exec_dict_internal(blackboard_field,key_name)
+function se_exec_dict_internal(key_name)
     validate_field_is_ptr64(blackboard_field, "se_exec_dict_internal")
     if type(key_name) ~= "string"  then
         dsl_error("se_exec_dict_internal: key_name must be non-empty string")
     end
     
-    local c = m_call("SE_EXEC_DICT_INTERNAL")
-        field_ref(blackboard_field)
+    local c = pt_m_call("SE_EXEC_DICT_INTERNAL")
         str_hash(key_name)
     end_call(c)
 end
@@ -2609,3 +2594,33 @@ function se_spawn_and_tick_tree(tree_name, stack_size)
     end_call(c)
 end
 
+function se_exec_dict_fn(blackboard_field, key_name)
+    validate_field_is_ptr64(blackboard_field, "se_exec_dict_fn")
+    if type(key_name) ~= "string" then
+        dsl_error("se_exec_dict_fn: key_name must be a string")
+    end
+    local c = pt_m_call("SE_EXEC_DICT_DISPATCH")
+        field_ref(blackboard_field)
+        str_hash(key_name)
+    end_call(c)
+end
+
+function se_load_function(blackboard_field,fns)
+    validate_field_is_ptr64(blackboard_field, "se_load_function")
+   
+    local c = o_call("SE_LOAD_FUNCTION")
+        field_ref(blackboard_field)
+        fns()
+    end_call(c)
+end
+
+function se_exec_function(blackboard_field)
+    validate_field_is_ptr64(blackboard_field, "se_exec_function")
+    local c = pt_m_call("SE_EXEC_FN")
+        field_ref(blackboard_field)
+    end_call(c)
+end
+--[[
+   "SE_EXEC_FN"
+   "SE_LOAD_FUNCTION"
+]]

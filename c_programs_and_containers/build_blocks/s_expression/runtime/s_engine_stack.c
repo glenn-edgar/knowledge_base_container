@@ -248,8 +248,15 @@ bool s_expr_stack_pushvalue(s_expr_stack_t* stack, int idx) {
     return s_expr_stack_push(stack, src);
 }
 bool s_expr_stack_poke(s_expr_stack_t* stack, uint16_t offset, const s_expr_param_t* val) {
-    if (!stack || !val || offset >= stack->sp) return false;
-    stack->data[stack->sp - 1 - offset] = *val;
+    if (!stack || !val) return false;
+    s_expr_stack_frame_t* frame = &stack->frames[stack->frame_count - 1];
+    uint16_t abs_idx = frame->scratch_base + offset;
+    if (abs_idx >= stack->capacity) return false;
+    stack->data[abs_idx] = *val;
+    // Advance sp if needed to cover the scratch slot
+    if (abs_idx >= stack->sp) {
+        stack->sp = abs_idx + 1;
+    }
     return true;
 }
 // ============================================================================

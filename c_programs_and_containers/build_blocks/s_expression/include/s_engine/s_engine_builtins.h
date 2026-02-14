@@ -93,10 +93,10 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FRAME_ALLOCATE_HASH              0x5C5AC947
 #define SE_FRAME_FREE_HASH                  0x633E826E
 #define SE_SPAWN_AND_TICK_TREE_HASH         0x00000000
-#define SE_EXEC_FN_HASH                     0x00000000
-#define SE_EXEC_DICT_INTERNAL_HASH          0x00000000
-#define SE_EXEC_DICT_DISPATCH_HASH          0x00000000
-// Main functions
+#define SE_EXEC_FN_HASH                     0xC9C09EC0 
+#define SE_EXEC_DICT_INTERNAL_HASH          0x2D91A4AC  // SE_EXEC_DICT_INTERNAL
+#define SE_EXEC_DICT_DISPATCH_HASH          0xA9BCEF3F  // SE_EXEC_DICT_DISPATCH
+// Main functions0xA9BCEF3F  // SE_EXEC_DICT_DISPATCH
 // Application result code function hashes (0-5)
 #define SE_RETURN_CONTINUE_HASH                0xB4243714
 #define SE_RETURN_HALT_HASH                    0x056FB9EA
@@ -133,8 +133,9 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_SET_FIELD_FLOAT_HASH       0x42345454
 #define SE_INC_FIELD_HASH             0x09391555
 #define SE_DEC_FIELD_HASH             0xC3053EA5
+#define SE_LOAD_FUNCTION_DICT_HASH    0xC0225974  // SE_LOAD_FUNCTION_DICT
 
-
+#define SE_LOAD_FUNCTION_HASH         0x30DB52C3 // SE_LOAD_FUNCTION
 
 
 // Field comparison predicates
@@ -147,7 +148,7 @@ uint32_t s_expr_fnv1a_hash(const char* str);
 #define SE_FIELD_IN_RANGE_HASH        0x7BC1968E
 #define SE_FIELD_INCREMENT_AND_TEST_HASH 0x275252DB
 #define SE_STATE_INCREMENT_AND_TEST_HASH 0x42A88A80
-#define SE_LOAD_DICTIONARY_HASH        0x3A543DCB
+#define SE_LOAD_DICTIONARY_HASH        0x3A543DCB 
 #define SE_DICT_EXTRACT_INT_HASH        0xEBB34CA2
 #define SE_DICT_EXTRACT_UINT_HASH        0x5C7F2745
 #define SE_DICT_EXTRACT_FLOAT_HASH      0x0DC44819

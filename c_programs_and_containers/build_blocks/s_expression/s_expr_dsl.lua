@@ -186,10 +186,11 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_FRAME_ALLOCATE",
    "SE_FRAME_FREE",
    "SE_LOAD_FUNCTION_DICT",
-   "SE_EXEC_DICT_INTERNAL",
-   "SE_EXEC_DICT_FN",
    "SE_SPAWN_AND_TICK_TREE",
-
+   "SE_EXEC_DICT_INTERNAL",
+   "SE_EXEC_DICT_DISPATCH",
+   "SE_EXEC_FN",
+   "SE_LOAD_FUNCTION",
 
    --- oneshot functions
    "SE_INC_FIELD",
@@ -213,7 +214,7 @@ builtins_module.BUILTIN_FUNCTIONS = {
    "SE_DICT_STORE_PTR_H",
    "SE_PUSH_STACK",
    "SE_LOG_STACK",
-
+   "SE_LOG_INT_HEX",
 
 --- predicate functions
    "SE_PRED_AND",
