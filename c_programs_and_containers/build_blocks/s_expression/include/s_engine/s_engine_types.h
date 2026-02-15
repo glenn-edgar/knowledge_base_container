@@ -94,12 +94,8 @@ typedef enum {
     SE_PIPELINE_RESET         = 15,
     SE_PIPELINE_DISABLE       = 16,
     SE_PIPELINE_SKIP_CONTINUE = 17,
-    S_EXPR_PARAM_STACK_TOS    = 0x18,   // stack_tos(offset)
-    S_EXPR_PARAM_STACK_LOCAL  = 0x19,   // stack_local(index)
-    S_EXPR_PARAM_NULL         = 0x1A,   // null_param()
-    S_EXPR_PARAM_STACK_PUSH   = 0x1B,   // stack_push(value)
-    S_EXPR_PARAM_STACK_POP    = 0x1C,   // stack_pop()
 } s_expr_result_t;
+
 // ============================================================================
 // EVENT TYPES (passed to functions)
 // ============================================================================
@@ -172,6 +168,13 @@ typedef struct {
 // Tuple structure (fixed-size heterogeneous)
 #define S_EXPR_PARAM_OPEN_TUPLE  0x16   // tuple_start() - begin tuple
 #define S_EXPR_PARAM_CLOSE_TUPLE 0x17   // tuple_end()   - end tuple
+
+// Stack operation opcodes
+#define S_EXPR_PARAM_STACK_TOS   0x18   // stack_tos(offset)
+#define S_EXPR_PARAM_STACK_LOCAL 0x19   // stack_local(index)
+#define S_EXPR_PARAM_NULL        0x1A   // null_param()
+#define S_EXPR_PARAM_STACK_PUSH  0x1B   // stack_push(value)
+#define S_EXPR_PARAM_STACK_POP   0x1C   // stack_pop()
 
 // ============================================================================
 // TYPE FLAGS (upper bits of type byte)

@@ -214,6 +214,10 @@ s_expr_loaded_module_t* s_expr_load_from_file(
 
 // ============================================================================
 // LOAD FROM MEMORY
+// NOTE: Validation failures before the loaded module is allocated return NULL
+// with no structured error code. The EXCEPTION() macro fires on each path.
+// Callers that need to distinguish failure reasons should call
+// s_expr_binary_validate() first.
 // ============================================================================
 
 s_expr_loaded_module_t* s_expr_load_binary(

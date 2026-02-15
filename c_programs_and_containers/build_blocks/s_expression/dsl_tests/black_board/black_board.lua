@@ -117,44 +117,44 @@ END_CONST()
 start_tree("demo_blackboard_access")
     use_record("ScalarDemo")
     use_defaults("default_scalars")
-    
+    se_sequence( function()
     -- Write and verify counter (int32)
-    -- C: rec->counter = params[0].value.i; verify against params[1].value.i
-    local c1 = o_call("bb_write_verify_int32")
-        int(100)    -- value to write
-        int(100)    -- expected value
-    end_call(c1)
-    
-    -- Write and verify flags (uint32)
-    local c2 = o_call("bb_write_verify_uint32")
-        uint(0xDEADBEEF)
-        uint(0xDEADBEEF)
-    end_call(c2)
-    
-    -- Write and verify temperature (float)
-    local c3 = o_call("bb_write_verify_float")
-        flt(98.6)
-        flt(98.6)
-    end_call(c3)
-    
-    -- Write and verify timestamp (int64)
-    local c4 = o_call("bb_write_verify_int64")
-        int(1234567890123)
-        int(1234567890123)
-    end_call(c4)
-    
-    -- Write and verify checksum (uint64)
-    local c5 = o_call("bb_write_verify_uint64")
-        uint(0xFEDCBA9876543210)
-        uint(0xFEDCBA9876543210)
-    end_call(c5)
-    
-    -- Write and verify precise_value (double)
-    local c6 = o_call("bb_write_verify_double")
-        flt(2.718281828459045)
-        flt(2.718281828459045)
-    end_call(c6)
-
+        -- C: rec->counter = params[0].value.i; verify against params[1].value.i
+        local c1 = o_call("bb_write_verify_int32")
+            int(100)    -- value to write
+            int(100)    -- expected value
+        end_call(c1)
+        
+        -- Write and verify flags (uint32)
+        local c2 = o_call("bb_write_verify_uint32")
+            uint(0xDEADBEEF)
+            uint(0xDEADBEEF)
+        end_call(c2)
+        
+        -- Write and verify temperature (float)
+        local c3 = o_call("bb_write_verify_float")
+            flt(98.6)
+            flt(98.6)
+        end_call(c3)
+        
+        -- Write and verify timestamp (int64)
+        local c4 = o_call("bb_write_verify_int64")
+            int(1234567890123)
+            int(1234567890123)
+        end_call(c4)
+        
+        -- Write and verify checksum (uint64)
+        local c5 = o_call("bb_write_verify_uint64")
+            uint(0xFEDCBA9876543210)
+            uint(0xFEDCBA9876543210)
+        end_call(c5)
+        
+        -- Write and verify precise_value (double)
+        local c6 = o_call("bb_write_verify_double")
+            flt(2.718281828459045)
+            flt(2.718281828459045)
+        end_call(c6)
+    end)
 end_tree("demo_blackboard_access")
 
 -- ============================================================================

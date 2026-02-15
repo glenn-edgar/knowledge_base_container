@@ -9,257 +9,364 @@
 #define BLACK_BOARD_DUMP_32_H
 
 /*
+ * PARAMETER TYPE CODES:
+ *   0x00 INT          0x01 UINT         0x02 FLOAT        0x03 STR_HASH
+ *   0x04 SLOT         0x05 OPEN         0x06 CLOSE        0x07 OPEN_CALL
+ *   0x08 ONESHOT      0x09 MAIN         0x0A PRED         0x0B FIELD
+ *   0x0C RESULT       0x0D STR_IDX      0x0E CONST_REF    0x0F RESERVED
+ *   0x10 OPEN_DICT    0x11 CLOSE_DICT   0x12 OPEN_KEY     0x13 CLOSE_KEY
+ *   0x14 OPEN_ARRAY   0x15 CLOSE_ARRAY  0x16 OPEN_TUPLE   0x17 CLOSE_TUPLE
+ *
+ * FLAGS:
+ *   0x40 SURVIVES_RESET (io_call, p_call_composite)
+ *   0x80 POINTER        (pt_m_call)
+ */
+
+/*
  * Module: black_board
  * Hash:   0xCDCE8FEF
  * Trees:  5
  * Records: 5
  * Strings: 2
  * Constants: 3
+ * Param size: 8 bytes (32-bit)
  */
 
+// ============================================================================
 // STRING TABLE
+// ============================================================================
 /*
- * [ 0] "Hello, World!"
- * [ 1] "TAG"
+ * [0x0000] (  0) hash=0x5AECF734 "Hello, World!"
+ * [0x0001] (  1) hash=0x1833D4B3 "TAG"
  */
 
+// ============================================================================
 // FUNCTION TABLES
+// ============================================================================
 /*
- * ONESHOT:
- *   [ 0] bb_write_verify_int32
- *   [ 1] bb_write_verify_uint32
- *   [ 2] bb_write_verify_float
- *   [ 3] bb_write_verify_int64
- *   [ 4] bb_write_verify_uint64
- *   [ 5] bb_write_verify_double
- *   [ 6] slot_write_verify_int32
- *   [ 7] slot_write_verify_uint32
- *   [ 8] slot_write_verify_float
- *   [ 9] slot_write_verify_int64
- *   [10] slot_write_verify_uint64
- *   [11] slot_write_verify_double
- *   [12] slot_write_verify_string
- *   [13] slot_write_verify_int32_element
- *   [14] slot_write_verify_float32_array
- *   [15] slot_verify_float
- * MAIN:
- *   [ 0] SE_SEQUENCE
+ * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):
+ *   [0x0000] ( 0) hash=0xCDD8F540 bb_write_verify_int32
+ *   [0x0001] ( 1) hash=0x4B00A0D5 bb_write_verify_uint32
+ *   [0x0002] ( 2) hash=0x2D63582E bb_write_verify_float
+ *   [0x0003] ( 3) hash=0x61D18F77 bb_write_verify_int64
+ *   [0x0004] ( 4) hash=0x46F3CE96 bb_write_verify_uint64
+ *   [0x0005] ( 5) hash=0x9616C541 bb_write_verify_double
+ *   [0x0006] ( 6) hash=0xAC39405C slot_write_verify_int32
+ *   [0x0007] ( 7) hash=0xC472CE81 slot_write_verify_uint32
+ *   [0x0008] ( 8) hash=0xE03CFADA slot_write_verify_float
+ *   [0x0009] ( 9) hash=0x28453C83 slot_write_verify_int64
+ *   [0x000A] (10) hash=0x387A40E2 slot_write_verify_uint64
+ *   [0x000B] (11) hash=0xC62CCE4D slot_write_verify_double
+ *   [0x000C] (12) hash=0x3CB5CD89 slot_write_verify_string
+ *   [0x000D] (13) hash=0xA5F6575B slot_write_verify_int32_element
+ *   [0x000E] (14) hash=0xA292F461 slot_write_verify_float32_array
+ *   [0x000F] (15) hash=0xBAE5CE26 slot_verify_float
+ *
+ * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
+ *   [0x0000] ( 0) hash=0xEC3EE7BF SE_SEQUENCE
+ *
+ */
+
+// ============================================================================
+// RECORD DEFINITIONS
+// ============================================================================
+/*
+ * RECORD[0x0000]: ScalarDemo (size=40, align=8, hash=0xEE7D8F2E)
+ *   [ 0] off=0x0000 size= 4 hash=0x9CACDE23 counter
+ *   [ 1] off=0x0004 size= 4 hash=0x9C677A2C flags
+ *   [ 2] off=0x0008 size= 4 hash=0xE9F2A935 temperature
+ *   [ 3] off=0x0010 size= 8 hash=0xB283D523 timestamp
+ *   [ 4] off=0x0018 size= 8 hash=0x6015CB92 checksum
+ *   [ 5] off=0x0020 size= 8 hash=0x38EE5A4C precise_value
+ *
+ * RECORD[0x0001]: ArrayDemo (size=68, align=4, hash=0xB7FC2169)
+ *   [ 0] off=0x0000 size=32 hash=0x8D39BDE6 name CHAR[32]
+ *   [ 1] off=0x0020 size= 4 hash=0x255CDD9E short_tag CHAR[4]
+ *   [ 2] off=0x0024 size=16 hash=0xEA35C039 int_values INT32[4]
+ *   [ 3] off=0x0034 size=16 hash=0xF3AA6974 float_values FLOAT32[4]
+ *
+ * RECORD[0x0002]: Vector3 (size=12, align=4, hash=0x840071C3)
+ *   [ 0] off=0x0000 size= 4 hash=0xFD0C5087 x
+ *   [ 1] off=0x0004 size= 4 hash=0xFC0C4EF4 y
+ *   [ 2] off=0x0008 size= 4 hash=0xFF0C53AD z
+ *
+ * RECORD[0x0003]: Transform (size=28, align=4, hash=0xAD82ABBB)
+ *   [ 0] off=0x0000 size=12 hash=0x934F4E0A position EMBED:Vector3
+ *   [ 1] off=0x000C size=12 hash=0x21AC415F rotation EMBED:Vector3
+ *   [ 2] off=0x0018 size= 4 hash=0x82971C71 scale
+ *
+ * RECORD[0x0004]: LinkedNode (size=24, align=8, hash=0xA3AC758C)
+ *   [ 0] off=0x0000 size= 4 hash=0x425ED3CA value
+ *   [ 1] off=0x0004 size= 4 hash=0x5955FEAA pad
+ *   [ 2] off=0x0008 size= 8 hash=0x5CB68DE8 next PTR64
+ *   [ 3] off=0x0010 size= 8 hash=0xD872E2A5 data PTR64
+ *
+ */
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+/*
+ * CONST[0x0000]: default_vector (record=Vector3, hash=0x546E6AB0)
+ *   bytes: 00 00 00 00 00 00 80 3F 00 00 00 00 
+ * CONST[0x0001]: default_transform (record=Transform, hash=0x112115C5)
+ *   bytes: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+ *          00 00 00 00 00 00 00 00 00 00 80 3F 
+ * CONST[0x0002]: default_scalars (record=ScalarDemo, hash=0x392FC184)
+ *   bytes: 00 00 00 00 01 00 00 00 00 00 A0 41 00 00 00 00 
+ *          00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+ *          11 2D 44 54 FB 21 09 40 
+ */
+
+// ============================================================================
+// TREE PARAMETERS
+// ============================================================================
+/*
+ * TREE: demo_blackboard_access
+ *   hash=0xF584F515 nodes=7 ptrs=0
+ *   record=ScalarDemo (hash=0xEE7D8F2E)
+ *   defaults=default_scalars (idx=0x0002)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     32      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      4      0  bb_write_verify_int32 hash=0xCDD8F540
+ *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
+ *    4      INT[0x00]            -      -  100 (0x00000064)
+ *    5      INT[0x00]            -      -  100 (0x00000064)
+ *    6    CLOSE[0x06]          0      -  (end bb_write_verify_int32)
+ *    7    OPEN_CALL[0x07]      4      0  bb_write_verify_uint32 hash=0x4B00A0D5
+ *    8    ONESHOT   [0x08]      7      1  idx_to_ptr=0
+ *    9      UINT[0x01]           -      -  3735928559 (0xDEADBEEF)
+ *   10      UINT[0x01]           -      -  3735928559 (0xDEADBEEF)
+ *   11    CLOSE[0x06]          0      -  (end bb_write_verify_uint32)
+ *   12    OPEN_CALL[0x07]      4      0  bb_write_verify_float hash=0x2D63582E
+ *   13    ONESHOT   [0x08]     12      2  idx_to_ptr=0
+ *   14      FLOAT[0x02]          -      -  98.6
+ *   15      FLOAT[0x02]          -      -  98.6
+ *   16    CLOSE[0x06]          0      -  (end bb_write_verify_float)
+ *   17    OPEN_CALL[0x07]      4      0  bb_write_verify_int64 hash=0x61D18F77
+ *   18    ONESHOT   [0x08]     17      3  idx_to_ptr=0
+ *   19      INT[0x00]            -      -  1234567890123 (0x11F71FB04CB)
+ *   20      INT[0x00]            -      -  1234567890123 (0x11F71FB04CB)
+ *   21    CLOSE[0x06]          0      -  (end bb_write_verify_int64)
+ *   22    OPEN_CALL[0x07]      4      0  bb_write_verify_uint64 hash=0x46F3CE96
+ *   23    ONESHOT   [0x08]     22      4  idx_to_ptr=0
+ *   24      UINT[0x01]           -      -  9223372036854775807 (0xFEDCBA9876543000)
+ *   25      UINT[0x01]           -      -  9223372036854775807 (0xFEDCBA9876543000)
+ *   26    CLOSE[0x06]          0      -  (end bb_write_verify_uint64)
+ *   27    OPEN_CALL[0x07]      4      0  bb_write_verify_double hash=0x9616C541
+ *   28    ONESHOT   [0x08]     27      5  idx_to_ptr=0
+ *   29      FLOAT[0x02]          -      -  2.71828
+ *   30      FLOAT[0x02]          -      -  2.71828
+ *   31    CLOSE[0x06]          0      -  (end bb_write_verify_double)
+ *   32  CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *
+ * Total params: 33
  */
 
 /*
- * TREE: demo_blackboard_access (nodes=6, ptrs=0)
- * IDX  TYPE              DETAILS
- * -------------------------------------------
- *   0  OPEN_CALL         bb_write_verify_int32
- *   1    O               idx=0
- *   2      INT               100
- *   3      INT               100
- *   4  CLOSE             (end bb_write_verify_int32)
- *   5  OPEN_CALL         bb_write_verify_uint32
- *   6    O               idx=1
- *   7      UINT              3735928559
- *   8      UINT              3735928559
- *   9  CLOSE             (end bb_write_verify_uint32)
- *  10  OPEN_CALL         bb_write_verify_float
- *  11    O               idx=2
- *  12      FLOAT             98.6
- *  13      FLOAT             98.6
- *  14  CLOSE             (end bb_write_verify_float)
- *  15  OPEN_CALL         bb_write_verify_int64
- *  16    O               idx=3
- *  17      INT               1234567890123
- *  18      INT               1234567890123
- *  19  CLOSE             (end bb_write_verify_int64)
- *  20  OPEN_CALL         bb_write_verify_uint64
- *  21    O               idx=4
- *  22      UINT              9223372036854775807
- *  23      UINT              9223372036854775807
- *  24  CLOSE             (end bb_write_verify_uint64)
- *  25  OPEN_CALL         bb_write_verify_double
- *  26    O               idx=5
- *  27      FLOAT             2.71828
- *  28      FLOAT             2.71828
- *  29  CLOSE             (end bb_write_verify_double)
+ * TREE: demo_slot_access
+ *   hash=0x2435F6EA nodes=7 ptrs=0
+ *   record=ScalarDemo (hash=0xEE7D8F2E)
+ *   defaults=default_scalars (idx=0x0002)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     38      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      5      0  slot_write_verify_int32 hash=0xAC39405C
+ *    3    ONESHOT   [0x08]      2      6  idx_to_ptr=0
+ *    4      FIELD[0x0B]          0      4  counter (off=0x0000, hash=0x9CACDE23)
+ *    5      INT[0x00]            -      -  42 (0x0000002A)
+ *    6      INT[0x00]            -      -  42 (0x0000002A)
+ *    7    CLOSE[0x06]          0      -  (end slot_write_verify_int32)
+ *    8    OPEN_CALL[0x07]      5      0  slot_write_verify_uint32 hash=0xC472CE81
+ *    9    ONESHOT   [0x08]      8      7  idx_to_ptr=0
+ *   10      FIELD[0x0B]          4      4  flags (off=0x0004, hash=0x9C677A2C)
+ *   11      UINT[0x01]           -      -  3405691582 (0xCAFEBABE)
+ *   12      UINT[0x01]           -      -  3405691582 (0xCAFEBABE)
+ *   13    CLOSE[0x06]          0      -  (end slot_write_verify_uint32)
+ *   14    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *   15    ONESHOT   [0x08]     14      8  idx_to_ptr=0
+ *   16      FIELD[0x0B]          8      4  temperature (off=0x0008, hash=0xE9F2A935)
+ *   17      FLOAT[0x02]          -      -  72.5
+ *   18      FLOAT[0x02]          -      -  72.5
+ *   19    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   20    OPEN_CALL[0x07]      5      0  slot_write_verify_int64 hash=0x28453C83
+ *   21    ONESHOT   [0x08]     20      9  idx_to_ptr=0
+ *   22      FIELD[0x0B]         16      8  timestamp (off=0x0010, hash=0xB283D523)
+ *   23      INT[0x00]            -      -  -9876543210 (0xFFFFFFFEB34FE916)
+ *   24      INT[0x00]            -      -  -9876543210 (0xFFFFFFFEB34FE916)
+ *   25    CLOSE[0x06]          0      -  (end slot_write_verify_int64)
+ *   26    OPEN_CALL[0x07]      5      0  slot_write_verify_uint64 hash=0x387A40E2
+ *   27    ONESHOT   [0x08]     26     10  idx_to_ptr=0
+ *   28      FIELD[0x0B]         24      8  checksum (off=0x0018, hash=0x6015CB92)
+ *   29      UINT[0x01]           -      -  1311768467463790336 (0x123456789ABCDF00)
+ *   30      UINT[0x01]           -      -  1311768467463790336 (0x123456789ABCDF00)
+ *   31    CLOSE[0x06]          0      -  (end slot_write_verify_uint64)
+ *   32    OPEN_CALL[0x07]      5      0  slot_write_verify_double hash=0xC62CCE4D
+ *   33    ONESHOT   [0x08]     32     11  idx_to_ptr=0
+ *   34      FIELD[0x0B]         32      8  precise_value (off=0x0020, hash=0x38EE5A4C)
+ *   35      FLOAT[0x02]          -      -  1.41421
+ *   36      FLOAT[0x02]          -      -  1.41421
+ *   37    CLOSE[0x06]          0      -  (end slot_write_verify_double)
+ *   38  CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *
+ * Total params: 39
  */
 
 /*
- * TREE: demo_slot_access (nodes=7, ptrs=0)
- * IDX  TYPE              DETAILS
- * -------------------------------------------
- *   0  OPEN_CALL         SE_SEQUENCE
- *   1    M               idx=0
- *   2    OPEN_CALL         slot_write_verify_int32
- *   3      O               idx=6
- *   4        FIELD             counter
- *   5        INT               42
- *   6        INT               42
- *   7    CLOSE             (end slot_write_verify_int32)
- *   8    OPEN_CALL         slot_write_verify_uint32
- *   9      O               idx=7
- *  10        FIELD             flags
- *  11        UINT              3405691582
- *  12        UINT              3405691582
- *  13    CLOSE             (end slot_write_verify_uint32)
- *  14    OPEN_CALL         slot_write_verify_float
- *  15      O               idx=8
- *  16        FIELD             temperature
- *  17        FLOAT             72.5
- *  18        FLOAT             72.5
- *  19    CLOSE             (end slot_write_verify_float)
- *  20    OPEN_CALL         slot_write_verify_int64
- *  21      O               idx=9
- *  22        FIELD             timestamp
- *  23        INT               -9876543210
- *  24        INT               -9876543210
- *  25    CLOSE             (end slot_write_verify_int64)
- *  26    OPEN_CALL         slot_write_verify_uint64
- *  27      O               idx=10
- *  28        FIELD             checksum
- *  29        UINT              1311768467463790336
- *  30        UINT              1311768467463790336
- *  31    CLOSE             (end slot_write_verify_uint64)
- *  32    OPEN_CALL         slot_write_verify_double
- *  33      O               idx=11
- *  34        FIELD             precise_value
- *  35        FLOAT             1.41421
- *  36        FLOAT             1.41421
- *  37    CLOSE             (end slot_write_verify_double)
- *  38  CLOSE             (end SE_SEQUENCE)
+ * TREE: demo_array_access
+ *   hash=0x6BB11173 nodes=8 ptrs=0
+ *   record=ArrayDemo (hash=0xB7FC2169)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     54      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      5      0  slot_write_verify_string hash=0x3CB5CD89
+ *    3    ONESHOT   [0x08]      2     12  idx_to_ptr=0
+ *    4      FIELD[0x0B]          0     32  name (off=0x0000, hash=0x8D39BDE6)
+ *    5      STR_IDX[0x0D]        0     13  "Hello, World!"
+ *    6      STR_IDX[0x0D]        0     13  "Hello, World!"
+ *    7    CLOSE[0x06]          0      -  (end slot_write_verify_string)
+ *    8    OPEN_CALL[0x07]      5      0  slot_write_verify_string hash=0x3CB5CD89
+ *    9    ONESHOT   [0x08]      8     12  idx_to_ptr=0
+ *   10      FIELD[0x0B]         32      4  short_tag (off=0x0020, hash=0x255CDD9E)
+ *   11      STR_IDX[0x0D]        1      3  "TAG"
+ *   12      STR_IDX[0x0D]        1      3  "TAG"
+ *   13    CLOSE[0x06]          0      -  (end slot_write_verify_string)
+ *   14    OPEN_CALL[0x07]      6      0  slot_write_verify_int32_element hash=0xA5F6575B
+ *   15    ONESHOT   [0x08]     14     13  idx_to_ptr=0
+ *   16      FIELD[0x0B]         36     16  int_values (off=0x0024, hash=0xEA35C039)
+ *   17      INT[0x00]            -      -  0 (0x00000000)
+ *   18      INT[0x00]            -      -  100 (0x00000064)
+ *   19      INT[0x00]            -      -  100 (0x00000064)
+ *   20    CLOSE[0x06]          0      -  (end slot_write_verify_int32_element)
+ *   21    OPEN_CALL[0x07]      6      0  slot_write_verify_int32_element hash=0xA5F6575B
+ *   22    ONESHOT   [0x08]     21     13  idx_to_ptr=0
+ *   23      FIELD[0x0B]         36     16  int_values (off=0x0024, hash=0xEA35C039)
+ *   24      INT[0x00]            -      -  1 (0x00000001)
+ *   25      INT[0x00]            -      -  200 (0x000000C8)
+ *   26      INT[0x00]            -      -  200 (0x000000C8)
+ *   27    CLOSE[0x06]          0      -  (end slot_write_verify_int32_element)
+ *   28    OPEN_CALL[0x07]      6      0  slot_write_verify_int32_element hash=0xA5F6575B
+ *   29    ONESHOT   [0x08]     28     13  idx_to_ptr=0
+ *   30      FIELD[0x0B]         36     16  int_values (off=0x0024, hash=0xEA35C039)
+ *   31      INT[0x00]            -      -  2 (0x00000002)
+ *   32      INT[0x00]            -      -  300 (0x0000012C)
+ *   33      INT[0x00]            -      -  300 (0x0000012C)
+ *   34    CLOSE[0x06]          0      -  (end slot_write_verify_int32_element)
+ *   35    OPEN_CALL[0x07]      6      0  slot_write_verify_int32_element hash=0xA5F6575B
+ *   36    ONESHOT   [0x08]     35     13  idx_to_ptr=0
+ *   37      FIELD[0x0B]         36     16  int_values (off=0x0024, hash=0xEA35C039)
+ *   38      INT[0x00]            -      -  3 (0x00000003)
+ *   39      INT[0x00]            -      -  400 (0x00000190)
+ *   40      INT[0x00]            -      -  400 (0x00000190)
+ *   41    CLOSE[0x06]          0      -  (end slot_write_verify_int32_element)
+ *   42    OPEN_CALL[0x07]     11      0  slot_write_verify_float32_array hash=0xA292F461
+ *   43    ONESHOT   [0x08]     42     14  idx_to_ptr=0
+ *   44      FIELD[0x0B]         52     16  float_values (off=0x0034, hash=0xF3AA6974)
+ *   45      FLOAT[0x02]          -      -  1.1
+ *   46      FLOAT[0x02]          -      -  2.2
+ *   47      FLOAT[0x02]          -      -  3.3
+ *   48      FLOAT[0x02]          -      -  4.4
+ *   49      FLOAT[0x02]          -      -  1.1
+ *   50      FLOAT[0x02]          -      -  2.2
+ *   51      FLOAT[0x02]          -      -  3.3
+ *   52      FLOAT[0x02]          -      -  4.4
+ *   53    CLOSE[0x06]          0      -  (end slot_write_verify_float32_array)
+ *   54  CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *
+ * Total params: 55
  */
 
 /*
- * TREE: demo_array_access (nodes=8, ptrs=0)
- * IDX  TYPE              DETAILS
- * -------------------------------------------
- *   0  OPEN_CALL         SE_SEQUENCE
- *   1    M               idx=0
- *   2    OPEN_CALL         slot_write_verify_string
- *   3      O               idx=12
- *   4        FIELD             name
- *   5        STR_IDX           "Hello, World!"
- *   6        STR_IDX           "Hello, World!"
- *   7    CLOSE             (end slot_write_verify_string)
- *   8    OPEN_CALL         slot_write_verify_string
- *   9      O               idx=12
- *  10        FIELD             short_tag
- *  11        STR_IDX           "TAG"
- *  12        STR_IDX           "TAG"
- *  13    CLOSE             (end slot_write_verify_string)
- *  14    OPEN_CALL         slot_write_verify_int32_element
- *  15      O               idx=13
- *  16        FIELD             int_values
- *  17        INT               0
- *  18        INT               100
- *  19        INT               100
- *  20    CLOSE             (end slot_write_verify_int32_element)
- *  21    OPEN_CALL         slot_write_verify_int32_element
- *  22      O               idx=13
- *  23        FIELD             int_values
- *  24        INT               1
- *  25        INT               200
- *  26        INT               200
- *  27    CLOSE             (end slot_write_verify_int32_element)
- *  28    OPEN_CALL         slot_write_verify_int32_element
- *  29      O               idx=13
- *  30        FIELD             int_values
- *  31        INT               2
- *  32        INT               300
- *  33        INT               300
- *  34    CLOSE             (end slot_write_verify_int32_element)
- *  35    OPEN_CALL         slot_write_verify_int32_element
- *  36      O               idx=13
- *  37        FIELD             int_values
- *  38        INT               3
- *  39        INT               400
- *  40        INT               400
- *  41    CLOSE             (end slot_write_verify_int32_element)
- *  42    OPEN_CALL         slot_write_verify_float32_array
- *  43      O               idx=14
- *  44        FIELD             float_values
- *  45        FLOAT             1.1
- *  46        FLOAT             2.2
- *  47        FLOAT             3.3
- *  48        FLOAT             4.4
- *  49        FLOAT             1.1
- *  50        FLOAT             2.2
- *  51        FLOAT             3.3
- *  52        FLOAT             4.4
- *  53    CLOSE             (end slot_write_verify_float32_array)
- *  54  CLOSE             (end SE_SEQUENCE)
+ * TREE: demo_nested_access
+ *   hash=0x68FA6C13 nodes=6 ptrs=0
+ *   record=Transform (hash=0xAD82ABBB)
+ *   defaults=default_transform (idx=0x0001)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     32      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *    3    ONESHOT   [0x08]      2      8  idx_to_ptr=0
+ *    4      FIELD[0x0B]          0      4  position.x (off=0x0000, hash=0x530C73BC)
+ *    5      FLOAT[0x02]          -      -  10
+ *    6      FLOAT[0x02]          -      -  10
+ *    7    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *    8    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *    9    ONESHOT   [0x08]      8      8  idx_to_ptr=0
+ *   10      FIELD[0x0B]          4      4  position.y (off=0x0004, hash=0x540C754F)
+ *   11      FLOAT[0x02]          -      -  20
+ *   12      FLOAT[0x02]          -      -  20
+ *   13    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   14    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *   15    ONESHOT   [0x08]     14      8  idx_to_ptr=0
+ *   16      FIELD[0x0B]          8      4  position.z (off=0x0008, hash=0x550C76E2)
+ *   17      FLOAT[0x02]          -      -  30
+ *   18      FLOAT[0x02]          -      -  30
+ *   19    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   20    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *   21    ONESHOT   [0x08]     20      8  idx_to_ptr=0
+ *   22      FIELD[0x0B]         12      4  rotation.x (off=0x000C, hash=0xE7B84001)
+ *   23      FLOAT[0x02]          -      -  45
+ *   24      FLOAT[0x02]          -      -  45
+ *   25    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   26    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *   27    ONESHOT   [0x08]     26      8  idx_to_ptr=0
+ *   28      FIELD[0x0B]         24      4  scale (off=0x0018, hash=0x82971C71)
+ *   29      FLOAT[0x02]          -      -  2.5
+ *   30      FLOAT[0x02]          -      -  2.5
+ *   31    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   32  CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *
+ * Total params: 33
  */
 
 /*
- * TREE: demo_nested_access (nodes=6, ptrs=0)
- * IDX  TYPE              DETAILS
- * -------------------------------------------
- *   0  OPEN_CALL         SE_SEQUENCE
- *   1    M               idx=0
- *   2    OPEN_CALL         slot_write_verify_float
- *   3      O               idx=8
- *   4        FIELD             position.x
- *   5        FLOAT             10
- *   6        FLOAT             10
- *   7    CLOSE             (end slot_write_verify_float)
- *   8    OPEN_CALL         slot_write_verify_float
- *   9      O               idx=8
- *  10        FIELD             position.y
- *  11        FLOAT             20
- *  12        FLOAT             20
- *  13    CLOSE             (end slot_write_verify_float)
- *  14    OPEN_CALL         slot_write_verify_float
- *  15      O               idx=8
- *  16        FIELD             position.z
- *  17        FLOAT             30
- *  18        FLOAT             30
- *  19    CLOSE             (end slot_write_verify_float)
- *  20    OPEN_CALL         slot_write_verify_float
- *  21      O               idx=8
- *  22        FIELD             rotation.x
- *  23        FLOAT             45
- *  24        FLOAT             45
- *  25    CLOSE             (end slot_write_verify_float)
- *  26    OPEN_CALL         slot_write_verify_float
- *  27      O               idx=8
- *  28        FIELD             scale
- *  29        FLOAT             2.5
- *  30        FLOAT             2.5
- *  31    CLOSE             (end slot_write_verify_float)
- *  32  CLOSE             (end SE_SEQUENCE)
- */
-
-/*
- * TREE: demo_constants (nodes=6, ptrs=0)
- * IDX  TYPE              DETAILS
- * -------------------------------------------
- *   0  OPEN_CALL         SE_SEQUENCE
- *   1    M               idx=0
- *   2    OPEN_CALL         slot_verify_float
- *   3      O               idx=15
- *   4        FIELD             x
- *   5        FLOAT             0
- *   6    CLOSE             (end slot_verify_float)
- *   7    OPEN_CALL         slot_verify_float
- *   8      O               idx=15
- *   9        FIELD             y
- *  10        FLOAT             1
- *  11    CLOSE             (end slot_verify_float)
- *  12    OPEN_CALL         slot_verify_float
- *  13      O               idx=15
- *  14        FIELD             z
- *  15        FLOAT             0
- *  16    CLOSE             (end slot_verify_float)
- *  17    OPEN_CALL         slot_write_verify_float
- *  18      O               idx=8
- *  19        FIELD             x
- *  20        FLOAT             5
- *  21        FLOAT             5
- *  22    CLOSE             (end slot_write_verify_float)
- *  23    OPEN_CALL         slot_verify_float
- *  24      O               idx=15
- *  25        FIELD             y
- *  26        FLOAT             1
- *  27    CLOSE             (end slot_verify_float)
- *  28  CLOSE             (end SE_SEQUENCE)
+ * TREE: demo_constants
+ *   hash=0x459ACD44 nodes=6 ptrs=0
+ *   record=Vector3 (hash=0x840071C3)
+ *   defaults=default_vector (idx=0x0000)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     28      0  SE_SEQUENCE hash=0xEC3EE7BF
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      4      0  slot_verify_float hash=0xBAE5CE26
+ *    3    ONESHOT   [0x08]      2     15  idx_to_ptr=0
+ *    4      FIELD[0x0B]          0      4  x (off=0x0000, hash=0xFD0C5087)
+ *    5      FLOAT[0x02]          -      -  0
+ *    6    CLOSE[0x06]          0      -  (end slot_verify_float)
+ *    7    OPEN_CALL[0x07]      4      0  slot_verify_float hash=0xBAE5CE26
+ *    8    ONESHOT   [0x08]      7     15  idx_to_ptr=0
+ *    9      FIELD[0x0B]          4      4  y (off=0x0004, hash=0xFC0C4EF4)
+ *   10      FLOAT[0x02]          -      -  1
+ *   11    CLOSE[0x06]          0      -  (end slot_verify_float)
+ *   12    OPEN_CALL[0x07]      4      0  slot_verify_float hash=0xBAE5CE26
+ *   13    ONESHOT   [0x08]     12     15  idx_to_ptr=0
+ *   14      FIELD[0x0B]          8      4  z (off=0x0008, hash=0xFF0C53AD)
+ *   15      FLOAT[0x02]          -      -  0
+ *   16    CLOSE[0x06]          0      -  (end slot_verify_float)
+ *   17    OPEN_CALL[0x07]      5      0  slot_write_verify_float hash=0xE03CFADA
+ *   18    ONESHOT   [0x08]     17      8  idx_to_ptr=0
+ *   19      FIELD[0x0B]          0      4  x (off=0x0000, hash=0xFD0C5087)
+ *   20      FLOAT[0x02]          -      -  5
+ *   21      FLOAT[0x02]          -      -  5
+ *   22    CLOSE[0x06]          0      -  (end slot_write_verify_float)
+ *   23    OPEN_CALL[0x07]      4      0  slot_verify_float hash=0xBAE5CE26
+ *   24    ONESHOT   [0x08]     23     15  idx_to_ptr=0
+ *   25      FIELD[0x0B]          4      4  y (off=0x0004, hash=0xFC0C4EF4)
+ *   26      FLOAT[0x02]          -      -  1
+ *   27    CLOSE[0x06]          0      -  (end slot_verify_float)
+ *   28  CLOSE[0x06]          0      -  (end SE_SEQUENCE)
+ *
+ * Total params: 29
  */
 
 #endif // BLACK_BOARD_DUMP_32_H

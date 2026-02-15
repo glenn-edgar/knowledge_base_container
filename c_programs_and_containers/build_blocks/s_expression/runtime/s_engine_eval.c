@@ -187,7 +187,7 @@ static s_expr_result_t dispatch_main(
     uint8_t pointer_base = func_param->index_to_pointer;
    
     s_expr_node_state_t* state = get_node_state(inst, node_idx);
-    if (!state) return SE_PIPELINE_TERMINATE;
+    if (!state) return SE_TERMINATE;
     
     if (!(state->flags & S_EXPR_NODE_FLAG_ACTIVE)) {
         return SE_PIPELINE_CONTINUE;
@@ -306,6 +306,10 @@ void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
         EXCEPTION("s_expr_tree_terminate: NULL module");
         return;
     }
+    if (!inst->node_states && inst->node_count > 0) {
+        EXCEPTION("s_expr_tree_terminate: NULL node_states");
+        return;
+    }
     
     const s_expr_param_t* params = inst->tree->params;
     uint16_t count = inst->tree->param_count;
@@ -351,11 +355,6 @@ void s_expr_tree_terminate(s_expr_tree_instance_t* inst) {
         } else {
             idx++;
         }
-    }
-    
-    if (!inst->node_states && inst->node_count > 0) {
-        EXCEPTION("s_expr_tree_terminate: NULL node_states");
-        return;
     }
     
     for (uint16_t i = 0; i < inst->node_count; i++) {

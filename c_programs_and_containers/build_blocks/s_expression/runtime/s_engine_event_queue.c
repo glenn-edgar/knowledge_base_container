@@ -1,19 +1,35 @@
-// s_expr_event_queue.c
+// ============================================================================
+// s_engine_event_queue.c
+// Per-Tree Event Queue Implementation
+// Circular buffer with head/count management
+// ============================================================================
 
 #include "s_engine_event_queue.h"
 #include "s_engine_exception.h"
 
 void s_expr_event_queue_init(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_queue_init: NULL instance");
+        return;
+    }
     inst->event_queue_head = 0;
     inst->event_queue_count = 0;
 }
 
 void s_expr_event_queue_destroy(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_queue_destroy: NULL instance");
+        return;
+    }
     inst->event_queue_head = 0;
     inst->event_queue_count = 0;
 }
 
 uint16_t s_expr_event_queue_count(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_queue_count: NULL instance");
+        return 0;
+    }
     return inst->event_queue_count;
 }
 
@@ -23,6 +39,10 @@ void s_expr_event_push(
     uint16_t event_id,
     void* event_data
 ) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_push: NULL instance");
+        return;
+    }
     if (inst->event_queue_count >= S_EXPR_EVENT_QUEUE_SIZE) {
         EXCEPTION("s_expr_event_push: queue full");
         return;
@@ -41,6 +61,14 @@ void s_expr_event_pop(
     uint16_t* event_id,
     void** event_data
 ) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_pop: NULL instance");
+        return;
+    }
+    if (!tick_type || !event_id || !event_data) {
+        EXCEPTION("s_expr_event_pop: NULL output pointer");
+        return;
+    }
     if (inst->event_queue_count == 0) {
         EXCEPTION("s_expr_event_pop: queue empty");
         return;
@@ -55,6 +83,10 @@ void s_expr_event_pop(
 }
 
 void s_expr_event_queue_clear(s_expr_tree_instance_t* inst) {
+    if (!inst) {
+        EXCEPTION("s_expr_event_queue_clear: NULL instance");
+        return;
+    }
     inst->event_queue_head = 0;
     inst->event_queue_count = 0;
 }

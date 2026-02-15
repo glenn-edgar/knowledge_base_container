@@ -1,8 +1,10 @@
 // ============================================================================
-// s_engine_module.c
-// S-Expression Module Management Implementation
+// INTERNAL: Function registry storage
+// NOTE: These are file-scope globals. s_expr_module_init() zeroes them,
+// so only one module can be active per process. This is intentional for
+// single-module embedded targets. For multi-module server deployments,
+// these would need to become per-module.
 // ============================================================================
-
 #include "s_engine_module.h"
 #include "s_engine_stack.h"
 #include "s_engine_exception.h"
@@ -170,6 +172,7 @@ uint8_t s_expr_module_init(
         mod->oneshot_fns = (s_expr_oneshot_fn_t*)alloc.malloc(alloc.ctx, size);
         if (!mod->oneshot_fns) {
             EXCEPTION("s_expr_module_init: failed to allocate oneshot function table");
+            mod->def = NULL;
             mod->error_code = S_EXPR_ERR_ALLOC;
             return S_EXPR_ERR_ALLOC;
         }
@@ -181,6 +184,11 @@ uint8_t s_expr_module_init(
         mod->main_fns = (s_expr_main_fn_t*)alloc.malloc(alloc.ctx, size);
         if (!mod->main_fns) {
             EXCEPTION("s_expr_module_init: failed to allocate main function table");
+            if (mod->oneshot_fns) {
+                alloc.free(alloc.ctx, mod->oneshot_fns);
+                mod->oneshot_fns = NULL;
+            }
+            mod->def = NULL;
             mod->error_code = S_EXPR_ERR_ALLOC;
             return S_EXPR_ERR_ALLOC;
         }
@@ -192,6 +200,15 @@ uint8_t s_expr_module_init(
         mod->pred_fns = (s_expr_pred_fn_t*)alloc.malloc(alloc.ctx, size);
         if (!mod->pred_fns) {
             EXCEPTION("s_expr_module_init: failed to allocate predicate function table");
+            if (mod->main_fns) {
+                alloc.free(alloc.ctx, mod->main_fns);
+                mod->main_fns = NULL;
+            }
+            if (mod->oneshot_fns) {
+                alloc.free(alloc.ctx, mod->oneshot_fns);
+                mod->oneshot_fns = NULL;
+            }
+            mod->def = NULL;
             mod->error_code = S_EXPR_ERR_ALLOC;
             return S_EXPR_ERR_ALLOC;
         }
@@ -201,7 +218,6 @@ uint8_t s_expr_module_init(
     mod->error_code = S_EXPR_ERR_OK;
     return S_EXPR_ERR_OK;
 }
-
 // ============================================================================
 // FUNCTION REGISTRATION
 // ============================================================================

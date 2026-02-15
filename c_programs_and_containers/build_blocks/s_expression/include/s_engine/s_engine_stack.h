@@ -12,6 +12,36 @@
 extern "C" {
 #endif
 
+#define GET_STACK(inst) \
+    s_expr_stack_t* stack = (inst) ? (inst)->stack : NULL; \
+    if (!stack) { EXCEPTION("NULL stack"); return; }
+
+#define CHECK_NUMERIC_2() \
+    if (!s_expr_stack_isnumeric(stack, -1) || !s_expr_stack_isnumeric(stack, -2)) { \
+        EXCEPTION("operands must be numeric"); return; \
+    }
+
+#define CHECK_NUMERIC_1() \
+    if (!s_expr_stack_isnumeric(stack, -1)) { \
+        EXCEPTION("operand must be numeric"); return; \
+    }
+
+#define CHECK_INTEGER_2() \
+    if (s_expr_stack_isfloat(stack, -1) || s_expr_stack_isfloat(stack, -2)) { \
+        EXCEPTION("operands must be integer"); return; \
+    } \
+    if (!s_expr_stack_isnumeric(stack, -1) || !s_expr_stack_isnumeric(stack, -2)) { \
+        EXCEPTION("operands must be numeric"); return; \
+    }
+
+#define CHECK_INTEGER_1() \
+    if (s_expr_stack_isfloat(stack, -1)) { \
+        EXCEPTION("operand must be integer"); return; \
+    } \
+    if (!s_expr_stack_isnumeric(stack, -1)) { \
+        EXCEPTION("operand must be numeric"); return; \
+    }
+
 // ============================================================================
 // STACK FRAME STRUCTURE
 // ============================================================================

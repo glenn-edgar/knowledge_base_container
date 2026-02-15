@@ -9,21 +9,6 @@
 #include <string.h>
 
 #include <stdio.h>
-// ============================================================================
-// USER REGISTRATION FUNCTION TYPEDEF
-// ============================================================================
-
-typedef void (*s_engine_user_register_fn)(s_engine_handle_t* engine);
-
-// ============================================================================
-// DEBUG CALLBACK TYPEDEF
-// ============================================================================
-
-typedef void (*s_engine_debug_callback_fn)(s_expr_tree_instance_t* inst, const char* msg);
-
-// ============================================================================
-// GENERAL PURPOSE ENGINE LOADER
-// ============================================================================
 
 bool s_engine_load_from_file(
     s_engine_handle_t* engine,
