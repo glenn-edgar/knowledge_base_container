@@ -388,3 +388,121 @@ s_expr_result_t se_exec_dict_dispatch(
     
     return result;
 }
+
+s_expr_result_t se_exec_dict_fn_ptr(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t*   params,
+    uint16_t                param_count,
+    s_expr_event_type_t     event_type,
+    uint16_t                event_id,
+    void*                   event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (param_count < 2) {
+        EXCEPTION("se_exec_dict_fn_ptr: expected 2 params (dict_field, hash_field)");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        if (!inst->blackboard) {
+            EXCEPTION("se_exec_dict_fn_ptr: no blackboard bound");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t** dict_ptr = S_EXPR_GET_FIELD(inst, &params[0], const s_expr_param_t*);
+        if (!dict_ptr || !*dict_ptr) {
+            EXCEPTION("se_exec_dict_fn_ptr: NULL dictionary pointer");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t* dict = *dict_ptr;
+        
+        if (!se_dicth_is_dict(dict)) {
+            EXCEPTION("se_exec_dict_fn_ptr: not a dictionary");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        inst->current_dict = (void*)dict;
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        inst->current_dict = NULL;
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (!inst->current_dict) {
+        EXCEPTION("se_exec_dict_fn_ptr: no dictionary context");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    // Key hash from blackboard field instead of compile-time constant
+    const uint32_t* hash_ptr = S_EXPR_GET_FIELD(inst, &params[1], uint32_t);
+    if (!hash_ptr) {
+        EXCEPTION("se_exec_dict_fn_ptr: cannot read hash field");
+        return SE_PIPELINE_TERMINATE;
+    }
+    s_expr_hash_t key_hash = *hash_ptr;
+    
+    const s_expr_param_t* value = se_dicth_find(inst->current_dict, key_hash);
+    if (!value) {
+        EXCEPTION("se_exec_dict_fn_ptr: key not found");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    // Scan forward to find CLOSE_KEY
+    uint16_t content_count = 0;
+    const s_expr_param_t* p = value;
+    while (true) {
+        uint8_t opcode = p->type & S_EXPR_OPCODE_MASK;
+        if (opcode == S_EXPR_PARAM_CLOSE_KEY) {
+            break;
+        }
+        p = value + s_expr_skip_param(value, content_count);
+        content_count = (uint16_t)(p - value);
+    }
+    
+    if (content_count == 0) {
+        EXCEPTION("se_exec_dict_fn_ptr: empty key");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    // Reset all callable nodes before invoking
+    for (uint16_t idx = 0; idx < content_count; ) {
+        uint8_t opcode = value[idx].type & S_EXPR_OPCODE_MASK;
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            s_expr_reset_recursive_at(inst, value, idx);
+        }
+        idx = s_expr_skip_param(value, idx);
+    }
+    
+    // Invoke all children
+    s_expr_result_t result = SE_PIPELINE_CONTINUE;
+    
+    for (uint16_t idx = 0; idx < content_count; ) {
+        uint8_t opcode = value[idx].type & S_EXPR_OPCODE_MASK;
+        
+        if (opcode == S_EXPR_PARAM_OPEN_CALL) {
+            uint8_t func_type = value[idx + 1].type & S_EXPR_OPCODE_MASK;
+            
+            if (func_type == S_EXPR_PARAM_ONESHOT || func_type == S_EXPR_PARAM_PRED) {
+                s_expr_invoke_any(inst, value, idx);
+            } else {
+                result = s_expr_invoke_any(inst, value, idx);
+                if (result != SE_PIPELINE_CONTINUE && result != SE_PIPELINE_DISABLE) {
+                    break;
+                }
+            }
+        }
+        
+        idx = s_expr_skip_param(value, idx);
+    }
+    
+    if (result == SE_PIPELINE_DISABLE) {
+        result = SE_PIPELINE_CONTINUE;
+    }
+    
+    return result;
+}

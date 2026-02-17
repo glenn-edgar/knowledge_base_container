@@ -3,6 +3,15 @@
 -- Function dictionary loading/execution, internal dispatch,
 -- tree spawning, function pointer load/exec
 --============================================================================
+register_builtin("SE_LOAD_FUNCTION_DICT")
+register_builtin("SE_EXEC_DICT_INTERNAL")
+register_builtin("SE_EXEC_DICT_DISPATCH")
+register_builtin("SE_SPAWN_TREE")
+register_builtin("SE_SET_EXTERNAL_FIELD")
+register_builtin("SE_TICK_TREE")
+register_builtin("SE_LOAD_FUNCTION")
+register_builtin("SE_EXEC_FN")
+register_builtin("SE_EXEC_DICT_FN_PTR")
 
 function se_load_function_dict(blackboard_field, func_list)
     validate_field_is_ptr64(blackboard_field, "se_load_function_dict")
@@ -56,19 +65,7 @@ function se_exec_dict_internal(key_name)
     end_call(c)
 end
 
-function se_spawn_and_tick_tree(tree_name, stack_size)
-    if type(tree_name) ~= "string" then
-        dsl_error("se_spawn_and_tick_tree: tree_name must be a string")
-    end
-    if type(stack_size) ~= "number" then
-        dsl_error("se_spawn_and_tick_tree: stack_size must be a number")
-    end
-    stack_size = stack_size or 0
-    local c = pt_m_call("SE_SPAWN_AND_TICK_TREE")
-        str_hash(tree_name)
-        uint(stack_size)
-    end_call(c)
-end
+
 
 function se_exec_dict_fn(blackboard_field, key_name)
     validate_field_is_ptr64(blackboard_field, "se_exec_dict_fn")
@@ -81,10 +78,17 @@ function se_exec_dict_fn(blackboard_field, key_name)
     end_call(c)
 end
 
+function se_exec_dict_fn_ptr(dict_field, hash_field)
+    validate_field_is_ptr64(dict_field, "se_exec_dict_fn_ptr")
+    local c = pt_m_call("SE_EXEC_DICT_FN_PTR")
+        field_ref(dict_field)
+        field_ref(hash_field)
+    end_call(c)
+end
 function se_load_function(blackboard_field, fns)
     validate_field_is_ptr64(blackboard_field, "se_load_function")
    
-    local c = o_call("SE_LOAD_FUNCTION")
+    local c = io_call("SE_LOAD_FUNCTION")
         field_ref(blackboard_field)
         fns()
     end_call(c)
@@ -96,3 +100,44 @@ function se_exec_function(blackboard_field)
         field_ref(blackboard_field)
     end_call(c)
 end
+
+
+function se_spawn_tree(tree_pointer,  tree_name)
+    validate_field_is_ptr64(tree_pointer, "se_spawn_tree")
+    if type(tree_name) ~= "string" then
+        dsl_error("se_spawn_tree: tree_name must be a string")
+    end
+
+    local c = pt_m_call("SE_SPAWN_TREE")
+        field_ref(tree_pointer)
+        str_hash(tree_name)
+    end_call(c)
+end
+
+function se_set_external_field(external_field, tree_pointer, dictionary_offset)
+    validate_field_is_ptr64(external_field, "se_set_external_field")
+    validate_field_is_ptr64(tree_pointer, "se_set_external_field")
+    if type(dictionary_offset) ~= "number" then
+        dsl_error("se_set_external_field: dictionary_offset must be a number")
+    end
+    local c = pt_m_call("SE_SET_EXTERNAL_FIELD")
+        field_ref(external_field)
+        field_ref(tree_pointer)
+        uint(dictionary_offset)
+    end_call(c)
+end
+
+function se_tick_tree(tree_pointer,stack_size)
+    validate_field_is_ptr64(tree_pointer, "se_tick_tree")
+    if type(stack_size) ~= "number" then
+        dsl_error("se_tick_tree: stack_size must be a number")
+    end
+    stack_size = stack_size or 0
+    local c = pt_m_call("SE_TICK_TREE")
+        field_ref(tree_pointer)
+        uint(stack_size)
+    end_call(c)
+end
+
+
+ 

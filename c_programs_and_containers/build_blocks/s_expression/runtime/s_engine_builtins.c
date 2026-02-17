@@ -115,6 +115,7 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_EXEC_FN_HASH, (void*)se_exec_fn },
     { SE_EXEC_DICT_INTERNAL_HASH, (void*)se_exec_dict_internal },
     { SE_EXEC_DICT_DISPATCH_HASH, (void*)se_exec_dict_dispatch },
+    { SE_EXEC_DICT_FN_PTR_HASH, (void*)se_exec_dict_fn_ptr },
     // Result code functions
     { SE_RETURN_CONTINUE_HASH, (void*)se_return_continue },
     { SE_RETURN_HALT_HASH, (void*)se_return_halt },

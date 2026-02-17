@@ -16,8 +16,8 @@ extern "C" {
 
 // Module: function_dictionary
 #define FUNCTION_DICTIONARY_NAME_HASH 0x36895436
-#define FUNCTION_DICTIONARY_TREE_COUNT 1
-#define FUNCTION_DICTIONARY_RECORD_COUNT 1
+#define FUNCTION_DICTIONARY_TREE_COUNT 2
+#define FUNCTION_DICTIONARY_RECORD_COUNT 2
 
 // String table
 static const char* const function_dictionary_strings[] = {
@@ -26,28 +26,9 @@ static const char* const function_dictionary_strings[] = {
     "UART skipped - channel not set",
     "SPI configured",
     "SPI skipped - channel not set",
-    "--- Configuration Results ---",
-    "config_state 0x%08X",
-    "peripherals_ready 0x%08X",
-    "error_code 0x%08X",
-    "--- UART ---",
-    "uart_channel 0x%08X",
-    "uart_baud 0x%08X",
-    "uart_parity 0x%08X",
-    "uart_stop_bits 0x%08X",
-    "--- SPI ---",
-    "spi_channel 0x%08X",
-    "spi_clock_div 0x%08X",
-    "spi_mode 0x%08X",
-    "spi_bit_order 0x%08X",
-    "--- GPIO ---",
-    "gpio_port 0x%08X",
-    "gpio_pin 0x%08X",
-    "gpio_mode 0x%08X",
-    "gpio_speed 0x%08X",
-    "gpio_pull 0x%08X"
+    "call_tree: called"
 };
-#define FUNCTION_DICTIONARY_STRING_COUNT 25
+#define FUNCTION_DICTIONARY_STRING_COUNT 6
 
 // Function hashes
 #define SE_SET_FIELD_HASH 0xFFF84A15
@@ -56,26 +37,28 @@ static const char* const function_dictionary_strings[] = {
 #define WRITE_REGISTER_HASH 0x8A22E5B4
 #define SE_QUAD_HASH 0x596C457D
 #define SE_LOG_HASH 0xCEBBEFA4
-#define SE_LOG_INT_HASH 0x2442CEA2
 #define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
 #define SE_SEQUENCE_ONCE_HASH 0x4F4BB2E1
 #define SE_STACK_FRAME_INSTANCE_HASH 0x753D7572
 #define SE_EXEC_DICT_INTERNAL_HASH 0x2D91A4AC
 #define SE_IF_THEN_ELSE_HASH 0x1E860193
-#define SE_EXEC_DICT_DISPATCH_HASH 0xA9BCEF3F
 #define SE_EXEC_DICT_FN_PTR_HASH 0x0E0A617C
 #define SE_RETURN_FUNCTION_TERMINATE_HASH 0x0A5B8A85
+#define SE_SPAWN_TREE_HASH 0x756BC19A
+#define SE_SET_EXTERNAL_FIELD_HASH 0x02153947
+#define SE_TICK_TREE_HASH 0xA56C78DC
 #define SE_FIELD_NE_HASH 0xF5E4BFD2
 
 // Tree hashes
 #define FUNCTION_DICTIONARY_HASH 0x36895436
+#define CALL_TREE_HASH 0xEB1D0EBE
 
 // Record hashes
 #define CPU_CONFIG_BLACKBOARD_HASH 0xD0E22358
+#define CALL_BLACKBOARD_HASH 0x992255D3
 
 // Field hashes
 #define FIELD_FN_DICT_HASH 0x6A747A52
-#define FIELD_FN_PTR_HASH 0xE4D06AB8
 #define FIELD_FN_HASH_HASH 0x92160822
 #define FIELD_GPIO_PORT_HASH 0x3A9A56E8
 #define FIELD_GPIO_PIN_HASH 0x8BECDAB6
@@ -96,6 +79,8 @@ static const char* const function_dictionary_strings[] = {
 #define FIELD_PERIPHERALS_READY_HASH 0x1DBED692
 #define FIELD_TEMP_REG_ADDR_HASH 0x9C4D2960
 #define FIELD_TEMP_REG_VALUE_HASH 0xBAA73FDC
+#define FIELD_TREE_POINTER_HASH 0xD176F787
+#define FIELD_DICTIONARY_HASH_HASH 0x5E462BC2
 
 #ifdef __cplusplus
 }

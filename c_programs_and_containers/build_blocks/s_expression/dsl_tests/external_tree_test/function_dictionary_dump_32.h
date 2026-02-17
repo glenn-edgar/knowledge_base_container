@@ -25,9 +25,9 @@
 /*
  * Module: function_dictionary
  * Hash:   0x36895436
- * Trees:  1
- * Records: 1
- * Strings: 25
+ * Trees:  2
+ * Records: 2
+ * Strings: 6
  * Constants: 0
  * Param size: 8 bytes (32-bit)
  */
@@ -41,26 +41,7 @@
  * [0x0002] (  2) hash=0xF9547BE8 "UART skipped - channel not set"
  * [0x0003] (  3) hash=0xEBABBA57 "SPI configured"
  * [0x0004] (  4) hash=0x39F4C630 "SPI skipped - channel not set"
- * [0x0005] (  5) hash=0x5B84284F "--- Configuration Results ---"
- * [0x0006] (  6) hash=0xEEB15582 "config_state 0x%08X"
- * [0x0007] (  7) hash=0x296C889B "peripherals_ready 0x%08X"
- * [0x0008] (  8) hash=0x07E49270 "error_code 0x%08X"
- * [0x0009] (  9) hash=0x5F2184B3 "--- UART ---"
- * [0x000A] ( 10) hash=0x691D071E "uart_channel 0x%08X"
- * [0x000B] ( 11) hash=0x2A1DD287 "uart_baud 0x%08X"
- * [0x000C] ( 12) hash=0x62F04EF8 "uart_parity 0x%08X"
- * [0x000D] ( 13) hash=0xCBD6F808 "uart_stop_bits 0x%08X"
- * [0x000E] ( 14) hash=0x2F1CEBC9 "--- SPI ---"
- * [0x000F] ( 15) hash=0xA097CD06 "spi_channel 0x%08X"
- * [0x0010] ( 16) hash=0x339BDFD5 "spi_clock_div 0x%08X"
- * [0x0011] ( 17) hash=0xD3B75892 "spi_mode 0x%08X"
- * [0x0012] ( 18) hash=0x9B6276FB "spi_bit_order 0x%08X"
- * [0x0013] ( 19) hash=0x9C884AF0 "--- GPIO ---"
- * [0x0014] ( 20) hash=0xFABB7BE5 "gpio_port 0x%08X"
- * [0x0015] ( 21) hash=0x3E0F003F "gpio_pin 0x%08X"
- * [0x0016] ( 22) hash=0x689F8F35 "gpio_mode 0x%08X"
- * [0x0017] ( 23) hash=0x80106A43 "gpio_speed 0x%08X"
- * [0x0018] ( 24) hash=0x81F9860D "gpio_pull 0x%08X"
+ * [0x0005] (  5) hash=0x89C54495 "call_tree: called"
  */
 
 // ============================================================================
@@ -74,7 +55,6 @@
  *   [0x0003] ( 3) hash=0x8A22E5B4 write_register
  *   [0x0004] ( 4) hash=0x596C457D SE_QUAD
  *   [0x0005] ( 5) hash=0xCEBBEFA4 SE_LOG
- *   [0x0006] ( 6) hash=0x2442CEA2 SE_LOG_INT
  *
  * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
  *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
@@ -82,9 +62,11 @@
  *   [0x0002] ( 2) hash=0x753D7572 SE_STACK_FRAME_INSTANCE
  *   [0x0003] ( 3) hash=0x2D91A4AC SE_EXEC_DICT_INTERNAL
  *   [0x0004] ( 4) hash=0x1E860193 SE_IF_THEN_ELSE
- *   [0x0005] ( 5) hash=0xA9BCEF3F SE_EXEC_DICT_DISPATCH
- *   [0x0006] ( 6) hash=0x0E0A617C SE_EXEC_DICT_FN_PTR
- *   [0x0007] ( 7) hash=0x0A5B8A85 SE_RETURN_FUNCTION_TERMINATE
+ *   [0x0005] ( 5) hash=0x0E0A617C SE_EXEC_DICT_FN_PTR
+ *   [0x0006] ( 6) hash=0x0A5B8A85 SE_RETURN_FUNCTION_TERMINATE
+ *   [0x0007] ( 7) hash=0x756BC19A SE_SPAWN_TREE
+ *   [0x0008] ( 8) hash=0x02153947 SE_SET_EXTERNAL_FIELD
+ *   [0x0009] ( 9) hash=0xA56C78DC SE_TICK_TREE
  *
  * PRED FUNCTIONS (type=0x0A, with 0x40=p_call_composite):
  *   [0x0000] ( 0) hash=0xF5E4BFD2 SE_FIELD_NE
@@ -94,29 +76,32 @@
 // RECORD DEFINITIONS
 // ============================================================================
 /*
- * RECORD[0x0000]: cpu_config_blackboard (size=96, align=8, hash=0xD0E22358)
+ * RECORD[0x0000]: cpu_config_blackboard (size=88, align=8, hash=0xD0E22358)
  *   [ 0] off=0x0000 size= 8 hash=0x6A747A52 fn_dict PTR64
- *   [ 1] off=0x0008 size= 8 hash=0xE4D06AB8 fn_ptr PTR64
- *   [ 2] off=0x0010 size= 4 hash=0x92160822 fn_hash
- *   [ 3] off=0x0014 size= 4 hash=0x3A9A56E8 gpio_port
- *   [ 4] off=0x0018 size= 4 hash=0x8BECDAB6 gpio_pin
- *   [ 5] off=0x001C size= 4 hash=0xC10EF3F8 gpio_mode
- *   [ 6] off=0x0020 size= 4 hash=0x12296A9A gpio_speed
- *   [ 7] off=0x0024 size= 4 hash=0x007B7F30 gpio_pull
- *   [ 8] off=0x0028 size= 4 hash=0x34D80DE9 uart_channel
- *   [ 9] off=0x002C size= 4 hash=0x1BF9B37E uart_baud
- *   [10] off=0x0030 size= 4 hash=0x823E20EF uart_parity
- *   [11] off=0x0034 size= 4 hash=0x54A34E7F uart_stop_bits
- *   [12] off=0x0038 size= 4 hash=0xCE2DA19E uart_flow_ctrl
- *   [13] off=0x003C size= 4 hash=0x8623DA71 spi_channel
- *   [14] off=0x0040 size= 4 hash=0xF716F858 spi_clock_div
- *   [15] off=0x0044 size= 4 hash=0x2341FFDD spi_mode
- *   [16] off=0x0048 size= 4 hash=0xB921B332 spi_bit_order
- *   [17] off=0x004C size= 4 hash=0x715AEACD config_state
- *   [18] off=0x0050 size= 4 hash=0x14FC1187 error_code
- *   [19] off=0x0054 size= 4 hash=0x1DBED692 peripherals_ready
- *   [20] off=0x0058 size= 4 hash=0x9C4D2960 temp_reg_addr
- *   [21] off=0x005C size= 4 hash=0xBAA73FDC temp_reg_value
+ *   [ 1] off=0x0008 size= 4 hash=0x92160822 fn_hash
+ *   [ 2] off=0x000C size= 4 hash=0x3A9A56E8 gpio_port
+ *   [ 3] off=0x0010 size= 4 hash=0x8BECDAB6 gpio_pin
+ *   [ 4] off=0x0014 size= 4 hash=0xC10EF3F8 gpio_mode
+ *   [ 5] off=0x0018 size= 4 hash=0x12296A9A gpio_speed
+ *   [ 6] off=0x001C size= 4 hash=0x007B7F30 gpio_pull
+ *   [ 7] off=0x0020 size= 4 hash=0x34D80DE9 uart_channel
+ *   [ 8] off=0x0024 size= 4 hash=0x1BF9B37E uart_baud
+ *   [ 9] off=0x0028 size= 4 hash=0x823E20EF uart_parity
+ *   [10] off=0x002C size= 4 hash=0x54A34E7F uart_stop_bits
+ *   [11] off=0x0030 size= 4 hash=0xCE2DA19E uart_flow_ctrl
+ *   [12] off=0x0034 size= 4 hash=0x8623DA71 spi_channel
+ *   [13] off=0x0038 size= 4 hash=0xF716F858 spi_clock_div
+ *   [14] off=0x003C size= 4 hash=0x2341FFDD spi_mode
+ *   [15] off=0x0040 size= 4 hash=0xB921B332 spi_bit_order
+ *   [16] off=0x0044 size= 4 hash=0x715AEACD config_state
+ *   [17] off=0x0048 size= 4 hash=0x14FC1187 error_code
+ *   [18] off=0x004C size= 4 hash=0x1DBED692 peripherals_ready
+ *   [19] off=0x0050 size= 4 hash=0x9C4D2960 temp_reg_addr
+ *   [20] off=0x0054 size= 4 hash=0xBAA73FDC temp_reg_value
+ *
+ * RECORD[0x0001]: call_blackboard (size=16, align=8, hash=0x992255D3)
+ *   [ 0] off=0x0000 size= 8 hash=0xD176F787 tree_pointer PTR64
+ *   [ 1] off=0x0008 size= 4 hash=0x5E462BC2 dictionary_hash
  *
  */
 
@@ -125,96 +110,96 @@
 // ============================================================================
 /*
  * TREE: function_dictionary
- *   hash=0x36895436 nodes=163 ptrs=26
+ *   hash=0x36895436 nodes=141 ptrs=25
  *   record=cpu_config_blackboard (hash=0xD0E22358)
  *
  * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
  * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    870      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    0  OPEN_CALL[0x07]    764      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
  *    2    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
- *    4      FIELD[0x0B]         40      4  uart_channel (off=0x0028, hash=0x34D80DE9)
+ *    3    ONESHOT+SR[0x48]      2      0  idx_to_ptr=0
+ *    4      FIELD[0x0B]         32      4  uart_channel (off=0x0020, hash=0x34D80DE9)
  *    5      UINT[0x01]           -      -  1 (0x00000001)
  *    6    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *    7    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *    8    ONESHOT   [0x08]      7      0  idx_to_ptr=0
- *    9      FIELD[0x0B]         44      4  uart_baud (off=0x002C, hash=0x1BF9B37E)
+ *    8    ONESHOT+SR[0x48]      7      0  idx_to_ptr=0
+ *    9      FIELD[0x0B]         36      4  uart_baud (off=0x0024, hash=0x1BF9B37E)
  *   10      UINT[0x01]           -      -  1667 (0x00000683)
  *   11    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   12    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   13    ONESHOT   [0x08]     12      0  idx_to_ptr=0
- *   14      FIELD[0x0B]         48      4  uart_parity (off=0x0030, hash=0x823E20EF)
+ *   13    ONESHOT+SR[0x48]     12      0  idx_to_ptr=0
+ *   14      FIELD[0x0B]         40      4  uart_parity (off=0x0028, hash=0x823E20EF)
  *   15      UINT[0x01]           -      -  0 (0x00000000)
  *   16    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   17    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   18    ONESHOT   [0x08]     17      0  idx_to_ptr=0
- *   19      FIELD[0x0B]         52      4  uart_stop_bits (off=0x0034, hash=0x54A34E7F)
+ *   18    ONESHOT+SR[0x48]     17      0  idx_to_ptr=0
+ *   19      FIELD[0x0B]         44      4  uart_stop_bits (off=0x002C, hash=0x54A34E7F)
  *   20      UINT[0x01]           -      -  1 (0x00000001)
  *   21    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   22    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   23    ONESHOT   [0x08]     22      0  idx_to_ptr=0
- *   24      FIELD[0x0B]         56      4  uart_flow_ctrl (off=0x0038, hash=0xCE2DA19E)
+ *   23    ONESHOT+SR[0x48]     22      0  idx_to_ptr=0
+ *   24      FIELD[0x0B]         48      4  uart_flow_ctrl (off=0x0030, hash=0xCE2DA19E)
  *   25      UINT[0x01]           -      -  0 (0x00000000)
  *   26    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   27    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   28    ONESHOT   [0x08]     27      0  idx_to_ptr=0
- *   29      FIELD[0x0B]         60      4  spi_channel (off=0x003C, hash=0x8623DA71)
+ *   28    ONESHOT+SR[0x48]     27      0  idx_to_ptr=0
+ *   29      FIELD[0x0B]         52      4  spi_channel (off=0x0034, hash=0x8623DA71)
  *   30      UINT[0x01]           -      -  1 (0x00000001)
  *   31    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   32    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   33    ONESHOT   [0x08]     32      0  idx_to_ptr=0
- *   34      FIELD[0x0B]         64      4  spi_clock_div (off=0x0040, hash=0xF716F858)
+ *   33    ONESHOT+SR[0x48]     32      0  idx_to_ptr=0
+ *   34      FIELD[0x0B]         56      4  spi_clock_div (off=0x0038, hash=0xF716F858)
  *   35      UINT[0x01]           -      -  2 (0x00000002)
  *   36    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   37    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   38    ONESHOT   [0x08]     37      0  idx_to_ptr=0
- *   39      FIELD[0x0B]         68      4  spi_mode (off=0x0044, hash=0x2341FFDD)
+ *   38    ONESHOT+SR[0x48]     37      0  idx_to_ptr=0
+ *   39      FIELD[0x0B]         60      4  spi_mode (off=0x003C, hash=0x2341FFDD)
  *   40      UINT[0x01]           -      -  0 (0x00000000)
  *   41    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   42    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   43    ONESHOT   [0x08]     42      0  idx_to_ptr=0
- *   44      FIELD[0x0B]         72      4  spi_bit_order (off=0x0048, hash=0xB921B332)
+ *   43    ONESHOT+SR[0x48]     42      0  idx_to_ptr=0
+ *   44      FIELD[0x0B]         64      4  spi_bit_order (off=0x0040, hash=0xB921B332)
  *   45      UINT[0x01]           -      -  0 (0x00000000)
  *   46    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   47    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   48    ONESHOT   [0x08]     47      0  idx_to_ptr=0
- *   49      FIELD[0x0B]         20      4  gpio_port (off=0x0014, hash=0x3A9A56E8)
+ *   48    ONESHOT+SR[0x48]     47      0  idx_to_ptr=0
+ *   49      FIELD[0x0B]         12      4  gpio_port (off=0x000C, hash=0x3A9A56E8)
  *   50      UINT[0x01]           -      -  1073872896 (0x40020000)
  *   51    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   52    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   53    ONESHOT   [0x08]     52      0  idx_to_ptr=0
- *   54      FIELD[0x0B]         24      4  gpio_pin (off=0x0018, hash=0x8BECDAB6)
+ *   53    ONESHOT+SR[0x48]     52      0  idx_to_ptr=0
+ *   54      FIELD[0x0B]         16      4  gpio_pin (off=0x0010, hash=0x8BECDAB6)
  *   55      UINT[0x01]           -      -  5 (0x00000005)
  *   56    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   57    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   58    ONESHOT   [0x08]     57      0  idx_to_ptr=0
- *   59      FIELD[0x0B]         28      4  gpio_mode (off=0x001C, hash=0xC10EF3F8)
+ *   58    ONESHOT+SR[0x48]     57      0  idx_to_ptr=0
+ *   59      FIELD[0x0B]         20      4  gpio_mode (off=0x0014, hash=0xC10EF3F8)
  *   60      UINT[0x01]           -      -  2 (0x00000002)
  *   61    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   62    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   63    ONESHOT   [0x08]     62      0  idx_to_ptr=0
- *   64      FIELD[0x0B]         32      4  gpio_speed (off=0x0020, hash=0x12296A9A)
+ *   63    ONESHOT+SR[0x48]     62      0  idx_to_ptr=0
+ *   64      FIELD[0x0B]         24      4  gpio_speed (off=0x0018, hash=0x12296A9A)
  *   65      UINT[0x01]           -      -  2 (0x00000002)
  *   66    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   67    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   68    ONESHOT   [0x08]     67      0  idx_to_ptr=0
- *   69      FIELD[0x0B]         36      4  gpio_pull (off=0x0024, hash=0x007B7F30)
+ *   68    ONESHOT+SR[0x48]     67      0  idx_to_ptr=0
+ *   69      FIELD[0x0B]         28      4  gpio_pull (off=0x001C, hash=0x007B7F30)
  *   70      UINT[0x01]           -      -  0 (0x00000000)
  *   71    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   72    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   73    ONESHOT   [0x08]     72      0  idx_to_ptr=0
- *   74      FIELD[0x0B]         76      4  config_state (off=0x004C, hash=0x715AEACD)
+ *   73    ONESHOT+SR[0x48]     72      0  idx_to_ptr=0
+ *   74      FIELD[0x0B]         68      4  config_state (off=0x0044, hash=0x715AEACD)
  *   75      UINT[0x01]           -      -  0 (0x00000000)
  *   76    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   77    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   78    ONESHOT   [0x08]     77      0  idx_to_ptr=0
- *   79      FIELD[0x0B]         80      4  error_code (off=0x0050, hash=0x14FC1187)
+ *   78    ONESHOT+SR[0x48]     77      0  idx_to_ptr=0
+ *   79      FIELD[0x0B]         72      4  error_code (off=0x0048, hash=0x14FC1187)
  *   80      UINT[0x01]           -      -  0 (0x00000000)
  *   81    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   82    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *   83    ONESHOT   [0x08]     82      0  idx_to_ptr=0
- *   84      FIELD[0x0B]         84      4  peripherals_ready (off=0x0054, hash=0x1DBED692)
+ *   83    ONESHOT+SR[0x48]     82      0  idx_to_ptr=0
+ *   84      FIELD[0x0B]         76      4  peripherals_ready (off=0x004C, hash=0x1DBED692)
  *   85      UINT[0x01]           -      -  0 (0x00000000)
  *   86    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *   87    OPEN_CALL[0x07]    668      0  SE_LOAD_FUNCTION_DICT hash=0xC0225974
@@ -802,7 +787,7 @@
  *  669        MAIN      [0x09]    668      4  idx_to_ptr=0
  *  670          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
  *  671          PRED      [0x0A]    670      0  idx_to_ptr=0
- *  672            FIELD[0x0B]         40      4  uart_channel (off=0x0028, hash=0x34D80DE9)
+ *  672            FIELD[0x0B]         32      4  uart_channel (off=0x0020, hash=0x34D80DE9)
  *  673            UINT[0x01]           -      -  0 (0x00000000)
  *  674          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
  *  675          OPEN_CALL[0x07]     22      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
@@ -813,7 +798,7 @@
  *  680            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  681            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
  *  682            ONESHOT   [0x08]    681      2  idx_to_ptr=0
- *  683              FIELD[0x0B]         44      4  uart_baud (off=0x002C, hash=0x1BF9B37E)
+ *  683              FIELD[0x0B]         36      4  uart_baud (off=0x0024, hash=0x1BF9B37E)
  *  684            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  685            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
  *  686            ONESHOT   [0x08]    685      2  idx_to_ptr=0
@@ -837,7 +822,7 @@
  *  704        MAIN      [0x09]    703      4  idx_to_ptr=0
  *  705          OPEN_CALL[0x07]      4      0  SE_FIELD_NE hash=0xF5E4BFD2
  *  706          PRED      [0x0A]    705      0  idx_to_ptr=0
- *  707            FIELD[0x0B]         60      4  spi_channel (off=0x003C, hash=0x8623DA71)
+ *  707            FIELD[0x0B]         52      4  spi_channel (off=0x0034, hash=0x8623DA71)
  *  708            UINT[0x01]           -      -  0 (0x00000000)
  *  709          CLOSE[0x06]          0      -  (end SE_FIELD_NE)
  *  710          OPEN_CALL[0x07]     26      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
@@ -848,15 +833,15 @@
  *  715            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  716            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
  *  717            ONESHOT   [0x08]    716      2  idx_to_ptr=0
- *  718              FIELD[0x0B]         64      4  spi_clock_div (off=0x0040, hash=0xF716F858)
+ *  718              FIELD[0x0B]         56      4  spi_clock_div (off=0x0038, hash=0xF716F858)
  *  719            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  720            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
  *  721            ONESHOT   [0x08]    720      2  idx_to_ptr=0
- *  722              FIELD[0x0B]         68      4  spi_mode (off=0x0044, hash=0x2341FFDD)
+ *  722              FIELD[0x0B]         60      4  spi_mode (off=0x003C, hash=0x2341FFDD)
  *  723            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  724            OPEN_CALL[0x07]      3      0  SE_PUSH_STACK hash=0x08E351ED
  *  725            ONESHOT   [0x08]    724      2  idx_to_ptr=0
- *  726              FIELD[0x0B]         72      4  spi_bit_order (off=0x0048, hash=0xB921B332)
+ *  726              FIELD[0x0B]         64      4  spi_bit_order (off=0x0040, hash=0xB921B332)
  *  727            CLOSE[0x06]          0      -  (end SE_PUSH_STACK)
  *  728            OPEN_CALL[0x07]      3      0  SE_EXEC_DICT_INTERNAL hash=0x2D91A4AC
  *  729            MAIN+PTR  [0x89]    728      3  idx_to_ptr=23
@@ -874,135 +859,71 @@
  *  741        CLOSE[0x06]          0      -  (end SE_IF_THEN_ELSE)
  *  742        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
  *  743        ONESHOT   [0x08]    742      0  idx_to_ptr=0
- *  744          FIELD[0x0B]         84      4  peripherals_ready (off=0x0054, hash=0x1DBED692)
+ *  744          FIELD[0x0B]         76      4  peripherals_ready (off=0x004C, hash=0x1DBED692)
  *  745          UINT[0x01]           -      -  1 (0x00000001)
  *  746        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  747        OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
  *  748        ONESHOT   [0x08]    747      0  idx_to_ptr=0
- *  749          FIELD[0x0B]         76      4  config_state (off=0x004C, hash=0x715AEACD)
+ *  749          FIELD[0x0B]         68      4  config_state (off=0x0044, hash=0x715AEACD)
  *  750          UINT[0x01]           -      -  4 (0x00000004)
  *  751        CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  752      CLOSE[0x06]          0      -  (end SE_SEQUENCE_ONCE)
  *  753      CLOSE_KEY[0x13]    152      -  key 'init_all_peripherals' (opened at 601)
  *  754      CLOSE_DICT[0x11]   664      -  dict 'fn_dict' (opened at 90)
  *  755    CLOSE[0x06]          0      -  (end SE_LOAD_FUNCTION_DICT)
- *  756    OPEN_CALL[0x07]      4      0  SE_EXEC_DICT_DISPATCH hash=0xA9BCEF3F
+ *  756    OPEN_CALL[0x07]      4      0  SE_EXEC_DICT_FN_PTR hash=0x0E0A617C
  *  757    MAIN+PTR  [0x89]    756      5  idx_to_ptr=24
  *  758      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
- *  759      STR_HASH[0x03]       -      -  "init_all_peripherals" hash=0xBF310A69
- *  760    CLOSE[0x06]          0      -  (end SE_EXEC_DICT_DISPATCH)
- *  761    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  762    ONESHOT   [0x08]    761      5  idx_to_ptr=0
- *  763      STR_IDX[0x0D]        5     29  "--- Configuration Results ---"
- *  764    CLOSE[0x06]          0      -  (end SE_LOG)
- *  765    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  766    ONESHOT   [0x08]    765      6  idx_to_ptr=0
- *  767      STR_IDX[0x0D]        6     19  "config_state 0x%08X"
- *  768      FIELD[0x0B]         76      4  config_state (off=0x004C, hash=0x715AEACD)
- *  769    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  770    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  771    ONESHOT   [0x08]    770      6  idx_to_ptr=0
- *  772      STR_IDX[0x0D]        7     24  "peripherals_ready 0x%08X"
- *  773      FIELD[0x0B]         84      4  peripherals_ready (off=0x0054, hash=0x1DBED692)
- *  774    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  775    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  776    ONESHOT   [0x08]    775      6  idx_to_ptr=0
- *  777      STR_IDX[0x0D]        8     17  "error_code 0x%08X"
- *  778      FIELD[0x0B]         80      4  error_code (off=0x0050, hash=0x14FC1187)
- *  779    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  780    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  781    ONESHOT   [0x08]    780      5  idx_to_ptr=0
- *  782      STR_IDX[0x0D]        9     12  "--- UART ---"
- *  783    CLOSE[0x06]          0      -  (end SE_LOG)
- *  784    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  785    ONESHOT   [0x08]    784      6  idx_to_ptr=0
- *  786      STR_IDX[0x0D]       10     19  "uart_channel 0x%08X"
- *  787      FIELD[0x0B]         40      4  uart_channel (off=0x0028, hash=0x34D80DE9)
- *  788    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  789    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  790    ONESHOT   [0x08]    789      6  idx_to_ptr=0
- *  791      STR_IDX[0x0D]       11     16  "uart_baud 0x%08X"
- *  792      FIELD[0x0B]         44      4  uart_baud (off=0x002C, hash=0x1BF9B37E)
- *  793    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  794    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  795    ONESHOT   [0x08]    794      6  idx_to_ptr=0
- *  796      STR_IDX[0x0D]       12     18  "uart_parity 0x%08X"
- *  797      FIELD[0x0B]         48      4  uart_parity (off=0x0030, hash=0x823E20EF)
- *  798    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  799    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  800    ONESHOT   [0x08]    799      6  idx_to_ptr=0
- *  801      STR_IDX[0x0D]       13     21  "uart_stop_bits 0x%08X"
- *  802      FIELD[0x0B]         52      4  uart_stop_bits (off=0x0034, hash=0x54A34E7F)
- *  803    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  804    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  805    ONESHOT   [0x08]    804      5  idx_to_ptr=0
- *  806      STR_IDX[0x0D]       14     11  "--- SPI ---"
- *  807    CLOSE[0x06]          0      -  (end SE_LOG)
- *  808    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  809    ONESHOT   [0x08]    808      6  idx_to_ptr=0
- *  810      STR_IDX[0x0D]       15     18  "spi_channel 0x%08X"
- *  811      FIELD[0x0B]         60      4  spi_channel (off=0x003C, hash=0x8623DA71)
- *  812    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  813    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  814    ONESHOT   [0x08]    813      6  idx_to_ptr=0
- *  815      STR_IDX[0x0D]       16     20  "spi_clock_div 0x%08X"
- *  816      FIELD[0x0B]         64      4  spi_clock_div (off=0x0040, hash=0xF716F858)
- *  817    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  818    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  819    ONESHOT   [0x08]    818      6  idx_to_ptr=0
- *  820      STR_IDX[0x0D]       17     15  "spi_mode 0x%08X"
- *  821      FIELD[0x0B]         68      4  spi_mode (off=0x0044, hash=0x2341FFDD)
- *  822    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  823    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  824    ONESHOT   [0x08]    823      6  idx_to_ptr=0
- *  825      STR_IDX[0x0D]       18     20  "spi_bit_order 0x%08X"
- *  826      FIELD[0x0B]         72      4  spi_bit_order (off=0x0048, hash=0xB921B332)
- *  827    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  828    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  829    ONESHOT   [0x08]    828      5  idx_to_ptr=0
- *  830      STR_IDX[0x0D]       19     12  "--- GPIO ---"
- *  831    CLOSE[0x06]          0      -  (end SE_LOG)
- *  832    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  833    ONESHOT   [0x08]    832      6  idx_to_ptr=0
- *  834      STR_IDX[0x0D]       20     16  "gpio_port 0x%08X"
- *  835      FIELD[0x0B]         20      4  gpio_port (off=0x0014, hash=0x3A9A56E8)
- *  836    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  837    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  838    ONESHOT   [0x08]    837      6  idx_to_ptr=0
- *  839      STR_IDX[0x0D]       21     15  "gpio_pin 0x%08X"
- *  840      FIELD[0x0B]         24      4  gpio_pin (off=0x0018, hash=0x8BECDAB6)
- *  841    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  842    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  843    ONESHOT   [0x08]    842      6  idx_to_ptr=0
- *  844      STR_IDX[0x0D]       22     16  "gpio_mode 0x%08X"
- *  845      FIELD[0x0B]         28      4  gpio_mode (off=0x001C, hash=0xC10EF3F8)
- *  846    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  847    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  848    ONESHOT   [0x08]    847      6  idx_to_ptr=0
- *  849      STR_IDX[0x0D]       23     17  "gpio_speed 0x%08X"
- *  850      FIELD[0x0B]         32      4  gpio_speed (off=0x0020, hash=0x12296A9A)
- *  851    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  852    OPEN_CALL[0x07]      4      0  SE_LOG_INT hash=0x2442CEA2
- *  853    ONESHOT   [0x08]    852      6  idx_to_ptr=0
- *  854      STR_IDX[0x0D]       24     16  "gpio_pull 0x%08X"
- *  855      FIELD[0x0B]         36      4  gpio_pull (off=0x0024, hash=0x007B7F30)
- *  856    CLOSE[0x06]          0      -  (end SE_LOG_INT)
- *  857    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  858    ONESHOT   [0x08]    857      0  idx_to_ptr=0
- *  859      FIELD[0x0B]         16      4  fn_hash (off=0x0010, hash=0x92160822)
- *  860      STR_HASH[0x03]       -      -  "init_all_peripherals" hash=0xBF310A69
- *  861    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *  862    OPEN_CALL[0x07]      4      0  SE_EXEC_DICT_FN_PTR hash=0x0E0A617C
- *  863    MAIN+PTR  [0x89]    862      6  idx_to_ptr=25
- *  864      FIELD[0x0B]          0      8  fn_dict (off=0x0000, hash=0x6A747A52)
- *  865      FIELD[0x0B]         16      4  fn_hash (off=0x0010, hash=0x92160822)
- *  866    CLOSE[0x06]          0      -  (end SE_EXEC_DICT_FN_PTR)
- *  867    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
- *  868    MAIN      [0x09]    867      7  idx_to_ptr=0
- *  869    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
- *  870  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *  759      FIELD[0x0B]          8      4  fn_hash (off=0x0008, hash=0x92160822)
+ *  760    CLOSE[0x06]          0      -  (end SE_EXEC_DICT_FN_PTR)
+ *  761    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
+ *  762    MAIN      [0x09]    761      6  idx_to_ptr=0
+ *  763    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
+ *  764  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
  *
- * Total params: 871
+ * Total params: 765
+ */
+
+/*
+ * TREE: call_tree
+ *   hash=0xEB1D0EBE nodes=7 ptrs=3
+ *   record=call_blackboard (hash=0x992255D3)
+ *
+ * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
+ * -------------------------------------------------------------------------
+ *    0  OPEN_CALL[0x07]     30      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+ *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]      4      0  SE_SPAWN_TREE hash=0x756BC19A
+ *    3    MAIN+PTR  [0x89]      2      7  idx_to_ptr=0
+ *    4      FIELD[0x0B]          0      8  tree_pointer (off=0x0000, hash=0xD176F787)
+ *    5      STR_HASH[0x03]       -      -  "function_dictionary" hash=0x36895436
+ *    6    CLOSE[0x06]          0      -  (end SE_SPAWN_TREE)
+ *    7    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
+ *    8    ONESHOT   [0x08]      7      0  idx_to_ptr=0
+ *    9      FIELD[0x0B]          8      4  dictionary_hash (off=0x0008, hash=0x5E462BC2)
+ *   10      STR_HASH[0x03]       -      -  "init_all_peripherals" hash=0xBF310A69
+ *   11    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
+ *   12    OPEN_CALL[0x07]      5      0  SE_SET_EXTERNAL_FIELD hash=0x02153947
+ *   13    MAIN+PTR  [0x89]     12      8  idx_to_ptr=1
+ *   14      FIELD[0x0B]          8      4  dictionary_hash (off=0x0008, hash=0x5E462BC2)
+ *   15      FIELD[0x0B]          0      8  tree_pointer (off=0x0000, hash=0xD176F787)
+ *   16      UINT[0x01]           -      -  8 (0x00000008)
+ *   17    CLOSE[0x06]          0      -  (end SE_SET_EXTERNAL_FIELD)
+ *   18    OPEN_CALL[0x07]      4      0  SE_TICK_TREE hash=0xA56C78DC
+ *   19    MAIN+PTR  [0x89]     18      9  idx_to_ptr=2
+ *   20      FIELD[0x0B]          0      8  tree_pointer (off=0x0000, hash=0xD176F787)
+ *   21      UINT[0x01]           -      -  128 (0x00000080)
+ *   22    CLOSE[0x06]          0      -  (end SE_TICK_TREE)
+ *   23    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
+ *   24    ONESHOT   [0x08]     23      5  idx_to_ptr=0
+ *   25      STR_IDX[0x0D]        5     17  "call_tree: called"
+ *   26    CLOSE[0x06]          0      -  (end SE_LOG)
+ *   27    OPEN_CALL[0x07]      2      0  SE_RETURN_FUNCTION_TERMINATE hash=0x0A5B8A85
+ *   28    MAIN      [0x09]     27      6  idx_to_ptr=0
+ *   29    CLOSE[0x06]          0      -  (end SE_RETURN_FUNCTION_TERMINATE)
+ *   30  CLOSE[0x06]          0      -  (end SE_FUNCTION_INTERFACE)
+ *
+ * Total params: 31
  */
 
 #endif // FUNCTION_DICTIONARY_DUMP_32_H

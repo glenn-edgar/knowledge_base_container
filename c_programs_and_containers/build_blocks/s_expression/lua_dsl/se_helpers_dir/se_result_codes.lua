@@ -4,6 +4,30 @@
 --============================================================================
 
 -- APPLICATION RESULT CODES (0-5)
+
+
+register_builtin("SE_RETURN_CONTINUE")
+register_builtin("SE_RETURN_HALT")
+register_builtin("SE_RETURN_TERMINATE")
+register_builtin("SE_RETURN_RESET")
+register_builtin("SE_RETURN_DISABLE")
+register_builtin("SE_RETURN_SKIP_CONTINUE")
+
+register_builtin("SE_RETURN_FUNCTION_CONTINUE")
+register_builtin("SE_RETURN_FUNCTION_HALT")
+register_builtin("SE_RETURN_FUNCTION_TERMINATE")
+register_builtin("SE_RETURN_FUNCTION_RESET")
+register_builtin("SE_RETURN_FUNCTION_DISABLE")
+register_builtin("SE_RETURN_FUNCTION_SKIP_CONTINUE")
+
+register_builtin("SE_RETURN_PIPELINE_CONTINUE")
+register_builtin("SE_RETURN_PIPELINE_HALT")
+register_builtin("SE_RETURN_PIPELINE_TERMINATE")
+register_builtin("SE_RETURN_PIPELINE_RESET")
+register_builtin("SE_RETURN_PIPELINE_DISABLE")
+register_builtin("SE_RETURN_PIPELINE_SKIP_CONTINUE")
+
+
 function se_return_continue()
     local c = m_call("SE_RETURN_CONTINUE")
     end_call(c)

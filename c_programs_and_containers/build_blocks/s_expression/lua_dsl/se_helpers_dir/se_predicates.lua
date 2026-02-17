@@ -12,6 +12,25 @@ local pred_id_counter = 0
 local pred_current_children = nil
 local pred_parent_stack = {}
 
+register_builtin("SE_PRED_OR")
+register_builtin("SE_PRED_AND")
+register_builtin("SE_PRED_NOR")
+register_builtin("SE_PRED_NAND")
+register_builtin("SE_PRED_XOR")
+register_builtin("SE_PRED_NOT")
+register_builtin("SE_TRUE")
+register_builtin("SE_FALSE")
+register_builtin("SE_CHECK_EVENT")
+register_builtin("SE_FIELD_EQ")
+register_builtin("SE_FIELD_NE")
+register_builtin("SE_FIELD_GT")
+register_builtin("SE_FIELD_GE")
+register_builtin("SE_FIELD_LT")
+register_builtin("SE_FIELD_LE")
+register_builtin("SE_FIELD_IN_RANGE")
+register_builtin("SE_FIELD_INCREMENT_AND_TEST")
+register_builtin("SE_STATE_INCREMENT_AND_TEST")
+
 function pred_begin()
     if pred_builder_active then
         error("pred_begin: already in predicate builder")

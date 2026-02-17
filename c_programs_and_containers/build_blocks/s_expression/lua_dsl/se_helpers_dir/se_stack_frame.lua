@@ -2,6 +2,8 @@
 -- se_stack_frame.lua
 -- Stack frame management: instance, call wrapper, frame allocate
 --============================================================================
+register_builtin("SE_STACK_FRAME_INSTANCE")
+register_builtin("SE_FRAME_ALLOCATE")
 
 function se_stack_frame_instance(num_params, num_locals, scratch_depth, return_vars)
     if type(num_params) ~= "number" or num_params < 0 then

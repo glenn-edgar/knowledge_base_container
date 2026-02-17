@@ -3,6 +3,17 @@
 -- Core control flow: sequence, if/then/else, fork, while, cond, etc.
 --============================================================================
 
+register_builtin("SE_FUNCTION_INTERFACE")
+register_builtin("SE_IF_THEN_ELSE")
+register_builtin("SE_TRIGGER_ON_CHANGE")
+register_builtin("SE_SEQUENCE")
+register_builtin("SE_FORK")
+register_builtin("SE_FORK_JOIN")
+register_builtin("SE_CHAIN_FLOW")
+register_builtin("SE_WHILE")
+register_builtin("SE_SEQUENCE_ONCE")
+register_builtin("SE_COND")
+
 function se_function_interface(actions_fn)
     local c = m_call("SE_FUNCTION_INTERFACE")
         actions_fn()

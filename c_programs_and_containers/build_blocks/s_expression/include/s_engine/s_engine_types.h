@@ -273,17 +273,18 @@ typedef struct {
     union {
         // Stack references (STACK_TOS, STACK_LOCAL)
         struct {
-            uint16_t stack_offset;  // offset from TOS or local index
+            uint16_t stack_offset;
             uint16_t stack_reserved;
         };
+        // Constant references (CONST_REF)
         struct {
-            uint16_t const_index;   // -> module->constants[]
-            uint16_t const_size;    // size of constant data
+            uint16_t const_index;
+            uint16_t const_size;
         };
         // Function references (ONESHOT, MAIN, PRED)
         struct {
-            uint16_t node_index;    // -> node_states[]
-            uint16_t func_index;    // -> function table
+            uint16_t node_index;
+            uint16_t func_index;
         };
         // Field references (FIELD)
         struct {
@@ -297,11 +298,17 @@ typedef struct {
         };
         // String table reference (STR_IDX)
         struct {
-            uint16_t str_index;     // -> string_table[]
-            uint16_t str_len;       // string length (informational)
+            uint16_t str_index;
+            uint16_t str_len;
         };
-        // Brace matching (OPEN, OPEN_CALL, CLOSE, OPEN_DICT, etc.)
-        uint16_t brace_idx;
+        // Brace matching + parent navigation
+        // (OPEN, OPEN_CALL, CLOSE, OPEN_DICT, CLOSE_DICT,
+        //  OPEN_ARRAY, CLOSE_ARRAY, OPEN_TUPLE, CLOSE_TUPLE, CLOSE_KEY)
+        struct {
+            uint16_t brace_idx;       // forward/backward skip to matching brace
+            uint16_t parent_offset;   // relative offset back to enclosing OPEN_CALL
+                                      // 0 = top-level / no parent
+        };
         // Values (INT, UINT, FLOAT, STR_HASH, RESULT)
         ct_int_t      int_val;
         ct_uint_t     uint_val;

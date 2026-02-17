@@ -3,7 +3,7 @@
 -- Predicate quad operations: SE_P_QUAD_OP table, se_p_quad emitter,
 -- all p_* boolean/comparison/accumulate wrappers, range checks
 --============================================================================
-
+register_builtin("SE_P_QUAD")
 SE_P_QUAD_OP = {
     -- Bitwise (integer only)
     BIT_AND      = 0x10,

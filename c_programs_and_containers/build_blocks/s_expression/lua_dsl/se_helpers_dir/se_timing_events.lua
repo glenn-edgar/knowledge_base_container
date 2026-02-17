@@ -3,6 +3,16 @@
 -- Tick/time delays, wait, verify, and event queueing
 --============================================================================
 
+register_builtin("SE_TICK_DELAY")
+register_builtin("SE_TIME_DELAY")
+register_builtin("SE_WAIT_EVENT")
+register_builtin("SE_WAIT")
+register_builtin("SE_WAIT_TIMEOUT")
+register_builtin("SE_VERIFY_AND_CHECK_ELAPSED_TIME")
+register_builtin("SE_VERIFY_AND_CHECK_ELAPSED_EVENTS")
+register_builtin("SE_VERIFY")
+register_builtin("SE_QUEUE_EVENT")
+
 function se_tick_delay(tick_count)
     local c = pt_m_call("SE_TICK_DELAY")
         int(tick_count)

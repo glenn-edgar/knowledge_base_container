@@ -14,8 +14,7 @@ local mod = start_module("function_dictionary")
 
 RECORD("cpu_config_blackboard")
     PTR64_FIELD("fn_dict","void")
-    PTR64_FIELD("fn_ptr","void")
-    
+    FIELD("fn_hash", "uint32")
     -- GPIO configuration state
     FIELD("gpio_port", "uint32")
     FIELD("gpio_pin", "uint32")
@@ -45,6 +44,8 @@ RECORD("cpu_config_blackboard")
     FIELD("temp_reg_addr", "uint32")
     FIELD("temp_reg_value", "uint32")
 END_RECORD()
+
+
 
 -- ============================================================================
 -- CONSTANTS
@@ -127,6 +128,7 @@ SPE_BIT           = 64          -- SPI CR1 bit 6 (0x40) - SPI Enable
 
 start_tree("function_dictionary")
 use_record("cpu_config_blackboard")
+
 
 local input_dictionary = {
     -- ================================================================
@@ -397,56 +399,54 @@ local input_dictionary = {
 se_function_interface(function()
     
     -- Initialize register configuration values
-    se_set_field("uart_channel", 1)
-    se_set_field("uart_baud", 0x0683)
-    se_set_field("uart_parity", UART_PARITY_NONE)
-    se_set_field("uart_stop_bits", 1)
-    se_set_field("uart_flow_ctrl", 0)
+    se_i_set_field("uart_channel", 1)
+    se_i_set_field("uart_baud", 0x0683)
+    se_i_set_field("uart_parity", UART_PARITY_NONE)
+    se_i_set_field("uart_stop_bits", 1)
+    se_i_set_field("uart_flow_ctrl", 0)
     
-    se_set_field("spi_channel", 1)
-    se_set_field("spi_clock_div", 2)
-    se_set_field("spi_mode", SPI_MODE_0)
-    se_set_field("spi_bit_order", SPI_MSB_FIRST)
+    se_i_set_field("spi_channel", 1)
+    se_i_set_field("spi_clock_div", 2)
+    se_i_set_field("spi_mode", SPI_MODE_0)
+    se_i_set_field("spi_bit_order", SPI_MSB_FIRST)
     
-    se_set_field("gpio_port", 0x40020000)
-    se_set_field("gpio_pin", 5)
-    se_set_field("gpio_mode", GPIO_MODE_ALT_FN)
-    se_set_field("gpio_speed", GPIO_SPEED_HIGH)
-    se_set_field("gpio_pull", GPIO_PULL_NONE)
+    se_i_set_field("gpio_port", 0x40020000)
+    se_i_set_field("gpio_pin", 5)
+    se_i_set_field("gpio_mode", GPIO_MODE_ALT_FN)
+    se_i_set_field("gpio_speed", GPIO_SPEED_HIGH)
+    se_i_set_field("gpio_pull", GPIO_PULL_NONE)
     
-    se_set_field("config_state", CONFIG_IDLE)
-    se_set_field("error_code", 0)
-    se_set_field("peripherals_ready", 0)
+    se_i_set_field("config_state", CONFIG_IDLE)
+    se_i_set_field("error_code", 0)
+    se_i_set_field("peripherals_ready", 0)
 
     -- Load dictionary and execute
     se_load_function_dict("fn_dict", input_dictionary)
-    se_exec_dict_fn("fn_dict", "init_all_peripherals")
-
-    -- Log all modified fields after configuration
-    se_log("--- Configuration Results ---")
-    se_log_slot_integer("config_state 0x%08X", "config_state")
-    se_log_slot_integer("peripherals_ready 0x%08X", "peripherals_ready")
-    se_log_slot_integer("error_code 0x%08X", "error_code")
-    se_log("--- UART ---")
-    se_log_slot_integer("uart_channel 0x%08X", "uart_channel")
-    se_log_slot_integer("uart_baud 0x%08X", "uart_baud")
-    se_log_slot_integer("uart_parity 0x%08X", "uart_parity")
-    se_log_slot_integer("uart_stop_bits 0x%08X", "uart_stop_bits")
-    se_log("--- SPI ---")
-    se_log_slot_integer("spi_channel 0x%08X", "spi_channel")
-    se_log_slot_integer("spi_clock_div 0x%08X", "spi_clock_div")
-    se_log_slot_integer("spi_mode 0x%08X", "spi_mode")
-    se_log_slot_integer("spi_bit_order 0x%08X", "spi_bit_order")
-    se_log("--- GPIO ---")
-    se_log_slot_integer("gpio_port 0x%08X", "gpio_port")
-    se_log_slot_integer("gpio_pin 0x%08X", "gpio_pin")
-    se_log_slot_integer("gpio_mode 0x%08X", "gpio_mode")
-    se_log_slot_integer("gpio_speed 0x%08X", "gpio_speed")
-    se_log_slot_integer("gpio_pull 0x%08X", "gpio_pull")
-
+    
+    se_exec_dict_fn_ptr("fn_dict", "fn_hash")
+   
     se_return_function_terminate()
 end)
 
 end_tree("function_dictionary")
 
+RECORD("call_blackboard")
+    PTR64_FIELD("tree_pointer","void")
+    FIELD("dictionary_hash", "uint32")
+END_RECORD()
+
+start_tree("call_tree")
+use_record("call_blackboard")
+
+se_function_interface(function()
+    se_spawn_tree("tree_pointer",'function_dictionary')
+    se_set_hash_field("dictionary_hash", "init_all_peripherals")
+    dictionary_offset, dictionary_size = get_field_offset("cpu_config_blackboard", "fn_hash")
+    
+    se_set_external_field("dictionary_hash", "tree_pointer", dictionary_offset)
+    se_tick_tree("tree_pointer",128)
+    se_log("call_tree: called")
+    se_return_function_terminate()
+end)
+end_tree("call_tree")
 return end_module(mod)

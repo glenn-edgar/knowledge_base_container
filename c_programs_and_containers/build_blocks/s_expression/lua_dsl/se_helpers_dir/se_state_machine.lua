@@ -2,6 +2,10 @@
 -- se_state_machine.lua
 -- State machine dispatch, event dispatch, case helpers
 --============================================================================
+register_builtin("SE_FIELD_DISPATCH")
+register_builtin("SE_STATE_MACHINE")
+register_builtin("SE_EVENT_DISPATCH")
+
 
 local dispatch_case_values = {}
 local in_dispatch = false

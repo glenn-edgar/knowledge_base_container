@@ -7,6 +7,20 @@
 -- ============================================================================
 -- DICTIONARY LOADING
 -- ============================================================================
+register_builtin("SE_LOAD_DICTIONARY")
+register_builtin("SE_DICT_EXTRACT_INT")
+register_builtin("SE_DICT_EXTRACT_FLOAT")
+register_builtin("SE_DICT_EXTRACT_UINT")
+register_builtin("SE_DICT_EXTRACT_BOOL")
+register_builtin("SE_DICT_EXTRACT_HASH")
+register_builtin("SE_DICT_EXTRACT_INT_H")
+register_builtin("SE_DICT_EXTRACT_FLOAT_H")
+register_builtin("SE_DICT_EXTRACT_UINT_H")
+register_builtin("SE_DICT_EXTRACT_BOOL_H")
+register_builtin("SE_DICT_EXTRACT_HASH_H")
+register_builtin("SE_DICT_STORE_PTR")
+register_builtin("SE_DICT_STORE_PTR_H")
+
 
 function se_load_dictionary(blackboard_field, json_expression)
     validate_field_is_ptr64(blackboard_field, "se_load_dictionary")

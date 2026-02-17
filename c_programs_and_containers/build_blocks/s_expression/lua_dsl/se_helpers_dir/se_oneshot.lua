@@ -2,6 +2,14 @@
 -- se_oneshot.lua
 -- Oneshot operations: log, field set/inc/dec, push stack, log stack
 --============================================================================
+register_builtin("SE_LOG")
+register_builtin("SE_LOG_INT")
+register_builtin("SE_LOG_FLOAT")
+register_builtin("SE_SET_FIELD")
+register_builtin("SE_INC_FIELD")
+register_builtin("SE_DEC_FIELD")
+register_builtin("SE_PUSH_STACK")
+register_builtin("SE_LOG_STACK")
 
 function se_log(message)
     local c = o_call("SE_LOG")
@@ -28,6 +36,18 @@ function se_log_slot_float(message, slot_name)
         field_ref(slot_name)
     end_call(c)
 end
+
+function se_set_hash_field(target_field, value)
+    if type(value) ~= "string" then
+        error("se_set_field_hash: value must be a string")
+    end
+    local c = o_call("SE_SET_FIELD")
+        field_ref(target_field)
+        str_hash(value)
+    end_call(c)
+end
+
+
 
 function se_set_field(target_field, value)
     local c = o_call("SE_SET_FIELD")

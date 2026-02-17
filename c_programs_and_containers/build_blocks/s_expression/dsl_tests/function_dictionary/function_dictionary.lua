@@ -13,9 +13,10 @@ local mod = start_module("function_dictionary")
 -- ============================================================================
 
 RECORD("cpu_config_blackboard")
+
     PTR64_FIELD("fn_dict","void")
     PTR64_FIELD("fn_ptr","void")
-    
+    FIELD("fn_hash", "uint32")
     -- GPIO configuration state
     FIELD("gpio_port", "uint32")
     FIELD("gpio_pin", "uint32")
@@ -443,6 +444,8 @@ se_function_interface(function()
     se_log_slot_integer("gpio_mode 0x%08X", "gpio_mode")
     se_log_slot_integer("gpio_speed 0x%08X", "gpio_speed")
     se_log_slot_integer("gpio_pull 0x%08X", "gpio_pull")
+    se_set_field_hash("fn_hash", "init_all_peripherals")
+    se_exec_dict_fn_ptr("fn_dict", "fn_hash")
 
     se_return_function_terminate()
 end)

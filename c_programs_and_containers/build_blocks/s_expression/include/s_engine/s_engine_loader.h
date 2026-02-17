@@ -17,7 +17,7 @@ extern "C" {
 // ============================================================================
 
 #define SEXB_MAGIC        0x42584553   // "SEXB"
-#define SEXB_VERSION      0x0502       // v5.1
+#define SEXB_VERSION      0x0503       // v5.1
 
 #define SEXB_FLAG_64BIT   0x0001
 #define SEXB_FLAG_DEBUG   0x0002

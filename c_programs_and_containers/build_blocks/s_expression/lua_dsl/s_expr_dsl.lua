@@ -135,123 +135,25 @@ M.S_EXPR_PARAM = types_module.S_EXPR_PARAM
 
 local builtins_module = {}
 
-builtins_module.BUILTIN_FUNCTIONS = {
-    ---- main functions
-   "SE_RETURN_CONTINUE",
-   "SE_RETURN_TERMINATE",
-   "SE_RETURN_RESET",
-   "SE_RETURN_HALT",
-   "SE_RETURN_DISABLE",
-   "SE_RETURN_SKIP_CONTINUE",
-
-   "SE_RETURN_FUNCTION_CONTINUE",
-   "SE_RETURN_FUNCTION_DISABLE",
-   "SE_RETURN_FUNCTION_SKIP_CONTINUE",
-   "SE_RETURN_FUNCTION_HALT",
-   "SE_RETURN_FUNCTION_RESET",
-   "SE_RETURN_FUNCTION_TERMINATE",
-
-   "SE_RETURN_PIPELINE_TERMINATE",
-   "SE_RETURN_PIPELINE_HALT",
-   "SE_RETURN_PIPELINE_CONTINUE",
-   "SE_RETURN_PIPELINE_RESET",
-   "SE_RETURN_PIPELINE_DISABLE",
-   "SE_RETURN_PIPELINE_SKIP_CONTINUE",
-
-   "SE_SEQUENCE",
-   "SE_STATE_MACHINE",
-   
-   "SE_QUEUE_EVENT",
-   "SE_CHAIN_FLOW",
-   "SE_FIELD_DISPATCH",
-   "SE_EVENT_DISPATCH",
-   "SE_FORK",
-   "SE_FORK_JOIN",
-   "SE_FUNCTION_INTERFACE",
-   "SE_TRIGGER_ON_CHANGE",
-   "SE_IF_THEN_ELSE",
-   "SE_COND",
-   "SE_WHILE",
-   "SE_TICK_DELAY",
-   "SE_TIME_DELAY",
-   "SE_WAIT_EVENT",
-   "SE_VERIFY_AND_CHECK_ELAPSED_TIME",
-   "SE_VERIFY_AND_CHECK_ELAPSED_EVENTS",
-   "SE_VERIFY",
-   "SE_WAIT",
-   "SE_WAIT_TIMEOUT",
-   "SE_STACK_FRAME_INSTANCE",
-   "SE_SEQUENCE_ONCE",
-   "SE_QUAD",
-   "SE_FRAME_ALLOCATE",
-   "SE_FRAME_FREE",
-   "SE_LOAD_FUNCTION_DICT",
-   "SE_SPAWN_AND_TICK_TREE",
-   "SE_EXEC_DICT_INTERNAL",
-   "SE_EXEC_DICT_DISPATCH",
-   "SE_EXEC_FN",
-   "SE_LOAD_FUNCTION",
-
-   --- oneshot functions
-   "SE_INC_FIELD",
-   "SE_DEC_FIELD",
-   "SE_LOG",
-   "SE_LOG_INT",
-   "SE_LOG_FLOAT",
-   "SE_SET_FIELD",
-   "SE_LOAD_DICTIONARY",
-   "SE_DICT_EXTRACT_INT",
-   "SE_DICT_EXTRACT_UINT",
-   "SE_DICT_EXTRACT_FLOAT",
-   "SE_DICT_EXTRACT_BOOL",
-   "SE_DICT_EXTRACT_HASH",
-   "SE_DICT_EXTRACT_INT_H",
-   "SE_DICT_EXTRACT_UINT_H",
-   "SE_DICT_EXTRACT_FLOAT_H",
-   "SE_DICT_EXTRACT_BOOL_H",
-   "SE_DICT_EXTRACT_HASH_H",
-   "SE_DICT_STORE_PTR",
-   "SE_DICT_STORE_PTR_H",
-   "SE_PUSH_STACK",
-   "SE_LOG_STACK",
-   "SE_LOG_INT_HEX",
-
---- predicate functions
-   "SE_PRED_AND",
-   "SE_PRED_OR",
-   "SE_PRED_NOT",
-   "SE_PRED_NOR",
-   "SE_PRED_NAND",
-   "SE_PRED_XOR",
-   "SE_TRUE",
-   "SE_FALSE",
-   "SE_CHECK_EVENT",
-  
-    "SE_FIELD_EQ",
-    "SE_FIELD_NE",
-    "SE_FIELD_GT",
-    "SE_FIELD_GE",
-    "SE_FIELD_LT",
-    "SE_FIELD_LE",
-    "SE_FIELD_IN_RANGE",
-    "SE_FIELD_INCREMENT_AND_TEST",
-    "SE_STATE_INCREMENT_AND_TEST",
-    "SE_P_QUAD",
-}
-
+builtins_module.BUILTIN_FUNCTIONS = {}
 builtins_module.BUILTIN_SET = {}
-for _, name in ipairs(builtins_module.BUILTIN_FUNCTIONS) do
-    builtins_module.BUILTIN_SET[name] = true
+
+function builtins_module.register(name)
+    if not builtins_module.BUILTIN_SET[name] then
+        builtins_module.BUILTIN_SET[name] = true
+        table.insert(builtins_module.BUILTIN_FUNCTIONS, name)
+    end
 end
 
 function builtins_module.is_builtin(name)
     return builtins_module.BUILTIN_SET[name] == true
 end
 
+_G.register_builtin = builtins_module.register
+
 M.BUILTIN_FUNCTIONS = builtins_module.BUILTIN_FUNCTIONS
 M.BUILTIN_SET = builtins_module.BUILTIN_SET
 M.is_builtin = builtins_module.is_builtin
-
 -- ============================================================================
 -- MODULE STATE
 -- ============================================================================
@@ -626,6 +528,20 @@ function _G.END_RECORD()
     table.insert(current_module.record_order, current_record.name)
     
     current_record = nil
+end
+
+function _G.get_field_offset(record_name, field_name)
+    if not current_module then dsl_error("No module started") end
+    local rec = current_module.records[record_name]
+    if not rec then dsl_error("Unknown record: " .. record_name) end
+    
+    for _, f in ipairs(rec.fields) do
+        if f.name == field_name then
+            return f.offset, f.size, f
+        end
+    end
+    
+    dsl_error("Field '" .. field_name .. "' not found in record '" .. record_name .. "'")
 end
 -- Add to s_expr_dsl.lua, modify emit_json_value:
 -- ============================================================================

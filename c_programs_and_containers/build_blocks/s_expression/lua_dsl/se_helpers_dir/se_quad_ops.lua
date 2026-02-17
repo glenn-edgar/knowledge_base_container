@@ -9,6 +9,7 @@
 -- VALUE REFERENCE HELPERS
 -- Closures that emit a single parameter for use with se_quad
 --============================================================================
+register_builtin("SE_QUAD")
 
 function stack_push_ref()
     return function() stack_push() end
