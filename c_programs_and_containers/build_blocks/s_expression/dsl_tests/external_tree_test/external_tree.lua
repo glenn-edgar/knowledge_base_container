@@ -6,7 +6,7 @@
 -- stored in frame locals, NOT scratch (TOS) variables. stack_push advances
 -- sp which can invalidate scratch-relative offsets.
 
-local mod = start_module("function_dictionary")
+local mod = start_module("external_tree")
 
 -- ============================================================================
 -- RECORD: cpu_config_blackboard
@@ -439,12 +439,12 @@ start_tree("call_tree")
 use_record("call_blackboard")
 
 se_function_interface(function()
-    se_spawn_tree("tree_pointer",'function_dictionary')
+    se_spawn_tree("tree_pointer",'function_dictionary',128)
     se_set_hash_field("dictionary_hash", "init_all_peripherals")
     dictionary_offset, dictionary_size = get_field_offset("cpu_config_blackboard", "fn_hash")
     
     se_set_external_field("dictionary_hash", "tree_pointer", dictionary_offset)
-    se_tick_tree("tree_pointer",128)
+    se_tick_tree("tree_pointer")
     se_log("call_tree: called")
     se_return_function_terminate()
 end)

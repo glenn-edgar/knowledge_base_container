@@ -444,7 +444,7 @@ se_function_interface(function()
     se_log_slot_integer("gpio_mode 0x%08X", "gpio_mode")
     se_log_slot_integer("gpio_speed 0x%08X", "gpio_speed")
     se_log_slot_integer("gpio_pull 0x%08X", "gpio_pull")
-    se_set_field_hash("fn_hash", "init_all_peripherals")
+    se_set_hash_field("fn_hash", "init_all_peripherals")
     se_exec_dict_fn_ptr("fn_dict", "fn_hash")
 
     se_return_function_terminate()

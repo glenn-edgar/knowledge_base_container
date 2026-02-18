@@ -49,17 +49,47 @@ This stores the dictionary into the blackboard field `fn_dict`. The dictionary i
 
 ## Calling Dictionary Functions
 
-There are two ways to call dictionary functions:
+There are three ways to call dictionary functions:
 
-### External Call (from the main program)
+### 1. Direct Call by Name (compile-time constant)
 
 ```lua
 se_exec_dict_fn("fn_dict", "init_all_peripherals")
 ```
 
-This is used from the main S-Expression program to invoke a dictionary function by name. The caller pushes any required parameters onto the stack before calling. This is the entry point from the tree's main program into the dictionary.
+This is used from the main S-Expression program to invoke a dictionary function by a
+name known at DSL compile time. The function name is hashed at compile time and embedded
+directly in the generated code. The caller pushes any required parameters onto the stack
+before calling. This is the simplest entry point from the tree's main program into the
+dictionary.
 
-### Internal Call (dictionary function to dictionary function)
+### 2. Indirect Call via Hash Field (runtime variable)
+
+```lua
+se_set_hash_field("fn_hash", "init_all_peripherals")
+se_exec_dict_fn_ptr("fn_dict", "fn_hash")
+```
+
+This two-step approach stores a function name hash into a blackboard field (`fn_hash`),
+then calls `se_exec_dict_fn_ptr` which reads the hash from that field at runtime and
+dispatches the corresponding dictionary function.
+
+While the example above appears redundant with the direct call (since the function name
+is a compile-time constant), these two functions exist because the hash field can be set
+by any source at runtime — not just `se_set_hash_field`. In practice, the hash value
+may come from:
+
+- **An external tree** writing into the blackboard via `se_set_external_field`
+- **A C callback** setting the field based on sensor input or protocol messages
+- **A state machine** selecting different dictionary functions based on runtime conditions
+- **An event handler** dispatching different operations based on event type
+
+This is the mechanism that enables the **external tree calling pattern**: a parent tree
+spawns a child tree containing a function dictionary, writes a function hash into the
+child's `fn_hash` field, and ticks the child to execute that function. The child tree
+does not need to know which function will be called at compile time.
+
+### 3. Internal Call (dictionary function to dictionary function)
 
 ```lua
 quad_mov(cv.addr, stack_push_ref())()
@@ -92,6 +122,43 @@ void write_register(
 
 In a production system, this function would perform the actual memory-mapped register write: `*(volatile uint32_t*)addr = value`. All the address computation and bit manipulation is handled by the dictionary functions, so this single C function serves every register write in the entire peripheral configuration sequence.
 
+## Main Program Flow
+
+The main program exercises both dictionary calling methods:
+
+```lua
+se_function_interface(function()
+    -- 1. Initialize blackboard fields with peripheral configuration values
+    se_set_field("uart_channel", 1)
+    se_set_field("uart_baud", 0x0683)
+    -- ... (GPIO, SPI fields)
+
+    -- 2. Load the function dictionary
+    se_load_function_dict("fn_dict", input_dictionary)
+
+    -- 3. Direct call: invoke by compile-time name
+    se_exec_dict_fn("fn_dict", "init_all_peripherals")
+
+    -- 4. Log configuration results
+    se_log("--- Configuration Results ---")
+    se_log_slot_integer("config_state 0x%08X", "config_state")
+    -- ...
+
+    -- 5. Indirect call: set hash field, then dispatch via fn_ptr
+    se_set_hash_field("fn_hash", "init_all_peripherals")
+    se_exec_dict_fn_ptr("fn_dict", "fn_hash")
+
+    -- 6. Terminate
+    se_return_function_terminate()
+end)
+```
+
+Steps 3 and 5 both invoke `init_all_peripherals`, but through different mechanisms.
+Step 3 uses a compile-time constant hash. Step 5 demonstrates the indirect path where
+the hash lives in a blackboard field — the same field that an external tree or C callback
+would write to in a production system. Both paths produce identical results, confirming
+that the two calling conventions are interchangeable.
+
 ## Control Flow Within the Dictionary
 
 The dictionary supports the full range of S-Expression control flow constructs. This test demonstrates:
@@ -119,7 +186,7 @@ The `frame_vars` function defines named locals and scratch variables with stack 
 
 ## Test Results Explained
 
-The test runs to completion in a single tick, producing 13 register writes:
+The test runs to completion in a single tick, producing 13 register writes (executed twice — once via direct call, once via indirect hash call):
 
 ### Clock Enables (RCC)
 
@@ -168,7 +235,19 @@ After configuration completes, the blackboard fields confirm success:
 | `peripherals_ready` | `0x00000001` | All peripherals initialized |
 | `error_code` | `0x00000000` | No errors |
 
+## Dictionary Calling Methods Summary
+
+| Method | DSL Function | Hash Source | Use Case |
+|--------|-------------|-------------|----------|
+| Direct | `se_exec_dict_fn("fn_dict", "name")` | Compile-time constant | Known function, called from main program |
+| Indirect | `se_exec_dict_fn_ptr("fn_dict", "fn_hash")` | Blackboard field (runtime) | Variable dispatch, external tree calls, event-driven selection |
+| Internal | `se_exec_dict_internal("name")` | Compile-time constant | Dictionary function calling another dictionary function |
+
+The indirect method is the key enabler for cross-tree dictionary invocation. A parent tree
+can write any function hash into the child's `fn_hash` field via `se_set_external_field`,
+then tick the child to execute that function. The child tree's dictionary serves as a
+shared library of functions callable by any tree in the system.
+
 ## Key Design Pattern
 
 This test illustrates a powerful pattern for embedded systems: **a minimal set of C hardware primitives composed through a dictionary of S-Expression functions**. The dictionary can be loaded once and called throughout the tree's lifetime. By moving register-level logic into the dictionary, the C codebase stays small (one `write_register` function), while the configuration logic remains flexible, readable, and modifiable without recompilation.
-

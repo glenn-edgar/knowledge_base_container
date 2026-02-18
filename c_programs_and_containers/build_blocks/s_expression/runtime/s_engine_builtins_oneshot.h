@@ -459,3 +459,72 @@ void se_load_function(
     
     *ptr_field = (uint64_t)(uintptr_t)fn_param;
 }
+
+void se_set_external_field(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (param_count < 3) {
+        EXCEPTION("se_set_external_field: expected 3 params (value_field, tree_pointer, dictionary_offset)");
+        return;
+    }
+    if (!inst || !inst->blackboard) {
+        EXCEPTION("se_set_external_field: NULL instance or blackboard");
+        return;
+    }
+    
+    // param[0]: value_field - uint32 field in local blackboard
+    const s_expr_param_t* value_param = &params[0];
+    uint8_t opcode = value_param->type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("se_set_external_field: param[0] is not a FIELD");
+        return;
+    }
+    
+    // param[1]: tree_pointer - ptr64 field holding a tree instance pointer
+    const s_expr_param_t* tree_param = &params[1];
+    opcode = tree_param->type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("se_set_external_field: param[1] is not a FIELD");
+        return;
+    }
+    
+    // param[2]: dictionary_offset - uint offset into target blackboard
+    const s_expr_param_t* offset_param = &params[2];
+    opcode = offset_param->type & S_EXPR_OPCODE_MASK;
+    if (opcode != S_EXPR_PARAM_UINT) {
+        EXCEPTION("se_set_external_field: param[2] is not a UINT");
+        return;
+    }
+    
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    
+    // Read the uint32 value from local blackboard
+    uint32_t value = *(uint32_t*)(bb + value_param->field_offset);
+    
+    // Read the tree instance pointer from local blackboard
+    uint64_t raw_ptr = *(uint64_t*)(bb + tree_param->field_offset);
+    s_expr_tree_instance_t* target = (s_expr_tree_instance_t*)(uintptr_t)raw_ptr;
+    
+    if (!target) {
+        EXCEPTION("se_set_external_field: target tree instance is NULL");
+        return;
+    }
+    if (!target->blackboard) {
+        EXCEPTION("se_set_external_field: target blackboard is NULL");
+        return;
+    }
+    
+    // Write value into target blackboard at dictionary_offset
+    uint32_t dict_offset = (uint32_t)offset_param->uint_val;
+    uint8_t* target_bb = (uint8_t*)target->blackboard;
+    *(uint32_t*)(target_bb + dict_offset) = value;
+}

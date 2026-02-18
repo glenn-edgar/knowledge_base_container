@@ -15,16 +15,16 @@
 #include "s_engine_node.h"
 #include "s_engine_event_queue.h"
 #include "s_engine_stack.h"
-#include "function_dictionary.h"
-#include "function_dictionary_bin_32.h"
+#include "external_tree.h"
+#include "external_tree_bin_32.h"
 
 #include <time.h>
 
 
-extern void function_dictionary_register_all(s_expr_module_t* module);
+extern void external_tree_register_all(s_expr_module_t* module);
 
 static void register_user_functions(s_engine_handle_t* engine) {
-    function_dictionary_register_all(&engine->module);
+    external_tree_register_all(&engine->module);
 }
 
 static void delay_seconds(double seconds) {
@@ -134,7 +134,7 @@ static void test_dispatch(s_engine_handle_t* engine) {
     
     s_expr_tree_instance_t* tree = s_engine_create_tree_by_hash(
         engine,
-        FUNCTION_DICTIONARY_HASH,
+        CALL_TREE_HASH,
         0
     );
     
@@ -235,8 +235,8 @@ int main(int argc, char* argv[]) {
     bool result = s_engine_load_from_rom(
         &engine,
         &alloc,
-        function_dictionary_module_bin_32,
-        FUNCTION_DICTIONARY_MODULE_BIN_32_SIZE,
+        external_tree_module_bin_32,
+        EXTERNAL_TREE_MODULE_BIN_32_SIZE,
         debug_callback,
         1,
         user_fns
@@ -267,7 +267,7 @@ int main(int argc, char* argv[]) {
     result = s_engine_load_from_file(
         &engine,
         &alloc,
-        "function_dictionary_32.bin",
+        "external_tree_32.bin",
         debug_callback,
         1,
         user_fns

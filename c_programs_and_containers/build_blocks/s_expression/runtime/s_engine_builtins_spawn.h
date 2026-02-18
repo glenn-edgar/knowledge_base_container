@@ -506,3 +506,160 @@ s_expr_result_t se_exec_dict_fn_ptr(
     
     return result;
 }
+
+
+
+
+
+
+s_expr_result_t se_spawn_tree(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_id);
+    UNUSED(event_data);
+    
+    if (event_type == SE_EVENT_INIT) {
+        if (param_count < 3) {
+            EXCEPTION("se_spawn_tree: expected 3 params (tree_pointer, tree_name_hash, stack_size)");
+            return SE_PIPELINE_TERMINATE;
+        }
+        if (!inst || !inst->blackboard || !inst->module) {
+            EXCEPTION("se_spawn_tree: NULL instance, blackboard, or module");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t* ptr_param = &params[0];
+        if ((ptr_param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+            EXCEPTION("se_spawn_tree: param[0] is not a FIELD");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t* hash_param = &params[1];
+        if ((hash_param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_STR_HASH) {
+            EXCEPTION("se_spawn_tree: param[1] is not a STR_HASH");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        const s_expr_param_t* size_param = &params[2];
+        if ((size_param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_UINT) {
+            EXCEPTION("se_spawn_tree: param[2] is not a UINT");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        s_expr_hash_t tree_hash = hash_param->str_hash;
+        uint16_t stack_size = (uint16_t)size_param->uint_val;
+        
+        s_expr_tree_instance_t* child = s_expr_tree_create_by_hash(
+            inst->module, tree_hash, 0);
+        if (!child) {
+            EXCEPTION("se_spawn_tree: failed to create tree instance");
+            return SE_PIPELINE_TERMINATE;
+        }
+        
+        if (stack_size > 0) {
+            if (!s_expr_tree_create_stack(child, stack_size)) {
+                EXCEPTION("se_spawn_tree: failed to create stack");
+                s_expr_tree_free(child);
+                return SE_PIPELINE_TERMINATE;
+            }
+        }
+        
+        s_expr_node_init_states(child);
+        
+        // Store in pt_m_call's own 64-bit slot
+        s_expr_set_user_ptr(inst, child);
+        
+        // Store in blackboard field
+        uint8_t* bb = (uint8_t*)inst->blackboard;
+        uint64_t* ptr_field = (uint64_t*)(bb + ptr_param->field_offset);
+        *ptr_field = (uint64_t)(uintptr_t)child;
+        
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_tree_instance_t* child = (s_expr_tree_instance_t*)s_expr_get_user_ptr(inst);
+        if (child) {
+            s_expr_node_terminate(child);
+            s_expr_tree_free(child);
+            s_expr_set_user_ptr(inst, NULL);
+            
+            // Clear blackboard field
+            if (inst->blackboard && param_count >= 1) {
+                const s_expr_param_t* ptr_param = &params[0];
+                if ((ptr_param->type & S_EXPR_OPCODE_MASK) == S_EXPR_PARAM_FIELD) {
+                    uint8_t* bb = (uint8_t*)inst->blackboard;
+                    uint64_t* ptr_field = (uint64_t*)(bb + ptr_param->field_offset);
+                    *ptr_field = 0;
+                }
+            }
+        }
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    return SE_PIPELINE_CONTINUE;
+}
+
+
+s_expr_result_t se_tick_tree(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    if (param_count < 1) {
+        EXCEPTION("se_tick_tree: expected 1 param (tree_pointer)");
+        return SE_PIPELINE_TERMINATE;
+    }
+    if (!inst || !inst->blackboard) {
+        EXCEPTION("se_tick_tree: NULL instance or blackboard");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    const s_expr_param_t* ptr_param = &params[0];
+    if ((ptr_param->type & S_EXPR_OPCODE_MASK) != S_EXPR_PARAM_FIELD) {
+        EXCEPTION("se_tick_tree: param[0] is not a FIELD");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    uint8_t* bb = (uint8_t*)inst->blackboard;
+    uint64_t raw_ptr = *(uint64_t*)(bb + ptr_param->field_offset);
+    s_expr_tree_instance_t* child = (s_expr_tree_instance_t*)(uintptr_t)raw_ptr;
+    
+    if (!child) {
+        EXCEPTION("se_tick_tree: child tree instance is NULL");
+        return SE_PIPELINE_TERMINATE;
+    }
+    
+    if (event_type == SE_EVENT_INIT) {
+        s_expr_node_full_reset(child);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    if (event_type == SE_EVENT_TERMINATE) {
+        s_expr_node_terminate(child);
+        return SE_PIPELINE_CONTINUE;
+    }
+    
+    // Tick with the current event
+    s_expr_result_t result = s_expr_node_tick(child, event_id, event_data);
+    
+    // Drain the child's event queue
+    while (s_expr_event_queue_count(child) > 0) {
+        uint16_t q_tick_type;
+        uint16_t q_event_id;
+        void* q_event_data;
+        
+        s_expr_event_pop(child, &q_tick_type, &q_event_id, &q_event_data);
+        result = s_expr_node_tick(child, q_event_id, q_event_data);
+    }
+    
+    return result;
+}

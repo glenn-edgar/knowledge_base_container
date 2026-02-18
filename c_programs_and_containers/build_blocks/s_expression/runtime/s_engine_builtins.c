@@ -78,6 +78,7 @@ static s_expr_fn_entry_t builtin_oneshot_entries[] = {
     {SE_LOAD_DICTIONARY_HASH,      (void*)se_load_dictionary},         // SE_LOG_STACK
     {SE_LOAD_FUNCTION_DICT_HASH,      (void*)se_load_function_dict},     
     {SE_LOAD_FUNCTION_HASH,      (void*)se_load_function},    // SE_LOG_STACK
+    {SE_SET_EXTERNAL_FIELD_HASH, (void*)se_set_external_field},
 
 };
 
@@ -138,6 +139,8 @@ static s_expr_fn_entry_t builtin_main_entries[] = {
     { SE_RETURN_PIPELINE_DISABLE_HASH, (void*)se_return_pipeline_disable },
     { SE_RETURN_PIPELINE_SKIP_CONTINUE_HASH, (void*)se_return_pipeline_skip_continue },
     { SE_RETURN_PIPELINE_HALT_HASH, (void*)se_return_pipeline_halt },
+    { SE_SPAWN_TREE_HASH, (void*)se_spawn_tree },
+    { SE_TICK_TREE_HASH, (void*)se_tick_tree },
 };
 
 static s_expr_fn_entry_t builtin_pred_entries[] = {

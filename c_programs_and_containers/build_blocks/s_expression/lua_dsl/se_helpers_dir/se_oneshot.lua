@@ -91,3 +91,17 @@ function se_log_stack()
     local c = o_call("SE_LOG_STACK")
     end_call(c)
 end
+
+
+function se_set_external_field(value_field, tree_pointer, dictionary_offset)
+
+    validate_field_is_ptr64(tree_pointer, "se_set_external_field")
+    if type(dictionary_offset) ~= "number" then
+        dsl_error("se_set_external_field: dictionary_offset must be a number")
+    end
+    local c = o_call("SE_SET_EXTERNAL_FIELD")
+        field_ref(value_field)
+        field_ref(tree_pointer)
+        uint(dictionary_offset)
+    end_call(c)
+end
