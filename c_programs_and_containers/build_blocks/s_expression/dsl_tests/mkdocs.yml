@@ -24,6 +24,8 @@ nav:
     - Field Dispatch: composite_functions/README_field_dispatch.md
     - Trigger on Change: composite_functions/README_trigger_on_change.md
     - Engine Interface: composite_functions/README_engine_interface.md
+    - Function Dictionary: composite_functions/README_function_dictionary_handling.md
+    - External Tree: composite_functions/README_external_tree.md
   - Simple Functions:
     - Main Functions:
       - Wait: simple_functions/main_functions/README_wait.md
@@ -60,6 +62,10 @@ nav:
     - Stack Equations Test: tests/README_stack_equation_test.md
     - Function Dictionary Test: tests/README_function_dictionary.md
     - Callback Function Test: tests/README_callback_function_test.md
+    - External Tree Test: tests/README_external_tree_management.md
+  - Car Window Controller:
+    - Requirements: car_window_controller/README_cardoor_requirements.md
+    - Implementation: car_window_controller/README_cardoor_s_engine_implementation.md
 
   
 

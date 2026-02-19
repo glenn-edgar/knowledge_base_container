@@ -1,3 +1,44 @@
+# Why the S Engine
+s_expr_param_t is a compact tagged-union token format for representing S-expression elements in the S_Engine control system. Each token encodes both its type and payload in a fixed-size structure optimized for embedded targets.
+Origin: ChainTree and the Need for S_Engine
+ChainTree Background
+ChainTree is a behavior tree system developed before the S_Engine. It provides hierarchical control flow for embedded systems — sequences, selectors, parallel nodes, and state machines — with each leaf node implemented as a compiled C function.
+ChainTree works well for high-level orchestration, but it struggles with modularity at the leaf level. Many embedded control tasks involve repetitive operations that differ only in parameters: configuring GPIO pins, setting up UART channels, reading ADC values, writing registers. Each variation requires its own C function, leading to:
+
+Function explosion — hundreds of small C functions that do nearly identical things with different constants
+Poor reuse — "set pin as output" can't easily be parameterized and shared across different ports
+Tight coupling — the behavior tree structure is locked to specific hardware layouts
+Difficult composition — combining boolean logic on hardware states (e.g., "wait until pin A AND pin B are both high") requires custom composite nodes
+
+Even simple operations that differ only in a register address or bit mask become separate compiled functions, because ChainTree leaves have no built-in mechanism for parameterized, composable logic.
+S_Engine as Microcode
+The S_Engine was initially developed as a microcode layer for ChainTree leaf nodes. Instead of writing a separate C function for each hardware operation, a small set of C primitives (e.g., gpio_mode, write_register) could be composed through interpreted S-expression programs. ChainTree's virtual function table dispatches to either a native C function or an S_Engine program transparently:
+Virtual Function Table
+┌────────────────┬─────────────────────────────────────┐
+│ Name           │ Implementation                      │
+├────────────────┼─────────────────────────────────────┤
+│ motor_init     │ C function: motor_init_fn()         │
+│ sensor_read    │ C function: sensor_read_fn()        │
+│ gpio_setup     │ S_Engine: gpio_setup_program[]      │
+│ pump_cycle     │ S_Engine: pump_cycle_program[]      │
+│ check_inputs   │ S_Engine: check_inputs_program[]    │
+└────────────────┴─────────────────────────────────────┘
+This eliminated the function explosion problem. A system that previously needed dozens of nearly-identical C leaf functions could instead share a single interpreter with parameterized token streams stored in ROM.
+Standalone Engine
+As the S_Engine matured, it became clear that it was capable of operating as a standalone control engine, not just as microcode beneath ChainTree. The S_Engine now supports:
+
+Full behavior tree patterns (sequences, selectors, state machines, parallel nodes)
+Stack-based parameter passing with frame variables
+Function dictionaries for runtime-dispatched subroutines
+Blackboard records for shared state
+Cross-tree composition (spawning, ticking, and communicating between trees)
+Expression compilation for arithmetic and bitwise operations
+
+The S_Engine can be used as a microcode layer under ChainTree, as a standalone embedded control engine, or both in the same system — with ChainTree handling high-level orchestration and S_Engine handling parameterized leaf logic.
+
+
+
+
 # S-Expression Parameter Token Format
 
 ## Overview

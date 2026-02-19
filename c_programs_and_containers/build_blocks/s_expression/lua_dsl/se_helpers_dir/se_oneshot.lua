@@ -10,6 +10,7 @@ register_builtin("SE_INC_FIELD")
 register_builtin("SE_DEC_FIELD")
 register_builtin("SE_PUSH_STACK")
 register_builtin("SE_LOG_STACK")
+register_builtin("SE_NOP")
 
 function se_log(message)
     local c = o_call("SE_LOG")
@@ -47,7 +48,10 @@ function se_set_hash_field(target_field, value)
     end_call(c)
 end
 
-
+function se_nop()
+    local c = o_call("SE_NOP")
+    end_call(c)
+end
 
 function se_set_field(target_field, value)
     local c = o_call("SE_SET_FIELD")
