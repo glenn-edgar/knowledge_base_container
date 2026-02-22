@@ -148,7 +148,7 @@ changes.
 
 | Document | Contents |
 |----------|----------|
-| [System README](scan_tree_v2/README.md) | DSL API, codegen details, runtime internals, display model |
-| [Builtin VFT Reference](builtins_reference/README.md) | All 14 system VFTs — DSL syntax, C signatures, roles, behavior |
-| [Pump Station Test](pump_station_test/README.md) | 2-level example with user-defined VFT, test walkthrough |
-| [VFT Fuse Test](water_plant_test/README.md) | 4-level example with fuses, fuse concept, 11-step scenario |
+| System README | DSL API, codegen details, runtime internals, display model |
+| Builtin VFT Reference | All 14 system VFTs — DSL syntax, C signatures, roles, behavior |
+| Pump Station Test | 2-level example with user-defined VFT, test walkthrough |
+| VFT Fuse Test | 4-level example with fuses, fuse concept, 11-step scenario |

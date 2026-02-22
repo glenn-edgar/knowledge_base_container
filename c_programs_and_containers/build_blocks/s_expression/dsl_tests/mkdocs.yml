@@ -11,6 +11,9 @@ nav:
   - Reading Debug Map: README_reading_debug_map.md
   - Stack Operations and Runtime: README_stack_operations.md
   - Stack Equations: README_stack_equation_handler.md
+  - Inner Engine Design: README_inner_engine_design.md
+  - Outer Engine Design: README_outer_engine_design.md
+  - Runtime Dictionary Handling: README_runtime_dictionary_handling.md
   - Composite Functions:
     - Overview: composite_functions/README_composite_functions.md
     - Chain Flow: composite_functions/README_chain_flow.md
