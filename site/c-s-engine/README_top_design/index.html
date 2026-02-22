@@ -64,7 +64,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#s-expression-parameter-token-format" class="md-skip">
+        <a href="#why-the-s-engine" class="md-skip">
           Skip to content
         </a>
       
@@ -1218,24 +1218,6 @@
         
       
       
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1252,479 +1234,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-s-expressions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why S-Expressions?
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Why S-Expressions?">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#evolution-from-flow-control" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Evolution from Flow Control
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tcl-like-evaluation-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tcl-Like Evaluation Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#avoiding-lisps-quoting-complexity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Avoiding Lisp's Quoting Complexity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#the-dsl-making-s-expressions-palatable" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The DSL: Making S-Expressions Palatable
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#summary-why-this-approach" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary: Why This Approach
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#size" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Size
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#structure-layout" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structure Layout
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-s_engine-microcode-for-chaintree-virtual-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The S_Engine: Microcode for ChainTree Virtual Functions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="The S_Engine: Microcode for ChainTree Virtual Functions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#the-problem-behavior-trees-and-hardware-composition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Problem: Behavior Trees and Hardware Composition
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#the-solution-s_engine-as-microcode-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Solution: S_Engine as Microcode Layer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#virtual-function-expansion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Virtual Function Expansion
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#hardware-configuration-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hardware Configuration Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#boolean-composition-on-hardware" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Boolean Composition on Hardware
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#benefits-for-embedded-systems" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Benefits for Embedded Systems
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#execution-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Execution Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#integration-with-chaintree" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integration with ChainTree
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#type-byte-encoding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Type Byte Encoding
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Type Byte Encoding">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#flag-descriptions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Flag Descriptions
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#token-categories" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Token Categories
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Token Categories">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#primitive-values-0x00-0x03" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Primitive Values (0x00-0x03)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#list-structure-0x05-0x07" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        List Structure (0x05-0x07)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#function-references-0x08-0x0a" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function References (0x08-0x0A)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Function References (0x08-0x0A)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#function-type-semantics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Type Semantics
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#function-combinations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Combinations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fielddata-access-0x0b-0x0e" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Field/Data Access (0x0B-0x0E)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dictionary-structure-0x10-0x13" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dictionary Structure (0x10-0x13)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#array-structure-0x14-0x15" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Array Structure (0x14-0x15)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tuple-structure-0x16-0x17" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuple Structure (0x16-0x17)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#node-runtime-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Node Runtime State
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Node Runtime State">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#node-flags-1-byte-per-node" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Node Flags (1 byte per node)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pointer-array-optional-dsl-controlled" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pointer Array (Optional, DSL-Controlled)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#memory-layout-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory Layout Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#predicate-macros" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Predicate Macros
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#platform-adaptation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Platform Adaptation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dsl-output-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DSL Output Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Notes
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
       
     </li>
   
@@ -2381,6 +1890,62 @@
     
   
     Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_function_dictionary_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_external_tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree
   
 
     
@@ -3537,6 +3102,145 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_external_tree_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_15" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_15" id="__nav_2_3_15_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Car Window Controller
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_15">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Car Window Controller
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../car_window_controller/README_cardoor_requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3580,468 +3284,6 @@
     
   
   
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-s-expressions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why S-Expressions?
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Why S-Expressions?">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#evolution-from-flow-control" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Evolution from Flow Control
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tcl-like-evaluation-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tcl-Like Evaluation Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#avoiding-lisps-quoting-complexity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Avoiding Lisp's Quoting Complexity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#the-dsl-making-s-expressions-palatable" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The DSL: Making S-Expressions Palatable
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#summary-why-this-approach" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Summary: Why This Approach
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#size" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Size
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#structure-layout" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Structure Layout
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-s_engine-microcode-for-chaintree-virtual-functions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The S_Engine: Microcode for ChainTree Virtual Functions
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="The S_Engine: Microcode for ChainTree Virtual Functions">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#the-problem-behavior-trees-and-hardware-composition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Problem: Behavior Trees and Hardware Composition
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#the-solution-s_engine-as-microcode-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The Solution: S_Engine as Microcode Layer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#virtual-function-expansion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Virtual Function Expansion
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#hardware-configuration-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Hardware Configuration Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#boolean-composition-on-hardware" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Boolean Composition on Hardware
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#benefits-for-embedded-systems" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Benefits for Embedded Systems
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#execution-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Execution Model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#integration-with-chaintree" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Integration with ChainTree
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#type-byte-encoding" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Type Byte Encoding
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Type Byte Encoding">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#flag-descriptions" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Flag Descriptions
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#token-categories" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Token Categories
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Token Categories">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#primitive-values-0x00-0x03" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Primitive Values (0x00-0x03)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#list-structure-0x05-0x07" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        List Structure (0x05-0x07)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#function-references-0x08-0x0a" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function References (0x08-0x0A)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Function References (0x08-0x0A)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#function-type-semantics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Type Semantics
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#function-combinations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Function Combinations
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#fielddata-access-0x0b-0x0e" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Field/Data Access (0x0B-0x0E)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dictionary-structure-0x10-0x13" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dictionary Structure (0x10-0x13)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#array-structure-0x14-0x15" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Array Structure (0x14-0x15)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tuple-structure-0x16-0x17" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuple Structure (0x16-0x17)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#node-runtime-state" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Node Runtime State
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Node Runtime State">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#node-flags-1-byte-per-node" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Node Flags (1 byte per node)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pointer-array-optional-dsl-controlled" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pointer Array (Optional, DSL-Controlled)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#memory-layout-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Memory Layout Example
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#predicate-macros" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Predicate Macros
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#platform-adaptation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Platform Adaptation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dsl-output-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        DSL Output Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-notes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Design Notes
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
 </nav>
                   </div>
                 </div>
@@ -4057,6 +3299,39 @@
 
 
 
+<h1 id="why-the-s-engine">Why the S Engine</h1>
+<p>s_expr_param_t is a compact tagged-union token format for representing S-expression elements in the S_Engine control system. Each token encodes both its type and payload in a fixed-size structure optimized for embedded targets.
+Origin: ChainTree and the Need for S_Engine
+ChainTree Background
+ChainTree is a behavior tree system developed before the S_Engine. It provides hierarchical control flow for embedded systems — sequences, selectors, parallel nodes, and state machines — with each leaf node implemented as a compiled C function.
+ChainTree works well for high-level orchestration, but it struggles with modularity at the leaf level. Many embedded control tasks involve repetitive operations that differ only in parameters: configuring GPIO pins, setting up UART channels, reading ADC values, writing registers. Each variation requires its own C function, leading to:</p>
+<p>Function explosion — hundreds of small C functions that do nearly identical things with different constants
+Poor reuse — "set pin as output" can't easily be parameterized and shared across different ports
+Tight coupling — the behavior tree structure is locked to specific hardware layouts
+Difficult composition — combining boolean logic on hardware states (e.g., "wait until pin A AND pin B are both high") requires custom composite nodes</p>
+<p>Even simple operations that differ only in a register address or bit mask become separate compiled functions, because ChainTree leaves have no built-in mechanism for parameterized, composable logic.
+S_Engine as Microcode
+The S_Engine was initially developed as a microcode layer for ChainTree leaf nodes. Instead of writing a separate C function for each hardware operation, a small set of C primitives (e.g., gpio_mode, write_register) could be composed through interpreted S-expression programs. ChainTree's virtual function table dispatches to either a native C function or an S_Engine program transparently:
+Virtual Function Table
+┌────────────────┬─────────────────────────────────────┐
+│ Name           │ Implementation                      │
+├────────────────┼─────────────────────────────────────┤
+│ motor_init     │ C function: motor_init_fn()         │
+│ sensor_read    │ C function: sensor_read_fn()        │
+│ gpio_setup     │ S_Engine: gpio_setup_program[]      │
+│ pump_cycle     │ S_Engine: pump_cycle_program[]      │
+│ check_inputs   │ S_Engine: check_inputs_program[]    │
+└────────────────┴─────────────────────────────────────┘
+This eliminated the function explosion problem. A system that previously needed dozens of nearly-identical C leaf functions could instead share a single interpreter with parameterized token streams stored in ROM.
+Standalone Engine
+As the S_Engine matured, it became clear that it was capable of operating as a standalone control engine, not just as microcode beneath ChainTree. The S_Engine now supports:</p>
+<p>Full behavior tree patterns (sequences, selectors, state machines, parallel nodes)
+Stack-based parameter passing with frame variables
+Function dictionaries for runtime-dispatched subroutines
+Blackboard records for shared state
+Cross-tree composition (spawning, ticking, and communicating between trees)
+Expression compilation for arithmetic and bitwise operations</p>
+<p>The S_Engine can be used as a microcode layer under ChainTree, as a standalone embedded control engine, or both in the same system — with ChainTree handling high-level orchestration and S_Engine handling parameterized leaf logic.</p>
 <h1 id="s-expression-parameter-token-format">S-Expression Parameter Token Format</h1>
 <h2 id="overview">Overview</h2>
 <p><code>s_expr_param_t</code> is a compact tagged-union token format for representing S-expression elements in the ChainTree control system. Each token encodes both its type and payload in a fixed-size structure optimized for embedded targets.</p>
