@@ -129,7 +129,6 @@ local function gen_h(data, name, bufs, path2id, n_raw, n_layer)
 
     local uvfts = unique_user_vfts(data)
     if #uvfts > 0 then o:w('#include "'..name..'_user_vft.h"') end
-    o:w("")
 
     -- Collect graph nodes and fuse entries
     local allvf = {}
@@ -143,18 +142,9 @@ local function gen_h(data, name, bufs, path2id, n_raw, n_layer)
         end
     end
 
-    -- Forward declare fuse action functions
-    if #fuses > 0 then
-        o:w("/* Fuse action forward declarations */")
-        local seen = {}
-        for _, f in ipairs(fuses) do
-            if not seen[f.action] then
-                o:w(string.format("extern void %s(void *user_handle);", f.action))
-                seen[f.action] = true
-            end
-        end
-        o:w("")
-    end
+    -- Include fuse actions header if any fuses exist
+    if #fuses > 0 then o:w('#include "'..name..'_fuse_actions.h"') end
+    o:w("")
 
     -- Pin defines and key defines
     for i, b in ipairs(bufs) do
@@ -267,6 +257,38 @@ local function gen_user_h(data, name)
             vf.user_func))
         o:w("")
     end
+    o:w("#endif")
+    return o
+end
+
+-- =====================================================================
+-- Generate fuse actions header
+-- =====================================================================
+local function gen_fuse_h(data, name)
+    local o = W.new()
+    local g = name:upper().."_FUSE_ACTIONS_H"
+    o:w("/* "..name.."_fuse_actions.h - Fuse action callback prototypes */")
+    o:w("#ifndef "..g) o:w("#define "..g) o:w("")
+
+    -- Collect all fuse actions
+    local allvf = {}
+    for _,lv in ipairs(data.levels) do collect_vfts(lv, allvf) end
+
+    local seen = {}
+    for _, vf in ipairs(allvf) do
+        if vf.is_fuse and not seen[vf.fuse_action] then
+            o:w("/*")
+            o:w(" * "..vf.fuse_action)
+            o:w(" *   Triggered when fuse blows for: "..vf.vft_name)
+            o:w(" *   Input: "..vf.inputs[1].buffer..":"..vf.inputs[1].start)
+            o:w(" *   Clear: "..vf.inputs[2].buffer..":"..vf.inputs[2].start)
+            o:w(" */")
+            o:w(string.format("extern void %s(void *user_handle);", vf.fuse_action))
+            o:w("")
+            seen[vf.fuse_action] = true
+        end
+    end
+
     o:w("#endif")
     return o
 end
@@ -399,4 +421,18 @@ print("Generated: "..dir.."/"..name..".h")
 if #unique_user_vfts(data) > 0 then
     gen_user_h(data, name):save(dir.."/"..name.."_user_vft.h")
     print("Generated: "..dir.."/"..name.."_user_vft.h")
+end
+
+-- Check for fuses
+local has_fuses = false
+do
+    local allvf = {}
+    for _,lv in ipairs(data.levels) do collect_vfts(lv, allvf) end
+    for _, vf in ipairs(allvf) do
+        if vf.is_fuse then has_fuses = true; break end
+    end
+end
+if has_fuses then
+    gen_fuse_h(data, name):save(dir.."/"..name.."_fuse_actions.h")
+    print("Generated: "..dir.."/"..name.."_fuse_actions.h")
 end
