@@ -3484,6 +3484,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#data-flow-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-Flow Evaluation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data-Flow Evaluation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost Comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dsl-scan_tree_dsllua" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3633,6 +3683,56 @@
     <span class="md-ellipsis">
       
         Three-State Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-time-tuning-constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile-Time Tuning Constants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compile-Time Tuning Constants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#st_max_inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ST_MAX_INPUTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#st_max_raw_words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ST_MAX_RAW_WORDS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tuning-for-32kb-arm-cortex-m" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning for 32KB ARM Cortex-M
       
     </span>
   </a>
@@ -3967,6 +4067,56 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#data-flow-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data-Flow Evaluation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data-Flow Evaluation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cost Comparison
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dsl-scan_tree_dsllua" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4116,6 +4266,56 @@
     <span class="md-ellipsis">
       
         Three-State Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compile-time-tuning-constants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compile-Time Tuning Constants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Compile-Time Tuning Constants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#st_max_inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ST_MAX_INPUTS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#st_max_raw_words" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ST_MAX_RAW_WORDS
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tuning-for-32kb-arm-cortex-m" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning for 32KB ARM Cortex-M
       
     </span>
   </a>
@@ -4297,6 +4497,98 @@ allocation after init.</p>
 <p>The generated <code>.h</code> contains only <code>static const</code> tables. The runtime library
 walks these tables via a descriptor pointer passed to <code>st_init()</code>. All working
 storage is allocated in a single <code>calloc</code> at init.</p>
+<h2 id="data-flow-evaluation">Data-Flow Evaluation</h2>
+<p>The scan tree uses <strong>change-driven evaluation</strong>. Only nodes affected by
+changed inputs execute on any given cycle. The mechanism has two parts:
+a precomputed dependency bitmask in the const tables, and a runtime dirty
+marking pass that uses it.</p>
+<h3 id="how-it-works">How It Works</h3>
+<p>Each node descriptor carries a <code>raw_deps</code> bitmask — a bitfield where bit N
+is set if the node transitively depends on raw buffer N. The codegen computes
+this by walking the graph bottom-up: if a node reads a raw buffer directly,
+that bit is set. If a node reads a layer buffer, it inherits the union of
+<code>raw_deps</code> from every node that writes to that layer. The result is a
+transitive closure computed once at build time.</p>
+<p>At runtime, <code>st_cycle()</code> performs three steps:</p>
+<ol>
+<li>
+<p><strong>Swap</strong> (<code>st_swap_raw</code>) — compares each raw buffer's current vs previous
+   data. Sets <code>changed=1</code> only on buffers where the data actually differs.</p>
+</li>
+<li>
+<p><strong>Mark dirty</strong> (<code>st_mark_dirty</code>) — builds a bitmask of which raw buffers
+   changed. For each node, ANDs the node's <code>raw_deps</code> against the changed
+   set. If zero overlap, the node is not marked dirty and will not execute.</p>
+</li>
+<li>
+<p><strong>Evaluate</strong> (<code>st_evaluate</code>) — walks the node array bottom-up, skips any
+   node where <code>dirty=0</code>. Dirty nodes call their VFT function and write the
+   result. No downstream propagation scan is needed — the bitmask already
+   accounts for transitive dependencies.</p>
+</li>
+</ol>
+<h3 id="example">Example</h3>
+<p>A pump station has 9 nodes and 5 raw buffers. When only <code>motor_current</code>
+changes (one raw buffer), the mark dirty pass identifies 7 dependent nodes
+and skips 2 that depend only on <code>power_status</code>:</p>
+<pre><code>After changing only motor_current[0]:
+  node[0] -&gt; power_output[0]    dirty=0  (depends on power_status only)
+  node[1] -&gt; group_a[0]         dirty=1  (depends on motor_current)
+  node[2] -&gt; group_a[1]         dirty=1
+  node[3] -&gt; group_a[2]         dirty=1  (reads group_a layer -&gt; inherits)
+  node[4] -&gt; group_b[0]         dirty=1
+  node[5] -&gt; group_b[1]         dirty=1
+  node[6] -&gt; group_b[2]         dirty=1
+  node[7] -&gt; actuation[0]       dirty=1  (reads group_a -&gt; inherits)
+  node[8] -&gt; actuation[1]       dirty=0  (depends on power_output only)
+</code></pre>
+<p>In steady state (no inputs changing), zero nodes execute. When a single
+sensor changes, only the subtree rooted at that sensor runs. For a 32-node
+water treatment plant where one chlorine reading changes, roughly 6 of 32
+nodes execute instead of all 32.</p>
+<h3 id="cost-comparison">Cost Comparison</h3>
+<p>The previous brute-force approach marked all nodes dirty if any raw buffer
+changed, then ran an O(N²) scan after each node to propagate changes
+downstream. The data-flow approach replaces both with O(N) bitmask
+operations computed from const data:</p>
+<table>
+<thead>
+<tr>
+<th>Nodes</th>
+<th>Brute force (1 buf changed)</th>
+<th>Data-flow</th>
+<th>Speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9</td>
+<td>~675 ops</td>
+<td>~150 ops</td>
+<td>4.5×</td>
+</tr>
+<tr>
+<td>32</td>
+<td>~6,080 ops</td>
+<td>~400 ops</td>
+<td>15×</td>
+</tr>
+<tr>
+<td>64</td>
+<td>~21,440 ops</td>
+<td>~680 ops</td>
+<td>31×</td>
+</tr>
+<tr>
+<td>128</td>
+<td>~83,840 ops</td>
+<td>~1,200 ops</td>
+<td>70×</td>
+</tr>
+</tbody>
+</table>
+<p>The N² term in brute force (downstream dependency scan) dominates quickly.
+Data-flow evaluation scales linearly with the affected subtree size.</p>
 <h2 id="dsl-scan_tree_dsllua">DSL (scan_tree_dsl.lua)</h2>
 <p>The DSL constructs a hierarchical tree using a stack-based open/close pattern.
 Every <code>_start</code> returns a handle that must be passed to the matching <code>_end</code>,
@@ -4397,7 +4689,17 @@ size, layer/raw flag, buffer index, level number:</p>
 {&quot;my_system.power.power_output&quot;, 0x051ADDFCu, 1, 1, 1, 0, 0},  /* layer, level=0 */
 </code></pre>
 <p><strong>Node descriptors</strong> (<code>st_node_desc_t[]</code>) — function pointer, output
-buffer/position, input descriptors with roles, input count.</p>
+buffer/position, input descriptors with roles, input count, and raw
+dependency bitmask:</p>
+<pre><code class="language-c">{st_vft_or, 5, 0,                           /* func, output buf, output pos */
+ {{1, 0, 2, 0}, {0,0,0,0}, ...},            /* inputs[ST_MAX_INPUTS] */
+ 1,                                          /* n_inputs */
+ {0x00000002u, 0x00000000u, ...}}            /* raw_deps[ST_MAX_RAW_WORDS] */
+</code></pre>
+<p>The <code>raw_deps</code> bitmask is a transitive closure computed by the codegen.
+Bit N is set if the node depends (directly or through layer buffers) on
+raw buffer with <code>buf_index</code> N. The runtime uses this to skip nodes whose
+inputs haven't changed.</p>
 <p><strong>Lookup table</strong> (<code>st_lookup_entry_t[]</code>) — sorted by FNV-1a key for binary
 search at runtime.</p>
 <p><strong>Fuse table</strong> (<code>st_fuse_entry_t[]</code>) — maps node IDs to action callback
@@ -4444,14 +4746,19 @@ while (running) {
 <ol>
 <li><strong>st_swap_raw</strong> — compares current vs previous raw buffers, sets changed
    flags, copies current to previous.</li>
-<li><strong>st_mark_dirty</strong> — if any raw buffer changed, marks all nodes dirty.</li>
-<li><strong>st_evaluate</strong> — walks the node descriptor array in order (which is
-   bottom-up by construction). For each dirty node, calls the VFT function,
-   writes the result to the output layer buffer position, and marks downstream
-   nodes dirty if the output changed.</li>
+<li><strong>st_mark_dirty</strong> — builds a bitmask of which raw buffers changed, then
+   ANDs each node's precomputed <code>raw_deps</code> against it. Only nodes with
+   overlapping dependencies are marked dirty. If no raw buffers changed,
+   all nodes are marked clean in a single <code>memset</code>.</li>
+<li><strong>st_evaluate</strong> — walks the node descriptor array in order (bottom-up by
+   construction). Skips clean nodes. For each dirty node, calls the VFT
+   function and writes the result to the output layer position. No downstream
+   propagation scan is needed — the dependency bitmask already covers
+   transitive dependencies.</li>
 </ol>
-<p>After evaluation, the engine updates shadow copies and the three-state arrays
-(<code>int8_t</code>: 1=ACTIVE, 0=FAULT, -1=NOT_OP).</p>
+<p>After evaluation, the engine updates shadow copies. The three-state arrays
+(<code>int8_t</code>: 1=ACTIVE, 0=FAULT, -1=NOT_OP) are maintained incrementally by
+<code>layer_write</code> during evaluation.</p>
 <h3 id="buffer-access">Buffer Access</h3>
 <p>Two access patterns, chosen at init time:</p>
 <p><strong>Cached pointer access</strong> — zero overhead per read:</p>
@@ -4501,6 +4808,157 @@ int32_t id = st_lookup_key(&amp;h, MY_SYSTEM_PUMP_CURRENT_KEY);
 <p>NOT_OP exists because layer positions start unwritten. Until a VFT writes
 to a position, it remains NOT_OP. This distinguishes "the system hasn't
 evaluated this yet" from "the system evaluated it and it's faulted."</p>
+<p>The three-state array (<code>int8_t *states</code> in <code>st_layer_rt_t</code>) is maintained
+incrementally — <code>layer_write</code> updates <code>states[pos]</code> on every VFT output
+write. The <code>st_layer_states()</code> function returns a stable pointer to this
+array, allowing the application to cache it at init and read directly in
+the main loop without function call overhead.</p>
+<h2 id="compile-time-tuning-constants">Compile-Time Tuning Constants</h2>
+<p>Two constants in <code>scan_tree.h</code> control the fixed-size arrays in every node
+descriptor. Both affect const table size, which matters on flash-constrained
+targets.</p>
+<h3 id="st_max_inputs">ST_MAX_INPUTS</h3>
+<pre><code class="language-c">#define ST_MAX_INPUTS 8
+</code></pre>
+<p>Sets the maximum number of input bindings per node. Each <code>st_input_desc_t</code>
+is 7 bytes, so this field costs <code>ST_MAX_INPUTS × 7</code> bytes per node in the
+const table.</p>
+<table>
+<thead>
+<tr>
+<th>ST_MAX_INPUTS</th>
+<th>Bytes per node (inputs)</th>
+<th>Wasted per typical node</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td>14</td>
+<td>0 (tight fit)</td>
+</tr>
+<tr>
+<td>4</td>
+<td>28</td>
+<td>14</td>
+</tr>
+<tr>
+<td><strong>8 (default)</strong></td>
+<td><strong>56</strong></td>
+<td><strong>42</strong></td>
+</tr>
+<tr>
+<td>16</td>
+<td>112</td>
+<td>98</td>
+</tr>
+</tbody>
+</table>
+<p>Most VFTs use 1-2 inputs. The fuse uses 2 (INPUT + CLEAR). Comparison VFTs
+use 2 (A + B). No current builtin exceeds 2. The unused slots are
+zero-filled in the const table but never touched at runtime — VFTs loop
+over <code>n_inputs</code>, not <code>ST_MAX_INPUTS</code>.</p>
+<p><strong>When to reduce:</strong> If all your VFTs use ≤ 2 inputs, set to 4 (leaves
+headroom for user VFTs). Only set to 2 if you are certain no VFT will
+ever need more.</p>
+<h3 id="st_max_raw_words">ST_MAX_RAW_WORDS</h3>
+<pre><code class="language-c">#define ST_MAX_RAW_WORDS 8  /* supports up to 256 raw buffers */
+</code></pre>
+<p>Sets the size of the <code>raw_deps</code> dependency bitmask per node. Each word is
+a <code>uint32_t</code> holding 32 bits, so <code>ST_MAX_RAW_WORDS × 32</code> = maximum raw
+buffers.</p>
+<table>
+<thead>
+<tr>
+<th>ST_MAX_RAW_WORDS</th>
+<th>Max raw buffers</th>
+<th>Bytes per node</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>32</td>
+<td>4</td>
+</tr>
+<tr>
+<td>2</td>
+<td>64</td>
+<td>8</td>
+</tr>
+<tr>
+<td>4</td>
+<td>128</td>
+<td>16</td>
+</tr>
+<tr>
+<td><strong>8 (default)</strong></td>
+<td><strong>256</strong></td>
+<td><strong>32</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The runtime only checks <code>ceil(n_raw / 32)</code> words per node. If you have 5
+raw buffers, only word 0 is examined — the other 7 words sit in the const
+table but are never read.</p>
+<p><strong>When to reduce:</strong> If your system has ≤ 32 raw buffers (which covers
+most embedded control applications), set to 1 and save 28 bytes per node.</p>
+<h3 id="tuning-for-32kb-arm-cortex-m">Tuning for 32KB ARM Cortex-M</h3>
+<p>On a 32KB flash target, const table size is the primary constraint. A
+system with N nodes occupies roughly:</p>
+<pre><code>Per node:  ST_MAX_INPUTS × 7  +  ST_MAX_RAW_WORDS × 4  +  12 bytes overhead
+Default:   8 × 7 + 8 × 4 + 12 = 100 bytes per node
+Tuned:     4 × 7 + 1 × 4 + 12 =  44 bytes per node
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Nodes</th>
+<th>Default (100 B/node)</th>
+<th>Tuned (44 B/node)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9</td>
+<td>900 B</td>
+<td>396 B</td>
+</tr>
+<tr>
+<td>16</td>
+<td>1,600 B</td>
+<td>704 B</td>
+</tr>
+<tr>
+<td>32</td>
+<td>3,200 B</td>
+<td>1,408 B</td>
+</tr>
+<tr>
+<td>64</td>
+<td>6,400 B</td>
+<td>2,816 B</td>
+</tr>
+</tbody>
+</table>
+<p>Add buffer descriptors (~20 bytes each), lookup table (6 bytes each),
+string literals for paths, and working storage (RAM, not flash). A
+practical budget for a 32KB target:</p>
+<pre><code>Flash budget:     ~24KB available (after runtime code)
+Tuned node_descs: ~44 bytes/node
+Buffer descs:     ~20 bytes/buffer
+Path strings:     ~40 bytes/buffer average
+Lookup:           ~6 bytes/buffer
+</code></pre>
+<p>This supports roughly <strong>100+ nodes with 20 buffers</strong> in 4KB of const
+data, leaving 20KB for the runtime library and application code.</p>
+<p><strong>Recommended settings for Cortex-M0/M3/M4 with ≤ 32KB flash:</strong></p>
+<pre><code class="language-c">#define ST_MAX_INPUTS    4   /* sufficient for all builtins */
+#define ST_MAX_RAW_WORDS 1   /* supports up to 32 raw buffers */
+</code></pre>
+<p><strong>Settings for larger targets (64KB+ flash or RAM-based systems):</strong></p>
+<p>Leave at defaults. The 56-byte difference per node is negligible when
+flash is not the bottleneck.</p>
 <h2 id="display-model-st_displayc">Display Model (st_display.c)</h2>
 <h3 id="the-geological-metaphor">The Geological Metaphor</h3>
 <p>The scan tree evaluates like geological strata. Level 0 is bedrock
@@ -4593,7 +5051,7 @@ excluded from display.</p>
 </tr>
 <tr>
 <td><code>codegen_c.lua</code></td>
-<td>C code generator — reads JSON, emits .h files</td>
+<td>C code generator — reads JSON, emits .h files with raw_deps bitmasks</td>
 </tr>
 <tr>
 <td><code>fnv1a.c</code></td>
@@ -4612,7 +5070,7 @@ excluded from display.</p>
 <tbody>
 <tr>
 <td><code>scan_tree.h</code></td>
-<td>Public API — types, function prototypes, macros</td>
+<td>Public API — types, function prototypes, macros (<code>ST_RAW_PTR</code>)</td>
 </tr>
 <tr>
 <td><code>scan_tree.c</code></td>
@@ -4662,17 +5120,25 @@ GCC and Clang.</p>
 <p><strong>Bottom-up deterministic evaluation.</strong> Node order in the descriptor array
 matches declaration order, which is bottom-up by construction (level 0
 nodes first, highest level last). No iterative convergence. Each node
-evaluates exactly once per dirty pass.</p>
+evaluates at most once per cycle, and only if its inputs changed.</p>
+<p><strong>Change-driven execution.</strong> The raw dependency bitmask (<code>raw_deps</code>) enables
+the runtime to skip nodes whose transitive inputs haven't changed. In
+steady state with no input changes, zero nodes execute. When a single
+sensor changes, only the affected subtree evaluates.</p>
 <p><strong>Const descriptor tables.</strong> The <code>st_system_desc_t</code> and everything it
 points to is <code>const</code>. The runtime never writes to descriptor memory. On
 embedded targets this can live in flash.</p>
 <h2 id="target-range">Target Range</h2>
 <p>Designed to span from 32KB ARM Cortex-M microcontrollers to 8GB+ servers.
 The const data tables are compact (a 32-node system is under 2KB of const
-data). Working storage scales linearly with buffer count and node count.
-The engine has no recursion, no dynamic allocation after init, and no
-floating-point in the core path (float is only used by comparison VFTs
-that the application opts into).</p>
+data with tuned constants, under 4KB with defaults). Working storage scales
+linearly with buffer count and node count. The engine has no recursion, no
+dynamic allocation after init, and no floating-point in the core path
+(float is only used by comparison VFTs that the application opts into).</p>
+<p>For Cortex-M targets, reduce <code>ST_MAX_INPUTS</code> to 4 and <code>ST_MAX_RAW_WORDS</code>
+to 1. This cuts per-node const data from 100 bytes to 44 bytes with no
+loss of functionality for systems with ≤ 32 raw buffers and ≤ 4 inputs
+per VFT (which covers all 14 builtin VFTs).</p>
 
 
 
