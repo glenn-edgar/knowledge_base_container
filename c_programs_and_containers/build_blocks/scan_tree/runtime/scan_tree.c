@@ -111,14 +111,6 @@ void *st_raw_current(const st_handle_t *h, uint16_t buf_id)
     return h->raw_bufs[bd->buf_index].current;
 }
 
-void *st_raw_current_checked(const st_handle_t *h, uint16_t buf_id, uint16_t expected_elem_size)
-{
-    const st_buf_desc_t *bd = &h->desc->buf_descs[buf_id];
-    if (bd->is_layer || bd->elem_size != expected_elem_size)
-        return NULL;
-    return h->raw_bufs[bd->buf_index].current;
-}
-
 const uint8_t *st_buf_data(const st_handle_t *h, uint16_t buf_id)
 {
     const st_buf_desc_t *bd = &h->desc->buf_descs[buf_id];
@@ -132,16 +124,24 @@ int8_t st_get_state(const st_handle_t *h, uint16_t buf_id, uint16_t pos)
 {
     const st_buf_desc_t *bd = &h->desc->buf_descs[buf_id];
     if (!bd->is_layer || pos >= bd->size) return -1;
-    return h->layer_bufs[bd->buf_index].states[pos];
+    const st_layer_rt_t *l = &h->layer_bufs[bd->buf_index];
+    return l->states[pos];
 }
 
-const int8_t *st_layer_states(const st_handle_t *h, uint16_t buf_id, uint16_t *size)
+const int8_t *st_layer_states(const st_handle_t *h, uint16_t buf_id, uint16_t *out_size)
 {
     const st_buf_desc_t *bd = &h->desc->buf_descs[buf_id];
     if (!bd->is_layer) return NULL;
     const st_layer_rt_t *l = &h->layer_bufs[bd->buf_index];
-    if (size) *size = l->size;
+    if (out_size) *out_size = l->size;
     return l->states;
+}
+
+void st_print_info(const st_handle_t *h)
+{
+    const st_system_desc_t *d = h->desc;
+    printf("%s: %u bufs, %u nodes, %u raw, %u layer\n",
+           d->name, d->n_bufs, d->n_nodes, d->n_raw, d->n_layer);
 }
 
 /* =============================================================
@@ -206,16 +206,37 @@ void st_swap_raw(st_handle_t *h)
 }
 
 /* =============================================================
- * Mark dirty
+ * Mark dirty (bitmask-driven: only nodes affected by changed raw buffers)
  * ============================================================= */
 
 void st_mark_dirty(st_handle_t *h)
 {
+    const st_system_desc_t *d = h->desc;
+
+    /* Build a combined bitmask of which raw buffers changed */
+    uint32_t changed[ST_MAX_RAW_WORDS] = {0};
     uint8_t any = 0;
-    for (uint16_t i = 0; i < h->desc->n_raw; i++)
-        if (h->raw_bufs[i].changed) { any = 1; break; }
-    if (any)
-        memset(h->node_dirty, 1, h->desc->n_nodes);
+    for (uint16_t r = 0; r < d->n_raw; r++) {
+        if (h->raw_bufs[r].changed) {
+            changed[r / 32] |= (1u << (r % 32));
+            any = 1;
+        }
+    }
+    if (!any) {
+        memset(h->node_dirty, 0, d->n_nodes);
+        return;
+    }
+
+    /* Mark each node dirty if its raw_deps overlap with changed set */
+    for (uint16_t i = 0; i < d->n_nodes; i++) {
+        uint8_t hit = 0;
+        const uint32_t *deps = d->node_descs[i].raw_deps;
+        uint16_t nw = (d->n_raw + 31) / 32;
+        for (uint16_t w = 0; w < nw; w++) {
+            if (deps[w] & changed[w]) { hit = 1; break; }
+        }
+        h->node_dirty[i] = hit;
+    }
 }
 
 /* =============================================================
@@ -226,6 +247,7 @@ static inline void layer_write(st_layer_rt_t *l, uint16_t pos, uint8_t val)
 {
     l->not_active[pos] = 0;
     l->value[pos] = val;
+    l->states[pos] = val ? 1 : 0;
 }
 
 void st_evaluate(st_handle_t *h)
@@ -241,31 +263,14 @@ void st_evaluate(st_handle_t *h)
         st_layer_rt_t *out = &h->layer_bufs[obd->buf_index];
         uint16_t pos = nd->output_pos;
 
-        uint8_t old_val = out->value[pos];
-        uint8_t was_na  = out->not_active[pos];
-
         uint8_t result = nd->func(&h->node_state[i], h, nd->inputs, nd->n_inputs);
         layer_write(out, pos, result);
-
-        /* If output changed, mark downstream nodes dirty. */
-        if (old_val != result || was_na) {
-            for (uint16_t j = i + 1; j < d->n_nodes; j++) {
-                for (uint8_t k = 0; k < d->node_descs[j].n_inputs; k++) {
-                    if (d->node_descs[j].inputs[k].buf_id == nd->output_buf_id) {
-                        h->node_dirty[j] = 1;
-                        break;
-                    }
-                }
-            }
-        }
     }
 
-    /* Update layer shadows and three-state arrays */
+    /* Update layer shadows */
     for (uint16_t i = 0; i < d->n_layer; i++) {
         st_layer_rt_t *l = &h->layer_bufs[i];
         memcpy(l->shadow, l->value, l->size);
-        for (uint16_t j = 0; j < l->size; j++)
-            l->states[j] = l->not_active[j] ? -1 : (l->value[j] ? 1 : 0);
     }
 }
 
@@ -276,48 +281,3 @@ void st_cycle(st_handle_t *h)
     st_evaluate(h);
 }
 
-/* =============================================================
- * Fuse lookup
- * ============================================================= */
-
-st_fuse_action_t st_fuse_lookup(const st_handle_t *h, uint16_t node_id)
-{
-    const st_system_desc_t *d = h->desc;
-    for (uint16_t i = 0; i < d->n_fuses; i++)
-        if (d->fuse_table[i].node_id == node_id)
-            return d->fuse_table[i].action;
-    return NULL;
-}
-
-/* =============================================================
- * Debug / diagnostic
- * ============================================================= */
-
-static const char *st_state_name(int8_t s)
-{
-    switch (s) {
-        case  1: return "ACTIVE";
-        case  0: return "FAULT";
-        default: return "NOT_OP";
-    }
-}
-
-void st_print_info(const st_handle_t *h)
-{
-    printf("%s: %u bufs, %u nodes, %u raw, %u layer\n",
-           h->desc->name, h->desc->n_bufs, h->desc->n_nodes,
-           h->desc->n_raw, h->desc->n_layer);
-}
-
-void st_print_layers(const st_handle_t *h)
-{
-    for (uint16_t i = 0; i < h->desc->n_bufs; i++) {
-        if (!h->desc->buf_descs[i].is_layer) continue;
-        printf("  %s:", h->desc->buf_descs[i].path);
-        uint16_t sz = 0;
-        const int8_t *s = st_layer_states(h, i, &sz);
-        for (uint16_t j = 0; j < sz; j++)
-            printf(" [%u]=%s", j, st_state_name(s[j]));
-        printf("\n");
-    }
-}

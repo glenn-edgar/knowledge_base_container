@@ -161,7 +161,7 @@ void st_display_tree(const st_display_t *disp, const st_handle_t *h)
 
         for (uint16_t j = 0; j < bd->size; j++) {
             if (j > 0) printf(" ");
-            int8_t s = l->states[j];
+            int8_t s = l->not_active[j] ? -1 : (l->value[j] ? 1 : 0);
             if (s == 1)
                 printf(ANSI_GREEN "T" ANSI_RESET);
             else if (s == 0)

@@ -51,7 +51,11 @@ local ESIZES={["bool"]=1,["uint8_t"]=1,["uint16_t"]=2,["uint32_t"]=4,["uint64_t"
     ["int8_t"]=1,["int16_t"]=2,["int32_t"]=4,["int64_t"]=8,["float"]=4,["double"]=8}
 local function p2c(p) return p:gsub("%.","_") end
 local function fnv1a(str) return tonumber(fnv_lib.fnv1a_hash(str)) end
-local function fhex(v) return string.format("0x%08Xu", v) end
+local function fhex(v)
+    -- Handle LuaJIT signed 32-bit: mask to unsigned via modular arithmetic
+    if v < 0 then v = v + 4294967296 end
+    return string.format("0x%08Xu", v)
+end
 
 local W={}; W.__index=W
 function W.new() return setmetatable({l={}},W) end
@@ -134,6 +138,61 @@ local function gen_h(data, name, bufs, path2id, n_raw, n_layer)
     local allvf = {}
     for _,lv in ipairs(data.levels) do collect_vfts(lv, allvf) end
 
+    -- =================================================================
+    -- Compute transitive raw dependency bitmasks per node.
+    --
+    -- Strategy: nodes are already in bottom-up topological order.
+    -- Pass 1: for each node, collect direct input buf_ids.
+    --   If input is raw -> set bit directly.
+    --   If input is layer -> inherit raw_deps from all nodes that write
+    --   to that layer buffer (which have already been processed).
+    -- =================================================================
+    local n_raw_words = math.ceil(n_raw / 32)
+    if n_raw_words < 1 then n_raw_words = 1 end
+
+    -- Build map: layer buf_id -> list of node indices that write to it
+    local layer_writers = {}  -- [buf_id] = {node_idx, ...}
+    for ni, vf in ipairs(allvf) do
+        local obid = path2id[vf.output.buffer]
+        if not layer_writers[obid] then layer_writers[obid] = {} end
+        local t = layer_writers[obid]
+        t[#t+1] = ni  -- 1-based
+    end
+
+    -- Compute raw_deps for each node (array of n_raw_words uint32 values)
+    local node_raw_deps = {}  -- [node_idx] = {w1, w2, ...}
+    local bor, lshift = bit.bor, bit.lshift
+    for ni, vf in ipairs(allvf) do
+        local deps = {}
+        for w = 1, n_raw_words do deps[w] = 0 end
+
+        for _, inp in ipairs(vf.inputs) do
+            local ibid = path2id[inp.buffer]
+            local bd = bufs[ibid + 1]  -- bufs is 0-indexed id, lua table is 1-indexed
+            if not bd.is_layer then
+                -- Direct raw dependency: set the bit for this raw buffer's buf_index
+                local ri = bd.buf_index
+                local word = math.floor(ri / 32) + 1
+                local b = ri % 32
+                deps[word] = bor(deps[word], lshift(1, b))
+            else
+                -- Layer dependency: inherit from all nodes that write to this layer
+                local writers = layer_writers[ibid]
+                if writers then
+                    for _, wi in ipairs(writers) do
+                        local wd = node_raw_deps[wi]
+                        if wd then
+                            for w = 1, n_raw_words do
+                                deps[w] = bor(deps[w], wd[w])
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        node_raw_deps[ni] = deps
+    end
+
     -- Collect fuse entries (node_index, action_func_name)
     local fuses = {}
     for i, vf in ipairs(allvf) do
@@ -183,10 +242,18 @@ local function gen_h(data, name, bufs, path2id, n_raw, n_layer)
         end
         while #inp_parts < 8 do inp_parts[#inp_parts+1] = "{0,0,0,0}" end
 
+        -- Format raw_deps bitmask
+        local deps = node_raw_deps[i]
+        local dep_parts = {}
+        for w = 1, 8 do
+            dep_parts[w] = fhex(deps[w] or 0)
+        end
+
         o:w(string.format("    /* [%d] %s [%s] -> buf[%d][%d] */",
             i-1, vf.vft_name, vf.class, obid, opos))
-        o:w(string.format("    {%s, %d, %d, {%s}, %d},",
-            fn, obid, opos, table.concat(inp_parts, ", "), #vf.inputs))
+        o:w(string.format("    {%s, %d, %d, {%s}, %d, {%s}},",
+            fn, obid, opos, table.concat(inp_parts, ", "), #vf.inputs,
+            table.concat(dep_parts, ", ")))
     end
     o:w("};")
     o:w("")
