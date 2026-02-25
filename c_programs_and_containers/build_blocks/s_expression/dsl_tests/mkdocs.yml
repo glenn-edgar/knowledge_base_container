@@ -2,6 +2,7 @@ site_name: C S_ENGINE
 nav:
   - Design Overview: README_top_design.md
   - DSL: README_DSL.md
+  - DSL Closures: README_DSL_closure_guide.md
   - Return Codes: README_return_codes.md
   - Predicate System: README_predicate_system.md
   - User Defined Functions: README_user_defined_functions.md

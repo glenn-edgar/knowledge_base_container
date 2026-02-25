@@ -1,0 +1,8 @@
+site_name: NATS C Libraries
+nav:
+  - Overview: README_nats.md
+  - key_store: README_nats_key_store_job_queue.md
+  - pub_sub: README_nats_pub_sub.md
+  - rpc: README_nats_rpc.md
+
+

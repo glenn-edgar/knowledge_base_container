@@ -235,6 +235,34 @@ local function pred_any_stop(position_flag)
     end
 end
 
+-- Helper: wrap a single predicate leaf in pred_begin/pred_end and call it
+local function pred_field_eq(field_name, value)
+    return function()
+        pred_begin()
+            se_field_eq(field_name, value)
+        local p = pred_end()
+        p()
+    end
+end
+
+local function pred_field_gt(field_name, value)
+    return function()
+        pred_begin()
+            se_field_gt(field_name, value)
+        local p = pred_end()
+        p()
+    end
+end
+
+local function pred_field_lt(field_name, value)
+    return function()
+        pred_begin()
+            se_field_lt(field_name, value)
+        local p = pred_end()
+        p()
+    end
+end
+
 -- ============================================================================
 -- MONITORING LOOPS (return closures for se_fork children)
 -- ============================================================================
@@ -242,15 +270,10 @@ end
 local function monitor_current(guard_flag)
     return function()
         se_while(
-            function() se_field_eq(guard_flag, 0) end,
+            pred_field_eq(guard_flag, 0),
             function()
                 se_if_then(
-                    function()
-                        pred_begin()
-                            se_field_gt("motor_current", 5.0)
-                        local p = pred_end()
-                        p()
-                    end,
+                    pred_field_gt("motor_current", 5.0),
                     function() se_chain_flow(function()
                         se_set_field("over_current", 1)
                         se_queue_event(0, EVENT_ID("EVT_OVER_CURRENT"), "over_current")
@@ -265,7 +288,7 @@ end
 local function monitor_limit_switch(guard_flag, pred_name, done_flag, done_event)
     return function()
         se_while(
-            function() se_field_eq(guard_flag, 0) end,
+            pred_field_eq(guard_flag, 0),
             function()
                 se_if_then(
                     function()
@@ -285,7 +308,7 @@ end
 local function monitor_obstruction(guard_flag, with_auto_reverse)
     return function()
         se_while(
-            function() se_field_eq(guard_flag, 0) end,
+            pred_field_eq(guard_flag, 0),
             function()
                 se_if_then(
                     function()
@@ -310,6 +333,7 @@ local function monitor_obstruction(guard_flag, with_auto_reverse)
         )
     end
 end
+
 -- ============================================================================
 -- COMPOSITE HELPERS (emit DSL nodes inline)
 -- ============================================================================
@@ -324,7 +348,7 @@ end
 
 local function wait_for_completion(position_flag, timeout_msg)
     se_chain_flow(function()
-    se_verify_and_check_elapsed_time(30.0, false, function()
+        se_verify_and_check_elapsed_time(30.0, false, function()
             se_log(timeout_msg)
         end)
         se_wait(pred_any_stop(position_flag))
@@ -442,16 +466,14 @@ end
 local function branch_serial_handler()
     se_chain_flow(
         function()
-            se_wait(function()
-                se_field_eq("serial_data_avail", 1)
-            end)
+            se_wait(pred_field_eq("serial_data_avail", 1))
         end,
-        function()
+        function() se_sequence(function()
             local c = o_call("READ_SERIAL_MESSAGE")
             end_call(c)
             local c2 = o_call("PARSE_MESSAGE_TYPE")
             end_call(c2)
-        end,
+        end) end,
         function()
             se_field_dispatch("serial_msg_type", cmd_cases)
         end
@@ -462,9 +484,6 @@ end
 -- BRANCH 2: MOTOR STATE MACHINE (table-indexed cases)
 -- ============================================================================
 
-local motor_cases = {}
-
--- STATE 0: IDLE
 local motor_cases = {}
 
 -- STATE 0: IDLE
@@ -497,6 +516,7 @@ motor_cases[1] = function()
         })
     end) end)
 end
+
 -- STATE 1: OPENING
 motor_cases[2] = function()
     se_case(STATE_OPENING, function() se_chain_flow(function()
@@ -555,9 +575,7 @@ motor_cases[5] = function()
         se_log("MOTOR: EMERGENCY STOP")
         motor_kill()
         send_status("EMERGENCY_STOPPED")
-        se_wait(function()
-            se_field_eq("manual_reset", 1)
-        end)
+        se_wait(pred_field_eq("manual_reset", 1))
         se_log("MOTOR: Manual reset received")
         clear_all_faults()
         se_set_field("motor_state", STATE_IDLE)
@@ -579,32 +597,38 @@ end
 -- ============================================================================
 
 local function branch_status_reporter()
-    se_chain_flow(function()
-        se_wait(function()
-            pred_begin()
-                local or_id = se_pred_or()
-                    se_field_eq("status_request", 1)
-                    se_check_event(EVENT_ID("EVT_PERIODIC_1S"))
-                pred_close(or_id)
-            local p = pred_end()
-            p()
-        end)
-        local c1 = o_call("READ_DIAGNOSTICS_TLE7269G")
-        end_call(c1)
-        local c2 = o_call("READ_CURRENT_POSITION")
-        end_call(c2)
-        local c3 = o_call("READ_MOTOR_CURRENT")
-        end_call(c3)
-        local c4 = o_call("READ_TEMPERATURE")
-        end_call(c4)
-        local c5 = o_call("ASSEMBLE_STATUS_MESSAGE")
-        end_call(c5)
-        local c6 = o_call("SEND_SERIAL_STATUS")
-        end_call(c6)
-        se_set_field("status_request", 0)
-        se_log("STATUS: Report sent")
-        se_return_pipeline_reset()
-    end)
+    se_chain_flow(
+        function()
+            se_wait(function()
+                pred_begin()
+                    local or_id = se_pred_or()
+                        se_field_eq("status_request", 1)
+                        se_check_event(EVENT_ID("EVT_PERIODIC_1S"))
+                    pred_close(or_id)
+                local p = pred_end()
+                p()
+            end)
+        end,
+        function() se_sequence(function()
+            local c1 = o_call("READ_DIAGNOSTICS_TLE7269G")
+            end_call(c1)
+            local c2 = o_call("READ_CURRENT_POSITION")
+            end_call(c2)
+            local c3 = o_call("READ_MOTOR_CURRENT")
+            end_call(c3)
+            local c4 = o_call("READ_TEMPERATURE")
+            end_call(c4)
+            local c5 = o_call("ASSEMBLE_STATUS_MESSAGE")
+            end_call(c5)
+            local c6 = o_call("SEND_SERIAL_STATUS")
+            end_call(c6)
+        end) end,
+        function() se_sequence(function()
+            se_set_field("status_request", 0)
+            se_log("STATUS: Report sent")
+            se_return_pipeline_reset()
+        end) end
+    )
 end
 
 -- ============================================================================
@@ -613,15 +637,10 @@ end
 
 local function monitor_thermal()
     se_while(
-        function() se_field_eq("system_shutdown", 0) end,
+        pred_field_eq("system_shutdown", 0),
         function()
             se_if_then(
-                function()
-                    pred_begin()
-                        se_field_gt("temperature", 85.0)
-                    local p = pred_end()
-                    p()
-                end,
+                pred_field_gt("temperature", 85.0),
                 function() se_sequence(function()
                     se_log("DIAG: Thermal shutdown!")
                     se_queue_event(0, EVENT_ID("EVT_THERMAL_SHUTDOWN"), "temperature")
@@ -635,7 +654,7 @@ end
 
 local function monitor_voltage()
     se_while(
-        function() se_field_eq("system_shutdown", 0) end,
+        pred_field_eq("system_shutdown", 0),
         function()
             se_if_then(
                 function()
@@ -660,14 +679,10 @@ end
 
 local function monitor_tle_fault()
     se_while(
-        function() se_field_eq("system_shutdown", 0) end,
+        pred_field_eq("system_shutdown", 0),
         function()
             se_if_then(
-                function()
-                    
-                        se_field_eq("fault_pin_active", 1)
-                    
-                end,
+                pred_field_eq("fault_pin_active", 1),
                 function() se_sequence(function()
                     local c = o_call("READ_FAULT_STATUS_TLE7269G")
                     end_call(c)
@@ -682,12 +697,10 @@ end
 
 local function branch_diagnostics()
     se_fork(
-        function()
-         monitor_thermal()
-         monitor_voltage()
-         monitor_tle_fault()
-         end)
-    
+        monitor_thermal,
+        monitor_voltage,
+        monitor_tle_fault
+    )
 end
 
 -- ============================================================================
@@ -702,10 +715,10 @@ start_tree("door_controller")
         se_i_set_field("motor_state", STATE_IDLE)
         se_log("Door window controller started")
         se_fork(
-            function() branch_serial_handler() end,
-            function() se_state_machine("motor_state", motor_cases) end,
-            function() branch_status_reporter() end,
-            function() branch_diagnostics() end
+            branch_serial_handler,                                    -- direct ref, fine
+            function() se_state_machine("motor_state", motor_cases) end,  -- NEEDS wrapper
+            branch_status_reporter,                                   -- direct ref, fine
+            branch_diagnostics                                        -- direct ref, fine
         )
     end)
 

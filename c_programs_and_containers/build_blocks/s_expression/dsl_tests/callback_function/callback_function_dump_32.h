@@ -84,7 +84,7 @@
  *    4      STR_IDX[0x0D]        0     21  "callback test started"
  *    5    CLOSE[0x06]          0      -  (end SE_LOG)
  *    6    OPEN_CALL[0x07]     18      0  SE_LOAD_FUNCTION hash=0x30DB52C3
- *    7    ONESHOT   [0x08]      6      1  idx_to_ptr=0
+ *    7    ONESHOT+SR[0x48]      6      1  idx_to_ptr=0
  *    8      FIELD[0x0B]          0      8  fn_ptr (off=0x0000, hash=0xE4D06AB8)
  *    9      OPEN_CALL[0x07]     14      0  SE_SEQUENCE_ONCE hash=0x4F4BB2E1
  *   10      MAIN      [0x09]      9      1  idx_to_ptr=0

@@ -1,0 +1,10 @@
+.{
+    .name = "mqtt_rpc",
+    .version = "0.1.0",
+    .paths = .{
+        "src",
+        "test",
+        "build.zig",
+        "build.zig.zon",
+    },
+}
