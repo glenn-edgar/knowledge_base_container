@@ -1,0 +1,50 @@
+cimport.o: \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_zig/.zig-cache/o/f6b8ca99ba496e23365f878e8da97031/cimport.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_data_structures.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_common.h \
+  /usr/include/sqlite3.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/stdarg.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stdarg___gnuc_va_list.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stdarg_va_list.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stdarg_va_arg.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stdarg___va_copy.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stdarg_va_copy.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/stdint.h \
+  /usr/include/stdint.h \
+  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
+  /usr/include/features.h /usr/include/features-time64.h \
+  /usr/include/aarch64-linux-gnu/bits/wordsize.h \
+  /usr/include/aarch64-linux-gnu/bits/timesize.h \
+  /usr/include/stdc-predef.h /usr/include/aarch64-linux-gnu/sys/cdefs.h \
+  /usr/include/aarch64-linux-gnu/bits/long-double.h \
+  /usr/include/aarch64-linux-gnu/gnu/stubs.h \
+  /usr/include/aarch64-linux-gnu/gnu/stubs-lp64.h \
+  /usr/include/aarch64-linux-gnu/bits/types.h \
+  /usr/include/aarch64-linux-gnu/bits/typesizes.h \
+  /usr/include/aarch64-linux-gnu/bits/time64.h \
+  /usr/include/aarch64-linux-gnu/bits/wchar.h \
+  /usr/include/aarch64-linux-gnu/bits/stdint-intn.h \
+  /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h \
+  /usr/include/aarch64-linux-gnu/bits/stdint-least.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/stdbool.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/stddef.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_ptrdiff_t.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_size_t.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_wchar_t.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_null.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_max_align_t.h \
+  /home/gedgar/zig-linux-aarch64-0.13.0/lib/include/__stddef_offsetof.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_query_support.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_bit_structures.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/bit_mask_rt_operations.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/bit_s_expression.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_status_table.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_stream.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_job_queue.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_link_table.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_link_mount_table.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_rpc_server.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_rpc_client.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_uuid.h \
+  /home/gedgar/knowledge_base_assembly/zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/data_structures/data_structures_c/include/kb_json.h \
+  /usr/include/cjson/cJSON.h

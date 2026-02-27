@@ -1,0 +1,23 @@
+# ── Build ────────────────────────────────────────
+zig build                # build static lib, shared lib, and example
+
+# ── Run ──────────────────────────────────────────
+zig build run            # run the example executable
+
+# ── Tests (individual) ───────────────────────────
+zig build test           # kb.zig internal tests
+zig build test-sexpr     # S-expression evaluator (no DB)
+zig build test-query     # KB_Search filter chain (in-memory DB)
+zig build test-ds        # Full integration tests (in-memory DB)
+
+# ── Tests (all at once) ──────────────────────────
+zig build test-all       # runs all four test suites
+
+# ── Override C library path ──────────────────────
+zig build -Dc_root=/path/to/data_structures_c
+zig build test-all -Dc_root=/path/to/data_structures_c
+
+
+To force a fresh run (if you ever want to verify from scratch):
+bashrm -rf .zig-cache && zig build test-all --summary all
+
