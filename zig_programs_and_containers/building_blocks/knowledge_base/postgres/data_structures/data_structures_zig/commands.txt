@@ -1,0 +1,18 @@
+zig build                    # static + shared libs + example
+zig build run                # run example (requires PostgreSQL)
+zig build test               # kb.zig unit tests (no database needed)
+zig build test-driver        # integration tests (requires PostgreSQL)
+zig build test-all           # both test suites
+
+# With explicit C library path
+zig build -Dc_root=../data_structures_c
+
+# Integration tests need environment variables
+POSTGRES_PASSWORD=secret zig build test-driver
+POSTGRES_PASSWORD=secret zig build test-all
+
+zig build build-test-driver    # compile only → zig-out/bin/test_driver
+zig build test-driver          # compile + run
+
+# Or run it directly
+POSTGRES_PASSWORD=secret ./zig-out/bin/test_driver

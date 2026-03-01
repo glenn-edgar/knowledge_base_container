@@ -1,6 +1,12 @@
-site_name: C MQTT client library
+site_name: ZIG MQTT CLIENT LIBRARY
 nav:
-  - MQTT Publish/Subscribe: README_mqtt_pubsub.md
-  - MQTT Key-Value Store: README_mqtt_kv_read_store.md
-  - MQTT Job Queue: README_mqtt_job_queue.md
-  - MQTT RPC: README_mqtt_rpc.md
+  - Overview: README_MQTT.md
+  - Modules:
+    - MQTT Job Queue: README_MQTT_zig_job_queue.md
+    - MQTT Key-Value Store: README_MQTT_zig_kv_read_store.md
+    - MQTT Publish/Subscribe: README_MQTT_zig_pubsub.md
+    - MQTT RPC: README_MQTT_zig_rpc.md
+  - For C Programmers:
+    - Job Queue (C): README_job_queue_for_c_programmers.md
+    - Key-Value Read Store (C): README_kv_read_store_for_c_programmers.md
+  

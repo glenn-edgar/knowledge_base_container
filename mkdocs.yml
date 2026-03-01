@@ -15,4 +15,9 @@ nav:
     - Embedded_AVRO_PACKETS: '!include ./c_programs_and_containers/build_blocks/c_avro_packets/mkdocs.yml'
     - S_ENGINE: '!include ./c_programs_and_containers/build_blocks/s_expression/dsl_tests/mkdocs.yml'
     - SCAN_TREE: '!include ./c_programs_and_containers/build_blocks/scan_tree/mkdocs.yml'  
-
+  - Zig SYSTEMS:
+    - Knowledge Base Operations:
+      - MQTT: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/mqtt/mkdocs.yml'
+      - NATS: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/nats/mkdocs.yml'
+      - POSTGRES: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/postgres/mkdocs.yml'
+      - SQLITE3: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/mkdocs.yml'

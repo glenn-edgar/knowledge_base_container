@@ -1,6 +1,4 @@
-site_name: C SQLite3 Knowledge Base
+site_name: ZIG SQLite3 Data Structure Library
 nav:
-  - Construct Knowledge Base: README_construct_kb_luajit.md
-  - Data Structures LuaJIT: README_data_structures_luajit.md
-  - Data Structures C: README_data_structures_c.md
+  - Data Structures Zig: README_zig_data_structures.md
   - LTree Extension: README_LTREE_EXTENSION.md
