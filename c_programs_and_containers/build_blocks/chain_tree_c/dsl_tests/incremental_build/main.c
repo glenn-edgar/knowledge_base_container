@@ -56,7 +56,7 @@ int main(void) {
     params->event_queue_high_priority_size = (uint16_t) 8;
     params->event_queue_low_priority_size = (uint16_t) 64;
     params->delta_time = (double) 0.1;
-    
+
     cfl_runtime_handle_t *handle = cfl_runtime_create(&perm, params, test_handle);
     cfl_runtime_create_params_destroy(params);
     
@@ -81,7 +81,7 @@ int main(void) {
     }
     #endif
 
-    //cfl_add_test_by_index(handle, 0); //first test
+    cfl_add_test_by_index(handle, 0); //first test
     cfl_add_test_by_index(handle, 1); //second test
     cfl_add_test_by_index(handle, 2);//fourth test
     //fl_add_test_by_index(handle, 3); //fifth test

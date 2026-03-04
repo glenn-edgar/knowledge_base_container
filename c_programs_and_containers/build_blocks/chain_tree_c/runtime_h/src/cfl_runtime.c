@@ -58,7 +58,7 @@
  cfl_runtime_handle_t *cfl_runtime_create(cfl_perm_t *perm,
                                            cfl_runtime_create_params_t *params,
                                            const chaintree_handle_t *flash_handle) {
- 
+;
      if (params->total_node_count != flash_handle->node_count) {
          EXCEPTION("cfl_runtime_create: params->total_node_count doesn't match flash_handle->node_count");
      }
@@ -71,19 +71,21 @@
      if (!handle) {
          EXCEPTION("cfl_runtime_create: Failed to allocate memory for handle");
      }
- 
+    
      handle->flash_handle = flash_handle;
      handle->main_function_data =
          (main_function_data_t *)cfl_perm_alloc_pointer(perm, (uint16_t)sizeof(main_function_data_t));
      cfl_find_main_ids(handle);
- 
+     printf("made it here 2\n");
      /* Memory subsystems */
      handle->perm = perm;
      handle->heap = cfl_heap_init(perm, params->heap_size);
+     printf("total_node_count: %d\n", params->total_node_count);
+     printf("max_allocator_count: %d\n", params->max_allocator_count);
      handle->arena_system = cfl_heap_arena_system_create(
          perm, handle->heap, params->max_allocator_count,
          params->total_node_count, params->allocator_0_size);
- 
+     printf("arena_system created\n");
      /* Event queue */
      handle->event_queue = cfl_create_event_queue(
          params->event_queue_high_priority_size,
@@ -137,6 +139,7 @@
      }
  
      handle->max_level = cfl_calculate_max_level(handle);
+     
      cfl_heap_arena_system_reset(handle->arena_system);
      cfl_clear_queue(handle->event_queue);
      handle->bitmask = 0;
@@ -168,7 +171,7 @@
      if (!handle) {
          EXCEPTION("cfl_runtime_run: NULL handle pointer");
      }
- 
+     printf("made it here 3\n");
      printf("---------------------------------start of runtime run---------------------------------\n");
      printf("cfl_perm_used_bytes: %d\n", cfl_perm_used_bytes(handle->perm));
      printf("cfl_perm_free_bytes: %d\n", cfl_perm_free_bytes(handle->perm));
@@ -333,6 +336,7 @@
  }
  
  bool cfl_add_test_by_index(cfl_runtime_handle_t *handle, uint16_t kb_index) {
+    printf("made it here 4\n");
      if (kb_index >= handle->flash_handle->kb_count) {
          EXCEPTION("cfl_add_test_by_index: kb_index out of bounds");
      }
@@ -356,6 +360,7 @@
      TEST_ACTIVE_SET(handle, kb_index);
      handle->active_test_count++;
  
+     printf("made it here 5\n");
      return true;
  }
  
@@ -408,10 +413,10 @@
     printf("calculating arena number\n");
      int index = ct_get_main_function_index(flash_handle, "CFL_LOCAL_ARENA_MAIN");
      if (index == -1) {
-         return flash_handle->kb_count;
+         return flash_handle->kb_count+1;
      }
      unsigned count = flash_handle->main_function_usage_count[index];
-     return flash_handle->kb_count + count;
+     return flash_handle->kb_count + count + 1;
  }
  
  static void cfl_find_main_ids(cfl_runtime_handle_t *handle) {
