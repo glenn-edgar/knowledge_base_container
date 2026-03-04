@@ -5,19 +5,15 @@
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
 #include "cfl_exception.h"
-#include "s_engine_types.h"
-#include "chain_flow_dsl_registry.h"
-#include "cfl_s_engine_interface.h"
-#include "chain_flow_dsl_tests_user_functions.h"
+#include "incr/incr.h"
+
 
 static cfl_perm_t perm;
 static char perm_buffer[0xffff];
 
-extern const chaintree_handle_t g_test_header;
 
 int main(void) {
-    setup_abort_handler();
-    const chaintree_handle_t *test_handle = &g_test_header;
+    const chaintree_handle_t *test_handle = &g_incr;
     
     /* Validate test_handle */
     if (!test_handle) {
@@ -26,7 +22,7 @@ int main(void) {
     }
     
     /* Validate test index is within bounds */
-    const uint16_t test_index = 3;
+    const uint16_t test_index = 0;
     if (test_index >= test_handle->kb_count) {
         printf("Error: test_index %d >= kb_count %d\n", test_index, test_handle->kb_count);
         return -1;
@@ -43,6 +39,7 @@ int main(void) {
     params->perm_buffer = perm_buffer;
     params->perm_buffer_size = (uint16_t) sizeof(perm_buffer);
     params->heap_size = (uint16_t)  4096;
+    printf("heap_size: %d\n", params->heap_size);
     params->max_allocator_count = cfl_calculate_arrena_number(test_handle);
     params->total_node_count = test_handle->node_count;
     printf("total_node_count: %d\n", params->total_node_count);
@@ -67,13 +64,13 @@ int main(void) {
         printf("Failed to create runtime handle\n");
         return -1;
     }
-    
+    printf("runtime handle created\n");
     cfl_runtime_reset(handle);
-    cfl_initialize_s_engine(handle, module_registry, MODULE_REGISTRY_COUNT);
-    load_user_s_functions(handle);
+    
+
     
        
-    cfl_s_engine_module_check(handle);
+    
     
     
     #if 0
@@ -85,9 +82,9 @@ int main(void) {
     #endif
 
     //cfl_add_test_by_index(handle, 0); //first test
-    //cfl_add_test_by_index(handle, 1); //second test
-    //cfl_add_test_by_index(handle, 2);//fourth test
-    //cfl_add_test_by_index(handle, 3); //fifth test
+    cfl_add_test_by_index(handle, 1); //second test
+    cfl_add_test_by_index(handle, 2);//fourth test
+    //fl_add_test_by_index(handle, 3); //fifth test
     //cfl_add_test_by_index(handle, 4); //sixth test
     //cfl_add_test_by_index(handle, 5); //seventh test
     //cfl_add_test_by_index(handle, 6); //eighth test
@@ -100,7 +97,7 @@ int main(void) {
     //cfl_add_test_by_index(handle, 13); //seventeenth test
     //cfl_add_test_by_index(handle, 14); //eighteenth test
     //cfl_add_test_by_index(handle, 15); //nineteenth test
-    cfl_add_test_by_index(handle, 16); //twentieth test
+    //cfl_add_test_by_index(handle, 16); //twentieth test
     //cfl_add_test_by_index(handle, 17); //twenty-first test
    // cfl_add_test_by_index(handle, 18); //twenty-second test
     //cfl_add_test_by_index(handle, 19); //twenty-third test

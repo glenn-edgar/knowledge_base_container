@@ -72,7 +72,9 @@ function CCodeGenerator:_filter_executable_kbs(all_kb_names)
     local executable = {}
     local filtered = {}
     for _, kb in ipairs(all_kb_names) do
-        if kb:match("_test_functions$") or kb == "complete_functions_kb" then
+        if kb:match("_test_functions$")
+           or kb == "complete_functions_kb"
+           or kb == "event_string_table_kb" then
             filtered[#filtered + 1] = kb
         else
             executable[#executable + 1] = kb
@@ -84,6 +86,13 @@ function CCodeGenerator:_filter_executable_kbs(all_kb_names)
             print("    - " .. kb)
         end
     end
+    -- Sort by start_index so output order matches node array layout
+    local node_builder = self.node_builder
+    table.sort(executable, function(a, b)
+        local sa = node_builder:get_kb_range(a)
+        local sb = node_builder:get_kb_range(b)
+        return sa < sb
+    end)
     return executable
 end
 

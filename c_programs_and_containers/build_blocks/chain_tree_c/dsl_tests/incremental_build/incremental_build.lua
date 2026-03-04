@@ -49,14 +49,14 @@ local function first_test(ct, kb_name)
 
     local verify_column = ct:define_column("verify", nil, nil, nil, nil, nil, true)
     ct:asm_log_message("verifying")
-    ct:asm_verify("CFL_BOOL_FALSE", {}, false, "VERIFY_ERROR", { failure_data = "failure_data" })
+    ct:asm_verify("CFL_BOOL_FALSE", {}, false, "VERIFY_ERROR", { failure_data = "failure_data  - verify column" })
     ct:asm_log_message("waiting for verify to fail")
     ct:asm_halt()
     ct:end_column(verify_column)
 
     local verify_timeout_column = ct:define_column("verify_timeout", nil, nil, nil, nil, nil, true)
     ct:asm_log_message("verifying timeout")
-    ct:asm_verify_timeout(5.0, false, "VERIFY_ERROR", { failure_data = "failure_data" })
+    ct:asm_verify_timeout(5.0, false, "VERIFY_ERROR", { failure_data = "failure_data - verify timeout column" })
     ct:asm_log_message("waiting for verify timeout to fail which will result in a terminate column")
     ct:asm_halt()
     ct:end_column(verify_timeout_column)
@@ -64,6 +64,89 @@ local function first_test(ct, kb_name)
     ct:end_test()
 end
 
+local function second_test(ct,kb_name)
+    ct:start_test(kb_name)
+    
+    local activate_valve_column = ct:define_column("activate_valve", nil, nil, nil, nil, nil, true)
+    ct:asm_one_shot_handler("ACTIVATE_VALVE", { state = "open" })
+    ct:asm_log_message("Valve activated")
+    ct:asm_terminate()
+    ct:end_column(activate_valve_column)
+    
+    local terminate_engine_column = ct:define_column("terminate_engine", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting time 20 seconds to terminate engine")
+    ct:asm_wait_time(20.0)
+    ct:asm_log_message("terminating engine")
+    ct:asm_terminate_system()
+    ct:end_column(terminate_engine_column)
+    
+    local wait_for_event_column = ct:define_column("wait_for_event", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting for event")
+    ct:asm_wait_for_event("WAIT_FOR_EVENT", 1, true, 5,
+        "WAIT_FOR_EVENT_ERROR", "CFL_SECOND_EVENT", { error_message = "WAIT_FOR_EVENT_ERROR" })
+    ct:asm_log_message("event received")
+    ct:asm_reset()
+    ct:end_column(wait_for_event_column)
+
+    
+    local reset_node_column = ct:define_column("reset_node", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting 2 seconds to reset node")
+    ct:asm_wait_time(2.0)
+    ct:asm_log_message("sending system event")
+    ct:asm_send_named_event(wait_for_event_column, "WAIT_FOR_EVENT", {})
+    ct:asm_log_message("resetting node")
+    ct:asm_reset()
+    ct:end_column(reset_node_column)
+
+    local enable_column = ct:define_column("start_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("waiting 5 seconds to start rest of columns")
+    ct:asm_wait_time(5.0)
+    ct:asm_log_message("starting rest of columns")
+    ct:asm_enable_nodes({ activate_valve_column, terminate_engine_column, wait_for_event_column, reset_node_column })
+    ct:asm_log_message("waiting 8 seconds to disable column")
+    ct:asm_wait_time(8.0)
+    ct:asm_disable_nodes({ terminate_engine_column })
+    ct:asm_log_message("waiting 20 seconds to end test")
+    ct:asm_wait_time(20.0)
+    ct:asm_log_message("ending test")
+    ct:asm_terminate_system()
+    ct:end_column(enable_column)
+    
+    ct:end_test()
+end
+
+
+local function fourth_test(ct,kb_name)
+    ct:start_test(kb_name)
+    
+    local top_column = ct:define_column("top_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("top column")
+    
+    local middle_column = ct:define_column("middle_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("middle column")
+    ct:asm_event_logger("displaying middle column events", { "PUBLISH_EVENT" })
+    ct:asm_halt()
+    ct:end_column(middle_column)
+    
+    
+    
+    ct:asm_send_named_event(top_column, "PUBLISH_EVENT", { event_data = "event_data" })
+    ct:asm_log_message("waiting 2 seconds")
+    ct:asm_wait_time(2.0)
+    ct:asm_log_message("resetting top column")
+    ct:asm_reset()
+    ct:end_column(top_column)
+    
+    
+    local time_out_column = ct:define_column("time_out_column", nil, nil, nil, nil, nil, true)
+    ct:asm_wait_time(20.0)
+    ct:asm_terminate_system()
+    ct:end_column(time_out_column)
+    
+    
+    
+    ct:end_test()
+end
 -- =========================================================================
 -- Commented-out tests (translate as needed)
 -- =========================================================================
@@ -194,8 +277,8 @@ end
 
 local test_list = {
     "first_test",
-    -- "second_test",
-    -- "fourth_test",
+    "second_test",
+    "fourth_test",
     -- "fifth_test",
     -- "sixth_test",
     -- "seventh_test",
@@ -226,9 +309,8 @@ local test_list = {
 
 local test_dict = {
     first_test = first_test,
-    -- Uncomment as tests are translated:
-    -- second_test = second_test,
-    -- fourth_test = fourth_test,
+    second_test = second_test,
+    fourth_test = fourth_test,
     -- fifth_test = fifth_test,
     -- sixth_test = sixth_test,
     -- seventh_test = seventh_test,
@@ -277,7 +359,7 @@ if arg then
         ct:display_chain_tree_function_mapping()
         os.exit(0)
     end
-
+    print("Adding tests")
     local ct = add_header(yaml_file)
     for _, test_name in ipairs(test_list) do
         test_dict[test_name](ct, test_name)
