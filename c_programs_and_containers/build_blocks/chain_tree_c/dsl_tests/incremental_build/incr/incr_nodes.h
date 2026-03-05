@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_BI827K3R_NODE_COUNT 104
+#define CT_PI0W7AAA_NODE_COUNT 1265
 
-extern const chaintree_node_t ct_bi827k3r_nodes[CT_BI827K3R_NODE_COUNT];
+extern const chaintree_node_t ct_pi0w7aaa_nodes[CT_PI0W7AAA_NODE_COUNT];
 
 #endif /* INCR_NODES_H */

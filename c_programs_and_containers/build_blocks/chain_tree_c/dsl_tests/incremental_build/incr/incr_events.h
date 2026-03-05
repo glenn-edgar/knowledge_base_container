@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CT_BI827K3R_EVENT_STRING_COUNT 22
+#define CT_PI0W7AAA_EVENT_STRING_COUNT 29
 
 typedef enum {
     EVENT_CFL_INIT_EVENT = 0,
@@ -31,9 +31,16 @@ typedef enum {
     EVENT_CFL_TERMINATE_STATE_MACHINE_EVENT = 19,
     EVENT_WAIT_FOR_EVENT = 20,
     EVENT_PUBLISH_EVENT = 21,
-    EVENT_COUNT = 22
+    EVENT_TEST_EVENT_1 = 22,
+    EVENT_TEST_EVENT_2 = 23,
+    EVENT_TEST_EVENT_3 = 24,
+    EVENT_SYNC_EVENT = 25,
+    EVENT_TEST_EVENT = 26,
+    EVENT_CF_SECOND_EVENT = 27,
+    EVENT_CF_TIMER_EVENT = 28,
+    EVENT_COUNT = 29
 } event_index_t;
 
-extern const char *ct_bi827k3r_event_strings[22];
+extern const char *ct_pi0w7aaa_event_strings[29];
 
 #endif /* INCR_EVENTS_H */

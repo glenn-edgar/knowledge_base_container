@@ -606,6 +606,7 @@ void cfl_df_mask_init_one_shot_fn(void *handle, uint16_t node_index){
         ptr = (cfl_df_mask_fn_data_t *)cfl_smart_arena_alloc(runtime_handle, node_index, sizeof(cfl_df_mask_fn_data_t));
         json_decoder_init_from_runtime(runtime_handle, node_index);
         
+        
         json_extract_int32_runtime(runtime_handle, "node_dict.column_data.required_bitmask", &ptr->required_bitmask);
         json_extract_int32_runtime(runtime_handle, "node_dict.column_data.excluded_bitmask", &ptr->excluded_bitmask);
         

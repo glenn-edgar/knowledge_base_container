@@ -35,16 +35,17 @@ static void json_extract_new_state_data(
     uint32_t node_dict_record;
     json_find_object_child(ctx, root_record, "node_dict", &node_dict_record);
     
+    
     // Extract node_id
     json_extract_int32(ctx, node_dict_record, "node_id", out_node_id);
     
     // Extract new_state (pointer to string table)
     json_extract_string(ctx, node_dict_record, "new_state", out_new_state);
-    
+   
     // Extract sync_event_id - check if it's null or integer
     uint32_t sync_event_id_record;
     json_find_object_child(ctx, node_dict_record, "sync_event_id", &sync_event_id_record);
-    
+   
     if (json_is_null(ctx, sync_event_id_record)) {
         *out_sync_flag = false;
         *out_sync_event_id = 0;  // Default value when null
@@ -186,6 +187,7 @@ void cfl_change_state_one_shot_fn(void *handle, uint16_t node_index){
     int32_t sync_event_id;
     
     json_decoder_init_from_runtime(runtime_handle, node_index);
+    
     json_extract_new_state_data(runtime_handle, node_index, &sm_node_id, &new_state, &sync_flag, &sync_event_id);
     
     cfl_change_state(runtime_handle, node_index, sm_node_id, new_state, sync_flag, sync_event_id);

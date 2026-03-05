@@ -68,23 +68,15 @@ int main(void) {
     cfl_runtime_reset(handle);
     
 
-    
-       
-    
+   
     
     
-    #if 0
-    if (!cfl_add_test_by_index(handle, test_index)) {
-        printf("Failed to add test at index %d\n", test_index);
-        /* Note: Should have a cfl_runtime_destroy(handle) here if it exists */
-        return -1;
-    }
-    #endif
+ 
 
-    cfl_add_test_by_index(handle, 0); //first test
-    cfl_add_test_by_index(handle, 1); //second test
-    cfl_add_test_by_index(handle, 2);//fourth test
-    //fl_add_test_by_index(handle, 3); //fifth test
+    //cfl_add_test_by_index(handle, 0); //first test
+    //cfl_add_test_by_index(handle, 1); //second test
+    //cfl_add_test_by_index(handle, 2);//fourth test
+    //cfl_add_test_by_index(handle, 3); //fifth test
     //cfl_add_test_by_index(handle, 4); //sixth test
     //cfl_add_test_by_index(handle, 5); //seventh test
     //cfl_add_test_by_index(handle, 6); //eighth test
@@ -99,7 +91,7 @@ int main(void) {
     //cfl_add_test_by_index(handle, 15); //nineteenth test
     //cfl_add_test_by_index(handle, 16); //twentieth test
     //cfl_add_test_by_index(handle, 17); //twenty-first test
-   // cfl_add_test_by_index(handle, 18); //twenty-second test
+    cfl_add_test_by_index(handle, 18); //twenty-second test
     //cfl_add_test_by_index(handle, 19); //twenty-third test
 
     //cfl_add_test_by_index(handle, 20); //twenty-fourth test

@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_BI827K3R_LINK_TABLE_SIZE 78
+#define CT_PI0W7AAA_LINK_TABLE_SIZE 1126
 
-extern const uint16_t ct_bi827k3r_link_table[CT_BI827K3R_LINK_TABLE_SIZE];
+extern const uint16_t ct_pi0w7aaa_link_table[CT_PI0W7AAA_LINK_TABLE_SIZE];
 
 #endif /* INCR_LINKS_H */

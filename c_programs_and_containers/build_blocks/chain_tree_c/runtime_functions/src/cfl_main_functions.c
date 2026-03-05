@@ -508,11 +508,12 @@ unsigned cfl_df_mask_main_main_fn(void *handle, unsigned bool_function_index, un
     }
     
     if (event_id == CFL_TIMER_EVENT) {
+        
         // Check mask conditions
         bool required_met = ((uint64_t)ptr->required_bitmask & runtime_handle->bitmask) == (uint64_t)ptr->required_bitmask;
         bool excluded_clear = ((uint64_t)ptr->excluded_bitmask & runtime_handle->bitmask) == 0;
         bool conditions_met = required_met && excluded_clear;
-       
+        
         if (ptr->node_state == false) {
             // Currently disabled, check if we should enable
             if (conditions_met) {

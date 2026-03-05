@@ -105,11 +105,11 @@ function StateMachine:change_state(sm_node_id, new_state, sync_event_id)
     local node_data = {
         node_id = node_id,
         new_state = new_state,
-        sync_event_id = sync_event_id,
     }
+    node_data.sync_event_id = sync_event_id or 0
+
     self:asm_one_shot_handler("CFL_CHANGE_STATE", node_data)
 end
-
 function StateMachine:end_state_machine(state_node, sm_name)
     if #self.sm_stack == 0 then
         error("State machine not defined")
