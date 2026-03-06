@@ -1,17 +1,9 @@
 --[[
   stage6_binary.lua - ChainTree Binary Image Emitter
 
-  Produces .ctb binary images consumed by cfl_image_loader.c.
-  
-  CRITICAL DESIGN: All arrays use ORIGINAL INDEXER ORDER, identical
-  to what stage6_codegen.lua produces for .h/.c. Hash tables are a
-  side structure for function registration only.
-
-  - Node array: function indices = original indexer order
-  - FSTR: KB names in original order → handle->main_function_names
-  - MUSG: usage counts in original order → handle->main_function_usage_count
-  - MFHT/OSHT/BFHT: {hash, slot_index} pairs sorted by hash
-    Registration: hash(typed_name) → binary_search → slot_index → fn_ptrs[slot]
+  Replaces stage6_codegen.lua when generating .ctb binary images.
+  Consumes identical stage 1-5 output. Produces a single binary file
+  that the C runtime (ct_runtime.c) loads directly.
 
   Requires libfnv1a.so for FNV-1a hashing via FFI.
 --]]
@@ -58,6 +50,10 @@ end
 -- Binary writer helpers
 -- =========================================================================
 
+local function pack_u8(val)
+    return string.char(bit.band(val, 0xFF))
+end
+
 local function pack_u16(val)
     return string.char(bit.band(val, 0xFF), bit.band(bit.rshift(val, 8), 0xFF))
 end
@@ -73,6 +69,12 @@ end
 
 local function align4(offset)
     return bit.band(offset + 3, bit.bnot(3))
+end
+
+local function pad_to_align4(data)
+    local rem = #data % 4
+    if rem == 0 then return data end
+    return data .. string.rep("\0", 4 - rem)
 end
 
 -- FFI helpers for float/int32 bit reinterpretation
@@ -99,8 +101,8 @@ StringPool.__index = StringPool
 
 function StringPool.new()
     local self = setmetatable({}, StringPool)
-    self.strings = {}
-    self.offsets = {}
+    self.strings = {}      -- ordered list of unique strings
+    self.offsets = {}      -- str -> offset
     self.next_offset = 0
     return self
 end
@@ -110,7 +112,7 @@ function StringPool:add(str)
     local offset = self.next_offset
     self.offsets[str] = offset
     self.strings[#self.strings + 1] = str
-    self.next_offset = offset + #str + 1
+    self.next_offset = offset + #str + 1  -- +1 for null terminator
     return offset
 end
 
@@ -132,10 +134,10 @@ end
 
 local SECT_NODE = 0x0001
 local SECT_LINK = 0x0002
-local SECT_MFHT = 0x0003    -- main function hash table: {hash, slot}[]
-local SECT_OSHT = 0x0004    -- one_shot hash table: {hash, slot}[]
-local SECT_BFHT = 0x0005    -- boolean hash table: {hash, slot}[]
-local SECT_FSTR = 0x0006    -- function KB names, original order
+local SECT_MFHT = 0x0003
+local SECT_OSHT = 0x0004
+local SECT_BFHT = 0x0005
+local SECT_FSTR = 0x0006
 local SECT_JREC = 0x0007
 local SECT_JCTL = 0x0008
 local SECT_JSTR = 0x0009
@@ -144,7 +146,6 @@ local SECT_BMSK = 0x000B
 local SECT_KBIN = 0x000C
 local SECT_KBAL = 0x000D
 local SECT_GSTR = 0x000E
-local SECT_MUSG = 0x000F    -- main function usage count, original order
 
 -- =========================================================================
 -- Binary Image Emitter
@@ -169,91 +170,81 @@ end
 
 -- =========================================================================
 -- Hash table building
---
--- Builds {hash, slot_index} entries sorted by hash.
--- slot_index = original indexer position (0-based).
--- Node array uses original indices — NO remapping.
 -- =========================================================================
 
-function BinaryImageEmitter:_build_hash_table(indexer, type_name_fn)
+function BinaryImageEmitter:_build_hash_table(indexer)
+    -- Build { hash, original_index, name } for each function
     local entries = {}
     local all_funcs = indexer:get_all_functions()
 
-    for i, kb_name in ipairs(all_funcs) do
-        local typed_name = type_name_fn(kb_name)
-        local hash = fnv1a(typed_name)
+    for i, name in ipairs(all_funcs) do
+        local hash = fnv1a(name)
         entries[#entries + 1] = {
             hash = hash,
-            slot_index = i - 1,   -- original 0-based index
-            typed_name = typed_name,
-            kb_name = kb_name,
+            orig_index = i - 1,  -- 0-based
+            name = name,
         }
     end
 
-    -- Check for hash collisions
+    -- Check for collisions
     local hash_set = {}
     for _, e in ipairs(entries) do
         if hash_set[e.hash] then
             error(string.format(
-                "FNV-1a collision: '%s' and '%s' both hash to 0x%08X",
-                hash_set[e.hash], e.typed_name, e.hash))
+                "FNV-1a collision in %s: '%s' and '%s' both hash to 0x%08X",
+                indexer.name or "indexer", hash_set[e.hash], e.name, e.hash))
         end
-        hash_set[e.hash] = e.typed_name
+        hash_set[e.hash] = e.name
     end
 
-    -- Sort by hash value for binary search at runtime
+    -- Sort by hash value
     table.sort(entries, function(a, b) return a.hash < b.hash end)
 
-    return entries
-end
-
--- =========================================================================
--- Hash table binary: each entry = {u32 hash, u16 slot_index, u16 reserved}
--- Sorted by hash. 8 bytes per entry.
--- =========================================================================
-
-local function hash_table_to_binary(entries)
-    local parts = {}
-    for _, e in ipairs(entries) do
-        parts[#parts + 1] = pack_u32(e.hash)
-        parts[#parts + 1] = pack_u16(e.slot_index)
-        parts[#parts + 1] = pack_u16(0)  -- reserved
+    -- Build remap: orig_index -> sorted_position (both 0-based)
+    local remap = {}
+    for sorted_pos, e in ipairs(entries) do
+        remap[e.orig_index] = sorted_pos - 1
     end
-    return table.concat(parts)
+
+    return entries, remap
 end
 
 -- =========================================================================
--- Node array binary — uses ORIGINAL indexer order, no remapping
+-- Node array binary
 -- =========================================================================
 
-function BinaryImageEmitter:_build_node_array()
+function BinaryImageEmitter:_build_node_array(main_remap, os_remap, bool_remap)
     local parts = {}
     local array_size = self.node_builder:get_array_size()
 
     for i = 0, array_size - 1 do
-        local ltree_name = self.node_builder:get_node_by_index(i)
+        local ltree_name = self.node_builder:get_ltree_by_final_index(i)
 
         if not ltree_name then
             -- Empty/hole node
-            parts[#parts + 1] = pack_u16(i)
-            parts[#parts + 1] = pack_u16(0xFFFF)
-            parts[#parts + 1] = pack_u16(0)
-            parts[#parts + 1] = pack_u16(0)
-            parts[#parts + 1] = pack_u16(0)
-            parts[#parts + 1] = pack_u16(0)  -- main = CFL_NULL slot 0
-            parts[#parts + 1] = pack_u16(0)  -- init = CFL_NULL slot 0
-            parts[#parts + 1] = pack_u16(0)  -- aux  = CFL_NULL slot 0
-            parts[#parts + 1] = pack_u16(0)  -- term = CFL_NULL slot 0
-            parts[#parts + 1] = pack_u16(0xFFFF)
+            parts[#parts + 1] = pack_u16(i)        -- node_index
+            parts[#parts + 1] = pack_u16(0xFFFF)   -- parent_index
+            parts[#parts + 1] = pack_u16(0)         -- depth
+            parts[#parts + 1] = pack_u16(0)         -- link_start
+            parts[#parts + 1] = pack_u16(0)         -- packed_lc
+            parts[#parts + 1] = pack_u16(main_remap[0] or 0)  -- main_function_index
+            parts[#parts + 1] = pack_u16(os_remap[0] or 0)    -- init_function_index
+            parts[#parts + 1] = pack_u16(bool_remap[0] or 0)  -- aux_function_index
+            parts[#parts + 1] = pack_u16(os_remap[0] or 0)    -- term_function_index
+            parts[#parts + 1] = pack_u16(0xFFFF)   -- node_data_id
         else
             local functions = self.handle:get_node_functions(ltree_name)
             local node_data = self.handle:get_node_data(ltree_name)
 
-            -- Original indexer indices — same as .h/.c path
-            local main_idx = self.function_builder.main_indexer:get_index(functions.main)
-            local init_idx = self.function_builder.one_shot_indexer:get_index(functions.init)
-            local aux_idx  = self.function_builder.boolean_indexer:get_index(functions.aux)
-            local term_idx = self.function_builder.one_shot_indexer:get_index(functions.term)
+            local main_orig = self.function_builder.main_indexer:get_index(functions.main)
+            local init_orig = self.function_builder.one_shot_indexer:get_index(functions.init)
+            local aux_orig  = self.function_builder.boolean_indexer:get_index(functions.aux)
+            local term_orig = self.function_builder.one_shot_indexer:get_index(functions.term)
+
+            local main_idx = main_remap[main_orig] or 0
+            local init_idx = os_remap[init_orig]   or 0
+            local aux_idx  = bool_remap[aux_orig]  or 0
+            local term_idx = os_remap[term_orig]   or 0
 
             local link_info = self.link_builder:get_node_link_info(ltree_name)
             local link_count = link_info.link_count
@@ -307,41 +298,32 @@ function BinaryImageEmitter:_build_link_table()
 end
 
 -- =========================================================================
--- Function KB names — ORIGINAL ORDER (matches .h/.c name arrays)
--- Packed NUL-delimited: main[0]\0main[1]\0...os[0]\0...bool[0]\0...
+-- Hash table binary (sorted uint32_t array)
 -- =========================================================================
 
-function BinaryImageEmitter:_build_func_names()
-    local fb = self.function_builder
+local function hash_table_to_binary(entries)
     local parts = {}
-
-    for _, kb_name in ipairs(fb.main_indexer:get_all_functions()) do
-        parts[#parts + 1] = kb_name .. "\0"
+    for _, e in ipairs(entries) do
+        parts[#parts + 1] = pack_u32(e.hash)
     end
-    for _, kb_name in ipairs(fb.one_shot_indexer:get_all_functions()) do
-        parts[#parts + 1] = kb_name .. "\0"
-    end
-    for _, kb_name in ipairs(fb.boolean_indexer:get_all_functions()) do
-        parts[#parts + 1] = kb_name .. "\0"
-    end
-
     return table.concat(parts)
 end
 
 -- =========================================================================
--- Main function usage count — ORIGINAL ORDER
+-- Function name strings (in sorted order for each table)
 -- =========================================================================
 
-function BinaryImageEmitter:_build_usage_count()
-    local fb = self.function_builder
-    local all_main = fb.main_indexer:get_all_functions()
+local function func_names_to_binary(main_entries, one_shot_entries, boolean_entries)
     local parts = {}
-
-    for i = 1, #all_main do
-        local usage = self.main_function_usage[i - 1] or 0  -- 0-based key
-        parts[#parts + 1] = pack_u16(usage)
+    for _, e in ipairs(main_entries) do
+        parts[#parts + 1] = e.name .. "\0"
     end
-
+    for _, e in ipairs(one_shot_entries) do
+        parts[#parts + 1] = e.name .. "\0"
+    end
+    for _, e in ipairs(boolean_entries) do
+        parts[#parts + 1] = e.name .. "\0"
+    end
     return table.concat(parts)
 end
 
@@ -356,13 +338,15 @@ function BinaryImageEmitter:_build_json_sections()
 
     local enc = self.data_encoder.encoder
 
+    -- Records: each is 8 bytes (uint32 type + uint32 value)
     local rec_parts = {}
     for _, rec in ipairs(enc.records) do
-        rec_parts[#rec_parts + 1] = pack_u32(rec[1])
-        rec_parts[#rec_parts + 1] = pack_u32(rec[2])
+        rec_parts[#rec_parts + 1] = pack_u32(rec[1])  -- type
+        rec_parts[#rec_parts + 1] = pack_u32(rec[2])  -- value
     end
     local records_bin = table.concat(rec_parts)
 
+    -- Controls: each is 8 bytes (uint32 start + uint32 count)
     local ctrl_parts = {}
     for _, ctrl in ipairs(enc.record_controls) do
         ctrl_parts[#ctrl_parts + 1] = pack_u32(ctrl.start_position)
@@ -370,6 +354,7 @@ function BinaryImageEmitter:_build_json_sections()
     end
     local controls_bin = table.concat(ctrl_parts)
 
+    -- Strings: raw packed null-terminated
     local str_parts = {}
     for _, s in ipairs(enc.string_data) do
         str_parts[#str_parts + 1] = s .. "\0"
@@ -389,6 +374,7 @@ function BinaryImageEmitter:_build_event_section(string_pool)
     for _ in pairs(events) do count = count + 1 end
     if count == 0 then return "", 0 end
 
+    -- Sort by value (index)
     local sorted = {}
     for name, idx in pairs(events) do
         sorted[#sorted + 1] = { name = name, idx = idx }
@@ -414,6 +400,7 @@ function BinaryImageEmitter:_build_bitmask_section(string_pool)
     for _ in pairs(bitmasks) do count = count + 1 end
     if count == 0 then return "", 0 end
 
+    -- Sort by bit number
     local sorted = {}
     for name, bit_num in pairs(bitmasks) do
         sorted[#sorted + 1] = { name = name, bit_num = bit_num }
@@ -425,7 +412,7 @@ function BinaryImageEmitter:_build_bitmask_section(string_pool)
         local offset = string_pool:add(entry.name)
         parts[#parts + 1] = pack_u32(offset)
         parts[#parts + 1] = pack_u16(entry.bit_num)
-        parts[#parts + 1] = pack_u16(0)
+        parts[#parts + 1] = pack_u16(0)  -- reserved
     end
 
     return table.concat(parts), count
@@ -435,7 +422,7 @@ end
 -- KB info sections
 -- =========================================================================
 
-local function _filter_executable_kbs(kb_names, node_builder)
+local function _filter_executable_kbs(kb_names)
     local result = {}
     for _, name in ipairs(kb_names) do
         if not name:match("_test_functions$")
@@ -446,16 +433,11 @@ local function _filter_executable_kbs(kb_names, node_builder)
             result[#result + 1] = name
         end
     end
-    -- Sort by start_index — must match .h/.c codegen order
-    table.sort(result, function(a, b)
-        local sa = node_builder:get_kb_range(a)
-        local sb = node_builder:get_kb_range(b)
-        return sa < sb
-    end)
     return result
 end
+
 function BinaryImageEmitter:_build_kb_sections(string_pool)
-    local kb_names = _filter_executable_kbs(self.handle:get_kb_names(), self.node_builder)
+    local kb_names = _filter_executable_kbs(self.handle:get_kb_names())
     local kb_parts = {}
     local alias_parts = {}
     local total_aliases = 0
@@ -465,9 +447,10 @@ function BinaryImageEmitter:_build_kb_sections(string_pool)
         local start_idx, end_idx = self.node_builder:get_kb_range(kb_name)
         local node_count = end_idx - start_idx
 
+        -- Compute max depth over KB range
         local max_depth = 0
         for j = start_idx, end_idx - 1 do
-            local lt = self.node_builder:get_node_by_index(j)
+            local lt = self.node_builder:get_ltree_by_final_index(j)
             if lt then
                 local d = self.node_builder:get_node_depth(lt)
                 if d > max_depth then max_depth = d end
@@ -481,6 +464,9 @@ function BinaryImageEmitter:_build_kb_sections(string_pool)
         local alias_start = total_aliases
 
         -- KB entry: 24 bytes
+        -- uint32 name_offset, uint16 start_index, uint16 start_index(alias),
+        -- uint16 node_count, uint16 max_depth, uint16 memory_factor,
+        -- uint16 alias_start, uint16 alias_count, 6 bytes reserved
         kb_parts[#kb_parts + 1] = pack_u32(name_offset)
         kb_parts[#kb_parts + 1] = pack_u16(start_idx)
         kb_parts[#kb_parts + 1] = pack_u16(start_idx)
@@ -489,9 +475,11 @@ function BinaryImageEmitter:_build_kb_sections(string_pool)
         kb_parts[#kb_parts + 1] = pack_u16(memory_factor)
         kb_parts[#kb_parts + 1] = pack_u16(alias_start)
         kb_parts[#kb_parts + 1] = pack_u16(alias_count)
-        kb_parts[#kb_parts + 1] = string.rep("\0", 6)
+        kb_parts[#kb_parts + 1] = string.rep("\0", 6)  -- reserved
 
+        -- Alias entries
         if alias_count > 0 then
+            -- Sort aliases by name for determinism
             local sorted_aliases = {}
             for aname, aindex in pairs(aliases) do
                 sorted_aliases[#sorted_aliases + 1] = { name = aname, index = aindex }
@@ -502,7 +490,7 @@ function BinaryImageEmitter:_build_kb_sections(string_pool)
                 local aname_offset = string_pool:add(a.name)
                 alias_parts[#alias_parts + 1] = pack_u32(aname_offset)
                 alias_parts[#alias_parts + 1] = pack_u16(a.index)
-                alias_parts[#alias_parts + 1] = pack_u16(0)
+                alias_parts[#alias_parts + 1] = pack_u16(0)  -- reserved
             end
             total_aliases = total_aliases + alias_count
         end
@@ -519,45 +507,27 @@ end
 function BinaryImageEmitter:emit()
     print("\n  Building hash tables...")
 
-    local fb = self.function_builder
+    -- Step 1: Build sorted hash tables with remapping
+    local main_entries, main_remap = self:_build_hash_table(self.function_builder.main_indexer)
+    local os_entries,   os_remap   = self:_build_hash_table(self.function_builder.one_shot_indexer)
+    local bool_entries, bool_remap = self:_build_hash_table(self.function_builder.boolean_indexer)
 
-    -- Step 1: Build hash→slot lookup tables (sorted by hash)
-    local main_ht = self:_build_hash_table(
-        fb.main_indexer,
-        function(kb_name) return fb:get_typed_main_name(kb_name) end)
-
-    local os_ht = self:_build_hash_table(
-        fb.one_shot_indexer,
-        function(kb_name) return fb:get_typed_one_shot_name(kb_name) end)
-
-    local bool_ht = self:_build_hash_table(
-        fb.boolean_indexer,
-        function(kb_name) return fb:get_typed_boolean_name(kb_name) end)
-
-    print(string.format("    Main: %d functions",     #main_ht))
-    print(string.format("    One-shot: %d functions", #os_ht))
-    print(string.format("    Boolean: %d functions",  #bool_ht))
+    print(string.format("    Main: %d functions",     #main_entries))
+    print(string.format("    One-shot: %d functions", #os_entries))
+    print(string.format("    Boolean: %d functions",  #bool_entries))
 
     -- Step 2: Build all binary sections
     print("  Building sections...")
 
-    -- Node array uses ORIGINAL indices — no remapping
-    local node_bin        = self:_build_node_array()
-    local link_bin        = self:_build_link_table()
-
-    -- Hash tables: {hash, slot_index} sorted by hash, 8 bytes each
-    local main_hash_bin   = hash_table_to_binary(main_ht)
-    local os_hash_bin     = hash_table_to_binary(os_ht)
-    local bool_hash_bin   = hash_table_to_binary(bool_ht)
-
-    -- KB names in ORIGINAL order
-    local func_names_bin  = self:_build_func_names()
-
-    -- Usage counts in ORIGINAL order
-    local usage_bin       = self:_build_usage_count()
-
+    local node_bin       = self:_build_node_array(main_remap, os_remap, bool_remap)
+    local link_bin       = self:_build_link_table()
+    local main_hash_bin  = hash_table_to_binary(main_entries)
+    local os_hash_bin    = hash_table_to_binary(os_entries)
+    local bool_hash_bin  = hash_table_to_binary(bool_entries)
+    local func_names_bin = func_names_to_binary(main_entries, os_entries, bool_entries)
     local json_rec_bin, json_ctrl_bin, json_str_bin = self:_build_json_sections()
 
+    -- String pool for events, bitmasks, KB info
     local string_pool = StringPool.new()
     local event_bin,   event_count   = self:_build_event_section(string_pool)
     local bitmask_bin, bitmask_count = self:_build_bitmask_section(string_pool)
@@ -565,7 +535,7 @@ function BinaryImageEmitter:emit()
         self:_build_kb_sections(string_pool)
     local pool_bin = string_pool:to_binary()
 
-    -- Step 3: Counts
+    -- Step 3: Compute record/control counts
     local json_rec_count  = 0
     local json_ctrl_count = 0
     local json_str_size   = #json_str_bin
@@ -574,23 +544,22 @@ function BinaryImageEmitter:emit()
         json_ctrl_count = #self.data_encoder.encoder.record_controls
     end
 
-    -- Step 4: Section list (15 sections)
+    -- Step 4: Section list
     local sections = {
-        { type = SECT_NODE, data = node_bin,        count = self.node_builder:get_array_size(),                             esize = 20 },
-        { type = SECT_LINK, data = link_bin,        count = self.link_builder:get_link_table_size(),                        esize = 2  },
-        { type = SECT_MFHT, data = main_hash_bin,   count = #main_ht,                                                      esize = 8  },
-        { type = SECT_OSHT, data = os_hash_bin,     count = #os_ht,                                                        esize = 8  },
-        { type = SECT_BFHT, data = bool_hash_bin,   count = #bool_ht,                                                      esize = 8  },
-        { type = SECT_FSTR, data = func_names_bin,  count = fb.main_indexer:get_count() + fb.one_shot_indexer:get_count() + fb.boolean_indexer:get_count(), esize = 0 },
-        { type = SECT_JREC, data = json_rec_bin,    count = json_rec_count,                                                 esize = 8  },
-        { type = SECT_JCTL, data = json_ctrl_bin,   count = json_ctrl_count,                                                esize = 8  },
-        { type = SECT_JSTR, data = json_str_bin,    count = 0,                                                              esize = 0  },
-        { type = SECT_EVNT, data = event_bin,       count = event_count,                                                    esize = 4  },
-        { type = SECT_BMSK, data = bitmask_bin,     count = bitmask_count,                                                  esize = 8  },
-        { type = SECT_KBIN, data = kb_info_bin,     count = kb_count,                                                       esize = 24 },
-        { type = SECT_KBAL, data = kb_alias_bin,    count = alias_count,                                                    esize = 8  },
-        { type = SECT_GSTR, data = pool_bin,        count = 0,                                                              esize = 0  },
-        { type = SECT_MUSG, data = usage_bin,       count = fb.main_indexer:get_count(),                                    esize = 2  },
+        { type = SECT_NODE, data = node_bin,       count = self.node_builder:get_array_size(),         esize = 20 },
+        { type = SECT_LINK, data = link_bin,       count = self.link_builder:get_link_table_size(),    esize = 2  },
+        { type = SECT_MFHT, data = main_hash_bin,  count = #main_entries,                             esize = 4  },
+        { type = SECT_OSHT, data = os_hash_bin,    count = #os_entries,                               esize = 4  },
+        { type = SECT_BFHT, data = bool_hash_bin,  count = #bool_entries,                             esize = 4  },
+        { type = SECT_FSTR, data = func_names_bin, count = #main_entries + #os_entries + #bool_entries, esize = 0 },
+        { type = SECT_JREC, data = json_rec_bin,   count = json_rec_count,                            esize = 8  },
+        { type = SECT_JCTL, data = json_ctrl_bin,  count = json_ctrl_count,                           esize = 8  },
+        { type = SECT_JSTR, data = json_str_bin,   count = 0,                                         esize = 0  },
+        { type = SECT_EVNT, data = event_bin,      count = event_count,                               esize = 4  },
+        { type = SECT_BMSK, data = bitmask_bin,    count = bitmask_count,                             esize = 8  },
+        { type = SECT_KBIN, data = kb_info_bin,    count = kb_count,                                  esize = 24 },
+        { type = SECT_KBAL, data = kb_alias_bin,   count = alias_count,                               esize = 8  },
+        { type = SECT_GSTR, data = pool_bin,       count = 0,                                         esize = 0  },
     }
 
     local section_count = #sections
@@ -617,23 +586,23 @@ function BinaryImageEmitter:emit()
     local header = table.concat({
         pack_u32(0x43544231),            -- magic "CTB1"
         pack_u16(1),                      -- version_major
-        pack_u16(1),                      -- version_minor (bumped for new format)
+        pack_u16(0),                      -- version_minor
         pack_u32(flags),                  -- flags
         pack_u32(total_size),             -- total_image_size
-        pack_u32(0),                      -- checksum (patched later)
+        pack_u32(0),                      -- checksum (patched later, offset 16)
         pack_u16(section_count),          -- section_count
-        pack_u16(self.node_builder:get_array_size()),
-        pack_u16(self.node_builder:get_total_nodes()),
-        pack_u16(self.link_builder:get_link_table_size()),
-        pack_u16(fb.main_indexer:get_count()),
-        pack_u16(fb.one_shot_indexer:get_count()),
-        pack_u16(fb.boolean_indexer:get_count()),
-        pack_u16(event_count),
-        pack_u16(bitmask_count),
-        pack_u16(kb_count),
-        pack_u16(json_rec_count),
-        pack_u16(json_ctrl_count),
-        pack_u32(json_str_size),
+        pack_u16(self.node_builder:get_array_size()),       -- node_count
+        pack_u16(self.node_builder:get_total_nodes()),      -- node_active_count
+        pack_u16(self.link_builder:get_link_table_size()),  -- link_table_size
+        pack_u16(#main_entries),          -- main_func_count
+        pack_u16(#os_entries),            -- one_shot_func_count
+        pack_u16(#bool_entries),          -- boolean_func_count
+        pack_u16(event_count),            -- event_count
+        pack_u16(bitmask_count),          -- bitmask_count
+        pack_u16(kb_count),               -- kb_count
+        pack_u16(json_rec_count),         -- json_records_count
+        pack_u16(json_ctrl_count),        -- json_controls_count
+        pack_u32(json_str_size),          -- json_strings_size
         string.rep("\0", 16),             -- reserved
     })
 
@@ -653,11 +622,13 @@ function BinaryImageEmitter:emit()
     -- Step 9: Assemble full image
     local image_parts = { header, dir_bin }
 
+    -- Pad between directory end and first section
     local after_dir = header_size + dir_size
     if after_dir < data_start then
         image_parts[#image_parts + 1] = string.rep("\0", data_start - after_dir)
     end
 
+    -- Write sections with inter-section padding
     for si, sect in ipairs(sections) do
         image_parts[#image_parts + 1] = sect.data
         local next_offset
@@ -676,20 +647,22 @@ function BinaryImageEmitter:emit()
     assert(#image == total_size,
         string.format("Image size mismatch: got %d, expected %d", #image, total_size))
 
-    -- Step 10: Compute CRC32 and patch (checksum at bytes 17-20, 1-based)
-    local crc = crc32_compute(image)
+    -- Step 10: Compute CRC32 and patch header (checksum is at bytes 17-20, 1-based)
+    local crc = crc32_compute(image)  -- checksum field is already 0
     local patched = image:sub(1, 16) .. pack_u32(crc) .. image:sub(21)
     assert(#patched == total_size)
 
     -- Step 11: Write output files
     os.execute("mkdir -p " .. self.output_dir)
 
+    -- Write .ctb binary
     local ctb_path = self.output_dir .. "/" .. self.handle_name .. ".ctb"
     local f = io.open(ctb_path, "wb")
     f:write(patched)
     f:close()
     print(string.format("  Generated: %s (%d bytes)", ctb_path, #patched))
 
+    -- Optionally write .h C array
     if self.emit_c_header then
         self:_write_c_header(patched)
     end

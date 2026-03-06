@@ -49,14 +49,14 @@ local function first_test(ct, kb_name)
 
     local verify_column = ct:define_column("verify", nil, nil, nil, nil, nil, true)
     ct:asm_log_message("verifying")
-    ct:asm_verify("CFL_BOOL_FALSE", {}, false, "VERIFY_ERROR", { failure_data = "failure_data" })
+    ct:asm_verify("CFL_BOOL_FALSE", {}, false, "VERIFY_ERROR", { failure_data = "failure_data  - verify column" })
     ct:asm_log_message("waiting for verify to fail")
     ct:asm_halt()
     ct:end_column(verify_column)
 
     local verify_timeout_column = ct:define_column("verify_timeout", nil, nil, nil, nil, nil, true)
     ct:asm_log_message("verifying timeout")
-    ct:asm_verify_timeout(5.0, false, "VERIFY_ERROR", { failure_data = "failure_data" })
+    ct:asm_verify_timeout(5.0, false, "VERIFY_ERROR", { failure_data = "failure_data - verify timeout column" })
     ct:asm_log_message("waiting for verify timeout to fail which will result in a terminate column")
     ct:asm_halt()
     ct:end_column(verify_timeout_column)
@@ -64,121 +64,1782 @@ local function first_test(ct, kb_name)
     ct:end_test()
 end
 
--- =========================================================================
--- Commented-out tests (translate as needed)
--- =========================================================================
+local function second_test(ct,kb_name)
+    ct:start_test(kb_name)
+    
+    local activate_valve_column = ct:define_column("activate_valve", nil, nil, nil, nil, nil, true)
+    ct:asm_one_shot_handler("ACTIVATE_VALVE", { state = "open" })
+    ct:asm_log_message("Valve activated")
+    ct:asm_terminate()
+    ct:end_column(activate_valve_column)
+    
+    local terminate_engine_column = ct:define_column("terminate_engine", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting time 20 seconds to terminate engine")
+    ct:asm_wait_time(20.0)
+    ct:asm_log_message("terminating engine")
+    ct:asm_terminate_system()
+    ct:end_column(terminate_engine_column)
+    
+    local wait_for_event_column = ct:define_column("wait_for_event", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting for event")
+    ct:asm_wait_for_event("WAIT_FOR_EVENT", 1, true, 5,
+        "WAIT_FOR_EVENT_ERROR", "CFL_SECOND_EVENT", { error_message = "WAIT_FOR_EVENT_ERROR" })
+    ct:asm_log_message("event received")
+    ct:asm_reset()
+    ct:end_column(wait_for_event_column)
 
---[[ second_test
-local function second_test(ct, kb_name) end
-]]
+    
+    local reset_node_column = ct:define_column("reset_node", nil, nil, nil, nil, nil, false)
+    ct:asm_log_message("waiting 2 seconds to reset node")
+    ct:asm_wait_time(2.0)
+    ct:asm_log_message("sending system event")
+    ct:asm_send_named_event(wait_for_event_column, "WAIT_FOR_EVENT", {})
+    ct:asm_log_message("resetting node")
+    ct:asm_reset()
+    ct:end_column(reset_node_column)
 
---[[ fourth_test
-local function fourth_test(ct, kb_name) end
-]]
+    local enable_column = ct:define_column("start_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("waiting 5 seconds to start rest of columns")
+    ct:asm_wait_time(5.0)
+    ct:asm_log_message("starting rest of columns")
+    ct:asm_enable_nodes({ activate_valve_column, terminate_engine_column, wait_for_event_column, reset_node_column })
+    ct:asm_log_message("waiting 8 seconds to disable column")
+    ct:asm_wait_time(8.0)
+    ct:asm_disable_nodes({ terminate_engine_column })
+    ct:asm_log_message("waiting 20 seconds to end test")
+    ct:asm_wait_time(20.0)
+    ct:asm_log_message("ending test")
+    ct:asm_terminate_system()
+    ct:end_column(enable_column)
+    
+    ct:end_test()
+end
 
---[[ fifth_test (state machine)
-local function fifth_test(ct, kb_name) end
-]]
 
---[[ sixth_test (fork column)
-local function sixth_test(ct, kb_name) end
-]]
+local function fourth_test(ct,kb_name)
+    ct:start_test(kb_name)
+    
+    local top_column = ct:define_column("top_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("top column")
+    
+    local middle_column = ct:define_column("middle_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("middle column")
+    ct:asm_event_logger("displaying middle column events", { "PUBLISH_EVENT" })
+    ct:asm_halt()
+    ct:end_column(middle_column)
+    
+    
+    
+    ct:asm_send_named_event(top_column, "PUBLISH_EVENT", { event_data = "event_data" })
+    ct:asm_log_message("waiting 2 seconds")
+    ct:asm_wait_time(2.0)
+    ct:asm_log_message("resetting top column")
+    ct:asm_reset()
+    ct:end_column(top_column)
+    
+    
+    local time_out_column = ct:define_column("time_out_column", nil, nil, nil, nil, nil, true)
+    ct:asm_wait_time(20.0)
+    ct:asm_terminate_system()
+    ct:end_column(time_out_column)
+    
+    
+    
+    ct:end_test()
+end
 
---[[ seventh_test (fork join)
-local function seventh_test(ct, kb_name) end
-]]
 
---[[ eighth_test (sequence til)
-local function eighth_test(ct, kb_name) end
-]]
+--[[
+  test_fifth.lua - State machine test definition
+  LuaJIT port of Python fifth_test
+--]]
 
---[[ ninth_test (sequence til)
-local function ninth_test(ct, kb_name) end
-]]
+local function fifth_test(ct, kb_name) -- state machine
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column")
+    ct:asm_log_message("launching state machine 1")
+    local sm_name_1 = "state_machine_1"
+    local state_machine_1 = ct:define_state_machine("state_machine_1", sm_name_1,
+        {"state1", "state2", "state3"}, "state2", true)
 
---[[ tenth_test (supervisor)
-local function tenth_test(ct, kb_name) end
-]]
+    local state1_1 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_1, "state2")
+    ct:asm_halt()
+    ct:end_column(state1_1)
 
---[[ eleventh_test (for column)
-local function eleventh_test(ct, kb_name) end
-]]
+    local state2_1 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:change_state(state_machine_1, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_1)
 
---[[ twelfth_test (while column)
-local function twelfth_test(ct, kb_name) end
-]]
+    local state3_1 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:change_state(state_machine_1, "state1")
+    ct:asm_halt()
+    ct:end_column(state3_1)
 
---[[ thirteenth_test (watch dog)
-local function thirteenth_test(ct, kb_name) end
-]]
+    ct:end_state_machine(state_machine_1, "state_machine_1")
+    ct:asm_wait_time(10)
+    ct:asm_log_message("terminating state machine 1")
+    ct:terminate_state_machine(state_machine_1)
+    local sm_name_2 = "state_machine_2"
+    local state_machine_2 = ct:define_state_machine("state_machine_2", sm_name_2,
+        {"state1", "state2", "state3"}, "state3", true, "CFL_SM_EVENT_SYNC")
 
---[[ fourteenth_test (data flow)
-local function fourteenth_test(ct, kb_name) end
-]]
+    local state1_2 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_event_logger("displaying state 1 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_2, "state2", "SYNC_EVENT")
+    ct:asm_log_message("state2 changed")
+    ct:asm_halt()
+    ct:end_column(state1_2)
 
---[[ seventeenth_test (exception handler)
-local function seventeenth_test(ct, kb_name) end
-]]
+    local state2_2 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_event_logger("displaying state 2 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_2)
 
---[[ eighteenth_test (exception handler heartbeat)
-local function eighteenth_test(ct, kb_name) end
-]]
+    local state3_2 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_event_logger("displaying state 3 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state1", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state3_2)
 
---[[ ninteenth_test (state machine combos)
-local function ninteenth_test(ct, kb_name) end
-]]
+    ct:end_state_machine(state_machine_2, "state_machine_2")
 
---[[ twentieth_test (bitmask wait/verify)
-local function twentieth_test(ct, kb_name) end
-]]
+    ct:asm_wait_time(20)
+    ct:asm_log_message("terminating state machine 2")
+    ct:terminate_state_machine(state_machine_2)
 
---[[ twenty_first_test (start/stop tests)
-local function twenty_first_test(ct, kb_name) end
-]]
+    ct:asm_log_message("launch column is terminating")
 
---[[ twenty_second_test (local arena + state machine)
-local function twenty_second_test(ct, kb_name) end
-]]
+    ct:end_column(launch_column)
 
---[[ twenty_third_test (avro packet)
-local function twenty_third_test(ct, kb_name) end
-]]
+    ct:end_test()
+end
 
---[[ twenty_fourth_test (streaming)
-local function twenty_fourth_test(ct, kb_name) end
-]]
+--[[
+  test_definitions.lua - ChainTree test definitions (tests 6-9)
+  LuaJIT port of Python test construction code
+--]]
 
---[[ twenty_fifth_test (streaming collector)
-local function twenty_fifth_test(ct, kb_name) end
-]]
+local function insert_fork_column(ct)
 
---[[ twenty_sixth_test (streaming verify)
-local function twenty_sixth_test(ct, kb_name) end
-]]
+    local fork_column = ct:define_fork_column("fork_column")
+    local fork_child_1 = ct:define_column("fork_child_1")
+    ct:asm_log_message("fork child 1 starting")
+    ct:asm_event_logger("displaying fork child 1 events", {"TEST_EVENT"})
+    ct:asm_halt()
+    ct:end_column(fork_child_1)
 
---[[ twenty_seventh_test (drone control)
-local function twenty_seventh_test(ct, kb_name) end
-]]
 
---[[ twenty_eighth_test (drone control exception)
-local function twenty_eighth_test(ct, kb_name) end
-]]
+    local fork_child_2 = ct:define_column("fork_child_2")
+    ct:asm_log_message("fork child 2 starting")
+    ct:asm_event_logger("displaying fork child 2 events", {"TEST_EVENT"})
+    ct:asm_halt()
+    ct:end_column(fork_child_2)
 
---[[ twenty_ninth_test (s-expression data flow)
-local function twenty_ninth_test(ct, kb_name) end
-]]
+    local fork_child_3 = ct:define_column("fork_child_3")
+    ct:asm_log_message("fork child 3 starting")
+    ct:asm_event_logger("displaying fork child 3 events", {"TEST_EVENT"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("child 3 executed a time delay of 2 seconds")
+    ct:asm_wait_time(15)
+    ct:asm_halt()
+    ct:end_column(fork_child_3)
+    ct:end_column(fork_column)
+end
 
---[[ thirty_test (s-expression state machine)
-local function thirty_test(ct, kb_name) end
-]]
 
---[[ thirty_one_test (s-expression link)
-local function thirty_one_test(ct, kb_name) end
-]]
+--[[
+  test_definitions.lua - ChainTree test definitions (tests 6-9)
+  LuaJIT port of Python test construction code
 
---[[ thirty_two_test (s-expression link advanced)
-local function thirty_two_test(ct, kb_name) end
-]]
+  Signature reference:
+    define_column(column_name, main_function, init_function, term_function, aux_function, column_data, auto_start, label, links_flag)
+    define_fork_column(column_name, main_function, init_function, term_function, aux_function, column_data, auto_start, label)
+    define_join_link(parent_node_name)
+    end_column(column_name)
+    define_sequence_start_node(column_name, main_function, init_function, term_function, aux_function, initialize_function, finalize_function, user_data, auto_start)
+    define_sequence_til_pass_node(column_name, main_function, init_function, term_function, aux_function, finalize_function, user_data, auto_start)
+    define_sequence_til_fail_node(column_name, main_function, init_function, term_function, aux_function, finalize_function, user_data, auto_start)
+    mark_sequence_false_link(parent_node_name, data)
+    mark_sequence_true_link(parent_node_name, data)
+    end_sequence_node(column_name)
+--]]
+
+local function insert_fork_column(ct)
+
+    local fork_column = ct:define_fork_column("fork_column")
+    local fork_child_1 = ct:define_column("fork_child_1")
+    ct:asm_log_message("fork child 1 starting")
+    ct:asm_event_logger("displaying fork child 1 events", {"TEST_EVENT"})
+    ct:asm_halt()
+    ct:end_column(fork_child_1)
+
+
+    local fork_child_2 = ct:define_column("fork_child_2")
+    ct:asm_log_message("fork child 2 starting")
+    ct:asm_event_logger("displaying fork child 2 events", {"TEST_EVENT"})
+    ct:asm_halt()
+    ct:end_column(fork_child_2)
+
+    local fork_child_3 = ct:define_column("fork_child_3")
+    ct:asm_log_message("fork child 3 starting")
+    ct:asm_event_logger("displaying fork child 3 events", {"TEST_EVENT"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("child 3 executed a time delay of 2 seconds")
+    ct:asm_wait_time(15)
+    ct:asm_halt()
+    ct:end_column(fork_child_3)
+    ct:end_column(fork_column)
+end
+
+
+local function sixth_test(ct, kb_name)
+
+    ct:start_test(kb_name)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column")
+
+    ct:asm_wait_time(1.5)
+    ct:asm_log_message("launching fork column")
+
+    insert_fork_column(ct)
+
+    ct:asm_log_message("fork column launched")
+    ct:asm_event_logger("displaying fork column events", {"TEST_EVENT"})
+
+    ct:asm_wait_time(5)
+    ct:asm_log_message("resetting launch column")
+    ct:asm_reset()
+    ct:end_column(launch_column)
+
+
+    local event_generator_column = ct:define_column("event_generator_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("sending event to launch column")
+    ct:asm_send_named_event(launch_column, "TEST_EVENT", {event_data="event_data"})
+    ct:asm_wait_time(1)
+    ct:asm_reset()
+    ct:end_column(event_generator_column)
+
+    local end_column = ct:define_column("end_column", nil, nil, nil, nil, nil, true)
+
+    ct:asm_wait_time(20)
+    ct:asm_log_message("ending test")
+    ct:asm_terminate_system()
+    ct:end_column(end_column)
+
+    ct:end_test()
+end
+
+local function insert_fork_join_column(ct)
+    local fork_join_column = ct:define_fork_column("fork_column")
+    local fork_child_1 = ct:define_column("fork_child_1")
+    ct:asm_log_message("fork child 1 starting")
+    ct:asm_event_logger("displaying fork child 1 events", {"TEST_EVENT"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("fork 1 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_1)
+
+
+    local fork_child_2 = ct:define_column("fork_child_2")
+    ct:asm_log_message("fork child 2 starting")
+    ct:asm_event_logger("displaying fork child 2 events", {"TEST_EVENT"})
+    ct:asm_wait_time(3)
+    ct:asm_log_message("fork 2 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_2)
+
+    local fork_child_3 = ct:define_column("fork_child_3")
+    ct:asm_log_message("fork child 3 starting")
+    ct:asm_event_logger("displaying fork child 3 events", {"TEST_EVENT"})
+    ct:asm_wait_time(4)
+    ct:asm_log_message("fork 3 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_3)
+
+    ct:end_column(fork_join_column)
+    ct:define_join_link(fork_join_column)
+end
+
+
+local function seventh_test(ct, kb_name) -- fork column
+    ct:start_test(kb_name)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column")
+
+    ct:asm_wait_time(1.5)
+    ct:asm_log_message("launching fork column")
+
+    insert_fork_join_column(ct)
+    ct:asm_log_message("fork column joined")
+    ct:asm_event_logger("displaying fork column events", {"TEST_EVENT"})
+    ct:asm_log_message("waiting 5 seconds to reset launch column")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("resetting launch column")
+    ct:asm_reset()
+    ct:end_column(launch_column)
+
+
+    local event_generator_column = ct:define_column("event_generator_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("sending event to launch column")
+    ct:asm_send_named_event(launch_column, "TEST_EVENT", {event_data="event_data"})
+    ct:asm_wait_time(1)
+    ct:asm_reset()
+    ct:end_column(event_generator_column)
+
+    local end_column = ct:define_column("end_column", nil, nil, nil, nil, nil, true)
+    ct:asm_wait_time(20)
+    ct:asm_log_message("ending test")
+    ct:asm_terminate_system()
+    ct:end_column(end_column)
+
+    ct:end_test()
+end
+
+
+-- define_sequence_til_pass_node(column_name, main_function, init_function, term_function,
+--                               aux_function, finalize_function, user_data, auto_start)
+local function insert_fork_join_column_a(ct)
+
+    local sequence_til_pass_node = ct:define_sequence_til_pass_node(
+        "sequence_til_pass_node", nil, nil, nil, nil,
+        "DISPLAY_SEQUENCE_TILL_RESULT", {message="sequence till pass"})
+
+    local fork_child_1 = ct:define_column("fork_child_1")
+    ct:asm_log_message("fork child 1 starting")
+    ct:asm_event_logger("displaying fork child 1 events", {"TEST_EVENT"})
+    ct:asm_wait_time(2)
+    ct:mark_sequence_false_link(sequence_til_pass_node, {message="first sequence failed"})
+    ct:asm_log_message("fork 1 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_1)
+
+
+    local fork_child_2 = ct:define_column("fork_child_2")
+    ct:asm_log_message("fork child 2 starting")
+    ct:asm_event_logger("displaying fork child 2 events", {"TEST_EVENT"})
+    ct:asm_wait_time(3)
+    ct:mark_sequence_false_link(sequence_til_pass_node, {message="second sequence failed"})
+    ct:asm_log_message("fork 2 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_2)
+
+    local fork_child_3 = ct:define_column("fork_child_3")
+    ct:asm_log_message("fork child 3 starting")
+    ct:asm_event_logger("displaying fork child 3 events", {"TEST_EVENT"})
+    ct:asm_wait_time(5)
+    ct:mark_sequence_false_link(sequence_til_pass_node, {message="third sequence failed"})
+    ct:asm_log_message("fork 3 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_3)
+
+    ct:end_sequence_node(sequence_til_pass_node)
+end
+
+
+-- define_sequence_start_node(column_name, main_function, init_function, term_function,
+--                            aux_function, initialize_function, finalize_function, user_data, auto_start)
+local function eighth_test(ct, kb_name) -- sequence til
+    ct:start_test(kb_name)
+
+    local main_node = ct:define_sequence_start_node(
+        "main_node", nil, nil, nil, nil,
+        "INITIALIZE_SEQUENCE", "DISPLAY_SEQUENCE_RESULT", nil, true)
+    ct:asm_log_message("main node")
+    insert_fork_join_column_a(ct)
+    ct:asm_log_message("main node is terminating")
+    ct:asm_terminate()
+    ct:end_column(main_node)
+
+    ct:end_test()
+end
+
+-- define_sequence_til_fail_node(column_name, main_function, init_function, term_function,
+--                               aux_function, finalize_function, user_data, auto_start)
+local function insert_sequence_til_fail_column(ct)
+
+    local sequence_til_fail_node = ct:define_sequence_til_fail_node(
+        "sequence_til_fail_node", nil, nil, nil, nil,
+        "DISPLAY_SEQUENCE_TILL_RESULT", {message="sequence till fail"})
+
+    local fork_child_1 = ct:define_column("fork_child_1")
+    ct:asm_log_message("fork child 1 starting")
+    ct:asm_event_logger("displaying fork child 1 events", {"TEST_EVENT"})
+    ct:asm_wait_time(2)
+    ct:mark_sequence_true_link(sequence_til_fail_node, {message="first sequence passed"})
+    ct:asm_log_message("fork 1 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_1)
+
+
+    local fork_child_2 = ct:define_column("fork_child_2")
+    ct:asm_log_message("fork child 2 starting")
+    ct:asm_event_logger("displaying fork child 2 events", {"TEST_EVENT"})
+    ct:asm_wait_time(3)
+    ct:mark_sequence_true_link(sequence_til_fail_node, {message="second sequence passed"})
+    ct:asm_log_message("fork 2 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_2)
+
+    local fork_child_3 = ct:define_column("fork_child_3")
+    ct:asm_log_message("fork child 3 starting")
+    ct:asm_event_logger("displaying fork child 3 events", {"TEST_EVENT"})
+    ct:asm_wait_time(5)
+    ct:mark_sequence_true_link(sequence_til_fail_node, {message="third sequence passed"})
+    ct:asm_log_message("fork 3 is terminating")
+    ct:asm_terminate()
+    ct:end_column(fork_child_3)
+
+ 
+    ct:end_sequence_node(sequence_til_fail_node)
+end
+
+local function ninth_test(ct, kb_name) -- sequence til
+    ct:start_test(kb_name)
+
+    local main_node = ct:define_sequence_start_node(
+        "main_node", nil, nil, nil, nil,
+        nil, "DISPLAY_SEQUENCE_RESULT", nil, true)
+    ct:asm_log_message("main node")
+    insert_sequence_til_fail_column(ct)
+    ct:asm_log_message("main node is terminating")
+    ct:asm_terminate()
+    ct:end_column(main_node)
+
+    ct:end_test()
+end
+
+
+--[[
+  test_supervisor.lua - ChainTree supervisor test definitions (test 10)
+  LuaJIT port of Python test construction code
+
+  Signature reference:
+    define_column(column_name, main_function, init_function, term_function, aux_function, column_data, auto_start, label, links_flag)
+    define_supervisor_one_for_one_node(column_name, aux_function, user_data, restart_enabled, reset_limited_enabled, max_reset_number, reset_window, auto_start, finalize_function, finalize_function_data)
+    define_supervisor_one_for_all_node(column_name, aux_function, user_data, restart_enabled, reset_limited_enabled, max_reset_number, reset_window, auto_start, finalize_function, finalize_function_data)
+    define_supervisor_rest_for_all_node(column_name, aux_function, user_data, restart_enabled, reset_limited_enabled, max_reset_number, reset_window, auto_start, finalize_function, finalize_function_data)
+    define_mark_supervisor_node_failure(data)
+    define_join_link(parent_node_name)
+    end_column(column_name)
+--]]
+
+local function test_one_for_one_test(ct, top_column_name)
+    local top_column = ct:define_column(top_column_name, nil, nil, nil, nil, nil, true)
+
+    -- (column_name, aux_function, user_data, restart_enabled, reset_limited_enabled,
+    --  max_reset_number, reset_window, auto_start)
+    local supervisor_node = ct:define_supervisor_one_for_one_node(
+        "supervisor_node", "CFL_NULL", {}, nil, false, nil, nil, true)
+
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("branch 1 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 1 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_1)
+
+    local branch_2 = ct:define_column("branch_2", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 2 starting")
+    ct:asm_wait_time(3)
+    ct:asm_log_message("branch 2 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 2 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_2)
+
+    ct:end_column(supervisor_node)
+    ct:asm_log_message("waiting 20 seconds to terminate top column")
+    ct:asm_wait_time(20)
+    ct:asm_log_message("top column is terminating")
+    ct:asm_terminate()
+    ct:end_column(top_column)
+    return top_column
+end
+
+local function test_one_for_all_test(ct, top_column_name)
+    local top_column = ct:define_column(top_column_name, nil, nil, nil, nil, nil, true)
+
+    local supervisor_node = ct:define_supervisor_one_for_all_node(
+        "supervisor_node", "CFL_NULL", {}, nil, false, nil, nil, true)
+
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("branch 1 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 1 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_1)
+
+    local branch_2 = ct:define_column("branch_2", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 2 starting")
+    ct:asm_wait_time(3)
+    ct:asm_log_message("branch 2 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 2 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_2)
+
+    local branch_3 = ct:define_column("branch_3", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 3 starting")
+    ct:asm_wait_time(20)
+    ct:asm_log_message("branch 3 is resetting")
+    ct:asm_reset()
+    ct:end_column(branch_3)
+
+
+    ct:end_column(supervisor_node)
+
+    ct:asm_log_message("waiting 20 seconds to terminate top column")
+    ct:asm_wait_time(20)
+    ct:asm_log_message("top column is terminating")
+    ct:asm_terminate()
+    ct:end_column(top_column)
+    return top_column
+end
+
+
+local function test_rest_for_all_test(ct, top_column_name)
+
+    local top_column = ct:define_column(top_column_name, nil, nil, nil, nil, nil, true)
+
+    local supervisor_node = ct:define_supervisor_rest_for_all_node(
+        "supervisor_node", "CFL_NULL", {}, nil, false, nil, nil, true)
+
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(21)
+    ct:asm_log_message("branch 1 is resetting")
+    ct:asm_reset()
+    ct:end_column(branch_1)
+
+    local branch_2 = ct:define_column("branch_2", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 2 starting")
+    ct:asm_wait_time(3)
+    ct:asm_log_message("branch 2 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 2 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_2)
+
+
+
+    local branch_3 = ct:define_column("branch_3", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 3 starting")
+    ct:asm_wait_time(120)
+    ct:asm_log_message("branch 3 is resetting")
+    ct:asm_reset()
+    ct:end_column(branch_3)
+
+
+    ct:end_column(supervisor_node)
+    ct:asm_log_message("waiting 20 seconds to terminate top column")
+    ct:asm_wait_time(20)
+    ct:asm_log_message("top column is terminating")
+    ct:asm_terminate()
+    ct:end_column(top_column)
+    return top_column
+end
+
+local function test_failure_window_test(ct, top_column_name)
+    local top_column = ct:define_column(top_column_name, nil, nil, nil, nil, nil, true)
+    -- should get a failure in around 3 seconds for the window test
+    local uplink_node_id = 34 -- dummy will be filled in actual use
+    -- (column_name, aux_function, user_data, restart_enabled, reset_limited_enabled,
+    --  max_reset_number, reset_window, auto_start, finalize_function, finalize_function_data)
+    local supervisor_node = ct:define_supervisor_one_for_all_node(
+        "supervisor_node", "CFL_NULL", {uplink_node_id=uplink_node_id},
+        nil, true, 3, 100, true,
+        "DISPLAY_FAILURE_WINDOW_RESULT", {})
+
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("branch 1 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 1 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_1)
+
+    local branch_2 = ct:define_column("branch_2", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 2 starting")
+    ct:asm_wait_time(120)
+    ct:asm_log_message("branch 2 is terminating")
+    ct:define_mark_supervisor_node_failure({message="branch 2 failed"})
+    ct:asm_terminate()
+    ct:end_column(branch_2)
+
+    local branch_3 = ct:define_column("branch_3", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 3 starting")
+    ct:asm_wait_time(120)
+    ct:asm_log_message("branch 3 is resetting")
+    ct:asm_reset()
+    ct:end_column(branch_3)
+
+
+    ct:end_column(supervisor_node)
+    ct:define_join_link(supervisor_node)
+    --ct:asm_log_message("waiting 20 seconds to terminate top column")
+    --ct:asm_wait_time(20)
+    ct:asm_log_message("top column is terminating")
+    ct:asm_terminate()
+    ct:end_column(top_column)
+    return top_column
+end
+
+local function tenth_test(ct, kb_name) -- supervisor node
+    ct:start_test(kb_name)
+    local test_start = ct:define_column("test_coordinator_node", nil, nil, nil, nil, nil, true)
+
+    ct:asm_log_message("starting test one for one")
+    local test_one_for_one = test_one_for_one_test(ct, "one_for_one_column")
+    ct:define_join_link(test_one_for_one)
+
+
+    ct:asm_log_message("starting test one for all")
+    local test_one_for_all = test_one_for_all_test(ct, "one_for_all_column")
+    ct:define_join_link(test_one_for_all)
+
+    ct:asm_log_message("starting test rest for all")
+    local test_reset_for_all = test_rest_for_all_test(ct, "rest_for_all_column")
+    ct:define_join_link(test_reset_for_all)
+
+    ct:asm_log_message("testing failure window test")
+    local test_failure_window = test_failure_window_test(ct, "failure_window_column")
+    ct:define_join_link(test_failure_window)
+
+    ct:asm_log_message("test coordinator node is terminating")
+    ct:asm_terminate()
+    ct:end_column(test_start)
+
+    ct:end_test()
+end
+
+--[[
+  test_for_while.lua - ChainTree for/while test definitions (tests 11-12)
+  LuaJIT port of Python test construction code
+
+  Signature reference:
+    define_for_column(column_name, number_of_iterations, main_function, init_function, term_function, aux_function, user_data, auto_start, label)
+    define_while_column(column_name, main_function, init_function, term_function, aux_function, user_data, auto_start, label)
+--]]
+
+local function eleventh_test(ct, kb_name) -- for column
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    local for_column = ct:define_for_column("for_column", 3, nil, nil, nil, nil, nil, true)
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("branch 1 is terminating")
+    ct:asm_terminate()
+    ct:end_column(branch_1)
+
+    ct:end_column(for_column)
+
+    ct:define_join_link(for_column)
+    ct:asm_log_message("for column is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    ct:end_test()
+end
+
+
+local function twelfth_test(ct, kb_name) -- while column
+    ct:start_test(kb_name)
+
+    local while_column = ct:define_while_column("while_column", nil, nil, nil, "WHILE_TEST", {count=5}, true)
+    local branch_1 = ct:define_column("branch_1", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("branch 1 starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("branch 1 is terminating")
+    ct:asm_terminate()
+    ct:end_column(branch_1)
+    ct:end_column(while_column)
+
+    ct:end_test()
+end
+--[[
+  test_watchdog.lua - ChainTree watchdog test definition (test 13)
+  LuaJIT port of Python test construction code
+
+  Signature reference (from BasicCfLinks):
+    asm_watch_dog_node(wd_time_count, wd_reset, wd_fn, wd_fn_data)
+    asm_enable_watch_dog(node_id)
+    asm_disable_watch_dog(node_id)
+    asm_pat_watch_dog(node_id)
+--]]
+
+local function thirteenth_test(ct, kb_name) -- watch dog
+    ct:start_test(kb_name)
+
+    local watch_dog_column = ct:define_column("watch_dog_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("starting watch dog column")
+    local wd_node_id = ct:asm_watch_dog_node(30, true, "WATCH_DOG_TIME_OUT",
+        {message="************ watch dog time out  reset action"})
+    ct:asm_log_message("watch dog node enabled")
+    ct:asm_enable_watch_dog(wd_node_id)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("patting watch dog")
+    ct:asm_pat_watch_dog(wd_node_id)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("disabling watch dog")
+    ct:asm_disable_watch_dog(wd_node_id)
+    ct:asm_wait_time(4)
+    ct:asm_log_message("enabling watch dog")
+    ct:asm_enable_watch_dog(wd_node_id)
+    ct:asm_wait_time(10)
+    ct:asm_log_message("this should not be reached")
+    ct:asm_terminate()
+    ct:end_column(watch_dog_column)
+
+    local end_column = ct:define_column("end_column", nil, nil, nil, nil, nil, true)
+    ct:asm_wait_time(33)
+    ct:asm_log_message("ending test")
+    ct:asm_terminate_system()
+    ct:end_column(end_column)
+
+    ct:end_test()
+end
+
+--[[
+  test_data_flow.lua - ChainTree data flow bitmask test definition (test 14)
+  LuaJIT port of Python test construction code
+
+  Signature reference (inferred from Python kwargs):
+    define_data_flow_event_mask(column_name, aux_function, required_bitmask, excluded_bitmask)
+    asm_set_bitmask(bitmask_list)
+    asm_clear_bitmask(bitmask_list)
+--]]
+
+local function insert_event_mask_df_a(ct)
+
+    local data_flow_mask_column = ct:define_data_flow_event_mask(
+        "df_mask", "CFL_NULL", {},{"a", "c"}, {"d", "e", "f"})
+
+    ct:asm_log_message("data flow expression column df_a is active")
+    ct:asm_event_logger("----------->  displaying data flow mask events", {"CFL_SECOND_EVENT"})
+    ct:asm_halt()
+    ct:end_column(data_flow_mask_column)
+    return data_flow_mask_column
+end
+
+local function insert_event_mask_df_b(ct)
+    
+    local data_flow_mask_column = ct:define_data_flow_event_mask(
+        "df_mask", "CFL_NULL",{}, {"b", "c"}, {"d", "e", "f"})
+
+    ct:asm_log_message("data flow expression column df_b is active")
+    ct:asm_event_logger("----------->  displaying data flow mask events", {"CFL_SECOND_EVENT"})
+    ct:asm_halt()
+    ct:end_column(data_flow_mask_column)
+    return data_flow_mask_column
+end
+
+
+local function fourteenth_test(ct, kb_name) -- data flow
+
+    ct:start_test(kb_name)
+
+    ct:asm_clear_bitmask({"a", "b", "c", "d", "e", "f"})
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    insert_event_mask_df_a(ct)
+    insert_event_mask_df_b(ct)
+
+    ct:asm_log_message("data flow columns are instantiated")
+    ct:asm_wait_time(5)
+    ct:asm_set_bitmask({"a", "c"})
+    ct:asm_log_message("bitmask event a and c are set")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("bitmask event b is now set")
+    ct:asm_set_bitmask({"b"})
+    ct:asm_log_message("bitmask event a is now cleared")
+    ct:asm_clear_bitmask({"a"})
+    ct:asm_wait_time(5)
+    ct:asm_log_message("bitmask event b and c are now cleared")
+    ct:asm_clear_bitmask({"b", "c"})
+
+    ct:asm_wait_time(5)
+    ct:asm_log_message("test is terminating")
+
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+
+    ct:end_test()
+end
+
+
+
+--[[
+  test_exception.lua - ChainTree exception handler test definitions (test 17)
+  LuaJIT port of Python test construction code
+
+  Signature reference (from ExceptionHandler Python class):
+    define_exception_catch(column_name, aux_function_name, aux_function_data, logging_function_name, logging_function_data, auto_start)
+    define_main_exception_column(name, main_function, init_function, term_function, aux_function, column_data, auto_start)
+    end_main_exception_column(name)
+    define_recovery_column(name, max_steps, skip_condition_function, skip_condition_data)
+    end_recovery_column(name)
+    define_finalize_column(name, main_function, init_function, term_function, aux_function, column_data, auto_start)
+    end_finalize_column(name)
+    exception_catch_end(exception_catch_name)
+    catch_all_exception(column_name, aux_function, aux_data, auto_start)
+    asm_raise_exception(exception_id, exception_data)
+    asm_set_exception_step(step)
+    end_catch_all_exception(name)
+--]]
+
+local function insert_good_main_column(ct, name)
+    local main_column = ct:define_main_exception_column(name, nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("main column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("main column is terminating")
+    ct:asm_terminate()
+    ct:end_main_exception_column(main_column)
+    return main_column
+end
+
+local function insert_bad_main_column(ct, name)
+    local main_column = ct:define_main_exception_column(name, nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("main column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 1")
+    ct:asm_set_exception_step(1)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 2")
+    ct:asm_set_exception_step(2)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 3")
+    ct:asm_set_exception_step(3)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("main column is terminating")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_main_exception_column(main_column)
+    return main_column
+end
+
+local function insert_good_recovery_column(ct, name)
+    local recover_column = ct:define_recovery_column(name, 5, "USER_SKIP_CONDITION",
+        {skip_condition_data="good_recovery_condition"})
+
+    local step_5_column = ct:define_column("step_5_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 5 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 5 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_5_column)
+    local step_4_column = ct:define_column("step_4_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 4 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 4 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_4_column)
+    local step_3_column = ct:define_column("step_3_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 3 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 3 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_3_column)
+    local step_2_column = ct:define_column("step_2_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 2 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 2 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_2_column)
+    local step_1_column = ct:define_column("step_1_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 1 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 1 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_1_column)
+    local step_0_column = ct:define_column("step_0_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 0 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 0 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_0_column)
+
+    ct:asm_log_message("recovery column is terminating")
+    ct:asm_terminate()
+    ct:end_recovery_column(recover_column)
+    return recover_column
+end
+
+local function insert_bad_recovery_column(ct, name)
+
+    local recover_column = ct:define_recovery_column(name, 5, "USER_SKIP_CONDITION",
+        {skip_condition_data="has_raised_exception"})
+
+    local step_5_column = ct:define_column("step_5_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 5 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 5 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_5_column)
+    local step_4_column = ct:define_column("step_4_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 4 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 4 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_4_column)
+    local step_3_column = ct:define_column("step_3_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 3 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 3 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_3_column)
+    local step_2_column = ct:define_column("step_2_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 2 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 2 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_2_column)
+    local step_1_column = ct:define_column("step_1_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 1 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 1 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_1_column)
+    local step_0_column = ct:define_column("step_0_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 0 column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("step 0 column is raising exception")
+    ct:asm_raise_exception(1, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_column(step_0_column)
+    ct:asm_log_message("recovery column is terminating")
+    ct:asm_terminate()
+    ct:end_recovery_column(recover_column)
+    return recover_column
+end
+
+
+local function insert_good_finalize_column(ct, name)
+    local finalize_column = ct:define_finalize_column(name)
+    ct:asm_log_message("finalize column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("finalize column is terminating")
+    ct:asm_terminate()
+    ct:end_finalize_column(finalize_column)
+    return finalize_column
+end
+
+local function insert_bad_finalize_column(ct, name)
+    local finalize_column = ct:define_finalize_column(name)
+    ct:asm_log_message("finalize column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("finalize column is generating exception")
+    ct:asm_raise_exception(3, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_finalize_column(finalize_column)
+    return finalize_column
+end
+
+
+-- define_exception_catch(column_name, aux_function_name, aux_function_data,
+--                        logging_function_name, logging_function_data, auto_start)
+local function insert_exception_catch_column(ct, name)
+
+    local exception_catch_column = ct:define_exception_catch(
+        name, "EXCEPTION_FILTER",
+        {exception_filter_data="exception_filter_data"},
+        "EXCEPTION_LOGGING",
+        {logging_function_data="logging_function_data"},
+        true)
+
+    return exception_catch_column
+end
+
+local function end_exception_catch_column(ct, name)
+    ct:exception_catch_end(name)
+end
+
+local function seventeenth_test(ct, kb_name) -- exception handler
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column is starting")
+    local catch_all_exception_column = ct:catch_all_exception(
+        "catch_all_exception_column", "CATCH_ALL_EXCEPTION",
+        {aux_data="aux_data"}, true)
+    ct:asm_log_message("exception combo 1 is starting")
+    local exception_catch_column_1 = insert_exception_catch_column(ct, "combo_1")
+    insert_good_main_column(ct, "combo_1_main")
+    insert_good_recovery_column(ct, "combo_1_recovery")
+    insert_good_finalize_column(ct, "combo_1_finalize")
+    end_exception_catch_column(ct, exception_catch_column_1)
+    ct:define_join_link(exception_catch_column_1)
+    ct:asm_wait_time(1)
+    ct:asm_log_message("exception combo 2 is starting")
+    local exception_catch_column_2 = insert_exception_catch_column(ct, "combo_2")
+    insert_bad_main_column(ct, "combo_2_main")
+    insert_good_recovery_column(ct, "combo_2_recovery")
+    insert_good_finalize_column(ct, "combo_2_finalize")
+    end_exception_catch_column(ct, exception_catch_column_2)
+    ct:define_join_link(exception_catch_column_2)
+    ct:asm_wait_time(1)
+    ct:asm_log_message("exception combo 3 is starting")
+    local exception_catch_column_3 = insert_exception_catch_column(ct, "combo_3")
+    insert_bad_main_column(ct, "combo_3_main")
+    insert_bad_recovery_column(ct, "combo_3_recovery")
+    insert_good_finalize_column(ct, "combo_3_finalize")
+    end_exception_catch_column(ct, exception_catch_column_3)
+    ct:define_join_link(exception_catch_column_3)
+    ct:asm_wait_time(1)
+    ct:asm_log_message("exception combo 4 is starting")
+    local exception_catch_column_4 = insert_exception_catch_column(ct, "combo_4")
+    insert_good_main_column(ct, "combo_4_main")
+    insert_good_recovery_column(ct, "combo_4_recovery")
+    insert_bad_finalize_column(ct, "combo_4_finalize")
+    end_exception_catch_column(ct, exception_catch_column_4)
+    ct:define_join_link(exception_catch_column_4)
+
+    ct:end_catch_all_exception(catch_all_exception_column)
+    ct:define_join_link(catch_all_exception_column)
+    ct:asm_log_message("launch column is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    ct:end_test()
+end
+
+--[[
+  test_exception_heartbeat.lua - ChainTree exception handler heartbeat test (test 18)
+  LuaJIT port of Python test construction code
+
+  Signature reference:
+    asm_turn_heartbeat_on(time_out)
+    asm_turn_heartbeat_off()
+    asm_heartbeat_event()
+    asm_raise_exception(exception_id, exception_data)
+    asm_set_exception_step(step)
+    define_exception_catch(column_name, aux_function_name, aux_function_data, logging_function_name, logging_function_data, auto_start)
+    define_main_exception_column(name, main_function, init_function, term_function, aux_function, column_data, auto_start)
+    define_recovery_column(name, max_steps, skip_condition_function, skip_condition_data)
+    define_finalize_column(name, main_function, init_function, term_function, aux_function, column_data, auto_start)
+    catch_all_exception(column_name, aux_function, aux_data, auto_start)
+--]]
+
+local function insert_good_main_column_heartbeat(ct, name)
+    local main_column = ct:define_main_exception_column(name, nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("main column is starting")
+    ct:asm_turn_heartbeat_on(50)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 1")
+    ct:asm_set_exception_step(1)
+    ct:asm_heartbeat_event()
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 2")
+    ct:asm_set_exception_step(2)
+    ct:asm_heartbeat_event()
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 3")
+    ct:asm_set_exception_step(3)
+    ct:asm_wait_time(2)
+    ct:asm_turn_heartbeat_off()
+    ct:asm_log_message("main column is terminating")
+
+    ct:asm_terminate()
+    ct:end_main_exception_column(main_column)
+    return main_column
+end
+
+
+local function insert_bad_main_column_heartbeat(ct, name)
+    local main_column = ct:define_main_exception_column(name, nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("main column is starting")
+    ct:asm_turn_heartbeat_on(50)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 1")
+    ct:asm_set_exception_step(1)
+    ct:asm_heartbeat_event()
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 2")
+    ct:asm_set_exception_step(2)
+    --ct:asm_heartbeat_event()
+    ct:asm_wait_time(2)
+    ct:asm_log_message("setting step 3")
+    ct:asm_set_exception_step(3)
+    ct:asm_wait_time(2)
+    ct:asm_turn_heartbeat_off()
+    ct:asm_log_message("main column is terminating")
+
+    ct:asm_terminate()
+    ct:end_main_exception_column(main_column)
+    return main_column
+end
+
+
+local function insert_good_recovery_column_heartbeat(ct, name)
+    local recover_column = ct:define_recovery_column(name, 5, "USER_SKIP_CONDITION",
+        {skip_condition_data="good_recovery_condition"})
+
+    local step_5_column = ct:define_column("step_5_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 5 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 5 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_5_column)
+    local step_4_column = ct:define_column("step_4_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 4 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 4 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_4_column)
+    local step_3_column = ct:define_column("step_3_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 3 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 3 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_3_column)
+    local step_2_column = ct:define_column("step_2_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 2 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 2 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_2_column)
+    local step_1_column = ct:define_column("step_1_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 1 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 1 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_1_column)
+    local step_0_column = ct:define_column("step_0_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("step 0 column is starting")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("step 0 column is terminating")
+    ct:asm_terminate()
+    ct:end_column(step_0_column)
+
+    ct:asm_log_message("recovery column is terminating")
+    ct:asm_terminate()
+    ct:end_recovery_column(recover_column)
+    return recover_column
+end
+
+
+local function insert_good_finalize_column_heartbeat(ct, name)
+    local finalize_column = ct:define_finalize_column(name)
+    ct:asm_log_message("finalize column is starting")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("finalize column is terminating")
+    ct:asm_terminate()
+    ct:end_finalize_column(finalize_column)
+    return finalize_column
+end
+
+local function insert_bad_finalize_column_heartbeat(ct, name)
+    local finalize_column = ct:define_finalize_column(name)
+    ct:asm_log_message("finalize column is starting")
+    ct:asm_turn_heartbeat_on(10)
+    ct:asm_wait_time(2)
+    ct:asm_log_message("finalize column is generating exception")
+    ct:asm_raise_exception(3, {exception_data="exception_data"})
+    ct:asm_terminate()
+    ct:end_finalize_column(finalize_column)
+    return finalize_column
+end
+
+
+local function insert_exception_catch_column_heartbeat(ct, name)
+
+    local exception_catch_column = ct:define_exception_catch(
+        name, "EXCEPTION_FILTER",
+        {exception_filter_data="exception_filter_data"},
+        "EXCEPTION_LOGGING",
+        {logging_function_data="logging_function_data"},
+        true)
+
+    return exception_catch_column
+end
+
+local function end_exception_catch_column_heartbeat(ct, name)
+    ct:exception_catch_end(name)
+end
+
+
+local function eighteenth_test(ct, kb_name) -- exception handler heartbeat
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column is starting")
+    local catch_all_exception_column = ct:catch_all_exception(
+        "catch_all_exception_column", "CATCH_ALL_EXCEPTION",
+        {aux_data="aux_data"}, true)
+    ct:asm_log_message("exception combo 1 is starting")
+    local exception_catch_column_1 = insert_exception_catch_column_heartbeat(ct, "combo_1")
+    insert_good_main_column_heartbeat(ct, "combo_1_main_heartbeat")
+    insert_good_recovery_column_heartbeat(ct, "combo_1_recovery_heartbeat")
+    insert_good_finalize_column_heartbeat(ct, "combo_1_finalize_heartbeat")
+    end_exception_catch_column_heartbeat(ct, exception_catch_column_1)
+    ct:define_join_link(exception_catch_column_1)
+    ct:asm_wait_time(1)
+    ct:asm_log_message("exception combo 2 is starting")
+    local exception_catch_column_2 = insert_exception_catch_column_heartbeat(ct, "combo_2")
+    insert_bad_main_column_heartbeat(ct, "combo_2_main_heartbeat")
+    insert_good_recovery_column_heartbeat(ct, "combo_2_recovery_heartbeat")
+    insert_good_finalize_column_heartbeat(ct, "combo_2_finalize_heartbeat")
+    end_exception_catch_column_heartbeat(ct, exception_catch_column_2)
+    ct:define_join_link(exception_catch_column_2)
+    ct:asm_wait_time(1)
+
+    ct:asm_log_message("exception combo 4 is starting")
+    local exception_catch_column_4 = insert_exception_catch_column_heartbeat(ct, "combo_4")
+    insert_good_main_column_heartbeat(ct, "combo_4_main_heartbeat")
+    insert_good_recovery_column_heartbeat(ct, "combo_4_recovery_heartbeat")
+    insert_bad_finalize_column_heartbeat(ct, "combo_4_finalize_heartbeat")
+    end_exception_catch_column_heartbeat(ct, exception_catch_column_4)
+    ct:define_join_link(exception_catch_column_4)
+
+    ct:end_column(catch_all_exception_column)
+    ct:define_join_link(catch_all_exception_column)
+    ct:asm_log_message("launch column is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    ct:end_test()
+end
+
+--[[
+  test_state_machine_advanced.lua - ChainTree advanced state machine tests (test 19)
+  LuaJIT port of Python test construction code
+
+  Signature reference:
+    define_state_machine(column_name, sm_name, state_names, initial_state, auto_start, aux_function_name)
+    define_state(state_name, column_data)
+    change_state(sm_node_id, new_state, sync_event_id)
+    end_state_machine(state_node, sm_name)
+    terminate_state_machine(sm_node_id)
+    reset_state_machine(sm_node_id)
+    asm_send_named_event(node_id, event_id, event_data)
+    asm_node_element(main_function, initialization_function, aux_function, termination_function, node_data)
+--]]
+
+local function inner_state_sequential_machine(ct)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("sequential machine sm test is starting")
+    ct:asm_log_message("launching state machine 1")
+
+
+    local container_column_1 = ct:define_column("container_column_1", nil, nil, nil, nil, nil, true)
+
+    local sm_name_1 = "sequential_state_machine_1"
+    local state_machine_1 = ct:define_state_machine("state_machine_1", sm_name_1,
+        {"state1", "state2", "state3"}, "state2", true)
+
+    local state1_1 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_1, "state2")
+    ct:asm_halt()
+    ct:end_column(state1_1)
+
+    local state2_1 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:change_state(state_machine_1, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_1)
+
+    local state3_1 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:change_state(state_machine_1, "state1")
+    ct:asm_halt()
+    ct:end_column(state3_1)
+
+    ct:end_state_machine(state_machine_1, "sequential_state_machine_1")
+    ct:asm_wait_time(10)
+    ct:asm_log_message("terminating state machine 1")
+    ct:terminate_state_machine(state_machine_1)
+    ct:end_column(container_column_1)
+    ct:define_join_link(container_column_1)
+
+    local sm_name_2 = "parallel_state_machine_2"
+
+    local container_column_2 = ct:define_column("container_column_2", nil, nil, nil, nil, nil, true)
+
+    local state_machine_2 = ct:define_state_machine("state_machine_2", sm_name_2,
+        {"state1", "state2", "state3"}, "state3", true, "CFL_SM_EVENT_SYNC")
+
+    local state1_2 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_event_logger("displaying state 1 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state2", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state1_2)
+
+    local state2_2 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_event_logger("displaying state 2 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_2)
+
+    local state3_2 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_event_logger("displaying state 3 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state1", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state3_2)
+
+    ct:end_state_machine(state_machine_2, "parallel_state_machine_2")
+    ct:end_column(container_column_2)
+    ct:asm_wait_time(20)
+    ct:asm_log_message("sequential machine sm test is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    return launch_column
+end
+
+
+local function inner_state_parallel_machine(ct)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("parallel machine sm test is starting")
+    ct:asm_log_message("launching state machine 1")
+
+
+    local container_column_1 = ct:define_column("container_column_1", nil, nil, nil, nil, nil, true)
+
+    local sm_name_1 = "state_machine_1"
+    local state_machine_1 = ct:define_state_machine("state_machine_1", sm_name_1,
+        {"state1", "state2", "state3"}, "state2", true)
+
+    local state1_1 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_1, "state2")
+    ct:asm_halt()
+    ct:end_column(state1_1)
+
+    local state2_1 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:change_state(state_machine_1, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_1)
+
+    local state3_1 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:change_state(state_machine_1, "state1")
+    ct:asm_halt()
+    ct:end_column(state3_1)
+
+    ct:end_state_machine(state_machine_1, "state_machine_1")
+    ct:asm_wait_time(10)
+    ct:asm_log_message("terminating state machine 1")
+    ct:terminate_state_machine(state_machine_1)
+
+    ct:end_column(container_column_1)
+    ct:define_join_link(container_column_1)
+
+    local sm_name_2 = "state_machine_2"
+
+    local container_column_2 = ct:define_column("container_column_2", nil, nil, nil, nil, nil, true)
+
+    local state_machine_2 = ct:define_state_machine("state_machine_2", sm_name_2,
+        {"state1", "state2", "state3"}, "state3", true, "CFL_SM_EVENT_SYNC")
+
+    local state1_2 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_event_logger("displaying state 1 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state2", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state1_2)
+
+    local state2_2 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_event_logger("displaying state 2 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_2)
+
+    local state3_2 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_event_logger("displaying state 3 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state1", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state3_2)
+
+    ct:end_state_machine(state_machine_2, "state_machine_2")
+    ct:end_column(container_column_2)
+    ct:asm_wait_time(20)
+    ct:asm_log_message("parallel machine sm test is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    return launch_column
+end
+
+
+local function inner_nested_sm(ct)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("sequential machine sm test is starting")
+    ct:asm_log_message("launching state machine 1")
+
+
+    local sm_name_2 = "inner_nested_state_machine_2"
+
+    local container_column_2 = ct:define_column("container_column_2", nil, nil, nil, nil, nil, true)
+
+    local state_machine_2 = ct:define_state_machine("state_machine_2", sm_name_2,
+        {"state1", "state2", "state3"}, "state3", true, "CFL_SM_EVENT_SYNC")
+
+    local state1_2 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_event_logger("displaying state 1 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state2", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state1_2)
+
+    local state2_2 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_event_logger("displaying state 2 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_2)
+
+    local state3_2 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_event_logger("displaying state 3 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(state_machine_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state1", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state3_2)
+
+    ct:end_state_machine(state_machine_2, sm_name_2)
+
+    ct:end_column(container_column_2)
+
+    ct:end_column(launch_column)
+    return launch_column, state_machine_2
+end
+
+
+local function nested_machine(ct)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("parallel machine sm test is starting")
+    ct:asm_log_message("launching state machine 1")
+
+
+    local container_column_1 = ct:define_column("container_column_1", nil, nil, nil, nil, nil, true)
+
+    local sm_name_1 = "nested_state_machine_1"
+    local state_machine_1 = ct:define_state_machine("state_machine_1", sm_name_1,
+        {"state1", "state2", "state3"}, "state2", true)
+
+    local state1_1 = ct:define_state("state1", nil)
+    ct:asm_log_message("outer state1")
+    ct:asm_log_message("nested state machine 1 is starting")
+    local inner_launch_column, inner_nested_sm_node = inner_nested_sm(ct)
+    ct:asm_wait_time(20)
+    ct:asm_log_message("resetting inner nested state machine")
+    ct:reset_state_machine(inner_nested_sm_node)
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_1, "state2")
+    ct:asm_halt()
+    ct:end_column(state1_1)
+
+    local state2_1 = ct:define_state("state2", nil)
+    ct:asm_log_message("outer state2")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:change_state(state_machine_1, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_1)
+
+    local state3_1 = ct:define_state("state3", nil)
+    ct:asm_log_message("outer state3")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:change_state(state_machine_1, "state1")
+    ct:asm_halt()
+    ct:end_column(state3_1)
+
+    ct:end_state_machine(state_machine_1, sm_name_1)
+    ct:asm_wait_time(100)
+    ct:asm_log_message("terminating state machine 1")
+    ct:terminate_state_machine(state_machine_1)
+
+    ct:end_column(container_column_1)
+    ct:define_join_link(container_column_1)
+    ct:end_column(launch_column)
+    return launch_column
+end
+
+
+-- asm_node_element(main_function, initialization_function, aux_function, termination_function, node_data)
+local function insert_sm_event_filtering(ct)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("sequential machine sm test is starting")
+    ct:asm_log_message("launching state machine 1")
+
+
+    local sm_name_2 = "sm_event_filtering_state_machine_2"
+
+    local container_column_2 = ct:define_column("container_column_2", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launching event filtering state machine")
+    ct:asm_node_element("SM_EVENT_FILTERING_MAIN", "SM_EVENT_FILTERING_INIT")
+    local state_machine_2 = ct:define_state_machine("state_machine_2", sm_name_2,
+        {"state1", "state2", "state3"}, "state3", true, "CFL_SM_EVENT_SYNC")
+
+    local state1_2 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_event_logger("displaying state 1 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state2", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state1_2)
+
+    local state2_2 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_event_logger("displaying state 2 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_2)
+
+    local state3_2 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_event_logger("displaying state 3 events", {"TEST_EVENT_1", "TEST_EVENT_2", "TEST_EVENT_3"})
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_1", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_2", {})
+    ct:asm_send_named_event(container_column_2, "TEST_EVENT_3", {})
+    ct:change_state(state_machine_2, "state1", "SYNC_EVENT")
+    ct:asm_halt()
+    ct:end_column(state3_2)
+
+    ct:end_state_machine(state_machine_2, sm_name_2)
+
+    ct:end_column(container_column_2)
+    ct:asm_wait_time(20)
+    ct:asm_log_message("event filtering state machine is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    return launch_column, state_machine_2
+end
+
+
+local function ninteenth_test(ct, kb_name) -- state machine
+    ct:start_test(kb_name)
+    local define_container_column = ct:define_column("container_column", nil, nil, nil, nil, nil, true)
+    local inner_sequential_column = inner_state_sequential_machine(ct)
+    ct:define_join_link(inner_sequential_column)
+    local inner_parallel_column = inner_state_parallel_machine(ct)
+    ct:define_join_link(inner_parallel_column)
+    local inner_nested_column = nested_machine(ct)
+    ct:define_join_link(inner_nested_column)
+    local event_filter_column = insert_sm_event_filtering(ct)
+    ct:end_column(define_container_column)
+    ct:end_test()
+end
+
+--[[
+  test_bitmask_arena.lua - ChainTree bitmask, test control, and local arena tests (tests 20-22)
+  LuaJIT port of Python test construction code
+
+  Signature reference (inferred from Python kwargs order):
+    asm_wait_for_bitmask(required_bitmask, excluded_bitmask, reset_flag, timeout, error_fn, error_data)
+    asm_verify_bitmask(required_bitmask, excluded_bitmask, reset_flag, error_fn, error_data)
+    asm_set_bitmask(bitmask_list)
+    asm_clear_bitmask(bitmask_list)
+    asm_start_stop_tests(stop_tests, start_tests)
+    asm_wait_for_tests_complete(test_ids, reset_flag, timeout, error_fn, time_out_event, error_data)
+    asm_verify_tests_active(test_ids, reset_flag, error_fn, error_data)
+    start_test(test_name, kb_memory_factor)
+    define_local_arena(column_name, arena_size)
+--]]
+
+
+local function twentieth_test(ct, kb_name) -- bitmask wait/verify
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_clear_bitmask({"a", "b", "c", "d", "e", "f"})
+    local bitmask_column = ct:define_column("bitmask_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("waiting for bitmask")
+    ct:asm_wait_for_bitmask({"a", "b", "c"}, {"d", "e", "f"}, false, 10, "WHILE_BITMASK_FAILURE", "CF_SECOND_EVENT", {})
+    ct:asm_log_message("bitmask received")
+    ct:asm_verify_bitmask({"a", "b", "c"}, {"d", "e", "f"}, false, "VERIFY_BITMASK_FAILURE", {})
+    ct:asm_log_message("bitmask verified")
+    ct:asm_halt()
+    ct:end_column(bitmask_column)
+    ct:asm_log_message("setting bitmask")
+    ct:asm_set_bitmask({"a", "b", "c"})
+    ct:asm_log_message("bitmask set")
+    ct:asm_wait_time(5)
+    ct:asm_log_message("clearing bitmask")
+    ct:asm_clear_bitmask({"a", "b", "c"})
+    ct:define_join_link(bitmask_column)
+    ct:asm_log_message("verify test has failed")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+    ct:end_test()
+end
+
+local function twenty_first_test(ct, kb_name) -- test start/stop control
+    ct:start_test(kb_name, 40)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column_started")
+    ct:asm_wait_time(1)
+    ct:asm_start_stop_tests({}, {3})
+    ct:asm_log_message("test 0 started")
+    ct:asm_wait_time(10)
+    ct:asm_start_stop_tests({3}, {1})
+    ct:asm_log_message("test 1 started")
+    ct:asm_wait_for_tests_complete({1}, false, 30, "WAIT_FOR_TEST_COMPLETE_ERROR", "CF_SECOND_EVENT", {})
+    ct:asm_log_message("test 1 completed")
+    ct:asm_start_stop_tests({1}, {2})
+    ct:asm_verify_tests_active({2}, false, "VERIFY_TESTS_ACTIVE_ERROR", {})
+    ct:asm_halt()
+    ct:end_column(launch_column)
+    ct:end_test()
+end
+
+local function twenty_second_test(ct, kb_name) -- local arena + state machine
+    ct:start_test(kb_name)
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column")
+    ct:asm_log_message("launching state machine 1")
+    ct:asm_log_message("launching local arena")
+    local column_arena = ct:define_local_arena("column_arena", 500)
+    local sm_name_1 = "state_machine_1"
+    local state_machine_1 = ct:define_state_machine("state_machine_1", sm_name_1,
+        {"state1", "state2", "state3"}, "state2", true)
+
+    local state1_1 = ct:define_state("state1", nil)
+    ct:asm_log_message("state1")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state2")
+    ct:change_state(state_machine_1, "state2")
+    ct:asm_halt()
+    ct:end_column(state1_1)
+
+    local state2_1 = ct:define_state("state2", nil)
+    ct:asm_log_message("state2")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state3")
+    ct:change_state(state_machine_1, "state3")
+    ct:asm_halt()
+    ct:end_column(state2_1)
+
+    local state3_1 = ct:define_state("state3", nil)
+    ct:asm_log_message("state3")
+    ct:asm_wait_time(2)
+    ct:asm_log_message("changing state to state1")
+    ct:change_state(state_machine_1, "state1")
+    ct:asm_halt()
+    ct:end_column(state3_1)
+
+    ct:end_state_machine(state_machine_1, "state_machine_1")
+
+    ct:asm_log_message("waiting 10 seconds to terminate state machine 1")
+
+    ct:end_column(column_arena)
+    ct:asm_wait_time(10)
+    ct:asm_log_message("launch column is terminating")
+    ct:asm_terminate()
+    ct:end_column(launch_column)
+
+    ct:end_test()
+end
+
 
 -- =========================================================================
 -- Header / entry point
@@ -194,24 +1855,24 @@ end
 
 local test_list = {
     "first_test",
-    -- "second_test",
-    -- "fourth_test",
-    -- "fifth_test",
-    -- "sixth_test",
-    -- "seventh_test",
-    -- "eighth_test",
-    -- "ninth_test",
-    -- "tenth_test",
-    -- "eleventh_test",
-    -- "twelfth_test",
-    -- "thirteenth_test",
-    -- "fourteenth_test",
-    -- "seventeenth_test",
-    -- "eighteenth_test",
-    -- "ninteenth_test",
-    -- "twentieth_test",
-    -- "twenty_first_test",
-    -- "twenty_second_test",
+    "second_test",
+    "fourth_test",
+    "fifth_test",
+    "sixth_test",
+    "seventh_test",
+    "eighth_test",
+    "ninth_test",
+    "tenth_test",
+    "eleventh_test",
+    "twelfth_test",
+    "thirteenth_test",
+    "fourteenth_test",
+    "seventeenth_test",
+    "eighteenth_test",
+    "ninteenth_test",
+    "twentieth_test",
+    "twenty_first_test",
+    "twenty_second_test",
     -- "twenty_third_test",
     -- "twenty_fourth_test",
     -- "twenty_fifth_test",
@@ -226,25 +1887,24 @@ local test_list = {
 
 local test_dict = {
     first_test = first_test,
-    -- Uncomment as tests are translated:
-    -- second_test = second_test,
-    -- fourth_test = fourth_test,
-    -- fifth_test = fifth_test,
-    -- sixth_test = sixth_test,
-    -- seventh_test = seventh_test,
-    -- eighth_test = eighth_test,
-    -- ninth_test = ninth_test,
-    -- tenth_test = tenth_test,
-    -- eleventh_test = eleventh_test,
-    -- twelfth_test = twelfth_test,
-    -- thirteenth_test = thirteenth_test,
-    -- fourteenth_test = fourteenth_test,
-    -- seventeenth_test = seventeenth_test,
-    -- eighteenth_test = eighteenth_test,
-    -- ninteenth_test = ninteenth_test,
-    -- twentieth_test = twentieth_test,
-    -- twenty_first_test = twenty_first_test,
-    -- twenty_second_test = twenty_second_test,
+    second_test = second_test,
+    fourth_test = fourth_test,
+    fifth_test = fifth_test,
+    sixth_test = sixth_test,
+    seventh_test = seventh_test,
+    eighth_test = eighth_test,
+    ninth_test = ninth_test,
+    tenth_test = tenth_test,
+    eleventh_test = eleventh_test,
+    twelfth_test = twelfth_test,
+    thirteenth_test = thirteenth_test,
+    fourteenth_test = fourteenth_test,
+    seventeenth_test = seventeenth_test,
+    eighteenth_test = eighteenth_test,
+    ninteenth_test = ninteenth_test,
+    twentieth_test = twentieth_test,
+    twenty_first_test = twenty_first_test,
+    twenty_second_test = twenty_second_test,
     -- twenty_third_test = twenty_third_test,
     -- twenty_fourth_test = twenty_fourth_test,
     -- twenty_fifth_test = twenty_fifth_test,
@@ -277,7 +1937,7 @@ if arg then
         ct:display_chain_tree_function_mapping()
         os.exit(0)
     end
-
+    print("Adding tests")
     local ct = add_header(yaml_file)
     for _, test_name in ipairs(test_list) do
         test_dict[test_name](ct, test_name)
