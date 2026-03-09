@@ -18,7 +18,7 @@
 --   local mod  = se_runtime.new_module(module_data, user_fns)
 --   local inst = se_runtime.new_instance(mod, "tree_name")
 --   local result = se_runtime.tick(inst)
---   -- caller checks se_runtime.is_complete(result) and loops
+--   -- caller owns the tick loop, drain loop, and completion predicates
 -- ============================================================================
 
 local M = {}
@@ -88,17 +88,6 @@ local SE_EVENT_INIT             = M.SE_EVENT_INIT
 local SE_EVENT_TERMINATE        = M.SE_EVENT_TERMINATE
 local SE_EVENT_TICK             = M.SE_EVENT_TICK
 
--- ============================================================================
--- is_complete: true when result terminates the outer tick loop
--- ============================================================================
-function M.is_complete(result)
-    return result == M.SE_HALT             or result == M.SE_TERMINATE
-        or result == M.SE_DISABLE
-        or result == M.SE_FUNCTION_HALT    or result == M.SE_FUNCTION_TERMINATE
-        or result == M.SE_FUNCTION_DISABLE
-        or result == M.SE_PIPELINE_HALT    or result == M.SE_PIPELINE_TERMINATE
-        or result == M.SE_PIPELINE_DISABLE
-end
 
 -- ============================================================================
 -- Node state helpers
@@ -189,42 +178,35 @@ local function annotate_node(node, counter, module_data)
 end
 
 -- ============================================================================
--- new_module: build dispatch tables, annotate trees
+-- new_module: build structure and annotate trees.
+-- Does NOT assert on missing functions -- registration is separate.
+-- Pass an optional initial fns table as a convenience; more can be added
+-- later via register_fns().  Call validate_module() before new_instance().
 -- ============================================================================
-function M.new_module(module_data, user_fns)
-    user_fns = user_fns or {}
-
-        -- Build case-insensitive lookup from user-supplied functions
-    local all_fns = {}
-    for k, v in pairs(user_fns) do
-        all_fns[k:upper()] = v
-        all_fns[k:lower()] = v
-    end
-
+function M.new_module(module_data, initial_fns)
     local mod = {
         module_data = module_data,
-        oneshot_fns = {},   -- [0-based index] = fn
+        oneshot_fns = {},   -- [0-based index] -> fn,  nil = not yet registered
         main_fns    = {},
         pred_fns    = {},
+        -- name->index maps for register_fns lookups
+        _oneshot_idx = {},  -- name_upper -> 0-based index
+        _main_idx    = {},
+        _pred_idx    = {},
     }
 
-    for i, name in ipairs(module_data.oneshot_funcs) do
-        local fn = all_fns[name:upper()] or all_fns[name:lower()]
-        assert(fn, "new_module: missing oneshot: " .. name)
-        mod.oneshot_fns[i-1] = fn
+    -- Build name->index maps from module_data function lists
+    for i, name in ipairs(module_data.oneshot_funcs or {}) do
+        mod._oneshot_idx[name:upper()] = i - 1
     end
-    for i, name in ipairs(module_data.main_funcs) do
-        local fn = all_fns[name:upper()] or all_fns[name:lower()]
-        assert(fn, "new_module: missing main: " .. name)
-        mod.main_fns[i-1] = fn
+    for i, name in ipairs(module_data.main_funcs or {}) do
+        mod._main_idx[name:upper()] = i - 1
     end
-    for i, name in ipairs(module_data.pred_funcs) do
-        local fn = all_fns[name:upper()] or all_fns[name:lower()]
-        assert(fn, "new_module: missing pred: " .. name)
-        mod.pred_fns[i-1] = fn
+    for i, name in ipairs(module_data.pred_funcs or {}) do
+        mod._pred_idx[name:upper()] = i - 1
     end
 
-    -- Annotate every tree
+    -- Annotate every tree (node_index, func_index assignment)
     for _, tree_name in ipairs(module_data.tree_order) do
         local tree = module_data.trees[tree_name]
         local counter = {0}
@@ -243,17 +225,84 @@ function M.new_module(module_data, user_fns)
     end
 
     -- Default time function (can be replaced by caller)
-    if not mod.get_time then
-        mod.get_time = M.default_get_time
+    mod.get_time = M.default_get_time
+
+    -- Register any functions supplied at construction time
+    if initial_fns then
+        M.register_fns(mod, initial_fns)
     end
 
     return mod
 end
 
 -- ============================================================================
--- new_instance: allocate node_states, blackboard, event queue
+-- register_fns: add (or overwrite) functions on an existing mod.
+-- Can be called multiple times before validate_module / new_instance.
+-- fns: table of { func_name = fn, ... } -- same format as merge_fns output.
+-- Unknown names (not referenced by this module) are silently ignored;
+-- they may belong to a different module loaded in the same session.
+-- ============================================================================
+function M.register_fns(mod, fns)
+    for raw_name, fn in pairs(fns) do
+        local uname = raw_name:upper()
+        local idx
+
+        idx = mod._oneshot_idx[uname]
+        if idx ~= nil then mod.oneshot_fns[idx] = fn end
+
+        idx = mod._main_idx[uname]
+        if idx ~= nil then mod.main_fns[idx] = fn end
+
+        idx = mod._pred_idx[uname]
+        if idx ~= nil then mod.pred_fns[idx] = fn end
+    end
+end
+
+-- ============================================================================
+-- validate_module: check that every function required by the module has been
+-- registered.  Returns two values:
+--   ok      bool   -- true if all functions are present
+--   missing table  -- list of { name=, kind= } for every gap (empty if ok)
+-- Call this after all register_fns() calls, before new_instance().
+-- ============================================================================
+function M.validate_module(mod)
+    local missing = {}
+    local md = mod.module_data
+
+    for i, name in ipairs(md.oneshot_funcs or {}) do
+        if not mod.oneshot_fns[i-1] then
+            missing[#missing+1] = { name=name, kind="oneshot" }
+        end
+    end
+    for i, name in ipairs(md.main_funcs or {}) do
+        if not mod.main_fns[i-1] then
+            missing[#missing+1] = { name=name, kind="main" }
+        end
+    end
+    for i, name in ipairs(md.pred_funcs or {}) do
+        if not mod.pred_fns[i-1] then
+            missing[#missing+1] = { name=name, kind="pred" }
+        end
+    end
+
+    return (#missing == 0), missing
+end
+
+-- ============================================================================
+-- new_instance: allocate node_states, blackboard, event queue.
+-- Calls validate_module() first; errors with the full missing-function list
+-- so the caller sees every gap at once rather than one assert at a time.
 -- ============================================================================
 function M.new_instance(mod, tree_name)
+    local ok, missing = M.validate_module(mod)
+    if not ok then
+        local lines = { "new_instance: unregistered functions:" }
+        for _, m in ipairs(missing) do
+            lines[#lines+1] = string.format("  [%s] %s", m.kind, m.name)
+        end
+        error(table.concat(lines, "\n"))
+    end
+
     local module_data = mod.module_data
     local tree = module_data.trees[tree_name]
     assert(tree, "new_instance: unknown tree: " .. tostring(tree_name))
@@ -571,59 +620,34 @@ M.field_set       = field_set
 M.param_result    = param_result
 
 -- ============================================================================
--- tick: main entry point  (mirrors s_expr_node_tick + event drain loop)
+-- tick_once: the ONLY tick entry point.  Mirrors s_expr_node_tick() in C.
+-- Does NOT drain the event queue.  Does NOT define completion semantics.
+-- The caller owns the event queue drain loop and all result-code predicates.
 -- ============================================================================
-function M.tick(inst, event_id, event_data)
-    event_id   = event_id or SE_EVENT_TICK
-    event_data = event_data
+function M.tick_once(inst, event_id, event_data)
+    event_id = event_id or SE_EVENT_TICK
 
     local tree = inst.tree
     local root = tree.nodes[1]
-    assert(root, "tick: tree has no root node")
+    assert(root, "tick_once: tree has no root node")
 
-    -- Check root ACTIVE
+    -- Check root ACTIVE (root disabled = tree is dead)
     local root_ns = get_ns(inst, root.node_index)
     if band(root_ns.flags, FLAG_ACTIVE) == 0 then
         return M.SE_FUNCTION_TERMINATE
     end
 
-    -- Store event context
+    -- Store event context on inst (builtins may read these)
     inst.current_event_id   = event_id
     inst.current_event_data = event_data
     inst.tick_type          = event_id
 
-    -- Reset stack if present
+    -- Reset stack top if a stack is present
     if inst.stack then inst.stack.top = 0 end
 
-    local result = invoke_main(inst, root, event_id, event_data)
-
-    -- Drain internal event queue (mirrors C test harness pattern)
-    while eq_count(inst) > 0 do
-        local tick_type, qev_id, qev_data = eq_pop(inst)
-        local saved_tick_type = inst.tick_type
-        inst.tick_type          = tick_type
-        inst.current_event_id   = qev_id
-        inst.current_event_data = qev_data
-
-        -- Root might have disabled itself; re-check
-        root_ns = get_ns(inst, root.node_index)
-        local ev_result
-        if band(root_ns.flags, FLAG_ACTIVE) == 0 then
-            ev_result = M.SE_FUNCTION_TERMINATE
-        else
-            ev_result = invoke_main(inst, root, qev_id, qev_data)
-        end
-
-        inst.tick_type = saved_tick_type
-
-        if M.is_complete(ev_result) then
-            result = ev_result
-            break
-        end
-    end
-
-    return result
+    return invoke_main(inst, root, event_id, event_data)
 end
+
 
 
 -- ============================================================================
