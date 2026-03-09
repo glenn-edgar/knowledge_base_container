@@ -1,0 +1,6 @@
+site_name: C MQTT client library
+nav:
+  - MQTT Publish/Subscribe: README_mqtt_pubsub.md
+  - MQTT Key-Value Store: README_mqtt_kv_read_store.md
+  - MQTT Job Queue: README_mqtt_job_queue.md
+  - MQTT RPC: README_mqtt_rpc.md
