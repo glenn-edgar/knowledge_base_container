@@ -109,9 +109,11 @@ start_tree("state_machine_test")
         end)
 
         se_fork(function()
+            se_sequence(function()
             se_log("Fork 1 Test Started")
-            se_tick_delay(10)
-            se_log("Fork 1 Test Terminated")
+                se_tick_delay(10)
+                se_log("Fork 1 Test Terminated")
+            end)
         end)
         -- Removed the extra end) here
         

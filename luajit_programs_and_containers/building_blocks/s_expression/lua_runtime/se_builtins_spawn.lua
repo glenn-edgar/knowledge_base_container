@@ -32,7 +32,7 @@ local get_state            = se_runtime.get_state
 local set_state            = se_runtime.set_state
 local get_user_u64         = se_runtime.get_user_u64
 local set_user_u64         = se_runtime.set_user_u64
-
+local FLAG_ACTIVE = 0x01
 local M = {}
 
 -- ============================================================================
@@ -49,8 +49,28 @@ end
 -- Mirrors the C tick_with_event_queue helper exactly.
 -- ============================================================================
 local function tick_with_event_queue(child, event_id, event_data)
-    -- se_runtime.tick already drains the child's own event queue internally
-    return se_runtime.tick(child, event_id, event_data)
+    local result = se_runtime.tick_once(child, event_id, event_data)
+
+    local event_count = se_runtime.event_count(child)
+    while event_count > 0 and not result_is_complete(result) do
+        local tick_type, ev_id, ev_data = se_runtime.event_pop(child)
+
+        local saved_tick_type = child.tick_type
+        child.tick_type = tick_type
+
+        local event_result = se_runtime.tick_once(child, ev_id, ev_data)
+
+        child.tick_type = saved_tick_type
+
+        if result_is_complete(event_result) then
+            result = event_result
+            break
+        end
+
+        event_count = se_runtime.event_count(child)
+    end
+
+    return result
 end
 
 -- ============================================================================
@@ -179,7 +199,7 @@ M.se_spawn_tree = function(inst, node, event_id, event_data)
         local child = inst.pointer_array[inst.pointer_base].ptr
         if child then
             -- Send terminate to child tree
-            se_runtime.tick(child, SE_EVENT_TERMINATE, nil)
+            se_runtime.tick_once(child, SE_EVENT_TERMINATE, nil)
             -- Clear blackboard field
             local field_name = param_field_name(node, 1)
             inst.blackboard[field_name] = nil
@@ -222,15 +242,50 @@ M.se_tick_tree = function(inst, node, event_id, event_data)
     end
 
     if event_id == SE_EVENT_TERMINATE then
-        se_runtime.tick(child, SE_EVENT_TERMINATE, nil)
+        se_runtime.tick_once(child, SE_EVENT_TERMINATE, nil)
         return SE_PIPELINE_CONTINUE
     end
 
     -- TICK: tick child + drain its event queue
-    -- se_runtime.tick already handles the child's internal queue drain
-    local result = se_runtime.tick(child, event_id, event_data)
+    local result = se_runtime.tick_once(child, event_id, event_data)
+
+    -- Drain the child's event queue
+    while se_runtime.event_count(child) > 0 do
+        local q_tick_type, q_event_id, q_event_data = se_runtime.event_pop(child)
+        result = se_runtime.tick_once(child, q_event_id, q_event_data)
+    end
 
     return result
+end
+
+-- ============================================================================
+-- SE_LOAD_FUNCTION  (io_call = ONESHOT)
+-- io_call compiles as an oneshot: fn(inst, node) -- no event_id arg.
+-- Runs once during tree INIT. Stores a closure over the child subtree
+-- into the blackboard PTR64 field so SE_EXEC_FN can invoke it later.
+--
+-- Lua tree layout:
+--   params[1] = field_ref  (blackboard field to store into)
+--   children[1] = root of the function body subtree
+-- ============================================================================
+M.se_load_function = function(inst, node)
+    local field_name = param_field_name(node, 1)
+    assert(field_name, "se_load_function: missing field_ref param")
+
+    -- child[1] is the function body subtree root
+    local child = node.children and node.children[1]
+    assert(child and child.node_index,
+        "se_load_function: no child subtree to load")
+
+    -- Store the child node table (invoke_any takes a node table, not an index)
+    local child_node = child
+
+    -- Build a closure that ticks the child subtree via invoke_any.
+    local fn = function(calling_inst, _exec_node, eid, edata)
+        return se_runtime.invoke_any(calling_inst, child_node, eid, edata)
+    end
+
+    inst.blackboard[field_name] = fn
 end
 
 -- ============================================================================
@@ -239,11 +294,7 @@ end
 -- Lua tree layout:
 --   params[1] = field_ref  (blackboard field holding fn)
 --
--- In C, this caches the s-expr param pointer. In Lua, the blackboard
--- holds a Lua function directly. No caching needed.
---
--- INIT:     validate that field holds a callable; cache fn in user_u64
---           (stored as a Lua closure reference on node_state)
+-- INIT:     validate that field holds a callable; cache fn in node_state
 -- TERMINATE: SE_PIPELINE_CONTINUE
 -- TICK:     call the function; SE_PIPELINE_DISABLE -> SE_PIPELINE_CONTINUE
 -- ============================================================================
@@ -401,6 +452,6 @@ M.se_exec_dict_fn_ptr = function(inst, node, event_id, event_data)
 end
 
 -- Module constant (used by se_tick_tree full reset)
-local FLAG_ACTIVE = 0x01
+
 
 return M
