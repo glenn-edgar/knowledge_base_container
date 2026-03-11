@@ -32,31 +32,31 @@ local children_reset_all     = se_runtime.children_reset_all
 local invoke_pred            = se_runtime.invoke_pred
 local invoke_any             = se_runtime.invoke_any
 local get_ns                 = se_runtime.get_ns
-local param_int              = se_runtime.param_int
 local bit                    = require("bit")
 
--- Node state flag constants
+-- Node state flag constants (must be declared before any function that uses them)
 local FLAG_ACTIVE      = 0x01
 local FLAG_INITIALIZED = 0x02
-
--- Fork state constants (must match C: FORK_STATE_INIT=0, RUNNING=1, COMPLETE=2)
-local FORK_STATE_INIT     = 0
-local FORK_STATE_RUNNING  = 1
-local FORK_STATE_COMPLETE = 2
-
--- While state constants
-local SE_WHILE_EVAL_PRED = 0
-local SE_WHILE_RUN_BODY  = 1
-
--- Sentinel for "no active child"
-local NO_CHILD = 0xFFFF
 
 local M = {}
 
 -- ----------------------------------------------------------------------------
 -- SE_SEQUENCE
+-- Faithful translation of C se_sequence.
 -- Executes children one at a time in order; advances when current completes.
 -- ns.state = current child index (0-based).
+--
+-- INIT:     state=0, return PIPELINE_CONTINUE.
+-- TERMINATE: terminate only the current child if initialized, state=0.
+-- TICK:     while loop — can advance multiple steps per tick for
+--           oneshots/preds (fire-and-advance) and completed mains.
+--           Main result dispatch:
+--             app codes (0-5)              -> propagate immediately
+--             function codes (6-11)        -> propagate; FUNCTION_HALT->PIPELINE_HALT
+--             PIPELINE_CONTINUE/HALT       -> pause, return PIPELINE_CONTINUE
+--             PIPELINE_DISABLE/TERM/RESET  -> child_terminate, advance state
+--             PIPELINE_SKIP_CONTINUE       -> pause, return PIPELINE_CONTINUE
+--           All children done -> PIPELINE_DISABLE.
 -- ----------------------------------------------------------------------------
 M.se_sequence = function(inst, node, event_id, event_data)
     local ns       = get_ns(inst, node.node_index)
@@ -143,8 +143,18 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_SEQUENCE_ONCE
+-- Faithful translation of C se_sequence_once.
 -- Fires ALL children exactly once in a single tick, then terminates them all
--- and returns PIPELINE_DISABLE.
+-- and returns PIPELINE_DISABLE. Single-shot: always done after one tick.
+--
+-- INIT:     set state=0, return PIPELINE_CONTINUE.
+-- TERMINATE: terminate only initialized children, set state=0.
+-- TICK:     iterate children in order:
+--             oneshot/pred: invoke unconditionally, continue
+--             main: invoke; break loop if result is not PIPELINE_CONTINUE
+--                   or PIPELINE_DISABLE (i.e. any non-normal code stops iteration)
+--           After loop: terminate all initialized children.
+--           Always return PIPELINE_DISABLE.
 -- ----------------------------------------------------------------------------
 M.se_sequence_once = function(inst, node, event_id, event_data)
     local ns       = get_ns(inst, node.node_index)
@@ -204,8 +214,21 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_FUNCTION_INTERFACE
+-- Faithful translation of C se_function_interface.
 -- Top-level parallel dispatcher; FUNCTION_DISABLE when all children complete.
--- ns.state: FORK_STATE_RUNNING or FORK_STATE_COMPLETE
+-- ns.state: 0=RUNNING, 1=COMPLETE
+--
+-- INIT:  set RUNNING, reset all callable children, return FUNCTION_CONTINUE.
+-- TERM:  terminate all, set COMPLETE, return FUNCTION_CONTINUE.
+-- TICK:  if COMPLETE return FUNCTION_DISABLE immediately.
+--        Invoke all active callable children with full result dispatch:
+--          non-pipeline (< PIPELINE_CONTINUE) -> propagate immediately
+--          PIPELINE_CONTINUE / HALT            -> active_count++
+--          PIPELINE_DISABLE / TERMINATE        -> child_terminate
+--          PIPELINE_RESET                      -> child_terminate + child_reset + active_count++
+--          PIPELINE_SKIP_CONTINUE              -> active_count++, stop loop
+--        Final: active_count==0 -> COMPLETE + FUNCTION_DISABLE
+--               else              -> FUNCTION_CONTINUE
 -- ----------------------------------------------------------------------------
 M.se_function_interface = function(inst, node, event_id, event_data)
     local ns       = get_ns(inst, node.node_index)
@@ -213,7 +236,7 @@ M.se_function_interface = function(inst, node, event_id, event_data)
     local n        = #children
 
     if event_id == SE_EVENT_INIT then
-        ns.state = FORK_STATE_RUNNING
+        ns.state = FORK_RUNNING
         for i = 1, n do
             local ct = children[i].call_type
             if ct == "m_call" or ct == "pt_m_call"
@@ -227,12 +250,12 @@ M.se_function_interface = function(inst, node, event_id, event_data)
 
     if event_id == SE_EVENT_TERMINATE then
         children_terminate_all(inst, node)
-        ns.state = FORK_STATE_COMPLETE
+        ns.state = FORK_COMPLETE
         return SE_FUNCTION_CONTINUE
     end
 
     -- TICK
-    if ns.state ~= FORK_STATE_RUNNING then
+    if ns.state ~= FORK_RUNNING then
         return SE_FUNCTION_DISABLE
     end
 
@@ -243,7 +266,7 @@ M.se_function_interface = function(inst, node, event_id, event_data)
         if skip then break end
         local child = children[i]
         local idx   = i - 1
-        if not child.node_index then goto continue_fi end
+        if not child.node_index then goto continue_fi end   -- non-callable param
         local cns   = get_ns(inst, child.node_index)
 
         -- Skip inactive children
@@ -267,7 +290,7 @@ M.se_function_interface = function(inst, node, event_id, event_data)
 
             elseif r == SE_PIPELINE_RESET then
                 child_terminate(inst, node, idx)
-                child_reset(inst, node, idx)
+                child_reset(inst, node, idx)        -- note: child_reset, not recursive
                 active_count = active_count + 1
 
             elseif r == SE_PIPELINE_SKIP_CONTINUE then
@@ -283,7 +306,7 @@ M.se_function_interface = function(inst, node, event_id, event_data)
     end
 
     if active_count == 0 then
-        ns.state = FORK_STATE_COMPLETE
+        ns.state = FORK_COMPLETE
         return SE_FUNCTION_DISABLE
     end
     return SE_FUNCTION_CONTINUE
@@ -291,20 +314,37 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_FORK
+-- Faithful translation of C se_fork.
 -- Parallel execution of all children; PIPELINE_DISABLE when all MAIN complete.
--- ns.state: FORK_STATE_RUNNING or FORK_STATE_COMPLETE
+-- ns.state: 0=RUNNING, 1=COMPLETE
+--
+-- INIT:  mark RUNNING, reset all callable children.
+-- TICK:  if COMPLETE return PIPELINE_DISABLE immediately.
+--        Oneshots/preds: fire once if not yet initialized.
+--        Main: invoke only if active; full result dispatch:
+--          FUNCTION_HALT         -> treat as PIPELINE_HALT, propagate if < PIPELINE_CONTINUE
+--          non-pipeline (< 12)   -> propagate immediately
+--          PIPELINE_CONTINUE/HALT-> keep going (child still active)
+--          PIPELINE_DISABLE/TERM -> child_terminate
+--          PIPELINE_RESET        -> child_terminate + child_reset_recursive
+--          PIPELINE_SKIP_CONTINUE-> break to completion check
+--        Completion: count active MAIN; 0 -> COMPLETE + PIPELINE_DISABLE
+-- TERM:  terminate all, return PIPELINE_CONTINUE.
 -- ----------------------------------------------------------------------------
+local FORK_RUNNING  = 0
+local FORK_COMPLETE = 1
+
 M.se_fork = function(inst, node, event_id, event_data)
     local ns = get_ns(inst, node.node_index)
 
     if event_id == SE_EVENT_TERMINATE then
         children_terminate_all(inst, node)
-        ns.state = FORK_STATE_COMPLETE
+        ns.state = FORK_COMPLETE
         return SE_PIPELINE_CONTINUE
     end
 
     if event_id == SE_EVENT_INIT then
-        ns.state = FORK_STATE_RUNNING
+        ns.state = FORK_RUNNING
         local children = node.children or {}
         for i = 1, #children do
             local ct = children[i].call_type
@@ -318,7 +358,7 @@ M.se_fork = function(inst, node, event_id, event_data)
     end
 
     -- TICK
-    if ns.state ~= FORK_STATE_RUNNING then
+    if ns.state ~= FORK_RUNNING then
         return SE_PIPELINE_DISABLE
     end
 
@@ -330,7 +370,7 @@ M.se_fork = function(inst, node, event_id, event_data)
         if skip then break end
         local child = children[i]
         local idx   = i - 1
-        if not child.node_index then goto continue_fork end
+        if not child.node_index then goto continue_fork end  -- non-callable param
         local ct    = child.call_type
         local cns   = get_ns(inst, child.node_index)
 
@@ -365,7 +405,7 @@ M.se_fork = function(inst, node, event_id, event_data)
             end
 
             if r == SE_PIPELINE_CONTINUE or r == SE_PIPELINE_HALT then
-                -- child still running
+                -- child still running, keep going
 
             elseif r == SE_PIPELINE_DISABLE or r == SE_PIPELINE_TERMINATE then
                 child_terminate(inst, node, idx)
@@ -375,7 +415,7 @@ M.se_fork = function(inst, node, event_id, event_data)
                 child_reset_recursive(inst, node, idx)
 
             elseif r == SE_PIPELINE_SKIP_CONTINUE then
-                skip = true
+                skip = true   -- goto check_completion
             end
         end
 
@@ -394,7 +434,7 @@ M.se_fork = function(inst, node, event_id, event_data)
     end
 
     if active_main == 0 then
-        ns.state = FORK_STATE_COMPLETE
+        ns.state = FORK_COMPLETE
         return SE_PIPELINE_DISABLE
     end
     return SE_PIPELINE_CONTINUE
@@ -402,16 +442,15 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_FORK_JOIN
+-- Faithful translation of C se_fork_join.
 -- Parallel; returns FUNCTION_HALT while any MAIN child is active,
 -- PIPELINE_DISABLE when all MAIN children complete.
+-- Same result dispatch as se_fork; no state tracking needed.
 -- ----------------------------------------------------------------------------
 M.se_fork_join = function(inst, node, event_id, event_data)
+    if event_id == SE_EVENT_INIT then return SE_PIPELINE_CONTINUE end
     if event_id == SE_EVENT_TERMINATE then
         children_terminate_all(inst, node)
-        return SE_PIPELINE_CONTINUE
-    end
-
-    if event_id == SE_EVENT_INIT then
         return SE_PIPELINE_CONTINUE
     end
 
@@ -423,7 +462,7 @@ M.se_fork_join = function(inst, node, event_id, event_data)
         if skip then break end
         local child = children[i]
         local idx   = i - 1
-        if not child.node_index then goto continue_fj end
+        if not child.node_index then goto continue_fj end  -- non-callable param
         local ct    = child.call_type
         local cns   = get_ns(inst, child.node_index)
 
@@ -494,7 +533,19 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_CHAIN_FLOW
--- Ticks all active children each tick with full result-code dispatch.
+-- Faithful translation of the C se_chain_flow.
+-- Ticks all active children each tick with full result-code dispatch:
+--   Oneshot/pred children: invoke then terminate (fire-and-done).
+--   Main children:
+--     PIPELINE_CONTINUE     -> active_count++, continue
+--     PIPELINE_HALT         -> stop loop, return PIPELINE_CONTINUE
+--     PIPELINE_DISABLE      -> terminate child, continue (not counted)
+--     PIPELINE_TERMINATE    -> terminate all, return PIPELINE_TERMINATE
+--     PIPELINE_RESET        -> terminate all + reset all, return PIPELINE_CONTINUE
+--     PIPELINE_SKIP_CONTINUE-> active_count++, stop loop (skip remaining)
+--     FUNCTION_HALT         -> return PIPELINE_HALT
+--     any other (< PIPELINE_CONTINUE) -> propagate immediately to caller
+-- Final: PIPELINE_DISABLE if active_count==0, else PIPELINE_CONTINUE.
 -- ----------------------------------------------------------------------------
 M.se_chain_flow = function(inst, node, event_id, event_data)
     if event_id == SE_EVENT_INIT then return SE_PIPELINE_CONTINUE end
@@ -505,54 +556,62 @@ M.se_chain_flow = function(inst, node, event_id, event_data)
 
     local children = node.children or {}
     local n = #children
+    local bit = require("bit")
+    local FLAG_ACTIVE = 0x01
     local active_count = 0
     local skip = false
 
     for i = 1, n do
         if skip then break end
         local child = children[i]
-        local idx   = i - 1
+        local idx   = i - 1   -- 0-based index for child_invoke / child_terminate
 
-        -- Skip inactive children
+        -- Skip inactive children (all call types)
         if bit.band(get_ns(inst, child.node_index).flags, FLAG_ACTIVE) == 0 then
             goto continue_loop
         end
 
         local ct = child.call_type
 
-        -- Oneshot: fire and terminate
+        -- Oneshot: fire and terminate (don't count as active)
         if ct == "o_call" or ct == "io_call" then
             child_invoke(inst, node, idx, event_id, event_data)
             child_terminate(inst, node, idx)
             goto continue_loop
         end
 
-        -- Pred: evaluate and terminate
+        -- Pred: evaluate and terminate (don't count as active)
         if ct == "p_call" or ct == "p_call_composite" then
             child_invoke(inst, node, idx, event_id, event_data)
             child_terminate(inst, node, idx)
             goto continue_loop
         end
 
-        -- Main: invoke and dispatch on result
+        -- Main (m_call / pt_m_call): invoke and dispatch on result
         do
             local r = child_invoke(inst, node, idx, event_id, event_data)
 
+            -- FUNCTION_HALT -> PIPELINE_HALT
             if r == SE_FUNCTION_HALT then
                 return SE_PIPELINE_HALT
             end
 
+            -- Non-pipeline codes (0-11, excluding FUNCTION_HALT already handled):
+            -- propagate immediately to caller
             if r < SE_PIPELINE_CONTINUE then
                 return r
             end
 
+            -- Pipeline codes (12-17)
             if r == SE_PIPELINE_CONTINUE then
                 active_count = active_count + 1
 
             elseif r == SE_PIPELINE_HALT then
+                -- Stop processing remaining children; return CONTINUE to caller
                 return SE_PIPELINE_CONTINUE
 
             elseif r == SE_PIPELINE_DISABLE then
+                -- Child done; terminate it, don't count as active
                 child_terminate(inst, node, idx)
 
             elseif r == SE_PIPELINE_TERMINATE then
@@ -566,9 +625,10 @@ M.se_chain_flow = function(inst, node, event_id, event_data)
 
             elseif r == SE_PIPELINE_SKIP_CONTINUE then
                 active_count = active_count + 1
-                skip = true
+                skip = true   -- mirrors goto tick_complete
 
             else
+                -- default: count as active
                 active_count = active_count + 1
             end
         end
@@ -584,15 +644,35 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_WHILE
--- children[0] = predicate, children[1] = body
+-- Faithful translation of C se_while.
+-- children[0] = predicate
+-- children[1] = body
 -- ns.state: 0=EVAL_PRED, 1=RUN_BODY
--- Returns FUNCTION_HALT while body is running, PIPELINE_HALT when body
--- completes (loops back to pred), PIPELINE_DISABLE when pred is false.
+--
+-- INIT:     state=EVAL_PRED, return PIPELINE_CONTINUE.
+-- TERMINATE: terminate body only if initialized; return PIPELINE_CONTINUE.
+-- TICK state=EVAL_PRED:
+--   eval pred; false -> PIPELINE_DISABLE.
+--   true -> child_reset_recursive body, state=RUN_BODY, fall through to RUN_BODY.
+-- TICK state=RUN_BODY:
+--   invoke body; non-pipeline -> propagate.
+--   CONTINUE/HALT/SKIP_CONTINUE -> body still running, return FUNCTION_HALT.
+--   DISABLE/TERMINATE/RESET     -> body done: child_terminate+reset_recursive,
+--                                  state=EVAL_PRED, return PIPELINE_HALT.
 -- ----------------------------------------------------------------------------
+local SE_WHILE_EVAL_PRED = 0
+local SE_WHILE_RUN_BODY  = 1
+
 M.se_while = function(inst, node, event_id, event_data)
     local ns = get_ns(inst, node.node_index)
 
+    if event_id == SE_EVENT_INIT then
+        ns.state = SE_WHILE_EVAL_PRED
+        return SE_PIPELINE_CONTINUE
+    end
+
     if event_id == SE_EVENT_TERMINATE then
+        -- Only terminate body if it was running
         local children = node.children or {}
         if children[2] then
             local cns = get_ns(inst, children[2].node_index)
@@ -600,11 +680,6 @@ M.se_while = function(inst, node, event_id, event_data)
                 child_terminate(inst, node, 1)
             end
         end
-        return SE_PIPELINE_CONTINUE
-    end
-
-    if event_id == SE_EVENT_INIT then
-        ns.state = SE_WHILE_EVAL_PRED
         return SE_PIPELINE_CONTINUE
     end
 
@@ -648,9 +723,20 @@ end
 
 -- ----------------------------------------------------------------------------
 -- SE_IF_THEN_ELSE
+-- Faithful translation of C se_if_then_else.
 -- children[0] = predicate (re-evaluated every tick)
 -- children[1] = then-branch
 -- children[2] = else-branch (optional)
+--
+-- INIT/TERMINATE: passthrough (terminate all on TERMINATE).
+-- TICK: evaluate pred every tick; invoke then or else branch.
+--   Result dispatch:
+--     non-pipeline (< 12)         -> propagate immediately
+--     PIPELINE_CONTINUE/HALT      -> return as-is
+--     PIPELINE_RESET              -> terminate+reset then+else, return PIPELINE_RESET
+--     PIPELINE_DISABLE/TERMINATE  -> terminate+reset then+else, return PIPELINE_CONTINUE
+--     PIPELINE_SKIP_CONTINUE      -> return PIPELINE_CONTINUE
+-- Note: no state machine — predicate is re-evaluated on every tick.
 -- ----------------------------------------------------------------------------
 M.se_if_then_else = function(inst, node, event_id, event_data)
     local children = node.children or {}
@@ -658,12 +744,11 @@ M.se_if_then_else = function(inst, node, event_id, event_data)
     assert(n >= 2, "se_if_then_else: need at least predicate and then branch")
     local has_else = (n >= 3)
 
-    if event_id == SE_EVENT_TERMINATE then
-        children_terminate_all(inst, node)
+    if event_id == SE_EVENT_INIT then
         return SE_PIPELINE_CONTINUE
     end
-
-    if event_id == SE_EVENT_INIT then
+    if event_id == SE_EVENT_TERMINATE then
+        children_terminate_all(inst, node)
         return SE_PIPELINE_CONTINUE
     end
 
@@ -676,7 +761,7 @@ M.se_if_then_else = function(inst, node, event_id, event_data)
     elseif has_else then
         r = child_invoke(inst, node, 2, event_id, event_data)
     else
-        return SE_PIPELINE_CONTINUE
+        return SE_PIPELINE_CONTINUE   -- no else, condition false
     end
 
     -- Non-pipeline codes: propagate immediately
@@ -688,6 +773,7 @@ M.se_if_then_else = function(inst, node, event_id, event_data)
         return r
 
     elseif r == SE_PIPELINE_RESET then
+        -- terminate and reset both branches
         child_terminate(inst, node, 1)
         child_reset(inst, node, 1)
         if has_else then
@@ -697,6 +783,7 @@ M.se_if_then_else = function(inst, node, event_id, event_data)
         return SE_PIPELINE_RESET
 
     elseif r == SE_PIPELINE_DISABLE or r == SE_PIPELINE_TERMINATE then
+        -- branch done: terminate+reset both, return CONTINUE (not DISABLE)
         child_terminate(inst, node, 1)
         child_reset(inst, node, 1)
         if has_else then
@@ -705,49 +792,56 @@ M.se_if_then_else = function(inst, node, event_id, event_data)
         end
         return SE_PIPELINE_CONTINUE
 
-    elseif r == SE_PIPELINE_SKIP_CONTINUE then
-        return SE_PIPELINE_CONTINUE
-
-    else
+    else  -- PIPELINE_SKIP_CONTINUE or unknown
         return SE_PIPELINE_CONTINUE
     end
 end
 
 -- ----------------------------------------------------------------------------
 -- SE_COND
+-- Faithful translation of C se_cond.
 -- Multi-branch conditional: pairs of (pred, action) at even/odd child indices.
--- children layout: [pred0, action0, pred1, action1, ...]
 -- Predicates re-evaluated every tick; active branch tracked in ns.user_data.
--- ns.user_data: NO_CHILD = no active branch, else 0-based action child index.
+-- ns.user_data: 0xFFFF = no active child, else 0-based action child index.
+--
+-- INIT/TERMINATE: set user_data=0xFFFF, terminate all on TERMINATE.
+-- TICK:
+--   Walk children pairwise: even=pred, odd=action.
+--   Find first pred that returns true -> matched_action index.
+--   If matched_action changed: terminate+reset_recursive old, terminate+reset_recursive new.
+--   Invoke matched_action.
+--   Result dispatch:
+--     non-pipeline (< 12)              -> propagate
+--     PIPELINE_CONTINUE/HALT           -> return PIPELINE_CONTINUE
+--     PIPELINE_RESET                   -> terminate+reset_recursive action, PIPELINE_CONTINUE
+--     PIPELINE_DISABLE/TERMINATE/SKIP  -> return r directly
 -- ----------------------------------------------------------------------------
 M.se_cond = function(inst, node, event_id, event_data)
     local ns       = get_ns(inst, node.node_index)
     local children = node.children or {}
     local n        = #children
+    local NO_CHILD = 0xFFFF
 
+    if event_id == SE_EVENT_INIT then
+        ns.user_data = NO_CHILD
+        return SE_PIPELINE_CONTINUE
+    end
     if event_id == SE_EVENT_TERMINATE then
         children_terminate_all(inst, node)
         ns.user_data = NO_CHILD
         return SE_PIPELINE_CONTINUE
     end
 
-    if event_id == SE_EVENT_INIT then
-        ns.user_data = NO_CHILD
-        return SE_PIPELINE_CONTINUE
-    end
-
-    -- Find first matching pred (even 0-based indices: 0,2,4,...)
-    -- Actions at odd 0-based indices: 1,3,5,...
+    -- Find first matching pred (even indices 0,2,4,...; actions at 1,3,5,...)
     local matched_action = NO_CHILD
     local i = 1  -- 1-based Lua index
     while i <= n do
         local child = children[i]
         local ct    = child.call_type
         if ct == "p_call" or ct == "p_call_composite" then
-            local pred_result = child_invoke_pred(inst, node, i - 1)  -- 0-based
+            local pred_result = child_invoke_pred(inst, node, i - 1)
             if pred_result and matched_action == NO_CHILD then
-                -- Action is next child; i is 1-based pred, action is 0-based (i)
-                matched_action = i  -- 0-based index of action child
+                matched_action = i   -- action is next child (1-based)
                 break
             end
             i = i + 2  -- skip past action
@@ -757,62 +851,24 @@ M.se_cond = function(inst, node, event_id, event_data)
     end
 
     if matched_action == NO_CHILD then
+        -- No pred matched; exception in C — return PIPELINE_CONTINUE
         return SE_PIPELINE_CONTINUE
     end
 
-    local active = ns.user_data
+    local action_idx = matched_action   -- 0-based index of action child
+    local active     = ns.user_data
 
     -- Branch switch: terminate old, reset new
-    if matched_action ~= active then
+    if action_idx ~= active then
         if active ~= NO_CHILD then
             child_terminate(inst, node, active)
             child_reset_recursive(inst, node, active)
         end
-        child_terminate(inst, node, matched_action)
-        child_reset_recursive(inst, node, matched_action)
-        ns.user_data = matched_action
+        child_terminate(inst, node, action_idx)
+        child_reset_recursive(inst, node, action_idx)
+        ns.user_data = action_idx
     end
 
-    local r = child_invoke(inst, node, matched_action, event_id, event_data)
-
-    -- Non-pipeline codes: propagate
-    if r < SE_PIPELINE_CONTINUE then
-        return r
-    end
-
-    if r == SE_PIPELINE_CONTINUE or r == SE_PIPELINE_HALT then
-        return SE_PIPELINE_CONTINUE
-
-    elseif r == SE_PIPELINE_RESET then
-        child_terminate(inst, node, matched_action)
-        child_reset_recursive(inst, node, matched_action)
-        return SE_PIPELINE_CONTINUE
-
-    elseif r == SE_PIPELINE_DISABLE
-        or r == SE_PIPELINE_TERMINATE
-        or r == SE_PIPELINE_SKIP_CONTINUE then
-        return r
-
-    else
-        return SE_PIPELINE_CONTINUE
-    end
-end
-
--- ----------------------------------------------------------------------------
--- SE_TRIGGER_ON_CHANGE
--- Edge-triggered action dispatch. Detects rising/falling edges of a predicate
--- and fires corresponding action subtrees.
---
--- params[1] = uint (initial state: 0 or 1)
--- children[0] = predicate
--- children[1] = rising action
--- children[2] = falling action (optional)
---
--- ns.state: previous predicate value (0 or 1)
--- ----------------------------------------------------------------------------
-
--- Helper: invoke action and handle pipeline result codes for trigger
-local function trigger_invoke_and_handle(inst, node, action_idx, event_id, event_data)
     local r = child_invoke(inst, node, action_idx, event_id, event_data)
 
     -- Non-pipeline codes: propagate
@@ -823,82 +879,14 @@ local function trigger_invoke_and_handle(inst, node, action_idx, event_id, event
     if r == SE_PIPELINE_CONTINUE or r == SE_PIPELINE_HALT then
         return SE_PIPELINE_CONTINUE
 
-    elseif r == SE_PIPELINE_DISABLE
-        or r == SE_PIPELINE_TERMINATE
-        or r == SE_PIPELINE_RESET then
+    elseif r == SE_PIPELINE_RESET then
         child_terminate(inst, node, action_idx)
-        child_reset(inst, node, action_idx)
+        child_reset_recursive(inst, node, action_idx)
         return SE_PIPELINE_CONTINUE
 
-    elseif r == SE_PIPELINE_SKIP_CONTINUE then
-        return SE_PIPELINE_CONTINUE
-
-    else
-        return SE_PIPELINE_CONTINUE
+    else  -- PIPELINE_DISABLE, TERMINATE, SKIP_CONTINUE
+        return r
     end
-end
-
-M.se_trigger_on_change = function(inst, node, event_id, event_data)
-    local ns       = get_ns(inst, node.node_index)
-    local children = node.children or {}
-    local n        = #children
-
-    assert(n >= 2, "se_trigger_on_change: need at least predicate and rising action")
-
-    local PRED_CHILD    = 0   -- 0-based for child_invoke
-    local RISING_CHILD  = 1
-    local FALLING_CHILD = 2
-    local has_falling   = (n >= 3)
-
-    -- TERMINATE
-    if event_id == SE_EVENT_TERMINATE then
-        children_terminate_all(inst, node)
-        return SE_PIPELINE_CONTINUE
-    end
-
-    -- INIT: read initial state from params[1]
-    if event_id == SE_EVENT_INIT then
-        local initial = param_int(node, 1)
-        ns.state = (initial ~= 0) and 1 or 0
-        return SE_PIPELINE_CONTINUE
-    end
-
-    -- TICK: evaluate predicate, detect edges
-    local current = child_invoke_pred(inst, node, PRED_CHILD)
-    local prev    = ns.state
-    local current_val = current and 1 or 0
-
-    local rising  = (prev == 0 and current_val == 1)
-    local falling = (prev ~= 0 and current_val == 0)
-
-    ns.state = current_val
-
-    if rising then
-        -- Terminate falling action if it was running
-        if has_falling then
-            child_terminate(inst, node, FALLING_CHILD)
-            child_reset(inst, node, FALLING_CHILD)
-        end
-
-        -- Restart rising action
-        child_terminate(inst, node, RISING_CHILD)
-        child_reset(inst, node, RISING_CHILD)
-
-        return trigger_invoke_and_handle(inst, node, RISING_CHILD, event_id, event_data)
-
-    elseif falling and has_falling then
-        -- Terminate rising action
-        child_terminate(inst, node, RISING_CHILD)
-        child_reset(inst, node, RISING_CHILD)
-
-        -- Restart falling action
-        child_terminate(inst, node, FALLING_CHILD)
-        child_reset(inst, node, FALLING_CHILD)
-
-        return trigger_invoke_and_handle(inst, node, FALLING_CHILD, event_id, event_data)
-    end
-
-    return SE_PIPELINE_CONTINUE
 end
 
 return M
