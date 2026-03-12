@@ -1,0 +1,8677 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../README_json_array_support/">
+      
+      
+        <link rel="next" href="../README_stack_operations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+    
+    
+      
+        <title>Reading Debug Map - Knowledge Based Container Utilities</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#reading-pipeline-generated-module-data-files" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Knowledge Based Container Utilities" class="md-header__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Knowledge Based Container Utilities
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reading Debug Map
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Knowledge Based Container Utilities" class="md-nav__button md-logo" aria-label="Knowledge Based Container Utilities" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Knowledge Based Container Utilities
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C SYSTEMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C SYSTEMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_1" id="__nav_2_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MQTT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-mqtt-client-library/README_mqtt_pubsub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Publish/Subscribe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-mqtt-client-library/README_mqtt_kv_read_store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Key-Value Store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-mqtt-client-library/README_mqtt_job_queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Job Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-mqtt-client-library/README_mqtt_rpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT RPC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_2" id="__nav_2_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NATS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NATS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nats-c-libraries/README_nats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nats-c-libraries/README_nats_key_store_job_queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    key_store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nats-c-libraries/README_nats_pub_sub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pub_sub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nats-c-libraries/README_nats_rpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    rpc
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_3" id="__nav_2_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POSTGRES
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    POSTGRES
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_3_1" id="__nav_2_1_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct constructs the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Construct constructs the knowledge base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-postgresql-knowledge-base/README_luajit_construct/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct constructs the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_3_2" id="__nav_2_1_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures read and write the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_1_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data Structures read and write the knowledge base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-postgresql-knowledge-base/README_data_structures_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures LuaJIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-postgresql-knowledge-base/README_data_structures_c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1_4" id="__nav_2_1_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQLITE3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SQLITE3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-sqlite3-knowledge-base/README_construct_kb_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-sqlite3-knowledge-base/README_data_structures_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures LuaJIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-sqlite3-knowledge-base/README_data_structures_c/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-sqlite3-knowledge-base/README_LTREE_EXTENSION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTree Extension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Embedded_AVRO_PACKETS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Embedded_AVRO_PACKETS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-embedded-avro-packets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Avro DSL for Embedded C
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_DSL_closure_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL Closures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_reading_debug_map/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_stack_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Operations and Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_stack_equation_handler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Equations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_inner_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inner Engine Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_outer_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Engine Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/README_runtime_dictionary_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Dictionary Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_16" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_16" id="__nav_2_3_16_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_chain_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_trigger_on_change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_function_dictionary_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/composite_functions/README_external_tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_17" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_17" id="__nav_2_3_17_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_17_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_17_1" id="__nav_2_3_17_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_3_17_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_17_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_17_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_17_2" id="__nav_2_3_17_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_3_17_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_17_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_18" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_18" id="__nav_2_3_18_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unit Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unit Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_test_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_return_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_18_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_18_3" id="__nav_2_3_18_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_3_18_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_18_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Black Board Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_test_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_black_board_initializations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Initialization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_field_ref_nested_field_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board Nested Fields
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_MAIN/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board main.c test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/black_board/README_USER_FUNCTIONS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Black Board user_functions.c test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dispatch Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_basic_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_advanced_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_complex_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complex Sequence Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_loop_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loop Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_json/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Json Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_stack_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_stack_equation_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Equations Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_function_dictionary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Dictionary Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_callback_function_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Callback Function Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/tests/README_external_tree_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3_19" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3_19" id="__nav_2_3_19_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Car Window Controller
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_3_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Car Window Controller
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/car_window_controller/README_cardoor_requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../c-s-engine/car_window_controller/README_cardoor_s_engine_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SCAN_TREE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SCAN_TREE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scan-tree/README_scan_tree_introduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scan-tree/README_dsl_runtime_library/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL and Runtime Library
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scan-tree/README_builtin_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL Built In Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4_4" id="__nav_2_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_2_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scan-tree/README_pump_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pump Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scan-tree/README_vtf_fuse_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VTF Fuse Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Luajit Systems
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Luajit Systems
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_1" id="__nav_3_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MQTT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-mqtt-bindings/README_mqtt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Job Queue and Key-Value Store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_2" id="__nav_3_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NATS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NATS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-nats-bindings/README_nats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_3" id="__nav_3_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POSTGRES
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    POSTGRES
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_3_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_3_1" id="__nav_3_1_3_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct constructs the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_1_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Construct constructs the knowledge base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-postgresql-knowledge-base/README_luajit_construct/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct constructs the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_3_2" id="__nav_3_1_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures read and write the knowledge base
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_1_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data Structures read and write the knowledge base
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-postgresql-knowledge-base/README_data_structures_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures LuaJIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_1_4" id="__nav_3_1_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQLITE3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SQLITE3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-sqlite3-knowledge-base/README_construct_kb_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Construct Knowledge Base
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-sqlite3-knowledge-base/README_data_structures_luajit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures LuaJIT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../luajit-sqlite3-knowledge-base/README_LTREE_EXTENSION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTree Extension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    S_ENGINE
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    S_ENGINE
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_top_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_DSL/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_DSL_closure_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DSL Closures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_return_codes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_predicate_system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate System
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_user_defined_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Defined Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_user_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_json_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_json_array_support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON Array Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading Debug Map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-c-debug-dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with C Debug Dump
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-sections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Sections
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File Sections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-module-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Module Header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-function-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Function Lists
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-string-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. String Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-tree-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Tree Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-record-definitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Record Definitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-constants-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Constants, Events
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tree-structure-main-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tree Structure (Main Section)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tree Structure (Main Section)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#node-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-the-tree-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading the Tree Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading the Tree Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nesting-indentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nesting = Indentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-functions-pt_m_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer Functions (pt_m_call)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#function-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#predicate-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Predicate Children
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tracing-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracing Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tracing Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-loop_test-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: loop_test Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Execution Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Tips
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#finding-a-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding a Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-function-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Function Registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-blackboard-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Blackboard Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#counting-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting Nodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-pointer-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Pointer Indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-parent-child-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Parent-Child Relationships
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-referencing-with-c-debug-dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Referencing with C Debug Dump
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#programmatic-inspection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic Inspection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_stack_operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Operations and Runtime
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_stack_equation_handler/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Equations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_inner_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inner Engine Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_outer_engine_design/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Outer Engine Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../README_runtime_dictionary_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runtime Dictionary Handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_16" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_16" id="__nav_3_2_16_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composite Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_16">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Composite Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_composite_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_chain_flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chain Flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sequence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_cond/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cond
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_fork/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_fork_join/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fork Join
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_while/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    While
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_event_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Event Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_field_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Field Dispatch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_trigger_on_change/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trigger on Change
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_engine_interface/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Engine Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_function_dictionary_handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../composite_functions/README_external_tree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_17" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_17" id="__nav_3_2_17_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simple Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_17">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simple Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_17_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_17_1" id="__nav_3_2_17_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Main Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_17_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_17_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Main Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_wait_time_out/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Wait Timeout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Events
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Verify Elapsed Time
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/main_functions/README_tick_time_delay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tick Time Delay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_17_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_17_2" id="__nav_3_2_17_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    One Shot Functions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_3_2_17_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_17_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    One Shot Functions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dictionary Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_queue_event/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue Event
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_se_log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SE Log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/one_shot_functions/README_set_field/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Set Field
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../simple_functions/predicate_functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Predicate Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_18" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_18" id="__nav_3_2_18_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unit Tests
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Unit Tests
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_test_overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_return_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return Codes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_state_machine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    State Machine Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_basic_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Basic Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_advanced_predicates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced Predicate Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_complex_sequence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complex Sequence Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_dispatch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dispatch Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_loop_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Loop Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_json/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Json Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_stack_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_stack_equation_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stack Equations Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_function_dictionary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Dictionary Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_callback_function_test/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Callback Function Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tests/README_external_tree_management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    External Tree Test
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2_19" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2_19" id="__nav_3_2_19_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Car Window Controller
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_3_2_19_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2_19">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Car Window Controller
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../car_window_controller/README_cardoor_requirements/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Implementation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Zig SYSTEMS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Zig SYSTEMS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Knowledge Base Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Knowledge Base Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1" id="__nav_4_1_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MQTT
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_MQTT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1_2" id="__nav_4_1_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modules
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Modules
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_MQTT_zig_job_queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Job Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_MQTT_zig_kv_read_store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Key-Value Store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_MQTT_zig_pubsub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT Publish/Subscribe
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_MQTT_zig_rpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MQTT RPC
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_1_3" id="__nav_4_1_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    For C Programmers
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_4_1_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    For C Programmers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_job_queue_for_c_programmers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Job Queue (C)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-mqtt-client-library/README_kv_read_store_for_c_programmers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Key-Value Read Store (C)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_2" id="__nav_4_1_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NATS
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NATS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-nats-data-structure-library/README_NATS/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-nats-data-structure-library/README_NATS_zig_key_store/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    key_store
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-nats-data-structure-library/README_NATS_zig_rpc_client_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    rpc
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-nats-data-structure-library/README_NATS_zig_pub_sub/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pub_sub
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_3" id="__nav_4_1_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    POSTGRES
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    POSTGRES
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-postgresql-data-structure-library/README_data_structures_zig/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures Zig
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1_4" id="__nav_4_1_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQLITE3
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_4_1_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SQLITE3
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-sqlite3-data-structure-library/README_zig_data_structures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Structures Zig
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../zig-sqlite3-data-structure-library/README_LTREE_EXTENSION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LTree Extension
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-c-debug-dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with C Debug Dump
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-sections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File Sections
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="File Sections">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-module-header" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Module Header
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-function-lists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Function Lists
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-string-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. String Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-tree-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Tree Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-record-definitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Record Definitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-constants-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Constants, Events
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tree-structure-main-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tree Structure (Main Section)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tree Structure (Main Section)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#node-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Node Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#call-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Call Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-the-tree-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading the Tree Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading the Tree Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#nesting-indentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Nesting = Indentation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pointer-functions-pt_m_call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pointer Functions (pt_m_call)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#function-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#predicate-children" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Predicate Children
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tracing-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracing Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tracing Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-loop_test-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example: loop_test Module
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Execution Flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#debugging-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debugging Tips
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Debugging Tips">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#finding-a-function" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding a Function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-function-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Function Registration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-blackboard-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Blackboard Fields
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#counting-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Counting Nodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checking-pointer-indices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Checking Pointer Indices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verifying-parent-child-relationships" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verifying Parent-Child Relationships
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-referencing-with-c-debug-dump" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Referencing with C Debug Dump
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#programmatic-inspection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic Inspection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="reading-pipeline-generated-module-data-files">Reading Pipeline-Generated Module Data Files</h1>
+<h2 id="overview">Overview</h2>
+<p>The S-Expression LuaJIT pipeline generates a <code>module_data</code> Lua file (e.g., <code>loop_test_module.lua</code>) that provides a complete, human-readable representation of the compiled tree structure. This file is the LuaJIT equivalent of the C debug dump (<code>xxx_dump_32.h</code>) — it serves as both the runtime input <em>and</em> the debugging artifact. Unlike the C version where the debug dump is a separate file from the binary, the LuaJIT module data is directly executable and inspectable.</p>
+<p>This file is invaluable for:</p>
+<ul>
+<li>Debugging tree structure issues</li>
+<li>Understanding parameter encoding and node relationships</li>
+<li>Verifying function registration requirements</li>
+<li>Tracing execution flow</li>
+<li>Confirming parent-child nesting and call_type assignments</li>
+</ul>
+<h2 id="comparison-with-c-debug-dump">Comparison with C Debug Dump</h2>
+<table>
+<thead>
+<tr>
+<th>C Debug Dump (<code>xxx_dump_32.h</code>)</th>
+<th>LuaJIT Module Data (<code>xxx_module.lua</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flat parameter array with index numbers</td>
+<td>Nested Lua table tree (children inside parents)</td>
+</tr>
+<tr>
+<td>OPEN_CALL/CLOSE pairs bracket each function</td>
+<td><code>children = { ... }</code> arrays hold nested nodes</td>
+</tr>
+<tr>
+<td>Type codes (0x07, 0x08, 0x09, 0x0A, 0x0B)</td>
+<td>String types (<code>"m_call"</code>, <code>"o_call"</code>, <code>"p_call"</code>, <code>"field_ref"</code>)</td>
+</tr>
+<tr>
+<td><code>brace_idx</code> offsets for structure skipping</td>
+<td>Not needed — nesting is explicit in table structure</td>
+</tr>
+<tr>
+<td>Column-formatted comment block</td>
+<td>Executable Lua source</td>
+</tr>
+<tr>
+<td>Separate from binary (<code>.h</code> vs <code>.sexb</code>)</td>
+<td><em>Is</em> the runtime data — one file serves both roles</td>
+</tr>
+<tr>
+<td>Requires hex decoding to read</td>
+<td>Human-readable Lua tables</td>
+</tr>
+</tbody>
+</table>
+<h2 id="file-sections">File Sections</h2>
+<h3 id="1-module-header">1. Module Header</h3>
+<pre><code class="language-lua">M.name         = &quot;loop_test&quot;
+M.name_hash    = 0xD1A777D8
+M.pointer_size = 4
+M.debug        = true
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Module name from DSL source</td>
+</tr>
+<tr>
+<td><code>name_hash</code></td>
+<td>FNV-1a hash of module name (used for spawn lookups)</td>
+</tr>
+<tr>
+<td><code>pointer_size</code></td>
+<td>Target pointer size in bytes (4 = 32-bit, 8 = 64-bit)</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>Whether debug information is included</td>
+</tr>
+</tbody>
+</table>
+<h3 id="2-function-lists">2. Function Lists</h3>
+<pre><code class="language-lua">M.oneshot_funcs = { &quot;SE_SET_FIELD&quot;, &quot;SE_LOG&quot;, &quot;SE_LOG_INT&quot;, &quot;SE_INC_FIELD&quot; }
+M.main_funcs    = { &quot;SE_FUNCTION_INTERFACE&quot;, &quot;SE_FORK_JOIN&quot;, &quot;SE_WHILE&quot;,
+                    &quot;SE_CHAIN_FLOW&quot;, &quot;SE_TICK_DELAY&quot;,
+                    &quot;SE_RETURN_PIPELINE_DISABLE&quot;, &quot;SE_RETURN_TERMINATE&quot; }
+M.pred_funcs    = { &quot;SE_STATE_INCREMENT_AND_TEST&quot;,
+                    &quot;SE_FIELD_INCREMENT_AND_TEST&quot; }
+</code></pre>
+<p>Three ordered lists define every function the module requires. <strong>Position determines <code>func_index</code></strong> — the first entry is index 0, the second is index 1, etc. At module creation time, <code>se_runtime.new_module()</code> builds name→index maps from these lists and <code>annotate_node()</code> assigns each node's <code>func_index</code> by searching the appropriate list.</p>
+<table>
+<thead>
+<tr>
+<th>List</th>
+<th>Call Types</th>
+<th>Signature</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>oneshot_funcs</code></td>
+<td><code>o_call</code>, <code>io_call</code></td>
+<td><code>fn(inst, node)</code> — no return</td>
+</tr>
+<tr>
+<td><code>main_funcs</code></td>
+<td><code>m_call</code>, <code>pt_m_call</code></td>
+<td><code>fn(inst, node, event_id, event_data)</code> → result code</td>
+</tr>
+<tr>
+<td><code>pred_funcs</code></td>
+<td><code>p_call</code>, <code>p_call_composite</code></td>
+<td><code>fn(inst, node)</code> → boolean</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Debugging use:</strong> If <code>se_runtime.new_instance()</code> reports unregistered functions, check these lists against the function tables passed to <code>merge_fns()</code>. Every name here must appear (case-insensitively) in the registered functions.</p>
+<h3 id="3-string-table">3. String Table</h3>
+<pre><code class="language-lua">M.string_table = {
+    &quot;loop_sequence_fn start&quot;,
+    &quot;outer_sequence_counter %d&quot;,
+    &quot;inner_sequence_fn start&quot;,
+    &quot;inner_sequence_counter %d&quot;,
+    &quot;inner_sequence_fn end&quot;,
+    &quot;loop_sequence_fn end&quot;
+}
+M.string_index = {
+    [&quot;inner_sequence_counter %d&quot;] = 3,
+    [&quot;inner_sequence_fn end&quot;]     = 4,
+    [&quot;inner_sequence_fn start&quot;]   = 2,
+    [&quot;loop_sequence_fn end&quot;]      = 5,
+    [&quot;loop_sequence_fn start&quot;]    = 0,
+    [&quot;outer_sequence_counter %d&quot;] = 1,
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>string_table</code></td>
+<td>0-based ordered array of all string literals used in the module</td>
+</tr>
+<tr>
+<td><code>string_index</code></td>
+<td>Reverse lookup: string content → 0-based index</td>
+</tr>
+</tbody>
+</table>
+<p>In the LuaJIT runtime, strings are carried directly in <code>node.params</code> as <code>str_ptr</code> or <code>str_idx</code> values rather than referenced by index. The string table exists for C code generation compatibility and debugging — the runtime does not use it during execution.</p>
+<h3 id="4-tree-order">4. Tree Order</h3>
+<pre><code class="language-lua">M.tree_order = { &quot;loop_test&quot; }
+M.trees = {}
+</code></pre>
+<p><code>tree_order</code> provides deterministic iteration order for trees (Lua tables don't guarantee key order). Each entry names a tree in <code>M.trees</code>.</p>
+<h3 id="5-record-definitions">5. Record Definitions</h3>
+<pre><code class="language-lua">M.record_order = { &quot;loop_test_blackboard&quot; }
+M.records      = {}
+M.records[&quot;loop_test_blackboard&quot;] = {
+    name      = &quot;loop_test_blackboard&quot;,
+    name_hash = 0x033C03AC,
+    size      = 20,
+    align     = 4,
+    fields    = {
+        { name=&quot;outer_sequence_counter&quot;, name_hash=0x24954557,
+          type=&quot;uint32&quot;, offset=0,  size=4, ... },
+        { name=&quot;inner_sequence_counter&quot;, name_hash=0xD0B76C4E,
+          type=&quot;uint32&quot;, offset=4,  size=4, ... },
+        { name=&quot;field_test_counter&quot;,     name_hash=0x6542B7E7,
+          type=&quot;uint32&quot;, offset=8,  size=4, ... },
+        { name=&quot;field_test_increment&quot;,   name_hash=0x696CDE6A,
+          type=&quot;uint32&quot;, offset=12, size=4, ... },
+        { name=&quot;field_test_limit&quot;,       name_hash=0x1CAA35D8,
+          type=&quot;uint32&quot;, offset=16, size=4, ... },
+    },
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Record name, referenced by <code>tree.record_name</code></td>
+</tr>
+<tr>
+<td><code>name_hash</code></td>
+<td>FNV-1a hash for C compatibility</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td>Total record size in bytes (C layout; informational in Lua)</td>
+</tr>
+<tr>
+<td><code>align</code></td>
+<td>Memory alignment (C layout; informational in Lua)</td>
+</tr>
+<tr>
+<td><code>fields</code></td>
+<td>Ordered array of field descriptors</td>
+</tr>
+</tbody>
+</table>
+<p>Each field descriptor:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>Field name — used as the blackboard key in LuaJIT</td>
+</tr>
+<tr>
+<td><code>name_hash</code></td>
+<td>FNV-1a hash for C cross-reference</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>C type name (<code>uint32</code>, <code>float</code>, <code>ptr64</code>, etc.)</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>Byte offset in C struct (informational in Lua)</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td>Field size in bytes (informational in Lua)</td>
+</tr>
+<tr>
+<td><code>is_pointer</code></td>
+<td>Whether this is a pointer field</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Debugging use:</strong> When a blackboard field isn't found or has the wrong type, check the record definition. The <code>name</code> strings here must exactly match the <code>field_ref</code> values used in node params.</p>
+<h3 id="6-constants-events">6. Constants, Events</h3>
+<pre><code class="language-lua">M.const_order = {}
+M.constants   = {}
+M.events      = {}
+M.event_names = {}
+</code></pre>
+<p>Optional sections for ROM constants and named events. Empty in many modules.</p>
+<h2 id="tree-structure-main-section">Tree Structure (Main Section)</h2>
+<p>This is the core of the module data — the nested node tree that defines the program.</p>
+<h3 id="node-fields">Node Fields</h3>
+<p>Each node is a Lua table with these fields:</p>
+<pre><code class="language-lua">{
+    func_name    = &quot;SE_CHAIN_FLOW&quot;,     -- Function name (matches function lists)
+    func_hash    = 0xFFC1FAA4,          -- FNV-1a hash (for C cross-reference)
+    call_type    = &quot;m_call&quot;,            -- Dispatch type
+    order        = 3,                   -- Sibling order (0-based among parent's children)
+    param_count  = 0,                   -- Number of non-callable params
+    pointer_index = nil,                -- Pointer slot index (pt_m_call only)
+    params       = { ... },             -- Non-callable parameters
+    children     = { ... },             -- Callable child nodes
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>func_name</code></td>
+<td>Human-readable function name; must appear in the appropriate function list</td>
+</tr>
+<tr>
+<td><code>func_hash</code></td>
+<td>FNV-1a hash of <code>func_name</code>; used for C binary cross-reference only</td>
+</tr>
+<tr>
+<td><code>call_type</code></td>
+<td>One of: <code>"m_call"</code>, <code>"pt_m_call"</code>, <code>"o_call"</code>, <code>"io_call"</code>, <code>"p_call"</code>, <code>"p_call_composite"</code></td>
+</tr>
+<tr>
+<td><code>order</code></td>
+<td>Position among siblings (0-based); determines execution order in sequences/forks</td>
+</tr>
+<tr>
+<td><code>param_count</code></td>
+<td>Count of entries in <code>params[]</code>; informational (use <code>#node.params</code> at runtime)</td>
+</tr>
+<tr>
+<td><code>pointer_index</code></td>
+<td>Index into <code>inst.pointer_array</code> for <code>pt_m_call</code> nodes; <code>nil</code> for others</td>
+</tr>
+<tr>
+<td><code>params</code></td>
+<td>Array of non-callable parameter tables</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td>Array of callable child node tables (recursively nested)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call-types">Call Types</h3>
+<table>
+<thead>
+<tr>
+<th>Call Type</th>
+<th>Function Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>m_call</code></td>
+<td>MAIN</td>
+<td>Standard main function with INIT/TICK/TERMINATE lifecycle</td>
+</tr>
+<tr>
+<td><code>pt_m_call</code></td>
+<td>MAIN</td>
+<td>Pointer-based main function — uses <code>pointer_index</code> for persistent storage</td>
+</tr>
+<tr>
+<td><code>o_call</code></td>
+<td>ONESHOT</td>
+<td>Fire-once function, runs once per reset cycle</td>
+</tr>
+<tr>
+<td><code>io_call</code></td>
+<td>ONESHOT</td>
+<td>Fire-once function, survives tree reset (runs once ever)</td>
+</tr>
+<tr>
+<td><code>p_call</code></td>
+<td>PRED</td>
+<td>Simple predicate, no child predicates</td>
+</tr>
+<tr>
+<td><code>p_call_composite</code></td>
+<td>PRED</td>
+<td>Composite predicate with child predicates in <code>children[]</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="parameter-types">Parameter Types</h3>
+<p>Each entry in <code>node.params</code> is a table with <code>type</code>, <code>value</code>, and <code>order</code>:</p>
+<pre><code class="language-lua">{ type = &quot;field_ref&quot;, value = &quot;outer_sequence_counter&quot;, order = 0 }
+{ type = &quot;uint&quot;,      value = 0,                        order = 1 }
+{ type = &quot;int&quot;,       value = 3,                        order = 0 }
+{ type = &quot;str_ptr&quot;,   value = &quot;loop_sequence_fn start&quot;,  order = 0 }
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Param Type</th>
+<th>Value Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"int"</code></td>
+<td>number</td>
+<td>Signed integer literal</td>
+</tr>
+<tr>
+<td><code>"uint"</code></td>
+<td>number</td>
+<td>Unsigned integer literal</td>
+</tr>
+<tr>
+<td><code>"float"</code></td>
+<td>number</td>
+<td>Float literal</td>
+</tr>
+<tr>
+<td><code>"str_ptr"</code></td>
+<td>string</td>
+<td>String literal (carried inline)</td>
+</tr>
+<tr>
+<td><code>"str_idx"</code></td>
+<td>string</td>
+<td>String literal (by index reference)</td>
+</tr>
+<tr>
+<td><code>"str_hash"</code></td>
+<td>table <code>{hash, str}</code></td>
+<td>String with precomputed FNV-1a hash</td>
+</tr>
+<tr>
+<td><code>"field_ref"</code></td>
+<td>string</td>
+<td>Blackboard field name</td>
+</tr>
+<tr>
+<td><code>"nested_field_ref"</code></td>
+<td>string</td>
+<td>Nested blackboard field name</td>
+</tr>
+<tr>
+<td><code>"result"</code></td>
+<td>number</td>
+<td>Result code literal</td>
+</tr>
+<tr>
+<td><code>"dict_start"</code></td>
+<td>—</td>
+<td>Dictionary structure open</td>
+</tr>
+<tr>
+<td><code>"dict_end"</code></td>
+<td>—</td>
+<td>Dictionary structure close</td>
+</tr>
+<tr>
+<td><code>"dict_key"</code></td>
+<td>string</td>
+<td>Dictionary key (string name)</td>
+</tr>
+<tr>
+<td><code>"dict_key_hash"</code></td>
+<td>number</td>
+<td>Dictionary key (FNV-1a hash)</td>
+</tr>
+<tr>
+<td><code>"end_dict_key"</code></td>
+<td>—</td>
+<td>Dictionary key terminator</td>
+</tr>
+<tr>
+<td><code>"array_start"</code></td>
+<td>—</td>
+<td>Array structure open</td>
+</tr>
+<tr>
+<td><code>"array_end"</code></td>
+<td>—</td>
+<td>Array structure close</td>
+</tr>
+<tr>
+<td><code>"stack_tos"</code></td>
+<td>number</td>
+<td>Stack top-of-stack offset</td>
+</tr>
+<tr>
+<td><code>"stack_local"</code></td>
+<td>number</td>
+<td>Stack local variable index</td>
+</tr>
+<tr>
+<td><code>"stack_pop"</code></td>
+<td>—</td>
+<td>Stack pop operation</td>
+</tr>
+<tr>
+<td><code>"stack_push"</code></td>
+<td>—</td>
+<td>Stack push operation</td>
+</tr>
+<tr>
+<td><code>"const_ref"</code></td>
+<td>any</td>
+<td>Constants table reference</td>
+</tr>
+</tbody>
+</table>
+<h2 id="reading-the-tree-structure">Reading the Tree Structure</h2>
+<h3 id="nesting-indentation">Nesting = Indentation</h3>
+<p>The tree structure is explicit in the Lua table nesting. Each <code>children = { ... }</code> block contains the child nodes, which themselves may contain children:</p>
+<pre><code class="language-lua">-- Root: SE_FUNCTION_INTERFACE
+{
+    func_name=&quot;SE_FUNCTION_INTERFACE&quot;, call_type=&quot;m_call&quot;,
+    children={
+        -- Child 0: SE_SET_FIELD (oneshot)
+        { func_name=&quot;SE_SET_FIELD&quot;, call_type=&quot;o_call&quot;,
+          params={ {type=&quot;field_ref&quot;, value=&quot;outer_sequence_counter&quot;},
+                   {type=&quot;uint&quot;, value=0} } },
+
+        -- Child 1: SE_SET_FIELD (oneshot)
+        { func_name=&quot;SE_SET_FIELD&quot;, call_type=&quot;o_call&quot;, ... },
+
+        -- Child 2: SE_FORK_JOIN (main, contains nested tree)
+        { func_name=&quot;SE_FORK_JOIN&quot;, call_type=&quot;m_call&quot;,
+          children={
+              -- Grandchild: SE_WHILE
+              { func_name=&quot;SE_WHILE&quot;, call_type=&quot;m_call&quot;,
+                children={
+                    -- Predicate child
+                    { func_name=&quot;SE_STATE_INCREMENT_AND_TEST&quot;,
+                      call_type=&quot;p_call&quot;, ... },
+                    -- Body child
+                    { func_name=&quot;SE_FORK_JOIN&quot;, call_type=&quot;m_call&quot;, ... },
+                } },
+          } },
+
+        -- Child 3: second SE_FORK_JOIN
+        { func_name=&quot;SE_FORK_JOIN&quot;, call_type=&quot;m_call&quot;, ... },
+
+        -- Child 4: SE_RETURN_TERMINATE
+        { func_name=&quot;SE_RETURN_TERMINATE&quot;, call_type=&quot;m_call&quot;, ... },
+    },
+}
+</code></pre>
+<h3 id="pointer-functions-pt_m_call">Pointer Functions (pt_m_call)</h3>
+<p>Nodes with <code>call_type = "pt_m_call"</code> have a non-nil <code>pointer_index</code> that identifies their slot in <code>inst.pointer_array</code>:</p>
+<pre><code class="language-lua">{ func_name=&quot;SE_TICK_DELAY&quot;, call_type=&quot;pt_m_call&quot;,
+  pointer_index=0,                    -- uses inst.pointer_array[0]
+  params={ {type=&quot;int&quot;, value=3} },   -- 3 tick delay
+}
+</code></pre>
+<p>Multiple <code>pt_m_call</code> nodes in the same tree each get a unique <code>pointer_index</code>. In the example module, four <code>SE_TICK_DELAY</code> nodes use indices 0–3, matching <code>tree.pointer_count = 4</code>.</p>
+<h3 id="function-parameters">Function Parameters</h3>
+<p>Parameters follow the function reference in <code>node.params</code>. Reading them requires knowing the function's expected signature:</p>
+<pre><code class="language-lua">-- SE_SET_FIELD: params[1]=field_ref (destination), params[2]=value
+{ func_name=&quot;SE_SET_FIELD&quot;, call_type=&quot;o_call&quot;,
+  params={
+    {type=&quot;field_ref&quot;, value=&quot;outer_sequence_counter&quot;},  -- destination field
+    {type=&quot;uint&quot;, value=0},                              -- value to write
+  } }
+
+-- SE_LOG: params[1]=str_ptr (message string)
+{ func_name=&quot;SE_LOG&quot;, call_type=&quot;o_call&quot;,
+  params={
+    {type=&quot;str_ptr&quot;, value=&quot;loop_sequence_fn start&quot;},
+  } }
+
+-- SE_LOG_INT: params[1]=str_ptr (format string), params[2]=field_ref (value)
+{ func_name=&quot;SE_LOG_INT&quot;, call_type=&quot;o_call&quot;,
+  params={
+    {type=&quot;str_ptr&quot;, value=&quot;outer_sequence_counter %d&quot;},
+    {type=&quot;field_ref&quot;, value=&quot;outer_sequence_counter&quot;},
+  } }
+
+-- SE_TICK_DELAY: params[1]=int (tick count)
+{ func_name=&quot;SE_TICK_DELAY&quot;, call_type=&quot;pt_m_call&quot;,
+  pointer_index=0,
+  params={
+    {type=&quot;int&quot;, value=3},
+  } }
+
+-- SE_STATE_INCREMENT_AND_TEST: params[1]=uint (increment), params[2]=uint (limit)
+{ func_name=&quot;SE_STATE_INCREMENT_AND_TEST&quot;, call_type=&quot;p_call&quot;,
+  params={
+    {type=&quot;uint&quot;, value=1},   -- increment by 1 each call
+    {type=&quot;uint&quot;, value=10},  -- limit: stop after 10
+  } }
+
+-- SE_FIELD_INCREMENT_AND_TEST: params[1..3]=field_ref (counter, increment, limit)
+{ func_name=&quot;SE_FIELD_INCREMENT_AND_TEST&quot;, call_type=&quot;p_call&quot;,
+  params={
+    {type=&quot;field_ref&quot;, value=&quot;field_test_counter&quot;},     -- counter field
+    {type=&quot;field_ref&quot;, value=&quot;field_test_increment&quot;},   -- increment field
+    {type=&quot;field_ref&quot;, value=&quot;field_test_limit&quot;},       -- limit field
+  } }
+</code></pre>
+<h3 id="predicate-children">Predicate Children</h3>
+<p>Predicates appear as children of main function nodes. The <code>call_type</code> distinguishes them:</p>
+<pre><code class="language-lua">-- SE_WHILE: children[1]=predicate, children[2]=body
+{ func_name=&quot;SE_WHILE&quot;, call_type=&quot;m_call&quot;,
+  children={
+    -- children[1]: predicate (p_call)
+    { func_name=&quot;SE_STATE_INCREMENT_AND_TEST&quot;, call_type=&quot;p_call&quot;,
+      params={ {type=&quot;uint&quot;,value=1}, {type=&quot;uint&quot;,value=10} } },
+    -- children[2]: body (m_call)
+    { func_name=&quot;SE_FORK_JOIN&quot;, call_type=&quot;m_call&quot;, children={...} },
+  } }
+</code></pre>
+<p>The <code>se_while</code> builtin calls <code>child_invoke_pred(inst, node, 0)</code> for the predicate and <code>child_invoke(inst, node, 1, eid, edata)</code> for the body. The 0-based child indices map to 1-based Lua array positions.</p>
+<h2 id="tracing-execution">Tracing Execution</h2>
+<p>To trace how a tree executes, follow the nesting structure:</p>
+<h3 id="example-loop_test-module">Example: loop_test Module</h3>
+<pre><code>SE_FUNCTION_INTERFACE (root)
+├── [o_call] SE_SET_FIELD  outer_sequence_counter = 0
+├── [o_call] SE_SET_FIELD  inner_sequence_counter = 0
+├── SE_FORK_JOIN
+│   └── SE_WHILE (pred: SE_STATE_INCREMENT_AND_TEST, step=1, limit=10)
+│       └── SE_FORK_JOIN
+│           └── SE_CHAIN_FLOW
+│               ├── [o_call] SE_LOG &quot;loop_sequence_fn start&quot;
+│               ├── [o_call] SE_LOG_INT &quot;outer_sequence_counter %d&quot;
+│               ├── [o_call] SE_INC_FIELD outer_sequence_counter
+│               ├── SE_CHAIN_FLOW (inner loop body)
+│               │   ├── [o_call] SE_LOG &quot;inner_sequence_fn start&quot;
+│               │   ├── [o_call] SE_LOG_INT &quot;inner_sequence_counter %d&quot;
+│               │   ├── [o_call] SE_INC_FIELD inner_sequence_counter
+│               │   ├── [pt_m_call] SE_TICK_DELAY 3  (ptr=0)
+│               │   ├── [o_call] SE_LOG &quot;inner_sequence_fn end&quot;
+│               │   └── SE_RETURN_PIPELINE_DISABLE
+│               ├── [pt_m_call] SE_TICK_DELAY 5  (ptr=1)
+│               ├── [o_call] SE_LOG &quot;loop_sequence_fn end&quot;
+│               └── SE_RETURN_PIPELINE_DISABLE
+├── SE_FORK_JOIN (field-based loop variant)
+│   ├── [o_call] SE_SET_FIELD  field_test_increment = 1
+│   ├── [o_call] SE_SET_FIELD  field_test_limit = 10
+│   └── SE_WHILE (pred: SE_FIELD_INCREMENT_AND_TEST)
+│       └── SE_FORK_JOIN
+│           └── SE_CHAIN_FLOW
+│               ├── ... (same structure as above, ptr=2,3)
+└── SE_RETURN_TERMINATE
+</code></pre>
+<h3 id="reading-execution-flow">Reading Execution Flow</h3>
+<ol>
+<li><strong>Start at root</strong>: The first node in <code>tree.nodes[1]</code> is always the root. Here it's <code>SE_FUNCTION_INTERFACE</code>.</li>
+<li><strong>Follow children in order</strong>: The <code>order</code> field within each child determines execution sequence (though array position already reflects this).</li>
+<li><strong>Identify call types</strong>: <code>o_call</code> nodes fire once during INIT; <code>m_call</code>/<code>pt_m_call</code> nodes persist across ticks; <code>p_call</code> nodes are evaluated as booleans.</li>
+<li><strong>Track pointer indices</strong>: <code>pt_m_call</code> nodes with different <code>pointer_index</code> values use separate persistent storage slots.</li>
+<li><strong>Match params to signatures</strong>: Each function's <code>params</code> array follows its documented parameter layout.</li>
+</ol>
+<h2 id="debugging-tips">Debugging Tips</h2>
+<h3 id="finding-a-function">Finding a Function</h3>
+<p>Search for <code>func_name</code> to find all invocations:</p>
+<pre><code class="language-bash">grep 'func_name=&quot;SE_TICK_DELAY&quot;' loop_test_module.lua
+</code></pre>
+<h3 id="checking-function-registration">Checking Function Registration</h3>
+<p>Compare the function lists against your registered builtins:</p>
+<pre><code class="language-bash"># Extract all required function names
+grep -oP 'func_name=&quot;\K[^&quot;]+' loop_test_module.lua | sort -u
+</code></pre>
+<p>Then verify each appears in your <code>merge_fns()</code> call. Any name not present will cause <code>new_instance()</code> to error with a clear missing-function message.</p>
+<h3 id="verifying-blackboard-fields">Verifying Blackboard Fields</h3>
+<p>Check that every <code>field_ref</code> param references a field defined in the record:</p>
+<pre><code class="language-bash"># Extract all field_ref values
+grep -oP 'type=&quot;field_ref&quot;,value=&quot;\K[^&quot;]+' loop_test_module.lua | sort -u
+
+# Extract all record field names
+grep -oP 'name=&quot;\K[^&quot;]+(?=&quot;,name_hash)' loop_test_module.lua | sort -u
+</code></pre>
+<p>Every <code>field_ref</code> value should appear as a <code>name</code> in the record's <code>fields</code> array.</p>
+<h3 id="counting-nodes">Counting Nodes</h3>
+<p>The <code>tree.node_count</code> should match the total number of nodes in the DFS traversal. You can verify:</p>
+<pre><code class="language-bash"># Count all func_name occurrences (one per node)
+grep -c 'func_name=' loop_test_module.lua
+</code></pre>
+<p>This count should equal <code>tree.node_count</code> (42 in the example).</p>
+<h3 id="checking-pointer-indices">Checking Pointer Indices</h3>
+<p>Each <code>pointer_index</code> in the tree should be unique and less than <code>tree.pointer_count</code>:</p>
+<pre><code class="language-bash">grep -oP 'pointer_index=\K\d+' loop_test_module.lua | sort -n
+# Should produce: 0, 1, 2, 3 (and pointer_count should be 4)
+</code></pre>
+<h3 id="verifying-parent-child-relationships">Verifying Parent-Child Relationships</h3>
+<p>Unlike the C dump where you must match OPEN_CALL/CLOSE pairs by index arithmetic, the LuaJIT module data makes parent-child relationships explicit through nesting. If you're unsure what a node's parent is, look at which <code>children = { ... }</code> array contains it.</p>
+<h3 id="cross-referencing-with-c-debug-dump">Cross-Referencing with C Debug Dump</h3>
+<p>When debugging across C and LuaJIT runtimes, use <code>func_hash</code> values to match nodes:</p>
+<pre><code class="language-lua">-- LuaJIT module data:
+{ func_name=&quot;SE_CHAIN_FLOW&quot;, func_hash=0xFFC1FAA4, ... }
+</code></pre>
+<pre><code class="language-c">// C debug dump:
+*   49  OPEN_CALL[0x07]     29      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
+</code></pre>
+<p>The <code>func_hash</code> values are identical because both use FNV-1a on the same function name strings.</p>
+<h2 id="programmatic-inspection">Programmatic Inspection</h2>
+<p>Since the module data is a standard Lua table, you can inspect it programmatically:</p>
+<pre><code class="language-lua">local md = require(&quot;loop_test_module&quot;)
+
+-- List all required functions
+print(&quot;=== Required Functions ===&quot;)
+for _, name in ipairs(md.oneshot_funcs) do print(&quot;  [oneshot] &quot; .. name) end
+for _, name in ipairs(md.main_funcs)    do print(&quot;  [main]    &quot; .. name) end
+for _, name in ipairs(md.pred_funcs)    do print(&quot;  [pred]    &quot; .. name) end
+
+-- Walk tree and print structure
+local function dump_tree(node, indent)
+    indent = indent or &quot;&quot;
+    local tag = node.call_type
+    if node.pointer_index then
+        tag = tag .. &quot; ptr=&quot; .. node.pointer_index
+    end
+    print(string.format(&quot;%s[%s] %s&quot;, indent, tag, node.func_name))
+
+    -- Print params
+    for _, p in ipairs(node.params or {}) do
+        print(string.format(&quot;%s  param: %s = %s&quot;, indent, p.type, tostring(p.value)))
+    end
+
+    -- Recurse into children
+    for _, child in ipairs(node.children or {}) do
+        dump_tree(child, indent .. &quot;  &quot;)
+    end
+end
+
+for _, tree_name in ipairs(md.tree_order) do
+    print(&quot;\n=== Tree: &quot; .. tree_name .. &quot; ===&quot;)
+    local tree = md.trees[tree_name]
+    print(string.format(&quot;  nodes=%d  pointers=%d  record=%s&quot;,
+        tree.node_count, tree.pointer_count, tree.record_name or &quot;none&quot;))
+    for _, root in ipairs(tree.nodes) do
+        dump_tree(root, &quot;  &quot;)
+    end
+end
+</code></pre>
+<p>This produces output like:</p>
+<pre><code>=== Tree: loop_test ===
+  nodes=42  pointers=4  record=loop_test_blackboard
+  [m_call] SE_FUNCTION_INTERFACE
+    [o_call] SE_SET_FIELD
+      param: field_ref = outer_sequence_counter
+      param: uint = 0
+    [o_call] SE_SET_FIELD
+      param: field_ref = inner_sequence_counter
+      param: uint = 0
+    [m_call] SE_FORK_JOIN
+      [m_call] SE_WHILE
+        [p_call] SE_STATE_INCREMENT_AND_TEST
+          param: uint = 1
+          param: uint = 10
+        [m_call] SE_FORK_JOIN
+          ...
+</code></pre>
+<p>This is often more useful than reading the raw Lua source, especially for large trees.</p>
+<h2 id="summary">Summary</h2>
+<p>The LuaJIT module data file replaces both the C SEXB binary and the C debug dump with a single, human-readable, executable Lua table. The tree structure is represented as nested node tables with explicit <code>children</code> arrays rather than flat parameter streams with OPEN_CALL/CLOSE bracket pairs. Parameter types are readable strings rather than hex codes. Function references are names rather than hash indices. The file can be inspected visually, searched with grep, or walked programmatically — and it is the exact same artifact that the runtime loads and executes.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
