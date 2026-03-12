@@ -1,0 +1,8 @@
+site_name: ZIG NATS Data Structure Library
+nav:
+  - Overview: README_NATS.md
+  - key_store: README_NATS_zig_key_store.md
+  - rpc: README_NATS_zig_rpc_client_server.md
+  - pub_sub: README_NATS_zig_pub_sub.md
+
+

@@ -1,255 +1,480 @@
-# Dictionary Subsystem Design Document
+# Dictionary Subsystem Design Document — LuaJIT Runtime
 
 ## 1. Overview
 
-The dictionary subsystem provides two parallel APIs for navigating nested key-value structures stored in the s_engine's flat compiled parameter arrays. Both operate on the same underlying `OPEN_DICT / OPEN_KEY / CLOSE_KEY / CLOSE_DICT` and `OPEN_ARRAY / CLOSE_ARRAY` token sequences — they differ only in how keys are specified at the call site.
+The dictionary subsystem provides two parallel navigation APIs for accessing nested key-value structures parsed from inline parameter token sequences in `node.params`. Both operate on the same underlying Lua tables produced by `parse_dict()` / `parse_array()` — they differ only in how keys are specified at the call site.
 
-- **`se_dict_string`** — keys specified as dot-separated path strings, parsed at runtime. Designed for JSON-style configuration access and debugging convenience. String segments are hashed to FNV-1a at lookup time and compared against `OPEN_KEY.str_hash`.
+- **String path** (`navigate_str_path`) — keys specified as dot-separated path strings, split at runtime by `gmatch`. Designed for JSON-style configuration access and debugging convenience. Path segments are matched as string keys first, with numeric fallback for arrays.
 
-- **`se_dict_hash`** — keys specified as pre-computed FNV-1a hash arrays, no string parsing at runtime. Designed for performance-critical paths where key hashes are known at compile time via `SE_PATH_H("key1", "key2")` macros.
+- **Hash path** (`navigate_hash_path`) — keys specified as pre-computed `{hash, str}` pairs collected from `str_hash` params. Designed for performance-critical paths where key hashes are known at compile time. Uses a three-level fallback: hash key → string key → numeric index.
 
-Both APIs share the same dictionary token layout and provide identical typed extraction, iteration, and blackboard integration capabilities.
+Both APIs share the same parsed table structure and provide identical typed extraction, blackboard integration, and sub-table reference capabilities. All dictionary functionality lives in `se_builtins_dict.lua`.
+
+### Comparison with C Implementation
+
+| C Dictionary Subsystem | LuaJIT Equivalent |
+|----------------------|-------------------|
+| Flat `OPEN_DICT`/`OPEN_KEY`/`CLOSE_KEY`/`CLOSE_DICT` token traversal | `parse_dict()` converts tokens to Lua table once; navigation operates on live tables |
+| `brace_idx` for O(1) skip over nested structures | Not needed — Lua table nesting is implicit |
+| `se_dicts_find()` / `se_dicth_find()` — linear scan of `OPEN_KEY` tokens | Lua table key lookup: `cur[key]` (hash table internally) |
+| Two separate C files (`se_dict_string.c`, `se_dict_hash.c`) | Single file (`se_builtins_dict.lua`) with two navigation functions |
+| Zero-copy traversal of ROM parameter arrays | Parsed once into GC-managed Lua tables, then native table lookups |
+| `s_expr_param_t*` pointer returned from resolution | Plain Lua value returned (number, string wrapper, or table) |
 
 ---
 
-## 2. Dictionary Token Layout
+## 2. Parsed Table Structure
 
-Dictionaries and arrays are stored inline in the flat `s_expr_param_t` array using matched open/close tokens with `brace_idx` offsets for O(1) skip:
+The pipeline emits `dict_start` / `dict_key` / value / `end_dict_key` / `dict_end` token sequences in `node.params`. At runtime, `se_load_dictionary` calls `parse_dict()` which converts these tokens into plain Lua tables stored in the blackboard.
 
+### Dictionary Tables
+
+Keys are strings (from `dict_key` tokens) or numbers (from `dict_key_hash` tokens). Values are scalars, nested dicts, or nested arrays:
+
+```lua
+-- Parsed from token sequence:
+{
+    hw = {
+        gpio = {
+            mode = 1,
+            pin = 17,
+        },
+        adc_channel = 3,
+    },
+    timeout = 5000,
+    label = { str = "idle", hash = 2361389976 },
+}
 ```
-Dictionary:
-  OPEN_DICT  (brace_idx → CLOSE_DICT)
-    OPEN_KEY   (str_hash = FNV-1a of key name)
-      <value>  (scalar, nested dict, array, or callable)
-    CLOSE_KEY
-    OPEN_KEY   (str_hash = ...)
-      <value>
-    CLOSE_KEY
-  CLOSE_DICT
 
-Array:
-  OPEN_ARRAY  (brace_idx → CLOSE_ARRAY)
-    <value>
-    <value>
-    ...
-  CLOSE_ARRAY
+### Array Tables
+
+Arrays use **0-based numeric keys** (not Lua's conventional 1-based indexing):
+
+```lua
+-- Parsed from array_start..array_end tokens:
+{ [0] = 10, [1] = 20, [2] = 30 }
 ```
 
-Key observations:
+### String Value Wrapping
 
-- Keys are always stored as FNV-1a hashes in `OPEN_KEY.str_hash`, never as string pointers. Both APIs ultimately do hash-to-hash comparison.
-- `brace_idx` on any open token gives the offset to the matching close token, enabling `skip_value()` to jump over nested structures in O(1).
-- Values can be any param type: scalars (`INT`, `UINT`, `FLOAT`, `STR_HASH`, `STR_IDX`), nested containers (`OPEN_DICT`, `OPEN_ARRAY`), or callables (`OPEN_CALL`).
+`parse_scalar()` wraps `str_idx` and `str_ptr` values as `{str=S, hash=H}` tables with precomputed FNV-1a hashes:
+
+```lua
+-- Token: {type="str_idx", value="idle"}
+-- Parsed result:
+{ str = "idle", hash = 2361389976 }
+```
+
+This wrapping enables `se_dict_extract_hash` to extract the hash directly and `as_number()` to attempt numeric conversion of the string content.
 
 ---
 
 ## 3. Path Resolution
 
-### 3.1 String Path Resolution (`se_dicts_resolve`)
+### 3.1 String Path Resolution (`navigate_str_path`)
 
-Parses a dot-separated path string one segment at a time. For each segment:
+Splits a dot-separated path string on `"."` and walks the table one key at a time:
 
-1. If current node is `OPEN_DICT` → hash the segment, call `se_dicts_find()` for hash match
-2. If current node is `OPEN_ARRAY` → parse segment as numeric index, call `se_dicts_array_get()`
-3. Otherwise → `TYPE_MISMATCH` error
-
-```c
-// Example: resolve "hw.gpio.mode" through nested dicts
-const s_expr_param_t* val = se_dicts_resolve(dict, mod_def, "hw.gpio.mode", &ctx);
+```lua
+local function navigate_str_path(dict, path)
+    local cur = dict
+    for key in path:gmatch("[^%.]+") do
+        if type(cur) ~= "table" then return nil end
+        local v = cur[key]
+        if v == nil then
+            local n = tonumber(key)
+            if n then v = cur[n] end   -- 0-based numeric fallback for arrays
+        end
+        cur = v
+    end
+    return cur
+end
 ```
 
-### 3.2 Hash Path Resolution (`se_dicth_resolve`)
+For each segment:
+1. Try `cur[key]` as a string key (works for dict tables)
+2. If nil, try `cur[tonumber(key)]` as a numeric key (works for array tables with 0-based indices like `"items.0.id"`)
 
-Takes a pre-computed array of FNV-1a hashes and a depth count. For each level:
-
-1. If current node is `OPEN_DICT` → call `se_dicth_find()` with hash
-2. If current node is `OPEN_ARRAY` → brute-force reverse-lookup to convert hash back to numeric index, then call `se_dicth_array_get()`
-3. Otherwise → `TYPE_MISMATCH` error
-
-```c
-// Example: same lookup, zero string parsing at runtime
-ct_int_t mode = se_dicth_get_int(dict, SE_PATH_H("hw", "gpio", "mode"), 0);
+```lua
+-- Example: resolve "hw.gpio.mode" through nested dicts
+local val = navigate_str_path(dict, "hw.gpio.mode")  -- → 1
 ```
 
-### 3.3 Single-Level Lookup
+### 3.2 Hash Path Resolution (`navigate_hash_path`)
 
-Both `se_dicts_find()` and `se_dicth_find()` perform linear scan through `OPEN_KEY` tokens comparing `str_hash`. On match, they return a pointer to the value (the param immediately after `OPEN_KEY`). On mismatch, `skip_value()` jumps past the value and `CLOSE_KEY` to the next entry.
+Takes a pre-collected array of `{hash, str}` items and walks the table using a three-level fallback per segment:
+
+```lua
+local function navigate_hash_path(dict, path_items)
+    local cur = dict
+    for _, item in ipairs(path_items) do
+        if type(cur) ~= "table" then return nil end
+        local v = cur[item.hash]                       -- 1. hash key
+        if v == nil and item.str then
+            v = cur[item.str]                           -- 2. string key fallback
+            if v == nil then
+                local n = tonumber(item.str)
+                if n then v = cur[n] end                -- 3. numeric index fallback
+            end
+        end
+        cur = v
+    end
+    return cur
+end
+```
+
+The three-level fallback handles:
+- **Dict tables with hash keys** (from `dict_key_hash` pipeline output) — step 1 matches
+- **Dict tables with string keys** (from `dict_key` pipeline output) — step 2 matches
+- **Array tables with numeric keys** — step 3 matches (e.g., hash("0") → "0" → 0)
+
+```lua
+-- Example: same lookup, path items from str_hash params
+local items = { {hash=H_hw, str="hw"}, {hash=H_gpio, str="gpio"}, {hash=H_mode, str="mode"} }
+local val = navigate_hash_path(dict, items)  -- → 1
+```
+
+### 3.3 Path Item Collection (`collect_path_items`)
+
+Hash-path extraction builtins use `collect_path_items()` to gather `{hash, str}` pairs from the node's params between the source field_ref and the destination field_ref:
+
+```lua
+local function collect_path_items(node, start_idx, end_idx)
+    local items = {}
+    local params = node.params or {}
+    for i = start_idx, end_idx do
+        local p = params[i]
+        if not p then break end
+        if type(p.value) == "table" then
+            -- str_hash: value = {hash=N, str=S}
+            items[#items + 1] = { hash = p.value.hash, str = p.value.str }
+        else
+            -- dict_key_hash: plain number
+            items[#items + 1] = { hash = p.value, str = nil }
+        end
+    end
+    return items
+end
+```
+
+### 3.4 Single-Level Lookup Performance
+
+In the C implementation, single-level lookup is a linear scan through `OPEN_KEY` tokens comparing `str_hash` values — O(n) in the number of keys at that level.
+
+In LuaJIT, single-level lookup is a **Lua table key access** — `cur[key]` — which is a hash table lookup internally, giving amortized O(1) per level. This is a significant performance improvement over the C version for dictionaries with many keys at the same level.
 
 ---
 
 ## 4. Typed Value Extraction
 
-Both APIs provide identical typed getters that resolve a path then extract a value:
+Both path types share the same set of extraction builtins. Each navigates to a value, then applies a type conversion:
 
-| Function | Returns | Coercion |
-|----------|---------|----------|
-| `get_int` | `ct_int_t` | INT direct, UINT/FLOAT cast |
-| `get_uint` | `ct_uint_t` | UINT direct, INT/FLOAT cast |
-| `get_float` | `ct_float_t` | FLOAT direct, INT/UINT cast |
-| `get_bool` | `bool` | INT/UINT/FLOAT != 0 |
-| `get_hash` | `s_expr_hash_t` | STR_HASH direct, STR_IDX → lookup+hash, INT/UINT as-is |
-| `get_dict` | `const s_expr_param_t*` | Returns NULL if not OPEN_DICT |
-| `get_array` | `const s_expr_param_t*` | Returns NULL if not OPEN_ARRAY |
-| `get_callable` | `const s_expr_param_t*` | Returns NULL if not OPEN_CALL |
-| `get_string` | `bool` + out params | STR_IDX only, returns index + length |
-| `get_string_ptr` | `const char*` | STR_IDX → string table lookup (string API only) |
+### 4.1 Conversion Helpers
 
-All getters return a caller-supplied default on resolution failure.
+```lua
+local function as_number(v)
+    if type(v) == "table" and v.str then return tonumber(v.str) or 0 end
+    return tonumber(v) or 0
+end
+
+local function as_hash(v)
+    if type(v) == "table" and v.hash then return v.hash end
+    if type(v) == "string" then return s_expr_hash(v) end
+    return math.floor(tonumber(v) or 0)
+end
+```
+
+### 4.2 Extraction Functions
+
+| Builtin | Path Type | Output | Conversion |
+|---------|-----------|--------|------------|
+| `se_dict_extract_int` | string | integer | `math.floor(as_number(v))` |
+| `se_dict_extract_uint` | string | unsigned int | `math.floor(math.abs(as_number(v)))` |
+| `se_dict_extract_float` | string | float | `as_number(v) + 0.0` |
+| `se_dict_extract_bool` | string | 0 or 1 | `(as_number(v) ~= 0) and 1 or 0` |
+| `se_dict_extract_hash` | string | hash number | `as_hash(v)` |
+| `se_dict_extract_int_h` | hash | integer | Same as above |
+| `se_dict_extract_uint_h` | hash | unsigned int | Same |
+| `se_dict_extract_float_h` | hash | float | Same |
+| `se_dict_extract_bool_h` | hash | 0 or 1 | Same |
+| `se_dict_extract_hash_h` | hash | hash number | Same |
+| `se_dict_store_ptr` | string | table ref | Identity; nil if not a table |
+| `se_dict_store_ptr_h` | hash | table ref | Identity; nil if not a table |
+
+All extraction builtins return a default value (`0`, `0.0`, or `nil`) when navigation fails (value not found):
+
+```lua
+-- String-path example:
+M.se_dict_extract_int = function(inst, node)
+    local d = bb_dict(inst, node, 1)                        -- dict from blackboard
+    local v = navigate_str_path(d, param_str(node, 2))      -- navigate path
+    inst.blackboard[param_field_name(node, 3)] =
+        v ~= nil and math.floor(as_number(v)) or 0          -- convert + write
+end
+
+-- Hash-path example:
+local function hash_extract(inst, node, conv)
+    local d    = bb_dict(inst, node, 1)                     -- dict from blackboard
+    local dest = last_field_idx(node)                       -- find dest field_ref
+    local path = collect_path_items(node, 2, dest - 1)      -- gather {hash,str} pairs
+    local v    = navigate_hash_path(d, path)                -- navigate
+    inst.blackboard[param_field_name(node, dest)] = conv(v)  -- convert + write
+end
+```
+
+### 4.3 Comparison with C Typed Extraction
+
+| C Function | LuaJIT Equivalent | Notes |
+|-----------|-------------------|-------|
+| `se_dicts_get_int(dict, mod, path, default)` | `se_dict_extract_int` oneshot | C returns value; Lua writes to blackboard |
+| `se_dicth_get_int(dict, hashes, depth, default)` | `se_dict_extract_int_h` oneshot | Same |
+| `se_dicts_get_string_ptr(dict, mod, path)` | Not directly available | Use `navigate_str_path` + unwrap `{str,hash}` |
+| `se_dicts_get_dict(dict, mod, path)` | `se_dict_store_ptr` | Stores sub-table reference in blackboard |
+| `se_dicts_get_callable(dict, mod, path)` | Not applicable | Callables are in `node.children`, not in dicts |
+
+The key difference: C extraction functions return values to the caller. LuaJIT extraction builtins are oneshots that write directly to blackboard fields. For programmatic access outside of builtins, use `navigate_str_path` / `navigate_hash_path` directly on the blackboard table.
 
 ---
 
 ## 5. Iteration
 
-Both APIs provide dictionary and array iterators with identical structure:
+Since parsed dictionaries and arrays are plain Lua tables, iteration uses standard Lua patterns rather than specialized iterator structs.
 
-```c
-// Dictionary iteration
-se_dicth_iter_t iter;
-se_dicth_iter_init(&iter, dict);
-s_expr_hash_t key;
-const s_expr_param_t* value;
-while (se_dicth_iter_next(&iter, &key, &value)) {
-    // process key-value pair
-}
+### 5.1 Dictionary Iteration
 
-// Array iteration
-se_arrayh_iter_t aiter;
-se_arrayh_iter_init(&aiter, array);
-const s_expr_param_t* elem;
-uint16_t idx;
-while (se_arrayh_iter_next(&aiter, &elem, &idx)) {
-    // process element
-}
+```lua
+-- Iterate all keys in a dict table:
+local dict = inst.blackboard["config_ptr"]
+for key, value in pairs(dict) do
+    -- key: string (from dict_key) or number (from dict_key_hash)
+    -- value: number, {str,hash} table, or nested table
+    print(tostring(key) .. " = " .. tostring(value))
+end
 ```
 
-Iterators track current position, end boundary, and entry index. `skip_value()` advances past each value. Both support `reset()` to restart from the beginning.
+### 5.2 Array Iteration
+
+Arrays use 0-based numeric keys, so iterate with a counter:
+
+```lua
+-- Iterate 0-based array:
+local arr = navigate_str_path(dict, "zones")
+local i = 0
+while arr[i] ~= nil do
+    local elem = arr[i]
+    -- process element
+    i = i + 1
+end
+```
+
+### 5.3 Comparison with C Iterators
+
+| C Pattern | LuaJIT Equivalent |
+|-----------|-------------------|
+| `se_dicth_iter_t iter; se_dicth_iter_init(&iter, dict)` | `for key, value in pairs(dict) do` |
+| `se_dicth_iter_next(&iter, &key, &value)` | Next iteration of `pairs()` |
+| `se_dicth_iter_reset(&iter)` | Re-enter the `pairs()` loop |
+| `se_arrayh_iter_t aiter; se_arrayh_iter_init(&aiter, arr)` | `local i = 0; while arr[i] ~= nil do` |
+| `se_arrayh_iter_next(&aiter, &elem, &idx)` | `local elem = arr[i]; i = i + 1` |
+
+The C iterators track position, end boundary, and entry index in a struct. In LuaJIT, `pairs()` and numeric counting replace all of this.
 
 ---
 
 ## 6. Blackboard Integration
 
-Both APIs provide helpers to extract a dictionary pointer stored in a blackboard field:
+Dictionaries are stored in blackboard fields by name. The `bb_dict()` helper retrieves and validates them:
 
-```c
-const s_expr_param_t* dict = se_dicth_from_instance(inst, FIELD_OFFSET_CONFIG);
-ct_int_t val = se_dicth_get_int(dict, SE_PATH_H("timeout"), 1000);
+```lua
+local function bb_dict(inst, node, param_idx)
+    local fname = param_field_name(node, param_idx)
+    local d = inst.blackboard[fname]
+    assert(d and type(d) == "table",
+        "se_dict: blackboard field '" .. tostring(fname) ..
+        "' is not a dict table (got " .. type(d) .. ")")
+    return d
+end
 ```
 
-The blackboard field stores a `uint64_t` that is cast to a `s_expr_param_t*` pointer. This allows trees to receive configuration dictionaries via blackboard binding.
+The typical pattern:
+
+```lua
+-- 1. Load dictionary into blackboard (oneshot, runs once during INIT)
+se_load_dictionary("config_ptr", config_table)
+-- inst.blackboard["config_ptr"] = { ... parsed Lua table ... }
+
+-- 2. Extract values into individual fields (oneshots, run once during INIT)
+se_dict_extract_int("config_ptr", "timeout", "timeout_ms")
+-- inst.blackboard["timeout_ms"] = 5000
+
+-- 3. Use fields during TICK (no dictionary access needed)
+se_field_gt("sensor_value", "timeout_ms")
+```
+
+### Comparison with C Blackboard Integration
+
+| C Pattern | LuaJIT Equivalent |
+|-----------|-------------------|
+| Blackboard field stores `uint64_t` cast to `s_expr_param_t*` pointer | Blackboard field stores Lua table directly |
+| `se_dicth_from_instance(inst, FIELD_OFFSET)` reads pointer via byte offset | `inst.blackboard["config_ptr"]` reads table by name |
+| Alignment-sensitive `uint64_t` dereference | No alignment concern — Lua values are GC-managed references |
+| Zero-copy: dict lives in ROM, pointer references it | Dict is a live Lua table in memory (parsed from tokens on load) |
+
+The C alignment bug (§8.1 in the C document) does not exist in the LuaJIT version because Lua tables are accessed by reference, not by casting byte offsets to pointer types.
 
 ---
 
-## 7. Error Reporting
+## 7. Function Dictionary
 
-Both APIs provide a context struct for detailed error reporting:
+In addition to data dictionaries, the subsystem supports **function dictionaries** — tables that map FNV-1a hashes to closures over child subtrees:
 
-| Field | Purpose |
-|-------|---------|
-| `result` | Resolved param pointer (NULL on error) |
-| `status` | Status enum (OK, NOT_FOUND, TYPE_MISMATCH, INVALID_INDEX, etc.) |
-| `depth` | How many levels were successfully resolved before failure |
-| `failed_hash` | Hash of the segment that failed (for debugging) |
-| `failed_segment_start/len` | Character offsets into path string (string API only) |
+```lua
+M.se_load_function_dict = function(inst, node)
+    -- Collect dict_key names in order from params
+    local keys = {}
+    for i = 1, #params do
+        if params[i].type == "dict_key" then
+            keys[#keys + 1] = params[i].value
+        end
+    end
 
-The context is optional — passing NULL skips error recording.
+    -- Build dictionary: hash(key_name) → closure
+    local dict = {}
+    for i = 1, #keys do
+        local key_hash   = s_expr_hash(keys[i])
+        local child_node = children[i]
+        dict[key_hash] = function(calling_inst, exec_node, eid, edata)
+            return se_runtime.invoke_any(calling_inst, child_node, eid, edata)
+        end
+    end
+
+    inst.blackboard[fname] = dict
+end
+```
+
+Function dictionaries are consumed by the spawn module's dispatch builtins (`se_exec_dict_dispatch`, `se_exec_dict_fn_ptr`, `se_exec_dict_internal`), which look up entries by hash and call them as main functions.
 
 ---
 
-## 8. Issues Found
+## 8. FNV-1a Hash
 
-### 8.1 BUG: Alignment fault in `se_dicts_from_blackboard` / `se_dicth_from_blackboard`
+Both path types ultimately depend on FNV-1a hashing for key comparison (string paths hash each segment; hash paths carry pre-computed hashes). The LuaJIT implementation decomposes the FNV prime to avoid float64 overflow:
 
-Both headers contain:
-
-```c
-static inline const s_expr_param_t* se_dicts_from_blackboard(
-    const void* blackboard, uint16_t field_offset
-) {
-    const uint64_t* ptr = (const uint64_t*)((const uint8_t*)blackboard + field_offset);
-    return (const s_expr_param_t*)(uintptr_t)*ptr;
-}
+```lua
+local function s_expr_hash(str)
+    local h = 2166136261   -- FNV offset basis
+    for i = 1, #str do
+        h = bit.bxor(h, str:byte(i))
+        -- 16777619 = 2^24 + 403; decompose to keep intermediates < 2^53
+        h = bit.tobit(bit.lshift(h, 24) + h * 403)
+    end
+    if h < 0 then h = h + 4294967296 end   -- unsigned normalization
+    return h
+end
 ```
 
-This casts an arbitrary `blackboard + field_offset` address to `uint64_t*` and dereferences it. On ARM Cortex-M with strict alignment requirements, if `field_offset` is not 8-byte aligned, this is a hard fault. The DSL presumably aligns pointer fields to 8 bytes in record layouts, but the C code has no guard.
-
-**Fix:** Use `memcpy` to safely read the 8 bytes:
-
-```c
-static inline const s_expr_param_t* se_dicts_from_blackboard(
-    const void* blackboard, uint16_t field_offset
-) {
-    if (!blackboard) return NULL;
-    uint64_t val;
-    memcpy(&val, (const uint8_t*)blackboard + field_offset, sizeof(val));
-    return (const s_expr_param_t*)(uintptr_t)val;
-}
-```
-
-### 8.2 PERFORMANCE: Hash-path array index reverse-lookup is O(256)
-
-In `se_dicth_resolve()`, when the current node is an array:
-
-```c
-for (uint16_t idx = 0; idx < 256; idx++) {
-    if (se_dicth_index_hash(idx) == path_hashes[i]) {
-        index = idx;
-        break;
-    }
-}
-```
-
-This brute-forces up to 256 hash computations to convert a hash back to a numeric index. For indices 0–15 it hits the lookup table (cheap), but 16–255 each compute a hash via digit decomposition. This is an inherent design tension — the hash-path API uses hashes uniformly, but arrays need numeric indices.
-
-**Options:**
-- Extend the lookup table to 256 entries (adds 1 KB ROM, eliminates runtime computation)
-- Store array indices differently in the path (e.g., use a sentinel bit to distinguish index hashes from key hashes)
-- Accept the cost — array access through hash paths is presumably rare compared to dict access
-
-### 8.3 DEAD PARAMETER: `se_dicts_find()` accepts but ignores `module_def`
-
-```c
-const s_expr_param_t* se_dicts_find(
-    const s_expr_param_t* dict,
-    const s_expr_module_def_t* module_def,  // ← unused
-    const char* key,
-    uint16_t key_len
-) {
-    (void)module_def;
-```
-
-The function hashes the key segment and compares against `OPEN_KEY.str_hash` — it never does string comparison against the string table. The `module_def` parameter is dead weight. The header comment says "Find key in dictionary by string comparison" but the implementation does hash comparison.
-
-**Options:**
-- Remove `module_def` from the signature (breaking change if external code calls it)
-- Keep it for future use if string-comparison fallback on hash collision is ever needed
-- At minimum, fix the header comment to say "by hash comparison"
-
-### 8.4 CODE DUPLICATION: `skip_value()` is identically defined in both .c files
-
-Both `se_dict_string.c` and `se_dict_hash.c` define the same `static skip_value()` function. Same with the param type check inlines and param value extraction inlines in both headers. Consider extracting to a shared `se_dict_common.h` / `se_dict_common.c`.
-
-### 8.5 DUPLICATE FUNCTIONALITY: `se_dicts_find_hash()` duplicates `se_dicth_find()`
-
-`se_dicts_find_hash()` in `se_dict_string.c` is functionally identical to `se_dicth_find()` in `se_dict_hash.c` — both do single-level dict lookup by hash. The string API includes it as a "fallback" but it's pure duplication.
+This produces identical hashes to the C `s_expr_hash()` function, ensuring cross-runtime compatibility for function dictionaries, spawn tree lookups, and hash-path navigation.
 
 ---
 
-## 9. Performance Characteristics
+## 9. Issues and Design Notes
 
-| Operation | String API | Hash API |
-|-----------|-----------|----------|
-| Path parsing | O(path_len) per call | Zero (pre-computed) |
-| Per-level dict lookup | O(n) key scan + FNV hash of segment | O(n) key scan |
-| Per-level array access | O(n) element scan + atoi parse | O(n) element scan + O(256) reverse hash |
-| Skip nested value | O(1) via brace_idx | O(1) via brace_idx |
-| Memory overhead | Zero allocation (read-only traversal) | Zero allocation (read-only traversal) |
+### 9.1 No Equivalent of C Bug §8.1 (Alignment Fault)
 
-Both APIs are read-only — they traverse the compiled parameter array without allocation or modification.
+The C `se_dicts_from_blackboard` casts an arbitrary `blackboard + offset` to `uint64_t*` and dereferences, which can hard-fault on ARM Cortex-M with unaligned offsets. The LuaJIT version stores dict tables as Lua values in `inst.blackboard[field_name]` — no pointer arithmetic, no alignment concern.
+
+### 9.2 No Equivalent of C Issue §8.2 (Hash-Path Array Reverse-Lookup)
+
+The C hash-path API brute-forces up to 256 hash computations to convert a hash back to a numeric array index. The LuaJIT `navigate_hash_path` avoids this entirely by using a three-level fallback: try the hash as a key first, then the original string, then `tonumber(string)`. Since path items carry both `hash` and `str`, the string-to-number conversion is direct.
+
+### 9.3 No Code Duplication (C Issues §8.4, §8.5)
+
+The C implementation has duplicated `skip_value()` and `find_hash()` functions across two source files. The LuaJIT version has a single navigation module with shared helpers.
+
+### 9.4 Parse-Once vs Zero-Copy Tradeoff
+
+The C subsystem provides zero-copy traversal of ROM-resident parameter arrays — dictionaries are never copied, never allocated, and the binary data can live in flash. The LuaJIT version parses tokens into Lua tables once (during `se_load_dictionary`) and stores them in the GC-managed heap. This trades ROM efficiency for faster subsequent access (Lua hash table lookup is amortized O(1) vs C's O(n) linear key scan per level).
+
+### 9.5 String Wrapping Overhead
+
+Every string value in a parsed dictionary is wrapped as `{str=S, hash=H}` by `parse_scalar()`. This enables hash extraction without re-hashing, but adds a table allocation per string value. For dictionaries with many string values, this contributes GC pressure. In practice, dictionaries are loaded once during INIT and the strings are extracted into blackboard fields, so the per-tick cost is zero.
+
+### 9.6 `last_field_idx` Linear Scan
+
+Hash-path extraction builtins use `last_field_idx(node)` to find the destination `field_ref` param by scanning backwards through `node.params`:
+
+```lua
+local function last_field_idx(node)
+    local params = node.params or {}
+    for i = #params, 1, -1 do
+        local t = params[i].type
+        if t == "field_ref" or t == "nested_field_ref" then return i end
+    end
+    return nil
+end
+```
+
+This is O(n) in param count but n is typically small (3–6 params per extraction node).
 
 ---
 
-## 10. Summary
+## 10. Performance Characteristics
 
-The dictionary subsystem provides two access patterns for the same underlying data: string paths for convenience and debugging, hash paths for performance. The core traversal logic is identical — linear scan through `OPEN_KEY` tokens with O(1) nested value skip via `brace_idx`. The alignment issue in the blackboard integration helpers (#8.1) is the only real bug; the rest are design observations about duplication and the hash-path array reverse-lookup cost.
+| Operation | String Path | Hash Path |
+|-----------|------------|-----------|
+| Path parsing | O(path_len) `gmatch` split per call | Zero (pre-collected `{hash, str}` pairs) |
+| Per-level dict lookup | O(1) Lua table hash lookup | O(1) Lua table hash lookup (with fallback chain) |
+| Per-level array access | O(1) `tonumber` + table index | O(1) three-level fallback (hash → string → number) |
+| Token parsing | O(n) once during `se_load_dictionary` | O(n) once during `se_load_dictionary` |
+| Subsequent access | Native Lua table operations | Native Lua table operations |
+| Memory overhead | One Lua table tree per loaded dictionary | Same |
+| GC pressure | Table allocations during parse; zero during extract | Same |
 
+Both path types are read-only after parsing — extraction builtins traverse the Lua table without modification. The parsed table persists in the blackboard for the lifetime of the tree instance.
 
+---
+
+## 11. Complete API Reference
+
+### Parse Functions (internal to `se_builtins_dict.lua`)
+
+| Function | Description |
+|----------|-------------|
+| `parse_dict(params, start_i)` | Parse `dict_start..dict_end` tokens → Lua table with string or hash keys |
+| `parse_array(params, start_i)` | Parse `array_start..array_end` tokens → Lua table with 0-based numeric keys |
+| `parse_scalar(p)` | Parse single value token; wraps strings as `{str, hash}` |
+
+### Navigation Functions (internal)
+
+| Function | Description |
+|----------|-------------|
+| `navigate_str_path(dict, path)` | Dot-path walk with numeric fallback for arrays |
+| `navigate_hash_path(dict, path_items)` | Hash-path walk with three-level fallback |
+| `collect_path_items(node, start, end)` | Collect `{hash, str}` pairs from node params |
+| `last_field_idx(node)` | Find last `field_ref` param index (destination) |
+| `bb_dict(inst, node, param_idx)` | Retrieve and validate dict from blackboard |
+
+### Hash Function (exported)
+
+| Function | Description |
+|----------|-------------|
+| `s_expr_hash(str)` | FNV-1a 32-bit hash, LuaJIT-safe prime decomposition |
+
+### Extraction Builtins (registered as oneshots)
+
+| Function | Path Type | Output |
+|----------|-----------|--------|
+| `se_load_dictionary` / `se_load_dictionary_hash` | — | Parse tokens → blackboard table |
+| `se_dict_extract_int` / `_h` | string / hash | Integer to blackboard field |
+| `se_dict_extract_uint` / `_h` | string / hash | Unsigned int to blackboard field |
+| `se_dict_extract_float` / `_h` | string / hash | Float to blackboard field |
+| `se_dict_extract_bool` / `_h` | string / hash | Boolean (0/1) to blackboard field |
+| `se_dict_extract_hash` / `_h` | string / hash | Hash number to blackboard field |
+| `se_dict_store_ptr` / `_h` | string / hash | Sub-table reference to blackboard field |
+| `se_load_function_dict` | — | `{hash → closure}` table to blackboard field |
+
+---
+
+## 12. Summary
+
+The LuaJIT dictionary subsystem provides two navigation patterns for the same underlying Lua table data: string dot-paths for convenience and debugging, hash paths for compile-time key resolution. The core difference from the C implementation is the **parse-once model** — tokens are converted to Lua tables during `se_load_dictionary`, and all subsequent navigation operates on native Lua hash-table lookups rather than linear scans through flat token arrays. This eliminates the C version's `brace_idx` skip machinery, iterator structs, and alignment-sensitive blackboard pointer access, while providing amortized O(1) per-level lookup instead of O(n).

@@ -1,7 +1,7 @@
-site_name: C PostgreSQL Knowledge Base
+site_name: Luajit PostgreSQL Knowledge Base
 nav:
   - Construct constructs the knowledge base:
     - Construct constructs the knowledge base: README_luajit_construct.md
   - Data Structures read and write the knowledge base:
     - Data Structures LuaJIT: README_data_structures_luajit.md
-    - Data Structures C: README_data_structures_c.md
+

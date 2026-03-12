@@ -1,64 +1,119 @@
-# S-Engine JSON Dictionary System
+# S-Engine JSON Dictionary System — LuaJIT Runtime
 
 ## Overview
 
-The S-Engine JSON dictionary system provides **zero-copy, compile-time JSON configuration** for embedded and real-time systems. Lua tables in DSL code are compiled directly into binary parameter arrays, enabling configuration data to live in ROM/Flash with no runtime parsing or memory allocation.
+The S-Engine JSON dictionary system provides **structured configuration data** for the ChainTree LuaJIT runtime. Lua tables from the YAML/JSON DSL pipeline are compiled into inline parameter token sequences (`dict_start`, `dict_key`, value, `end_dict_key`, `dict_end`) stored in `node.params`. At runtime, `se_load_dictionary` parses these tokens into plain Lua tables and stores them in the blackboard. Extraction builtins then navigate these tables to populate individual blackboard fields.
 
 ## Strategy
 
 The system follows a three-layer architecture:
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  DSL Layer (Lua)                                                │
-│  - se_load_dictionary(), se_dict_extract_*() helpers            │
-│  - Compile-time validation and code generation                  │
+│  DSL / Pipeline Layer                                           │
+│  - YAML/JSON → LuaJIT pipeline compiles config into             │
+│    dict_start/dict_key/value/end_dict_key/dict_end tokens       │
+│    stored in node.params arrays                                 │
 ├─────────────────────────────────────────────────────────────────┤
-│  Oneshot Functions (C)                                          │
-│  - SE_LOAD_DICTIONARY, SE_DICT_EXTRACT_INT, etc.                │
-│  - Bridge between DSL and runtime libraries                     │
+│  Oneshot Functions (se_builtins_dict.lua)                       │
+│  - se_load_dictionary, se_dict_extract_int, etc.                │
+│  - Parse tokens → Lua tables, navigate and extract values       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Runtime Libraries (C)                                          │
-│  - se_dict_string.h/c - String path navigation                  │
-│  - se_dict_hash.h/c - Hash path navigation (faster)             │
-│  - Zero-copy value extraction from binary params                │
+│  Navigation Helpers (se_builtins_dict.lua internal)             │
+│  - parse_dict / parse_array — token stream → Lua table          │
+│  - navigate_str_path — dot-path navigation                      │
+│  - navigate_hash_path — FNV-1a hash-path navigation             │
+│  - s_expr_hash — LuaJIT-safe FNV-1a 32-bit hash                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Core Concept
 
-1. **Load**: Store a physical pointer to the dictionary structure in a PTR64 blackboard field
-2. **Extract**: Functions take that pointer and navigate the binary structure to extract values
-3. **Store**: Helper functions write extracted values directly into blackboard fields
+1. **Load**: Parse inline `dict_start..dict_end` tokens from `node.params` into a plain Lua table and store it in a blackboard field.
+2. **Extract**: Navigation functions walk the Lua table by dot-path or hash-path to locate a value.
+3. **Store**: The extracted value (converted to the requested type) is written into a destination blackboard field.
 
-This approach eliminates:
-- Runtime JSON parsing
-- Dynamic memory allocation
-- String comparisons (when using hash paths)
-- Data copying
+In the LuaJIT runtime, dictionaries are **live Lua tables** in the blackboard — not ROM pointers. The parsing happens once (in the `se_load_dictionary` oneshot), and all subsequent extractions operate on native Lua table lookups. This trades the C version's zero-copy ROM residence for Lua's fast hash-table access and dynamic typing.
 
 ## File Organization
+
 ```
-├── s_engine_helpers.lua      # DSL helper functions
-├── s_engine_builtins.c       # Oneshot function implementations
-├── se_dict_string.h/c        # String-path runtime library
-├── se_dict_hash.h/c          # Hash-path runtime library
-└── se_dict_extract.h/c       # Extraction oneshot functions
+├── se_builtins_dict.lua          # Dictionary load, extract, navigate, hash
+├── se_builtins_oneshot.lua       # General oneshot functions (field writes, logging)
+├── se_builtins_spawn.lua         # se_load_function, se_exec_dict_*, function dict dispatch
+├── se_runtime.lua                # Core engine, param accessors, field_get/field_set
+└── se_stack.lua                  # Parameter stack (used by quad operand reads)
+```
+
+All dictionary functionality lives in `se_builtins_dict.lua`. The spawn module (`se_builtins_spawn.lua`) handles function dictionary dispatch (`se_exec_dict_dispatch`, `se_exec_dict_fn_ptr`, `se_exec_dict_internal`).
+
+## Token Format in node.params
+
+The pipeline compiles dictionary literals into a token sequence stored in `node.params`:
+
+| Token Type | `params[i].type` | `params[i].value` | Description |
+|------------|------------------|--------------------|-------------|
+| `dict_start` | `"dict_start"` | — | Dictionary open |
+| `dict_end` | `"dict_end"` | — | Dictionary close |
+| `dict_key` | `"dict_key"` | string (key name) | String-keyed entry |
+| `dict_key_hash` | `"dict_key_hash"` | number (FNV-1a hash) | Hash-keyed entry |
+| `end_dict_key` | `"end_dict_key"` | — | Key entry terminator |
+| `array_start` | `"array_start"` | — | Array open |
+| `array_end` | `"array_end"` | — | Array close |
+| `int` | `"int"` | number | Signed integer value |
+| `uint` | `"uint"` | number | Unsigned integer value |
+| `float` | `"float"` | number | Float value |
+| `str_idx` | `"str_idx"` | string | String value (interned) |
+| `str_ptr` | `"str_ptr"` | string | String value (pointer) |
+| `str_hash` | `"str_hash"` | `{hash=N, str=S}` | String with precomputed hash |
+
+## Parsing: Tokens → Lua Tables
+
+The `parse_dict` and `parse_array` functions in `se_builtins_dict.lua` are mutually recursive parsers that walk the token sequence and produce plain Lua tables:
+
+**Dictionary parsing** produces tables with string keys (from `dict_key`) or numeric hash keys (from `dict_key_hash`):
+
+```lua
+-- Input tokens: dict_start, dict_key("zone"), dict_start, dict_key("id"), int(42),
+--               end_dict_key, dict_end, end_dict_key, dict_end
+-- Result:
+{ zone = { id = 42 } }
+```
+
+**Array parsing** produces tables with 0-based numeric keys:
+
+```lua
+-- Input tokens: array_start, int(10), int(20), int(30), array_end
+-- Result:
+{ [0] = 10, [1] = 20, [2] = 30 }
+```
+
+**String values** are wrapped as `{str=S, hash=H}` tables with precomputed FNV-1a hashes by `parse_scalar`:
+
+```lua
+-- Input token: str_idx("idle")
+-- Result:
+{ str = "idle", hash = 2361389976 }
 ```
 
 ## DSL Helper Functions
 
 ### Dictionary Loading
+
 ```lua
--- Load dictionary with string keys (human-readable, slower lookup)
+-- Load dictionary with string keys (human-readable, debuggable)
 se_load_dictionary(blackboard_field, lua_table)
 
--- Load dictionary with hash keys (faster lookup, same data)
+-- Load dictionary with hash keys (same implementation in LuaJIT)
 se_load_dictionary_hash(blackboard_field, lua_table)
 ```
+
+In the LuaJIT runtime, both functions share the same implementation (`load_dict_impl`). The distinction between string-keyed and hash-keyed dictionaries matters at the pipeline level (which token types are emitted), but the parser handles both transparently.
 
 ### String Path Extraction
 
 Navigate using dot-separated paths like `"system.config.timeout"`:
+
 ```lua
 se_dict_extract_int(dict_field, path, dest_field)
 se_dict_extract_uint(dict_field, path, dest_field)
@@ -69,7 +124,8 @@ se_dict_extract_hash(dict_field, path, dest_field)
 
 ### Hash Path Extraction
 
-Navigate using pre-computed key hashes (faster, no string parsing):
+Navigate using pre-computed key hashes. In the node.params, each path segment is a `str_hash` param carrying `{hash=N, str=S}`. The last param is a `field_ref` for the destination:
+
 ```lua
 se_dict_extract_int_h(dict_field, {"key1", "key2", "key3"}, dest_field)
 se_dict_extract_uint_h(dict_field, {"key1", "key2"}, dest_field)
@@ -78,131 +134,170 @@ se_dict_extract_bool_h(dict_field, {"key1", "key2"}, dest_field)
 se_dict_extract_hash_h(dict_field, {"key1", "key2"}, dest_field)
 ```
 
-### Bulk Extraction
+### Sub-table Reference
 
-Extract multiple values in one call:
+Store a reference to a nested dict or array in a blackboard field for later navigation:
+
 ```lua
-se_dict_extract_all(dict_field, {
-    {path = "system.timeout", dest = "timeout_ms", type = "int"},
-    {path = "hardware.voltage", dest = "voltage", type = "float"},
-    {path = "network.enabled", dest = "net_flag", type = "bool"}
+se_dict_store_ptr(dict_field, path, dest_field)         -- string path
+se_dict_store_ptr_h(dict_field, {"key1", "key2"}, dest_field)  -- hash path
+```
+
+### Function Dictionary
+
+Build a `{hash → closure}` dispatch table from child subtrees:
+
+```lua
+se_load_function_dict(dest_field, {
+    write_register = <child subtree 1>,
+    read_modify_write = <child subtree 2>,
 })
-
-se_dict_extract_all_h(dict_field, {
-    {path = {"system", "timeout"}, dest = "timeout_ms", type = "int"},
-    {path = {"hardware", "voltage"}, dest = "voltage", type = "float"},
-})
 ```
 
-## C Oneshot Functions
+## Builtin Parameter Layouts
 
-### Registration
-```c
-// Function table for registration
-static const s_expr_fn_entry_named_t se_dict_oneshots[] = {
-    {"SE_LOAD_DICTIONARY",      (void*)se_load_dictionary},
-    {"SE_DICT_EXTRACT_INT",     (void*)se_dict_extract_int},
-    {"SE_DICT_EXTRACT_UINT",    (void*)se_dict_extract_uint},
-    {"SE_DICT_EXTRACT_FLOAT",   (void*)se_dict_extract_float},
-    {"SE_DICT_EXTRACT_BOOL",    (void*)se_dict_extract_bool},
-    {"SE_DICT_EXTRACT_HASH",    (void*)se_dict_extract_hash},
-    {"SE_DICT_EXTRACT_INT_H",   (void*)se_dict_extract_int_h},
-    {"SE_DICT_EXTRACT_UINT_H",  (void*)se_dict_extract_uint_h},
-    {"SE_DICT_EXTRACT_FLOAT_H", (void*)se_dict_extract_float_h},
-    {"SE_DICT_EXTRACT_BOOL_H",  (void*)se_dict_extract_bool_h},
-    {"SE_DICT_EXTRACT_HASH_H",  (void*)se_dict_extract_hash_h},
-};
+### se_load_dictionary / se_load_dictionary_hash
+
+```
+params[1] = field_ref     — Destination blackboard field name
+params[2] = dict_start    — Start of inline token stream
+params[3..N] = tokens     — dict_key, values, end_dict_key, nested structures
+params[N+1] = dict_end    — End of token stream
 ```
 
-### Parameter Layout
+Implementation calls `parse_dict(params, 2)` and stores the result in `inst.blackboard[field_name]`.
 
-**SE_LOAD_DICTIONARY**:
-```
-[0] FIELD (PTR64)    - Blackboard field to store dictionary pointer
-[1] OPEN_DICT        - Start of dictionary structure in params
-```
+### se_dict_extract_* (string path)
 
-**SE_DICT_EXTRACT_* (string path)**:
 ```
-[0] FIELD (PTR64)    - Dictionary pointer field
-[1] STR_IDX          - Path string (e.g., "system.config.timeout")
-[2] FIELD            - Destination field for extracted value
+params[1] = field_ref     — Source dict blackboard field
+params[2] = str_idx       — Dot-path string (e.g., "zone.timeout")
+params[3] = field_ref     — Destination blackboard field
 ```
 
-**SE_DICT_EXTRACT_*_H (hash path)**:
+Implementation reads the dict from `inst.blackboard`, calls `navigate_str_path(dict, path)`, converts the result to the requested type, and writes to the destination field.
+
+### se_dict_extract_*_h (hash path)
+
 ```
-[0] FIELD (PTR64)    - Dictionary pointer field
-[1..N-1] STR_HASH    - Path key hashes
-[N] FIELD            - Destination field for extracted value
-```
-
-## Runtime Libraries
-
-### se_dict_string.h/c (String Path Navigation)
-
-For human-readable paths with runtime string parsing:
-```c
-// Resolve path to parameter
-const s_expr_param_t* se_dicts_resolve(
-    const s_expr_param_t* dict,
-    const s_expr_module_def_t* module_def,
-    const char* path,
-    se_paths_context_t* ctx
-);
-
-// Typed extraction
-ct_int_t se_dicts_get_int(dict, module_def, "path.to.value", default_val);
-ct_uint_t se_dicts_get_uint(dict, module_def, "path.to.value", default_val);
-ct_float_t se_dicts_get_float(dict, module_def, "path.to.value", default_val);
-bool se_dicts_get_bool(dict, module_def, "path.to.value", default_val);
-s_expr_hash_t se_dicts_get_hash(dict, module_def, "path.to.value", default_val);
-
-// Dictionary iteration
-se_dicts_iter_t iter;
-se_dicts_iter_init(&iter, dict, module_def);
-while (se_dicts_iter_next(&iter, &key_str, &key_hash, &value)) {
-    // Process key-value pairs
-}
+params[1] = field_ref     — Source dict blackboard field
+params[2..N-1] = str_hash — Path key hashes ({hash=N, str=S} tables)
+params[N] = field_ref     — Destination blackboard field (last field_ref found)
 ```
 
-### se_dict_hash.h/c (Hash Path Navigation)
+Implementation uses `collect_path_items` to gather `{hash, str}` pairs, then `navigate_hash_path` to walk the table.
 
-For maximum performance with pre-computed hashes:
-```c
-// Resolve path using hash array
-const s_expr_param_t* se_dicth_resolve(
-    const s_expr_param_t* dict,
-    const s_expr_hash_t* path_hashes,
-    uint16_t path_depth,
-    se_pathh_context_t* ctx
-);
+### se_load_function_dict
 
-// Typed extraction
-ct_int_t se_dicth_get_int(dict, path_hashes, depth, default_val);
-ct_uint_t se_dicth_get_uint(dict, path_hashes, depth, default_val);
-ct_float_t se_dicth_get_float(dict, path_hashes, depth, default_val);
-bool se_dicth_get_bool(dict, path_hashes, depth, default_val);
-s_expr_hash_t se_dicth_get_hash(dict, path_hashes, depth, module_def, default_val);
+```
+params[1] = field_ref     — Destination blackboard field
+params[2] = dict_start
+params[3] = dict_key "fn_name_1"    → children[1]
+params[4] = end_dict_key
+params[5] = dict_key "fn_name_2"    → children[2]
+...
+params[N] = dict_end
+children[1..M] = subtree roots (one per dict_key)
+```
 
-// Convenience macros for C code
-ct_int_t val = se_dicth_get_int(dict, SE_PATH_H("system", "timeout"), 0);
+Implementation collects `dict_key` names in order, pairs each with the corresponding child, and builds `dict[s_expr_hash(name)] = closure(child)`.
+
+## Navigation Internals
+
+### String Path: `navigate_str_path(dict, path)`
+
+Splits the path on `"."` and walks the table:
+
+```lua
+-- For path "zone.config.timeout":
+--   cur = dict["zone"]
+--   cur = cur["config"]
+--   cur = cur["timeout"]
+-- Returns the final value, or nil if any step fails.
+
+-- Numeric fallback for arrays:
+-- For path "items.0.id":
+--   cur = dict["items"]
+--   cur["0"] is nil → try tonumber("0") → cur[0]  (0-based array key)
+--   cur = cur["id"]
+```
+
+### Hash Path: `navigate_hash_path(dict, path_items)`
+
+Walks the table using a three-level fallback per path segment:
+
+```lua
+-- For each {hash=H, str=S} in path_items:
+--   1. Try cur[H]          — hash key (dict_key_hash tables)
+--   2. Try cur[S]          — string key fallback
+--   3. Try cur[tonumber(S)] — numeric index fallback (arrays)
+```
+
+This ensures hash paths work seamlessly with both dict-keyed tables (where keys are hashes) and array-indexed tables (where keys are 0-based numbers).
+
+### FNV-1a Hash: `s_expr_hash(str)`
+
+LuaJIT-safe 32-bit FNV-1a hash with prime decomposition to avoid float64 overflow:
+
+```lua
+local function s_expr_hash(str)
+    local h = 2166136261   -- FNV offset basis
+    for i = 1, #str do
+        h = bit.bxor(h, str:byte(i))
+        -- 16777619 = 2^24 + 403; decompose to keep intermediates < 2^53
+        h = bit.tobit(bit.lshift(h, 24) + h * 403)
+    end
+    if h < 0 then h = h + 4294967296 end   -- unsigned normalization
+    return h
+end
+```
+
+This produces identical hashes to the C `s_expr_hash()` function, ensuring cross-runtime compatibility.
+
+## Registration
+
+All dictionary functions are registered through the standard `merge_fns` / `register_fns` mechanism:
+
+```lua
+local se_dict = require("se_builtins_dict")
+local se_spawn = require("se_builtins_spawn")
+
+local fns = se_runtime.merge_fns(
+    se_dict,    -- se_load_dictionary, se_dict_extract_*, se_load_function_dict
+    se_spawn,   -- se_exec_dict_dispatch, se_exec_dict_fn_ptr, se_exec_dict_internal
+    -- ... other builtin modules ...
+)
+
+local mod = se_runtime.new_module(module_data, fns)
+```
+
+Function names are matched case-insensitively (`NAME:upper()`) against the module's function lists. The module exports:
+
+```lua
+-- From se_builtins_dict.lua (M table):
+M.se_load_dictionary          -- oneshot
+M.se_load_dictionary_hash     -- oneshot (same impl)
+M.se_dict_extract_int         -- oneshot
+M.se_dict_extract_uint        -- oneshot
+M.se_dict_extract_float       -- oneshot
+M.se_dict_extract_bool        -- oneshot
+M.se_dict_extract_hash        -- oneshot
+M.se_dict_extract_int_h       -- oneshot
+M.se_dict_extract_uint_h      -- oneshot
+M.se_dict_extract_float_h     -- oneshot
+M.se_dict_extract_bool_h      -- oneshot
+M.se_dict_extract_hash_h      -- oneshot
+M.se_dict_store_ptr           -- oneshot
+M.se_dict_store_ptr_h         -- oneshot
+M.se_load_function_dict       -- oneshot
+M.s_expr_hash                 -- utility (not a registered builtin)
 ```
 
 ## Usage Example
 
-### DSL Code
+### DSL Code (Pipeline Input)
+
 ```lua
-local mod = start_module("zone_controller")
-
-RECORD("zone_state")
-    PTR64_FIELD("config_ptr", "void")
-    FIELD("zone_id", "uint32")
-    FIELD("timeout_ms", "uint32")
-    FIELD("threshold", "float")
-    FIELD("enabled", "uint32")
-    FIELD("state_hash", "uint32")
-END_RECORD()
-
 local zone_config = {
     zone = {
         id = 42,
@@ -216,244 +311,252 @@ local zone_config = {
         adc_channel = 3
     }
 }
-
-start_tree("zone_init")
-use_record("zone_state")
-
-se_sequence(function()
-    -- Load configuration pointer
-    se_load_dictionary("config_ptr", zone_config)
-    
-    -- Extract values using string paths
-    se_dict_extract_uint("config_ptr", "zone.id", "zone_id")
-    se_dict_extract_uint("config_ptr", "zone.timeout", "timeout_ms")
-    se_dict_extract_float("config_ptr", "zone.threshold", "threshold")
-    se_dict_extract_bool("config_ptr", "zone.enabled", "enabled")
-    se_dict_extract_hash("config_ptr", "zone.state", "state_hash")
-    
-    se_return_terminate()
-end)
-
-end_tree("zone_init")
-return end_module(mod)
 ```
 
-### Alternative with Hash Paths (Faster)
+### Tree Definition (Pipeline Output — module_data)
+
+The pipeline compiles the above into a tree with nodes like:
+
 ```lua
-se_sequence(function()
-    se_load_dictionary_hash("config_ptr", zone_config)
-    
-    se_dict_extract_uint_h("config_ptr", {"zone", "id"}, "zone_id")
-    se_dict_extract_uint_h("config_ptr", {"zone", "timeout"}, "timeout_ms")
-    se_dict_extract_float_h("config_ptr", {"zone", "threshold"}, "threshold")
-    se_dict_extract_bool_h("config_ptr", {"zone", "enabled"}, "enabled")
-    se_dict_extract_hash_h("config_ptr", {"zone", "state"}, "state_hash")
-    
-    se_return_terminate()
-end)
+{
+    func_name = "se_sequence",
+    call_type = "m_call",
+    children = {
+        -- Child 0: load dictionary
+        { func_name = "se_load_dictionary", call_type = "o_call",
+          params = {
+            {type="field_ref", value="config_ptr"},
+            {type="dict_start"},
+            {type="dict_key", value="zone"},
+            {type="dict_start"},
+            {type="dict_key", value="id"},
+            {type="uint", value=42},
+            {type="end_dict_key"},
+            -- ... more tokens ...
+            {type="dict_end"},
+            {type="end_dict_key"},
+            {type="dict_end"},
+          }
+        },
+        -- Child 1: extract uint
+        { func_name = "se_dict_extract_uint", call_type = "o_call",
+          params = {
+            {type="field_ref", value="config_ptr"},
+            {type="str_idx", value="zone.id"},
+            {type="field_ref", value="zone_id"},
+          }
+        },
+        -- ... more extraction children ...
+    }
+}
 ```
 
-## Creating Custom JSON Handlers
+### Runtime Behavior
 
-When the built-in extraction functions don't meet your needs, you can create custom handlers.
-
-### Step 1: Define DSL Helper Function
-
-In `s_engine_helpers.lua`:
 ```lua
--- Custom handler: extract array of integers into consecutive fields
-function se_dict_extract_int_array(dict_field, path, dest_fields)
-    validate_field_is_ptr64(dict_field)
-    
-    local call = o_call("USER_EXTRACT_INT_ARRAY")
-        field_ref(dict_field)
-        str(path)
-        int(#dest_fields)  -- count
-        for _, dest in ipairs(dest_fields) do
-            field_ref(dest)
-        end
-    end_call(call)
+-- 1. se_load_dictionary fires as oneshot:
+--    parse_dict(node.params, 2) → Lua table
+--    inst.blackboard["config_ptr"] = { zone = { id=42, ... }, hardware = { ... } }
+
+-- 2. se_dict_extract_uint fires as oneshot:
+--    dict = inst.blackboard["config_ptr"]
+--    val = navigate_str_path(dict, "zone.id")  → 42
+--    inst.blackboard["zone_id"] = math.floor(math.abs(42))  → 42
+
+-- 3. Subsequent TICK events use blackboard fields directly:
+--    se_field_gt checks inst.blackboard["sensor_value"] > inst.blackboard["threshold"]
+```
+
+### Alternative with Hash Paths
+
+```lua
+-- Pipeline emits str_hash params instead of str_idx:
+{ func_name = "se_dict_extract_uint_h", call_type = "o_call",
+  params = {
+    {type="field_ref", value="config_ptr"},
+    {type="str_hash", value={hash=s_expr_hash("zone"), str="zone"}},
+    {type="str_hash", value={hash=s_expr_hash("id"), str="id"}},
+    {type="field_ref", value="zone_id"},
+  }
+}
+
+-- Runtime: collect_path_items gathers [{hash=H1,str="zone"}, {hash=H2,str="id"}]
+-- navigate_hash_path walks dict[H1]["id"] (or fallback chain) → 42
+```
+
+## Function Dictionary System
+
+The function dictionary system allows compile-time binding of named functions to hash-keyed dispatch tables, used by the spawn module for runtime function dispatch.
+
+### Building a Function Dictionary
+
+`se_load_function_dict` (oneshot) pairs `dict_key` names from `node.params` with child subtrees from `node.children`:
+
+```lua
+-- For each dict_key name and corresponding child:
+dict[s_expr_hash(key_name)] = function(calling_inst, exec_node, eid, edata)
+    return se_runtime.invoke_any(calling_inst, child_node, eid, edata)
 end
 ```
 
-### Step 2: Implement C Oneshot Function
-```c
-#include "se_dict_string.h"
+The resulting table is stored in `inst.blackboard[field_name]`.
 
-void user_extract_int_array(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    UNUSED(event_type);
-    UNUSED(event_id);
-    UNUSED(event_data);
-    
-    if (param_count < 4) return;
-    
-    // Get dictionary pointer from blackboard field
-    const s_expr_param_t* dict = get_dict_from_field(inst, &params[0]);
-    if (!dict) return;
-    
-    // Get path string
-    const char* path = get_string(inst, &params[1]);
-    if (!path) return;
-    
-    // Get count
-    uint16_t count = (uint16_t)params[2].int_val;
-    
-    // Navigate to array
-    const s_expr_module_def_t* mod_def = inst->module ? inst->module->def : NULL;
-    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
-    if (!array) return;
-    
-    // Iterate array and extract values
-    se_arrays_iter_t iter;
-    se_arrays_iter_init(&iter, array);
-    
-    const s_expr_param_t* value;
-    uint16_t index;
-    uint16_t dest_idx = 3;  // First destination field
-    
-    while (se_arrays_iter_next(&iter, &value, &index) && index < count) {
-        if (dest_idx >= param_count) break;
-        
-        ct_int_t int_val = se_dicts_param_int(value, 0);
-        write_int_to_field(inst, &params[dest_idx], int_val);
-        dest_idx++;
-    }
-}
-```
+### Dispatching from a Function Dictionary
 
-### Step 3: Register Function
-```c
-static const s_expr_fn_entry_named_t user_oneshots[] = {
-    {"USER_EXTRACT_INT_ARRAY", (void*)user_extract_int_array},
-};
-```
+Three dispatch builtins in `se_builtins_spawn.lua`:
 
-### Step 4: Use in DSL
+| Function | Key Source | Description |
+|----------|-----------|-------------|
+| `se_exec_dict_dispatch` | Compile-time `str_hash` param | Load dict on INIT, dispatch by fixed hash key each TICK |
+| `se_exec_dict_fn_ptr` | Runtime blackboard field | Load dict on INIT, read key from field each TICK |
+| `se_exec_dict_internal` | Compile-time `str_hash` param | Use `inst.current_dict` (set by parent), dispatch by key |
+
+All three look up `dict[key]`, assert the entry is a function, call it with `(inst, node, event_id, event_data)`, and convert `SE_PIPELINE_DISABLE` to `SE_PIPELINE_CONTINUE` (keeping the dict node alive across ticks).
+
+## Creating Custom Dictionary Handlers
+
+When the built-in extraction functions don't meet your needs, register a custom LuaJIT oneshot:
+
+### Example: Extract Array of Integers
+
 ```lua
-RECORD("sensor_data")
-    PTR64_FIELD("config_ptr", "void")
-    FIELD("sensor_0", "int32")
-    FIELD("sensor_1", "int32")
-    FIELD("sensor_2", "int32")
-    FIELD("sensor_3", "int32")
-END_RECORD()
+local function user_extract_int_array(inst, node)
+    local params = node.params or {}
+    assert(#params >= 4, "user_extract_int_array: need dict_field, path, base_field, count")
 
-local config = {
-    sensors = {
-        calibration = {10, 20, 30, 40}
-    }
-}
+    -- Read parameters
+    local dict_field = params[1].value   -- field_ref: blackboard key holding dict
+    local path       = params[2].value   -- str_idx: dot-path to array
+    local base_field = params[3].value   -- field_ref: base name for numbered fields
+    local count      = params[4].value   -- uint: max elements to extract
 
-se_sequence(function()
-    se_load_dictionary("config_ptr", config)
-    se_dict_extract_int_array("config_ptr", "sensors.calibration", 
-        {"sensor_0", "sensor_1", "sensor_2", "sensor_3"})
-end)
+    -- Get dict from blackboard
+    local dict = inst.blackboard[dict_field]
+    assert(dict and type(dict) == "table",
+        "user_extract_int_array: dict not found in " .. tostring(dict_field))
+
+    -- Navigate to array (reuse the dict module's navigation)
+    local cur = dict
+    for key in path:gmatch("[^%.]+") do
+        if type(cur) ~= "table" then return end
+        local v = cur[key]
+        if v == nil then
+            local n = tonumber(key)
+            if n then v = cur[n] end
+        end
+        cur = v
+    end
+    if type(cur) ~= "table" then return end
+
+    -- Extract 0-based array elements into numbered blackboard fields
+    for i = 0, count - 1 do
+        local v = cur[i]
+        if v == nil then break end
+        -- Handle {str=S, hash=H} wrappers
+        if type(v) == "table" and v.str then
+            v = math.floor(tonumber(v.str) or 0)
+        else
+            v = math.floor(tonumber(v) or 0)
+        end
+        inst.blackboard[base_field .. "_" .. i] = v
+    end
+end
 ```
 
-## Performance Considerations
+### Register and Use
+
+```lua
+-- Register alongside standard builtins
+local fns = se_runtime.merge_fns(
+    require("se_builtins_dict"),
+    require("se_builtins_oneshot"),
+    -- ...
+    { user_extract_int_array = user_extract_int_array }
+)
+local mod = se_runtime.new_module(module_data, fns)
+```
+
+The pipeline emits a node referencing `"user_extract_int_array"` in the module's `oneshot_funcs` list, and the engine dispatches it like any other oneshot.
+
+## Performance Characteristics
 
 ### String Paths vs Hash Paths
 
 | Aspect | String Paths | Hash Paths |
 |--------|--------------|------------|
-| Lookup | O(n) string compare | O(n) hash compare |
-| Path parsing | Runtime strtok | None (pre-computed) |
-| Debugging | Human-readable | Requires hash lookup |
-| Code size | Smaller | Slightly larger |
-| Best for | Development, debugging | Production, hot paths |
+| Lookup | `gmatch` split + table key lookup | Direct hash key + fallback chain |
+| Path parsing | Runtime dot-split (`gmatch`) | Pre-collected `{hash, str}` pairs |
+| Debugging | Human-readable path strings | Requires hash↔name mapping |
+| Array access | Automatic numeric fallback | Three-level fallback (hash → string → number) |
+| Best for | Development, debugging, simple configs | Production, deep nesting, hot paths |
+
+In the LuaJIT runtime, both paths ultimately resolve to Lua table lookups. The hash path advantage is smaller than in C (where it avoids `strcmp`), but it still eliminates the `gmatch` string splitting overhead.
 
 ### Memory Layout
 
-Dictionaries are stored as flat arrays of `s_expr_param_t` structures:
-```
-OPEN_DICT [brace_idx=N]
-  OPEN_KEY [str_hash=hash("key1")]
-    INT [value=42]
-  CLOSE
-  OPEN_KEY [str_hash=hash("nested")]
-    OPEN_DICT [brace_idx=M]
-      OPEN_KEY [str_hash=hash("value")]
-        FLOAT [value=3.14]
-      CLOSE
-    CLOSE_DICT
-  CLOSE
-CLOSE_DICT
-```
+Dictionaries are **live Lua tables** in memory after parsing. Unlike the C version where dictionaries live in ROM as flat `s_expr_param_t` arrays, the LuaJIT version allocates GC-managed tables during the `se_load_dictionary` oneshot. This trades zero-copy ROM access for faster Lua-native table lookups during extraction.
 
 ### Typical Use Pattern
+
 ```lua
--- INIT: Load dictionary once
+-- INIT phase: load dictionary once (parses tokens → Lua table)
 se_load_dictionary("config_ptr", config_table)
 
--- INIT: Extract all needed values once
+-- INIT phase: extract all needed values once (table lookups → blackboard writes)
 se_dict_extract_int("config_ptr", "timeout", "timeout_field")
 se_dict_extract_float("config_ptr", "threshold", "threshold_field")
 
--- TICK: Use blackboard fields directly (no dictionary access)
+-- TICK phase: use blackboard fields directly (no dictionary access)
 se_field_gt("sensor_value", "threshold_field")
 ```
 
-## Binary Format
+After extraction, the dictionary table can remain in the blackboard for dynamic access (e.g., `se_dict_store_ptr` to get sub-table references), or custom builtins can access it directly via `inst.blackboard[field]`.
 
-The JSON dictionary is compiled into binary `s_expr_param_t` tokens:
+## Type Conversion Rules
 
-| Token Type | Description |
-|------------|-------------|
-| `OPEN_DICT` | Dictionary start, `brace_idx` points to `CLOSE_DICT` |
-| `CLOSE_DICT` | Dictionary end |
-| `OPEN_KEY` | Key entry, `str_hash` contains FNV-1a hash |
-| `CLOSE` | Key entry end |
-| `OPEN_ARRAY` | Array start |
-| `CLOSE_ARRAY` | Array end |
-| `INT` | Signed integer value |
-| `UINT` | Unsigned integer value |
-| `FLOAT` | Floating-point value |
-| `STR_IDX` | String table index |
-| `STR_HASH` | Pre-computed string hash |
+Each extraction function applies a specific conversion to the navigated value:
+
+| Function | Conversion | Default |
+|----------|-----------|---------|
+| `se_dict_extract_int` | `math.floor(as_number(v))` | `0` |
+| `se_dict_extract_uint` | `math.floor(math.abs(as_number(v)))` | `0` |
+| `se_dict_extract_float` | `as_number(v) + 0.0` | `0.0` |
+| `se_dict_extract_bool` | `(as_number(v) ~= 0) and 1 or 0` | `0` |
+| `se_dict_extract_hash` | `as_hash(v)` — extracts `.hash` from `{str,hash}` tables | `0` |
+| `se_dict_store_ptr` | Identity (must be table) | `nil` |
+
+The `as_number` helper handles `{str=S, hash=H}` wrappers by extracting `tonumber(v.str)`, and plain values via `tonumber(v)`. The `as_hash` helper extracts `.hash` from wrapped strings, computes `s_expr_hash(v)` for plain strings, or floors numeric values.
 
 ## Error Handling
 
-Resolution functions return status codes:
-```c
-typedef enum {
-    SE_PATHS_OK = 0,
-    SE_PATHS_NOT_FOUND,
-    SE_PATHS_TYPE_MISMATCH,
-    SE_PATHS_INVALID_INDEX,
-    SE_PATHS_INVALID_PATH,
-    SE_PATHS_NULL_DICT,
-    SE_PATHS_NULL_PATH,
-    SE_PATHS_NULL_MODULE,
-} se_paths_status_t;
+The LuaJIT runtime uses `assert` for error detection, matching the C `EXCEPTION` fail-fast model:
+
+```lua
+-- Missing blackboard field:
+assert(d and type(d) == "table",
+    "se_dict: blackboard field '" .. tostring(fname) ..
+    "' is not a dict table (got " .. type(d) .. ")")
+
+-- Missing hash path destination:
+assert(dest and dest > 2,
+    "se_dict_extract_h: missing hash path or dest field")
+
+-- Key count / child count mismatch in function dict:
+assert(#keys == #children,
+    string.format("se_load_function_dict: %d keys but %d children",
+        #keys, #children))
 ```
 
-Context structures provide detailed error information:
-```c
-se_paths_context_t ctx;
-se_paths_context_init(&ctx);
-
-const s_expr_param_t* value = se_dicts_resolve(dict, mod, path, &ctx);
-if (!value) {
-    printf("Resolution failed at depth %d: %s\n", 
-           ctx.depth, se_paths_status_name(ctx.status));
-}
-```
+Navigation functions (`navigate_str_path`, `navigate_hash_path`) return `nil` for missing paths rather than asserting — the extraction builtins then apply default values (`0`, `0.0`, `nil`).
 
 ## Summary
 
-The S-Engine JSON dictionary system provides:
+The S-Engine LuaJIT dictionary system provides:
 
-- **Zero-copy** - Configuration lives in ROM, no runtime allocation
-- **Type-safe** - Compile-time field validation in DSL
-- **Flexible** - String paths for debugging, hash paths for performance
-- **Extensible** - Easy to add custom extraction handlers
-- **Embedded-friendly** - No dynamic memory, deterministic performance
-
+- **Structured configuration** — Lua tables parsed from inline param tokens, stored in blackboard fields
+- **Dual navigation** — String dot-paths for readability, hash paths for performance
+- **Type-safe extraction** — Dedicated builtins for int, uint, float, bool, hash, and sub-table reference
+- **Function dictionaries** — Hash-keyed dispatch tables built from child subtrees, used by the spawn module
+- **FNV-1a compatibility** — Identical hash output to the C implementation via LuaJIT-safe prime decomposition
+- **Extensible** — Custom oneshot functions have full access to parsed Lua tables for arbitrary processing
+- **Cross-runtime equivalence** — Identical behavior to the C implementation, tree by tree, result code by result code

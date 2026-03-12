@@ -30,6 +30,7 @@ fi
 
 cd "${DSL_LIB_DIR}"
 #luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --all-bin --outdir="${OUTPUT_DIR}"
-luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --lua --outdir="${OUTPUT_DIR}"
-
-
+#luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --lua --outdir="${OUTPUT_DIR}"
+#luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --python --outdir="${OUTPUT_DIR}"
+#luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --micropython --outdir="${OUTPUT_DIR}"
+luajit s_compile.lua "${ENTRY_POINT}" --helpers=s_engine_helpers.lua --zig --outdir="${OUTPUT_DIR}"

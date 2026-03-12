@@ -1,49 +1,96 @@
-# Why the S Engine
-s_expr_param_t is a compact tagged-union token format for representing S-expression elements in the S_Engine control system. Each token encodes both its type and payload in a fixed-size structure optimized for embedded targets.
-Origin: ChainTree and the Need for S_Engine
-ChainTree Background
+# Why the S Engine — LuaJIT Runtime
+
+## Origin: ChainTree and the Need for S_Engine
+
+### ChainTree Background
+
 ChainTree is a behavior tree system developed before the S_Engine. It provides hierarchical control flow for embedded systems — sequences, selectors, parallel nodes, and state machines — with each leaf node implemented as a compiled C function.
+
 ChainTree works well for high-level orchestration, but it struggles with modularity at the leaf level. Many embedded control tasks involve repetitive operations that differ only in parameters: configuring GPIO pins, setting up UART channels, reading ADC values, writing registers. Each variation requires its own C function, leading to:
 
-Function explosion — hundreds of small C functions that do nearly identical things with different constants
-Poor reuse — "set pin as output" can't easily be parameterized and shared across different ports
-Tight coupling — the behavior tree structure is locked to specific hardware layouts
-Difficult composition — combining boolean logic on hardware states (e.g., "wait until pin A AND pin B are both high") requires custom composite nodes
+- **Function explosion** — hundreds of small C functions that do nearly identical things with different constants
+- **Poor reuse** — "set pin as output" can't easily be parameterized and shared across different ports
+- **Tight coupling** — the behavior tree structure is locked to specific hardware layouts
+- **Difficult composition** — combining boolean logic on hardware states (e.g., "wait until pin A AND pin B are both high") requires custom composite nodes
 
 Even simple operations that differ only in a register address or bit mask become separate compiled functions, because ChainTree leaves have no built-in mechanism for parameterized, composable logic.
-S_Engine as Microcode
-The S_Engine was initially developed as a microcode layer for ChainTree leaf nodes. Instead of writing a separate C function for each hardware operation, a small set of C primitives (e.g., gpio_mode, write_register) could be composed through interpreted S-expression programs. ChainTree's virtual function table dispatches to either a native C function or an S_Engine program transparently:
+
+### S_Engine as Microcode
+
+The S_Engine was initially developed as a microcode layer for ChainTree leaf nodes. Instead of writing a separate C function for each hardware operation, a small set of primitives (e.g., `gpio_mode`, `write_register`) could be composed through interpreted S-expression programs. ChainTree's virtual function table dispatches to either a native C function or an S_Engine program transparently:
+
+```
 Virtual Function Table
 ┌────────────────┬─────────────────────────────────────┐
 │ Name           │ Implementation                      │
 ├────────────────┼─────────────────────────────────────┤
 │ motor_init     │ C function: motor_init_fn()         │
 │ sensor_read    │ C function: sensor_read_fn()        │
-│ gpio_setup     │ S_Engine: gpio_setup_program[]      │
-│ pump_cycle     │ S_Engine: pump_cycle_program[]      │
-│ check_inputs   │ S_Engine: check_inputs_program[]    │
+│ gpio_setup     │ S_Engine: gpio_setup tree           │
+│ pump_cycle     │ S_Engine: pump_cycle tree           │
+│ check_inputs   │ S_Engine: check_inputs tree         │
 └────────────────┴─────────────────────────────────────┘
-This eliminated the function explosion problem. A system that previously needed dozens of nearly-identical C leaf functions could instead share a single interpreter with parameterized token streams stored in ROM.
-Standalone Engine
+```
+
+This eliminated the function explosion problem. A system that previously needed dozens of nearly-identical C leaf functions could instead share a single engine with parameterized tree structures.
+
+### Standalone Engine
+
 As the S_Engine matured, it became clear that it was capable of operating as a standalone control engine, not just as microcode beneath ChainTree. The S_Engine now supports:
 
-Full behavior tree patterns (sequences, selectors, state machines, parallel nodes)
-Stack-based parameter passing with frame variables
-Function dictionaries for runtime-dispatched subroutines
-Blackboard records for shared state
-Cross-tree composition (spawning, ticking, and communicating between trees)
-Expression compilation for arithmetic and bitwise operations
+- Full behavior tree patterns (sequences, selectors, state machines, parallel nodes)
+- Stack-based parameter passing with frame variables
+- Function dictionaries for runtime-dispatched subroutines
+- Blackboard records for shared state
+- Cross-tree composition (spawning, ticking, and communicating between trees)
+- Expression compilation for arithmetic and bitwise operations
 
-The S_Engine can be used as a microcode layer under ChainTree, as a standalone embedded control engine, or both in the same system — with ChainTree handling high-level orchestration and S_Engine handling parameterized leaf logic.
+The S_Engine can be used as a microcode layer under ChainTree, as a standalone embedded control engine (C runtime), as a development/testing/server runtime (LuaJIT), or combinations thereof — with the C and LuaJIT runtimes producing identical behavior tree by tree.
 
+---
 
+## The LuaJIT Runtime
 
+The LuaJIT runtime is a semantically equivalent port of the C S_Engine. It replaces the flat compiled parameter arrays and binary token format with structured Lua tables, while preserving identical execution semantics — the same trees produce the same results in both runtimes.
 
-# S-Expression Parameter Token Format
+### Why LuaJIT?
 
-## Overview
+| Concern | C Runtime | LuaJIT Runtime |
+|---------|-----------|----------------|
+| Target platform | 32KB ARM Cortex-M to servers | Development machines, servers, CI |
+| Memory model | Zero heap allocation, pre-allocated pools | GC-managed Lua tables |
+| Test cycle | Cross-compile → flash → debug via JTAG | Edit → run → see results instantly |
+| Tree authoring | YAML/JSON → pipeline → SEXB binary → C arrays | YAML/JSON → pipeline → Lua table → direct execution |
+| Debugging | Printf, watchdog reset, JTAG | Lua error messages, pcall, print |
+| Performance | Deterministic, cache-friendly flat arrays | LuaJIT JIT compilation, hash-table lookups |
 
-`s_expr_param_t` is a compact tagged-union token format for representing S-expression elements in the ChainTree control system. Each token encodes both its type and payload in a fixed-size structure optimized for embedded targets.
+The LuaJIT runtime exists primarily for:
+
+1. **Rapid development** — test tree logic without cross-compilation or hardware
+2. **Pipeline validation** — verify that the YAML/JSON pipeline produces correct trees
+3. **Test harness** — run the full Python DSL test suite (tests 5–22) against the LuaJIT runtime
+4. **Server deployment** — run S_Engine trees on Linux/server targets where LuaJIT's performance is more than adequate
+5. **Reference implementation** — the LuaJIT code is easier to read and audit than the C equivalent
+
+### Structural Differences from C
+
+The fundamental shift from C to LuaJIT is the replacement of flat binary token streams with nested Lua table trees:
+
+```
+C Runtime:
+  YAML/JSON → Pipeline → SEXB binary → flat s_expr_param_t[] in ROM
+  Navigation via brace_idx, skip_param, OPEN_CALL/CLOSE pairs
+  Functions bound by FNV-1a hash → function pointer lookup
+
+LuaJIT Runtime:
+  YAML/JSON → Pipeline → module_data Lua table
+  Navigation via node.children[] and node.params[] (pre-separated)
+  Functions bound by name → case-insensitive string matching
+```
+
+This eliminates the entire token navigation subsystem (`s_expr_skip_param`, `brace_idx`, `OPEN_CALL`/`CLOSE` matching) because the pipeline does the structural separation at compile time.
+
+---
 
 ## Why S-Expressions?
 
@@ -57,7 +104,8 @@ The flow control model required:
 - Complex state tracking for nested control flow
 - Redundant encoding of structure that was implicit in the tree
 
-S-expressions encode control flow structurally. A `pipeline` node's children execute in sequence — no jump opcodes needed. An `if_then_else` node has exactly three children: predicate, consequent, alternative. The structure *is* the control flow.
+S-expressions encode control flow structurally. A `se_sequence` node's children execute in order — no jump opcodes needed. An `se_if_then_else` node has exactly three children: predicate, consequent, alternative. The structure *is* the control flow.
+
 ```
 Flow control approach (abandoned):
   LOAD_PRED 0
@@ -68,14 +116,17 @@ label_else:
   CALL func_b
 label_end:
 
-S-expression approach (current):
-  (if_then_else
-    (pred_0)
-    (func_a)
-    (func_b))
+S-expression approach (current, as Lua tree node):
+  { func_name = "se_if_then_else", call_type = "m_call",
+    children = {
+      { func_name = "pred_0", call_type = "p_call", ... },
+      { func_name = "func_a", call_type = "m_call", ... },
+      { func_name = "func_b", call_type = "m_call", ... },
+    }
+  }
 ```
 
-The S-expression version compiles to fewer tokens, executes faster (no branch misprediction), and is easier to debug (tree structure visible in token stream).
+The S-expression version uses fewer nodes, executes faster (no branch misprediction), and is easier to debug (tree structure visible in the module data).
 
 ### Tcl-Like Evaluation Model
 
@@ -83,101 +134,73 @@ The S_Engine evaluation model is inspired by Tcl rather than Lisp. In Tcl, **the
 
 This is fundamentally different from Lisp's model where arguments are evaluated before the function sees them (unless explicitly quoted).
 
-**Lisp model:**
-```lisp
-;; Arguments evaluated BEFORE my-if sees them
-(my-if (expensive-predicate)    ; evaluated
-       (side-effect-action)      ; evaluated - oops!
-       (alternative))            ; evaluated - oops!
-
-;; Must use macros or explicit quoting to prevent evaluation
-(my-if (expensive-predicate)
-       '(side-effect-action)     ; quoted - now a data structure
-       '(alternative))           ; quoted
-```
-
-**Tcl/S_Engine model:**
-```tcl
-# Arguments passed as unevaluated blocks
-# if_then_else decides when/whether to evaluate each
-if_then_else {expensive-predicate} {side-effect-action} {alternative}
-```
-
-In the S_Engine, composite nodes like `if_then_else`, `pipeline`, `state_machine`, and `while_loop` receive their children as token ranges. The composite's C implementation decides:
-- Which children to evaluate
+In the S_Engine, composite nodes like `se_if_then_else`, `se_sequence`, `se_state_machine`, and `se_while` receive their children as node tables. The composite's implementation decides:
+- Which children to evaluate (via `child_invoke`, `child_invoke_pred`)
 - In what order
 - How many times
 - Whether to evaluate at all
 
 This enables **creative control structures through new functions**, not through macros or quoting:
-```lisp
-;; retry_n: evaluate child up to N times until success
-(retry_n 3
-  (unreliable_network_call))
 
-;; timeout: evaluate child, abort if exceeds duration
-(timeout 5000
-  (slow_operation))
+```lua
+-- In the LuaJIT runtime, each of these is a Lua function that
+-- iterates its node.children[] according to its own logic:
 
-;; parallel_race: evaluate all children, return when first completes
-(parallel_race
-  (sensor_a_read)
-  (sensor_b_read)
-  (timeout_fallback))
-
-;; guarded_loop: evaluate body while predicate holds
-(guarded_loop
-  (temperature_below_threshold)
-  (heater_on))
+-- se_while: evaluate pred, if true execute body, repeat
+-- se_sequence: execute children one at a time in order
+-- se_fork: execute all children in parallel
+-- se_state_machine: dispatch to one child based on field value
+-- se_trigger_on_change: detect edge transitions in a predicate
+-- se_cond: multi-branch conditional with (pred, action) pairs
 ```
 
-Each of these is just a C function that interprets its child token ranges appropriately. No macro system, no quoting rules, no evaluation order surprises.
+Each of these is just a Lua function that interprets its `node.children` appropriately. No macro system, no quoting rules, no evaluation order surprises. Adding a new control structure means writing one new function and registering it.
 
 ### Avoiding Lisp's Quoting Complexity
 
-Lisp's power comes with complexity. Quoting, quasiquoting, unquote, and unquote-splicing create a notation burden that's particularly painful for non-Lisp developers writing embedded control logic:
-```lisp
-;; Lisp: which things get evaluated when?
-`(sequence
-   ,@(loop for i from 0 to 3
-           collect `(gpio-set ,port ,i ,(if (evenp i) 'HIGH 'LOW))))
-```
+Lisp's power comes with complexity. Quoting, quasiquoting, unquote, and unquote-splicing create a notation burden that's particularly painful for non-Lisp developers writing embedded control logic.
 
-The S_Engine sidesteps this entirely. Since functions control their own argument evaluation, there's no need for quoting mechanisms. What you write is what gets stored in the token stream. The DSL handles code generation without exposing Lisp's meta-syntactic complexity.
+The S_Engine sidesteps this entirely. Since functions control their own argument evaluation, there's no need for quoting mechanisms. What the pipeline produces is what gets stored in the tree. In the LuaJIT runtime, children are plain Lua tables — no special syntax needed to prevent or force evaluation.
 
 ### The DSL: Making S-Expressions Palatable
 
-Raw S-expressions are tedious to write and error-prone. The DSL provides a Python-based authoring environment that generates the token streams:
-```python
-# DSL source
-with pipeline("motor_init"):
-    oneshot("gpio_mode", PORTA, 0, OUTPUT_PP)
-    oneshot("gpio_mode", PORTA, 1, OUTPUT_PP)
-    oneshot("pwm_config", TIMER1, CH1, 20000, 8)
-    oneshot("pwm_enable", TIMER1, CH1)
+Raw S-expressions are tedious to write and error-prone. The DSL provides an authoring environment (originally Python, now also LuaJIT pipeline stages) that generates the tree structures:
+
+```lua
+-- DSL source (compiled by pipeline to module_data)
+se_sequence({
+    se_log("motor_init: starting"),
+    oneshot("gpio_mode", PORTA, 0, OUTPUT_PP),
+    oneshot("gpio_mode", PORTA, 1, OUTPUT_PP),
+    oneshot("pwm_config", TIMER1, CH1, 20000, 8),
+    oneshot("pwm_enable", TIMER1, CH1),
+    se_log("motor_init: complete"),
+})
 ```
 
-This compiles to:
-```c
-const s_expr_param_t motor_init_params[] = {
-    { .type = 0x07, .brace_idx = 9 },                    // OPEN_CALL pipeline
-    { .type = 0x08, .node_index = 0, .func_index = 1 },  // ONESHOT gpio_mode
-    { .type = 0x00, .int_val = PORTA },
-    { .type = 0x00, .int_val = 0 },
-    { .type = 0x00, .int_val = OUTPUT_PP },
-    // ... more tokens ...
-    { .type = 0x06, .brace_idx = 0 },                    // CLOSE
-};
+This compiles to a tree node in `module_data`:
+
+```lua
+{ func_name = "se_sequence", call_type = "m_call",
+  children = {
+    { func_name = "se_log", call_type = "o_call",
+      params = { {type="str_ptr", value="motor_init: starting"} } },
+    { func_name = "gpio_mode", call_type = "o_call",
+      params = { {type="uint", value=PORTA}, {type="uint", value=0},
+                 {type="uint", value=OUTPUT_PP} } },
+    -- ... more children ...
+  }
+}
 ```
 
 The DSL provides:
-- **Python syntax** — familiar to embedded developers, good tooling
-- **Compile-time validation** — catch errors before flashing
-- **Brace matching** — computed automatically, no manual index management
+- **Readable syntax** — familiar to embedded developers
+- **Compile-time validation** — catch errors before deployment
+- **Automatic structure** — children and params separated by pipeline
 - **Function registration** — type checking for primitives
-- **Multiple output formats** — C arrays, binary blobs, debug symbols
+- **Multiple output targets** — Lua tables for LuaJIT runtime, C arrays/SEXB for C runtime
 
-The developer writes natural Python code; the DSL emits efficient token streams. No Lisp knowledge required.
+The developer writes natural DSL code; the pipeline emits efficient tree structures. No Lisp knowledge required.
 
 ### Summary: Why This Approach
 
@@ -185,472 +208,332 @@ The developer writes natural Python code; the DSL emits efficient token streams.
 |--------|-----------------|--------------------|--------------------|
 | Control flow encoding | Explicit jumps | Structure + macros | Structure + functions |
 | Argument evaluation | Eager | Eager (unless quoted) | Lazy (function decides) |
-| New control structures | New opcodes | Macros | New C functions |
+| New control structures | New opcodes | Macros | New Lua/C functions |
 | Quoting complexity | N/A | High | None |
-| Authoring | Assembly-like | Raw parens | Python DSL |
+| Authoring | Assembly-like | Raw parens | DSL → pipeline |
 | Code size | Largest | Medium | Smallest |
 | Debugging | Opaque | Readable | Readable |
 
 ---
 
-## Size
+## Node Representation in LuaJIT
 
-| Platform | Size |
-|----------|------|
-| 32-bit   | 8 bytes |
-| 64-bit   | 16 bytes |
+### Node Table Structure
 
-## Structure Layout
-```c
-typedef struct {
-    uint8_t  type;              // opcode (bits 0-5) + flags (bits 6-7)
-    uint8_t  index_to_pointer;  // pointer array index for pt_m_call
-    union { ... };              // 4 or 8 bytes depending on platform
-} s_expr_param_t;
+In the C runtime, every element is an `s_expr_param_t` — a compact tagged-union token (8 bytes on 32-bit, 16 on 64-bit). In the LuaJIT runtime, the equivalent is a **node table** with explicit fields:
+
+```lua
+{
+    func_name    = "se_chain_flow",       -- function name (string)
+    func_hash    = 0xFFC1FAA4,            -- FNV-1a hash (C cross-reference)
+    call_type    = "m_call",              -- dispatch type (string)
+    order        = 0,                     -- sibling position (0-based)
+    param_count  = 0,                     -- informational
+    pointer_index = nil,                  -- pointer slot (pt_m_call only)
+    node_index   = 5,                     -- DFS pre-order index (assigned at module creation)
+    func_index   = 2,                     -- index into mod.main_fns[] (assigned at module creation)
+    params       = { ... },               -- non-callable parameters
+    children     = { ... },               -- callable child nodes
+}
 ```
 
-## The S_Engine: Microcode for ChainTree Virtual Functions
+### Call Types
 
-### The Problem: Behavior Trees and Hardware Composition
+The C `type` byte encodes opcode + flags in a single byte. The LuaJIT runtime uses explicit string `call_type` values:
 
-Traditional behavior trees work well for high-level control flow but struggle with low-level hardware operations. Consider initializing GPIO ports on a microcontroller:
+| C Type Byte | C Interpretation | LuaJIT `call_type` | Description |
+|-------------|-----------------|---------------------|-------------|
+| `0x08` | ONESHOT | `"o_call"` | Fire-once function |
+| `0x48` | ONESHOT + SURVIVES_RESET | `"io_call"` | Fire-once, survives tree reset |
+| `0x09` | MAIN | `"m_call"` | Tick function with INIT/TICK/TERMINATE lifecycle |
+| `0x89` | MAIN + POINTER | `"pt_m_call"` | Tick function with pointer slot storage |
+| `0x0A` | PRED | `"p_call"` | Simple predicate (boolean) |
+| `0x4A` | PRED + SURVIVES_RESET | `"p_call_composite"` | Composite predicate with child predicates |
+
+The flag bits (POINTER, SURVIVES_RESET) are absorbed into the call_type string rather than requiring bitmask operations.
+
+### Parameter Tables
+
+Non-callable parameters live in `node.params[]`. Each is a table with `type` and `value`:
+
+| C Opcode | C Name | LuaJIT `type` string | `value` type | Description |
+|----------|--------|---------------------|--------------|-------------|
+| `0x00` | INT | `"int"` | number | Signed integer |
+| `0x01` | UINT | `"uint"` | number | Unsigned integer |
+| `0x02` | FLOAT | `"float"` | number | Float |
+| `0x03` | STR_HASH | `"str_hash"` | `{hash=N, str=S}` | String with precomputed FNV-1a |
+| `0x0B` | FIELD | `"field_ref"` | string (field name) | Blackboard field reference |
+| `0x0C` | RESULT | `"result"` | number | Result code literal |
+| `0x0D` | STR_IDX | `"str_idx"` | string | Interned string |
+| — | — | `"str_ptr"` | string | String pointer (same as str_idx in Lua) |
+| `0x0E` | CONST_REF | `"const_ref"` | any | Constants table reference |
+| `0x10` | OPEN_DICT | `"dict_start"` | — | Dictionary structure open |
+| `0x11` | CLOSE_DICT | `"dict_end"` | — | Dictionary structure close |
+| `0x12` | OPEN_KEY | `"dict_key"` | string | Dictionary key (string name) |
+| — | — | `"dict_key_hash"` | number | Dictionary key (FNV-1a hash) |
+| `0x13` | CLOSE_KEY | `"end_dict_key"` | — | Dictionary key terminator |
+| `0x14` | OPEN_ARRAY | `"array_start"` | — | Array structure open |
+| `0x15` | CLOSE_ARRAY | `"array_end"` | — | Array structure close |
+| `0x18` | STACK_TOS | `"stack_tos"` | number (offset) | Stack TOS-relative |
+| `0x19` | STACK_LOCAL | `"stack_local"` | number (index) | Stack frame local |
+| `0x1A` | NULL | — | — | Null/unused |
+| `0x1B` | STACK_PUSH | `"stack_push"` | — | Push destination |
+| `0x1C` | STACK_POP | `"stack_pop"` | — | Pop source |
+
+### What's Eliminated
+
+Several C token types have no LuaJIT equivalent because the pipeline handles their concerns at compile time:
+
+| C Token | Purpose in C | Why Not Needed in LuaJIT |
+|---------|-------------|--------------------------|
+| `OPEN_CALL` (0x07) | Bracket function call start | Children are in `node.children[]` |
+| `CLOSE` (0x06) | Bracket matching end | Nesting is implicit in Lua tables |
+| `OPEN` (0x05) | Generic open bracket | No flat-stream structure to bracket |
+| `SLOT` (0x04) | Legacy | Removed |
+| `OPEN_TUPLE` / `CLOSE_TUPLE` | Fixed-size group | Not used in LuaJIT runtime |
+| `brace_idx` field | O(1) skip over nested structures | No flat stream to skip |
+| `index_to_pointer` field | Pointer array index | `node.pointer_index` (explicit node field) |
+| `node_index` in param union | State array index | `node.node_index` (explicit node field) |
+| `func_index` in param union | Function table index | `node.func_index` (explicit node field) |
+
+The key insight: in C, the `s_expr_param_t` union must encode *everything* — function identity, structural brackets, values, field references — in a single 8-byte token. In LuaJIT, these concerns are separated into distinct fields on the node table (`func_name`, `call_type`, `children`, `params`, `node_index`, `func_index`, `pointer_index`).
+
+---
+
+## Node Runtime State
+
+### Node States in LuaJIT
+
+Every function node has a per-instance state table at `inst.node_states[node_index]`:
+
+```lua
+inst.node_states[i] = {
+    flags     = 0x01,   -- FLAG_ACTIVE
+    state     = 0,      -- user state machine value (0–255)
+    user_data = 0,      -- dispatch tracking, counters
+    -- Extensible: builtins can add user_u64, user_f64, cached_fn, etc.
+}
 ```
-HardwareInit [Sequence]
-├── ConfigureGPIO_Port_A
-│   ├── Set pin 0 as output, push-pull
-│   ├── Set pin 1 as output, open-drain
-│   ├── Set pin 2 as input, pull-up
-│   └── Set pin 3 as input, floating
-├── ConfigureGPIO_Port_B
-│   ├── Set pin 0 as output
-│   └── Set pin 1 as output
-└── ConfigurePWM
-    ├── Set timer prescaler
-    ├── Set duty cycle
-    └── Enable output
+
+### Flags
+
+| Flag | Value | Meaning |
+|------|-------|---------|
+| `FLAG_ACTIVE` | `0x01` | Currently executing; dispatched on tick |
+| `FLAG_INITIALIZED` | `0x02` | Oneshot function has completed |
+| `FLAG_EVER_INIT` | `0x04` | Has been initialized at least once (survives reset) |
+| `FLAG_ERROR` | `0x08` | Node is in error state |
+| Bits 4–7 | `0xF0` | Available for user-defined flags |
+
+Flag manipulation uses LuaJIT's `bit.*` library:
+
+```lua
+local bit = require("bit")
+local band, bor, bnot = bit.band, bit.bor, bit.bnot
+
+-- Check if active:
+if band(ns.flags, FLAG_ACTIVE) ~= 0 then ...
+
+-- Set initialized:
+ns.flags = bor(ns.flags, FLAG_INITIALIZED)
+
+-- Clear active:
+ns.flags = band(ns.flags, bnot(FLAG_ACTIVE))
+
+-- Preserve user flags, set active + ever_init:
+ns.flags = bor(band(ns.flags, FLAGS_USER), FLAG_ACTIVE, FLAG_EVER_INIT)
 ```
 
-Each leaf node becomes a separate C function. For a system with dozens of GPIO configurations, ADC channels, and peripheral setups, this creates:
+### Pointer Array
 
-1. **Function explosion** — hundreds of tiny C functions that do nearly identical things
-2. **Poor modularity** — can't easily reuse "set pin as output" across different ports
-3. **Tight coupling** — behavior tree structure locked to specific hardware layout
-4. **Difficult composition** — combining AND/OR logic on hardware states requires custom composite nodes
+Most nodes only need the flags/state/user_data fields. Nodes with `call_type = "pt_m_call"` also use a pointer slot for persistent storage larger than what node_state provides:
 
-Even simple operations like "wait until pin A AND pin B are both high" require dedicated leaf functions or awkward tree structures.
-
-### The Solution: S_Engine as Microcode Layer
-
-The S_Engine provides a **microcode execution layer** that sits beneath ChainTree's virtual functions. Instead of each leaf node being a compiled C function, leaf nodes can reference S-expression programs that the S_Engine interprets.
+```lua
+inst.pointer_array[node.pointer_index] = {
+    ptr = nil,    -- Lua value (child instance, table, etc.)
+    u64 = 0,      -- unsigned 64-bit
+    i64 = 0,      -- signed 64-bit
+    f64 = 0.0,    -- float 64-bit
+}
 ```
-ChainTree Architecture
+
+Accessed via `se_runtime.get_u64/set_u64`, `get_f64/set_f64` etc. The `inst.pointer_base` and `inst.in_pointer_call` context is saved/restored across nested invocations.
+
+### Extensible Node State
+
+Unlike C where `s_expr_node_state_t` is a fixed 4-byte struct, LuaJIT node_states are Lua tables that builtins can extend freely:
+
+```lua
+-- se_builtins_delays.lua adds wait_target/wait_remain:
+ns.wait_target = param_int(node, 1)
+ns.wait_remain = param_int(node, 2)
+
+-- se_builtins_spawn.lua adds cached_fn:
+ns.cached_fn = inst.blackboard[field_name]
+
+-- se_runtime.lua provides user_u64/user_f64:
+ns.user_u64 = 0
+ns.user_f64 = 0.0
+```
+
+No pre-allocation needed — Lua tables grow dynamically.
+
+### Memory Layout Comparison
+
+```
+C Runtime:
+  node_states[]:     [flags0][flags1]...[flagsN]      4 bytes each (packed)
+  pointer_array[]:   [slot0][slot1]...[slotM]          8 bytes each (union)
+  Total: N*4 + M*8 bytes
+
+LuaJIT Runtime:
+  inst.node_states[]:  [table0][table1]...[tableN]     GC-managed tables
+  inst.pointer_array[]: [table0][table1]...[tableM]    GC-managed tables
+  Total: GC overhead per table (not directly comparable)
+```
+
+The LuaJIT version trades compact memory layout for extensibility and dynamic typing.
+
+---
+
+## The S_Engine as Microcode Layer
+
+### Architecture (LuaJIT Variant)
+
+The LuaJIT S_Engine can serve as a microcode layer beneath ChainTree just as the C version does, but the integration pattern differs:
+
+```
+ChainTree Architecture (LuaJIT deployment)
 ┌─────────────────────────────────────────────────────────┐
-│                    ChainTree Walker                     │
-│            (behavior tree traversal engine)             │
+│                    ChainTree Walker                      │
+│            (behavior tree traversal engine)              │
 └─────────────────────────┬───────────────────────────────┘
                           │
           ┌───────────────┼───────────────┐
           ▼               ▼               ▼
     ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │ C Leaf   │    │ C Leaf   │    │ Virtual  │
+    │ C Leaf   │    │ Lua Leaf │    │ Virtual  │
     │ Function │    │ Function │    │ Function │
     └──────────┘    └──────────┘    └─────┬────┘
                                           │
                                           ▼
                                    ┌──────────────┐
                                    │   S_Engine   │
-                                   │  (microcode  │
-                                   │  interpreter)│
+                                   │  (LuaJIT     │
+                                   │   runtime)   │
                                    └──────────────┘
                                           │
                           ┌───────────────┼───────────────┐
                           ▼               ▼               ▼
                     ┌──────────┐    ┌──────────┐    ┌──────────┐
-                    │ S-expr   │    │ S-expr   │    │ S-expr   │
-                    │ Program  │    │ Program  │    │ Program  │
-                    │ (ROM)    │    │ (ROM)    │    │ (ROM)    │
+                    │ Tree     │    │ Tree     │    │ Tree     │
+                    │ Instance │    │ Instance │    │ Instance │
+                    │ (inst)   │    │ (inst)   │    │ (inst)   │
                     └──────────┘    └──────────┘    └──────────┘
 ```
 
-### Virtual Function Expansion
-
-A ChainTree "virtual function" is a named entry point that the tree walker can invoke. Without S_Engine, each virtual function maps directly to a C function pointer. With S_Engine, virtual functions can expand into interpreted S-expression programs:
-```
-Virtual Function Table
-┌────────────────┬─────────────────────────────────────┐
-│ Name           │ Implementation                      │
-├────────────────┼─────────────────────────────────────┤
-│ motor_init     │ C function: motor_init_fn()         │
-│ sensor_read    │ C function: sensor_read_fn()        │
-│ gpio_setup     │ S_Engine: gpio_setup_program[]      │
-│ pump_cycle     │ S_Engine: pump_cycle_program[]      │
-│ check_inputs   │ S_Engine: check_inputs_program[]    │
-└────────────────┴─────────────────────────────────────┘
-```
-
-This allows:
-- **C functions** for performance-critical or hardware-specific operations
-- **S-expression programs** for composable, data-driven logic
-
-### Hardware Configuration Example
-
-Instead of writing separate C functions for each GPIO configuration:
-```c
-// Without S_Engine: explosion of tiny functions
-void config_porta_pin0(void) { GPIO_SetMode(PORTA, 0, OUTPUT_PP); }
-void config_porta_pin1(void) { GPIO_SetMode(PORTA, 1, OUTPUT_OD); }
-void config_porta_pin2(void) { GPIO_SetMode(PORTA, 2, INPUT_PU); }
-// ... dozens more ...
-```
-
-With S_Engine, define reusable primitives and compose them:
-```lisp
-;; DSL source (compiled to token stream)
-(define gpio_setup
-  (pipeline
-    ;; Port A configuration
-    (gpio_mode PORTA 0 OUTPUT_PP)
-    (gpio_mode PORTA 1 OUTPUT_OD)
-    (gpio_mode PORTA 2 INPUT_PU)
-    (gpio_mode PORTA 3 INPUT_FLOAT)
-    
-    ;; Port B configuration  
-    (gpio_mode PORTB 0 OUTPUT_PP)
-    (gpio_mode PORTB 1 OUTPUT_PP)
-    
-    ;; PWM setup
-    (pwm_config TIMER1 CH1 20000 8)  ;; 20kHz, 8-bit
-    (pwm_duty TIMER1 CH1 0)          ;; start at 0%
-    (pwm_enable TIMER1 CH1)))
-```
-
-The S_Engine interprets this token stream, calling a small set of primitive C functions (`gpio_mode`, `pwm_config`, etc.) with parameters from the token stream.
+In the LuaJIT runtime, "S-expression programs in ROM" become tree instances created by `se_runtime.new_instance(mod, tree_name)`. The module_data table replaces ROM arrays.
 
 ### Boolean Composition on Hardware
 
-The S_Engine's predicate system enables composable boolean logic on hardware states without custom C code:
-```lisp
-;; Wait until both limit switches are triggered
-(wait_until
-  (and
-    (gpio_read PORTA 4)      ;; limit switch A
-    (gpio_read PORTA 5)))    ;; limit switch B
+The predicate system enables composable boolean logic without custom functions:
 
-;; Complex safety interlock
-(if_then_else
-  (or
-    (not (gpio_read EMERGENCY_STOP))
-    (and
-      (> (adc_read CURRENT_SENSE) 500)
-      (< (adc_read TEMP_SENSE) 80)))
-  (motor_disable)
-  (motor_enable))
+```lua
+-- Tree structure for: wait until both limit switches triggered
+-- se_wait
+--   children[0]: se_pred_and (p_call_composite)
+--     children[0]: gpio_read(PORTA, 4)   (p_call)
+--     children[1]: gpio_read(PORTA, 5)   (p_call)
+
+-- Tree structure for: complex safety interlock
+-- se_if_then_else
+--   children[0]: se_pred_or (p_call_composite)
+--     children[0]: se_pred_not
+--       children[0]: gpio_read(EMERGENCY_STOP)
+--     children[1]: se_pred_and
+--       children[0]: field_gt(current_sense, 500)
+--       children[1]: field_lt(temp_sense, 80)
+--   children[1]: motor_disable (o_call)
+--   children[2]: motor_enable (o_call)
 ```
 
-These compositions execute efficiently as token streams — no function call overhead per boolean operation, and the logic is data-driven rather than code-driven.
+These compositions execute as Lua function calls on nested child arrays — each predicate evaluates its children and combines the boolean results.
 
-### Benefits for Embedded Systems
+### Benefits
 
-| Aspect | Traditional BT Leaves | S_Engine Microcode |
+| Aspect | Traditional BT Leaves | S_Engine (LuaJIT) |
 |--------|----------------------|-------------------|
-| Code size | One C function per operation | Shared interpreter + token streams |
-| Modularity | Poor — functions tightly coupled | High — primitives compose freely |
-| Configuration | Recompile for changes | Data-driven, potentially loadable |
+| Code size | One C/Lua function per operation | Shared runtime + tree definitions |
+| Modularity | Poor — functions tightly coupled | High — builtins compose freely |
+| Configuration | Rewrite code for changes | Data-driven tree structures |
 | Boolean logic | Custom composite nodes | Built-in AND/OR/NOT predicates |
-| Debugging | Step through C code | Inspect token stream state |
-| RAM usage | Call stack per function | Single interpreter context |
-
-### Execution Model
-
-The S_Engine executes token streams using the same lifecycle as ChainTree nodes:
-
-1. **ONESHOT** — runs once when the S-expression program activates
-2. **MAIN** — runs on each tick while active
-3. **PRED** — boolean guard evaluated before execution
-
-This maps directly to the `s_expr_param_t` function reference types (0x08, 0x09, 0x0A).
-
-The S_Engine maintains minimal state per active program:
-- Node flags (1 byte per node in the S-expression)
-- Optional pointer slots for nodes that need persistent storage (DSL-controlled)
-
-### Integration with ChainTree
-
-The ChainTree walker doesn't know or care whether a virtual function is implemented in C or as an S-expression program. The dispatch layer handles this transparently:
-```c
-cfl_result_t invoke_virtual_function(uint16_t func_id, event_t event) {
-    if (vtable[func_id].is_native) {
-        // Direct C function call
-        return vtable[func_id].c_func(context, event);
-    } else {
-        // S_Engine interpretation
-        return s_engine_execute(
-            vtable[func_id].tokens,
-            vtable[func_id].params,
-            vtable[func_id].node_count,
-            event
-        );
-    }
-}
-```
-
-This layered approach allows gradual migration — start with C functions, convert hot paths to S-expressions as patterns emerge, or vice versa for performance-critical sections.
+| Debugging | Breakpoints in leaf functions | Inspect node_states, blackboard, tree structure |
+| Testing | Requires hardware or mocks | LuaJIT runtime runs on development machine |
 
 ---
 
-## Type Byte Encoding
+## Execution Model
+
+### Three Function Types
+
+The S_Engine supports three function types, mapping to call_type strings:
+
+| Type | Call Types | Lifecycle | Purpose |
+|------|-----------|-----------|---------|
+| **ONESHOT** | `o_call`, `io_call` | Runs once per activation | Setup, I/O binding, field writes |
+| **MAIN** | `m_call`, `pt_m_call` | INIT → TICK* → TERMINATE | Composites, state machines, delays |
+| **PRED** | `p_call`, `p_call_composite` | Stateless boolean | Guards, conditions, boolean logic |
+
+### Execution Order Per Tick
+
 ```
-  7   6   5   4   3   2   1   0
-+---+---+---+---+---+---+---+---+
-| P | S |        OPCODE         |
-+---+---+---+---+---+---+---+---+
-
-P (bit 7): FLAG_POINTER        - token references pointer_array[]
-S (bit 6): FLAG_SURVIVES_RESET - persists across system reset (io_call)
-OPCODE (bits 0-5): 64 possible opcodes
-```
-
-### Flag Descriptions
-
-**P Flag (FLAG_POINTER) - bit 7**
-
-When set, indicates this function call uses an entry in the `pointer_array[]`. The `index_to_pointer` field specifies which slot. This supports functions that need to maintain a pointer or word-sized value across invocations, such as:
-- Hardware peripheral handles
-- Allocated resource references
-- Cached computation results
-
-Only functions explicitly marked in the DSL (e.g., `pt_m_call`) receive a pointer slot. This conserves memory since most functions don't need persistent pointer storage.
-
-**S Flag (FLAG_SURVIVES_RESET) - bit 6**
-
-When set, indicates this function's state persists across a system reset. Used for I/O-bound functions (`io_call`) that maintain external hardware state that shouldn't be reinitialized, such as:
-- Serial port configurations
-- Sensor calibration state
-- Network connection handles
-
-During a reset, functions without this flag have their node state cleared. Functions with this flag retain their `INITIALIZED` and `EVER_INIT` flags.
-
-## Token Categories
-
-### Primitive Values (0x00-0x03)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x00 | INT | `int_val` | Signed integer (32 or 64 bit) |
-| 0x01 | UINT | `uint_val` | Unsigned integer |
-| 0x02 | FLOAT | `float_val` | Float (32-bit) or double (64-bit) |
-| 0x03 | STR_HASH | `str_hash` | Hashed string for fast comparison |
-
-### List Structure (0x05-0x07)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x05 | OPEN | `brace_idx` | Start of list, index points to matching CLOSE |
-| 0x06 | CLOSE | `brace_idx` | End of list, index points to matching OPEN |
-| 0x07 | OPEN_CALL | `brace_idx` | Function invocation start |
-
-### Function References (0x08-0x0A)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x08 | ONESHOT | `node_index`, `func_index` | Single-execution function |
-| 0x09 | MAIN | `node_index`, `func_index` | Main tick function |
-| 0x0A | PRED | `node_index`, `func_index` | Predicate function |
-
-Function references use two 16-bit indices:
-- `node_index` → runtime state in `node_states[]`
-- `func_index` → entry in function dispatch table
-
-#### Function Type Semantics
-
-ChainTree nodes can have up to three function entry points, each serving a distinct purpose in the execution lifecycle:
-
-**ONESHOT (0x08) - Initialization Function**
-
-Executes exactly once when a node is first activated. Used for:
-- Resource allocation
-- Hardware initialization
-- Initial state setup
-- One-time configuration
-
-The runtime tracks execution via `NODE_FLAG_INITIALIZED`. Once set, the oneshot function is skipped on subsequent ticks. If the node is reset (and doesn't have `FLAG_SURVIVES_RESET`), the flag clears and oneshot runs again on next activation.
-```
-First activation:  ONESHOT runs → sets INITIALIZED → MAIN runs
-Subsequent ticks:  ONESHOT skipped → MAIN runs
-After reset:       ONESHOT runs again (unless FLAG_SURVIVES_RESET)
+1. invoke_main called on root node
+   │
+   ├─ If not FLAG_INITIALIZED:
+   │     Set FLAG_INITIALIZED
+   │     Call fn(inst, node, SE_EVENT_INIT, nil)
+   │
+   ├─ Call fn(inst, node, event_id, event_data)
+   │     → result code (0–17)
+   │
+   └─ If result == SE_PIPELINE_DISABLE:
+         Call fn(inst, node, SE_EVENT_TERMINATE, nil)
+         Clear FLAG_ACTIVE
 ```
 
-**MAIN (0x09) - Tick Function**
+Within composites, children are dispatched according to the composite's logic:
+- `se_sequence`: one child at a time, advance on completion
+- `se_fork` / `se_chain_flow`: all active children each tick
+- `se_while`: predicate → body → repeat
+- `se_state_machine`: dispatch to one child based on field value
 
-Executes on every tick while the node is active. This is the primary execution path for:
-- Periodic control logic
-- State machine transitions
-- Continuous monitoring
-- Output updates
+### State Storage
 
-Returns a status that propagates up the behavior tree (SUCCESS, FAILURE, RUNNING, or ChainTree-specific codes like CONTINUE, HALT, RESET).
+The engine maintains minimal state per active node:
 
-**PRED (0x0A) - Predicate Function**
+```lua
+-- Per node: flags + state + user_data (+ extensible fields)
+inst.node_states[node_index] = { flags=0x01, state=0, user_data=0 }
 
-A boolean guard that determines whether the node should execute. Evaluated before ONESHOT or MAIN:
-- Returns true: node executes normally
-- Returns false: node is skipped entirely
+-- Per pt_m_call node: additional pointer slot
+inst.pointer_array[pointer_index] = { ptr=nil, u64=0, i64=0, f64=0.0 }
 
-Used for:
-- Conditional execution
-- Resource availability checks
-- Mode-dependent behavior
-- Guard conditions in state machines
-```
-Execution order per tick:
-1. PRED evaluated (if present)
-   - false → skip node entirely
-   - true  → continue
-2. ONESHOT runs (if not yet initialized)
-3. MAIN runs
+-- Shared: blackboard record fields
+inst.blackboard["temperature"] = 25.5
+
+-- Optional: parameter stack for frame_allocate / se_call / quads
+inst.stack = se_stack.new_stack(256)
 ```
 
-#### Function Combinations
-
-Not all nodes require all three functions. Common patterns:
-
-| Pattern | ONESHOT | MAIN | PRED | Use Case |
-|---------|---------|------|------|----------|
-| Simple action | - | ✓ | - | Stateless operations |
-| Guarded action | - | ✓ | ✓ | Conditional execution |
-| Stateful action | ✓ | ✓ | - | Needs initialization |
-| Full node | ✓ | ✓ | ✓ | Complex conditional stateful logic |
-| One-time setup | ✓ | - | - | Pure initialization |
-
-### Field/Data Access (0x0B-0x0E)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x0B | FIELD | `field_offset`, `field_size` | Record field reference |
-| 0x0C | RESULT | `int_val` | Result value from computation |
-| 0x0D | STR_IDX | `str_index`, `str_len` | String table reference |
-| 0x0E | CONST_REF | `const_index`, `const_size` | ROM constant reference |
-
-### Dictionary Structure (0x10-0x13)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x10 | OPEN_DICT | `brace_idx` | Begin key-value collection |
-| 0x11 | CLOSE_DICT | `brace_idx` | End dictionary |
-| 0x12 | OPEN_KEY | `str_hash` | Begin key-value pair (hash identifies key) |
-| 0x13 | CLOSE_KEY | - | End key-value pair |
-
-### Array Structure (0x14-0x15)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x14 | OPEN_ARRAY | `brace_idx` | Begin indexed collection |
-| 0x15 | CLOSE_ARRAY | `brace_idx` | End array |
-
-### Tuple Structure (0x16-0x17)
-
-| Opcode | Name | Payload | Description |
-|--------|------|---------|-------------|
-| 0x16 | OPEN_TUPLE | `brace_idx` | Begin fixed-size heterogeneous group |
-| 0x17 | CLOSE_TUPLE | `brace_idx` | End tuple |
-
-## Node Runtime State
-
-Every function node referenced in the token stream has an associated entry in `node_states[]`. This provides minimal per-node runtime storage.
-
-### Node Flags (1 byte per node)
-```c
-S_EXPR_NODE_FLAG_ACTIVE        0x01  // Currently executing
-S_EXPR_NODE_FLAG_INITIALIZED   0x02  // Oneshot function has completed
-S_EXPR_NODE_FLAG_EVER_INIT     0x04  // Has been initialized at least once (lifetime)
-S_EXPR_NODE_FLAG_ERROR         0x08  // Node is in error state
-// Bits 4-7 available for user-defined flags
-```
-
-### Pointer Array (Optional, DSL-Controlled)
-
-Most nodes only need the 1-byte flag state. However, some functions require persistent word-sized storage. The DSL controls allocation:
-```
-Regular function:     node_states[n] only (1 byte flags)
-pt_m_call function:   node_states[n] + pointer_array[m] (1 byte + word)
-io_call function:     FLAG_SURVIVES_RESET set, state persists across reset
-pt_io_call function:  Both pointer storage and reset survival
-```
-
-This tiered approach conserves RAM on memory-constrained targets. A system with 100 nodes might only allocate 10 pointer slots for the functions that actually need them.
-
-### Memory Layout Example
-```
-node_states[]:     [flags0][flags1][flags2]...[flagsN]   // N bytes
-pointer_array[]:   [ptr0][ptr1][ptr2]...[ptrM]          // M words (M << N typically)
-
-Token with P flag set:
-  .node_index = 5        → node_states[5] for flags
-  .index_to_pointer = 2  → pointer_array[2] for persistent value
-```
-
-## Predicate Macros
-
-Type checking is done via bitmask predicates that handle flag bits correctly:
-```c
-S_EXPR_PARAM_IS_NUMERIC(t)      // INT, UINT, or FLOAT
-S_EXPR_PARAM_IS_FUNC_REF(t)     // ONESHOT, MAIN, or PRED
-S_EXPR_PARAM_IS_ANY_OPEN(t)     // Any opening bracket type
-S_EXPR_PARAM_IS_ANY_CLOSE(t)    // Any closing bracket type
-S_EXPR_PARAM_HAS_POINTER(t)     // Uses pointer_array[]
-S_EXPR_PARAM_SURVIVES_RESET(t)  // Persists across reset
-```
-
-## Platform Adaptation
-
-Types scale with platform word size:
-```c
-#if MODULE_IS_64BIT
-    typedef int64_t  ct_int_t;
-    typedef double   ct_float_t;
-#else
-    typedef int32_t  ct_int_t;
-    typedef float    ct_float_t;
-#endif
-```
-
-## DSL Output Examples
-```c
-// Integer literal
-{ .type = 0x00, .int_val = 42 }
-
-// Simple main function call to node 1, function 4
-{ .type = 0x09, .index_to_pointer = 0, .node_index = 1, .func_index = 4 }
-
-// Main function with pointer storage (pt_m_call)
-{ .type = 0x89, .index_to_pointer = 3, .node_index = 2, .func_index = 7 }
-//        ^^^^ P flag set (0x80 | 0x09)
-
-// I/O function that survives reset (io_call)
-{ .type = 0x49, .index_to_pointer = 0, .node_index = 5, .func_index = 12 }
-//        ^^^^ S flag set (0x40 | 0x09)
-
-// Pointer + survives reset (pt_io_call)
-{ .type = 0xC9, .index_to_pointer = 1, .node_index = 8, .func_index = 15 }
-//        ^^^^ P+S flags set (0x80 | 0x40 | 0x09)
-
-// Field access: offset 8, size 4
-{ .type = 0x0B, .field_offset = 8, .field_size = 4 }
-
-// Open call bracket, matching close at index 7
-{ .type = 0x07, .brace_idx = 7 }
-
-// Dictionary key with hash
-{ .type = 0x12, .str_hash = 0xA3B2C1D0 }
-```
+---
 
 ## Design Notes
 
-- Brace matching is precomputed at compile time via `brace_idx`
-- String hashing enables O(1) key lookup without string comparison
-- The `index_to_pointer` field supports indirection for relocatable code
-- All structured types (dict, array, tuple) use matched open/close pairs for unambiguous parsing
-- Per-node storage is minimized: 1 byte flags for all nodes, pointer slots only where DSL specifies
-- Reset behavior is explicit: `FLAG_SURVIVES_RESET` protects I/O state while allowing logic state to clear
-- S_Engine provides composable microcode that eliminates the need for hundreds of small C leaf functions
-- Tcl-like lazy evaluation enables new control structures through functions, not macros
+- **Children pre-separated by pipeline** — eliminates brace matching, skip_param, and OPEN_CALL/CLOSE token navigation entirely
+- **String-keyed fields** — blackboard access is `inst.blackboard[name]` rather than byte-offset pointer arithmetic
+- **Name-based function binding** — case-insensitive string matching replaces FNV-1a hash lookup tables
+- **GC-managed memory** — no explicit allocation, deallocation, or ownership tracking
+- **Extensible node state** — Lua tables grow dynamically; builtins add fields as needed
+- **Cross-runtime compatibility** — FNV-1a hashes in module_data (`func_hash`, `name_hash`) match C values exactly, enabling cross-reference between C debug dumps and LuaJIT module data
+- **Tcl-like lazy evaluation** — composite functions control child evaluation, enabling new control structures through new Lua functions without macros or quoting
+- **S_Engine provides composable logic** that eliminates the need for hundreds of small leaf functions, whether implemented in C or Lua

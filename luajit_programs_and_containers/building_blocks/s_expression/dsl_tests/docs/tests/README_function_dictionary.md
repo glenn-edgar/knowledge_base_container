@@ -1,20 +1,20 @@
-# Function Dictionary Test — STM32F4 Peripheral Configuration
+# Function Dictionary Test — STM32F4 Peripheral Configuration (LuaJIT Runtime)
 
 ## Overview
 
-This test demonstrates the **Function Dictionary** feature of the S-Expression Engine. A function dictionary is a collection of named, one-tick stack-based functions that can call each other internally to produce complex results. In this test, a small set of primitive I/O functions — `write_register` and `read_modify_write` — are composed into higher-level peripheral configuration routines that set up GPIO, UART, and SPI on a simulated STM32F4 microcontroller.
+This test demonstrates the **Function Dictionary** feature of the S-Expression Engine in the LuaJIT runtime. A function dictionary is a collection of named, one-tick stack-based functions that can call each other internally to produce complex results. In this test, a small set of primitive I/O functions — `write_register` and `read_modify_write` — are composed into higher-level peripheral configuration routines that set up GPIO, UART, and SPI on a simulated STM32F4 microcontroller.
 
-The key insight is that instead of writing many individual user-defined C functions for each peripheral register operation, only a single C callback (`write_register`) is needed. All the register address computation, bit manipulation, and sequencing logic lives in the dictionary as S-Expression tree nodes, using `quad_expr` expressions for arithmetic and bitwise operations.
+The key insight is that instead of writing many individual user-defined Lua functions for each peripheral register operation, only a single Lua callback (`write_register`) is needed. All the register address computation, bit manipulation, and sequencing logic lives in the dictionary as S-Expression tree nodes, using `quad_expr`-generated `se_quad` nodes for arithmetic and bitwise operations executed by `se_builtins_quads.lua`.
 
 ## Dictionary Architecture
 
-The dictionary is structured as a hierarchy of reusable functions:
+The dictionary is structured as a hierarchy of reusable functions, each stored as a closure in a `{hash → closure}` Lua table:
 
 ```
 init_all_peripherals          (top-level orchestrator)
   ├── enable_peripheral_clock   (clock setup, called 3x)
   │     └── read_modify_write     (bit manipulation)
-  │           └── write_register    (C user function)
+  │           └── write_register    (user-defined Lua function)
   ├── configure_gpio_pin        (GPIO register config)
   │     └── read_modify_write (x3: MODER, OSPEEDR, PUPDR)
   ├── configure_uart            (USART setup)
@@ -29,8 +29,8 @@ init_all_peripherals          (top-level orchestrator)
 
 | Function | Stack Params | Description |
 |----------|-------------|-------------|
-| `write_register` | addr, value | C callback that performs the hardware write |
-| `read_modify_write` | addr, clear_mask, set_bits | Simulates read-modify-write: clears bits then sets bits |
+| `write_register` | addr, value | User-defined Lua function that performs the register write |
+| `read_modify_write` | addr, clear_mask, set_bits | Clears bits then sets bits via internal calls to `write_register` |
 | `enable_peripheral_clock` | clk_reg, periph_bit | Enables a peripheral clock via RCC register |
 | `configure_gpio_pin` | port_base, pin, mode, speed, pull | Configures a GPIO pin's mode, speed, and pull-up/down |
 | `configure_uart` | usart_base, baud_div, config_bits | Disables USART, sets baud rate, configures, re-enables |
@@ -39,139 +39,195 @@ init_all_peripherals          (top-level orchestrator)
 
 ## Dictionary Loading
 
-The dictionary is loaded at tree construction time with `se_load_function_dict`:
+The dictionary is built at tree INIT time by `se_load_function_dict` (`se_builtins_dict.lua`). It pairs `dict_key` names from `node.params` with child subtrees from `node.children`:
 
 ```lua
-se_load_function_dict("fn_dict", input_dictionary)
-```
-
-This stores the dictionary into the blackboard field `fn_dict`. The dictionary is a Lua table of `{name, builder_function}` pairs. Each builder function emits S-Expression tree nodes (using `se_call`, `quad_expr`, `quad_mov`, etc.) that define the function's behavior. Once loaded, the dictionary is available for the lifetime of the tree and can be called from anywhere in the S-Expression program.
-
-## Calling Dictionary Functions
-
-There are three ways to call dictionary functions:
-
-### 1. Direct Call by Name (compile-time constant)
-
-```lua
-se_exec_dict_fn("fn_dict", "init_all_peripherals")
-```
-
-This is used from the main S-Expression program to invoke a dictionary function by a
-name known at DSL compile time. The function name is hashed at compile time and embedded
-directly in the generated code. The caller pushes any required parameters onto the stack
-before calling. This is the simplest entry point from the tree's main program into the
-dictionary.
-
-### 2. Indirect Call via Hash Field (runtime variable)
-
-```lua
-se_set_hash_field("fn_hash", "init_all_peripherals")
-se_exec_dict_fn_ptr("fn_dict", "fn_hash")
-```
-
-This two-step approach stores a function name hash into a blackboard field (`fn_hash`),
-then calls `se_exec_dict_fn_ptr` which reads the hash from that field at runtime and
-dispatches the corresponding dictionary function.
-
-While the example above appears redundant with the direct call (since the function name
-is a compile-time constant), these two functions exist because the hash field can be set
-by any source at runtime — not just `se_set_hash_field`. In practice, the hash value
-may come from:
-
-- **An external tree** writing into the blackboard via `se_set_external_field`
-- **A C callback** setting the field based on sensor input or protocol messages
-- **A state machine** selecting different dictionary functions based on runtime conditions
-- **An event handler** dispatching different operations based on event type
-
-This is the mechanism that enables the **external tree calling pattern**: a parent tree
-spawns a child tree containing a function dictionary, writes a function hash into the
-child's `fn_hash` field, and ticks the child to execute that function. The child tree
-does not need to know which function will be called at compile time.
-
-### 3. Internal Call (dictionary function to dictionary function)
-
-```lua
-quad_mov(cv.addr, stack_push_ref())()
-quad_mov(cv.current, stack_push_ref())()
-se_exec_dict_internal("write_register")
-```
-
-Inside a dictionary function, `se_exec_dict_internal` calls another function within the same dictionary. Parameters are pushed onto the stack using `quad_mov` with `stack_push_ref()` as the destination. The called function receives these as its stack frame parameters. This is how `read_modify_write` calls `write_register`, and how `configure_gpio_pin` calls `read_modify_write`.
-
-## The User Function: write_register
-
-The only C callback in this test is `write_register`. It reads two parameters from the stack frame — the register address and the value to write — and prints them:
-
-```c
-void write_register(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    printf("write_register called\n");
-    const s_expr_param_t* address_param = s_expr_stack_get_local(inst->stack, 0);
-    printf("register address: 0x%08X\n", address_param->uint_val);
-    const s_expr_param_t* value_param = s_expr_stack_get_local(inst->stack, 1);
-    printf("register value: 0x%08X\n", value_param->uint_val);
+-- se_load_function_dict builds:
+inst.blackboard["fn_dict"] = {
+    [s_expr_hash("write_register")]         = function(inst, node, eid, edata)
+        return se_runtime.invoke_any(inst, write_register_subtree, eid, edata)
+    end,
+    [s_expr_hash("read_modify_write")]       = function(inst, node, eid, edata)
+        return se_runtime.invoke_any(inst, read_modify_write_subtree, eid, edata)
+    end,
+    [s_expr_hash("enable_peripheral_clock")] = function(...) ... end,
+    [s_expr_hash("configure_gpio_pin")]      = function(...) ... end,
+    [s_expr_hash("configure_uart")]          = function(...) ... end,
+    [s_expr_hash("configure_spi")]           = function(...) ... end,
+    [s_expr_hash("init_all_peripherals")]    = function(...) ... end,
 }
 ```
 
-In a production system, this function would perform the actual memory-mapped register write: `*(volatile uint32_t*)addr = value`. All the address computation and bit manipulation is handled by the dictionary functions, so this single C function serves every register write in the entire peripheral configuration sequence.
+Each closure captures its child node table by reference. The dictionary persists in the blackboard for the lifetime of the tree instance and can be called from anywhere in the program.
+
+## Calling Dictionary Functions
+
+There are three ways to call dictionary functions, all implemented in `se_builtins_spawn.lua`:
+
+### 1. Direct Call by Name (`se_exec_dict_dispatch`)
+
+```
+SE_EXEC_DICT_DISPATCH
+  params: [field_ref:"fn_dict", str_hash:{hash=H, str="init_all_peripherals"}]
+```
+
+Used from the main program to invoke a dictionary function by a name known at pipeline compile time. The function name is hashed at compile time and stored as a `str_hash` param. On INIT, the builtin reads the dictionary from the blackboard and stores it in `inst.current_dict`. On TICK, it looks up `dict[hash]` and calls the closure.
+
+**Runtime behavior** (from `se_builtins_spawn.lua`):
+
+```lua
+M.se_exec_dict_dispatch = function(inst, node, event_id, event_data)
+    if event_id == SE_EVENT_INIT then
+        local dict = inst.blackboard[param_field_name(node, 1)]
+        inst.current_dict = dict
+        return SE_PIPELINE_CONTINUE
+    end
+
+    -- TICK: look up key hash, call the closure
+    local key = (type(p2.value) == "table") and p2.value.hash or p2.value
+    local entry = dict[key]
+    local result = entry(inst, node, event_id, event_data) or SE_PIPELINE_CONTINUE
+
+    -- DISABLE → CONTINUE: keep the dispatch node alive
+    if result == SE_PIPELINE_DISABLE then result = SE_PIPELINE_CONTINUE end
+    return result
+end
+```
+
+### 2. Indirect Call via Hash Field (`se_exec_dict_fn_ptr`)
+
+```
+SE_SET_HASH_FIELD
+  params: [field_ref:"fn_hash", str_hash:{hash=H, str="init_all_peripherals"}]
+  → inst.blackboard["fn_hash"] = s_expr_hash("init_all_peripherals")
+
+SE_EXEC_DICT_FN_PTR
+  params: [field_ref:"fn_dict", field_ref:"fn_hash"]
+```
+
+This two-step approach stores a function name hash into a blackboard field (`fn_hash`), then `se_exec_dict_fn_ptr` reads the hash from that field at runtime and dispatches the corresponding dictionary function.
+
+While the example above uses a compile-time constant, the hash field can be set by any source at runtime:
+
+- **An external tree** writing via `se_set_external_field` (the cross-tree calling pattern)
+- **A user-defined Lua function** setting the field based on sensor input or protocol messages
+- **A state machine** selecting different dictionary functions based on runtime conditions
+- **An event handler** dispatching different operations based on event type
+
+**Runtime behavior** (from `se_builtins_spawn.lua`):
+
+```lua
+M.se_exec_dict_fn_ptr = function(inst, node, event_id, event_data)
+    if event_id == SE_EVENT_INIT then
+        local dict = inst.blackboard[param_field_name(node, 1)]
+        inst.current_dict = dict
+        return SE_PIPELINE_CONTINUE
+    end
+
+    -- TICK: read key from blackboard field at runtime
+    local key = inst.blackboard[param_field_name(node, 2)]
+    local entry = dict[key]
+    local result = entry(inst, node, event_id, event_data) or SE_PIPELINE_CONTINUE
+    if result == SE_PIPELINE_DISABLE then result = SE_PIPELINE_CONTINUE end
+    return result
+end
+```
+
+### 3. Internal Call (`se_exec_dict_internal`)
+
+```
+-- Push params onto stack first:
+SE_QUAD MOVE(local:addr, null, stack_push)
+SE_QUAD MOVE(local:value, null, stack_push)
+
+SE_EXEC_DICT_INTERNAL
+  params: [str_hash:{hash=H, str="write_register"}]
+```
+
+Inside a dictionary function, `se_exec_dict_internal` calls another function within the same dictionary. It uses `inst.current_dict` which was set by the parent `se_exec_dict_dispatch` or `se_exec_dict_fn_ptr` on INIT. Parameters are pushed onto the stack using `se_quad` MOVE nodes with `{type="stack_push"}` as the destination. The called function receives these as its stack frame parameters via `se_stack_frame_instance`.
+
+**Runtime behavior** (from `se_builtins_spawn.lua`):
+
+```lua
+M.se_exec_dict_internal = function(inst, node, event_id, event_data)
+    if event_id == SE_EVENT_INIT or event_id == SE_EVENT_TERMINATE then
+        return SE_PIPELINE_CONTINUE
+    end
+
+    local dict = inst.current_dict
+    local key = (type(p1.value) == "table") and p1.value.hash or p1.value
+    local entry = dict[key]
+    local result = entry(inst, node, event_id, event_data) or SE_PIPELINE_CONTINUE
+    if result == SE_PIPELINE_DISABLE then result = SE_PIPELINE_CONTINUE end
+    return result
+end
+```
+
+## The User Function: write_register
+
+The only user-defined Lua function in this test. It reads two parameters from the stack frame — the register address and the value to write — and prints them:
+
+```lua
+local function write_register(inst, node)
+    local stk = inst.stack
+    assert(stk, "write_register: no stack on instance")
+
+    local se_stack = require("se_stack")
+    local address = se_stack.get_local(stk, 0) or 0
+    local value   = se_stack.get_local(stk, 1) or 0
+
+    print(string.format("write_register: addr=0x%08X value=0x%08X", address, value))
+end
+```
+
+In the LuaJIT runtime, stack entries are plain Lua numbers (not typed `s_expr_param_t` structs). `se_stack.get_local(stk, 0)` returns the first parameter directly.
+
+In a production system targeting actual hardware via LuaJIT FFI, this function would perform a memory-mapped register write. All the address computation and bit manipulation is handled by the dictionary functions' `se_quad` nodes, so this single Lua function serves every register write in the entire peripheral configuration sequence.
 
 ## Main Program Flow
 
-The main program exercises both dictionary calling methods:
+The tree structure exercises both dictionary calling methods:
 
-```lua
-se_function_interface(function()
-    -- 1. Initialize blackboard fields with peripheral configuration values
-    se_set_field("uart_channel", 1)
-    se_set_field("uart_baud", 0x0683)
-    -- ... (GPIO, SPI fields)
-
-    -- 2. Load the function dictionary
-    se_load_function_dict("fn_dict", input_dictionary)
-
-    -- 3. Direct call: invoke by compile-time name
-    se_exec_dict_fn("fn_dict", "init_all_peripherals")
-
-    -- 4. Log configuration results
-    se_log("--- Configuration Results ---")
-    se_log_slot_integer("config_state 0x%08X", "config_state")
-    -- ...
-
-    -- 5. Indirect call: set hash field, then dispatch via fn_ptr
-    se_set_hash_field("fn_hash", "init_all_peripherals")
-    se_exec_dict_fn_ptr("fn_dict", "fn_hash")
-
-    -- 6. Terminate
-    se_return_function_terminate()
-end)
+```
+SE_FUNCTION_INTERFACE (root)
+├── [o_call] SE_SET_FIELD uart_channel = 1
+├── [o_call] SE_SET_FIELD uart_baud = 0x0683
+├── [o_call] SE_SET_FIELD uart_parity = 0
+├── ... (GPIO, SPI field initialization)
+│
+├── [o_call] SE_LOAD_FUNCTION_DICT → inst.blackboard["fn_dict"] = {hash→closure}
+│
+├── [m_call] SE_EXEC_DICT_DISPATCH("fn_dict", "init_all_peripherals")
+│   → Direct call: compile-time hash lookup in dict
+│   → Executes full peripheral init sequence
+│
+├── [o_call] SE_LOG "--- Configuration Results ---"
+├── [o_call] SE_LOG_INT "config_state 0x%08X"
+├── ... (log other blackboard fields)
+│
+├── [o_call] SE_SET_HASH_FIELD("fn_hash", "init_all_peripherals")
+│   → inst.blackboard["fn_hash"] = s_expr_hash("init_all_peripherals")
+│
+├── [m_call] SE_EXEC_DICT_FN_PTR("fn_dict", "fn_hash")
+│   → Indirect call: reads hash from blackboard["fn_hash"] at runtime
+│   → Executes same sequence again (identical results)
+│
+└── SE_RETURN_FUNCTION_TERMINATE
 ```
 
-Steps 3 and 5 both invoke `init_all_peripherals`, but through different mechanisms.
-Step 3 uses a compile-time constant hash. Step 5 demonstrates the indirect path where
-the hash lives in a blackboard field — the same field that an external tree or C callback
-would write to in a production system. Both paths produce identical results, confirming
-that the two calling conventions are interchangeable.
+Steps 3 and 5 both invoke `init_all_peripherals`, but through different mechanisms. The direct call uses a compile-time constant hash embedded in `params[2]`. The indirect call reads the hash from `inst.blackboard["fn_hash"]` — the same field that an external tree or user Lua function would write to in a production system. Both paths produce identical results, confirming that the two calling conventions are interchangeable.
 
 ## Control Flow Within the Dictionary
 
 The dictionary supports the full range of S-Expression control flow constructs. This test demonstrates:
 
-- **`se_if_then_else`** — Used in `init_all_peripherals` to conditionally configure UART and SPI based on blackboard field values. If `uart_channel` is non-zero, UART is configured; otherwise it is skipped.
-- **`se_sequence_once`** — Ensures the initialization sequence runs exactly once.
-- **`se_set_field` / `se_field_ne`** — Blackboard fields store configuration state and drive conditional logic.
-
-Additionally, **`se_dispatch_event`** is available within dictionary functions for event-driven workflows, though it is not exercised in this particular test.
+- **`se_if_then_else`** (`se_builtins_flow_control.lua`) — used in `init_all_peripherals` to conditionally configure UART and SPI. If `inst.blackboard["uart_channel"] ~= 0`, UART is configured; otherwise skipped. The predicate is `se_field_ne` (`se_builtins_pred.lua`).
+- **`se_sequence_once`** — ensures the initialization sequence runs exactly once per tick.
+- **`se_set_field` / `se_field_ne`** — blackboard fields store configuration state and drive conditional logic.
 
 ## Expression Compiler Usage
 
-The dictionary functions use `quad_expr` to compile C-like expressions into quad operations at DSL build time:
+The dictionary functions use `quad_expr` (`s_expr_compiler.lua`) to compile C-like expressions into `se_quad` nodes at pipeline time:
 
 ```lua
 quad_expr("shift = pin * 2", cv, {"t0"})()
@@ -180,9 +236,21 @@ quad_expr("set_val = mode << shift", cv, {"t0"})()
 quad_expr("reg_addr = port_base + 8", cv, {"t0"})()
 ```
 
-The `frame_vars` function defines named locals and scratch variables with stack frame offsets, replacing raw `stack_local(N)` references with readable names. The expression compiler handles operator selection (integer arithmetic, bitwise operations), constant folding, and type inference automatically.
+These compile to `se_quad` nodes with opcodes like `IMUL` (0x02), `BIT_SHL` (0x14), and `IADD` (0x00). At runtime, `exec_quad` in `se_builtins_quads.lua` dispatches on the opcode and reads/writes via `se_stack.get_local` / `se_stack.set_local` for `stack_local` params.
 
-**Important constraint:** Values that will be read after a `stack_push_ref()` call must be stored in frame locals, not scratch (TOS) variables. The stack push advances the stack pointer, which can invalidate scratch-relative offsets.
+The `frame_vars` function defines named locals and scratch variables with stack frame offsets:
+
+```lua
+local cv = frame_vars(
+    {"port_base:int", "pin:int", "mode:int", "speed:int", "pull:int",
+     "shift:int", "mask:int", "reg_addr:int", "set_val:int"},
+    {"t0:int", "t1:int"}
+)
+```
+
+The `:int` annotations drive the compiler's type inference, ensuring integer opcodes (IADD, BIT_SHL, etc.) are selected rather than float opcodes.
+
+**Important constraint:** Values that will be read after a `stack_push` call must be stored in frame locals (`stack_local`), not scratch (`stack_tos`) variables. The `se_stack.push` call advances `stk.sp`, which invalidates TOS-relative offsets.
 
 ## Test Results Explained
 
@@ -198,7 +266,7 @@ The test runs to completion in a single tick, producing 13 register writes (exec
 
 ### GPIO PA5 Configuration
 
-Pin 5 uses bit positions 10-11 (shift = pin × 2 = 10), with a 2-bit mask of `0xC00`.
+Pin 5 uses bit positions 10–11 (shift = pin × 2 = 10), with a 2-bit mask of `0xC00`. Computed by `quad_expr("shift = pin * 2")` → IMUL, `quad_expr("mask = 3 << shift")` → BIT_SHL:
 
 | Register | Value | Description |
 |----------|-------|-------------|
@@ -217,7 +285,7 @@ Pin 5 uses bit positions 10-11 (shift = pin × 2 = 10), with a 2-bit mask of `0x
 
 ### SPI1 Configuration
 
-SPI1 CR1 is at base address `0x40013000` (offset 0). Clock divider 2 maps to bits 5:3 = `0x10`.
+SPI1 CR1 is at base address `0x40013000` (offset 0). Clock divider 2 maps to bits 5:3 = `0x10`. Computed by `quad_expr("cr1 = clk_div << 3")` → BIT_SHL:
 
 | Register | Value | Description |
 |----------|-------|-------------|
@@ -227,27 +295,113 @@ SPI1 CR1 is at base address `0x40013000` (offset 0). Clock divider 2 maps to bit
 
 ### Final Blackboard State
 
-After configuration completes, the blackboard fields confirm success:
+After configuration completes:
 
-| Field | Value | Meaning |
-|-------|-------|---------|
-| `config_state` | `0x00000004` | CONFIG_DONE |
-| `peripherals_ready` | `0x00000001` | All peripherals initialized |
-| `error_code` | `0x00000000` | No errors |
+```lua
+inst.blackboard["config_state"]      -- 4 (CONFIG_DONE)
+inst.blackboard["peripherals_ready"] -- 1 (all peripherals initialized)
+inst.blackboard["error_code"]        -- 0 (no errors)
+```
 
 ## Dictionary Calling Methods Summary
 
-| Method | DSL Function | Hash Source | Use Case |
-|--------|-------------|-------------|----------|
-| Direct | `se_exec_dict_fn("fn_dict", "name")` | Compile-time constant | Known function, called from main program |
-| Indirect | `se_exec_dict_fn_ptr("fn_dict", "fn_hash")` | Blackboard field (runtime) | Variable dispatch, external tree calls, event-driven selection |
-| Internal | `se_exec_dict_internal("name")` | Compile-time constant | Dictionary function calling another dictionary function |
+| Method | Builtin | Module | Hash Source | Use Case |
+|--------|---------|--------|-------------|----------|
+| Direct | `se_exec_dict_dispatch` | `se_builtins_spawn.lua` | Compile-time `str_hash` param | Known function, called from main program |
+| Indirect | `se_exec_dict_fn_ptr` | `se_builtins_spawn.lua` | Blackboard field (runtime) | Variable dispatch, external tree calls, event-driven selection |
+| Internal | `se_exec_dict_internal` | `se_builtins_spawn.lua` | Compile-time `str_hash` param | Dictionary function calling another dictionary function |
 
-The indirect method is the key enabler for cross-tree dictionary invocation. A parent tree
-can write any function hash into the child's `fn_hash` field via `se_set_external_field`,
-then tick the child to execute that function. The child tree's dictionary serves as a
-shared library of functions callable by any tree in the system.
+The indirect method is the key enabler for cross-tree dictionary invocation. A parent tree can write any function hash into the child's `fn_hash` field via `se_set_external_field`, then tick the child to execute that function. The child tree's dictionary serves as a shared library of functions callable by any tree in the system.
+
+## Comparison with C Implementation
+
+| Aspect | C Runtime | LuaJIT Runtime |
+|--------|-----------|----------------|
+| Dictionary storage | ROM pointer to flat `s_expr_param_t[]` array | `{hash → closure}` Lua table in blackboard |
+| Dictionary building | Pointer assignment (zero allocation) | `se_load_function_dict` builds closures (one-time GC allocation) |
+| Function invocation | `s_expr_invoke_any(inst, params, ...)` on param array | `closure(inst, node, eid, edata)` → `invoke_any(inst, child_node, ...)` |
+| `write_register` signature | `fn(inst, params, count, event_type, event_id, event_data)` | `fn(inst, node)` |
+| Stack parameter access | `s_expr_stack_get_local(stack, 0)->uint_val` | `se_stack.get_local(stk, 0)` (plain Lua number) |
+| Register arithmetic | `se_quad` with typed `s_expr_param_t` values | `se_quad` with plain Lua numbers via `bit.*` library |
+| Hardware I/O | Actual memory-mapped writes (on target) | Print simulation (or FFI for real hardware) |
+| `inst.current_dict` | Points into ROM param array | References the Lua `{hash → closure}` table |
+
+## Runtime Modules Exercised
+
+| Module | Functions | Role |
+|--------|-----------|------|
+| `se_builtins_dict.lua` | `se_load_function_dict`, `s_expr_hash` | Build `{hash → closure}` dictionary |
+| `se_builtins_spawn.lua` | `se_exec_dict_dispatch`, `se_exec_dict_fn_ptr`, `se_exec_dict_internal` | Dictionary dispatch (all three methods) |
+| `se_builtins_stack.lua` | `se_frame_allocate`, `se_stack_frame_instance` | Stack frame lifecycle for dictionary functions |
+| `se_builtins_quads.lua` | `se_quad` (IADD, IMUL, BIT_SHL, BIT_AND, BIT_OR, BIT_NOT, MOVE) | Register arithmetic |
+| `se_builtins_flow_control.lua` | `se_function_interface`, `se_sequence_once`, `se_if_then_else`, `se_chain_flow` | Control flow |
+| `se_builtins_pred.lua` | `se_field_ne` | Conditional peripheral configuration |
+| `se_builtins_oneshot.lua` | `se_log`, `se_log_int`, `se_set_field`, `se_set_hash_field` | Logging, field writes |
+| `se_builtins_return_codes.lua` | `se_return_function_terminate`, `se_return_pipeline_terminate` | Termination |
+| `se_stack.lua` | `new_stack`, `push`, `pop`, `push_frame`, `pop_frame`, `get_local`, `set_local` | Stack data structure |
+| `se_runtime.lua` | `new_module`, `new_instance`, `tick_once`, `invoke_any` | Core engine |
+
+## Test Harness
+
+```lua
+local se_runtime = require("se_runtime")
+local se_stack   = require("se_stack")
+local module_data = require("function_dictionary_test_module")
+
+local fns = se_runtime.merge_fns(
+    require("se_builtins_flow_control"),
+    require("se_builtins_pred"),
+    require("se_builtins_oneshot"),
+    require("se_builtins_delays"),
+    require("se_builtins_dispatch"),
+    require("se_builtins_return_codes"),
+    require("se_builtins_stack"),
+    require("se_builtins_quads"),
+    require("se_builtins_dict"),
+    require("se_builtins_spawn"),
+    -- User-defined:
+    {
+        write_register = function(inst, node)
+            local stk = inst.stack
+            local addr  = se_stack.get_local(stk, 0) or 0
+            local value = se_stack.get_local(stk, 1) or 0
+            print(string.format("write_register: addr=0x%08X value=0x%08X", addr, value))
+        end,
+    }
+)
+
+local mod = se_runtime.new_module(module_data, fns)
+local inst = se_runtime.new_instance(mod, "function_dictionary")
+inst.stack = se_stack.new_stack(256)
+
+local result = se_runtime.tick_once(inst)
+
+-- Verify
+assert(inst.blackboard["config_state"] == 4,
+    "Expected config_state=4, got " .. tostring(inst.blackboard["config_state"]))
+assert(inst.blackboard["peripherals_ready"] == 1,
+    "Expected peripherals_ready=1, got " .. tostring(inst.blackboard["peripherals_ready"]))
+assert(inst.blackboard["error_code"] == 0,
+    "Expected error_code=0, got " .. tostring(inst.blackboard["error_code"]))
+
+print(string.format("Result: %s",
+    result == se_runtime.SE_FUNCTION_TERMINATE and "FUNCTION_TERMINATE" or tostring(result)))
+print("✅ PASSED")
+```
 
 ## Key Design Pattern
 
-This test illustrates a powerful pattern for embedded systems: **a minimal set of C hardware primitives composed through a dictionary of S-Expression functions**. The dictionary can be loaded once and called throughout the tree's lifetime. By moving register-level logic into the dictionary, the C codebase stays small (one `write_register` function), while the configuration logic remains flexible, readable, and modifiable without recompilation.
+This test illustrates a powerful pattern for embedded systems: **a minimal set of user-defined Lua primitives composed through a dictionary of S-Expression functions**. The dictionary can be loaded once and called throughout the tree's lifetime. By moving register-level logic into the dictionary, the user code stays small (one `write_register` function), while the configuration logic remains flexible, readable, and modifiable without changing user code.
+
+In the LuaJIT runtime, the dictionary is a live `{hash → closure}` table that can be inspected, extended, or replaced at runtime — offering more flexibility than the C version's ROM-resident param arrays while maintaining identical execution semantics.
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `function_dictionary_test_module.lua` | Pipeline-generated `module_data` Lua table |
+| `test_function_dictionary.lua` | LuaJIT test harness |
+| `se_builtins_dict.lua` | `se_load_function_dict`, `s_expr_hash` |
+| `se_builtins_spawn.lua` | `se_exec_dict_dispatch`, `se_exec_dict_fn_ptr`, `se_exec_dict_internal` |
+| `se_builtins_stack.lua` | `se_frame_allocate`, `se_stack_frame_instance` |
+| `se_builtins_quads.lua` | `se_quad` for register arithmetic |

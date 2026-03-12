@@ -1,20 +1,22 @@
-# S-Expression Engine (s_engine) — Outer Engine Design Document
+# S-Expression Engine (s_engine) — LuaJIT Outer Engine Design Document
 
 ## 1. Overview
 
-The outer engine provides the infrastructure layer that surrounds the inner engine's dispatch core. It handles everything that happens before the first tick and after the last: loading compiled binary modules from ROM or files, resolving function hashes to pointers, allocating tree instances, managing blackboards, and providing typed access to pointer slots, fields, and strings.
+The outer engine provides the infrastructure layer that surrounds the inner engine's dispatch core. It handles everything that happens before the first tick and after the last: loading pipeline-generated module data, resolving function names to Lua functions, allocating tree instances, managing blackboards, and providing typed access to pointer slots, fields, and strings.
 
 Where the inner engine is concerned with *executing* a program — dispatching functions, managing node state, propagating results — the outer engine is concerned with *preparing* a program for execution and providing the runtime services that executing functions depend on.
 
+In the LuaJIT runtime, the outer engine is dramatically simpler than its C counterpart. There is no binary loader, no allocator interface, no hash-based function binding, and no explicit memory management. Lua tables replace all of these concerns with dynamic typing, garbage collection, and string-keyed lookups.
+
 ### Outer Engine Responsibilities
 
-- **Module loading** — parse SEXB binary format from ROM, file, or compile-time definitions
-- **Function binding** — resolve FNV-1a hashes in the module definition to C function pointers
-- **Tree instance allocation** — create per-execution state with node arrays, pointer slots, and blackboards
-- **Blackboard management** — auto-allocate typed records, bind external memory, provide field access by hash or string
-- **Pointer slot management** — allocate, free, and track ownership of 64-bit storage slots
-- **Parameter navigation** — `s_expr_skip_param()` and brace helpers consumed by the inner engine
-- **String and constant access** — runtime access to interned string tables and ROM constant data
+- **Module creation** — wrap pipeline-generated `module_data` tables, build name→index maps, annotate tree nodes with DFS indices
+- **Function registration** — resolve function names (case-insensitive) to Lua function references
+- **Validation** — verify all required functions are registered before creating instances
+- **Tree instance allocation** — create per-execution state with node_states, pointer slots, blackboard, and event queue
+- **Blackboard management** — initialize typed records from field descriptors, provide string-keyed field access
+- **Pointer slot management** — allocate Lua tables for `pt_m_call` persistent storage
+- **Utility functions** — merge builtin tables, time source injection
 
 ---
 
@@ -23,465 +25,761 @@ Where the inner engine is concerned with *executing* a program — dispatching f
 ### 2.1 Component Map
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  s_engine_init.h / .c — High-Level Engine Handle      │
-│  (load, register builtins, validate, create trees)    │
-├──────────────────────────────────────────────────────┤
-│  s_engine_module.h / .c — Module + Tree Management    │
-│  ├─ Module init, function registration, validation    │
-│  ├─ Tree create / free / bind blackboard              │
-│  ├─ Blackboard field access (hash, string, offset)    │
-│  ├─ Pointer slot access (alloc, free, get, set)       │
-│  ├─ Node state access (flags, state, user_data)       │
-│  ├─ String table + pool access                        │
-│  └─ Parameter navigation (skip_param, brace helpers)  │
-├──────────────────────────────────────────────────────┤
-│  s_engine_loader.h / .c — Binary Format Parser        │
-│  (SEXB header, directory, zero-copy param arrays)     │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  se_runtime.lua — Full Outer + Inner Engine                  │
+│  ├─ new_module()      — Module creation + annotation         │
+│  ├─ register_fns()    — Function binding (name → fn)         │
+│  ├─ validate_module() — Verify all functions present          │
+│  ├─ new_instance()    — Tree instance factory                 │
+│  ├─ merge_fns()       — Combine builtin tables               │
+│  ├─ tick_once()       — Inner engine entry point              │
+│  ├─ invoke_main/oneshot/pred/any() — Dispatch core           │
+│  ├─ child_* helpers   — Child lifecycle management           │
+│  ├─ param_* helpers   — Parameter accessors                  │
+│  ├─ field_get/set     — Blackboard access                    │
+│  ├─ get/set_u64/f64   — Pointer slot access                  │
+│  ├─ get/set_user_u64/f64 — Extended node state               │
+│  └─ event_push/pop/count/clear — Event queue                 │
+├──────────────────────────────────────────────────────────────┤
+│  module_data (Lua table) — Pipeline Output                   │
+│  ├─ trees: { [name] = tree_def }                             │
+│  ├─ tree_order: { name1, name2, ... }                        │
+│  ├─ oneshot_funcs, main_funcs, pred_funcs: name lists         │
+│  ├─ records: { [name] = { fields = { ... } } }              │
+│  └─ constants: { ... }                                        │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+Unlike the C implementation which splits outer engine concerns across `s_engine_init.h`, `s_engine_module.h`, and `s_engine_loader.h`, the LuaJIT runtime consolidates everything into `se_runtime.lua`. The pipeline output (`module_data`) replaces the SEXB binary loader entirely.
 
 ### 2.2 Ownership Model
 
-The engine uses explicit ownership throughout:
+The LuaJIT runtime uses Lua's garbage collector for all memory management. There is no explicit ownership tracking, no free functions, and no allocator interface:
 
-| Resource | Owner | Freed By |
-|----------|-------|----------|
-| `s_engine_handle_t` | Caller | Caller (stack or heap) |
-| `s_expr_module_t` (function tables) | Engine handle | `s_engine_free()` |
-| `s_expr_loaded_module_t` (parsed binary) | Engine handle | `s_engine_free()` → `s_expr_unload_module()` |
-| `s_expr_tree_instance_t` | **Caller** | Caller via `s_expr_tree_free()` |
-| Blackboard (auto-allocated) | Tree instance | `s_expr_tree_free()` |
-| Blackboard (externally bound) | Caller | Caller (tree does not free) |
-| Pointer slot (engine-allocated) | Tree instance | `s_expr_tree_free()` or `s_expr_pointer_free()` |
-| Pointer slot (external) | Caller | Caller (tree does not free) |
+| Resource | Created By | Freed By |
+|----------|-----------|----------|
+| `mod` (module table) | `new_module()` | GC when unreferenced |
+| `inst` (tree instance) | `new_instance()` | GC when unreferenced |
+| `inst.node_states` | `new_instance()` | GC (part of inst) |
+| `inst.pointer_array` | `new_instance()` | GC (part of inst) |
+| `inst.blackboard` | `new_instance()` | GC (part of inst) |
+| `inst.event_queue` | `new_instance()` | GC (part of inst) |
+| `inst.stack` | Caller (optional) | GC when unreferenced |
+| `module_data` | Pipeline | GC when unreferenced |
 
-The critical distinction: **trees are created by the engine but owned by the caller**. The caller must free all trees before calling `s_engine_free()`.
+There is no equivalent of the C distinction between "auto-allocated" and "externally bound" blackboards. In Lua, the blackboard is always a table on `inst`, and external code can replace or augment it freely.
 
----
+### 2.3 Comparison with C Outer Engine
 
-## 3. Engine Handle
-
-### 3.1 `s_engine_handle_t`
-
-The top-level handle bundles module state and loading context:
-
-```c
-typedef struct {
-    s_expr_module_t           module;       // Initialized module
-    s_expr_loaded_module_t*   loaded;       // Binary loader result (NULL if from def)
-    s_expr_allocator_t        alloc;        // Allocator
-    void*                     user_ctx;     // External context passed to all trees
-    uint8_t                   error_code;   // Last error
-} s_engine_handle_t;
-```
-
-### 3.2 Initialization Paths
-
-Three ways to initialize the engine, all converging on `s_expr_module_init()`:
-
-| Function | Source | Binary Ownership |
-|----------|--------|-----------------|
-| `s_engine_init_from_file()` | File path | Engine owns (loaded into RAM, freed on unload) |
-| `s_engine_init_from_rom()` | ROM/flash pointer + size | Caller owns (must remain valid) |
-| `s_engine_init_from_def()` | Compile-time `s_expr_module_def_t*` | No binary (definition used directly) |
-
-### 3.3 High-Level Loaders
-
-`s_engine_load_from_file()` and `s_engine_load_from_rom()` are convenience functions that perform the full initialization sequence in one call:
-
-1. `memset` the handle
-2. Load binary (file or ROM)
-3. `s_engine_register_builtins()` — register built-in composites
-4. Call user registration functions (array of callbacks)
-5. Set debug callback if provided
-6. `s_engine_validate()` — verify all function hashes resolved
-
-These print diagnostic output via `printf` and return `false` on failure.
-
-### 3.4 Lifecycle
-
-```
-s_engine_init_from_*()          ← Load + parse module definition
-    │
-    ▼
-s_engine_register_builtins()    ← Bind built-in function tables
-s_engine_register_main/pred/oneshot()  ← Bind user function tables
-    │
-    ▼
-s_engine_validate()             ← Verify all hashes resolved
-    │
-    ▼
-s_engine_create_tree()          ← Create tree instances (caller owns)
-    │
-    ▼
-[... tick trees via inner engine ...]
-    │
-    ▼
-s_expr_tree_free()              ← Caller frees each tree
-    │
-    ▼
-s_engine_free()                 ← Free module + loaded binary
-```
+| C Outer Engine | LuaJIT Equivalent |
+|---------------|-------------------|
+| SEXB binary loader (`s_engine_loader.c`) | Not needed — `module_data` is a Lua table |
+| `s_engine_handle_t` | Not needed — `mod` table serves this role |
+| `s_expr_allocator_t` interface | Not needed — Lua GC handles all allocation |
+| Hash-based function binding (`{hash, fn_ptr}` tables) | Name-based binding (`register_fns` with case-insensitive matching) |
+| Static registries (file-scope globals, max 8 tables) | Per-module function arrays (no global state) |
+| `s_expr_skip_param()` / brace navigation | Not needed — children pre-separated by pipeline |
+| `s_expr_tree_free()` explicit cleanup | Not needed — GC handles cleanup |
+| `s_expr_blackboard_get_field_by_hash()` | `inst.blackboard[field_name]` (string key) |
+| `slot_flags[]` ownership tracking | Not needed — Lua tables have no ownership semantics |
+| `EXCEPTION()` fatal error handler | `assert()` / `error()` with Lua error propagation |
 
 ---
 
-## 4. Binary Loader (SEXB Format)
+## 3. Module Creation
 
-### 4.1 Binary Layout
+### 3.1 `new_module(module_data, initial_fns)`
 
-The SEXB format is a compact binary representation generated by the DSL. It is designed for zero-copy parameter access — param arrays are read directly from the binary without deserialization.
+The primary entry point for creating a runtime module. Takes the pipeline-generated `module_data` table and an optional initial function table:
 
-```
-┌─────────────────────────┐  0
-│  sexb_header_t (32 B)   │  Magic, version, counts, flags
-├─────────────────────────┤  32
-│  sexb_directory_t (32 B)│  8 section offsets
-├─────────────────────────┤  64
-│  Tree entries            │  24 bytes each
-├─────────────────────────┤
-│  Record entries          │  12 bytes each
-├─────────────────────────┤
-│  Field entries           │  12 bytes each
-├─────────────────────────┤
-│  String data             │  Length-prefixed, null-terminated, 4-byte aligned
-├─────────────────────────┤
-│  Constant entries        │  12 bytes each
-├─────────────────────────┤
-│  Constant data           │  Raw struct data
-├─────────────────────────┤
-│  Function hashes         │  uint32_t[] — oneshot, then main, then pred
-├─────────────────────────┤
-│  Parameter arrays        │  s_expr_param_t[] — zero-copy access
-└─────────────────────────┘
+```lua
+local mod = se_runtime.new_module(module_data, fns)
 ```
 
-### 4.2 Header
+This function performs several setup steps:
 
-```c
-typedef struct __attribute__((packed)) {
-    uint32_t magic;           // 0x42584553 "SEXB"
-    uint16_t version;         // 0x0502
-    uint16_t flags;           // SEXB_FLAG_64BIT, SEXB_FLAG_DEBUG
-    uint32_t name_hash;       // Module name (FNV-1a)
-    uint16_t tree_count;
-    uint16_t record_count;
-    uint16_t string_count;
-    uint16_t const_count;
-    uint16_t oneshot_count;
-    uint16_t main_count;
-    uint16_t pred_count;
-    uint16_t reserved;
-    uint32_t total_size;
-} sexb_header_t;  // 32 bytes
+**1. Build name→index maps**
+
+For each function type (oneshot, main, pred), create a lookup table mapping `NAME:upper()` to its 0-based index in the module's function list:
+
+```lua
+-- From module_data.main_funcs = {"se_sequence", "se_fork", "se_chain_flow"}
+-- Builds: mod._main_idx = { SE_SEQUENCE=0, SE_FORK=1, SE_CHAIN_FLOW=2 }
 ```
 
-Validation checks: magic, version, 64-bit flag match, total_size ≤ buffer size.
+**2. Annotate every tree**
 
-### 4.3 Zero-Copy Param Access
+DFS traversal of each tree's node hierarchy, assigning:
 
-Tree param arrays point directly into the binary data. This means:
+- `node.node_index` — 0-based pre-order DFS index (used to index `inst.node_states`)
+- `node.func_index` — 0-based index into the module's function array for this call_type
 
-- For ROM loading: the binary must remain valid for the lifetime of the module.
-- For file loading: the loaded buffer is owned by the `s_expr_loaded_module_t` and freed on unload.
-- Param arrays require no deserialization — `s_expr_param_t` is packed identically in the binary and in memory.
-
-### 4.4 String Parsing
-
-Strings in the binary are length-prefixed (uint16_t), null-terminated, and padded to 4-byte alignment. The string table stores `const char*` pointers directly into the binary data (zero-copy).
-
-### 4.5 Loaded Module Structure
-
-```c
-typedef struct {
-    s_expr_module_def_t def;           // Points into allocated arrays
-    s_expr_tree_def_t*    trees;       // Allocated
-    s_expr_record_desc_t* records;     // Allocated
-    s_expr_field_desc_t*  fields;      // Allocated (one block for all records)
-    s_expr_hash_t*        oneshot_hashes;  // Allocated
-    s_expr_hash_t*        main_hashes;     // Allocated
-    s_expr_hash_t*        pred_hashes;     // Allocated
-    const char**          string_table;    // Allocated (pointers into binary)
-    const void**          constants;       // Allocated (pointers into binary)
-    const uint8_t*        binary_data;     // ROM or owned buffer
-    size_t                binary_size;
-    bool                  binary_owned;    // If true, free on unload
-    s_expr_allocator_t    alloc;
-    uint8_t               error_code;
-} s_expr_loaded_module_t;
+```lua
+local function annotate_node(node, counter, module_data)
+    node.node_index = counter[1]
+    counter[1] = counter[1] + 1
+    -- Resolve func_index by searching the appropriate function list
+    -- (oneshot_funcs, main_funcs, or pred_funcs based on call_type)
+    for _, child in ipairs(node.children or {}) do
+        annotate_node(child, counter, module_data)
+    end
+end
 ```
 
-`s_expr_unload_module()` frees all allocated arrays and, if `binary_owned`, the binary data buffer itself.
+**3. Build tree hash index**
+
+For spawn lookups (`se_spawn_tree`, `se_spawn_and_tick_tree`), build a `mod.trees_by_hash` table mapping tree name hashes to tree names:
+
+```lua
+mod.trees_by_hash = {}
+for _, tree_name in ipairs(module_data.tree_order) do
+    local tree = module_data.trees[tree_name]
+    if tree.name_hash then
+        mod.trees_by_hash[tree.name_hash] = tree_name
+    end
+end
+```
+
+**4. Set default time function**
+
+```lua
+mod.get_time = os.clock   -- injectable; caller can replace
+```
+
+**5. Register initial functions**
+
+If `initial_fns` is provided, calls `register_fns(mod, initial_fns)`.
+
+### 3.2 Module Table Structure
+
+After `new_module()`, the `mod` table contains:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `module_data` | table | Pipeline output (trees, function lists, records, constants) |
+| `oneshot_fns` | table | `[0-based index]` → Lua function (nil = not yet registered) |
+| `main_fns` | table | `[0-based index]` → Lua function |
+| `pred_fns` | table | `[0-based index]` → Lua function |
+| `_oneshot_idx` | table | `NAME_UPPER` → 0-based index |
+| `_main_idx` | table | `NAME_UPPER` → 0-based index |
+| `_pred_idx` | table | `NAME_UPPER` → 0-based index |
+| `trees_by_hash` | table | `[hash_number]` → tree_name string |
+| `get_time` | function | Wall-clock time source (default `os.clock`) |
 
 ---
 
-## 5. Module System
+## 4. Function Registration
 
-### 5.1 Module Initialization
+### 4.1 `register_fns(mod, fns)`
 
-`s_expr_module_init()` takes a `s_expr_module_def_t*` (from binary loader or compile-time) and allocates zeroed function pointer arrays sized to the definition's counts:
+Adds function implementations to an existing module. Can be called multiple times before `validate_module()` / `new_instance()`:
 
-- `oneshot_fns[oneshot_count]`
-- `main_fns[main_count]`
-- `pred_fns[pred_count]`
-
-These arrays are indexed by `func_index` from the param's union. The DSL assigns indices at compile time; the runtime fills the arrays by matching hashes.
-
-### 5.2 Function Registration
-
-Registration uses a hash-based table lookup. Each `s_expr_fn_table_t` contains an array of `{hash, fn_ptr}` pairs. Registration iterates the module's required hashes and fills any NULL slots that match:
-
-```
-Module needs:  main_hashes[0] = 0xABCD1234  (sequence)
-               main_hashes[1] = 0xDEAD5678  (selector)
-
-Table offers:  { 0xABCD1234, &se_sequence }
-               { 0xDEAD5678, &se_selector }
-
-After registration:
-    main_fns[0] = &se_sequence
-    main_fns[1] = &se_selector
+```lua
+se_runtime.register_fns(mod, fns)
 ```
 
-Up to `MAX_REGISTRY_TABLES = 8` tables can be registered per function type. Tables are stored in static registries (module-level globals) used as a fallback during validation.
+The `fns` table maps function names to Lua functions:
 
-### 5.3 Validation
+```lua
+{
+    se_sequence = function(inst, node, event_id, event_data) ... end,
+    se_log      = function(inst, node) ... end,
+    se_field_eq = function(inst, node) ... end,
+}
+```
 
-`s_expr_module_validate()` checks every function slot. For any remaining NULL slots, it does a second-pass lookup through all registered tables. If any slot is still NULL after this, validation fails with the hash and index of the first missing function.
+Registration performs **case-insensitive matching** by uppercasing the function name and looking it up in the module's name→index maps:
+
+```lua
+for raw_name, fn in pairs(fns) do
+    local uname = raw_name:upper()
+    -- Check all three function types
+    local idx = mod._oneshot_idx[uname]
+    if idx ~= nil then mod.oneshot_fns[idx] = fn end
+    idx = mod._main_idx[uname]
+    if idx ~= nil then mod.main_fns[idx] = fn end
+    idx = mod._pred_idx[uname]
+    if idx ~= nil then mod.pred_fns[idx] = fn end
+end
+```
+
+**Unknown names are silently ignored.** A function table may contain entries for multiple modules; only names referenced by this module's function lists are registered. This allows a single merged table to be passed to multiple modules.
+
+### 4.2 `merge_fns(...)`
+
+Utility to combine multiple builtin tables into one for registration:
+
+```lua
+local fns = se_runtime.merge_fns(
+    require("se_builtins_flow_control"),
+    require("se_builtins_pred"),
+    require("se_builtins_oneshot"),
+    require("se_builtins_delays"),
+    require("se_builtins_dispatch"),
+    require("se_builtins_verify"),
+    require("se_builtins_spawn"),
+    require("se_builtins_dict"),
+    require("se_builtins_quads"),
+    require("se_builtins_return_codes"),
+    require("se_builtins_stack"),
+    { my_custom_fn = function(inst, node, eid, edata) ... end }
+)
+```
+
+Later tables overwrite earlier entries with the same key, so custom functions can override builtins.
+
+### 4.3 Comparison with C Registration
+
+| Aspect | C | LuaJIT |
+|--------|---|--------|
+| Key type | FNV-1a hash (`uint32_t`) | Function name string (uppercased) |
+| Table format | `{hash, fn_ptr}` pair arrays | `{name = fn}` Lua tables |
+| Lookup | Linear scan of hash arrays | Direct table key lookup |
+| Registry scope | Static file-scope globals (one module at a time) | Per-module tables (multiple modules safe) |
+| Max tables | 8 per function type | Unlimited (merged into one table) |
+| Unknown entries | Silently skipped | Silently skipped |
+
+The name-based approach eliminates the possibility of hash collisions and makes debugging straightforward — error messages show function names rather than hex hashes.
+
+---
+
+## 5. Validation
+
+### 5.1 `validate_module(mod)`
+
+Checks that every function required by the module has been registered. Returns two values:
+
+```lua
+local ok, missing = se_runtime.validate_module(mod)
+-- ok:      boolean — true if all functions present
+-- missing: table   — list of {name=, kind=} for every gap
+```
+
+The check iterates each function list and verifies the corresponding slot in the function array is non-nil:
+
+```lua
+for i, name in ipairs(md.oneshot_funcs or {}) do
+    if not mod.oneshot_fns[i-1] then
+        missing[#missing+1] = { name=name, kind="oneshot" }
+    end
+end
+-- (same for main_funcs, pred_funcs)
+```
+
+Unlike the C version which does a secondary lookup through static registries during validation, the LuaJIT version has no fallback — all functions must be explicitly registered via `register_fns()` before validation.
+
+### 5.2 Automatic Validation in `new_instance()`
+
+`new_instance()` calls `validate_module()` internally and errors with the complete missing-function list if any gaps exist. This means the caller sees every unregistered function at once rather than hitting them one at a time during execution:
+
+```lua
+-- Error output example:
+-- new_instance: unregistered functions:
+--   [main] se_custom_composite
+--   [oneshot] se_custom_init
+--   [pred] se_custom_check
+```
 
 ---
 
 ## 6. Tree Instance Lifecycle
 
-### 6.1 Creation
+### 6.1 Creation: `new_instance(mod, tree_name)`
 
-`s_expr_tree_create()` allocates all per-tree runtime state:
+Allocates all per-tree runtime state in a single `inst` table:
 
-1. **Instance struct** — `s_expr_tree_instance_t`
-2. **Node states** — `node_states[func_node_count]`, all set to ACTIVE
-3. **Pointer array** — `pointer_array[pointer_count]`, zeroed
-4. **Slot flags** — `slot_flags[pointer_count]`, parallel ownership tracking
-5. **Blackboard** — auto-allocated if tree definition references a record hash
+```lua
+local inst = se_runtime.new_instance(mod, "zone_init")
+```
 
-If the tree definition has a `defaults_index` (pointing to a ROM constant), the blackboard is initialized by `memcpy` from the constant data. Otherwise it is zeroed.
+The function performs these steps:
 
-### 6.2 Blackboard Binding
+**1. Validate module** — calls `validate_module(mod)`, errors if any functions missing.
 
-Two modes:
+**2. Look up tree definition** — `module_data.trees[tree_name]`, asserts if not found.
 
-- **Auto-allocated** (`blackboard_owned = true`): Created during `s_expr_tree_create()`, freed by `s_expr_tree_free()`.
-- **Externally bound** (`blackboard_owned = false`): Set via `s_expr_tree_bind_blackboard()`. The tree does not free it. Replaces any existing auto-allocated blackboard (which is freed first).
+**3. Create instance table:**
+
+```lua
+local inst = {
+    mod                = mod,          -- shared module reference
+    tree               = tree,         -- tree definition from module_data
+    node_states        = {},           -- [0..N-1] → state tables
+    node_count         = tree.node_count,
+    pointer_array      = {},           -- [0..P-1] → slot tables
+    pointer_count      = tree.pointer_count or 0,
+    blackboard         = {},           -- [field_name] → value
+    current_node_index = 0,
+    current_event_id   = 0,
+    current_event_data = nil,
+    in_pointer_call    = false,
+    pointer_base       = 0,
+    stack              = nil,          -- optional, set by caller
+    tick_type          = 0,
+    user_ctx           = nil,          -- application-defined
+}
+```
+
+**4. Initialize node states:**
+
+Every node gets an active state table:
+
+```lua
+for i = 0, tree.node_count - 1 do
+    inst.node_states[i] = { flags = 0x01, state = 0, user_data = 0 }
+    -- flags = FLAG_ACTIVE (0x01)
+end
+```
+
+**5. Initialize pointer array:**
+
+Each slot is a table mimicking the C `s_expr_slot_t` union:
+
+```lua
+for i = 0, inst.pointer_count - 1 do
+    inst.pointer_array[i] = { ptr = nil, u64 = 0, i64 = 0, f64 = 0.0 }
+end
+```
+
+**6. Initialize blackboard from record descriptor:**
+
+If the tree has a `record_name`, look up the record definition and populate the blackboard with field defaults:
+
+```lua
+if tree.record_name then
+    local rec = module_data.records and module_data.records[tree.record_name]
+    if rec and rec.fields then
+        for field_name, field_def in pairs(rec.fields) do
+            local dv = field_def.default
+            if type(dv) == "string" then dv = tonumber(dv) or dv end
+            inst.blackboard[field_name] = (dv ~= nil) and dv or 0
+        end
+    end
+end
+```
+
+**7. Initialize event queue:**
+
+```lua
+inst.event_queue       = {}
+inst.event_queue_head  = 0
+inst.event_queue_count = 0
+```
+
+### 6.2 Optional Stack
+
+The caller can attach a parameter stack after instance creation:
+
+```lua
+local se_stack = require("se_stack")
+inst.stack = se_stack.new_stack(256)  -- capacity in entries
+```
+
+This is required for trees that use `se_frame_allocate`, `se_stack_frame_instance`, `se_quad` with stack operands, or `se_push_stack`.
 
 ### 6.3 User Context
 
-`s_engine_create_tree()` automatically propagates `handle->user_ctx` to the tree via `s_expr_tree_set_user_ctx()`. Main functions retrieve this at runtime via `s_expr_tree_get_user_ctx()`, providing access to the external system handle (e.g., `cfl_runtime_handle_t*`).
+The caller can set `inst.user_ctx` to any value after creation. Unlike the C version where user context is propagated automatically from the engine handle, in LuaJIT the caller sets it directly:
 
-### 6.4 Cleanup
+```lua
+inst.user_ctx = my_application_state
+```
 
-`s_expr_tree_free()` frees in order:
-1. Engine-allocated pointer slot contents (where `slot_flags[i] & ALLOCATED`)
-2. Parameter stack (if created)
-3. Slot flags array
-4. Pointer array
-5. Node states
-6. Blackboard (if owned)
-7. Instance struct itself
+Builtin functions can access this as `inst.user_ctx` during execution.
+
+### 6.4 Time Source
+
+Time is accessed via `inst.mod.get_time()`. The default is `os.clock`, but the caller can replace it on the module:
+
+```lua
+mod.get_time = function() return my_monotonic_clock() end
+```
+
+All instances sharing the module use the same time source. Builtins that depend on time (`se_time_delay`, `se_wait_timeout`, `se_verify_and_check_elapsed_time`) call `inst.mod.get_time()` rather than accessing `os.clock` directly.
+
+### 6.5 Cleanup
+
+No explicit cleanup is needed. When `inst` goes out of scope and has no remaining references, the garbage collector reclaims all associated tables (node_states, pointer_array, blackboard, event_queue, stack).
+
+If a tree spawns child instances (`se_spawn_tree`, `se_spawn_and_tick_tree`), those children are stored in the parent's blackboard or pointer slots. When the parent is collected, the children become unreferenced and are also collected — unless the caller holds separate references.
 
 ---
 
 ## 7. Blackboard Access
 
-The blackboard provides typed record access for tree functions and external code. Three access patterns are supported:
+The blackboard is a plain Lua table with string keys. All access is by field name — there is no byte offset or hash-based access pattern.
 
-### 7.1 By Offset (Fastest — Compile-Time)
+### 7.1 By Field Name (Primary Pattern)
 
-Used by inner engine functions via FIELD params. The DSL resolves field names to offsets at compile time:
+Used by all builtins via the `field_get` / `field_set` helpers and by external code directly:
 
-```c
-#define S_EXPR_GET_FIELD(inst, param, type) \
-    ((type*)((uint8_t*)(inst)->blackboard + (param)->field_offset))
+```lua
+-- Inside builtins (via param accessor):
+local v = field_get(inst, node, 1)        -- reads inst.blackboard[node.params[1].value]
+field_set(inst, node, 1, 42)              -- writes inst.blackboard[node.params[1].value] = 42
+
+-- External code:
+inst.blackboard["temperature"] = 25.5
+local t = inst.blackboard["temperature"]
 ```
 
-Also available as `s_expr_blackboard_get_field_ptr(inst, field_offset)`.
+### 7.2 Type Coercion
 
-### 7.2 By Hash (Runtime Lookup)
+The `field_get` accessor coerces string values to numbers automatically. This handles cases where the blackboard was initialized from JSON (which may produce strings for numeric values):
 
-For external code that knows field hashes:
-
-```c
-void* s_expr_blackboard_get_field_by_hash(inst, field_hash);
-bool  s_expr_blackboard_set_int(inst, field_hash, value);
-int32_t s_expr_blackboard_get_int(inst, field_hash, default_value);
+```lua
+local function field_get(inst, node, i)
+    local v = inst.blackboard[node.params[i].value]
+    if type(v) == "string" then
+        local n = tonumber(v)
+        if n ~= nil then return n end
+    end
+    return v
+end
 ```
 
-Performs a linear search through the record's field descriptors.
+### 7.3 Record Initialization
 
-### 7.3 By String (Convenience)
+When a tree references a named record, `new_instance()` populates the blackboard from the record's field definitions:
 
-For external code using field names directly. Computes FNV-1a hash internally, then delegates to the hash-based API:
+```lua
+-- Record definition in module_data:
+records = {
+    zone_state = {
+        fields = {
+            config_ptr  = { type = "ptr64",  default = nil },
+            zone_id     = { type = "uint32", default = 0 },
+            timeout_ms  = { type = "uint32", default = 5000 },
+            threshold   = { type = "float",  default = 75.5 },
+            enabled     = { type = "uint32", default = 1 },
+        }
+    }
+}
 
-```c
-void* s_expr_blackboard_get_field_by_string(inst, "temperature");
-bool  s_expr_blackboard_set_float_by_string(inst, "pressure", 101.3f);
+-- After new_instance():
+-- inst.blackboard = { config_ptr=0, zone_id=0, timeout_ms=5000, threshold=75.5, enabled=1 }
 ```
+
+### 7.4 Comparison with C Blackboard Access
+
+| C Pattern | LuaJIT Equivalent |
+|-----------|-------------------|
+| `S_EXPR_GET_FIELD(inst, param, int32_t)` (byte offset) | `inst.blackboard[field_name]` |
+| `s_expr_blackboard_get_field_by_hash(inst, hash)` | `inst.blackboard[field_name]` |
+| `s_expr_blackboard_get_field_by_string(inst, "name")` | `inst.blackboard["name"]` |
+| `s_expr_blackboard_set_int(inst, hash, value)` | `inst.blackboard[field_name] = value` |
+| `memcpy` from ROM defaults | `for field_name, def in pairs(fields) do bb[name] = def.default end` |
+
+All three C access patterns (offset, hash, string) collapse into a single string-keyed table lookup in Lua.
 
 ---
 
 ## 8. Pointer Slot Management
 
-Pointer slots (`s_expr_slot_t`) provide 64-bit persistent storage for `pt_m_call` functions. The outer engine manages their lifecycle and ownership.
+Pointer slots provide persistent storage for `pt_m_call` functions. Each slot is a Lua table with typed fields:
 
-### 8.1 Ownership Flags
+```lua
+inst.pointer_array[i] = { ptr = nil, u64 = 0, i64 = 0, f64 = 0.0 }
+```
 
-Each slot has a parallel `slot_flags` byte:
+### 8.1 Access from pt_m_call Functions
 
-| Flag | Value | Meaning |
-|------|-------|---------|
-| `NONE` | 0x00 | Empty slot |
-| `ALLOCATED` | 0x01 | Engine allocated via `s_expr_pointer_alloc()` — tree frees it |
-| `EXTERNAL` | 0x02 | User provided via `s_expr_set_ptr()` — tree does not free |
+During `pt_m_call` dispatch, the runtime saves/restores `inst.pointer_base` and `inst.in_pointer_call`:
 
-### 8.2 Access Patterns
+```lua
+-- In invoke_main, for pt_m_call nodes:
+inst.in_pointer_call = true
+inst.pointer_base    = node.pointer_index or 0
+```
 
-**From pt_m_call functions** (inner engine context, `in_pointer_call == true`):
+Builtins then access their slot via the runtime accessors:
 
-- `s_expr_get_pointer_slot(inst, param_index)` — raw slot access at `pointer_base + param_index`
-- `s_expr_pointer_alloc(inst, param_index, size)` — allocate and store pointer
-- `s_expr_pointer_free(inst, param_index)` — free allocated pointer
-- `s_expr_get/set_u64/i64/f64()` — typed access to slot at `pointer_base`
+```lua
+-- Read/write u64:
+local v = se_runtime.get_u64(inst, node)   -- inst.pointer_array[inst.pointer_base].u64
+se_runtime.set_u64(inst, node, v)
 
-**From external code** (direct index, no pointer call context required):
+-- Read/write f64:
+local v = se_runtime.get_f64(inst, node)   -- inst.pointer_array[inst.pointer_base].f64
+se_runtime.set_f64(inst, node, v)
 
-- `s_expr_tree_get_slot(inst, index)` — raw slot access by absolute index
-- `s_expr_tree_slot_alloc(inst, index, size)` — allocate at absolute index
-- `s_expr_tree_slot_set_ptr(inst, index, ptr)` — set external pointer
-- `s_expr_tree_slot_free(inst, index)` — free allocated pointer
+-- Read/write ptr (used by spawn builtins for child tree instances):
+local child = inst.pointer_array[inst.pointer_base].ptr
+inst.pointer_array[inst.pointer_base].ptr = child_instance
+```
 
-The external API is used for pre-initializing slots before ticking (e.g., binding driver handles, pre-allocated buffers).
+### 8.2 Extended Node State
+
+For builtins that need per-node persistent storage but don't use pointer slots (m_call, not pt_m_call), the runtime provides extra fields on the node_state table:
+
+```lua
+-- user_u64 / user_f64: stored directly on node_states[node.node_index]
+se_runtime.get_user_u64(inst, node)    -- inst.node_states[node.node_index].user_u64
+se_runtime.set_user_u64(inst, node, v)
+se_runtime.get_user_f64(inst, node)    -- inst.node_states[node.node_index].user_f64
+se_runtime.set_user_f64(inst, node, v)
+
+-- state / flags: standard node_state fields
+se_runtime.get_state(inst, node)       -- inst.node_states[node.node_index].state
+se_runtime.set_state(inst, node, v)
+```
+
+This is possible because Lua tables are extensible — adding `user_u64` or `user_f64` fields to a node_state table requires no pre-allocation.
+
+### 8.3 Comparison with C Pointer Slot Management
+
+| C Pattern | LuaJIT Equivalent |
+|-----------|-------------------|
+| `s_expr_slot_t` (8-byte union: ptr/u64/i64/f64) | Lua table `{ptr, u64, i64, f64}` |
+| `slot_flags[]` (NONE/ALLOCATED/EXTERNAL) | Not needed — no ownership tracking |
+| `s_expr_pointer_alloc(inst, idx, size)` | Direct assignment: `slot.ptr = value` |
+| `s_expr_pointer_free(inst, idx)` | Direct assignment: `slot.ptr = nil` |
+| `s_expr_get_pointer_slot(inst, idx)` | `inst.pointer_array[inst.pointer_base]` |
+| `s_expr_tree_slot_set_ptr(inst, idx, ptr)` | `inst.pointer_array[idx].ptr = value` |
 
 ---
 
 ## 9. Parameter Navigation
 
-The outer engine provides the parameter skip function used by the inner engine:
+The LuaJIT runtime does **not** need parameter navigation. The pipeline pre-separates callable children into `node.children[]` and non-callable parameters into `node.params[]`, eliminating the need for:
 
-```c
-static inline uint16_t s_expr_skip_param(const s_expr_param_t* params, uint16_t idx) {
-    uint8_t opcode = params[idx].type & S_EXPR_OPCODE_MASK;
-    if (opcode == S_EXPR_PARAM_OPEN || S_EXPR_PARAM_OPEN_CALL || ... ) {
-        return idx + params[idx].brace_idx + 1;  // skip entire structure
-    }
-    return idx + 1;  // skip single atom
+- `s_expr_skip_param()` — no flat param arrays to skip over
+- `brace_idx` — no nested structures to jump past
+- `s_expr_count_params()` — just use `#node.params` or `#node.children`
+- `s_expr_find_param()` — direct index into `node.params[i]`
+- `s_expr_iterate_params()` — standard `for i = 1, #params do`
+- `s_expr_brace_contents()` — children are already separated
+- `s_expr_call_func()` / `s_expr_call_args()` — function name and children are node fields
+
+This is the single largest simplification from C to LuaJIT. The entire parameter navigation subsystem — which is the "outer engine" core in C — is replaced by the pipeline doing the work at compile time.
+
+### 9.1 What the Pipeline Provides
+
+Each node in the tree has its callable and non-callable content pre-separated:
+
+```lua
+{
+    func_name  = "se_sequence",        -- function identity
+    call_type  = "m_call",             -- dispatch type
+    func_index = 3,                    -- index into mod.main_fns
+    node_index = 0,                    -- DFS pre-order index
+
+    params = {                          -- non-callable parameters only
+        { type = "uint", value = 42 },
+        { type = "field_ref", value = "timeout" },
+        { type = "str_hash", value = { hash = 12345, str = "key" } },
+    },
+
+    children = {                        -- callable children only
+        { func_name = "se_log", call_type = "o_call", ... },
+        { func_name = "se_fork", call_type = "m_call", ... },
+    },
 }
 ```
 
-This is the foundation for `s_expr_count_params()`, `s_expr_find_param()`, and `s_expr_iterate_params()` in the inner engine.
-
-Additional navigation helpers:
-
-- `s_expr_brace_contents(params, open_idx, &count)` — get contents between open/close braces
-- `s_expr_call_func(params, open_idx)` — get function param from OPEN_CALL
-- `s_expr_call_args(params, open_idx, &count)` — get argument span from OPEN_CALL
+Builtins access params by 1-based index (`node.params[1]`) and children by 0-based index via the `child_invoke(inst, node, idx, ...)` helper (which internally does `node.children[idx + 1]`).
 
 ---
 
-## 10. Allocator Interface
+## 10. DFS Annotation
 
-All allocation flows through the `s_expr_allocator_t` provided at initialization:
+The `annotate_node` function performs a depth-first pre-order traversal at module creation time, assigning two critical indices to each node:
 
-```c
-typedef struct {
-    s_expr_malloc_fn_t   malloc;     // void* (*)(void* ctx, size_t size)
-    s_expr_free_fn_t     free;       // void  (*)(void* ctx, void* ptr)
-    void*                ctx;        // Passed to malloc/free
-    s_expr_time_fn_t     get_time;   // double (*)(void* ctx) — monotonic seconds
-} s_expr_allocator_t;
-```
+### 10.1 `node_index` — State Array Index
 
-The `ctx` pointer allows the allocator to use arena allocators, tracked heaps, or any custom memory manager. The `get_time` function enables time-based operations (timers, timeouts) without platform coupling.
+A 0-based sequential counter assigned in DFS pre-order. Used to index `inst.node_states[node_index]` for per-node runtime state (flags, state, user_data).
 
-Time access is available at both engine and tree level:
+### 10.2 `func_index` — Function Array Index
 
-- `s_engine_get_time(handle)` — from engine handle
-- `s_expr_tree_get_time(inst)` — from tree instance during callbacks
+Resolved by searching the appropriate function name list (`oneshot_funcs`, `main_funcs`, or `pred_funcs`) for the node's `func_name`. Used to index `mod.oneshot_fns[func_index]`, `mod.main_fns[func_index]`, or `mod.pred_fns[func_index]` during dispatch.
+
+The annotation asserts if a function name is not found in the expected list — this catches pipeline errors early, before any ticking occurs.
+
+### 10.3 Tree Node Count
+
+The pipeline provides `tree.node_count` which must match the total number of nodes in the DFS traversal. This is used by `new_instance()` to pre-allocate the `node_states` array.
 
 ---
 
-## 11. Static Registries
+## 11. Module Data Format
 
-The module system uses static (file-scope) registry arrays for function tables:
+The `module_data` table is the pipeline's output — the LuaJIT equivalent of the C SEXB binary. It contains everything needed to create modules and instances:
 
-```c
-#define MAX_REGISTRY_TABLES 8
+### 11.1 Structure
 
-static s_expr_registry_t oneshot_registry;
-static s_expr_registry_t main_registry;
-static s_expr_registry_t pred_registry;
+```lua
+module_data = {
+    -- Tree definitions
+    trees = {
+        zone_init = {
+            name       = "zone_init",
+            name_hash  = 0xABCD1234,      -- FNV-1a for spawn lookups
+            node_count = 15,               -- total nodes in DFS traversal
+            pointer_count = 3,             -- pt_m_call slots needed
+            record_name = "zone_state",    -- blackboard record reference
+            nodes = { ... },               -- array of root nodes
+        },
+        -- ... more trees
+    },
+
+    -- Deterministic tree ordering (Lua tables don't guarantee iteration order)
+    tree_order = { "zone_init", "zone_tick", "zone_cleanup" },
+
+    -- Function name lists (order determines func_index)
+    oneshot_funcs = { "se_log", "se_set_field", "se_load_dictionary", ... },
+    main_funcs    = { "se_sequence", "se_fork", "se_chain_flow", ... },
+    pred_funcs    = { "se_field_eq", "se_pred_and", "se_true", ... },
+
+    -- Record definitions for blackboard initialization
+    records = {
+        zone_state = {
+            fields = {
+                config_ptr  = { type = "ptr64",  default = nil, offset = 0 },
+                zone_id     = { type = "uint32", default = 0,   offset = 8 },
+                timeout_ms  = { type = "uint32", default = 5000, offset = 12 },
+                threshold   = { type = "float",  default = 75.5, offset = 16 },
+            }
+        }
+    },
+
+    -- Optional constants table
+    constants = { ... },
+}
 ```
 
-These are zeroed during `s_expr_module_init()` and populated by `s_expr_module_register_*()` calls. They serve as a secondary lookup during validation — if a function slot is still NULL after direct registration, the validator searches all registered tables as a fallback.
+### 11.2 Comparison with SEXB Binary
 
-**Implication:** Only one module can be active at a time per process, since the registries are global. This is appropriate for embedded systems where a single module runs per MCU. For multi-module server deployments, the registries would need to become per-module.
+| SEXB Section | module_data Equivalent |
+|-------------|----------------------|
+| `sexb_header_t` (32 bytes) | Implicit in table structure |
+| `sexb_directory_t` (8 offsets) | Not needed — direct table access |
+| Tree entries (24 bytes each) | `module_data.trees[name]` tables |
+| Record entries (12 bytes each) | `module_data.records[name]` tables |
+| Field entries (12 bytes each) | `records[name].fields[field_name]` tables |
+| String data (aligned, null-terminated) | Native Lua strings |
+| Constant entries + data | `module_data.constants` table |
+| Function hashes (uint32_t[]) | `module_data.oneshot_funcs` etc. (name lists) |
+| Parameter arrays (s_expr_param_t[]) | `node.params[]` Lua table arrays |
+
+The LuaJIT format trades the C format's zero-copy ROM efficiency for human-readability, dynamic typing, and simpler tooling. There is no binary parsing step — the pipeline outputs a Lua table that is directly usable.
 
 ---
 
 ## 12. Error Handling
 
-### 12.1 Error Codes
+### 12.1 Error Strategy
 
-Two error code namespaces:
+The LuaJIT outer engine uses `assert` and `error` for all error conditions. Unlike the C version which uses a mixed strategy (EXCEPTION for fatal errors, return codes for operational failures), the LuaJIT version raises Lua errors uniformly. The caller can wrap calls in `pcall` or `xpcall` for recovery.
 
-**Module errors** (`S_EXPR_ERR_*`): Function resolution failures, allocation failures, invalid state.
+### 12.2 Annotation Errors
 
-**Loader errors** (`SEXB_ERR_*`): Binary format issues — bad magic, version mismatch, 64-bit mismatch, corrupt data, file I/O failures.
-
-### 12.2 Error Reporting
-
-The module stores the first error encountered during validation:
-
-```c
-struct s_expr_module {
-    uint8_t       error_code;   // S_EXPR_ERR_*
-    uint16_t      error_index;  // Index of failing function
-    s_expr_hash_t error_hash;   // Hash of missing function
-};
+```lua
+-- Unknown function name during DFS annotation:
+assert(node.func_index ~= nil,
+    "annotate: unknown main function: " .. tostring(fname))
 ```
 
-`s_engine_error_str()` returns a human-readable string by checking both the handle's error code and the module's error code.
+These fire at module creation time, catching pipeline errors before any instances are created.
 
-### 12.3 EXCEPTION vs Return Codes
+### 12.3 Validation Errors
 
-The outer engine uses a mixed strategy:
+```lua
+-- new_instance() with unregistered functions:
+error("new_instance: unregistered functions:\n" ..
+      "  [main] se_custom_composite\n" ..
+      "  [oneshot] se_custom_init")
+```
 
-- **Precondition failures** (NULL handle, NULL allocator) → `EXCEPTION()` (fatal) + return error code
-- **Operational failures** (file not found, allocation failed) → `EXCEPTION()` + return error code
-- **Resolution failures** (missing function hash) → `printf` diagnostic + return error code
+The full list of missing functions is reported at once, not one at a time.
 
-The `EXCEPTION()` macro is fatal on embedded targets (watchdog reset). On server/test targets, the return code allows the caller to handle the error. This dual behavior means the outer engine is slightly more forgiving than the inner engine — initialization can fail gracefully, but once execution begins, all errors are fatal.
+### 12.4 Runtime Errors
+
+```lua
+-- Missing function during dispatch:
+assert(fn, "invoke_main: no function for: " .. tostring(node.func_name))
+
+-- Bad child index:
+assert(child, "child_invoke: bad index " .. idx)
+
+-- Missing tree for spawn:
+assert(name, string.format("spawn: unknown tree hash 0x%08x", hash))
+```
+
+These fire during execution and propagate up the Lua call stack. The caller's `pcall` wrapper determines whether the error is recoverable.
+
+### 12.3 Comparison with C Error Handling
+
+| C Pattern | LuaJIT Equivalent |
+|-----------|-------------------|
+| `S_EXPR_ERR_*` error codes | Lua error strings |
+| `SEXB_ERR_*` loader errors | Not applicable (no binary loader) |
+| `module.error_code/hash/index` | Error message includes all details |
+| `EXCEPTION()` → watchdog reset | `error()` → Lua error propagation |
+| `s_engine_error_str()` | Error message is the string itself |
+| `printf` diagnostics | `print()` or error message content |
 
 ---
 
-## 13. Memory Budget (Outer Engine Overhead)
+## 13. Complete Initialization Example
 
-For a module with 10 trees, 20 functions (8 oneshot, 10 main, 2 pred), 5 records, 16 strings, 4 constants:
+```lua
+local se_runtime = require("se_runtime")
 
-| Component | Size | Notes |
-|-----------|------|-------|
-| Module struct | ~80 bytes | Function pointer arrays + metadata |
-| Oneshot fn table | 32 bytes | 8 × 4-byte pointers (32-bit) |
-| Main fn table | 40 bytes | 10 × 4-byte pointers |
-| Pred fn table | 8 bytes | 2 × 4-byte pointers |
-| Loaded module struct | ~80 bytes | Pointers to allocated arrays |
-| Tree def array | 200 bytes | 10 × 20 bytes |
-| Record descriptors | 60 bytes | 5 × 12 bytes |
-| String table | 64 bytes | 16 × 4-byte pointers |
-| **Total module overhead** | **~564 bytes** | Excludes binary data in ROM |
+-- 1. Merge all builtin modules
+local fns = se_runtime.merge_fns(
+    require("se_builtins_flow_control"),
+    require("se_builtins_pred"),
+    require("se_builtins_oneshot"),
+    require("se_builtins_delays"),
+    require("se_builtins_dispatch"),
+    require("se_builtins_verify"),
+    require("se_builtins_spawn"),
+    require("se_builtins_dict"),
+    require("se_builtins_quads"),
+    require("se_builtins_return_codes"),
+    require("se_builtins_stack"),
+    -- Custom application functions:
+    { my_sensor_read = function(inst, node) ... end }
+)
 
-Per-tree overhead is documented in the inner engine design document (~844 bytes for a typical 20-node tree).
+-- 2. Create module (annotates trees, builds maps, registers functions)
+local mod = se_runtime.new_module(module_data, fns)
+
+-- 3. Optionally inject custom time source
+mod.get_time = function() return my_monotonic_clock() end
+
+-- 4. Create tree instance (validates module, allocates state)
+local inst = se_runtime.new_instance(mod, "zone_init")
+
+-- 5. Optionally attach stack
+inst.stack = require("se_stack").new_stack(256)
+
+-- 6. Optionally set user context
+inst.user_ctx = my_application_handle
+
+-- 7. Tick loop (caller-owned)
+local SE_EVENT_TICK = se_runtime.SE_EVENT_TICK
+while true do
+    local result = se_runtime.tick_once(inst, SE_EVENT_TICK, nil)
+
+    -- Drain event queue
+    while se_runtime.event_count(inst) > 0 do
+        local tt, eid, edata = se_runtime.event_pop(inst)
+        result = se_runtime.tick_once(inst, eid, edata)
+    end
+
+    -- Check for completion
+    if result == se_runtime.SE_FUNCTION_TERMINATE then break end
+
+    -- Application-specific timing
+    sleep(0.010)  -- 10ms tick period
+end
+```
 
 ---
 
 ## 14. Summary
 
-The outer engine transforms a compiled SEXB binary into a live runtime environment ready for the inner engine to tick. It provides the module system that binds function hashes to pointers, the tree factory that allocates per-execution state, and the blackboard and slot management that executing functions depend on. Its ownership model is explicit — the engine owns module state, the caller owns trees — and its allocator interface allows deployment across bare-metal MCUs with arena allocators through to server processes with tracked heaps.
+The LuaJIT outer engine collapses the C outer engine's binary loader, allocator interface, hash-based function binding, explicit ownership tracking, and parameter navigation into a handful of Lua table operations. Module creation annotates a pipeline-generated tree structure and builds name→index maps. Function registration matches names case-insensitively. Validation reports all missing functions at once. Instance creation allocates node states, pointer slots, and blackboard fields as plain Lua tables. The garbage collector handles all cleanup.
 
+The single largest simplification is the elimination of parameter navigation. Because the pipeline pre-separates callable children from non-callable parameters, the entire `s_expr_skip_param` / `brace_idx` / `s_expr_count_params` subsystem — which is the C outer engine's core contribution — is replaced by direct array indexing on `node.params` and `node.children`.

@@ -1,392 +1,600 @@
-# User-Defined External Functions
+# User-Defined External Functions — LuaJIT Runtime
 
 ## Overview
 
-The S-Expression DSL supports **external functions** that are not built into the system. When the DSL encounters a function call that isn't a registered builtin, it treats it as an external function and generates the necessary scaffolding for user implementation.
+The S-Expression engine supports **user-defined functions** that extend the engine with application-specific functionality. In the LuaJIT runtime, external functions are plain Lua functions that follow the same signatures as builtins and are registered through the same `merge_fns` / `register_fns` mechanism. No code generation, header files, or registration tables are needed — just write a Lua function and include it in the function table.
 
-This allows extending the engine with application-specific functionality like:
-- Hardware control
+This allows extending the engine with:
+- Hardware control (via FFI or Lua bindings)
 - Custom I/O operations
 - Application-specific logic
-- Integration with external systems
+- Integration with external systems (NATS, PostgreSQL, MQTT)
+- Custom composite control structures
 
 ## How It Works
 
-### 1. Declare in Lua DSL
+### 1. Declare in DSL / Pipeline
 
-Use `o_call` (oneshot), `m_call` (main), or `p_call` (predicate) with any function name:
+The pipeline includes the function name in the module's function lists (`oneshot_funcs`, `main_funcs`, or `pred_funcs`) and references it from tree nodes:
 
 ```lua
--- Custom oneshot functions
-local o0 = o_call("CFL_DISABLE_CHILDREN")
-end_call(o0)
+-- In module_data (pipeline output):
+M.oneshot_funcs = { "SE_LOG", "SE_SET_FIELD", "CFL_DISABLE_CHILDREN", "CFL_ENABLE_CHILD" }
+--                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--                                             user-defined functions alongside builtins
 
-local o1 = o_call("CFL_ENABLE_CHILD")
-    int(2)  -- Parameter: child index
-end_call(o1)
+-- In tree node:
+{ func_name = "CFL_DISABLE_CHILDREN", call_type = "o_call",
+  params = {}, children = {} }
+
+{ func_name = "CFL_ENABLE_CHILD", call_type = "o_call",
+  params = { {type="int", value=2} },
+  children = {} }
 ```
 
-### 2. DSL Generates Scaffolding
+### 2. Implement as Lua Functions
 
-The DSL compiler generates three files:
+Write functions matching the appropriate signature for their call type:
 
-#### `xxx_user_functions.h` - Function Prototypes
+```lua
+-- Oneshot: fn(inst, node) — no return value
+local function cfl_disable_children(inst, node)
+    print("cfl_disable_children")
+    -- TODO: actual implementation
+end
 
-```c
-#ifndef STATE_MACHINE_TEST_USER_FUNCTIONS_H
-#define STATE_MACHINE_TEST_USER_FUNCTIONS_H
+-- Oneshot with parameters: fn(inst, node)
+local function cfl_enable_child(inst, node)
+    local params = node.params or {}
+    assert(#params >= 1, "cfl_enable_child: need at least one parameter")
 
-#include "s_engine_types.h"
-
-// Oneshot function prototypes
-void cfl_disable_children(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-
-void cfl_enable_child(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-
-#endif
+    local child_index = params[1].value
+    print("cfl_enable_child: enabling child " .. child_index)
+    -- TODO: actual implementation
+end
 ```
 
-#### `xxx_user_registration.c` - Registration Tables
+### 3. Register with Module
 
-```c
-#include "state_machine_test.h"
-#include "state_machine_test_user_functions.h"
-#include "s_engine_module.h"
+Include the functions in the table passed to `new_module` or `register_fns`:
 
-// Oneshot function entries (hash -> function pointer)
-static s_expr_fn_entry_t state_machine_test_oneshot_entries[] = {
-    { 0x5839B05B, (void*)cfl_disable_children },
-    { 0xD42E3453, (void*)cfl_enable_child },
-};
+```lua
+local se_runtime = require("se_runtime")
 
-static const s_expr_fn_table_t state_machine_test_oneshot_table = {
-    .entries = state_machine_test_oneshot_entries,
-    .count = 2
-};
+local fns = se_runtime.merge_fns(
+    require("se_builtins_flow_control"),
+    require("se_builtins_pred"),
+    require("se_builtins_oneshot"),
+    -- ... other builtins ...
 
-// Register all user functions with module
-void state_machine_test_register_all(s_expr_module_t* module) {
-    s_expr_module_register_oneshot(module, &state_machine_test_oneshot_table);
-}
-```
-
-### 3. User Implements Functions
-
-Create a source file (e.g., `user_functions.c`) with implementations:
-
-```c
-#include "state_machine_test_user_functions.h"
-#include "s_engine_exception.h"
-#include <stdio.h>
-
-void cfl_disable_children(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)params; (void)param_count;
-    (void)event_id; (void)event_data;
-    
-    // Oneshots typically only act on INIT (first invocation)
-    if (event_type != SE_EVENT_INIT) {
-        return;
+    -- User-defined functions mixed in alongside builtins:
+    {
+        cfl_disable_children = cfl_disable_children,
+        cfl_enable_child     = cfl_enable_child,
     }
-    
-    printf("cfl_disable_children\n");
-    // TODO: Actual implementation
-}
+)
 
-void cfl_enable_child(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    (void)inst; (void)event_id; (void)event_data;
-    
-    if (event_type != SE_EVENT_INIT) {
-        return;
-    }
-    
-    // Validate parameters
-    if (param_count < 1) {
-        EXCEPTION("cfl_enable_child: need at least one parameter");
-        return;
-    }
-    
-    if (params[0].type != S_EXPR_PARAM_INT && 
-        params[0].type != S_EXPR_PARAM_UINT) {
-        EXCEPTION("cfl_enable_child: first parameter must be integer");
-        return;
-    }
-    
-    uint16_t child_index = params[0].int_val;
-    printf("cfl_enable_child: enabling child %d\n", child_index);
-    // TODO: Actual implementation
-}
+local mod = se_runtime.new_module(module_data, fns)
 ```
 
-### 4. Register at Engine Load
+That's it. No header files, no registration tables, no hash computation, no code generation. The `register_fns` mechanism matches function names case-insensitively against the module's function lists.
 
-Pass the registration callback when loading the engine:
+### 4. Validation
 
-```c
-// Registration callback array
-s_engine_user_register_fn user_fns[] = {
-    state_machine_test_register_all
-};
+When `se_runtime.new_instance(mod, tree_name)` is called, it automatically validates that every function in the module's lists has been registered. If any are missing, it errors with the complete list:
 
-// Load engine with user functions
-s_engine_load_from_rom(
-    &engine,
-    &alloc,
-    rom_data,
-    rom_size,
-    debug_callback,
-    1,          // user_fn_count
-    user_fns    // user function registration callbacks
-);
 ```
+new_instance: unregistered functions:
+  [oneshot] cfl_disable_children
+  [oneshot] cfl_enable_child
+```
+
+This catches registration gaps at instance creation time, not at runtime during execution.
+
+## Comparison with C Workflow
+
+| Step | C Runtime | LuaJIT Runtime |
+|------|-----------|----------------|
+| Declare in DSL | `o_call("CFL_ENABLE_CHILD")` | Same DSL, or pipeline produces module_data |
+| Code generation | Pipeline generates `_user_functions.h` + `_user_registration.c` | Not needed |
+| Function signature | `void fn(inst, params, count, event_type, event_id, event_data)` | `fn(inst, node)` |
+| Parameter access | `params[0].int_val` (C struct union) | `node.params[1].value` (Lua table) |
+| Hash computation | FNV-1a hash in generated registration table | Not needed — name-based matching |
+| Registration | `s_expr_module_register_oneshot(module, &table)` via callback | `merge_fns({ name = fn })` |
+| Validation | `s_expr_module_validate()` checks hash slots | `validate_module()` checks name→index slots |
+| Files generated | 2 (header + registration source) | 0 |
 
 ## Function Types
 
 ### Oneshot Functions
 
-Declared with `o_call()`, return `void`:
+Declared with `o_call` or `io_call` in the pipeline. Signature: `fn(inst, node)` — no return value.
 
 ```lua
-local o = o_call("MY_ONESHOT")
-    int(42)
-    str_ptr("hello")
-end_call(o)
+-- Pipeline node:
+{ func_name = "MY_ONESHOT", call_type = "o_call",
+  params = { {type="int", value=42}, {type="str_ptr", value="hello"} },
+  children = {} }
+
+-- Implementation:
+local function my_oneshot(inst, node)
+    local val = node.params[1].value           -- 42
+    local msg = node.params[2].value           -- "hello"
+    print("my_oneshot: " .. msg .. " = " .. val)
+end
 ```
 
-```c
-void my_oneshot(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-```
+The runtime handles the fire-once semantics — `invoke_oneshot` checks `FLAG_INITIALIZED` (for `o_call`) or `FLAG_EVER_INIT` (for `io_call`) and skips if already fired. The function itself doesn't need to check.
 
 ### Main Functions
 
-Declared with `m_call()`, return `s_expr_result_t`:
+Declared with `m_call` or `pt_m_call`. Signature: `fn(inst, node, event_id, event_data)` → result code.
 
 ```lua
-local m = m_call("MY_MAIN")
-    int(100)
-end_call(m)
+-- Pipeline node:
+{ func_name = "MY_MAIN", call_type = "m_call",
+  params = { {type="int", value=100} },
+  children = {} }
+
+-- Implementation:
+local se_runtime = require("se_runtime")
+
+local function my_main(inst, node, event_id, event_data)
+    if event_id == se_runtime.SE_EVENT_INIT then
+        -- Initialize state
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    if event_id == se_runtime.SE_EVENT_TERMINATE then
+        -- Cleanup
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    -- SE_EVENT_TICK: do the work
+    local threshold = node.params[1].value   -- 100
+    local sensor = inst.blackboard["sensor_value"] or 0
+
+    if sensor > threshold then
+        return se_runtime.SE_PIPELINE_DISABLE   -- complete
+    end
+
+    return se_runtime.SE_PIPELINE_CONTINUE      -- still running
+end
 ```
 
-```c
-s_expr_result_t my_main(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
-```
+The `invoke_main` dispatch handles the INIT/TICK/TERMINATE lifecycle automatically:
+- First call: sends `SE_EVENT_INIT`, then the actual event
+- On `SE_PIPELINE_DISABLE`: sends `SE_EVENT_TERMINATE` and clears `FLAG_ACTIVE`
+- The function just responds to the event it receives
 
 ### Predicate Functions
 
-Declared with `p_call()`, return `bool`:
+Declared with `p_call` or `p_call_composite`. Signature: `fn(inst, node)` → boolean.
 
 ```lua
-local p = p_call("MY_PREDICATE")
-    field_ref("value")
-end_call(p)
+-- Pipeline node:
+{ func_name = "MY_PREDICATE", call_type = "p_call",
+  params = { {type="field_ref", value="value"} },
+  children = {} }
+
+-- Implementation:
+local function my_predicate(inst, node)
+    local field_name = node.params[1].value
+    local v = inst.blackboard[field_name] or 0
+    return v > 0
+end
 ```
 
-```c
-bool my_predicate(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-);
+Predicates are stateless boolean evaluators. They receive no event_id — just `inst` and `node`.
+
+### Pointer-Based Main Functions
+
+Declared with `pt_m_call`. Same signature as `m_call`, but the node has a `pointer_index` and the runtime sets up `inst.pointer_base` / `inst.in_pointer_call` before calling:
+
+```lua
+-- Pipeline node:
+{ func_name = "MY_PT_MAIN", call_type = "pt_m_call",
+  pointer_index = 0,
+  params = { {type="int", value=5} },
+  children = {} }
+
+-- Implementation (can use pointer slot for persistent storage):
+local se_runtime = require("se_runtime")
+
+local function my_pt_main(inst, node, event_id, event_data)
+    if event_id == se_runtime.SE_EVENT_INIT then
+        -- Store initial value in pointer slot
+        se_runtime.set_u64(inst, node, 0)
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    if event_id == se_runtime.SE_EVENT_TERMINATE then
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    -- TICK: use pointer slot as counter
+    local count = se_runtime.get_u64(inst, node)
+    local limit = node.params[1].value
+    count = count + 1
+    se_runtime.set_u64(inst, node, count)
+
+    if count >= limit then
+        return se_runtime.SE_PIPELINE_DISABLE
+    end
+    return se_runtime.SE_PIPELINE_CONTINUE
+end
 ```
 
-## Function Name Convention
+### IO-Call Functions (Survives Reset)
 
-- **Lua DSL**: Use `UPPER_SNAKE_CASE` (e.g., `CFL_ENABLE_CHILD`)
-- **C function**: Use `lower_snake_case` (e.g., `cfl_enable_child`)
+Declared with `io_call`. Same signature as `o_call`, but the runtime uses `FLAG_EVER_INIT` instead of `FLAG_INITIALIZED` as the fire-once guard. The function runs once for the *lifetime* of the tree instance, even across resets:
 
-The DSL automatically converts the name and generates a hash for runtime lookup.
+```lua
+-- Pipeline node:
+{ func_name = "MY_IO_INIT", call_type = "io_call",
+  params = {},
+  children = {} }
+
+-- Implementation:
+local function my_io_init(inst, node)
+    -- This runs exactly once, ever, even if the tree is reset
+    print("one-time hardware initialization")
+end
+```
 
 ## Accessing Parameters
 
-Parameters are passed as an array of `s_expr_param_t`:
+Parameters are in `node.params[]`, a 1-based Lua array of `{type, value}` tables. Access them directly or use the runtime helpers:
 
-```c
-void my_function(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    ...
-) {
-    // Check parameter count
-    if (param_count < 2) {
-        EXCEPTION("my_function: need 2 parameters");
-        return;
-    }
-    
-    // Access integer parameter
-    if (params[0].type == S_EXPR_PARAM_INT) {
-        int32_t value = params[0].int_val;
-    }
-    
-    // Access string parameter
-    const char* str = s_expr_get_string(inst, &params[1]);
-    
-    // Access field reference
-    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &params[2], int32_t);
-}
+### Direct Access
+
+```lua
+local function my_function(inst, node)
+    local params = node.params or {}
+
+    -- Check parameter count
+    assert(#params >= 2, "my_function: need 2 parameters")
+
+    -- Access by index (1-based)
+    local int_val   = params[1].value           -- number
+    local str_val   = params[2].value           -- string
+    local field_name = params[3].value          -- string (for field_ref)
+
+    -- Check type if needed
+    if params[1].type == "int" or params[1].type == "uint" then
+        -- integer parameter
+    elseif params[1].type == "float" then
+        -- float parameter
+    elseif params[1].type == "field_ref" then
+        -- blackboard field name
+    end
+end
+```
+
+### Using Runtime Helpers
+
+The `se_runtime` module exports parameter accessors that handle type coercion:
+
+```lua
+local se_runtime = require("se_runtime")
+
+local function my_function(inst, node)
+    -- Integer with coercion (string → number)
+    local n = se_runtime.param_int(node, 1)
+
+    -- Float with coercion
+    local f = se_runtime.param_float(node, 2)
+
+    -- String (handles str_hash → .str extraction)
+    local s = se_runtime.param_str(node, 3)
+
+    -- Field name (for field_ref params)
+    local fname = se_runtime.param_field_name(node, 1)
+
+    -- Read blackboard field (with string→number coercion)
+    local v = se_runtime.field_get(inst, node, 1)
+
+    -- Write blackboard field
+    se_runtime.field_set(inst, node, 1, 42)
+end
 ```
 
 ## Parameter Types
 
-| Lua DSL | C Type | Access |
-|---------|--------|--------|
-| `int(n)` | `S_EXPR_PARAM_INT` | `params[i].int_val` |
-| `uint(n)` | `S_EXPR_PARAM_UINT` | `params[i].uint_val` |
-| `flt(n)` | `S_EXPR_PARAM_FLOAT` | `params[i].float_val` |
-| `str_ptr("s")` | `S_EXPR_PARAM_STR_IDX` | `s_expr_get_string(inst, &params[i])` |
-| `field_ref("f")` | `S_EXPR_PARAM_FIELD` | `S_EXPR_GET_FIELD(inst, &params[i], type)` |
+| Pipeline `type` | `value` type | Access | Description |
+|----------------|-------------|--------|-------------|
+| `"int"` | number | `params[i].value` or `param_int(node, i)` | Signed integer |
+| `"uint"` | number | `params[i].value` or `param_int(node, i)` | Unsigned integer |
+| `"float"` | number | `params[i].value` or `param_float(node, i)` | Float |
+| `"str_ptr"` | string | `params[i].value` or `param_str(node, i)` | String literal |
+| `"str_idx"` | string | `params[i].value` or `param_str(node, i)` | Interned string |
+| `"str_hash"` | `{hash, str}` | `params[i].value.str` or `param_str(node, i)` | String with hash |
+| `"field_ref"` | string | `param_field_name(node, i)` | Blackboard field name |
+| `"stack_local"` | number | via `se_stack.get_local` | Stack frame local |
+| `"stack_tos"` | number | via `se_stack.peek_tos` | Stack TOS offset |
+| `"const_ref"` | any | `inst.mod.module_data.constants[key]` | Constants reference |
 
-## Event Handling
+## Accessing Instance State
 
-External functions receive lifecycle events:
+User functions have full access to the tree instance:
 
-```c
-void my_oneshot(..., s_expr_event_type_t event_type, ...) {
-    switch (event_type) {
-        case SE_EVENT_INIT:
-            // First invocation - do the work
-            break;
-            
-        case SE_EVENT_TERMINATE:
-            // Cleanup (rare for oneshots)
-            break;
-            
-        case SE_EVENT_TICK:
-            // Only for MAIN functions
-            break;
-    }
-}
+```lua
+local function my_function(inst, node)
+    -- Blackboard (string-keyed table)
+    local temp = inst.blackboard["temperature"]
+    inst.blackboard["output"] = temp * 1.5
+
+    -- Node state (per-node flags, state, user_data)
+    local ns = se_runtime.get_ns(inst, node.node_index)
+    ns.user_data = ns.user_data + 1
+
+    -- User context (application-defined, set by caller after new_instance)
+    local app = inst.user_ctx
+    if app and app.hardware then
+        app.hardware:write_register(0x40, 0x01)
+    end
+
+    -- Module data
+    local records = inst.mod.module_data.records
+
+    -- Time
+    local now = inst.mod.get_time()
+
+    -- Stack (if present)
+    if inst.stack then
+        local se_stack = require("se_stack")
+        local top_val = se_stack.peek_tos(inst.stack, 0)
+    end
+
+    -- Event queue
+    se_runtime.event_push(inst, 0xFFFF, 42, nil)
+end
 ```
 
-### Oneshot Event Pattern
+## Accessing Children
 
-Oneshots typically only act on `SE_EVENT_INIT`:
+User-defined composites (main functions with children) can invoke their children using the child API:
 
-```c
-void my_oneshot(...) {
-    if (event_type != SE_EVENT_INIT) {
-        return;  // Ignore other events
-    }
-    
-    // Do the work
-}
+```lua
+local se_runtime = require("se_runtime")
+
+local function my_composite(inst, node, event_id, event_data)
+    if event_id == se_runtime.SE_EVENT_INIT then
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    if event_id == se_runtime.SE_EVENT_TERMINATE then
+        se_runtime.children_terminate_all(inst, node)
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    -- TICK: invoke children
+    local children = node.children or {}
+
+    for i = 1, #children do
+        local child = children[i]
+        local idx = i - 1   -- 0-based for child_invoke
+
+        -- Invoke child (dispatches by call_type automatically)
+        local r = se_runtime.child_invoke(inst, node, idx, event_id, event_data)
+
+        -- Invoke as predicate specifically
+        -- local pred_result = se_runtime.child_invoke_pred(inst, node, idx)
+
+        -- Invoke as oneshot specifically
+        -- se_runtime.child_invoke_oneshot(inst, node, idx)
+
+        -- Handle result code
+        if r == se_runtime.SE_PIPELINE_DISABLE then
+            se_runtime.child_terminate(inst, node, idx)
+        elseif r == se_runtime.SE_PIPELINE_TERMINATE then
+            se_runtime.children_terminate_all(inst, node)
+            return se_runtime.SE_PIPELINE_TERMINATE
+        end
+    end
+
+    return se_runtime.SE_PIPELINE_CONTINUE
+end
 ```
 
-### Main Event Pattern
+Available child helpers:
 
-Main functions handle all three events:
+| Function | Purpose |
+|----------|---------|
+| `child_count(node)` | Number of callable children |
+| `child_invoke(inst, node, idx, event_id, event_data)` | Invoke by 0-based index via `invoke_any` |
+| `child_invoke_pred(inst, node, idx)` | Invoke child as predicate → boolean |
+| `child_invoke_oneshot(inst, node, idx)` | Invoke child as oneshot |
+| `child_terminate(inst, node, idx)` | Send TERMINATE to child |
+| `child_reset(inst, node, idx)` | Reset child flags |
+| `child_reset_recursive(inst, node, idx)` | Recursively reset child subtree |
+| `children_terminate_all(inst, node)` | Terminate all children (reverse order) |
+| `children_reset_all(inst, node)` | Reset all children |
 
-```c
-s_expr_result_t my_main(...) {
-    if (event_type == SE_EVENT_INIT) {
-        // Initialize state
-        return SE_PIPELINE_CONTINUE;
-    }
-    
-    if (event_type == SE_EVENT_TERMINATE) {
-        // Cleanup
-        return SE_PIPELINE_CONTINUE;
-    }
-    
-    // SE_EVENT_TICK - do the work
-    // Return appropriate result code
-    return SE_PIPELINE_DISABLE;  // Complete
-}
+## Event Handling Patterns
+
+### Oneshot Pattern
+
+Oneshots don't receive events — the runtime handles fire-once semantics. The function body runs exactly once:
+
+```lua
+local function my_oneshot(inst, node)
+    -- This entire body runs once per activation (o_call)
+    -- or once per lifetime (io_call)
+    local val = se_runtime.param_int(node, 1)
+    inst.blackboard["config_value"] = val
+end
 ```
+
+### Main Function Pattern
+
+Main functions receive all three event types:
+
+```lua
+local function my_main(inst, node, event_id, event_data)
+    -- INIT: set up state
+    if event_id == se_runtime.SE_EVENT_INIT then
+        se_runtime.get_ns(inst, node.node_index).user_data = 0
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    -- TERMINATE: clean up
+    if event_id == se_runtime.SE_EVENT_TERMINATE then
+        return se_runtime.SE_PIPELINE_CONTINUE
+    end
+
+    -- TICK: do work
+    local ns = se_runtime.get_ns(inst, node.node_index)
+    ns.user_data = ns.user_data + 1
+
+    if ns.user_data >= 10 then
+        return se_runtime.SE_PIPELINE_DISABLE   -- triggers auto-TERMINATE
+    end
+
+    return se_runtime.SE_PIPELINE_CONTINUE
+end
+```
+
+### Predicate Pattern
+
+Predicates are stateless booleans:
+
+```lua
+local function my_predicate(inst, node)
+    local field_name = se_runtime.param_field_name(node, 1)
+    local threshold  = se_runtime.param_int(node, 2)
+    local value      = inst.blackboard[field_name] or 0
+    return value > threshold
+end
+```
+
+## Function Name Convention
+
+- **Pipeline / module_data**: `UPPER_SNAKE_CASE` (e.g., `"CFL_ENABLE_CHILD"`)
+- **Lua function key**: `lower_snake_case` (e.g., `cfl_enable_child`)
+
+Registration is case-insensitive — `register_fns` uppercases all keys before matching against the module's function lists. So `cfl_enable_child` matches `CFL_ENABLE_CHILD` in the module's `oneshot_funcs`.
 
 ## File Organization
 
+Unlike the C workflow which generates header and registration files, the LuaJIT workflow keeps everything in Lua:
+
 ```
 project/
-├── state_machine.lua              # DSL source
-├── generated/
-│   ├── state_machine_test.h       # Tree hashes, constants
-│   ├── state_machine_test_bin_32.h  # Binary ROM data
-│   ├── state_machine_test_records.h # Record definitions
-│   ├── state_machine_test_user_functions.h    # Function prototypes
-│   └── state_machine_test_user_registration.c # Registration tables
-└── src/
-    ├── user_functions.c           # User implementations
-    └── main.c                     # Test harness
+├── module_data/
+│   └── my_module.lua               # Pipeline output (module_data)
+├── builtins/
+│   ├── se_runtime.lua               # Core engine
+│   ├── se_stack.lua                 # Parameter stack
+│   ├── se_builtins_flow_control.lua # Flow control composites
+│   ├── se_builtins_pred.lua         # Predicates
+│   ├── se_builtins_oneshot.lua      # Oneshot builtins
+│   └── ... (other builtin modules)
+├── user/
+│   ├── user_functions.lua           # User-defined functions
+│   └── hardware_interface.lua       # Hardware-specific functions
+└── test/
+    └── test_harness.lua             # Test runner
+```
+
+**user_functions.lua:**
+
+```lua
+local se_runtime = require("se_runtime")
+local M = {}
+
+M.cfl_disable_children = function(inst, node)
+    -- implementation
+end
+
+M.cfl_enable_child = function(inst, node)
+    local child_index = node.params[1].value
+    -- implementation
+end
+
+M.my_sensor_read = function(inst, node)
+    -- Read sensor via user_ctx hardware handle
+    local hw = inst.user_ctx
+    local channel = se_runtime.param_int(node, 1)
+    local value = hw:adc_read(channel)
+    se_runtime.field_set(inst, node, 2, value)
+end
+
+return M
+```
+
+**test_harness.lua:**
+
+```lua
+local se_runtime = require("se_runtime")
+local module_data = require("my_module")
+local user_fns = require("user_functions")
+
+local fns = se_runtime.merge_fns(
+    require("se_builtins_flow_control"),
+    require("se_builtins_pred"),
+    require("se_builtins_oneshot"),
+    require("se_builtins_delays"),
+    require("se_builtins_dispatch"),
+    require("se_builtins_verify"),
+    require("se_builtins_spawn"),
+    require("se_builtins_dict"),
+    require("se_builtins_quads"),
+    require("se_builtins_return_codes"),
+    require("se_builtins_stack"),
+    user_fns   -- user functions merged in
+)
+
+local mod = se_runtime.new_module(module_data, fns)
+local inst = se_runtime.new_instance(mod, "my_tree")
+
+-- Tick loop
+for _ = 1, 100 do
+    local result = se_runtime.tick_once(inst)
+    if result == se_runtime.SE_FUNCTION_TERMINATE then break end
+end
 ```
 
 ## Example: Chain Flow Control Functions
 
-The state machine test uses two external oneshots for chain flow control:
-
-### CFL_DISABLE_CHILDREN
+### cfl_disable_children
 
 Disables all children in the current chain flow context:
 
 ```lua
-local o0 = o_call("CFL_DISABLE_CHILDREN")
-end_call(o0)
+-- Pipeline node:
+{ func_name = "CFL_DISABLE_CHILDREN", call_type = "o_call",
+  params = {}, children = {} }
+
+-- Implementation:
+local function cfl_disable_children(inst, node)
+    -- Access parent's children through user_ctx or custom mechanism
+    print("cfl_disable_children: disabling all children")
+end
 ```
 
-### CFL_ENABLE_CHILD
+### cfl_enable_child
 
 Enables a specific child by index:
 
 ```lua
-local o1 = o_call("CFL_ENABLE_CHILD")
-    int(0)  -- Enable child at index 0
-end_call(o1)
-```
+-- Pipeline node:
+{ func_name = "CFL_ENABLE_CHILD", call_type = "o_call",
+  params = { {type="int", value=0} },
+  children = {} }
 
-These would typically interact with a chain flow composite to control which branches are active.
+-- Implementation:
+local function cfl_enable_child(inst, node)
+    local child_index = node.params[1].value
+    print("cfl_enable_child: enabling child " .. child_index)
+end
+```
 
 ## Summary
 
-1. **Declare** external functions in Lua DSL using `o_call`, `m_call`, or `p_call`
-2. **Generate** scaffolding with DSL compiler
-3. **Implement** functions in C matching the generated prototypes
-4. **Register** via callback when loading the engine
+1. **Write** Lua functions matching the appropriate signature (`fn(inst, node)` for oneshots/preds, `fn(inst, node, event_id, event_data)` for mains)
+2. **Include** the function name in `module_data`'s function lists (handled by pipeline)
+3. **Register** via `merge_fns` alongside builtins
+4. **Validate** automatically when `new_instance` is called
 
-This pattern allows clean separation between:
-- **DSL/Tree definition** (Lua)
-- **Engine core** (builtin functions)
-- **Application logic** (user-defined functions)
+No code generation, no header files, no hash tables, no registration callbacks. The same function table mechanism that registers builtins handles user functions identically. The only distinction between a builtin and a user function is which Lua module exports it.

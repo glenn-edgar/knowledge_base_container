@@ -1,41 +1,43 @@
 ## Array Handling
 
-### Array Structure in Binary Format
+### Array Structure in LuaJIT Runtime
 
-Arrays are stored as sequential values between `OPEN_ARRAY` and `CLOSE_ARRAY` tokens:
+Arrays are parsed from inline `array_start` / `array_end` token sequences in `node.params` by `se_builtins_dict.lua`'s `parse_array()`. The result is a plain Lua table with **0-based numeric keys**:
+
+```lua
+-- Parsed result of an array with 4 elements:
+{ [0] = 10, [1] = 20, [2] = 30, [3] = 3.14 }
+
+-- Nested dict inside array:
+{ [0] = 10,
+  [1] = 20,
+  [2] = { some_key = "value", count = 5 } }
 ```
-OPEN_ARRAY [brace_idx=N]
-  INT [value=10]
-  INT [value=20]
-  INT [value=30]
-  FLOAT [value=3.14]
-  OPEN_DICT [brace_idx=M]
-    ...nested dict...
-  CLOSE_DICT
-CLOSE_ARRAY
-```
+
+The `parse_array()` function in `se_builtins_dict.lua` handles recursive nesting — arrays can contain dicts, dicts can contain arrays, to arbitrary depth.
 
 ### DSL Array Syntax
 
-Arrays in Lua tables are compiled directly:
+Arrays in the YAML/JSON knowledge base are compiled to `array_start` / `array_end` token sequences in `node.params`:
+
 ```lua
 local config = {
     -- Simple array of integers
     thresholds = {10, 20, 30, 40, 50},
-    
+
     -- Array of floats
     calibration = {1.0, 1.5, 2.0, 2.5},
-    
+
     -- Mixed types (valid but less common)
     mixed = {42, 3.14, "label"},
-    
+
     -- Array of dictionaries
     zones = {
         {id = 1, name = "north", enabled = 1},
         {id = 2, name = "south", enabled = 0},
         {id = 3, name = "east", enabled = 1},
     },
-    
+
     -- Nested arrays
     matrix = {
         {1, 2, 3},
@@ -45,9 +47,12 @@ local config = {
 }
 ```
 
-### Accessing Arrays via Path
+After `se_load_dictionary` processes these tokens, the blackboard field holds a plain Lua table — dicts use string keys, arrays use 0-based numeric keys, and string values are wrapped as `{str=S, hash=H}` tables with precomputed FNV-1a hashes.
 
-Arrays can be accessed by index using numeric path segments:
+### Accessing Arrays via String Path
+
+The `navigate_str_path()` function in `se_builtins_dict.lua` splits dot-delimited paths and walks the nested table structure. Numeric path segments fall back to 0-based numeric key lookup for arrays:
+
 ```lua
 -- Access array element by index (0-based in path)
 se_dict_extract_int("config_ptr", "thresholds.0", "thresh_0")
@@ -63,212 +68,197 @@ se_dict_extract_hash("config_ptr", "zones.0.name", "zone0_name_hash")
 se_dict_extract_int("config_ptr", "matrix.1.2", "matrix_1_2")  -- row 1, col 2 = 6
 ```
 
+**How `navigate_str_path` resolves array indices:**
+
+```lua
+-- For path "matrix.1.2":
+--   Step 1: cur = dict["matrix"]        → the outer array table
+--   Step 2: cur["1"] is nil → try tonumber("1") → cur[1]  → the inner array {4,5,6}
+--   Step 3: cur["2"] is nil → try tonumber("2") → cur[2]  → 6
+```
+
 ### Hash Path Array Access
 
-For hash paths, use `SE_IDXH(n)` macro or numeric strings:
+For hash paths, `navigate_hash_path()` tries the hash key first, then falls back to string key, then numeric index. This handles arrays reached via hash paths where the pipeline emits `hash("0")`, `hash("1")`, etc.:
+
 ```lua
--- Using index in hash path
+-- Using hash path (params carry str_hash values with {hash=N, str=S})
 se_dict_extract_int_h("config_ptr", {"thresholds", "0"}, "thresh_0")
 se_dict_extract_int_h("config_ptr", {"zones", "0", "id"}, "zone0_id")
 se_dict_extract_int_h("config_ptr", {"matrix", "1", "2"}, "matrix_1_2")
 ```
 
-In C code:
-```c
-// Using SE_IDXH macro for array indices
-ct_int_t val = se_dicth_get_int(dict, 
-    (s_expr_hash_t[]){s_expr_hash("thresholds"), SE_IDXH(0)}, 2, 0);
+**How `navigate_hash_path` resolves array indices:**
 
-// Or use SE_PATH macros
-ct_int_t val = se_dicth_get_int(dict, SE_PATH_H("zones", "0", "id"), 0);
+```lua
+-- For path item {hash=hash("0"), str="0"}:
+--   Step 1: try cur[hash("0")]  → nil (arrays use numeric keys, not hash keys)
+--   Step 2: try cur["0"]        → nil (arrays use numeric keys, not string keys)
+--   Step 3: try tonumber("0")   → cur[0] → found!
 ```
 
-### Runtime Array Iteration
+This three-level fallback ensures hash paths work seamlessly with both dict-keyed and array-indexed tables.
 
-#### String-Path Library (se_dict_string.h)
-```c
-// Get array from path
-const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, "zones");
-if (!array) return;
+### Runtime Array Iteration in LuaJIT
 
-// Get array element count
-uint16_t count = se_dicts_array_count(array);
-printf("Array has %d elements\n", count);
+Since parsed arrays are plain Lua tables with 0-based numeric keys, iteration uses standard Lua patterns:
 
-// Iterate array elements
-se_arrays_iter_t iter;
-se_arrays_iter_init(&iter, array);
+#### Direct Index Access
+```lua
+-- After se_load_dictionary, dict is in blackboard:
+local dict = inst.blackboard["config_ptr"]
+local thresholds = dict["thresholds"]  -- or navigate_str_path(dict, "thresholds")
 
-const s_expr_param_t* value;
-uint16_t index;
-
-while (se_arrays_iter_next(&iter, &value, &index)) {
-    // value points to current element
-    // index is 0-based position
-    
-    uint8_t opcode = value->type & S_EXPR_OPCODE_MASK;
-    
-    if (opcode == S_EXPR_PARAM_INT) {
-        printf("[%d] = %d\n", index, (int)value->int_val);
-    } 
-    else if (opcode == S_EXPR_PARAM_OPEN_DICT) {
-        // Element is a nested dictionary - can navigate further
-        ct_int_t id = se_dicts_get_int(value, mod_def, "id", -1);
-        printf("[%d].id = %d\n", index, (int)id);
-    }
-}
-
-// Reset iterator to start over
-se_arrays_iter_reset(&iter);
+-- Access by index (0-based)
+local first = thresholds[0]   -- 10
+local second = thresholds[1]  -- 20
 ```
 
-#### Hash-Path Library (se_dict_hash.h)
-```c
-// Get array from path
-const s_expr_param_t* array = se_dicth_get_array(dict, SE_PATH_H("zones"));
-if (!array) return;
+#### Counting Elements
+```lua
+-- 0-based arrays: count by scanning until nil
+local function array_count(arr)
+    local n = 0
+    while arr[n] ~= nil do n = n + 1 end
+    return n
+end
 
-// Get element count
-uint16_t count = se_dicth_array_count(array);
+local count = array_count(thresholds)  -- 5
+```
 
-// Get specific element by index
-const s_expr_param_t* elem = se_dicth_array_get(array, 0);  // First element
+#### Iterating All Elements
+```lua
+-- Iterate 0-based array
+local i = 0
+while thresholds[i] ~= nil do
+    print(string.format("[%d] = %s", i, tostring(thresholds[i])))
+    i = i + 1
+end
+```
 
-// Iterate array
-se_arrayh_iter_t iter;
-se_arrayh_iter_init(&iter, array);
-
-const s_expr_param_t* value;
-uint16_t index;
-
-while (se_arrayh_iter_next(&iter, &value, &index)) {
-    if (se_dicth_is_dict(value)) {
-        // Navigate into nested dict using hash path
-        ct_int_t id = se_dicth_get_int(value, SE_PATH_H1("id"), 0);
-        printf("[%d].id = %d\n", index, (int)id);
-    }
-}
+#### Iterating Array of Dicts
+```lua
+local zones = navigate_str_path(dict, "zones")
+local i = 0
+while zones[i] ~= nil do
+    local zone = zones[i]
+    local id = zone["id"]              -- number
+    local name = zone["name"]          -- {str="north", hash=...}
+    local name_str = (type(name) == "table") and name.str or tostring(name)
+    print(string.format("zone[%d]: id=%d name=%s", i, id, name_str))
+    i = i + 1
+end
 ```
 
 ### Built-in Array Helpers
 
-The standard helpers extract single values. For arrays, you have several options:
+The standard `se_dict_extract_*` builtins extract single values by path. For arrays, there are several approaches:
 
 #### Option 1: Extract Elements Individually
-```lua
-RECORD("sensor_config")
-    PTR64_FIELD("config_ptr", "void")
-    FIELD("cal_0", "float")
-    FIELD("cal_1", "float")
-    FIELD("cal_2", "float")
-    FIELD("cal_3", "float")
-END_RECORD()
 
-se_sequence(function()
-    se_load_dictionary("config_ptr", config)
-    se_dict_extract_float("config_ptr", "calibration.0", "cal_0")
-    se_dict_extract_float("config_ptr", "calibration.1", "cal_1")
-    se_dict_extract_float("config_ptr", "calibration.2", "cal_2")
-    se_dict_extract_float("config_ptr", "calibration.3", "cal_3")
-end)
-```
-
-#### Option 2: Use Bulk Extraction
 ```lua
-se_dict_extract_all("config_ptr", {
-    {path = "calibration.0", dest = "cal_0", type = "float"},
-    {path = "calibration.1", dest = "cal_1", type = "float"},
-    {path = "calibration.2", dest = "cal_2", type = "float"},
-    {path = "calibration.3", dest = "cal_3", type = "float"},
+-- Record definition:
+-- config_ptr: PTR64
+-- cal_0..cal_3: float fields
+
+se_sequence({
+    se_load_dictionary("config_ptr", config),
+    se_dict_extract_float("config_ptr", "calibration.0", "cal_0"),
+    se_dict_extract_float("config_ptr", "calibration.1", "cal_1"),
+    se_dict_extract_float("config_ptr", "calibration.2", "cal_2"),
+    se_dict_extract_float("config_ptr", "calibration.3", "cal_3"),
 })
 ```
 
-#### Option 3: Create Custom Array Handler
+#### Option 2: Use `se_dict_store_ptr` to Get Array Reference
 
-For dynamic or large arrays, create a custom handler:
+Extract the array sub-table into a blackboard field, then access elements from it:
 
-**DSL Helper:**
 ```lua
-function se_dict_extract_float_array(dict_field, array_path, base_field, count)
-    validate_field_is_ptr64(dict_field)
-    
-    local call = o_call("USER_EXTRACT_FLOAT_ARRAY")
-        field_ref(dict_field)
-        str(array_path)
-        field_ref(base_field)  -- First field in contiguous block
-        int(count)
-    end_call(call)
+-- Store array reference in blackboard
+se_dict_store_ptr("config_ptr", "calibration", "cal_array_ptr")
+
+-- Now cal_array_ptr holds the Lua array table
+-- Access via custom oneshot or subsequent dict_extract calls
+```
+
+#### Option 3: Create Custom LuaJIT Array Handler
+
+For dynamic or large arrays, register a custom oneshot function:
+
+```lua
+-- Custom oneshot: extract float array into numbered blackboard fields
+local function user_extract_float_array(inst, node)
+    local params = node.params or {}
+    assert(#params >= 3, "user_extract_float_array: need dict_field, path, base_field, count")
+
+    local dict_field = params[1].value
+    local path       = params[2].value
+    local base_field = params[3].value
+    local count      = params[4].value
+
+    local dict = inst.blackboard[dict_field]
+    assert(dict and type(dict) == "table",
+        "user_extract_float_array: dict not found in " .. tostring(dict_field))
+
+    -- Navigate to the array
+    local se_dict = require("se_builtins_dict")
+    local arr = se_dict.navigate_str_path and
+                se_dict.navigate_str_path(dict, path)
+
+    if not arr or type(arr) ~= "table" then return end
+
+    -- Extract elements into numbered blackboard fields
+    for i = 0, count - 1 do
+        local v = arr[i]
+        if v == nil then break end
+        local field_name = base_field .. "_" .. i
+        if type(v) == "table" and v.str then
+            inst.blackboard[field_name] = tonumber(v.str) or 0.0
+        else
+            inst.blackboard[field_name] = (tonumber(v) or 0.0) + 0.0
+        end
+    end
 end
 ```
 
-**C Implementation:**
-```c
-void user_extract_float_array(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    UNUSED(event_type);
-    UNUSED(event_id);
-    UNUSED(event_data);
-    
-    if (param_count < 4) return;
-    if (!inst || !inst->blackboard) return;
-    
-    // Get dictionary pointer
-    const s_expr_param_t* dict = get_dict_from_field(inst, &params[0]);
-    if (!dict) return;
-    
-    // Get path
-    const char* path = get_string(inst, &params[1]);
-    if (!path) return;
-    
-    // Get base field offset and count
-    uint16_t base_offset = params[2].field_offset;
-    uint16_t count = (uint16_t)params[3].int_val;
-    
-    // Navigate to array
-    const s_expr_module_def_t* mod_def = inst->module ? inst->module->def : NULL;
-    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
-    if (!array) return;
-    
-    // Extract elements into contiguous float fields
-    uint8_t* bb = (uint8_t*)inst->blackboard;
-    float* dest = (float*)(bb + base_offset);
-    
-    se_arrays_iter_t iter;
-    se_arrays_iter_init(&iter, array);
-    
-    const s_expr_param_t* value;
-    uint16_t index;
-    
-    while (se_arrays_iter_next(&iter, &value, &index) && index < count) {
-        dest[index] = (float)se_dicts_param_float(value, 0.0f);
-    }
-}
-```
+#### Option 4: Inline Lua Processing in Custom Oneshot
 
-**Usage:**
+For full flexibility, process arrays directly in a custom function:
+
 ```lua
-RECORD("sensor_data")
-    PTR64_FIELD("config_ptr", "void")
-    -- Contiguous array of floats
-    FIELD("calibration", "float", 8)  -- 8 floats
-END_RECORD()
+-- Custom oneshot: process array of valve configs
+local function user_load_valve_configs(inst, node)
+    local dict_field = node.params[1].value
+    local dict = inst.blackboard[dict_field]
+    assert(dict and type(dict) == "table")
 
-se_sequence(function()
-    se_load_dictionary("config_ptr", config)
-    -- Extract up to 8 floats starting at calibration field
-    se_dict_extract_float_array("config_ptr", "sensors.calibration", "calibration", 8)
-end)
+    -- Navigate to valves array
+    local valves = dict["valves"]
+    if not valves or type(valves) ~= "table" then return end
+
+    -- Process each valve config
+    local i = 0
+    while valves[i] ~= nil do
+        local v = valves[i]
+        local id      = v["id"] or 0
+        local pin     = v["pin"] or 0
+        local timeout = v["timeout"] or 0
+
+        -- Store in numbered blackboard fields
+        inst.blackboard["valve_id_" .. i]      = id
+        inst.blackboard["valve_pin_" .. i]     = pin
+        inst.blackboard["valve_timeout_" .. i] = timeout
+
+        i = i + 1
+    end
+    inst.blackboard["valve_count"] = i
+end
 ```
 
 ### Array of Structures Pattern
 
-For arrays of dictionaries, a common pattern is to iterate and process each:
+For arrays of dictionaries, the common pattern extracts each dict's fields:
 
 **Configuration:**
 ```lua
@@ -281,74 +271,94 @@ local config = {
 }
 ```
 
-**Custom Handler:**
-```c
-typedef struct {
-    uint32_t id;
-    uint32_t pin;
-    uint32_t timeout;
-} valve_config_t;
+**Custom Handler (registered as oneshot):**
+```lua
+local function user_extract_valve_array(inst, node)
+    local params = node.params or {}
+    local dict_field = params[1].value
+    local max_count  = params[2].value or 16
 
-void user_extract_valve_array(
-    s_expr_tree_instance_t* inst,
-    const s_expr_param_t* params,
-    uint16_t param_count,
-    s_expr_event_type_t event_type,
-    uint16_t event_id,
-    void* event_data
-) {
-    UNUSED(event_type);
-    UNUSED(event_id);
-    UNUSED(event_data);
-    
-    if (param_count < 4) return;
-    
-    const s_expr_param_t* dict = get_dict_from_field(inst, &params[0]);
-    if (!dict) return;
-    
-    const char* path = get_string(inst, &params[1]);
-    if (!path) return;
-    
-    uint16_t base_offset = params[2].field_offset;
-    uint16_t max_count = (uint16_t)params[3].int_val;
-    
-    const s_expr_module_def_t* mod_def = inst->module ? inst->module->def : NULL;
-    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
-    if (!array) return;
-    
-    uint8_t* bb = (uint8_t*)inst->blackboard;
-    valve_config_t* valves = (valve_config_t*)(bb + base_offset);
-    
-    se_arrays_iter_t iter;
-    se_arrays_iter_init(&iter, array);
-    
-    const s_expr_param_t* elem;
-    uint16_t index;
-    
-    while (se_arrays_iter_next(&iter, &elem, &index) && index < max_count) {
-        if (!se_dicts_is_dict(elem)) continue;
-        
-        valves[index].id = (uint32_t)se_dicts_get_uint(elem, mod_def, "id", 0);
-        valves[index].pin = (uint32_t)se_dicts_get_uint(elem, mod_def, "pin", 0);
-        valves[index].timeout = (uint32_t)se_dicts_get_uint(elem, mod_def, "timeout", 0);
-    }
-}
+    local dict = inst.blackboard[dict_field]
+    if not dict or type(dict) ~= "table" then return end
+
+    local valves = dict["valves"]
+    if not valves or type(valves) ~= "table" then return end
+
+    local i = 0
+    while valves[i] ~= nil and i < max_count do
+        local v = valves[i]
+        if type(v) == "table" then
+            -- Extract scalar values (handle {str=S, hash=H} wrappers)
+            local function as_int(val)
+                if type(val) == "table" and val.str then
+                    return math.floor(tonumber(val.str) or 0)
+                end
+                return math.floor(tonumber(val) or 0)
+            end
+
+            inst.blackboard["valve_" .. i .. "_id"]      = as_int(v["id"])
+            inst.blackboard["valve_" .. i .. "_pin"]     = as_int(v["pin"])
+            inst.blackboard["valve_" .. i .. "_timeout"] = as_int(v["timeout"])
+        end
+        i = i + 1
+    end
+    inst.blackboard["valve_count"] = i
+end
 ```
 
-### Array Functions Summary
+**Registration:**
+```lua
+local fns = se_runtime.merge_fns(
+    -- ... standard builtins ...
+    { user_extract_valve_array = user_extract_valve_array }
+)
+```
 
-| Function | Library | Description |
-|----------|---------|-------------|
-| `se_dicts_get_array()` | string | Get array param by path |
-| `se_dicts_array_count()` | string | Count elements in array |
-| `se_dicts_array_get()` | string | Get element by index |
-| `se_arrays_iter_init()` | string | Initialize array iterator |
-| `se_arrays_iter_next()` | string | Get next element |
-| `se_arrays_iter_reset()` | string | Reset iterator to start |
-| `se_dicth_get_array()` | hash | Get array param by hash path |
-| `se_dicth_array_count()` | hash | Count elements in array |
-| `se_dicth_array_get()` | hash | Get element by index |
-| `se_arrayh_iter_init()` | hash | Initialize array iterator |
-| `se_arrayh_iter_next()` | hash | Get next element |
-| `se_arrayh_iter_reset()` | hash | Reset iterator to start |
+### String Values in Arrays
 
+When `parse_scalar()` encounters a `str_idx` or `str_ptr` param inside an array, it wraps the string as `{str=S, hash=H}` with a precomputed FNV-1a hash. Code that reads array elements must handle this:
+
+```lua
+local function unwrap_value(v)
+    if type(v) == "table" and v.str then
+        return v.str    -- extract the string
+    end
+    return v            -- number or nil
+end
+
+-- Example: reading mixed array
+local arr = dict["mixed"]  -- {[0]=42, [1]=3.14, [2]={str="label", hash=...}}
+local s = unwrap_value(arr[2])  -- "label"
+```
+
+### Navigation Functions Summary
+
+| Function | Module | Description |
+|----------|--------|-------------|
+| `parse_dict(params, start_i)` | se_builtins_dict | Parse dict_start..dict_end tokens → Lua table |
+| `parse_array(params, start_i)` | se_builtins_dict | Parse array_start..array_end tokens → 0-based Lua table |
+| `parse_scalar(p)` | se_builtins_dict | Parse single value; wraps strings as `{str, hash}` |
+| `navigate_str_path(dict, path)` | se_builtins_dict | Dot-path navigation with numeric fallback for arrays |
+| `navigate_hash_path(dict, items)` | se_builtins_dict | Hash-path navigation with string and numeric fallback |
+| `collect_path_items(node, start, end)` | se_builtins_dict | Collect `{hash, str}` pairs from node params |
+| `s_expr_hash(str)` | se_builtins_dict | FNV-1a 32-bit hash (LuaJIT-safe decomposition) |
+
+### Extraction Builtins Summary
+
+| Function | Path Type | Output Type | Description |
+|----------|-----------|-------------|-------------|
+| `se_dict_extract_int` | string | integer | Extract and floor to int |
+| `se_dict_extract_uint` | string | unsigned int | Extract and abs+floor |
+| `se_dict_extract_float` | string | float | Extract as float |
+| `se_dict_extract_bool` | string | 0/1 | Extract as boolean (nonzero = 1) |
+| `se_dict_extract_hash` | string | hash number | Extract string hash or numeric |
+| `se_dict_extract_int_h` | hash | integer | Hash-path int extraction |
+| `se_dict_extract_uint_h` | hash | unsigned int | Hash-path uint extraction |
+| `se_dict_extract_float_h` | hash | float | Hash-path float extraction |
+| `se_dict_extract_bool_h` | hash | 0/1 | Hash-path boolean extraction |
+| `se_dict_extract_hash_h` | hash | hash number | Hash-path hash extraction |
+| `se_dict_store_ptr` | string | table ref | Store sub-table reference |
+| `se_dict_store_ptr_h` | hash | table ref | Hash-path sub-table reference |
+| `se_load_dictionary` | — | table | Parse inline tokens → blackboard |
+| `se_load_dictionary_hash` | — | table | Same as above (same impl in Lua) |
+| `se_load_function_dict` | — | `{hash→fn}` | Build function dictionary from children |

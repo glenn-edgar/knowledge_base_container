@@ -1,333 +1,548 @@
-# Reading DSL Generated Debug Dumps
+# Reading Pipeline-Generated Module Data Files
 
 ## Overview
 
-The S-Expression DSL compiler generates a debug dump file (`xxx_dump_32.h` or `xxx_dump_64.h`) that provides a human-readable view of the compiled binary tree structure. This file is invaluable for:
+The S-Expression LuaJIT pipeline generates a `module_data` Lua file (e.g., `loop_test_module.lua`) that provides a complete, human-readable representation of the compiled tree structure. This file is the LuaJIT equivalent of the C debug dump (`xxx_dump_32.h`) — it serves as both the runtime input *and* the debugging artifact. Unlike the C version where the debug dump is a separate file from the binary, the LuaJIT module data is directly executable and inspectable.
+
+This file is invaluable for:
 
 - Debugging tree structure issues
-- Understanding parameter encoding
-- Verifying function registration
+- Understanding parameter encoding and node relationships
+- Verifying function registration requirements
 - Tracing execution flow
+- Confirming parent-child nesting and call_type assignments
+
+## Comparison with C Debug Dump
+
+| C Debug Dump (`xxx_dump_32.h`) | LuaJIT Module Data (`xxx_module.lua`) |
+|-------------------------------|---------------------------------------|
+| Flat parameter array with index numbers | Nested Lua table tree (children inside parents) |
+| OPEN_CALL/CLOSE pairs bracket each function | `children = { ... }` arrays hold nested nodes |
+| Type codes (0x07, 0x08, 0x09, 0x0A, 0x0B) | String types (`"m_call"`, `"o_call"`, `"p_call"`, `"field_ref"`) |
+| `brace_idx` offsets for structure skipping | Not needed — nesting is explicit in table structure |
+| Column-formatted comment block | Executable Lua source |
+| Separate from binary (`.h` vs `.sexb`) | *Is* the runtime data — one file serves both roles |
+| Requires hex decoding to read | Human-readable Lua tables |
 
 ## File Sections
 
-### 1. Header Information
+### 1. Module Header
 
-```c
-/*
- * Module: state_machine_test
- * Hash:   0x6824A885
- * Trees:  1
- * Records: 1
- * Strings: 12
- * Constants: 0
- * Param size: 8 bytes (32-bit)
- */
+```lua
+M.name         = "loop_test"
+M.name_hash    = 0xD1A777D8
+M.pointer_size = 4
+M.debug        = true
 ```
 
 | Field | Description |
 |-------|-------------|
-| Module | Module name from Lua DSL |
-| Hash | Unique module identifier |
-| Trees | Number of behavior trees |
-| Records | Number of blackboard record definitions |
-| Strings | Number of string literals |
-| Constants | Number of constant definitions |
-| Param size | Size of each parameter entry (8 bytes for 32-bit, 16 for 64-bit) |
+| `name` | Module name from DSL source |
+| `name_hash` | FNV-1a hash of module name (used for spawn lookups) |
+| `pointer_size` | Target pointer size in bytes (4 = 32-bit, 8 = 64-bit) |
+| `debug` | Whether debug information is included |
 
-### 2. String Table
+### 2. Function Lists
 
-```c
-/*
- * [0x0000] (  0) hash=0xB5554AF8 "Fork Join Test Started"
- * [0x0001] (  1) hash=0x92683676 "Fork Join Test Terminated"
- * ...
- */
+```lua
+M.oneshot_funcs = { "SE_SET_FIELD", "SE_LOG", "SE_LOG_INT", "SE_INC_FIELD" }
+M.main_funcs    = { "SE_FUNCTION_INTERFACE", "SE_FORK_JOIN", "SE_WHILE",
+                    "SE_CHAIN_FLOW", "SE_TICK_DELAY",
+                    "SE_RETURN_PIPELINE_DISABLE", "SE_RETURN_TERMINATE" }
+M.pred_funcs    = { "SE_STATE_INCREMENT_AND_TEST",
+                    "SE_FIELD_INCREMENT_AND_TEST" }
+```
+
+Three ordered lists define every function the module requires. **Position determines `func_index`** — the first entry is index 0, the second is index 1, etc. At module creation time, `se_runtime.new_module()` builds name→index maps from these lists and `annotate_node()` assigns each node's `func_index` by searching the appropriate list.
+
+| List | Call Types | Signature |
+|------|-----------|-----------|
+| `oneshot_funcs` | `o_call`, `io_call` | `fn(inst, node)` — no return |
+| `main_funcs` | `m_call`, `pt_m_call` | `fn(inst, node, event_id, event_data)` → result code |
+| `pred_funcs` | `p_call`, `p_call_composite` | `fn(inst, node)` → boolean |
+
+**Debugging use:** If `se_runtime.new_instance()` reports unregistered functions, check these lists against the function tables passed to `merge_fns()`. Every name here must appear (case-insensitively) in the registered functions.
+
+### 3. String Table
+
+```lua
+M.string_table = {
+    "loop_sequence_fn start",
+    "outer_sequence_counter %d",
+    "inner_sequence_fn start",
+    "inner_sequence_counter %d",
+    "inner_sequence_fn end",
+    "loop_sequence_fn end"
+}
+M.string_index = {
+    ["inner_sequence_counter %d"] = 3,
+    ["inner_sequence_fn end"]     = 4,
+    ["inner_sequence_fn start"]   = 2,
+    ["loop_sequence_fn end"]      = 5,
+    ["loop_sequence_fn start"]    = 0,
+    ["outer_sequence_counter %d"] = 1,
+}
 ```
 
 | Field | Description |
 |-------|-------------|
-| `[0x0000]` | String index (hex) |
-| `(  0)` | String index (decimal) |
-| `hash=0x...` | String hash for lookup |
-| `"..."` | Actual string content |
+| `string_table` | 0-based ordered array of all string literals used in the module |
+| `string_index` | Reverse lookup: string content → 0-based index |
 
-Strings are referenced by index in `STR_IDX` parameters.
+In the LuaJIT runtime, strings are carried directly in `node.params` as `str_ptr` or `str_idx` values rather than referenced by index. The string table exists for C code generation compatibility and debugging — the runtime does not use it during execution.
 
-### 3. Function Tables
+### 4. Tree Order
 
-```c
-/*
- * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):
- *   [0x0000] ( 0) hash=0xCEBBEFA4 SE_LOG
- *   [0x0001] ( 1) hash=0xFFF84A15 SE_SET_FIELD
- *   [0x0002] ( 2) hash=0x5839B05B CFL_DISABLE_CHILDREN
- *
- * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
- *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
- *   [0x0001] ( 1) hash=0xE404E1CF SE_FORK_JOIN
- *   ...
- */
+```lua
+M.tree_order = { "loop_test" }
+M.trees = {}
 ```
 
-Three function tables:
-- **ONESHOT** (type 0x08): Fire-once functions, return void
-- **MAIN** (type 0x09): Persistent functions, return result codes
-- **PRED** (type 0x0A): Predicate functions, return bool
+`tree_order` provides deterministic iteration order for trees (Lua tables don't guarantee key order). Each entry names a tree in `M.trees`.
 
-Functions are referenced by index in their respective tables.
+### 5. Record Definitions
 
-### 4. Record Definitions
-
-```c
-/*
- * RECORD[0x0000]: state_machine_blackboard (size=4, align=4, hash=0xC89D038C)
- *   [ 0] off=0x0000 size= 4 hash=0x783132F6 state
- */
+```lua
+M.record_order = { "loop_test_blackboard" }
+M.records      = {}
+M.records["loop_test_blackboard"] = {
+    name      = "loop_test_blackboard",
+    name_hash = 0x033C03AC,
+    size      = 20,
+    align     = 4,
+    fields    = {
+        { name="outer_sequence_counter", name_hash=0x24954557,
+          type="uint32", offset=0,  size=4, ... },
+        { name="inner_sequence_counter", name_hash=0xD0B76C4E,
+          type="uint32", offset=4,  size=4, ... },
+        { name="field_test_counter",     name_hash=0x6542B7E7,
+          type="uint32", offset=8,  size=4, ... },
+        { name="field_test_increment",   name_hash=0x696CDE6A,
+          type="uint32", offset=12, size=4, ... },
+        { name="field_test_limit",       name_hash=0x1CAA35D8,
+          type="uint32", offset=16, size=4, ... },
+    },
+}
 ```
 
 | Field | Description |
 |-------|-------------|
-| `RECORD[0x0000]` | Record index |
-| `state_machine_blackboard` | Record name |
-| `size=4` | Total record size in bytes |
-| `align=4` | Memory alignment requirement |
-| `hash=0x...` | Record hash for lookup |
-| `off=0x0000` | Field offset within record |
-| `hash=0x783132F6` | Field hash for lookup |
+| `name` | Record name, referenced by `tree.record_name` |
+| `name_hash` | FNV-1a hash for C compatibility |
+| `size` | Total record size in bytes (C layout; informational in Lua) |
+| `align` | Memory alignment (C layout; informational in Lua) |
+| `fields` | Ordered array of field descriptors |
 
-### 5. Tree Parameters (Main Section)
+Each field descriptor:
 
-This is the core of the dump - the flattened parameter array representing the tree structure.
+| Field | Description |
+|-------|-------------|
+| `name` | Field name — used as the blackboard key in LuaJIT |
+| `name_hash` | FNV-1a hash for C cross-reference |
+| `type` | C type name (`uint32`, `float`, `ptr64`, etc.) |
+| `offset` | Byte offset in C struct (informational in Lua) |
+| `size` | Field size in bytes (informational in Lua) |
+| `is_pointer` | Whether this is a pointer field |
 
-## Parameter Type Codes
+**Debugging use:** When a blackboard field isn't found or has the wrong type, check the record definition. The `name` strings here must exactly match the `field_ref` values used in node params.
 
-```c
-/*
- * PARAMETER TYPE CODES:
- *   0x00 INT          0x01 UINT         0x02 FLOAT        0x03 STR_HASH
- *   0x04 SLOT         0x05 OPEN         0x06 CLOSE        0x07 OPEN_CALL
- *   0x08 ONESHOT      0x09 MAIN         0x0A PRED         0x0B FIELD
- *   0x0C RESULT       0x0D STR_IDX      0x0E CONST_REF    0x0F RESERVED
- *   0x10 OPEN_DICT    0x11 CLOSE_DICT   0x12 OPEN_KEY     0x13 CLOSE_KEY
- *   0x14 OPEN_ARRAY   0x15 CLOSE_ARRAY  0x16 OPEN_TUPLE   0x17 CLOSE_TUPLE
- *
- * FLAGS:
- *   0x40 SURVIVES_RESET (io_call, p_call_composite)
- *   0x80 POINTER        (pt_m_call)
- */
+### 6. Constants, Events
+
+```lua
+M.const_order = {}
+M.constants   = {}
+M.events      = {}
+M.event_names = {}
 ```
 
-### Common Type Codes
+Optional sections for ROM constants and named events. Empty in many modules.
 
-| Code | Name | Description |
-|------|------|-------------|
-| 0x00 | INT | Signed 32-bit integer |
-| 0x01 | UINT | Unsigned 32-bit integer |
-| 0x02 | FLOAT | Floating point value |
-| 0x06 | CLOSE | End of a callable/group |
-| 0x07 | OPEN_CALL | Start of a function call |
-| 0x08 | ONESHOT | Oneshot function reference |
-| 0x09 | MAIN | Main function reference |
-| 0x0A | PRED | Predicate function reference |
-| 0x0B | FIELD | Blackboard field reference |
-| 0x0D | STR_IDX | String table index |
+## Tree Structure (Main Section)
 
-### Flags
+This is the core of the module data — the nested node tree that defines the program.
 
-| Flag | Value | Description |
-|------|-------|-------------|
-| SURVIVES_RESET | 0x40 | Oneshot survives tree reset (io_call) |
-| POINTER | 0x80 | Uses pointer-based indexing (pt_m_call) |
+### Node Fields
 
-Combined types show both: `MAIN+PTR [0x89]` = 0x09 + 0x80
+Each node is a Lua table with these fields:
 
-## Reading Tree Parameters
-
-### Column Format
-
-```
- * IDX   TYPE[CODE]       u16_a  u16_b  VALUE/DETAILS
- * -------------------------------------------------------------------------
- *    0  OPEN_CALL[0x07]    179      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
+```lua
+{
+    func_name    = "SE_CHAIN_FLOW",     -- Function name (matches function lists)
+    func_hash    = 0xFFC1FAA4,          -- FNV-1a hash (for C cross-reference)
+    call_type    = "m_call",            -- Dispatch type
+    order        = 3,                   -- Sibling order (0-based among parent's children)
+    param_count  = 0,                   -- Number of non-callable params
+    pointer_index = nil,                -- Pointer slot index (pt_m_call only)
+    params       = { ... },             -- Non-callable parameters
+    children     = { ... },             -- Callable child nodes
+}
 ```
 
-| Column | Description |
-|--------|-------------|
-| IDX | Parameter array index |
-| TYPE | Human-readable type name |
-| [CODE] | Hex type code (with flags) |
-| u16_a | First 16-bit field (varies by type) |
-| u16_b | Second 16-bit field (varies by type) |
-| VALUE/DETAILS | Type-specific information |
+| Field | Description |
+|-------|-------------|
+| `func_name` | Human-readable function name; must appear in the appropriate function list |
+| `func_hash` | FNV-1a hash of `func_name`; used for C binary cross-reference only |
+| `call_type` | One of: `"m_call"`, `"pt_m_call"`, `"o_call"`, `"io_call"`, `"p_call"`, `"p_call_composite"` |
+| `order` | Position among siblings (0-based); determines execution order in sequences/forks |
+| `param_count` | Count of entries in `params[]`; informational (use `#node.params` at runtime) |
+| `pointer_index` | Index into `inst.pointer_array` for `pt_m_call` nodes; `nil` for others |
+| `params` | Array of non-callable parameter tables |
+| `children` | Array of callable child node tables (recursively nested) |
 
-### Indentation
+### Call Types
 
-Indentation shows nesting depth. Each level of nesting adds 2 spaces:
+| Call Type | Function Type | Description |
+|-----------|--------------|-------------|
+| `m_call` | MAIN | Standard main function with INIT/TICK/TERMINATE lifecycle |
+| `pt_m_call` | MAIN | Pointer-based main function — uses `pointer_index` for persistent storage |
+| `o_call` | ONESHOT | Fire-once function, runs once per reset cycle |
+| `io_call` | ONESHOT | Fire-once function, survives tree reset (runs once ever) |
+| `p_call` | PRED | Simple predicate, no child predicates |
+| `p_call_composite` | PRED | Composite predicate with child predicates in `children[]` |
 
-```
-*    0  OPEN_CALL[0x07]    179      0  SE_FUNCTION_INTERFACE
-*    1  MAIN      [0x09]      0      0
-*    2    OPEN_CALL[0x07]      3      0  SE_LOG        <- Child of FUNCTION_INTERFACE
-*    3    ONESHOT   [0x08]      2      0
-*    4      STR_IDX[0x0D]        0     22              <- Parameter of SE_LOG
-*    5    CLOSE[0x06]          0      -
-```
+### Parameter Types
 
-### OPEN_CALL / CLOSE Pairs
+Each entry in `node.params` is a table with `type`, `value`, and `order`:
 
-Every function call is wrapped in OPEN_CALL...CLOSE:
-
-```
-*    2    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
-*    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
-*    4      STR_IDX[0x0D]        0     22  "Fork Join Test Started"
-*    5    CLOSE[0x06]          0      -  (end SE_LOG)
-```
-
-- **OPEN_CALL u16_a**: Offset to matching CLOSE (idx 2 + 3 = idx 5)
-- **OPEN_CALL u16_b**: Reserved (usually 0)
-- **CLOSE**: Marks end of function call
-
-### Function References (ONESHOT/MAIN/PRED)
-
-```
-*    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
+```lua
+{ type = "field_ref", value = "outer_sequence_counter", order = 0 }
+{ type = "uint",      value = 0,                        order = 1 }
+{ type = "int",       value = 3,                        order = 0 }
+{ type = "str_ptr",   value = "loop_sequence_fn start",  order = 0 }
 ```
 
-- **u16_a**: Back-reference to OPEN_CALL index
-- **u16_b**: Function index in the function table
-- **idx_to_ptr**: Pointer table index (for pointer-based functions)
+| Param Type | Value Type | Description |
+|-----------|------------|-------------|
+| `"int"` | number | Signed integer literal |
+| `"uint"` | number | Unsigned integer literal |
+| `"float"` | number | Float literal |
+| `"str_ptr"` | string | String literal (carried inline) |
+| `"str_idx"` | string | String literal (by index reference) |
+| `"str_hash"` | table `{hash, str}` | String with precomputed FNV-1a hash |
+| `"field_ref"` | string | Blackboard field name |
+| `"nested_field_ref"` | string | Nested blackboard field name |
+| `"result"` | number | Result code literal |
+| `"dict_start"` | — | Dictionary structure open |
+| `"dict_end"` | — | Dictionary structure close |
+| `"dict_key"` | string | Dictionary key (string name) |
+| `"dict_key_hash"` | number | Dictionary key (FNV-1a hash) |
+| `"end_dict_key"` | — | Dictionary key terminator |
+| `"array_start"` | — | Array structure open |
+| `"array_end"` | — | Array structure close |
+| `"stack_tos"` | number | Stack top-of-stack offset |
+| `"stack_local"` | number | Stack local variable index |
+| `"stack_pop"` | — | Stack pop operation |
+| `"stack_push"` | — | Stack push operation |
+| `"const_ref"` | any | Constants table reference |
 
-### Pointer Functions (MAIN+PTR)
+## Reading the Tree Structure
 
+### Nesting = Indentation
+
+The tree structure is explicit in the Lua table nesting. Each `children = { ... }` block contains the child nodes, which themselves may contain children:
+
+```lua
+-- Root: SE_FUNCTION_INTERFACE
+{
+    func_name="SE_FUNCTION_INTERFACE", call_type="m_call",
+    children={
+        -- Child 0: SE_SET_FIELD (oneshot)
+        { func_name="SE_SET_FIELD", call_type="o_call",
+          params={ {type="field_ref", value="outer_sequence_counter"},
+                   {type="uint", value=0} } },
+
+        -- Child 1: SE_SET_FIELD (oneshot)
+        { func_name="SE_SET_FIELD", call_type="o_call", ... },
+
+        -- Child 2: SE_FORK_JOIN (main, contains nested tree)
+        { func_name="SE_FORK_JOIN", call_type="m_call",
+          children={
+              -- Grandchild: SE_WHILE
+              { func_name="SE_WHILE", call_type="m_call",
+                children={
+                    -- Predicate child
+                    { func_name="SE_STATE_INCREMENT_AND_TEST",
+                      call_type="p_call", ... },
+                    -- Body child
+                    { func_name="SE_FORK_JOIN", call_type="m_call", ... },
+                } },
+          } },
+
+        -- Child 3: second SE_FORK_JOIN
+        { func_name="SE_FORK_JOIN", call_type="m_call", ... },
+
+        -- Child 4: SE_RETURN_TERMINATE
+        { func_name="SE_RETURN_TERMINATE", call_type="m_call", ... },
+    },
+}
 ```
-*   13      MAIN+PTR  [0x89]     12      2  idx_to_ptr=0
+
+### Pointer Functions (pt_m_call)
+
+Nodes with `call_type = "pt_m_call"` have a non-nil `pointer_index` that identifies their slot in `inst.pointer_array`:
+
+```lua
+{ func_name="SE_TICK_DELAY", call_type="pt_m_call",
+  pointer_index=0,                    -- uses inst.pointer_array[0]
+  params={ {type="int", value=3} },   -- 3 tick delay
+}
 ```
 
-The `+PTR` flag (0x80) indicates this function uses pointer-based instance indexing, allowing multiple concurrent instances with different parameters.
+Multiple `pt_m_call` nodes in the same tree each get a unique `pointer_index`. In the example module, four `SE_TICK_DELAY` nodes use indices 0–3, matching `tree.pointer_count = 4`.
 
-### Parameters
+### Function Parameters
 
-Parameters follow the function reference:
+Parameters follow the function reference in `node.params`. Reading them requires knowing the function's expected signature:
 
+```lua
+-- SE_SET_FIELD: params[1]=field_ref (destination), params[2]=value
+{ func_name="SE_SET_FIELD", call_type="o_call",
+  params={
+    {type="field_ref", value="outer_sequence_counter"},  -- destination field
+    {type="uint", value=0},                              -- value to write
+  } }
+
+-- SE_LOG: params[1]=str_ptr (message string)
+{ func_name="SE_LOG", call_type="o_call",
+  params={
+    {type="str_ptr", value="loop_sequence_fn start"},
+  } }
+
+-- SE_LOG_INT: params[1]=str_ptr (format string), params[2]=field_ref (value)
+{ func_name="SE_LOG_INT", call_type="o_call",
+  params={
+    {type="str_ptr", value="outer_sequence_counter %d"},
+    {type="field_ref", value="outer_sequence_counter"},
+  } }
+
+-- SE_TICK_DELAY: params[1]=int (tick count)
+{ func_name="SE_TICK_DELAY", call_type="pt_m_call",
+  pointer_index=0,
+  params={
+    {type="int", value=3},
+  } }
+
+-- SE_STATE_INCREMENT_AND_TEST: params[1]=uint (increment), params[2]=uint (limit)
+{ func_name="SE_STATE_INCREMENT_AND_TEST", call_type="p_call",
+  params={
+    {type="uint", value=1},   -- increment by 1 each call
+    {type="uint", value=10},  -- limit: stop after 10
+  } }
+
+-- SE_FIELD_INCREMENT_AND_TEST: params[1..3]=field_ref (counter, increment, limit)
+{ func_name="SE_FIELD_INCREMENT_AND_TEST", call_type="p_call",
+  params={
+    {type="field_ref", value="field_test_counter"},     -- counter field
+    {type="field_ref", value="field_test_increment"},   -- increment field
+    {type="field_ref", value="field_test_limit"},       -- limit field
+  } }
 ```
-*   14        INT[0x00]            -      -  10 (0x0000000A)
+
+### Predicate Children
+
+Predicates appear as children of main function nodes. The `call_type` distinguishes them:
+
+```lua
+-- SE_WHILE: children[1]=predicate, children[2]=body
+{ func_name="SE_WHILE", call_type="m_call",
+  children={
+    -- children[1]: predicate (p_call)
+    { func_name="SE_STATE_INCREMENT_AND_TEST", call_type="p_call",
+      params={ {type="uint",value=1}, {type="uint",value=10} } },
+    -- children[2]: body (m_call)
+    { func_name="SE_FORK_JOIN", call_type="m_call", children={...} },
+  } }
 ```
 
-- **INT**: Integer value, shown in decimal and hex
-- **UINT**: Unsigned integer
-- **FLOAT**: Floating point
-- **STR_IDX**: String table reference with length
-- **FIELD**: Blackboard field reference with offset and hash
-
-### Field References
-
-```
-*   47      FIELD[0x0B]          0      4  state (off=0x0000, hash=0x783132F6)
-```
-
-- **u16_a**: Record index (0 = first record)
-- **u16_b**: Field size in bytes
-- **off**: Field offset within record
-- **hash**: Field name hash
-
-### String References
-
-```
-*    4      STR_IDX[0x0D]        0     22  "Fork Join Test Started"
-```
-
-- **u16_a**: String table index
-- **u16_b**: String length
-- **"..."**: Actual string content
-
-## Example: Reading a State Machine Case
-
-```
-*   48      INT[0x00]            -      -  0 (0x00000000)     <- Case value
-*   49      OPEN_CALL[0x07]     29      0  SE_SEQUENCE       <- Action
-*   50      MAIN      [0x09]     49      5  idx_to_ptr=0
-*   51        OPEN_CALL[0x07]      3      0  SE_LOG
-*   52        ONESHOT   [0x08]     51      0  idx_to_ptr=0
-*   53          STR_IDX[0x0D]        5      7  "State 0"
-*   54        CLOSE[0x06]          0      -  (end SE_LOG)
-...
-*   78      CLOSE[0x06]          0      -  (end SE_SEQUENCE)
-```
-
-This shows:
-1. **INT 0**: Case value for state 0
-2. **SE_SEQUENCE**: The action to execute (spans indices 49-78)
-3. **SE_LOG "State 0"**: First child of the sequence
+The `se_while` builtin calls `child_invoke_pred(inst, node, 0)` for the predicate and `child_invoke(inst, node, 1, eid, edata)` for the body. The 0-based child indices map to 1-based Lua array positions.
 
 ## Tracing Execution
 
-To trace how a tree executes:
+To trace how a tree executes, follow the nesting structure:
 
-1. Find the root `OPEN_CALL` (index 0)
-2. Note the function type (MAIN for composites)
-3. Follow children (parameters between OPEN_CALL and CLOSE)
-4. Each `OPEN_CALL` child is a nested function call
-
-### Example Trace
+### Example: loop_test Module
 
 ```
-SE_FUNCTION_INTERFACE (0-179)
-├── SE_LOG "Fork Join Test Started" (2-5)
-├── SE_FORK_JOIN (6-20)
-│   ├── SE_LOG "Fork Join Test Started" (8-11)
-│   ├── SE_TICK_DELAY 10 (12-15)
-│   └── SE_LOG "Fork Join Test Terminated" (16-19)
-├── SE_FORK (21-35)
-│   └── ...
-├── SE_SET_FIELD state=0 (36-40)
-├── SE_LOG "State machine test started" (41-44)
-├── SE_STATE_MACHINE (45-167)
-│   ├── FIELD state
-│   ├── INT 0, SE_SEQUENCE (state 0 case)
-│   ├── INT 1, SE_SEQUENCE (state 1 case)
-│   ├── INT 2, SE_SEQUENCE (state 2 case)
-│   └── INT -1, SE_SEQUENCE (default case)
-├── SE_TICK_DELAY 350 (168-171)
-├── SE_LOG "State machine test finished" (172-175)
-└── SE_RETURN_FUNCTION_TERMINATE (176-178)
+SE_FUNCTION_INTERFACE (root)
+├── [o_call] SE_SET_FIELD  outer_sequence_counter = 0
+├── [o_call] SE_SET_FIELD  inner_sequence_counter = 0
+├── SE_FORK_JOIN
+│   └── SE_WHILE (pred: SE_STATE_INCREMENT_AND_TEST, step=1, limit=10)
+│       └── SE_FORK_JOIN
+│           └── SE_CHAIN_FLOW
+│               ├── [o_call] SE_LOG "loop_sequence_fn start"
+│               ├── [o_call] SE_LOG_INT "outer_sequence_counter %d"
+│               ├── [o_call] SE_INC_FIELD outer_sequence_counter
+│               ├── SE_CHAIN_FLOW (inner loop body)
+│               │   ├── [o_call] SE_LOG "inner_sequence_fn start"
+│               │   ├── [o_call] SE_LOG_INT "inner_sequence_counter %d"
+│               │   ├── [o_call] SE_INC_FIELD inner_sequence_counter
+│               │   ├── [pt_m_call] SE_TICK_DELAY 3  (ptr=0)
+│               │   ├── [o_call] SE_LOG "inner_sequence_fn end"
+│               │   └── SE_RETURN_PIPELINE_DISABLE
+│               ├── [pt_m_call] SE_TICK_DELAY 5  (ptr=1)
+│               ├── [o_call] SE_LOG "loop_sequence_fn end"
+│               └── SE_RETURN_PIPELINE_DISABLE
+├── SE_FORK_JOIN (field-based loop variant)
+│   ├── [o_call] SE_SET_FIELD  field_test_increment = 1
+│   ├── [o_call] SE_SET_FIELD  field_test_limit = 10
+│   └── SE_WHILE (pred: SE_FIELD_INCREMENT_AND_TEST)
+│       └── SE_FORK_JOIN
+│           └── SE_CHAIN_FLOW
+│               ├── ... (same structure as above, ptr=2,3)
+└── SE_RETURN_TERMINATE
 ```
+
+### Reading Execution Flow
+
+1. **Start at root**: The first node in `tree.nodes[1]` is always the root. Here it's `SE_FUNCTION_INTERFACE`.
+2. **Follow children in order**: The `order` field within each child determines execution sequence (though array position already reflects this).
+3. **Identify call types**: `o_call` nodes fire once during INIT; `m_call`/`pt_m_call` nodes persist across ticks; `p_call` nodes are evaluated as booleans.
+4. **Track pointer indices**: `pt_m_call` nodes with different `pointer_index` values use separate persistent storage slots.
+5. **Match params to signatures**: Each function's `params` array follows its documented parameter layout.
 
 ## Debugging Tips
 
 ### Finding a Function
 
-Search for the function name hash to find all invocations:
+Search for `func_name` to find all invocations:
 
 ```bash
-grep "SE_TICK_DELAY" xxx_dump_32.h
+grep 'func_name="SE_TICK_DELAY"' loop_test_module.lua
 ```
 
-### Checking Nesting
+### Checking Function Registration
 
-Count OPEN_CALL vs CLOSE to verify balanced structure:
+Compare the function lists against your registered builtins:
 
 ```bash
-grep -c "OPEN_CALL" xxx_dump_32.h  # Should equal...
-grep -c "CLOSE\[0x06\]" xxx_dump_32.h
+# Extract all required function names
+grep -oP 'func_name="\K[^"]+' loop_test_module.lua | sort -u
 ```
 
-### Verifying Parameters
+Then verify each appears in your `merge_fns()` call. Any name not present will cause `new_instance()` to error with a clear missing-function message.
 
-Check that parameter types match expected function signatures:
+### Verifying Blackboard Fields
 
-- `SE_TICK_DELAY` should have INT parameter
-- `SE_LOG` should have STR_IDX parameter
-- `SE_STATE_MACHINE` should have FIELD then [INT, action] pairs
+Check that every `field_ref` param references a field defined in the record:
 
-### Finding External Functions
+```bash
+# Extract all field_ref values
+grep -oP 'type="field_ref",value="\K[^"]+' loop_test_module.lua | sort -u
 
-External (user-defined) functions appear in the function table but with user-defined hashes:
-
-```
-*   [0x0002] ( 2) hash=0x5839B05B CFL_DISABLE_CHILDREN  <- User function
+# Extract all record field names
+grep -oP 'name="\K[^"]+(?=",name_hash)' loop_test_module.lua | sort -u
 ```
 
-These require implementation in `user_functions.c`.
+Every `field_ref` value should appear as a `name` in the record's `fields` array.
 
+### Counting Nodes
+
+The `tree.node_count` should match the total number of nodes in the DFS traversal. You can verify:
+
+```bash
+# Count all func_name occurrences (one per node)
+grep -c 'func_name=' loop_test_module.lua
+```
+
+This count should equal `tree.node_count` (42 in the example).
+
+### Checking Pointer Indices
+
+Each `pointer_index` in the tree should be unique and less than `tree.pointer_count`:
+
+```bash
+grep -oP 'pointer_index=\K\d+' loop_test_module.lua | sort -n
+# Should produce: 0, 1, 2, 3 (and pointer_count should be 4)
+```
+
+### Verifying Parent-Child Relationships
+
+Unlike the C dump where you must match OPEN_CALL/CLOSE pairs by index arithmetic, the LuaJIT module data makes parent-child relationships explicit through nesting. If you're unsure what a node's parent is, look at which `children = { ... }` array contains it.
+
+### Cross-Referencing with C Debug Dump
+
+When debugging across C and LuaJIT runtimes, use `func_hash` values to match nodes:
+
+```lua
+-- LuaJIT module data:
+{ func_name="SE_CHAIN_FLOW", func_hash=0xFFC1FAA4, ... }
+```
+
+```c
+// C debug dump:
+*   49  OPEN_CALL[0x07]     29      0  SE_CHAIN_FLOW hash=0xFFC1FAA4
+```
+
+The `func_hash` values are identical because both use FNV-1a on the same function name strings.
+
+## Programmatic Inspection
+
+Since the module data is a standard Lua table, you can inspect it programmatically:
+
+```lua
+local md = require("loop_test_module")
+
+-- List all required functions
+print("=== Required Functions ===")
+for _, name in ipairs(md.oneshot_funcs) do print("  [oneshot] " .. name) end
+for _, name in ipairs(md.main_funcs)    do print("  [main]    " .. name) end
+for _, name in ipairs(md.pred_funcs)    do print("  [pred]    " .. name) end
+
+-- Walk tree and print structure
+local function dump_tree(node, indent)
+    indent = indent or ""
+    local tag = node.call_type
+    if node.pointer_index then
+        tag = tag .. " ptr=" .. node.pointer_index
+    end
+    print(string.format("%s[%s] %s", indent, tag, node.func_name))
+
+    -- Print params
+    for _, p in ipairs(node.params or {}) do
+        print(string.format("%s  param: %s = %s", indent, p.type, tostring(p.value)))
+    end
+
+    -- Recurse into children
+    for _, child in ipairs(node.children or {}) do
+        dump_tree(child, indent .. "  ")
+    end
+end
+
+for _, tree_name in ipairs(md.tree_order) do
+    print("\n=== Tree: " .. tree_name .. " ===")
+    local tree = md.trees[tree_name]
+    print(string.format("  nodes=%d  pointers=%d  record=%s",
+        tree.node_count, tree.pointer_count, tree.record_name or "none"))
+    for _, root in ipairs(tree.nodes) do
+        dump_tree(root, "  ")
+    end
+end
+```
+
+This produces output like:
+
+```
+=== Tree: loop_test ===
+  nodes=42  pointers=4  record=loop_test_blackboard
+  [m_call] SE_FUNCTION_INTERFACE
+    [o_call] SE_SET_FIELD
+      param: field_ref = outer_sequence_counter
+      param: uint = 0
+    [o_call] SE_SET_FIELD
+      param: field_ref = inner_sequence_counter
+      param: uint = 0
+    [m_call] SE_FORK_JOIN
+      [m_call] SE_WHILE
+        [p_call] SE_STATE_INCREMENT_AND_TEST
+          param: uint = 1
+          param: uint = 10
+        [m_call] SE_FORK_JOIN
+          ...
+```
+
+This is often more useful than reading the raw Lua source, especially for large trees.
+
+## Summary
+
+The LuaJIT module data file replaces both the C SEXB binary and the C debug dump with a single, human-readable, executable Lua table. The tree structure is represented as nested node tables with explicit `children` arrays rather than flat parameter streams with OPEN_CALL/CLOSE bracket pairs. Parameter types are readable strings rather than hex codes. Function references are names rather than hash indices. The file can be inspected visually, searched with grep, or walked programmatically — and it is the exact same artifact that the runtime loads and executes.

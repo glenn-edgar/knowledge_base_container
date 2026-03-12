@@ -1,15 +1,14 @@
-```markdown
-# S_Engine Return Code Tests
+# S_Engine Return Code Tests — LuaJIT Runtime
 
 ## Overview
 
-This test suite validates the S_Engine's return code system by defining minimal trees that return each possible result code. The tests verify that return codes propagate correctly from DSL source through compilation to runtime execution.
+This test suite validates the S_Engine's return code system by defining minimal trees that return each possible result code. The tests verify that return codes propagate correctly from pipeline-generated `module_data` through the LuaJIT runtime's `invoke_main` dispatch. All 18 return code builtins are implemented in `se_builtins_return_codes.lua` using a `make_return(code)` factory.
 
 ## Return Code Architecture
 
-The S_Engine uses a symmetric 3-tier return code system with 6 codes per tier:
+The S_Engine uses a symmetric 3-tier return code system with 6 codes per tier. In the LuaJIT runtime, these are plain Lua numbers defined as constants on `se_runtime`:
 
-| Code | Application (0-5) | Function (6-11) | Pipeline (12-17) |
+| Code | Application (0–5) | Function (6–11) | Pipeline (12–17) |
 |------|-------------------|-----------------|------------------|
 | CONTINUE | 0 | 6 | 12 |
 | HALT | 1 | 7 | 13 |
@@ -18,514 +17,341 @@ The S_Engine uses a symmetric 3-tier return code system with 6 codes per tier:
 | DISABLE | 4 | 10 | 16 |
 | SKIP_CONTINUE | 5 | 11 | 17 |
 
-This design enables simple layer/code extraction: `base_code = result % 6`, `layer = result / 6`.
+This design enables simple layer/code extraction: `base_code = result % 6`, `layer = math.floor(result / 6)`.
+
+### Result Code Constants (se_runtime.lua)
+
+```lua
+-- Application result codes (0-5) — pass through to ChainTree walker
+M.SE_CONTINUE           = 0
+M.SE_HALT               = 1
+M.SE_TERMINATE          = 2
+M.SE_RESET              = 3
+M.SE_DISABLE            = 4
+M.SE_SKIP_CONTINUE      = 5
+
+-- Function result codes (6-11) — handled at function boundary
+M.SE_FUNCTION_CONTINUE      = 6
+M.SE_FUNCTION_HALT          = 7
+M.SE_FUNCTION_TERMINATE     = 8
+M.SE_FUNCTION_RESET         = 9
+M.SE_FUNCTION_DISABLE       = 10
+M.SE_FUNCTION_SKIP_CONTINUE = 11
+
+-- Pipeline result codes (12-17) — handled by composite nodes
+M.SE_PIPELINE_CONTINUE      = 12
+M.SE_PIPELINE_HALT          = 13
+M.SE_PIPELINE_TERMINATE     = 14
+M.SE_PIPELINE_RESET         = 15
+M.SE_PIPELINE_DISABLE       = 16
+M.SE_PIPELINE_SKIP_CONTINUE = 17
+```
+
+### Tier Detection (used by composites)
+
+```lua
+-- Application codes (0-5): propagate upward unchanged
+-- Function codes (6-11): se_function_interface propagates immediately
+-- Pipeline codes (12-17): handled locally by composites (sequence, while, state_machine, etc.)
+
+local function is_application(r) return r >= 0 and r <= 5 end
+local function is_function(r)    return r >= 6 and r <= 11 end
+local function is_pipeline(r)    return r >= 12 and r <= 17 end
+```
 
 ## Test Structure
 
-### DSL Source (Lua)
+### Module Data
+
+The pipeline generates a `module_data` with 18 trees, each containing a single node that immediately returns a specific result code:
+
 ```lua
-local M = require("s_expr_dsl")
-local mod = start_module("return_tests")
-use_32bit()
-set_debug(true)
+-- module_data excerpt:
+M.main_funcs = {
+    "SE_RETURN_CONTINUE", "SE_RETURN_HALT", "SE_RETURN_TERMINATE",
+    "SE_RETURN_RESET", "SE_RETURN_DISABLE", "SE_RETURN_SKIP_CONTINUE",
+    "SE_RETURN_FUNCTION_CONTINUE", "SE_RETURN_FUNCTION_HALT",
+    "SE_RETURN_FUNCTION_TERMINATE", "SE_RETURN_FUNCTION_RESET",
+    "SE_RETURN_FUNCTION_DISABLE", "SE_RETURN_FUNCTION_SKIP_CONTINUE",
+    "SE_RETURN_PIPELINE_CONTINUE", "SE_RETURN_PIPELINE_HALT",
+    "SE_RETURN_PIPELINE_TERMINATE", "SE_RETURN_PIPELINE_RESET",
+    "SE_RETURN_PIPELINE_DISABLE", "SE_RETURN_PIPELINE_SKIP_CONTINUE",
+}
+M.oneshot_funcs = {}
+M.pred_funcs = {}
 
--- Application result codes (0-5)
-start_tree("return_continue_test")
-    se_return_continue()
-end_tree("return_continue_test")
+-- Each tree has a single root node:
+M.trees["return_continue_test"] = {
+    record_name = nil,
+    root = { func_name = "SE_RETURN_CONTINUE", call_type = "m_call",
+             params = {}, children = {} }
+}
 
-start_tree("return_halt_test")
-    se_return_halt()
-end_tree("return_halt_test")
-
-start_tree("return_terminate_test")
-    se_return_terminate()
-end_tree("return_terminate_test")
-
-start_tree("return_reset_test")
-    se_return_reset()
-end_tree("return_reset_test")
-
-start_tree("return_disable_test")
-    se_return_disable()
-end_tree("return_disable_test")
-
-start_tree("return_skip_continue_test")
-    se_return_skip_continue()
-end_tree("return_skip_continue_test")
-
--- Function result codes (6-11)
-start_tree("return_function_continue_test")
-    se_return_function_continue()
-end_tree("return_function_continue_test")
-
--- ... additional trees for each return code ...
-
-local result = end_module(mod)
+M.trees["return_halt_test"] = {
+    root = { func_name = "SE_RETURN_HALT", call_type = "m_call",
+             params = {}, children = {} }
+}
+-- ... 16 more trees ...
 ```
 
 Each tree contains a single node that immediately returns a specific result code. This isolates the return code mechanism from any composite node logic.
 
-### Generated Outputs
+### Return Code Builtins (se_builtins_return_codes.lua)
 
-The DSL compiler produces:
+All 18 builtins are generated by a `make_return(code)` factory:
 
-| File | Purpose |
-|------|---------|
-| `return_tests_32.bin` | Binary module for file-based loading |
-| `return_tests_bin_32.h` | C header with embedded binary (ROM loading) |
-| `return_tests.h` | Tree hash definitions for lookup |
-| `return_tests_user_functions.h` | User function stubs (if any) |
+```lua
+local function make_return(code)
+    return function(inst, node, event_id, event_data)
+        return code
+    end
+end
 
-### Tree Hash Definitions
-```c
-// From return_tests.h
+M.se_return_continue           = make_return(0)
+M.se_return_halt               = make_return(1)
+M.se_return_terminate          = make_return(2)
+M.se_return_reset              = make_return(3)
+M.se_return_disable            = make_return(4)
+M.se_return_skip_continue      = make_return(5)
 
-// Application result code trees
-#define RETURN_CONTINUE_TEST_HASH                0x...
-#define RETURN_HALT_TEST_HASH                    0x...
-#define RETURN_TERMINATE_TEST_HASH               0x...
-#define RETURN_RESET_TEST_HASH                   0x...
-#define RETURN_DISABLE_TEST_HASH                 0x...
-#define RETURN_SKIP_CONTINUE_TEST_HASH           0x...
+M.se_return_function_continue      = make_return(6)
+M.se_return_function_halt          = make_return(7)
+M.se_return_function_terminate     = make_return(8)
+M.se_return_function_reset         = make_return(9)
+M.se_return_function_disable       = make_return(10)
+M.se_return_function_skip_continue = make_return(11)
 
-// Function result code trees
-#define RETURN_FUNCTION_CONTINUE_TEST_HASH       0x...
-#define RETURN_FUNCTION_HALT_TEST_HASH           0x...
-#define RETURN_FUNCTION_TERMINATE_TEST_HASH      0x...
-#define RETURN_FUNCTION_RESET_TEST_HASH          0x...
-#define RETURN_FUNCTION_DISABLE_TEST_HASH        0x...
-#define RETURN_FUNCTION_SKIP_CONTINUE_TEST_HASH  0x...
-
-// Pipeline result code trees
-#define RETURN_PIPELINE_CONTINUE_TEST_HASH       0x...
-#define RETURN_PIPELINE_HALT_TEST_HASH           0x...
-#define RETURN_PIPELINE_TERMINATE_TEST_HASH      0x...
-#define RETURN_PIPELINE_RESET_TEST_HASH          0x...
-#define RETURN_PIPELINE_DISABLE_TEST_HASH        0x...
-#define RETURN_PIPELINE_SKIP_CONTINUE_TEST_HASH  0x...
+M.se_return_pipeline_continue      = make_return(12)
+M.se_return_pipeline_halt          = make_return(13)
+M.se_return_pipeline_terminate     = make_return(14)
+M.se_return_pipeline_reset         = make_return(15)
+M.se_return_pipeline_disable       = make_return(16)
+M.se_return_pipeline_skip_continue = make_return(17)
 ```
 
-Trees are identified by FNV-1a hashes of their names, enabling O(1) lookup without string comparison.
+Each returned closure ignores all arguments and returns the fixed code. At runtime, `invoke_main` in `se_runtime.lua` calls the registered function and propagates the result.
 
----
+## Comparison with C Runtime Interface
 
-## Runtime Interface
+The C document describes the full engine lifecycle (allocator, ROM/file loading, hash-based tree creation, cleanup). The LuaJIT runtime replaces all of this:
 
-### Engine Initialization
+| C Runtime | LuaJIT Runtime |
+|-----------|----------------|
+| `s_expr_allocator_t` (malloc/free/get_time) | GC-managed tables; `mod.get_time` for time |
+| `s_engine_load_from_rom` / `s_engine_load_from_file` | `se_runtime.new_module(module_data, fns)` |
+| Binary header parsing, function table mapping | `require("module_data")` loads Lua tables directly |
+| `s_engine_user_register_fn` callback arrays | `se_runtime.merge_fns(builtins, user_fns)` |
+| `s_expr_tree_create_by_hash(module, HASH, flags)` | `se_runtime.new_instance(mod, "tree_name")` |
+| `s_expr_node_tick(tree, event, data)` | `se_runtime.tick_once(inst, event_id, event_data)` |
+| `s_expr_tree_free(tree)` / `s_engine_free(engine)` | GC handles cleanup (no explicit free) |
+| Tree lookup by FNV-1a hash (`#define HASH 0x...`) | Tree lookup by name (string key in `module_data.trees`) |
+| Debug callback via function pointer | Not needed (Lua `print` / logging directly) |
 
-The S_Engine provides two general-purpose loading functions:
+### What's Eliminated
 
-**Function Signatures**
-```c
-typedef void (*s_engine_user_register_fn)(s_engine_handle_t* engine);
-typedef void (*s_engine_debug_callback_fn)(s_expr_tree_instance_t* inst, const char* msg);
-
-bool s_engine_load_from_file(
-    s_engine_handle_t* engine,
-    s_expr_allocator_t* alloc,
-    const char* filepath,
-    s_engine_debug_callback_fn debug_cb,
-    size_t user_fn_count,
-    s_engine_user_register_fn* user_fns
-);
-
-bool s_engine_load_from_rom(
-    s_engine_handle_t* engine,
-    s_expr_allocator_t* alloc,
-    const uint8_t* binary_data,
-    size_t binary_size,
-    s_engine_debug_callback_fn debug_cb,
-    size_t user_fn_count,
-    s_engine_user_register_fn* user_fns
-);
-```
-
-**ROM Loading (Embedded Binary)**
-```c
-#include "return_tests_bin_32.h"
-
-bool result = s_engine_load_from_rom(
-    &engine,
-    &alloc,
-    return_tests_module_bin_32,
-    RETURN_TESTS_MODULE_BIN_32_SIZE,
-    debug_callback,
-    0,      // No user functions
-    NULL
-);
-```
-
-Used for embedded systems where the module is compiled into flash.
-
-**File Loading**
-```c
-bool result = s_engine_load_from_file(
-    &engine,
-    &alloc,
-    "return_tests_32.bin",
-    debug_callback,
-    0,      // No user functions
-    NULL
-);
-```
-
-Used for development or systems with filesystem access.
-
-**With User Functions**
-```c
-s_engine_user_register_fn user_fns[] = {
-    register_sensor_functions,
-    register_motor_functions,
-    register_protocol_functions
-};
-
-bool result = s_engine_load_from_file(
-    &engine,
-    &alloc,
-    "robot_controller.bin",
-    debug_callback,
-    3,
-    user_fns
-);
-```
-
-### Allocator Interface
-
-The S_Engine uses a pluggable allocator for all dynamic memory:
-```c
-typedef struct {
-    void* (*malloc)(void* ctx, size_t size);
-    void  (*free)(void* ctx, void* ptr);
-    void* ctx;                        // User context passed to malloc/free
-    double (*get_time)(void* ctx);    // Monotonic time source
-} s_expr_allocator_t;
-```
-
-This allows integration with custom memory managers, arena allocators, or RTOS heap implementations.
-```c
-// Example: Simple malloc wrapper
-static void* simple_malloc(void* ctx, size_t size) {
-    (void)ctx;
-    return malloc(size);
-}
-
-static void simple_free(void* ctx, void* ptr) {
-    (void)ctx;
-    free(ptr);
-}
-
-static double linux_get_time(void* ctx) {
-    (void)ctx;
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
-}
-
-s_expr_allocator_t alloc = {
-    .malloc   = simple_malloc,
-    .free     = simple_free,
-    .ctx      = NULL,
-    .get_time = linux_get_time
-};
-```
-
-### Tree Instantiation
-
-Create a tree instance by hash:
-```c
-s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
-    &engine.module,
-    RETURN_CONTINUE_TEST_HASH,
-    0                              // Flags (reserved)
-);
-
-if (!tree) {
-    printf("Failed to create tree\n");
-    return;
-}
-```
-
-Each tree instance has its own:
-- Node state array (`node_states[]`)
-- Pointer array (if any nodes require it)
-- Execution context
-
-Multiple instances of the same tree definition can exist simultaneously.
-
-### Tree Execution
-
-Tick the tree with an event:
-```c
-s_expr_result_t result = s_expr_node_tick(
-    tree,
-    SE_EVENT_TICK,                 // Event type
-    NULL                           // Event data (optional)
-);
-```
-
-The tick function:
-1. Delivers the event to the root node
-2. Executes the tree according to its structure
-3. Returns the propagated result code
-
-### Event Types
-```c
-typedef enum {
-    SE_EVENT_INIT,      // Initialize tree (run oneshot functions)
-    SE_EVENT_TICK,      // Normal execution tick
-    SE_EVENT_TERM,      // Termination request
-    SE_EVENT_RESET,     // Reset request
-} s_expr_event_t;
-```
-
-### Tree Cleanup
-```c
-s_expr_tree_free(tree);
-```
-
-Releases node states, pointer slots, and the instance structure.
-
-### Engine Cleanup
-```c
-s_engine_free(&engine);
-```
-
-Releases all module resources, function tables, and allocated memory.
-
----
+- **Allocator interface** — no `malloc`/`free` wrappers, no RTOS heap integration
+- **Binary loading** — no `.bin` files, no ROM headers, no binary parsing
+- **Hash-based tree lookup** — trees are accessed by name: `mod.module_data.trees["return_continue_test"]`
+- **Explicit cleanup** — no `s_expr_tree_free` / `s_engine_free`, Lua GC manages all memory
+- **Generated C headers** — no `_bin_32.h`, no `_user_functions.h`, no `#define` hash constants
 
 ## Test Execution Flow
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Test Runner                              │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 1. Initialize allocator                                         │
-│    - malloc/free wrappers                                       │
-│    - time source                                                │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 2. Load module (ROM or file)                                    │
-│    - Parse binary header                                        │
-│    - Map tree/function/string tables                            │
-│    - Register built-in functions                                │
-│    - Register user functions (if any)                           │
-│    - Set debug callback (if provided)                           │
-│    - Validate all function references                           │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 3. For each test tree:                                          │
-│    a. Create tree instance by hash                              │
-│    b. Tick with SE_EVENT_TICK                                   │
-│    c. Verify returned result code                               │
-│    d. Free tree instance                                        │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ 4. Free engine                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
 
----
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Test Runner (Lua)                            │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Load module                                                  │
+│    local module_data = require("return_tests_module")           │
+│    local fns = se_runtime.merge_fns(                            │
+│        require("se_builtins_return_codes")                      │
+│    )                                                            │
+│    local mod = se_runtime.new_module(module_data, fns)          │
+│    → register_fns matches all 18 SE_RETURN_* names              │
+│    → validate_module confirms no unresolved functions            │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. For each test tree:                                          │
+│    a. local inst = se_runtime.new_instance(mod, tree_name)      │
+│    b. local result = se_runtime.tick_once(inst)                 │
+│    c. assert(result == expected_code)                            │
+│    (inst is GC'd when no longer referenced)                     │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. Report results                                               │
+│    18/18 passed → ✅ ALL TESTS PASSED                          │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Test Cases
 
-### Application Result Codes (0-5)
+### Application Result Codes (0–5)
 
-| Test | DSL Function | Expected Result | Scope |
-|------|--------------|-----------------|-------|
-| `return_continue_test` | `se_return_continue()` | `SE_CONTINUE` (0) | ChainTree |
-| `return_halt_test` | `se_return_halt()` | `SE_HALT` (1) | ChainTree |
-| `return_terminate_test` | `se_return_terminate()` | `SE_TERMINATE` (2) | ChainTree |
-| `return_reset_test` | `se_return_reset()` | `SE_RESET` (3) | ChainTree |
-| `return_disable_test` | `se_return_disable()` | `SE_DISABLE` (4) | ChainTree |
-| `return_skip_continue_test` | `se_return_skip_continue()` | `SE_SKIP_CONTINUE` (5) | ChainTree |
+| Test Tree | Builtin | Module | Expected | Scope |
+|-----------|---------|--------|----------|-------|
+| `return_continue_test` | `se_return_continue` | `se_builtins_return_codes.lua` | 0 | ChainTree walker |
+| `return_halt_test` | `se_return_halt` | same | 1 | ChainTree walker |
+| `return_terminate_test` | `se_return_terminate` | same | 2 | ChainTree walker |
+| `return_reset_test` | `se_return_reset` | same | 3 | ChainTree walker |
+| `return_disable_test` | `se_return_disable` | same | 4 | ChainTree walker |
+| `return_skip_continue_test` | `se_return_skip_continue` | same | 5 | ChainTree walker |
 
-These codes pass through to the ChainTree walker unchanged.
+These codes pass through to the ChainTree walker unchanged. Composites that receive application codes (0–5) propagate them upward immediately.
 
-### Function Result Codes (6-11)
+### Function Result Codes (6–11)
 
-| Test | DSL Function | Expected Result | Scope |
-|------|--------------|-----------------|-------|
-| `return_function_continue_test` | `se_return_function_continue()` | `SE_FUNCTION_CONTINUE` (6) | S-expression function |
-| `return_function_halt_test` | `se_return_function_halt()` | `SE_FUNCTION_HALT` (7) | S-expression function |
-| `return_function_terminate_test` | `se_return_function_terminate()` | `SE_FUNCTION_TERMINATE` (8) | S-expression function |
-| `return_function_reset_test` | `se_return_function_reset()` | `SE_FUNCTION_RESET` (9) | S-expression function |
-| `return_function_disable_test` | `se_return_function_disable()` | `SE_FUNCTION_DISABLE` (10) | S-expression function |
-| `return_function_skip_continue_test` | `se_return_function_skip_continue()` | `SE_FUNCTION_SKIP_CONTINUE` (11) | S-expression function |
+| Test Tree | Builtin | Expected | Scope |
+|-----------|---------|----------|-------|
+| `return_function_continue_test` | `se_return_function_continue` | 6 | `se_function_interface` boundary |
+| `return_function_halt_test` | `se_return_function_halt` | 7 | same |
+| `return_function_terminate_test` | `se_return_function_terminate` | 8 | same |
+| `return_function_reset_test` | `se_return_function_reset` | 9 | same |
+| `return_function_disable_test` | `se_return_function_disable` | 10 | same |
+| `return_function_skip_continue_test` | `se_return_function_skip_continue` | 11 | same |
 
-These codes are handled at the S_Engine function boundary.
+These codes are handled at the `se_function_interface` boundary. `SE_FUNCTION_HALT` (7) is the most commonly seen — returned by `se_tick_delay`, `se_fork_join`, and other blocking builtins.
 
-### Pipeline Result Codes (12-17)
+### Pipeline Result Codes (12–17)
 
-| Test | DSL Function | Expected Result | Scope |
-|------|--------------|-----------------|-------|
-| `return_pipeline_continue_test` | `se_return_pipeline_continue()` | `SE_PIPELINE_CONTINUE` (12) | Composite node |
-| `return_pipeline_halt_test` | `se_return_pipeline_halt()` | `SE_PIPELINE_HALT` (13) | Composite node |
-| `return_pipeline_terminate_test` | `se_return_pipeline_terminate()` | `SE_PIPELINE_TERMINATE` (14) | Composite node |
-| `return_pipeline_reset_test` | `se_return_pipeline_reset()` | `SE_PIPELINE_RESET` (15) | Composite node |
-| `return_pipeline_disable_test` | `se_return_pipeline_disable()` | `SE_PIPELINE_DISABLE` (16) | Composite node |
-| `return_pipeline_skip_continue_test` | `se_return_pipeline_skip_continue()` | `SE_PIPELINE_SKIP_CONTINUE` (17) | Composite node |
+| Test Tree | Builtin | Expected | Scope |
+|-----------|---------|----------|-------|
+| `return_pipeline_continue_test` | `se_return_pipeline_continue` | 12 | Composite-local |
+| `return_pipeline_halt_test` | `se_return_pipeline_halt` | 13 | Composite-local |
+| `return_pipeline_terminate_test` | `se_return_pipeline_terminate` | 14 | Composite-local |
+| `return_pipeline_reset_test` | `se_return_pipeline_reset` | 15 | Composite-local |
+| `return_pipeline_disable_test` | `se_return_pipeline_disable` | 16 | Composite-local |
+| `return_pipeline_skip_continue_test` | `se_return_pipeline_skip_continue` | 17 | Composite-local |
 
-These codes are handled internally by composite nodes (pipeline, sequence, state_machine, etc.).
+These codes are handled internally by composite nodes (`se_sequence`, `se_while`, `se_state_machine`, `se_chain_flow`, etc.). `SE_PIPELINE_DISABLE` (16) is the most common — returned by children when they complete normally.
 
----
+## Test Harness
 
-## Debug Output
+```lua
+local se_runtime = require("se_runtime")
+local module_data = require("return_tests_module")
 
-With `set_debug(true)` in the DSL and a debug callback registered, execution traces are available:
-```c
-static void debug_callback(s_expr_tree_instance_t* inst, const char* msg) {
-    (void)inst;
-    printf("  [DEBUG] %s\n", msg);
+local fns = se_runtime.merge_fns(
+    require("se_builtins_return_codes"),
+)
+
+local mod = se_runtime.new_module(module_data, fns)
+
+-- All 18 test cases: { tree_name, expected_code, label }
+local tests = {
+    -- Application (0-5)
+    { "return_continue_test",       0,  "SE_CONTINUE" },
+    { "return_halt_test",           1,  "SE_HALT" },
+    { "return_terminate_test",      2,  "SE_TERMINATE" },
+    { "return_reset_test",          3,  "SE_RESET" },
+    { "return_disable_test",        4,  "SE_DISABLE" },
+    { "return_skip_continue_test",  5,  "SE_SKIP_CONTINUE" },
+    -- Function (6-11)
+    { "return_function_continue_test",       6,  "SE_FUNCTION_CONTINUE" },
+    { "return_function_halt_test",           7,  "SE_FUNCTION_HALT" },
+    { "return_function_terminate_test",      8,  "SE_FUNCTION_TERMINATE" },
+    { "return_function_reset_test",          9,  "SE_FUNCTION_RESET" },
+    { "return_function_disable_test",        10, "SE_FUNCTION_DISABLE" },
+    { "return_function_skip_continue_test",  11, "SE_FUNCTION_SKIP_CONTINUE" },
+    -- Pipeline (12-17)
+    { "return_pipeline_continue_test",       12, "SE_PIPELINE_CONTINUE" },
+    { "return_pipeline_halt_test",           13, "SE_PIPELINE_HALT" },
+    { "return_pipeline_terminate_test",      14, "SE_PIPELINE_TERMINATE" },
+    { "return_pipeline_reset_test",          15, "SE_PIPELINE_RESET" },
+    { "return_pipeline_disable_test",        16, "SE_PIPELINE_DISABLE" },
+    { "return_pipeline_skip_continue_test",  17, "SE_PIPELINE_SKIP_CONTINUE" },
 }
+
+local passed, failed = 0, 0
+
+print("--- Application Result Codes (0-5) ---\n")
+for i, test in ipairs(tests) do
+    if i == 7 then print("\n--- Function Result Codes (6-11) ---\n") end
+    if i == 13 then print("\n--- Pipeline Result Codes (12-17) ---\n") end
+
+    local tree_name, expected, label = test[1], test[2], test[3]
+    local inst = se_runtime.new_instance(mod, tree_name)
+    local result = se_runtime.tick_once(inst)
+
+    if result == expected then
+        print(string.format("  ✅ PASS: %s (%d)", label, expected))
+        passed = passed + 1
+    else
+        print(string.format("  ❌ FAIL: %s — got %d, expected %d", label, result, expected))
+        failed = failed + 1
+    end
+end
+
+print(string.format("\nPassed: %d  Failed: %d  Total: %d", passed, failed, passed + failed))
+print(failed == 0 and "✅ ALL TESTS PASSED" or "❌ SOME TESTS FAILED")
 ```
 
-Example output:
-```
-Testing RETURN_CONTINUE...
-  [DEBUG] TICK: return_continue_test
-  [DEBUG] INVOKE: se_return_continue -> SE_CONTINUE
-  result: 0 (expected SE_CONTINUE=0)
-```
+## Runtime Modules Exercised
 
----
+| Module | Functions | Role |
+|--------|-----------|------|
+| `se_builtins_return_codes.lua` | All 18 `se_return_*` builtins | Fixed return code closures via `make_return` factory |
+| `se_runtime.lua` | `new_module`, `new_instance`, `tick_once`, `invoke_main`, `register_fns`, `validate_module` | Module creation, instance creation, dispatch |
 
-## Result Code Reference
-```c
-typedef enum {
-    // APPLICATION RESULT CODES (0-5) - pass through to ChainTree
-    SE_CONTINUE           = 0,
-    SE_HALT               = 1,
-    SE_TERMINATE          = 2,
-    SE_RESET              = 3,
-    SE_DISABLE            = 4,
-    SE_SKIP_CONTINUE      = 5,
-    
-    // FUNCTION RESULT CODES (6-11) - handled at function boundary
-    SE_FUNCTION_CONTINUE      = 6,
-    SE_FUNCTION_HALT          = 7,
-    SE_FUNCTION_TERMINATE     = 8,
-    SE_FUNCTION_RESET         = 9,
-    SE_FUNCTION_DISABLE       = 10,
-    SE_FUNCTION_SKIP_CONTINUE = 11,
-    
-    // PIPELINE RESULT CODES (12-17) - handled by composite nodes
-    SE_PIPELINE_CONTINUE      = 12,
-    SE_PIPELINE_HALT          = 13,
-    SE_PIPELINE_TERMINATE     = 14,
-    SE_PIPELINE_RESET         = 15,
-    SE_PIPELINE_DISABLE       = 16,
-    SE_PIPELINE_SKIP_CONTINUE = 17,
-} s_expr_result_t;
-```
-
----
+Note: this test only requires `se_builtins_return_codes` — no other builtin modules are needed since each tree is a single node with no composites, predicates, or oneshots.
 
 ## Building and Running
+
 ```bash
-# Compile DSL to binary
-lua return_tests.lua
+# Generate module_data from DSL
+luajit return_tests.lua
 
-# Build test executable
-gcc -o return_tests_runner \
-    main.c \
-    s_engine_*.c \
-    -I. -lm
-
-# Run tests
-./return_tests_runner
+# Run test suite
+luajit test_return_codes.lua
 ```
 
-Expected output:
+No compilation, no linking, no binary files. The pipeline generates a Lua `module_data` table, and the test harness `require`s it directly.
+
+## Expected Output
+
 ```
-╔════════════════════════════════════════════════════════════════╗
-║           S-EXPRESSION ENGINE TEST SUITE                       ║
-╚════════════════════════════════════════════════════════════════╝
-
-Loading module from ROM...
-
-=== Initializing Engine ===
-✅ Module loaded successfully
-   Trees:    18
-   Records:  0
-   Strings:  0
-   Oneshot:  0
-   Main:     18
-   Pred:     0
-
-=== Registering Functions ===
-✅ Built-in functions registered
-✅ Debug callback set
-
-=== Validating Function Resolution ===
-✅ All functions resolved successfully
-
-╔════════════════════════════════════════════════════════════════╗
-║                    RETURN VALUE TESTS                          ║
-╚════════════════════════════════════════════════════════════════╝
-
 --- Application Result Codes (0-5) ---
 
-Testing SE_CONTINUE...
-  ✅ PASS: CONTINUE (0)
-Testing SE_HALT...
-  ✅ PASS: HALT (1)
-Testing SE_TERMINATE...
-  ✅ PASS: TERMINATE (2)
-Testing SE_RESET...
-  ✅ PASS: RESET (3)
-Testing SE_DISABLE...
-  ✅ PASS: DISABLE (4)
-Testing SE_SKIP_CONTINUE...
-  ✅ PASS: SKIP_CONTINUE (5)
+  ✅ PASS: SE_CONTINUE (0)
+  ✅ PASS: SE_HALT (1)
+  ✅ PASS: SE_TERMINATE (2)
+  ✅ PASS: SE_RESET (3)
+  ✅ PASS: SE_DISABLE (4)
+  ✅ PASS: SE_SKIP_CONTINUE (5)
 
 --- Function Result Codes (6-11) ---
 
-Testing SE_FUNCTION_CONTINUE...
-  ✅ PASS: FUNCTION_CONTINUE (6)
-Testing SE_FUNCTION_HALT...
-  ✅ PASS: FUNCTION_HALT (7)
-Testing SE_FUNCTION_TERMINATE...
-  ✅ PASS: FUNCTION_TERMINATE (8)
-Testing SE_FUNCTION_RESET...
-  ✅ PASS: FUNCTION_RESET (9)
-Testing SE_FUNCTION_DISABLE...
-  ✅ PASS: FUNCTION_DISABLE (10)
-Testing SE_FUNCTION_SKIP_CONTINUE...
-  ✅ PASS: FUNCTION_SKIP_CONTINUE (11)
+  ✅ PASS: SE_FUNCTION_CONTINUE (6)
+  ✅ PASS: SE_FUNCTION_HALT (7)
+  ✅ PASS: SE_FUNCTION_TERMINATE (8)
+  ✅ PASS: SE_FUNCTION_RESET (9)
+  ✅ PASS: SE_FUNCTION_DISABLE (10)
+  ✅ PASS: SE_FUNCTION_SKIP_CONTINUE (11)
 
 --- Pipeline Result Codes (12-17) ---
 
-Testing SE_PIPELINE_CONTINUE...
-  ✅ PASS: PIPELINE_CONTINUE (12)
-Testing SE_PIPELINE_HALT...
-  ✅ PASS: PIPELINE_HALT (13)
-Testing SE_PIPELINE_TERMINATE...
-  ✅ PASS: PIPELINE_TERMINATE (14)
-Testing SE_PIPELINE_RESET...
-  ✅ PASS: PIPELINE_RESET (15)
-Testing SE_PIPELINE_DISABLE...
-  ✅ PASS: PIPELINE_DISABLE (16)
-Testing SE_PIPELINE_SKIP_CONTINUE...
-  ✅ PASS: PIPELINE_SKIP_CONTINUE (17)
+  ✅ PASS: SE_PIPELINE_CONTINUE (12)
+  ✅ PASS: SE_PIPELINE_HALT (13)
+  ✅ PASS: SE_PIPELINE_TERMINATE (14)
+  ✅ PASS: SE_PIPELINE_RESET (15)
+  ✅ PASS: SE_PIPELINE_DISABLE (16)
+  ✅ PASS: SE_PIPELINE_SKIP_CONTINUE (17)
 
-╔════════════════════════════════════════════════════════════════╗
-║                        TEST SUMMARY                            ║
-╠════════════════════════════════════════════════════════════════╣
-║  Passed: 18                                                    ║
-║  Failed:  0                                                    ║
-║  Total:  18                                                    ║
-╚════════════════════════════════════════════════════════════════╝
-
+Passed: 18  Failed: 0  Total: 18
 ✅ ALL TESTS PASSED
 ```
-```
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `return_tests_module.lua` | Pipeline-generated `module_data` with 18 single-node trees |
+| `test_return_codes.lua` | LuaJIT test harness |
+| `se_builtins_return_codes.lua` | `make_return` factory + all 18 builtins |
+| `se_runtime.lua` | Core engine (`new_module`, `new_instance`, `tick_once`) |
