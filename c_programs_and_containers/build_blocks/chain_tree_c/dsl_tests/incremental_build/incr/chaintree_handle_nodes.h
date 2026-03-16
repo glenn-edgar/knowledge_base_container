@@ -4,8 +4,8 @@
 
 #include "chaintree_support.h"
 
-#define CT_RJRP566L_NODE_COUNT 1182
+#define CT_TYOH8EKC_NODE_COUNT 1265
 
-extern const chaintree_node_t ct_rjrp566l_nodes[CT_RJRP566L_NODE_COUNT];
+extern const chaintree_node_t ct_tyoh8ekc_nodes[CT_TYOH8EKC_NODE_COUNT];
 
 #endif /* CHAINTREE_HANDLE_NODES_H */

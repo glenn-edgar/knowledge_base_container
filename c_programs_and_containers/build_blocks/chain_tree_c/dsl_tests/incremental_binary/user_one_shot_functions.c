@@ -204,7 +204,13 @@ void verify_tests_active_error_one_shot_fn(void *handle, unsigned node_index){
  * Application main functions (defined in other app files)
  * ===================================================================== */
 
-extern unsigned sm_event_filtering_main_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
+
+
+extern void generate_avro_packet_one_shot(void *handle, unsigned node_index);
+extern void avro_verify_packet_init_one_shot_fn(void *handle, unsigned node_index);
+extern void packet_generator_one_shot_fn(void *handle, unsigned node_index);
+
 
 /* =====================================================================
  * Register application-specific functions with binary image loader.
@@ -243,7 +249,9 @@ void cfl_register_user_one_shot_functions(cfl_image_loader_t *img)
     REG_APP_OS("verify_bitmask_failure_one_shot",            verify_bitmask_failure_one_shot_fn);
     REG_APP_OS("wait_for_test_complete_error_one_shot",      wait_for_test_complete_error_one_shot_fn);
     REG_APP_OS("verify_tests_active_error_one_shot",         verify_tests_active_error_one_shot_fn);
-
+    REG_APP_OS("generate_avro_packet_one_shot",              generate_avro_packet_one_shot);
+    REG_APP_OS("avro_verify_packet_init_one_shot",           avro_verify_packet_init_one_shot_fn);
+    REG_APP_OS("packet_generator_one_shot",                  packet_generator_one_shot_fn);
     #undef REG_APP_OS
 
 }

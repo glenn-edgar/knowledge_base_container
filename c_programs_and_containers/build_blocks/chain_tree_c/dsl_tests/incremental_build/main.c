@@ -5,7 +5,7 @@
 #include "cfl_runtime.h"
 #include "chaintree_support.h"
 #include "cfl_exception.h"
-#include "incr/incr.h"
+#include "incr/chaintree_handle.h"
 
 
 static cfl_perm_t perm;
@@ -13,7 +13,7 @@ static char perm_buffer[0xffff];
 
 
 int main(void) {
-    const chaintree_handle_t *test_handle = &g_incr;
+    const chaintree_handle_t *test_handle = &g_chaintree_handle;
     
     /* Validate test_handle */
     if (!test_handle) {
@@ -73,7 +73,7 @@ int main(void) {
     
  
 
-    cfl_add_test_by_index(handle, 0); //first test
+    //cfl_add_test_by_index(handle, 0); //first test
     //cfl_add_test_by_index(handle, 1); //second test
     //cfl_add_test_by_index(handle, 2);//fourth test
     //cfl_add_test_by_index(handle, 3); //fifth test
@@ -91,8 +91,8 @@ int main(void) {
     //cfl_add_test_by_index(handle, 15); //nineteenth test
     //cfl_add_test_by_index(handle, 16); //twentieth test
     //cfl_add_test_by_index(handle, 17); //twenty-first test
-    //cfl_add_test_by_index(handle, 18); //twenty-second test
-    //cfl_add_test_by_index(handle, 19); //twenty-third test
+    cfl_add_test_by_index(handle, 18); //twenty-second test
+    cfl_add_test_by_index(handle, 19); //twenty-third test
 
     //cfl_add_test_by_index(handle, 20); //twenty-fourth test
     //cfl_add_test_by_index(handle, 21); //twenty-fifth test

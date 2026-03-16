@@ -40,7 +40,7 @@
  * [0x0001] (  1) hash=0x21918751 "error"
  * [0x0002] (  2) hash=0xC301CF93 "idle"
  * [0x0003] (  3) hash=0x147EB74C "running"
- * [0x0004] (  4) hash=0x2BE12106 "=== PASS 1: String Path Extraction ==="
+ * [0x0004] (  4) hash=0xB66DC993 "=== PASS 1: String Path Extraction (Lua) ==="
  * [0x0005] (  5) hash=0x7E38D8E7 "integers.positive"
  * [0x0006] (  6) hash=0x23D41C83 "integers.negative"
  * [0x0007] (  7) hash=0x7686141E "integers.nested.deep.value"
@@ -56,10 +56,10 @@
  * [0x0011] ( 17) hash=0xB050A63D "hashes.state_idle"
  * [0x0012] ( 18) hash=0x4A7DA5EE "hashes.state_running"
  * [0x0013] ( 19) hash=0x09893F49 "hashes.nested.deep.value"
- * [0x0014] ( 20) hash=0x3CB7C2A9 "Pass 1 - String Paths"
- * [0x0015] ( 21) hash=0x889E055E "=== PASS 2: Hash Path Extraction ==="
- * [0x0016] ( 22) hash=0x3AAD4757 "Pass 2 - Hash Paths"
- * [0x0017] ( 23) hash=0x5E22DC84 "=== PASS 3: Array Element Access ==="
+ * [0x0014] ( 20) hash=0x1D39011C "Pass 1 - String Paths (Lua)"
+ * [0x0015] ( 21) hash=0xCAE074BB "=== PASS 2: Hash Path Extraction (Lua) ==="
+ * [0x0016] ( 22) hash=0x1F89DE3A "Pass 2 - Hash Paths (Lua)"
+ * [0x0017] ( 23) hash=0xA3403611 "=== PASS 3: Array Element Access (Lua) ==="
  * [0x0018] ( 24) hash=0xAD1AA0C6 "int_array.0"
  * [0x0019] ( 25) hash=0xAE1AA259 "int_array.1"
  * [0x001A] ( 26) hash=0xAB1A9DA0 "int_array.2"
@@ -73,8 +73,8 @@
  * [0x0022] ( 34) hash=0x3884EA69 "items.1.value"
  * [0x0023] ( 35) hash=0x72A18E8A "items.2.id"
  * [0x0024] ( 36) hash=0x176BC91C "items.2.value"
- * [0x0025] ( 37) hash=0x92E1727B "Pass 3 - Array Access"
- * [0x0026] ( 38) hash=0x32FC4426 "=== PASS 4: Pointer Storage and Extraction ==="
+ * [0x0025] ( 37) hash=0x445773BE "Pass 3 - Array Access (Lua)"
+ * [0x0026] ( 38) hash=0xB9FC12F3 "=== PASS 4: Pointer Storage and Extraction (Lua) ==="
  * [0x0027] ( 39) hash=0x2ECAE102 "integers"
  * [0x0028] ( 40) hash=0x7D1FEA42 "floats"
  * [0x0029] ( 41) hash=0xDB929B79 "items.0"
@@ -84,9 +84,9 @@
  * [0x002D] ( 45) hash=0x484E4BF2 "pi"
  * [0x002E] ( 46) hash=0x37386AE0 "id"
  * [0x002F] ( 47) hash=0x425ED3CA "value"
- * [0x0030] ( 48) hash=0x3BB7414A "Pass 4 - String Pointer Extraction"
- * [0x0031] ( 49) hash=0xBAE37855 "=== PASS 5: Hash Pointer Storage and Extraction ==="
- * [0x0032] ( 50) hash=0x71E4EB8E "Pass 5 - Hash Pointer Extraction"
+ * [0x0030] ( 48) hash=0x8DBF3C37 "Pass 4 - String Pointer Extraction (Lua)"
+ * [0x0031] ( 49) hash=0x493F2EB0 "=== PASS 5: Hash Pointer Storage and Extraction (Lua) ==="
+ * [0x0032] ( 50) hash=0xC8C5875B "Pass 5 - Hash Pointer Extraction (Lua)"
  */
 
 // ============================================================================
@@ -94,26 +94,27 @@
 // ============================================================================
 /*
  * ONESHOT FUNCTIONS (type=0x08, with 0x40=io_call):
- *   [0x0000] ( 0) hash=0x2A904FE9 LUA_DICT_EXTRACT_HASH
- *   [0x0001] ( 1) hash=0x2699DEFE LUA_DICT_EXTRACT_HASH_H
- *   [0x0002] ( 2) hash=0x3A543DCB SE_LOAD_DICTIONARY
- *   [0x0003] ( 3) hash=0xFFF84A15 SE_SET_FIELD
- *   [0x0004] ( 4) hash=0xCEBBEFA4 SE_LOG
- *   [0x0005] ( 5) hash=0x09391555 SE_INC_FIELD
- *   [0x0006] ( 6) hash=0xEBB34CA2 SE_DICT_EXTRACT_INT
- *   [0x0007] ( 7) hash=0x5C7F2745 SE_DICT_EXTRACT_UINT
- *   [0x0008] ( 8) hash=0x0DC44819 SE_DICT_EXTRACT_FLOAT
- *   [0x0009] ( 9) hash=0x594B60C1 SE_DICT_EXTRACT_BOOL
- *   [0x000A] (10) hash=0x519C675D USER_PRINT_EXTRACT_RESULTS
- *   [0x000B] (11) hash=0x0F34CD9D SE_DICT_EXTRACT_INT_H
- *   [0x000C] (12) hash=0x6AFCFC52 SE_DICT_EXTRACT_UINT_H
- *   [0x000D] (13) hash=0x6C7F720E SE_DICT_EXTRACT_FLOAT_H
- *   [0x000E] (14) hash=0xF93244F6 SE_DICT_EXTRACT_BOOL_H
- *   [0x000F] (15) hash=0xFD724FF5 USER_PRINT_ARRAY_RESULTS
- *   [0x0010] (16) hash=0xA5B18AE1 SE_DICT_STORE_PTR
- *   [0x0011] (17) hash=0x08031545 USER_PRINT_POINTER_RESULTS
- *   [0x0012] (18) hash=0x136CCC16 SE_DICT_STORE_PTR_H
- *   [0x0013] (19) hash=0xCD7108EF USER_VERIFY_RESULTS
+ *   [0x0000] ( 0) hash=0x21F7090F LUA_LOAD_DICTIONARY
+ *   [0x0001] ( 1) hash=0xEA582E00 LUA_LOAD_DICTIONARY_HASH
+ *   [0x0002] ( 2) hash=0xD05CA346 LUA_DICT_EXTRACT_INT
+ *   [0x0003] ( 3) hash=0x512B578D LUA_DICT_EXTRACT_FLOAT
+ *   [0x0004] ( 4) hash=0x561A6F59 LUA_DICT_EXTRACT_UINT
+ *   [0x0005] ( 5) hash=0xA10D9E05 LUA_DICT_EXTRACT_BOOL
+ *   [0x0006] ( 6) hash=0x2A904FE9 LUA_DICT_EXTRACT_HASH
+ *   [0x0007] ( 7) hash=0x4FEA5DE9 LUA_DICT_EXTRACT_INT_H
+ *   [0x0008] ( 8) hash=0x16458A7A LUA_DICT_EXTRACT_FLOAT_H
+ *   [0x0009] ( 9) hash=0x73CC0D4E LUA_DICT_EXTRACT_UINT_H
+ *   [0x000A] (10) hash=0x5CC12F12 LUA_DICT_EXTRACT_BOOL_H
+ *   [0x000B] (11) hash=0x2699DEFE LUA_DICT_EXTRACT_HASH_H
+ *   [0x000C] (12) hash=0x648E705D LUA_DICT_STORE_PTR
+ *   [0x000D] (13) hash=0x93D1562A LUA_DICT_STORE_PTR_H
+ *   [0x000E] (14) hash=0xFFF84A15 SE_SET_FIELD
+ *   [0x000F] (15) hash=0xCEBBEFA4 SE_LOG
+ *   [0x0010] (16) hash=0x09391555 SE_INC_FIELD
+ *   [0x0011] (17) hash=0x519C675D USER_PRINT_EXTRACT_RESULTS
+ *   [0x0012] (18) hash=0xFD724FF5 USER_PRINT_ARRAY_RESULTS
+ *   [0x0013] (19) hash=0x08031545 USER_PRINT_POINTER_RESULTS
+ *   [0x0014] (20) hash=0xCD7108EF USER_VERIFY_RESULTS
  *
  * MAIN FUNCTIONS (type=0x09, with 0x80=pt_m_call):
  *   [0x0000] ( 0) hash=0xC7FEA7F6 SE_FUNCTION_INTERFACE
@@ -184,8 +185,8 @@
  * -------------------------------------------------------------------------
  *    0  OPEN_CALL[0x07]   1068      0  SE_FUNCTION_INTERFACE hash=0xC7FEA7F6
  *    1  MAIN      [0x09]      0      0  idx_to_ptr=0
- *    2    OPEN_CALL[0x07]    190      0  SE_LOAD_DICTIONARY hash=0x3A543DCB
- *    3    ONESHOT   [0x08]      2      2  idx_to_ptr=0
+ *    2    OPEN_CALL[0x07]    190      0  LUA_LOAD_DICTIONARY hash=0x21F7090F
+ *    3    ONESHOT   [0x08]      2      0  idx_to_ptr=0
  *    4      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *    5      OPEN_DICT[0x10]      ?      -  dict '__dict_1'
  *    6      OPEN_KEY[0x12]       -      -  "bools" hash=0x0FE709CA
@@ -374,9 +375,9 @@
  *  189      CLOSE_DICT[0x11]    21      -  dict '__dict_24' (opened at 168)
  *  190      CLOSE_KEY[0x13]     23      -  key 'unsigned' (opened at 167)
  *  191      CLOSE_DICT[0x11]   186      -  dict '__dict_1' (opened at 5)
- *  192    CLOSE[0x06]          0      -  (end SE_LOAD_DICTIONARY)
- *  193    OPEN_CALL[0x07]    190      0  SE_LOAD_DICTIONARY hash=0x3A543DCB
- *  194    ONESHOT   [0x08]    193      2  idx_to_ptr=0
+ *  192    CLOSE[0x06]          0      -  (end LUA_LOAD_DICTIONARY)
+ *  193    OPEN_CALL[0x07]    190      0  LUA_LOAD_DICTIONARY_HASH hash=0xEA582E00
+ *  194    ONESHOT   [0x08]    193      1  idx_to_ptr=0
  *  195      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  196      OPEN_DICT[0x10]      ?      -  dict '__dict_27'
  *  197      OPEN_KEY[0x12]       -      -  hash=0x0FE709CA
@@ -565,114 +566,114 @@
  *  380      CLOSE_DICT[0x11]    21      -  dict '__dict_50' (opened at 359)
  *  381      CLOSE_KEY[0x13]     23      -  key '206862118' (opened at 358)
  *  382      CLOSE_DICT[0x11]   186      -  dict '__dict_27' (opened at 196)
- *  383    CLOSE[0x06]          0      -  (end SE_LOAD_DICTIONARY)
+ *  383    CLOSE[0x06]          0      -  (end LUA_LOAD_DICTIONARY_HASH)
  *  384    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  385    ONESHOT   [0x08]    384      3  idx_to_ptr=0
+ *  385    ONESHOT   [0x08]    384     14  idx_to_ptr=0
  *  386      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  387      UINT[0x01]           -      -  0 (0x00000000)
  *  388    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  389    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  390    ONESHOT   [0x08]    389      4  idx_to_ptr=0
- *  391      STR_IDX[0x0D]        4     38  "=== PASS 1: String Path Extraction ==="
+ *  390    ONESHOT   [0x08]    389     15  idx_to_ptr=0
+ *  391      STR_IDX[0x0D]        4     44  "=== PASS 1: String Path Extraction (L..."
  *  392    CLOSE[0x06]          0      -  (end SE_LOG)
  *  393    OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  394    ONESHOT   [0x08]    393      5  idx_to_ptr=0
+ *  394    ONESHOT   [0x08]    393     16  idx_to_ptr=0
  *  395      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  396      UINT[0x01]           -      -  1 (0x00000001)
  *  397    CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  398    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  399    ONESHOT   [0x08]    398      6  idx_to_ptr=0
+ *  398    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  399    ONESHOT   [0x08]    398      2  idx_to_ptr=0
  *  400      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  401      STR_IDX[0x0D]        5     17  "integers.positive"
  *  402      FIELD[0x0B]         20      4  int_val_1 (off=0x0014, hash=0xBDB4D202)
- *  403    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  404    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  405    ONESHOT   [0x08]    404      6  idx_to_ptr=0
+ *  403    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  404    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  405    ONESHOT   [0x08]    404      2  idx_to_ptr=0
  *  406      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  407      STR_IDX[0x0D]        6     17  "integers.negative"
  *  408      FIELD[0x0B]         24      4  int_val_2 (off=0x0018, hash=0xBCB4D06F)
- *  409    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  410    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  411    ONESHOT   [0x08]    410      6  idx_to_ptr=0
+ *  409    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  410    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  411    ONESHOT   [0x08]    410      2  idx_to_ptr=0
  *  412      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  413      STR_IDX[0x0D]        7     26  "integers.nested.deep.value"
  *  414      FIELD[0x0B]         28      4  int_val_3 (off=0x001C, hash=0xBBB4CEDC)
- *  415    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  416    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  417    ONESHOT   [0x08]    416      7  idx_to_ptr=0
+ *  415    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  416    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  417    ONESHOT   [0x08]    416      4  idx_to_ptr=0
  *  418      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  419      STR_IDX[0x0D]        8     14  "unsigned.small"
  *  420      FIELD[0x0B]         32      4  uint_val_1 (off=0x0020, hash=0x50CD2789)
- *  421    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  422    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  423    ONESHOT   [0x08]    422      7  idx_to_ptr=0
+ *  421    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  422    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  423    ONESHOT   [0x08]    422      4  idx_to_ptr=0
  *  424      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  425      STR_IDX[0x0D]        9     15  "unsigned.medium"
  *  426      FIELD[0x0B]         36      4  uint_val_2 (off=0x0024, hash=0x4DCD22D0)
- *  427    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  428    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  429    ONESHOT   [0x08]    428      7  idx_to_ptr=0
+ *  427    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  428    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  429    ONESHOT   [0x08]    428      4  idx_to_ptr=0
  *  430      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  431      STR_IDX[0x0D]       10     26  "unsigned.nested.deep.value"
  *  432      FIELD[0x0B]         40      4  uint_val_3 (off=0x0028, hash=0x4ECD2463)
- *  433    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  434    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  435    ONESHOT   [0x08]    434      8  idx_to_ptr=0
+ *  433    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  434    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  435    ONESHOT   [0x08]    434      3  idx_to_ptr=0
  *  436      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  437      STR_IDX[0x0D]       11      9  "floats.pi"
  *  438      FIELD[0x0B]         44      4  float_val_1 (off=0x002C, hash=0x5B48D16D)
- *  439    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  440    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  441    ONESHOT   [0x08]    440      8  idx_to_ptr=0
+ *  439    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  440    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  441    ONESHOT   [0x08]    440      3  idx_to_ptr=0
  *  442      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  443      STR_IDX[0x0D]       12     15  "floats.negative"
  *  444      FIELD[0x0B]         48      4  float_val_2 (off=0x0030, hash=0x5848CCB4)
- *  445    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  446    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  447    ONESHOT   [0x08]    446      8  idx_to_ptr=0
+ *  445    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  446    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  447    ONESHOT   [0x08]    446      3  idx_to_ptr=0
  *  448      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  449      STR_IDX[0x0D]       13     24  "floats.nested.deep.value"
  *  450      FIELD[0x0B]         52      4  float_val_3 (off=0x0034, hash=0x5948CE47)
- *  451    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  452    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_BOOL hash=0x594B60C1
- *  453    ONESHOT   [0x08]    452      9  idx_to_ptr=0
+ *  451    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  452    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_BOOL hash=0xA10D9E05
+ *  453    ONESHOT   [0x08]    452      5  idx_to_ptr=0
  *  454      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  455      STR_IDX[0x0D]       14     14  "bools.true_val"
  *  456      FIELD[0x0B]         56      4  bool_val_1 (off=0x0038, hash=0xA03D59F5)
- *  457    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL)
- *  458    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_BOOL hash=0x594B60C1
- *  459    ONESHOT   [0x08]    458      9  idx_to_ptr=0
+ *  457    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL)
+ *  458    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_BOOL hash=0xA10D9E05
+ *  459    ONESHOT   [0x08]    458      5  idx_to_ptr=0
  *  460      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  461      STR_IDX[0x0D]       15     15  "bools.false_val"
  *  462      FIELD[0x0B]         60      4  bool_val_2 (off=0x003C, hash=0x9D3D553C)
- *  463    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL)
- *  464    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_BOOL hash=0x594B60C1
- *  465    ONESHOT   [0x08]    464      9  idx_to_ptr=0
+ *  463    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL)
+ *  464    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_BOOL hash=0xA10D9E05
+ *  465    ONESHOT   [0x08]    464      5  idx_to_ptr=0
  *  466      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  467      STR_IDX[0x0D]       16     23  "bools.nested.deep.value"
  *  468      FIELD[0x0B]         64      4  bool_val_3 (off=0x0040, hash=0x9E3D56CF)
- *  469    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL)
+ *  469    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL)
  *  470    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_HASH hash=0x2A904FE9
- *  471    ONESHOT   [0x08]    470      0  idx_to_ptr=0
+ *  471    ONESHOT   [0x08]    470      6  idx_to_ptr=0
  *  472      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  473      STR_IDX[0x0D]       17     17  "hashes.state_idle"
  *  474      FIELD[0x0B]         68      4  hash_val_1 (off=0x0044, hash=0x9A8BCAB9)
  *  475    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH)
  *  476    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_HASH hash=0x2A904FE9
- *  477    ONESHOT   [0x08]    476      0  idx_to_ptr=0
+ *  477    ONESHOT   [0x08]    476      6  idx_to_ptr=0
  *  478      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  479      STR_IDX[0x0D]       18     20  "hashes.state_running"
  *  480      FIELD[0x0B]         72      4  hash_val_2 (off=0x0048, hash=0x978BC600)
  *  481    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH)
  *  482    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_HASH hash=0x2A904FE9
- *  483    ONESHOT   [0x08]    482      0  idx_to_ptr=0
+ *  483    ONESHOT   [0x08]    482      6  idx_to_ptr=0
  *  484      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  485      STR_IDX[0x0D]       19     24  "hashes.nested.deep.value"
  *  486      FIELD[0x0B]         76      4  hash_val_3 (off=0x004C, hash=0x988BC793)
  *  487    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH)
  *  488    OPEN_CALL[0x07]     19      0  USER_PRINT_EXTRACT_RESULTS hash=0x519C675D
- *  489    ONESHOT   [0x08]    488     10  idx_to_ptr=0
- *  490      STR_IDX[0x0D]       20     21  "Pass 1 - String Paths"
+ *  489    ONESHOT   [0x08]    488     17  idx_to_ptr=0
+ *  490      STR_IDX[0x0D]       20     27  "Pass 1 - String Paths (Lua)"
  *  491      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  492      FIELD[0x0B]         20      4  int_val_1 (off=0x0014, hash=0xBDB4D202)
  *  493      FIELD[0x0B]         24      4  int_val_2 (off=0x0018, hash=0xBCB4D06F)
@@ -691,197 +692,197 @@
  *  506      FIELD[0x0B]         76      4  hash_val_3 (off=0x004C, hash=0x988BC793)
  *  507    CLOSE[0x06]          0      -  (end USER_PRINT_EXTRACT_RESULTS)
  *  508    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  509    ONESHOT   [0x08]    508      3  idx_to_ptr=0
+ *  509    ONESHOT   [0x08]    508     14  idx_to_ptr=0
  *  510      FIELD[0x0B]         20      4  int_val_1 (off=0x0014, hash=0xBDB4D202)
  *  511      UINT[0x01]           -      -  0 (0x00000000)
  *  512    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  513    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  514    ONESHOT   [0x08]    513      3  idx_to_ptr=0
+ *  514    ONESHOT   [0x08]    513     14  idx_to_ptr=0
  *  515      FIELD[0x0B]         24      4  int_val_2 (off=0x0018, hash=0xBCB4D06F)
  *  516      UINT[0x01]           -      -  0 (0x00000000)
  *  517    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  518    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  519    ONESHOT   [0x08]    518      3  idx_to_ptr=0
+ *  519    ONESHOT   [0x08]    518     14  idx_to_ptr=0
  *  520      FIELD[0x0B]         28      4  int_val_3 (off=0x001C, hash=0xBBB4CEDC)
  *  521      UINT[0x01]           -      -  0 (0x00000000)
  *  522    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  523    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  524    ONESHOT   [0x08]    523      3  idx_to_ptr=0
+ *  524    ONESHOT   [0x08]    523     14  idx_to_ptr=0
  *  525      FIELD[0x0B]         32      4  uint_val_1 (off=0x0020, hash=0x50CD2789)
  *  526      UINT[0x01]           -      -  0 (0x00000000)
  *  527    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  528    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  529    ONESHOT   [0x08]    528      3  idx_to_ptr=0
+ *  529    ONESHOT   [0x08]    528     14  idx_to_ptr=0
  *  530      FIELD[0x0B]         36      4  uint_val_2 (off=0x0024, hash=0x4DCD22D0)
  *  531      UINT[0x01]           -      -  0 (0x00000000)
  *  532    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  533    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  534    ONESHOT   [0x08]    533      3  idx_to_ptr=0
+ *  534    ONESHOT   [0x08]    533     14  idx_to_ptr=0
  *  535      FIELD[0x0B]         40      4  uint_val_3 (off=0x0028, hash=0x4ECD2463)
  *  536      UINT[0x01]           -      -  0 (0x00000000)
  *  537    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  538    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  539    ONESHOT   [0x08]    538      3  idx_to_ptr=0
+ *  539    ONESHOT   [0x08]    538     14  idx_to_ptr=0
  *  540      FIELD[0x0B]         44      4  float_val_1 (off=0x002C, hash=0x5B48D16D)
  *  541      UINT[0x01]           -      -  0 (0x00000000)
  *  542    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  543    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  544    ONESHOT   [0x08]    543      3  idx_to_ptr=0
+ *  544    ONESHOT   [0x08]    543     14  idx_to_ptr=0
  *  545      FIELD[0x0B]         48      4  float_val_2 (off=0x0030, hash=0x5848CCB4)
  *  546      UINT[0x01]           -      -  0 (0x00000000)
  *  547    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  548    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  549    ONESHOT   [0x08]    548      3  idx_to_ptr=0
+ *  549    ONESHOT   [0x08]    548     14  idx_to_ptr=0
  *  550      FIELD[0x0B]         52      4  float_val_3 (off=0x0034, hash=0x5948CE47)
  *  551      UINT[0x01]           -      -  0 (0x00000000)
  *  552    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  553    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  554    ONESHOT   [0x08]    553      3  idx_to_ptr=0
+ *  554    ONESHOT   [0x08]    553     14  idx_to_ptr=0
  *  555      FIELD[0x0B]         56      4  bool_val_1 (off=0x0038, hash=0xA03D59F5)
  *  556      UINT[0x01]           -      -  0 (0x00000000)
  *  557    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  558    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  559    ONESHOT   [0x08]    558      3  idx_to_ptr=0
+ *  559    ONESHOT   [0x08]    558     14  idx_to_ptr=0
  *  560      FIELD[0x0B]         60      4  bool_val_2 (off=0x003C, hash=0x9D3D553C)
  *  561      UINT[0x01]           -      -  0 (0x00000000)
  *  562    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  563    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  564    ONESHOT   [0x08]    563      3  idx_to_ptr=0
+ *  564    ONESHOT   [0x08]    563     14  idx_to_ptr=0
  *  565      FIELD[0x0B]         64      4  bool_val_3 (off=0x0040, hash=0x9E3D56CF)
  *  566      UINT[0x01]           -      -  0 (0x00000000)
  *  567    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  568    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  569    ONESHOT   [0x08]    568      3  idx_to_ptr=0
+ *  569    ONESHOT   [0x08]    568     14  idx_to_ptr=0
  *  570      FIELD[0x0B]         68      4  hash_val_1 (off=0x0044, hash=0x9A8BCAB9)
  *  571      UINT[0x01]           -      -  0 (0x00000000)
  *  572    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  573    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  574    ONESHOT   [0x08]    573      3  idx_to_ptr=0
+ *  574    ONESHOT   [0x08]    573     14  idx_to_ptr=0
  *  575      FIELD[0x0B]         72      4  hash_val_2 (off=0x0048, hash=0x978BC600)
  *  576      UINT[0x01]           -      -  0 (0x00000000)
  *  577    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  578    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  579    ONESHOT   [0x08]    578      3  idx_to_ptr=0
+ *  579    ONESHOT   [0x08]    578     14  idx_to_ptr=0
  *  580      FIELD[0x0B]         76      4  hash_val_3 (off=0x004C, hash=0x988BC793)
  *  581      UINT[0x01]           -      -  0 (0x00000000)
  *  582    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  583    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  584    ONESHOT   [0x08]    583      4  idx_to_ptr=0
- *  585      STR_IDX[0x0D]       21     36  "=== PASS 2: Hash Path Extraction ==="
+ *  584    ONESHOT   [0x08]    583     15  idx_to_ptr=0
+ *  585      STR_IDX[0x0D]       21     42  "=== PASS 2: Hash Path Extraction (Lua..."
  *  586    CLOSE[0x06]          0      -  (end SE_LOG)
  *  587    OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  588    ONESHOT   [0x08]    587      5  idx_to_ptr=0
+ *  588    ONESHOT   [0x08]    587     16  idx_to_ptr=0
  *  589      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  590      UINT[0x01]           -      -  1 (0x00000001)
  *  591    CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  592    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_INT_H hash=0x0F34CD9D
- *  593    ONESHOT   [0x08]    592     11  idx_to_ptr=0
+ *  592    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_INT_H hash=0x4FEA5DE9
+ *  593    ONESHOT   [0x08]    592      7  idx_to_ptr=0
  *  594      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  595      STR_HASH[0x03]       -      -  "integers" hash=0x2ECAE102
  *  596      STR_HASH[0x03]       -      -  "positive" hash=0xBE8DFA7A
  *  597      FIELD[0x0B]         20      4  int_val_1 (off=0x0014, hash=0xBDB4D202)
- *  598    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT_H)
- *  599    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_INT_H hash=0x0F34CD9D
- *  600    ONESHOT   [0x08]    599     11  idx_to_ptr=0
+ *  598    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT_H)
+ *  599    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_INT_H hash=0x4FEA5DE9
+ *  600    ONESHOT   [0x08]    599      7  idx_to_ptr=0
  *  601      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  602      STR_HASH[0x03]       -      -  "integers" hash=0x2ECAE102
  *  603      STR_HASH[0x03]       -      -  "negative" hash=0xFE93863A
  *  604      FIELD[0x0B]         24      4  int_val_2 (off=0x0018, hash=0xBCB4D06F)
- *  605    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT_H)
- *  606    OPEN_CALL[0x07]      8      0  SE_DICT_EXTRACT_INT_H hash=0x0F34CD9D
- *  607    ONESHOT   [0x08]    606     11  idx_to_ptr=0
+ *  605    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT_H)
+ *  606    OPEN_CALL[0x07]      8      0  LUA_DICT_EXTRACT_INT_H hash=0x4FEA5DE9
+ *  607    ONESHOT   [0x08]    606      7  idx_to_ptr=0
  *  608      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  609      STR_HASH[0x03]       -      -  "integers" hash=0x2ECAE102
  *  610      STR_HASH[0x03]       -      -  "nested" hash=0x8AFCFA4A
  *  611      STR_HASH[0x03]       -      -  "deep" hash=0x99E98C6F
  *  612      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  *  613      FIELD[0x0B]         28      4  int_val_3 (off=0x001C, hash=0xBBB4CEDC)
- *  614    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT_H)
- *  615    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_UINT_H hash=0x6AFCFC52
- *  616    ONESHOT   [0x08]    615     12  idx_to_ptr=0
+ *  614    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT_H)
+ *  615    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_UINT_H hash=0x73CC0D4E
+ *  616    ONESHOT   [0x08]    615      9  idx_to_ptr=0
  *  617      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  618      STR_HASH[0x03]       -      -  "unsigned" hash=0x0C547726
  *  619      STR_HASH[0x03]       -      -  "small" hash=0xA2C4F48C
  *  620      FIELD[0x0B]         32      4  uint_val_1 (off=0x0020, hash=0x50CD2789)
- *  621    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT_H)
- *  622    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_UINT_H hash=0x6AFCFC52
- *  623    ONESHOT   [0x08]    622     12  idx_to_ptr=0
+ *  621    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT_H)
+ *  622    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_UINT_H hash=0x73CC0D4E
+ *  623    ONESHOT   [0x08]    622      9  idx_to_ptr=0
  *  624      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  625      STR_HASH[0x03]       -      -  "unsigned" hash=0x0C547726
  *  626      STR_HASH[0x03]       -      -  "medium" hash=0x35AFD776
  *  627      FIELD[0x0B]         36      4  uint_val_2 (off=0x0024, hash=0x4DCD22D0)
- *  628    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT_H)
- *  629    OPEN_CALL[0x07]      8      0  SE_DICT_EXTRACT_UINT_H hash=0x6AFCFC52
- *  630    ONESHOT   [0x08]    629     12  idx_to_ptr=0
+ *  628    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT_H)
+ *  629    OPEN_CALL[0x07]      8      0  LUA_DICT_EXTRACT_UINT_H hash=0x73CC0D4E
+ *  630    ONESHOT   [0x08]    629      9  idx_to_ptr=0
  *  631      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  632      STR_HASH[0x03]       -      -  "unsigned" hash=0x0C547726
  *  633      STR_HASH[0x03]       -      -  "nested" hash=0x8AFCFA4A
  *  634      STR_HASH[0x03]       -      -  "deep" hash=0x99E98C6F
  *  635      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  *  636      FIELD[0x0B]         40      4  uint_val_3 (off=0x0028, hash=0x4ECD2463)
- *  637    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT_H)
- *  638    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- *  639    ONESHOT   [0x08]    638     13  idx_to_ptr=0
+ *  637    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT_H)
+ *  638    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ *  639    ONESHOT   [0x08]    638      8  idx_to_ptr=0
  *  640      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  641      STR_HASH[0x03]       -      -  "floats" hash=0x7D1FEA42
  *  642      STR_HASH[0x03]       -      -  "pi" hash=0x484E4BF2
  *  643      FIELD[0x0B]         44      4  float_val_1 (off=0x002C, hash=0x5B48D16D)
- *  644    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- *  645    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- *  646    ONESHOT   [0x08]    645     13  idx_to_ptr=0
+ *  644    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ *  645    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ *  646    ONESHOT   [0x08]    645      8  idx_to_ptr=0
  *  647      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  648      STR_HASH[0x03]       -      -  "floats" hash=0x7D1FEA42
  *  649      STR_HASH[0x03]       -      -  "negative" hash=0xFE93863A
  *  650      FIELD[0x0B]         48      4  float_val_2 (off=0x0030, hash=0x5848CCB4)
- *  651    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- *  652    OPEN_CALL[0x07]      8      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- *  653    ONESHOT   [0x08]    652     13  idx_to_ptr=0
+ *  651    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ *  652    OPEN_CALL[0x07]      8      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ *  653    ONESHOT   [0x08]    652      8  idx_to_ptr=0
  *  654      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  655      STR_HASH[0x03]       -      -  "floats" hash=0x7D1FEA42
  *  656      STR_HASH[0x03]       -      -  "nested" hash=0x8AFCFA4A
  *  657      STR_HASH[0x03]       -      -  "deep" hash=0x99E98C6F
  *  658      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  *  659      FIELD[0x0B]         52      4  float_val_3 (off=0x0034, hash=0x5948CE47)
- *  660    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- *  661    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_BOOL_H hash=0xF93244F6
- *  662    ONESHOT   [0x08]    661     14  idx_to_ptr=0
+ *  660    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ *  661    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_BOOL_H hash=0x5CC12F12
+ *  662    ONESHOT   [0x08]    661     10  idx_to_ptr=0
  *  663      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  664      STR_HASH[0x03]       -      -  "bools" hash=0x0FE709CA
  *  665      STR_HASH[0x03]       -      -  "true_val" hash=0x41A5B505
  *  666      FIELD[0x0B]         56      4  bool_val_1 (off=0x0038, hash=0xA03D59F5)
- *  667    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL_H)
- *  668    OPEN_CALL[0x07]      6      0  SE_DICT_EXTRACT_BOOL_H hash=0xF93244F6
- *  669    ONESHOT   [0x08]    668     14  idx_to_ptr=0
+ *  667    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL_H)
+ *  668    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_BOOL_H hash=0x5CC12F12
+ *  669    ONESHOT   [0x08]    668     10  idx_to_ptr=0
  *  670      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  671      STR_HASH[0x03]       -      -  "bools" hash=0x0FE709CA
  *  672      STR_HASH[0x03]       -      -  "false_val" hash=0x165985BC
  *  673      FIELD[0x0B]         60      4  bool_val_2 (off=0x003C, hash=0x9D3D553C)
- *  674    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL_H)
- *  675    OPEN_CALL[0x07]      8      0  SE_DICT_EXTRACT_BOOL_H hash=0xF93244F6
- *  676    ONESHOT   [0x08]    675     14  idx_to_ptr=0
+ *  674    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL_H)
+ *  675    OPEN_CALL[0x07]      8      0  LUA_DICT_EXTRACT_BOOL_H hash=0x5CC12F12
+ *  676    ONESHOT   [0x08]    675     10  idx_to_ptr=0
  *  677      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  678      STR_HASH[0x03]       -      -  "bools" hash=0x0FE709CA
  *  679      STR_HASH[0x03]       -      -  "nested" hash=0x8AFCFA4A
  *  680      STR_HASH[0x03]       -      -  "deep" hash=0x99E98C6F
  *  681      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  *  682      FIELD[0x0B]         64      4  bool_val_3 (off=0x0040, hash=0x9E3D56CF)
- *  683    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_BOOL_H)
+ *  683    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_BOOL_H)
  *  684    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_HASH_H hash=0x2699DEFE
- *  685    ONESHOT   [0x08]    684      1  idx_to_ptr=0
+ *  685    ONESHOT   [0x08]    684     11  idx_to_ptr=0
  *  686      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  687      STR_HASH[0x03]       -      -  "hashes" hash=0x647199FD
  *  688      STR_HASH[0x03]       -      -  "state_idle" hash=0x915547E1
  *  689      FIELD[0x0B]         68      4  hash_val_1 (off=0x0044, hash=0x9A8BCAB9)
  *  690    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH_H)
  *  691    OPEN_CALL[0x07]      6      0  LUA_DICT_EXTRACT_HASH_H hash=0x2699DEFE
- *  692    ONESHOT   [0x08]    691      1  idx_to_ptr=0
+ *  692    ONESHOT   [0x08]    691     11  idx_to_ptr=0
  *  693      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  694      STR_HASH[0x03]       -      -  "hashes" hash=0x647199FD
  *  695      STR_HASH[0x03]       -      -  "state_running" hash=0xC348326A
  *  696      FIELD[0x0B]         72      4  hash_val_2 (off=0x0048, hash=0x978BC600)
  *  697    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH_H)
  *  698    OPEN_CALL[0x07]      8      0  LUA_DICT_EXTRACT_HASH_H hash=0x2699DEFE
- *  699    ONESHOT   [0x08]    698      1  idx_to_ptr=0
+ *  699    ONESHOT   [0x08]    698     11  idx_to_ptr=0
  *  700      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  701      STR_HASH[0x03]       -      -  "hashes" hash=0x647199FD
  *  702      STR_HASH[0x03]       -      -  "nested" hash=0x8AFCFA4A
@@ -890,8 +891,8 @@
  *  705      FIELD[0x0B]         76      4  hash_val_3 (off=0x004C, hash=0x988BC793)
  *  706    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_HASH_H)
  *  707    OPEN_CALL[0x07]     19      0  USER_PRINT_EXTRACT_RESULTS hash=0x519C675D
- *  708    ONESHOT   [0x08]    707     10  idx_to_ptr=0
- *  709      STR_IDX[0x0D]       22     19  "Pass 2 - Hash Paths"
+ *  708    ONESHOT   [0x08]    707     17  idx_to_ptr=0
+ *  709      STR_IDX[0x0D]       22     25  "Pass 2 - Hash Paths (Lua)"
  *  710      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  711      FIELD[0x0B]         20      4  int_val_1 (off=0x0014, hash=0xBDB4D202)
  *  712      FIELD[0x0B]         24      4  int_val_2 (off=0x0018, hash=0xBCB4D06F)
@@ -910,95 +911,95 @@
  *  725      FIELD[0x0B]         76      4  hash_val_3 (off=0x004C, hash=0x988BC793)
  *  726    CLOSE[0x06]          0      -  (end USER_PRINT_EXTRACT_RESULTS)
  *  727    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  728    ONESHOT   [0x08]    727      4  idx_to_ptr=0
- *  729      STR_IDX[0x0D]       23     36  "=== PASS 3: Array Element Access ==="
+ *  728    ONESHOT   [0x08]    727     15  idx_to_ptr=0
+ *  729      STR_IDX[0x0D]       23     42  "=== PASS 3: Array Element Access (Lua..."
  *  730    CLOSE[0x06]          0      -  (end SE_LOG)
  *  731    OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  732    ONESHOT   [0x08]    731      5  idx_to_ptr=0
+ *  732    ONESHOT   [0x08]    731     16  idx_to_ptr=0
  *  733      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  734      UINT[0x01]           -      -  1 (0x00000001)
  *  735    CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  736    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  737    ONESHOT   [0x08]    736      6  idx_to_ptr=0
+ *  736    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  737    ONESHOT   [0x08]    736      2  idx_to_ptr=0
  *  738      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  739      STR_IDX[0x0D]       24     11  "int_array.0"
  *  740      FIELD[0x0B]         80      4  arr_int_0 (off=0x0050, hash=0xA410C799)
- *  741    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  742    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  743    ONESHOT   [0x08]    742      6  idx_to_ptr=0
+ *  741    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  742    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  743    ONESHOT   [0x08]    742      2  idx_to_ptr=0
  *  744      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  745      STR_IDX[0x0D]       25     11  "int_array.1"
  *  746      FIELD[0x0B]         84      4  arr_int_1 (off=0x0054, hash=0xA310C606)
- *  747    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  748    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  749    ONESHOT   [0x08]    748      6  idx_to_ptr=0
+ *  747    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  748    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  749    ONESHOT   [0x08]    748      2  idx_to_ptr=0
  *  750      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  751      STR_IDX[0x0D]       26     11  "int_array.2"
  *  752      FIELD[0x0B]         88      4  arr_int_2 (off=0x0058, hash=0xA210C473)
- *  753    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  754    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  755    ONESHOT   [0x08]    754      6  idx_to_ptr=0
+ *  753    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  754    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  755    ONESHOT   [0x08]    754      2  idx_to_ptr=0
  *  756      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  757      STR_IDX[0x0D]       27     11  "int_array.3"
  *  758      FIELD[0x0B]         92      4  arr_int_3 (off=0x005C, hash=0xA110C2E0)
- *  759    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  760    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  761    ONESHOT   [0x08]    760      8  idx_to_ptr=0
+ *  759    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  760    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  761    ONESHOT   [0x08]    760      3  idx_to_ptr=0
  *  762      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  763      STR_IDX[0x0D]       28     13  "float_array.0"
  *  764      FIELD[0x0B]         96      4  arr_float_0 (off=0x0060, hash=0x41103F3A)
- *  765    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  766    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  767    ONESHOT   [0x08]    766      8  idx_to_ptr=0
+ *  765    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  766    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  767    ONESHOT   [0x08]    766      3  idx_to_ptr=0
  *  768      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  769      STR_IDX[0x0D]       29     13  "float_array.1"
  *  770      FIELD[0x0B]        100      4  arr_float_1 (off=0x0064, hash=0x421040CD)
- *  771    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  772    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  773    ONESHOT   [0x08]    772      8  idx_to_ptr=0
+ *  771    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  772    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  773    ONESHOT   [0x08]    772      3  idx_to_ptr=0
  *  774      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  775      STR_IDX[0x0D]       30     13  "float_array.2"
  *  776      FIELD[0x0B]        104      4  arr_float_2 (off=0x0068, hash=0x3F103C14)
- *  777    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  778    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  779    ONESHOT   [0x08]    778      7  idx_to_ptr=0
+ *  777    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  778    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  779    ONESHOT   [0x08]    778      4  idx_to_ptr=0
  *  780      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  781      STR_IDX[0x0D]       31     10  "items.0.id"
  *  782      FIELD[0x0B]        108      4  arr_nested_0_id (off=0x006C, hash=0x2484FB0B)
- *  783    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  784    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  785    ONESHOT   [0x08]    784      8  idx_to_ptr=0
+ *  783    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  784    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  785    ONESHOT   [0x08]    784      3  idx_to_ptr=0
  *  786      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  787      STR_IDX[0x0D]       32     13  "items.0.value"
  *  788      FIELD[0x0B]        112      4  arr_nested_0_val (off=0x0070, hash=0xD5B15A0D)
- *  789    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  790    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  791    ONESHOT   [0x08]    790      7  idx_to_ptr=0
+ *  789    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  790    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  791    ONESHOT   [0x08]    790      4  idx_to_ptr=0
  *  792      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  793      STR_IDX[0x0D]       33     10  "items.1.id"
  *  794      FIELD[0x0B]        116      4  arr_nested_1_id (off=0x0074, hash=0x4E99C652)
- *  795    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  796    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  797    ONESHOT   [0x08]    796      8  idx_to_ptr=0
+ *  795    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  796    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  797    ONESHOT   [0x08]    796      3  idx_to_ptr=0
  *  798      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  799      STR_IDX[0x0D]       34     13  "items.1.value"
  *  800      FIELD[0x0B]        120      4  arr_nested_1_val (off=0x0078, hash=0x72503876)
- *  801    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  802    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  803    ONESHOT   [0x08]    802      7  idx_to_ptr=0
+ *  801    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  802    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  803    ONESHOT   [0x08]    802      4  idx_to_ptr=0
  *  804      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  805      STR_IDX[0x0D]       35     10  "items.2.id"
  *  806      FIELD[0x0B]        124      4  arr_nested_2_id (off=0x007C, hash=0xE0B17DF5)
- *  807    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  808    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  809    ONESHOT   [0x08]    808      8  idx_to_ptr=0
+ *  807    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  808    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  809    ONESHOT   [0x08]    808      3  idx_to_ptr=0
  *  810      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  811      STR_IDX[0x0D]       36     13  "items.2.value"
  *  812      FIELD[0x0B]        128      4  arr_nested_2_val (off=0x0080, hash=0x85E50A77)
- *  813    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
+ *  813    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
  *  814    OPEN_CALL[0x07]     17      0  USER_PRINT_ARRAY_RESULTS hash=0xFD724FF5
- *  815    ONESHOT   [0x08]    814     15  idx_to_ptr=0
- *  816      STR_IDX[0x0D]       37     21  "Pass 3 - Array Access"
+ *  815    ONESHOT   [0x08]    814     18  idx_to_ptr=0
+ *  816      STR_IDX[0x0D]       37     27  "Pass 3 - Array Access (Lua)"
  *  817      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  818      FIELD[0x0B]         80      4  arr_int_0 (off=0x0050, hash=0xA410C799)
  *  819      FIELD[0x0B]         84      4  arr_int_1 (off=0x0054, hash=0xA310C606)
@@ -1015,89 +1016,89 @@
  *  830      FIELD[0x0B]        128      4  arr_nested_2_val (off=0x0080, hash=0x85E50A77)
  *  831    CLOSE[0x06]          0      -  (end USER_PRINT_ARRAY_RESULTS)
  *  832    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  833    ONESHOT   [0x08]    832      4  idx_to_ptr=0
- *  834      STR_IDX[0x0D]       38     46  "=== PASS 4: Pointer Storage and Extra..."
+ *  833    ONESHOT   [0x08]    832     15  idx_to_ptr=0
+ *  834      STR_IDX[0x0D]       38     52  "=== PASS 4: Pointer Storage and Extra..."
  *  835    CLOSE[0x06]          0      -  (end SE_LOG)
  *  836    OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  837    ONESHOT   [0x08]    836      5  idx_to_ptr=0
+ *  837    ONESHOT   [0x08]    836     16  idx_to_ptr=0
  *  838      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  839      UINT[0x01]           -      -  1 (0x00000001)
  *  840    CLOSE[0x06]          0      -  (end SE_INC_FIELD)
- *  841    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR hash=0xA5B18AE1
- *  842    ONESHOT   [0x08]    841     16  idx_to_ptr=0
+ *  841    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR hash=0x648E705D
+ *  842    ONESHOT   [0x08]    841     12  idx_to_ptr=0
  *  843      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  844      STR_IDX[0x0D]       39      8  "integers"
  *  845      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
- *  846    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR)
- *  847    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR hash=0xA5B18AE1
- *  848    ONESHOT   [0x08]    847     16  idx_to_ptr=0
+ *  846    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR)
+ *  847    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR hash=0x648E705D
+ *  848    ONESHOT   [0x08]    847     12  idx_to_ptr=0
  *  849      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  850      STR_IDX[0x0D]       40      6  "floats"
  *  851      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
- *  852    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR)
- *  853    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR hash=0xA5B18AE1
- *  854    ONESHOT   [0x08]    853     16  idx_to_ptr=0
+ *  852    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR)
+ *  853    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR hash=0x648E705D
+ *  854    ONESHOT   [0x08]    853     12  idx_to_ptr=0
  *  855      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  856      STR_IDX[0x0D]       41      7  "items.0"
  *  857      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
- *  858    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR)
- *  859    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR hash=0xA5B18AE1
- *  860    ONESHOT   [0x08]    859     16  idx_to_ptr=0
+ *  858    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR)
+ *  859    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR hash=0x648E705D
+ *  860    ONESHOT   [0x08]    859     12  idx_to_ptr=0
  *  861      FIELD[0x0B]          0      8  dict_string (off=0x0000, hash=0xC1AFE66B)
  *  862      STR_IDX[0x0D]       42      7  "items.1"
  *  863      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
- *  864    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR)
- *  865    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  866    ONESHOT   [0x08]    865      6  idx_to_ptr=0
+ *  864    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR)
+ *  865    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  866    ONESHOT   [0x08]    865      2  idx_to_ptr=0
  *  867      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
  *  868      STR_IDX[0x0D]       43      8  "positive"
  *  869      FIELD[0x0B]        168      4  ptr_int_pos (off=0x00A8, hash=0xCA4126B6)
- *  870    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  871    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT hash=0xEBB34CA2
- *  872    ONESHOT   [0x08]    871      6  idx_to_ptr=0
+ *  870    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  871    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT hash=0xD05CA346
+ *  872    ONESHOT   [0x08]    871      2  idx_to_ptr=0
  *  873      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
  *  874      STR_IDX[0x0D]       44      8  "negative"
  *  875      FIELD[0x0B]        172      4  ptr_int_neg (off=0x00AC, hash=0xDE1C455A)
- *  876    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT)
- *  877    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  878    ONESHOT   [0x08]    877      8  idx_to_ptr=0
+ *  876    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT)
+ *  877    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  878    ONESHOT   [0x08]    877      3  idx_to_ptr=0
  *  879      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
  *  880      STR_IDX[0x0D]       45      2  "pi"
  *  881      FIELD[0x0B]        176      4  ptr_float_pi (off=0x00B0, hash=0x2C5D0BAA)
- *  882    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  883    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  884    ONESHOT   [0x08]    883      8  idx_to_ptr=0
+ *  882    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  883    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  884    ONESHOT   [0x08]    883      3  idx_to_ptr=0
  *  885      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
  *  886      STR_IDX[0x0D]       44      8  "negative"
  *  887      FIELD[0x0B]        180      4  ptr_float_neg (off=0x00B4, hash=0xA4016E29)
- *  888    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  889    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  890    ONESHOT   [0x08]    889      7  idx_to_ptr=0
+ *  888    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  889    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  890    ONESHOT   [0x08]    889      4  idx_to_ptr=0
  *  891      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
  *  892      STR_IDX[0x0D]       46      2  "id"
  *  893      FIELD[0x0B]        184      4  ptr_n0_id (off=0x00B8, hash=0x680F801C)
- *  894    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  895    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  896    ONESHOT   [0x08]    895      8  idx_to_ptr=0
+ *  894    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  895    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  896    ONESHOT   [0x08]    895      3  idx_to_ptr=0
  *  897      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
  *  898      STR_IDX[0x0D]       47      5  "value"
  *  899      FIELD[0x0B]        188      4  ptr_n0_val (off=0x00BC, hash=0xD1986368)
- *  900    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
- *  901    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT hash=0x5C7F2745
- *  902    ONESHOT   [0x08]    901      7  idx_to_ptr=0
+ *  900    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
+ *  901    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT hash=0x561A6F59
+ *  902    ONESHOT   [0x08]    901      4  idx_to_ptr=0
  *  903      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
  *  904      STR_IDX[0x0D]       46      2  "id"
  *  905      FIELD[0x0B]        192      4  ptr_n1_id (off=0x00C0, hash=0xD51B84ED)
- *  906    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT)
- *  907    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT hash=0x0DC44819
- *  908    ONESHOT   [0x08]    907      8  idx_to_ptr=0
+ *  906    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT)
+ *  907    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT hash=0x512B578D
+ *  908    ONESHOT   [0x08]    907      3  idx_to_ptr=0
  *  909      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
  *  910      STR_IDX[0x0D]       47      5  "value"
  *  911      FIELD[0x0B]        196      4  ptr_n1_val (off=0x00C4, hash=0xE58D151F)
- *  912    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT)
+ *  912    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT)
  *  913    OPEN_CALL[0x07]     12      0  USER_PRINT_POINTER_RESULTS hash=0x08031545
- *  914    ONESHOT   [0x08]    913     17  idx_to_ptr=0
- *  915      STR_IDX[0x0D]       48     34  "Pass 4 - String Pointer Extraction"
+ *  914    ONESHOT   [0x08]    913     19  idx_to_ptr=0
+ *  915      STR_IDX[0x0D]       48     40  "Pass 4 - String Pointer Extraction (Lua)"
  *  916      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  917      FIELD[0x0B]        168      4  ptr_int_pos (off=0x00A8, hash=0xCA4126B6)
  *  918      FIELD[0x0B]        172      4  ptr_int_neg (off=0x00AC, hash=0xDE1C455A)
@@ -1109,131 +1110,131 @@
  *  924      FIELD[0x0B]        196      4  ptr_n1_val (off=0x00C4, hash=0xE58D151F)
  *  925    CLOSE[0x06]          0      -  (end USER_PRINT_POINTER_RESULTS)
  *  926    OPEN_CALL[0x07]      3      0  SE_LOG hash=0xCEBBEFA4
- *  927    ONESHOT   [0x08]    926      4  idx_to_ptr=0
- *  928      STR_IDX[0x0D]       49     51  "=== PASS 5: Hash Pointer Storage and ..."
+ *  927    ONESHOT   [0x08]    926     15  idx_to_ptr=0
+ *  928      STR_IDX[0x0D]       49     57  "=== PASS 5: Hash Pointer Storage and ..."
  *  929    CLOSE[0x06]          0      -  (end SE_LOG)
  *  930    OPEN_CALL[0x07]      4      0  SE_INC_FIELD hash=0x09391555
- *  931    ONESHOT   [0x08]    930      5  idx_to_ptr=0
+ *  931    ONESHOT   [0x08]    930     16  idx_to_ptr=0
  *  932      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  *  933      UINT[0x01]           -      -  1 (0x00000001)
  *  934    CLOSE[0x06]          0      -  (end SE_INC_FIELD)
  *  935    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  936    ONESHOT   [0x08]    935      3  idx_to_ptr=0
+ *  936    ONESHOT   [0x08]    935     14  idx_to_ptr=0
  *  937      FIELD[0x0B]        168      4  ptr_int_pos (off=0x00A8, hash=0xCA4126B6)
  *  938      UINT[0x01]           -      -  0 (0x00000000)
  *  939    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  940    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  941    ONESHOT   [0x08]    940      3  idx_to_ptr=0
+ *  941    ONESHOT   [0x08]    940     14  idx_to_ptr=0
  *  942      FIELD[0x0B]        172      4  ptr_int_neg (off=0x00AC, hash=0xDE1C455A)
  *  943      UINT[0x01]           -      -  0 (0x00000000)
  *  944    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  945    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  946    ONESHOT   [0x08]    945      3  idx_to_ptr=0
+ *  946    ONESHOT   [0x08]    945     14  idx_to_ptr=0
  *  947      FIELD[0x0B]        176      4  ptr_float_pi (off=0x00B0, hash=0x2C5D0BAA)
  *  948      UINT[0x01]           -      -  0 (0x00000000)
  *  949    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  950    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  951    ONESHOT   [0x08]    950      3  idx_to_ptr=0
+ *  951    ONESHOT   [0x08]    950     14  idx_to_ptr=0
  *  952      FIELD[0x0B]        180      4  ptr_float_neg (off=0x00B4, hash=0xA4016E29)
  *  953      UINT[0x01]           -      -  0 (0x00000000)
  *  954    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  955    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  956    ONESHOT   [0x08]    955      3  idx_to_ptr=0
+ *  956    ONESHOT   [0x08]    955     14  idx_to_ptr=0
  *  957      FIELD[0x0B]        184      4  ptr_n0_id (off=0x00B8, hash=0x680F801C)
  *  958      UINT[0x01]           -      -  0 (0x00000000)
  *  959    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  960    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  961    ONESHOT   [0x08]    960      3  idx_to_ptr=0
+ *  961    ONESHOT   [0x08]    960     14  idx_to_ptr=0
  *  962      FIELD[0x0B]        188      4  ptr_n0_val (off=0x00BC, hash=0xD1986368)
  *  963      UINT[0x01]           -      -  0 (0x00000000)
  *  964    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  965    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  966    ONESHOT   [0x08]    965      3  idx_to_ptr=0
+ *  966    ONESHOT   [0x08]    965     14  idx_to_ptr=0
  *  967      FIELD[0x0B]        192      4  ptr_n1_id (off=0x00C0, hash=0xD51B84ED)
  *  968      UINT[0x01]           -      -  0 (0x00000000)
  *  969    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
  *  970    OPEN_CALL[0x07]      4      0  SE_SET_FIELD hash=0xFFF84A15
- *  971    ONESHOT   [0x08]    970      3  idx_to_ptr=0
+ *  971    ONESHOT   [0x08]    970     14  idx_to_ptr=0
  *  972      FIELD[0x0B]        196      4  ptr_n1_val (off=0x00C4, hash=0xE58D151F)
  *  973      UINT[0x01]           -      -  0 (0x00000000)
  *  974    CLOSE[0x06]          0      -  (end SE_SET_FIELD)
- *  975    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR_H hash=0x136CCC16
- *  976    ONESHOT   [0x08]    975     18  idx_to_ptr=0
+ *  975    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR_H hash=0x93D1562A
+ *  976    ONESHOT   [0x08]    975     13  idx_to_ptr=0
  *  977      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  978      STR_HASH[0x03]       -      -  "integers" hash=0x2ECAE102
  *  979      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
- *  980    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR_H)
- *  981    OPEN_CALL[0x07]      5      0  SE_DICT_STORE_PTR_H hash=0x136CCC16
- *  982    ONESHOT   [0x08]    981     18  idx_to_ptr=0
+ *  980    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR_H)
+ *  981    OPEN_CALL[0x07]      5      0  LUA_DICT_STORE_PTR_H hash=0x93D1562A
+ *  982    ONESHOT   [0x08]    981     13  idx_to_ptr=0
  *  983      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  984      STR_HASH[0x03]       -      -  "floats" hash=0x7D1FEA42
  *  985      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
- *  986    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR_H)
- *  987    OPEN_CALL[0x07]      6      0  SE_DICT_STORE_PTR_H hash=0x136CCC16
- *  988    ONESHOT   [0x08]    987     18  idx_to_ptr=0
+ *  986    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR_H)
+ *  987    OPEN_CALL[0x07]      6      0  LUA_DICT_STORE_PTR_H hash=0x93D1562A
+ *  988    ONESHOT   [0x08]    987     13  idx_to_ptr=0
  *  989      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  990      STR_HASH[0x03]       -      -  "items" hash=0x3A79338F
  *  991      STR_HASH[0x03]       -      -  "0" hash=0x350CA8AF
  *  992      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
- *  993    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR_H)
- *  994    OPEN_CALL[0x07]      6      0  SE_DICT_STORE_PTR_H hash=0x136CCC16
- *  995    ONESHOT   [0x08]    994     18  idx_to_ptr=0
+ *  993    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR_H)
+ *  994    OPEN_CALL[0x07]      6      0  LUA_DICT_STORE_PTR_H hash=0x93D1562A
+ *  995    ONESHOT   [0x08]    994     13  idx_to_ptr=0
  *  996      FIELD[0x0B]          8      8  dict_hash (off=0x0008, hash=0xA978C306)
  *  997      STR_HASH[0x03]       -      -  "items" hash=0x3A79338F
  *  998      STR_HASH[0x03]       -      -  "1" hash=0x340CA71C
  *  999      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
- * 1000    CLOSE[0x06]          0      -  (end SE_DICT_STORE_PTR_H)
- * 1001    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT_H hash=0x0F34CD9D
- * 1002    ONESHOT   [0x08]   1001     11  idx_to_ptr=0
+ * 1000    CLOSE[0x06]          0      -  (end LUA_DICT_STORE_PTR_H)
+ * 1001    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT_H hash=0x4FEA5DE9
+ * 1002    ONESHOT   [0x08]   1001      7  idx_to_ptr=0
  * 1003      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
  * 1004      STR_HASH[0x03]       -      -  "positive" hash=0xBE8DFA7A
  * 1005      FIELD[0x0B]        168      4  ptr_int_pos (off=0x00A8, hash=0xCA4126B6)
- * 1006    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT_H)
- * 1007    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_INT_H hash=0x0F34CD9D
- * 1008    ONESHOT   [0x08]   1007     11  idx_to_ptr=0
+ * 1006    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT_H)
+ * 1007    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_INT_H hash=0x4FEA5DE9
+ * 1008    ONESHOT   [0x08]   1007      7  idx_to_ptr=0
  * 1009      FIELD[0x0B]        136      8  sub_integers (off=0x0088, hash=0xDCE4E151)
  * 1010      STR_HASH[0x03]       -      -  "negative" hash=0xFE93863A
  * 1011      FIELD[0x0B]        172      4  ptr_int_neg (off=0x00AC, hash=0xDE1C455A)
- * 1012    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_INT_H)
- * 1013    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- * 1014    ONESHOT   [0x08]   1013     13  idx_to_ptr=0
+ * 1012    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_INT_H)
+ * 1013    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ * 1014    ONESHOT   [0x08]   1013      8  idx_to_ptr=0
  * 1015      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
  * 1016      STR_HASH[0x03]       -      -  "pi" hash=0x484E4BF2
  * 1017      FIELD[0x0B]        176      4  ptr_float_pi (off=0x00B0, hash=0x2C5D0BAA)
- * 1018    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- * 1019    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- * 1020    ONESHOT   [0x08]   1019     13  idx_to_ptr=0
+ * 1018    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ * 1019    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ * 1020    ONESHOT   [0x08]   1019      8  idx_to_ptr=0
  * 1021      FIELD[0x0B]        144      8  sub_floats (off=0x0090, hash=0xDA853185)
  * 1022      STR_HASH[0x03]       -      -  "negative" hash=0xFE93863A
  * 1023      FIELD[0x0B]        180      4  ptr_float_neg (off=0x00B4, hash=0xA4016E29)
- * 1024    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- * 1025    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT_H hash=0x6AFCFC52
- * 1026    ONESHOT   [0x08]   1025     12  idx_to_ptr=0
+ * 1024    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ * 1025    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT_H hash=0x73CC0D4E
+ * 1026    ONESHOT   [0x08]   1025      9  idx_to_ptr=0
  * 1027      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
  * 1028      STR_HASH[0x03]       -      -  "id" hash=0x37386AE0
  * 1029      FIELD[0x0B]        184      4  ptr_n0_id (off=0x00B8, hash=0x680F801C)
- * 1030    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT_H)
- * 1031    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- * 1032    ONESHOT   [0x08]   1031     13  idx_to_ptr=0
+ * 1030    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT_H)
+ * 1031    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ * 1032    ONESHOT   [0x08]   1031      8  idx_to_ptr=0
  * 1033      FIELD[0x0B]        152      8  sub_nested_0 (off=0x0098, hash=0xD0968A7E)
  * 1034      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  * 1035      FIELD[0x0B]        188      4  ptr_n0_val (off=0x00BC, hash=0xD1986368)
- * 1036    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
- * 1037    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_UINT_H hash=0x6AFCFC52
- * 1038    ONESHOT   [0x08]   1037     12  idx_to_ptr=0
+ * 1036    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
+ * 1037    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_UINT_H hash=0x73CC0D4E
+ * 1038    ONESHOT   [0x08]   1037      9  idx_to_ptr=0
  * 1039      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
  * 1040      STR_HASH[0x03]       -      -  "id" hash=0x37386AE0
  * 1041      FIELD[0x0B]        192      4  ptr_n1_id (off=0x00C0, hash=0xD51B84ED)
- * 1042    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_UINT_H)
- * 1043    OPEN_CALL[0x07]      5      0  SE_DICT_EXTRACT_FLOAT_H hash=0x6C7F720E
- * 1044    ONESHOT   [0x08]   1043     13  idx_to_ptr=0
+ * 1042    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_UINT_H)
+ * 1043    OPEN_CALL[0x07]      5      0  LUA_DICT_EXTRACT_FLOAT_H hash=0x16458A7A
+ * 1044    ONESHOT   [0x08]   1043      8  idx_to_ptr=0
  * 1045      FIELD[0x0B]        160      8  sub_nested_1 (off=0x00A0, hash=0xD1968C11)
  * 1046      STR_HASH[0x03]       -      -  "value" hash=0x425ED3CA
  * 1047      FIELD[0x0B]        196      4  ptr_n1_val (off=0x00C4, hash=0xE58D151F)
- * 1048    CLOSE[0x06]          0      -  (end SE_DICT_EXTRACT_FLOAT_H)
+ * 1048    CLOSE[0x06]          0      -  (end LUA_DICT_EXTRACT_FLOAT_H)
  * 1049    OPEN_CALL[0x07]     12      0  USER_PRINT_POINTER_RESULTS hash=0x08031545
- * 1050    ONESHOT   [0x08]   1049     17  idx_to_ptr=0
- * 1051      STR_IDX[0x0D]       50     32  "Pass 5 - Hash Pointer Extraction"
+ * 1050    ONESHOT   [0x08]   1049     19  idx_to_ptr=0
+ * 1051      STR_IDX[0x0D]       50     38  "Pass 5 - Hash Pointer Extraction (Lua)"
  * 1052      FIELD[0x0B]         16      4  pass_number (off=0x0010, hash=0x616E73A0)
  * 1053      FIELD[0x0B]        168      4  ptr_int_pos (off=0x00A8, hash=0xCA4126B6)
  * 1054      FIELD[0x0B]        172      4  ptr_int_neg (off=0x00AC, hash=0xDE1C455A)
@@ -1245,7 +1246,7 @@
  * 1060      FIELD[0x0B]        196      4  ptr_n1_val (off=0x00C4, hash=0xE58D151F)
  * 1061    CLOSE[0x06]          0      -  (end USER_PRINT_POINTER_RESULTS)
  * 1062    OPEN_CALL[0x07]      2      0  USER_VERIFY_RESULTS hash=0xCD7108EF
- * 1063    ONESHOT   [0x08]   1062     19  idx_to_ptr=0
+ * 1063    ONESHOT   [0x08]   1062     20  idx_to_ptr=0
  * 1064    CLOSE[0x06]          0      -  (end USER_VERIFY_RESULTS)
  * 1065    OPEN_CALL[0x07]      2      0  SE_RETURN_TERMINATE hash=0xDFE64C74
  * 1066    MAIN      [0x09]   1065      1  idx_to_ptr=0

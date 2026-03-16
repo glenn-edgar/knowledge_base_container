@@ -25,7 +25,7 @@ static const char* const json_test_strings[] = {
     "error",
     "idle",
     "running",
-    "=== PASS 1: String Path Extraction ===",
+    "=== PASS 1: String Path Extraction (Lua) ===",
     "integers.positive",
     "integers.negative",
     "integers.nested.deep.value",
@@ -41,10 +41,10 @@ static const char* const json_test_strings[] = {
     "hashes.state_idle",
     "hashes.state_running",
     "hashes.nested.deep.value",
-    "Pass 1 - String Paths",
-    "=== PASS 2: Hash Path Extraction ===",
-    "Pass 2 - Hash Paths",
-    "=== PASS 3: Array Element Access ===",
+    "Pass 1 - String Paths (Lua)",
+    "=== PASS 2: Hash Path Extraction (Lua) ===",
+    "Pass 2 - Hash Paths (Lua)",
+    "=== PASS 3: Array Element Access (Lua) ===",
     "int_array.0",
     "int_array.1",
     "int_array.2",
@@ -58,8 +58,8 @@ static const char* const json_test_strings[] = {
     "items.1.value",
     "items.2.id",
     "items.2.value",
-    "Pass 3 - Array Access",
-    "=== PASS 4: Pointer Storage and Extraction ===",
+    "Pass 3 - Array Access (Lua)",
+    "=== PASS 4: Pointer Storage and Extraction (Lua) ===",
     "integers",
     "floats",
     "items.0",
@@ -69,32 +69,33 @@ static const char* const json_test_strings[] = {
     "pi",
     "id",
     "value",
-    "Pass 4 - String Pointer Extraction",
-    "=== PASS 5: Hash Pointer Storage and Extraction ===",
-    "Pass 5 - Hash Pointer Extraction"
+    "Pass 4 - String Pointer Extraction (Lua)",
+    "=== PASS 5: Hash Pointer Storage and Extraction (Lua) ===",
+    "Pass 5 - Hash Pointer Extraction (Lua)"
 };
 #define JSON_TEST_STRING_COUNT 51
 
 // Function hashes
+#define LUA_LOAD_DICTIONARY_HASH 0x21F7090F
+#define LUA_LOAD_DICTIONARY_HASH_HASH 0xEA582E00
+#define LUA_DICT_EXTRACT_INT_HASH 0xD05CA346
+#define LUA_DICT_EXTRACT_FLOAT_HASH 0x512B578D
+#define LUA_DICT_EXTRACT_UINT_HASH 0x561A6F59
+#define LUA_DICT_EXTRACT_BOOL_HASH 0xA10D9E05
 #define LUA_DICT_EXTRACT_HASH_HASH 0x2A904FE9
+#define LUA_DICT_EXTRACT_INT_H_HASH 0x4FEA5DE9
+#define LUA_DICT_EXTRACT_FLOAT_H_HASH 0x16458A7A
+#define LUA_DICT_EXTRACT_UINT_H_HASH 0x73CC0D4E
+#define LUA_DICT_EXTRACT_BOOL_H_HASH 0x5CC12F12
 #define LUA_DICT_EXTRACT_HASH_H_HASH 0x2699DEFE
-#define SE_LOAD_DICTIONARY_HASH 0x3A543DCB
+#define LUA_DICT_STORE_PTR_HASH 0x648E705D
+#define LUA_DICT_STORE_PTR_H_HASH 0x93D1562A
 #define SE_SET_FIELD_HASH 0xFFF84A15
 #define SE_LOG_HASH 0xCEBBEFA4
 #define SE_INC_FIELD_HASH 0x09391555
-#define SE_DICT_EXTRACT_INT_HASH 0xEBB34CA2
-#define SE_DICT_EXTRACT_UINT_HASH 0x5C7F2745
-#define SE_DICT_EXTRACT_FLOAT_HASH 0x0DC44819
-#define SE_DICT_EXTRACT_BOOL_HASH 0x594B60C1
 #define USER_PRINT_EXTRACT_RESULTS_HASH 0x519C675D
-#define SE_DICT_EXTRACT_INT_H_HASH 0x0F34CD9D
-#define SE_DICT_EXTRACT_UINT_H_HASH 0x6AFCFC52
-#define SE_DICT_EXTRACT_FLOAT_H_HASH 0x6C7F720E
-#define SE_DICT_EXTRACT_BOOL_H_HASH 0xF93244F6
 #define USER_PRINT_ARRAY_RESULTS_HASH 0xFD724FF5
-#define SE_DICT_STORE_PTR_HASH 0xA5B18AE1
 #define USER_PRINT_POINTER_RESULTS_HASH 0x08031545
-#define SE_DICT_STORE_PTR_H_HASH 0x136CCC16
 #define USER_VERIFY_RESULTS_HASH 0xCD7108EF
 #define SE_FUNCTION_INTERFACE_HASH 0xC7FEA7F6
 #define SE_RETURN_TERMINATE_HASH 0xDFE64C74

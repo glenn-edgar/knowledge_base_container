@@ -12,7 +12,12 @@
 
     Translated from Python to LuaJIT.
 ]]
-
+local ok, DebugYamlDumper = pcall(require, "lua_support.debug_yaml_dumper")
+if not ok then
+    print("Warning: debug_yaml_dumper failed to load: " .. tostring(DebugYamlDumper))
+    error("debug_yaml_dumper failed to load")
+    DebugYamlDumper = nil
+end
 local ChainTreeYaml      = require("lua_support.chain_tree_yaml")
 local ColumnFlow          = require("lua_support.column_flow")
 local BasicCfLinks        = require("lua_support.basic_cf_links")
@@ -137,7 +142,32 @@ end
 function ChainTreeMaster:generate_json()
     self.ctb:generate_json()
 end
+--- Debug output - generates human-readable YAML to file
+function ChainTreeMaster:generate_debug_yaml(filepath)
+    if not DebugYamlDumper then
+        print("Warning: debug_yaml_dumper not available, skipping debug YAML output")
+        return
+    end
+    filepath = filepath or self.ctb.output_file:gsub("%.json$", "_debug.yaml")
+    DebugYamlDumper.dump_to_file(self.ctb.yaml_data, filepath)
+end
 
+function ChainTreeMaster:dump_debug_yaml()
+    if not DebugYamlDumper then
+        print("Warning: debug_yaml_dumper not available")
+        return
+    end
+    DebugYamlDumper.dump(self.ctb.yaml_data)
+end
+
+--- Variant of check_and_generate that also emits debug YAML
+function ChainTreeMaster:check_and_generate_with_debug(debug_filepath)
+    self:check_valid_chain_tree_configuration()
+    self:dump_kb_functions()
+    self:dump_complete_functions()
+    self:generate_json()
+    self:generate_debug_yaml(debug_filepath)
+end
 --- Backward compatibility aliases
 ChainTreeMaster.generate_yaml = ChainTreeMaster.generate_json
 ChainTreeMaster.check_and_generate_yaml = ChainTreeMaster.check_and_generate

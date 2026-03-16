@@ -15,8 +15,9 @@ static void port_init(cfl_port_t *port, cfl_runtime_handle_t *rt, const char *js
     char path_buffer[128];
     int32_t temp;
     
-    snprintf(path_buffer, sizeof(path_buffer), "%s.file_name", json_path);
-    json_extract_string_runtime(rt, path_buffer, &port->schema_file);
+    snprintf(path_buffer, sizeof(path_buffer), "%s.schema_hash", json_path);
+    json_extract_int32_runtime(rt, path_buffer, &temp);
+    port->schema_hash = (uint32_t)temp;
     
     snprintf(path_buffer, sizeof(path_buffer), "%s.handler_id", json_path);
     json_extract_int32_runtime(rt, path_buffer, &temp);
@@ -215,16 +216,15 @@ unsigned cfl_streaming_transform_packet_main_fn(void *handle, unsigned bool_func
 
 
 
-
-
 // ============ COLLECT PACKETS ============
 
 static void inport_init_from_array(cfl_inport_t *inport, cfl_runtime_handle_t *rt, unsigned array_index) {
     char path_buffer[128];
     int32_t temp;
     
-    snprintf(path_buffer, sizeof(path_buffer), "node_dict.inports[%u].file_name", array_index);
-    json_extract_string_runtime(rt, path_buffer, &inport->port.schema_file);
+    snprintf(path_buffer, sizeof(path_buffer), "node_dict.inports[%u].schema_hash", array_index);
+    json_extract_int32_runtime(rt, path_buffer, &temp);
+    inport->port.schema_hash = (uint32_t)temp;
     
     snprintf(path_buffer, sizeof(path_buffer), "node_dict.inports[%u].handler_id", array_index);
     json_extract_int32_runtime(rt, path_buffer, &temp);
@@ -483,4 +483,3 @@ void cfl_emit_packet(cfl_runtime_handle_t *rt, const cfl_outport_t *outport, voi
         packet
     );
 }
-

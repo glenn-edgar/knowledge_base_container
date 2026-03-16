@@ -11,9 +11,14 @@ extern "C" {
 #endif
 
 // ============ FILE METADATA ============
-#define SENSOR_DATA_SCHEMA_HASH   0x57ACFBB2U
 #define SENSOR_DATA_RECORD_COUNT  4
 #define SENSOR_DATA_SCHEMA_FILE   "sensor_data.h"
+
+// Per-record schema hashes: FNV-1a of "<file>.h:<record>"
+#define SENSOR_READING_SCHEMA_HASH   0xE0151669U
+#define ALARM_EVENT_SCHEMA_HASH   0x69E4ACDAU
+#define CONFIG_UPDATE_SCHEMA_HASH   0x14D9016AU
+#define HEARTBEAT_SCHEMA_HASH   0x7D509528U
 
 // ============ ENUMS ============
 typedef enum {
@@ -179,28 +184,22 @@ static inline void heartbeat_from_wire(const heartbeat_wire_t* src, heartbeat_t*
 
 // ============ WIRE HEADER ============
 // Common header for all wire packets (16 bytes, packed)
-// schema_hash replaces string pointer for socket-safe transmission
+// schema_hash is per-record: FNV-1a of "<file>.h:<record>"
 
 #pragma pack(push, 1)
 typedef struct {
     double      timestamp;     // 8: message timestamp (set by transport)
-    uint32_t    schema_hash;   // 4: FNV-1a hash of schema .h filename
+    uint32_t    schema_hash;   // 4: per-record FNV-1a hash
     uint16_t    seq;           // 2: sequence number (set by transport)
-    uint8_t     source_node;   // 1: originating node ID
-    uint8_t     index;         // 1: record type index
+    uint16_t    source_node;   // 2: originating node ID
 } sensor_data_wire_header_t;
 #pragma pack(pop)
 
 _Static_assert(sizeof(sensor_data_wire_header_t) == 16, "Wire header must be 16 bytes");
 
-static inline bool sensor_data_verify_header(const sensor_data_wire_header_t* hdr) {
-    return hdr->schema_hash == SENSOR_DATA_SCHEMA_HASH;
-}
-
 // ============ WIRE PACKETS ============
 // Per-record packet types with unified header
-// Socket-safe: no pointers, fixed size, hash-based identification
-// Uses packed _wire_t records for cross-platform compatibility
+// Socket-safe: no pointers, fixed size, per-record hash identification
 
 #pragma pack(push, 1)
 typedef struct {
@@ -241,98 +240,93 @@ _Static_assert(sizeof(heartbeat_wire_t) == 10, "heartbeat_wire_t size mismatch")
 
 static inline sensor_reading_wire_t* sensor_reading_packet_init(
         sensor_reading_packet_t* pkt,
-        uint8_t source_node)
+        uint16_t source_node)
 {
-    pkt->header.schema_hash = SENSOR_DATA_SCHEMA_HASH;
+    pkt->header.schema_hash = SENSOR_READING_SCHEMA_HASH;
     pkt->header.timestamp = 0.0;
     pkt->header.seq = 0;
     pkt->header.source_node = source_node;
-    pkt->header.index = 0;
     return &pkt->data;
 }
 
 static inline alarm_event_wire_t* alarm_event_packet_init(
         alarm_event_packet_t* pkt,
-        uint8_t source_node)
+        uint16_t source_node)
 {
-    pkt->header.schema_hash = SENSOR_DATA_SCHEMA_HASH;
+    pkt->header.schema_hash = ALARM_EVENT_SCHEMA_HASH;
     pkt->header.timestamp = 0.0;
     pkt->header.seq = 0;
     pkt->header.source_node = source_node;
-    pkt->header.index = 1;
     return &pkt->data;
 }
 
 static inline config_update_wire_t* config_update_packet_init(
         config_update_packet_t* pkt,
-        uint8_t source_node)
+        uint16_t source_node)
 {
-    pkt->header.schema_hash = SENSOR_DATA_SCHEMA_HASH;
+    pkt->header.schema_hash = CONFIG_UPDATE_SCHEMA_HASH;
     pkt->header.timestamp = 0.0;
     pkt->header.seq = 0;
     pkt->header.source_node = source_node;
-    pkt->header.index = 2;
     return &pkt->data;
 }
 
 static inline heartbeat_wire_t* heartbeat_packet_init(
         heartbeat_packet_t* pkt,
-        uint8_t source_node)
+        uint16_t source_node)
 {
-    pkt->header.schema_hash = SENSOR_DATA_SCHEMA_HASH;
+    pkt->header.schema_hash = HEARTBEAT_SCHEMA_HASH;
     pkt->header.timestamp = 0.0;
     pkt->header.seq = 0;
     pkt->header.source_node = source_node;
-    pkt->header.index = 3;
     return &pkt->data;
 }
 
-// Packet verify helpers - validate schema hash and index, return wire data pointer
+// Packet verify helpers - validate per-record schema hash, return wire data pointer
 
 static inline const sensor_reading_wire_t* sensor_reading_packet_verify(
         const sensor_reading_packet_t* pkt)
 {
-    if (pkt->header.schema_hash != SENSOR_DATA_SCHEMA_HASH) return NULL;
-    if (pkt->header.index != 0) return NULL;
+    if (pkt->header.schema_hash != SENSOR_READING_SCHEMA_HASH) return NULL;
     return &pkt->data;
 }
 
 static inline const alarm_event_wire_t* alarm_event_packet_verify(
         const alarm_event_packet_t* pkt)
 {
-    if (pkt->header.schema_hash != SENSOR_DATA_SCHEMA_HASH) return NULL;
-    if (pkt->header.index != 1) return NULL;
+    if (pkt->header.schema_hash != ALARM_EVENT_SCHEMA_HASH) return NULL;
     return &pkt->data;
 }
 
 static inline const config_update_wire_t* config_update_packet_verify(
         const config_update_packet_t* pkt)
 {
-    if (pkt->header.schema_hash != SENSOR_DATA_SCHEMA_HASH) return NULL;
-    if (pkt->header.index != 2) return NULL;
+    if (pkt->header.schema_hash != CONFIG_UPDATE_SCHEMA_HASH) return NULL;
     return &pkt->data;
 }
 
 static inline const heartbeat_wire_t* heartbeat_packet_verify(
         const heartbeat_packet_t* pkt)
 {
-    if (pkt->header.schema_hash != SENSOR_DATA_SCHEMA_HASH) return NULL;
-    if (pkt->header.index != 3) return NULL;
+    if (pkt->header.schema_hash != HEARTBEAT_SCHEMA_HASH) return NULL;
     return &pkt->data;
 }
 
 // Generic packet dispatch - returns record index or -1 on error
+// Matches per-record schema hash to determine record type
 static inline int sensor_data_packet_dispatch(
         const void* packet_buffer,
-        uint8_t* source_node_out,
+        uint16_t* source_node_out,
         const void** data_out)
 {
     const sensor_data_wire_header_t* hdr = (const sensor_data_wire_header_t*)packet_buffer;
-    if (hdr->schema_hash != SENSOR_DATA_SCHEMA_HASH) return -1;
-    if (hdr->index >= SENSOR_DATA_RECORD_COUNT) return -1;
     if (source_node_out) *source_node_out = hdr->source_node;
     if (data_out) *data_out = ((const uint8_t*)packet_buffer) + sizeof(sensor_data_wire_header_t);
-    return hdr->index;
+    if (hdr->schema_hash == SENSOR_READING_SCHEMA_HASH) return 0;
+    if (hdr->schema_hash == ALARM_EVENT_SCHEMA_HASH) return 1;
+    if (hdr->schema_hash == CONFIG_UPDATE_SCHEMA_HASH) return 2;
+    if (hdr->schema_hash == HEARTBEAT_SCHEMA_HASH) return 3;
+    return -1;
 }
 
 // Wire record payload sizes (for buffer allocation)
@@ -349,6 +343,14 @@ static const uint16_t sensor_data_packet_sizes[SENSOR_DATA_RECORD_COUNT] = {
     sizeof(alarm_event_packet_t),  // alarm_event
     sizeof(config_update_packet_t),  // config_update
     sizeof(heartbeat_packet_t),  // heartbeat
+};
+
+// Per-record schema hashes (for runtime dispatch tables)
+static const uint32_t sensor_data_record_hashes[SENSOR_DATA_RECORD_COUNT] = {
+    SENSOR_READING_SCHEMA_HASH,  // sensor_reading
+    ALARM_EVENT_SCHEMA_HASH,  // alarm_event
+    CONFIG_UPDATE_SCHEMA_HASH,  // config_update
+    HEARTBEAT_SCHEMA_HASH,  // heartbeat
 };
 
 #ifdef __cplusplus

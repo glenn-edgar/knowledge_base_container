@@ -124,7 +124,7 @@ The bridge consists of two files:
 - Parameter marshalling (`push_one_param`, `push_params_table`) that converts the C `s_expr_param_t` array into a Lua table with type-appropriate fields per opcode
 - Instance userdata with a metatable providing blackboard access methods
 - A Lua-side registry (`se_bridge` global) with a `register()` function
-- Three trampoline functions (oneshot, main, pred) that look up Lua functions by hash and dispatch
+- Three trampoline functions (oneshot, main, pred) that look up Lua functions by hash and dispatch with six arguments: inst userdata, params table, event_type, event_id, event_data (light userdata), and raw C params pointer (light userdata)
 
 ### Lua State Wiring
 
@@ -179,8 +179,13 @@ Lua functions access the C runtime through methods on the `inst` userdata:
 | `ptr_to_offset` | `inst:ptr_to_offset(ptr)` | Convert light userdata to integer offset |
 | `get_string` | `inst:get_string(index)` | Look up string table entry |
 | `get_node_count` | `inst:get_node_count()` | Get tree node count |
-| `dict_extract_hash_str` | `inst:dict_extract_hash_str(dict_off, path, dest_off)` | String-path dict hash extraction |
-| `dict_extract_hash_keys` | `inst:dict_extract_hash_keys(dict_off, keys, dest_off)` | Hash-path dict hash extraction |
+| `dict_extract_str` | `inst:dict_extract_str(dict_off, path, dest_off, type)` | Generic string-path extraction (type: "int"/"uint"/"float"/"bool"/"hash") |
+| `dict_extract_keys` | `inst:dict_extract_keys(dict_off, keys, dest_off, type)` | Generic hash-path extraction (type: "int"/"uint"/"float"/"bool"/"hash") |
+| `dict_extract_hash_str` | `inst:dict_extract_hash_str(dict_off, path, dest_off)` | String-path dict hash extraction (hash type only) |
+| `dict_extract_hash_keys` | `inst:dict_extract_hash_keys(dict_off, keys, dest_off)` | Hash-path dict hash extraction (hash type only) |
+| `dict_store_ptr_str` | `inst:dict_store_ptr_str(dict_off, path, dest_off)` | Resolve string path, store pointer in PTR64 field |
+| `dict_store_ptr_keys` | `inst:dict_store_ptr_keys(dict_off, keys, dest_off)` | Resolve hash path, store pointer in PTR64 field |
+| `store_raw_param_ptr` | `inst:store_raw_param_ptr(raw_params, index, dest_off)` | Store C param address into PTR64 (for dict loading) |
 
 New methods are added by defining a static `l_inst_*` function in `se_lua53_bridge.c` and adding it to the `inst_methods[]` table. The metatable is built once during `se_lua_bridge_init()`.
 
@@ -232,8 +237,9 @@ Then register functions by hash and type:
 
 ```lua
 bridge.register(fnv1a_32("MY_FUNCTION_NAME"), "oneshot",
-    function(inst, params, event_type, event_id, event_data)
+    function(inst, params, event_type, event_id, event_data, raw_params)
         -- function body
+        -- raw_params is light userdata; most functions ignore it
     end
 )
 ```
@@ -242,7 +248,7 @@ The string passed to `fnv1a_32()` must exactly match the name used in the DSL de
 
 ### Function Signatures
 
-All three function types receive the same five arguments:
+All three function types receive the same six arguments:
 
 | Argument | Type | Description |
 |----------|------|-------------|
@@ -251,6 +257,9 @@ All three function types receive the same five arguments:
 | `event_type` | integer | Event type (TICK, INIT, TERMINATE, user) |
 | `event_id` | integer | Event ID |
 | `event_data` | light userdata | Opaque pointer from C (pass back to inst methods) |
+| `raw_params` | light userdata | Raw C param array pointer (for store_raw_param_ptr) |
+
+The sixth argument (`raw_params`) is a light userdata pointing to the original C `s_expr_param_t` array. Most functions ignore it. It is only needed by dictionary loading functions that must store a pointer into the compiled binary param stream via `inst:store_raw_param_ptr()`.
 
 Return values differ by type:
 
@@ -303,7 +312,7 @@ Read and write blackboard fields using byte offsets from the param's `field_offs
 
 ```lua
 bridge.register(fnv1a_32("MY_HANDLER"), "main",
-    function(inst, params, event_type, event_id, event_data)
+    function(inst, params, event_type, event_id, event_data, raw_params)
         -- params[1] is a FIELD ref to "sensor_value"
         local offset = params[1].field_offset
         local current = inst:read_f32(offset)
@@ -319,17 +328,24 @@ bridge.register(fnv1a_32("MY_HANDLER"), "main",
 
 ### Dictionary Navigation
 
-Lua functions can navigate compiled dictionary structures without heap allocation:
+Lua functions can navigate compiled dictionary structures without heap allocation. The bridge provides generic typed extraction and pointer storage methods that wrap the C dictionary APIs:
 
 ```lua
--- String-path lookup: reads PTR64 dict from blackboard, navigates by dot path
-inst:dict_extract_hash_str(dict_field_offset, "path.to.key", dest_field_offset)
+-- Generic string-path extraction (type = "int"|"uint"|"float"|"bool"|"hash")
+inst:dict_extract_str(dict_field_offset, "path.to.key", dest_field_offset, "float")
 
--- Hash-path lookup: same but with pre-computed hash keys
-inst:dict_extract_hash_keys(dict_field_offset, {hash1, hash2}, dest_field_offset)
+-- Generic hash-path extraction
+inst:dict_extract_keys(dict_field_offset, {hash1, hash2}, dest_field_offset, "int")
+
+-- Store pointer to resolved sub-dictionary in a PTR64 field
+inst:dict_store_ptr_str(dict_field_offset, "path.to.subdict", dest_ptr_offset)
+inst:dict_store_ptr_keys(dict_field_offset, {hash1, hash2}, dest_ptr_offset)
+
+-- Store raw param stream pointer (for dictionary loading)
+inst:store_raw_param_ptr(raw_params, param_index, dest_ptr_offset)
 ```
 
-These methods call into the C dictionary navigation code (`se_dict_string.h`, `se_dict_hash.h`) and write results directly to the blackboard. The dictionary binary data stays in flash ROM throughout.
+These methods call into the C dictionary navigation code (`se_dict_string.h`, `se_dict_hash.h`) and write results directly to the blackboard. The dictionary binary data stays in flash ROM throughout. The Lua function never sees the binary format — it passes offsets and paths, and C does the traversal.
 
 ---
 
@@ -355,9 +371,19 @@ Key validation: Lua functions work correctly in the context of state transitions
 
 ### JSON Dictionary Test
 
-Demonstrates Lua functions performing dictionary navigation. Two Lua oneshots (`LUA_DICT_EXTRACT_HASH` and `LUA_DICT_EXTRACT_HASH_H`) replace the C builtins for hash extraction from string-keyed and hash-keyed dictionaries. The Lua functions parse the param stream to extract field offsets and path keys, then call `inst:dict_extract_hash_str()` and `inst:dict_extract_hash_keys()` which wrap the C dictionary navigation.
+Demonstrates complete dictionary operation replacement — every `SE_DICT_*` and `SE_LOAD_DICTIONARY` C builtin replaced with a Lua implementation. Fourteen Lua oneshot functions cover the full dictionary API: loading (string-keyed and hash-keyed), typed extraction (int, uint, float, bool, hash) for both string paths and hash paths, and pointer storage for both path variants.
 
-Key validation: Lua functions produce identical hash extraction results to the C builtins across five passes (string paths, hash paths, array access, string pointer extraction, hash pointer extraction). Dictionary data remains in flash ROM with zero heap allocation.
+The Lua functions access both dictionary formats compiled into flash:
+
+- **String-keyed dictionaries** (`json()` in DSL) — navigated via `inst:dict_extract_str()` and `inst:dict_store_ptr_str()`, which wrap `se_dicts_resolve()` from the C string dictionary API. Dot-separated paths like `"integers.nested.deep.value"` are resolved at runtime without string allocation.
+
+- **Hash-keyed dictionaries** (`json_hash()` in DSL) — navigated via `inst:dict_extract_keys()` and `inst:dict_store_ptr_keys()`, which wrap `se_dicth_resolve()` from the C hash dictionary API. Pre-computed FNV-1a hash arrays provide O(n) key lookup with zero string comparison.
+
+The test runs five passes: string-path scalar extraction, hash-path scalar extraction, array element access by index, string-path pointer storage with sub-dictionary extraction, and hash-path pointer storage with sub-dictionary extraction. Each pass verifies extracted values against known expected results.
+
+The dictionary loading functions (`LUA_LOAD_DICTIONARY`, `LUA_LOAD_DICTIONARY_HASH`) use the raw C param pointer — the sixth trampoline argument — to store the address of the compiled dictionary structure directly into a blackboard PTR64 field via `inst:store_raw_param_ptr()`. This is the only operation that requires the raw param pointer; all subsequent extraction and pointer storage operations work through the PTR64 field.
+
+Key validation: all 36 extraction results match the C builtin outputs exactly. Both string-keyed and hash-keyed dictionary formats are fully accessible from Lua. Dictionary data compiled from Lua tables at build time remains in flash ROM with zero heap allocation during navigation. The Lua functions never construct tables to hold dictionary content — they parse the param stream, call C bridge methods, and C writes results directly to the blackboard.
 
 ---
 
@@ -374,5 +400,3 @@ Key validation: Lua functions produce identical hash extraction results to the C
 | Param marshalling to Lua | Lua stack | Per-call, freed on return |
 
 The critical property: dictionary data compiled from Lua tables in the DSL lives in the binary module (flash ROM on embedded targets). When Lua functions need to navigate this data, they call into C methods that traverse the binary format in-place. No Lua tables are created for the dictionary content. The only Lua allocations are the params table created per trampoline call, which is collected when the function returns.
-
-

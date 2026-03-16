@@ -4,8 +4,8 @@
 
 #include <stdint.h>
 
-#define CT_RJRP566L_LINK_TABLE_SIZE 1064
+#define CT_TYOH8EKC_LINK_TABLE_SIZE 1126
 
-extern const uint16_t ct_rjrp566l_link_table[CT_RJRP566L_LINK_TABLE_SIZE];
+extern const uint16_t ct_tyoh8ekc_link_table[CT_TYOH8EKC_LINK_TABLE_SIZE];
 
 #endif /* CHAINTREE_HANDLE_LINKS_H */

@@ -22,8 +22,8 @@
 #define MASK_E                             (1U << BIT_E)
 #define MASK_F                             (1U << BIT_F)
 
-#define CT_RJRP566L_BITMASK_COUNT 6
+#define CT_TYOH8EKC_BITMASK_COUNT 6
 
-extern const char *ct_rjrp566l_bitmask_names[6];
+extern const char *ct_tyoh8ekc_bitmask_names[6];
 
 #endif /* CHAINTREE_HANDLE_BITMASKS_H */

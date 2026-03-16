@@ -13,13 +13,25 @@
 
 // Lua oneshot function entries
 static s_expr_fn_entry_t json_test_lua_oneshot_entries[] = {
+    { 0x21F7090F, (void*)se_lua_oneshot_trampoline },  // LUA_LOAD_DICTIONARY
+    { 0xEA582E00, (void*)se_lua_oneshot_trampoline },  // LUA_LOAD_DICTIONARY_HASH
+    { 0xD05CA346, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_INT
+    { 0x512B578D, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_FLOAT
+    { 0x561A6F59, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_UINT
+    { 0xA10D9E05, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_BOOL
     { 0x2A904FE9, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_HASH
+    { 0x4FEA5DE9, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_INT_H
+    { 0x16458A7A, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_FLOAT_H
+    { 0x73CC0D4E, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_UINT_H
+    { 0x5CC12F12, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_BOOL_H
     { 0x2699DEFE, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_EXTRACT_HASH_H
+    { 0x648E705D, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_STORE_PTR
+    { 0x93D1562A, (void*)se_lua_oneshot_trampoline },  // LUA_DICT_STORE_PTR_H
 };
 
 static const s_expr_fn_table_t json_test_lua_oneshot_table = {
     .entries = json_test_lua_oneshot_entries,
-    .count = 2
+    .count = 14
 };
 
 // Register all Lua trampoline functions with module

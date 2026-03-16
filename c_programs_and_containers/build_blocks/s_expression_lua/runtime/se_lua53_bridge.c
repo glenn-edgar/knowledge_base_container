@@ -426,7 +426,349 @@ static int l_inst_dict_extract_hash_keys(lua_State *L)
     lua_pushboolean(L, 1);
     return 1;
 }
+// ============================================================================
+// BRIDGE ADDITIONS for se_lua53_bridge.c
+//
+// Changes required:
+//
+// 1. Add includes at top:
+//      #include "se_dict_string.h"
+//      #include "se_dict_hash.h"
+//
+// 2. Add these functions next to the other l_inst_* functions
+//
+// 3. Add to inst_methods[] table:
+//      {"dict_extract_str",        l_inst_dict_extract_str},
+//      {"dict_extract_keys",       l_inst_dict_extract_keys},
+//      {"dict_extract_hash_str",   l_inst_dict_extract_hash_str},     (existing)
+//      {"dict_extract_hash_keys",  l_inst_dict_extract_hash_keys},    (existing)
+//      {"dict_store_ptr_str",      l_inst_dict_store_ptr_str},
+//      {"dict_store_ptr_keys",     l_inst_dict_store_ptr_keys},
+//      {"store_raw_param_ptr",     l_inst_store_raw_param_ptr},
+//
+// 4. In ALL THREE trampolines, change pcall from 5 to 6 args:
+//      push_inst_userdata(L, inst);
+//      push_params_table(L, params, param_count);
+//      lua_pushinteger(L, (lua_Integer)event_type);
+//      lua_pushinteger(L, (lua_Integer)event_id);
+//      lua_pushlightuserdata(L, event_data);
+//      lua_pushlightuserdata(L, (void*)params);   // NEW: 6th arg, raw C params
+//
+//      // oneshot: lua_pcall(L, 6, 0, 0)
+//      // main:    lua_pcall(L, 6, 1, 0)
+//      // pred:    lua_pcall(L, 6, 1, 0)
+//
+// ============================================================================
 
+// ============================================================================
+// HELPER: Write typed value to blackboard from resolved param
+// ============================================================================
+
+static bool write_typed_value(
+    s_expr_tree_instance_t *inst,
+    const s_expr_param_t *found,
+    int dest_offset,
+    const char *type_str
+) {
+    if (!found || !inst->blackboard) return false;
+
+    if (strcmp(type_str, "int") == 0) {
+        ct_int_t val = se_dicts_param_int(found, 0);
+        memcpy((uint8_t*)inst->blackboard + dest_offset, &val, sizeof(ct_int_t));
+        return true;
+    }
+    else if (strcmp(type_str, "uint") == 0) {
+        ct_uint_t val = se_dicts_param_uint(found, 0);
+        memcpy((uint8_t*)inst->blackboard + dest_offset, &val, sizeof(ct_uint_t));
+        return true;
+    }
+    else if (strcmp(type_str, "float") == 0) {
+        ct_float_t val = se_dicts_param_float(found, 0);
+        memcpy((uint8_t*)inst->blackboard + dest_offset, &val, sizeof(ct_float_t));
+        return true;
+    }
+    else if (strcmp(type_str, "bool") == 0) {
+        uint32_t val = se_dicts_param_bool(found, false) ? 1 : 0;
+        memcpy((uint8_t*)inst->blackboard + dest_offset, &val, sizeof(uint32_t));
+        return true;
+    }
+    else if (strcmp(type_str, "hash") == 0) {
+        s_expr_hash_t val = 0;
+        uint8_t opcode = found->type & S_EXPR_OPCODE_MASK;
+
+        if (opcode == S_EXPR_PARAM_STR_HASH) {
+            val = found->str_hash;
+        } else if (opcode == S_EXPR_PARAM_STR_IDX && inst->module && inst->module->def) {
+            if (found->str_index < inst->module->def->string_count) {
+                const char *str = inst->module->def->string_table[found->str_index];
+                if (str) val = s_expr_hash(str);
+            }
+        } else if (opcode == S_EXPR_PARAM_INT || opcode == S_EXPR_PARAM_UINT) {
+            val = (s_expr_hash_t)found->uint_val;
+        }
+
+        memcpy((uint8_t*)inst->blackboard + dest_offset, &val, sizeof(uint32_t));
+        return true;
+    }
+
+    return false;
+}
+
+// ============================================================================
+// inst:dict_extract_str(dict_field_offset, path_string, dest_offset, type)
+//
+// Generic string-path extraction. type = "int"|"uint"|"float"|"bool"|"hash"
+// ============================================================================
+
+static int l_inst_dict_extract_str(lua_State *L)
+{
+    s_expr_tree_instance_t *inst = check_inst(L, 1);
+    int dict_offset = (int)luaL_checkinteger(L, 2);
+    const char *path = luaL_checkstring(L, 3);
+    int dest_offset = (int)luaL_checkinteger(L, 4);
+    const char *type_str = luaL_checkstring(L, 5);
+
+    if (!inst->blackboard) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *dict = se_dicts_from_blackboard(
+        inst->blackboard, dict_offset);
+    if (!dict) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *found = se_dicts_resolve(
+        dict, inst->module->def, path, NULL);
+    if (!found) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    lua_pushboolean(L, write_typed_value(inst, found, dest_offset, type_str));
+    return 1;
+}
+
+// ============================================================================
+// inst:dict_extract_keys(dict_field_offset, hash_keys_table, dest_offset, type)
+//
+// Generic hash-path extraction. type = "int"|"uint"|"float"|"bool"|"hash"
+// ============================================================================
+
+static int l_inst_dict_extract_keys(lua_State *L)
+{
+    s_expr_tree_instance_t *inst = check_inst(L, 1);
+    int dict_offset = (int)luaL_checkinteger(L, 2);
+    luaL_checktype(L, 3, LUA_TTABLE);
+    int dest_offset = (int)luaL_checkinteger(L, 4);
+    const char *type_str = luaL_checkstring(L, 5);
+
+    if (!inst->blackboard) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *dict = se_dicth_from_blackboard(
+        inst->blackboard, dict_offset);
+    if (!dict) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    int key_count = (int)luaL_len(L, 3);
+    if (key_count <= 0 || key_count > 16) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    s_expr_hash_t keys[16];
+    for (int i = 0; i < key_count; i++) {
+        lua_rawgeti(L, 3, i + 1);
+        keys[i] = (s_expr_hash_t)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+    }
+
+    const s_expr_param_t *found = se_dicth_resolve(
+        dict, keys, (uint16_t)key_count, NULL);
+    if (!found) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    lua_pushboolean(L, write_typed_value(inst, found, dest_offset, type_str));
+    return 1;
+}
+
+// ============================================================================
+// inst:dict_store_ptr_str(dict_field_offset, path_string, dest_ptr_offset)
+//
+// Resolves string path, stores pointer to found node in PTR64 field.
+// ============================================================================
+
+static int l_inst_dict_store_ptr_str(lua_State *L)
+{
+    s_expr_tree_instance_t *inst = check_inst(L, 1);
+    int dict_offset = (int)luaL_checkinteger(L, 2);
+    const char *path = luaL_checkstring(L, 3);
+    int dest_offset = (int)luaL_checkinteger(L, 4);
+
+    if (!inst->blackboard) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *dict = se_dicts_from_blackboard(
+        inst->blackboard, dict_offset);
+    if (!dict) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *found = se_dicts_resolve(
+        dict, inst->module->def, path, NULL);
+    if (!found) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    uint64_t ptr_val = (uint64_t)(uintptr_t)found;
+    memcpy((uint8_t*)inst->blackboard + dest_offset, &ptr_val, sizeof(uint64_t));
+
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+// ============================================================================
+// inst:dict_store_ptr_keys(dict_field_offset, hash_keys_table, dest_ptr_offset)
+//
+// Resolves hash path, stores pointer to found node in PTR64 field.
+// ============================================================================
+
+static int l_inst_dict_store_ptr_keys(lua_State *L)
+{
+    s_expr_tree_instance_t *inst = check_inst(L, 1);
+    int dict_offset = (int)luaL_checkinteger(L, 2);
+    luaL_checktype(L, 3, LUA_TTABLE);
+    int dest_offset = (int)luaL_checkinteger(L, 4);
+
+    if (!inst->blackboard) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *dict = se_dicth_from_blackboard(
+        inst->blackboard, dict_offset);
+    if (!dict) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    int key_count = (int)luaL_len(L, 3);
+    if (key_count <= 0 || key_count > 16) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    s_expr_hash_t keys[16];
+    for (int i = 0; i < key_count; i++) {
+        lua_rawgeti(L, 3, i + 1);
+        keys[i] = (s_expr_hash_t)lua_tointeger(L, -1);
+        lua_pop(L, 1);
+    }
+
+    const s_expr_param_t *found = se_dicth_resolve(
+        dict, keys, (uint16_t)key_count, NULL);
+    if (!found) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    uint64_t ptr_val = (uint64_t)(uintptr_t)found;
+    memcpy((uint8_t*)inst->blackboard + dest_offset, &ptr_val, sizeof(uint64_t));
+
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+// ============================================================================
+// inst:store_raw_param_ptr(raw_params_lightuserdata, param_index, dest_offset)
+//
+// Stores the C address of raw_params[param_index] into a PTR64 blackboard
+// field. Used by LUA_LOAD_DICTIONARY to store the address of the compiled
+// dict structure from the binary param stream.
+//
+// raw_params is the 6th argument passed to Lua by the trampoline.
+// ============================================================================
+
+static int l_inst_store_raw_param_ptr(lua_State *L)
+{
+    s_expr_tree_instance_t *inst = check_inst(L, 1);
+    const s_expr_param_t *raw_params = (const s_expr_param_t*)lua_touserdata(L, 2);
+    int param_idx = (int)luaL_checkinteger(L, 3);
+    int dest_offset = (int)luaL_checkinteger(L, 4);
+
+    if (!raw_params || !inst->blackboard || param_idx < 0) {
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+
+    const s_expr_param_t *ptr = &raw_params[param_idx];
+    uint64_t ptr_val = (uint64_t)(uintptr_t)ptr;
+    memcpy((uint8_t*)inst->blackboard + dest_offset, &ptr_val, sizeof(uint64_t));
+
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+// ============================================================================
+// UPDATED inst_methods[] TABLE
+// Replace the existing table with this:
+// ============================================================================
+
+/*
+static const luaL_Reg inst_methods[] = {
+    {"read_i32",                l_inst_read_i32},
+    {"write_i32",               l_inst_write_i32},
+    {"read_u32",                l_inst_read_u32},
+    {"write_u32",               l_inst_write_u32},
+    {"read_f32",                l_inst_read_f32},
+    {"write_f32",               l_inst_write_f32},
+    {"read_f32_ptr",            l_inst_read_f32_ptr},
+    {"read_i32_ptr",            l_inst_read_i32_ptr},
+    {"ptr_to_offset",           l_inst_ptr_to_offset},
+    {"get_node_count",          l_inst_get_node_count},
+    {"get_string",              l_inst_get_string},
+    {"dict_extract_str",        l_inst_dict_extract_str},
+    {"dict_extract_keys",       l_inst_dict_extract_keys},
+    {"dict_extract_hash_str",   l_inst_dict_extract_hash_str},
+    {"dict_extract_hash_keys",  l_inst_dict_extract_hash_keys},
+    {"dict_store_ptr_str",      l_inst_dict_store_ptr_str},
+    {"dict_store_ptr_keys",     l_inst_dict_store_ptr_keys},
+    {"store_raw_param_ptr",     l_inst_store_raw_param_ptr},
+    {NULL, NULL}
+};
+*/
+
+// ============================================================================
+// TRAMPOLINE CHANGES
+//
+// In all three trampolines (oneshot, main, pred), add one push after
+// event_data and change pcall arg count from 5 to 6:
+//
+//     lua_pushlightuserdata(L, event_data);
+//     lua_pushlightuserdata(L, (void*)params);   // <-- ADD THIS LINE
+//
+//     // oneshot: lua_pcall(L, 6, 0, 0)   was 5
+//     // main:    lua_pcall(L, 6, 1, 0)   was 5
+//     // pred:    lua_pcall(L, 6, 1, 0)   was 5
+//
+// This makes raw_params available as the 6th argument to every Lua function.
+// Functions that don't need it (extraction, etc.) simply ignore it.
+// Only LUA_LOAD_DICTIONARY uses it to store param stream pointers.
+// ============================================================================
+/*
 static const luaL_Reg inst_methods[] = {
     {"read_i32",                l_inst_read_i32},
     {"write_i32",               l_inst_write_i32},
@@ -441,6 +783,28 @@ static const luaL_Reg inst_methods[] = {
     {"get_string",              l_inst_get_string},
     {"dict_extract_hash_str",   l_inst_dict_extract_hash_str},
     {"dict_extract_hash_keys",  l_inst_dict_extract_hash_keys},
+    {NULL, NULL}
+};
+*/
+static const luaL_Reg inst_methods[] = {
+    {"read_i32",                l_inst_read_i32},
+    {"write_i32",               l_inst_write_i32},
+    {"read_u32",                l_inst_read_u32},
+    {"write_u32",               l_inst_write_u32},
+    {"read_f32",                l_inst_read_f32},
+    {"write_f32",               l_inst_write_f32},
+    {"read_f32_ptr",            l_inst_read_f32_ptr},
+    {"read_i32_ptr",            l_inst_read_i32_ptr},
+    {"ptr_to_offset",           l_inst_ptr_to_offset},
+    {"get_node_count",          l_inst_get_node_count},
+    {"get_string",              l_inst_get_string},
+    {"dict_extract_str",        l_inst_dict_extract_str},
+    {"dict_extract_keys",       l_inst_dict_extract_keys},
+    {"dict_extract_hash_str",   l_inst_dict_extract_hash_str},
+    {"dict_extract_hash_keys",  l_inst_dict_extract_hash_keys},
+    {"dict_store_ptr_str",      l_inst_dict_store_ptr_str},
+    {"dict_store_ptr_keys",     l_inst_dict_store_ptr_keys},
+    {"store_raw_param_ptr",     l_inst_store_raw_param_ptr},
     {NULL, NULL}
 };
 // ============================================================================
@@ -586,8 +950,9 @@ void se_lua_oneshot_trampoline(
     lua_pushinteger(L, (lua_Integer)event_type);
     lua_pushinteger(L, (lua_Integer)event_id);
     lua_pushlightuserdata(L, event_data);
+    lua_pushlightuserdata(L, (void*)params);
 
-    if (lua_pcall(L, 5, 0, 0) != LUA_OK) {
+    if (lua_pcall(L, 6, 0, 0) != LUA_OK) {
         char buf[256];
         snprintf(buf, sizeof(buf),
                  "se_lua oneshot error: %s", lua_tostring(L, -1));
@@ -625,8 +990,9 @@ s_expr_result_t se_lua_main_trampoline(
     lua_pushinteger(L, (lua_Integer)event_type);
     lua_pushinteger(L, (lua_Integer)event_id);
     lua_pushlightuserdata(L, event_data);
+    lua_pushlightuserdata(L, (void*)params);
 
-    if (lua_pcall(L, 5, 1, 0) != LUA_OK) {
+    if (lua_pcall(L, 6, 1, 0) != LUA_OK) {
         char buf[256];
         snprintf(buf, sizeof(buf),
                  "se_lua main error: %s", lua_tostring(L, -1));
@@ -669,8 +1035,9 @@ bool se_lua_pred_trampoline(
     lua_pushinteger(L, (lua_Integer)event_type);
     lua_pushinteger(L, (lua_Integer)event_id);
     lua_pushlightuserdata(L, event_data);
+    lua_pushlightuserdata(L, (void*)params);
 
-    if (lua_pcall(L, 5, 1, 0) != LUA_OK) {
+    if (lua_pcall(L, 6, 1, 0) != LUA_OK) {
         char buf[256];
         snprintf(buf, sizeof(buf),
                  "se_lua pred error: %s", lua_tostring(L, -1));

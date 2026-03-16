@@ -35,7 +35,7 @@ unsigned sm_event_filtering_main_main_fn(void *handle, unsigned bool_function_in
  * ===================================================================== */
 
  #include "cfl_image_loader.h"
-
+extern unsigned avro_verify_packet_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  void cfl_register_user_main_functions(cfl_image_loader_t *img)
  {
      int missing = 0;
@@ -44,5 +44,7 @@ unsigned sm_event_filtering_main_main_fn(void *handle, unsigned bool_function_in
      rc = cfl_image_register_main(img, "sm_event_filtering_main_main", sm_event_filtering_main_main_fn);
      if (rc < 0) { fprintf(stderr, "  WARN: app main not found: sm_event_filtering_main_main\n"); missing++; }
  
-    
+     rc = cfl_image_register_main(img, "avro_verify_packet_main", avro_verify_packet_main_fn);
+     if (rc < 0) { fprintf(stderr, "  WARN: app main not found: avro_verify_packet_main\n"); missing++; }
+ 
  }
