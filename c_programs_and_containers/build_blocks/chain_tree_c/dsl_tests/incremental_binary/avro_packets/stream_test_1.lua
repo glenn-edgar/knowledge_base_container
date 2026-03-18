@@ -18,7 +18,7 @@ RECORD("accelerometer_reading_filtered")
     FIELD("z", "float")
 END_RECORD()
 
---GENERATE()
+GENERATE()
 
 CONST_PACKET("accelerometer_reading", "default_accel_reading", 0)
     SET("x", 0.0)
@@ -26,4 +26,4 @@ CONST_PACKET("accelerometer_reading", "default_accel_reading", 0)
     SET("z", 9.81)
 END_CONST_PACKET()
 
-GENERATE_ALL()
+GENERATE_CONST_PACKETS_BINARY()

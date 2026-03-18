@@ -77,6 +77,7 @@ void cfl_forward_exception_event(cfl_runtime_handle_t *runtime_handle, unsigned 
             EXCEPTION("cfl_forward_exception_event: parent_node_id is 0xFFFF");
         }
     }
+    printf("cfl_forward_exception_event: parent_node_id: %d, node_index: %d, record_index: %d\n", parent_node_id, node_index, record_index);
     cfl_send_json_record_event(runtime_handle->event_queue, CFL_EVENT_PRIORITY_HIGH, parent_node_id, CFL_RAISE_EXCEPTION_EVENT,record_index);
     
 }

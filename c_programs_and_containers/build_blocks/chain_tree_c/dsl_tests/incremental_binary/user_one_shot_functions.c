@@ -81,7 +81,7 @@ void display_sequence_till_result_one_shot_fn(void *handle, unsigned node_index)
         node_index = ptr->sequence_result_data_array[i].node_index;
         printf("dictonary node_index: %d\n", node_index);
         json_decoder_init_from_runtime(runtime, node_index);
-        json_print_node_data_runtime(runtime, node_index);
+        //json_print_node_data_runtime(runtime, node_index);
     }
     
     
@@ -210,7 +210,12 @@ void verify_tests_active_error_one_shot_fn(void *handle, unsigned node_index){
 extern void generate_avro_packet_one_shot(void *handle, unsigned node_index);
 extern void avro_verify_packet_init_one_shot_fn(void *handle, unsigned node_index);
 extern void packet_generator_one_shot_fn(void *handle, unsigned node_index);
-
+extern void generate_const_avro_packet_one_shot(void *handle, unsigned node_index);
+extern void avro_verify_const_packet_init_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_arc_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_down_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_straight_final_one_shot_fn(void *handle, unsigned node_index);
+extern void update_fly_up_final_one_shot_fn(void *handle, unsigned node_index);
 
 /* =====================================================================
  * Register application-specific functions with binary image loader.
@@ -252,6 +257,12 @@ void cfl_register_user_one_shot_functions(cfl_image_loader_t *img)
     REG_APP_OS("generate_avro_packet_one_shot",              generate_avro_packet_one_shot);
     REG_APP_OS("avro_verify_packet_init_one_shot",           avro_verify_packet_init_one_shot_fn);
     REG_APP_OS("packet_generator_one_shot",                  packet_generator_one_shot_fn);
+    REG_APP_OS("generate_const_avro_packet_one_shot",        generate_const_avro_packet_one_shot);
+    REG_APP_OS("avro_verify_const_packet_init_one_shot",     avro_verify_const_packet_init_one_shot_fn);
+    REG_APP_OS("update_fly_straight_final_one_shot",                  update_fly_straight_final_one_shot_fn);
+    REG_APP_OS("update_fly_arc_final_one_shot",                       update_fly_arc_final_one_shot_fn);
+    REG_APP_OS("update_fly_up_final_one_shot",                        update_fly_up_final_one_shot_fn);
+    REG_APP_OS("update_fly_down_final_one_shot",                      update_fly_down_final_one_shot_fn);
     #undef REG_APP_OS
 
 }

@@ -1720,11 +1720,13 @@ local function twenty_third_test(ct, kb_name)
     ct:asm_log_message("launch column")
 
     local event_id = ct.ctb:register_event("GENERATE_AVRO_PACKET")
+    local event_id_const = ct.ctb:register_event("GENERATE_CONST_AVRO_PACKET")
     local node_index = ct.ctb:get_node_index(launch_column)
     
     ct:asm_one_shot_handler("GENERATE_AVRO_PACKET", { event_id = event_id, node_index = node_index })
     ct:asm_node_element("AVRO_VERIFY_PACKET", "AVRO_VERIFY_PACKET_INIT", nil, nil, { event_id = event_id })
-
+    ct:asm_one_shot_handler("GENERATE_CONST_AVRO_PACKET", { event_id = event_id_const, node_index = node_index })
+    ct:asm_node_element("AVRO_VERIFY_CONST_PACKET", "AVRO_VERIFY_CONST_PACKET_INIT", nil, nil, { event_id = event_id_const })
     ct:asm_halt()
     ct:end_column(launch_column)
     ct:end_test()
@@ -1910,6 +1912,387 @@ local function twenty_sixth_test(ct, kb_name)
     ct:end_test()
 end
 
+--[[
+    Tests 27 and 28 - Drone control using controlled nodes (client/server pattern).
+
+    Test 27: Basic drone control - four flight mode servers with a client
+             sequencing through fly_straight, fly_arc, fly_up, fly_down.
+
+    Test 28: Same as 27 but fly_straight server raises an exception,
+             and the client uses catch_all_exception to handle it.
+
+    Translated from Python to LuaJIT.
+]]
+
+
+
+-- =========================================================================
+-- Shared column helpers
+-- =========================================================================
+
+local function insert_fly_up_column(ct)
+    local fly_up_column = ct.drone_control:fly_up_server("fly_up", "fly_up_monitor", {})
+    ct:asm_log_message("fly up column: ready")
+    ct:asm_wait_time(2)
+    ct:asm_one_shot_handler("UPDATE_FLY_UP_FINAL", { final_data = {} })
+    ct:asm_log_message("fly up column: terminating")
+    ct:asm_terminate()
+    ct:end_column(fly_up_column)
+    return fly_up_column
+end
+
+local function insert_fly_down_column(ct)
+    local fly_down_column = ct.drone_control:fly_down_server("fly_down", "fly_down_monitor", {})
+    ct:asm_log_message("fly down column: ready")
+    ct:asm_wait_time(2)
+    ct:asm_one_shot_handler("UPDATE_FLY_DOWN_FINAL", { final_data = {} })
+    ct:asm_log_message("fly down column: terminating")
+    ct:asm_terminate()
+    ct:end_column(fly_down_column)
+    return fly_down_column
+end
+
+local function insert_fly_arc_column(ct)
+    local fly_arc_column = ct.drone_control:fly_arc_server("fly_arc", "fly_arc_monitor", {})
+    ct:asm_log_message("fly arc column: ready")
+    ct:asm_wait_time(2)
+    ct:asm_one_shot_handler("UPDATE_FLY_ARC_FINAL", { final_data = {} })
+    ct:asm_log_message("fly arc column: terminating")
+    ct:asm_terminate()
+    ct:end_column(fly_arc_column)
+    return fly_arc_column
+end
+
+local function insert_fly_straight_column(ct)
+    local fly_straight_column = ct.drone_control:fly_straight_server("fly_straight", "fly_straight_monitor", {})
+    ct:asm_log_message("fly straight column: ready")
+    ct:asm_wait_time(2)
+    ct:asm_one_shot_handler("UPDATE_FLY_STRAIGHT_FINAL", {})
+    ct:asm_log_message("fly straight column: terminating")
+    ct:asm_terminate()
+    ct:end_column(fly_straight_column)
+    return fly_straight_column
+end
+
+-- =========================================================================
+-- Test 28 variant: fly_straight server that raises an exception
+-- =========================================================================
+
+local function insert_fly_exception_straight_column(ct)
+    local fly_straight_column = ct.drone_control:fly_straight_server("fly_straight", "fly_straight_monitor", {})
+    ct:asm_log_message("fly straight column: ready")
+    ct:asm_wait_time(2)
+    ct:asm_raise_exception(1, { ["low battery"] = 12.0 })
+    ct:asm_one_shot_handler("UPDATE_FLY_STRAIGHT_FINAL", {})
+    ct:asm_log_message("fly straight column: terminating")
+    ct:asm_terminate()
+    ct:end_column(fly_straight_column)
+    return fly_straight_column
+end
+
+-- =========================================================================
+-- Client control columns
+-- =========================================================================
+
+local function insert_client_control_column(ct)
+    local client_column = ct:define_column("client_control", nil, nil, nil, nil, nil, true)
+
+    -- Fly straight: 100m at 50m altitude, 10m/s, heading 90 degrees
+    ct.drone_control:fly_straight_client(
+        100.0, 50.0, 10.0, 90.0,
+        "ON_FLY_STRAIGHT_COMPLETE",
+        { waypoint = "wp1" }
+    )
+
+    ct:asm_log_message("fly straight command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly arc: 50m at 60m altitude, 8m/s, heading 180 degrees
+    ct.drone_control:fly_arc_client(
+        50.0, 60.0, 8.0, 180.0,
+        "ON_FLY_ARC_COMPLETE",
+        { waypoint = "wp2" }
+    )
+
+    ct:asm_log_message("fly arc command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly up: climb to 100m at 5m/s
+    ct.drone_control:fly_up_client(
+        100.0, 5.0,
+        "ON_FLY_UP_COMPLETE",
+        { target = "cruise_altitude" }
+    )
+
+    ct:asm_log_message("fly up command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly down: descend to 20m at 3m/s
+    ct.drone_control:fly_down_client(
+        20.0, 3.0,
+        "ON_FLY_DOWN_COMPLETE",
+        { target = "landing_approach" }
+    )
+
+    ct:asm_log_message("fly down command sent")
+    ct:asm_log_message("client control column: complete")
+    ct:asm_terminate()
+    ct:end_column(client_column)
+    return client_column
+end
+
+local function insert_exception_client_control_column(ct)
+    local client_column = ct:catch_all_exception(
+        "client_control",
+        "DRONE_CONTROL_EXCEPTION_CATCH",
+        { aux_data = {} }
+    )
+
+    -- Fly straight: 100m at 50m altitude, 10m/s, heading 90 degrees
+    ct.drone_control:fly_straight_client(
+        100.0, 50.0, 10.0, 90.0,
+        "ON_FLY_STRAIGHT_COMPLETE",
+        { waypoint = "wp1" }
+    )
+
+    ct:asm_log_message("fly straight command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly arc: 50m at 60m altitude, 8m/s, heading 180 degrees
+    ct.drone_control:fly_arc_client(
+        50.0, 60.0, 8.0, 180.0,
+        "ON_FLY_ARC_COMPLETE",
+        { waypoint = "wp2" }
+    )
+
+    ct:asm_log_message("fly arc command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly up: climb to 100m at 5m/s
+    ct.drone_control:fly_up_client(
+        100.0, 5.0,
+        "ON_FLY_UP_COMPLETE",
+        { target = "cruise_altitude" }
+    )
+
+    ct:asm_log_message("fly up command sent")
+    ct:asm_wait_time(2)
+
+    -- Fly down: descend to 20m at 3m/s
+    ct.drone_control:fly_down_client(
+        20.0, 3.0,
+        "ON_FLY_DOWN_COMPLETE",
+        { target = "landing_approach" }
+    )
+
+    ct:asm_log_message("fly down command sent")
+    ct:asm_log_message("client control column: complete")
+    ct:asm_terminate()
+    ct:end_column(client_column)
+    return client_column
+end
+--[[
+    DroneControl - DSL extension for drone flight control server/client nodes.
+
+    Wraps the ControlledNodes API with typed ports for each flight mode:
+      - fly_straight: request handler 0, response handler 1
+      - fly_arc:      request handler 2, response handler 3
+      - fly_up:       request handler 4, response handler 5
+      - fly_down:     request handler 6, response handler 7
+
+    Each mode has a server (controlled node) and client (initiator) pair.
+    Ports are built once in the constructor and reused across calls.
+
+    In Python, DroneControl inherits from ControlledNodes and calls
+    self.make_port / self.controlled_node / self.client_controlled_node directly.
+    In LuaJIT, those methods live on ct via the mixin system, so we delegate.
+
+    Translated from Python to LuaJIT.
+]]
+
+local DroneControl = {}
+DroneControl.__index = DroneControl
+
+-- FIXED: was `local function DroneControl.new` — invalid syntax
+function DroneControl.new(ct, h_file)
+    local self = setmetatable({}, DroneControl)
+    self.ct = ct
+    self.h_file = h_file
+
+    -- Strip .h extension: make_control_port appends ".h:" internally
+    local base = h_file:gsub("%.h$", "")
+
+    self.command_container = {}
+
+    self.command_container["fly_straight"] = {
+        request_port  = ct:make_control_port(base, "fly_straight_request",  0, "fly_straight_request"),
+        response_port = ct:make_control_port(base, "fly_straight_response", 1, "fly_straight_response"),
+        api_name      = "drone_control_fly_straight",
+    }
+    self.command_container["fly_arc"] = {
+        request_port  = ct:make_control_port(base, "fly_arc_request",  2, "fly_arc_request"),
+        response_port = ct:make_control_port(base, "fly_arc_response", 3, "fly_arc_response"),
+        api_name      = "drone_control_fly_arc",
+    }
+    self.command_container["fly_up"] = {
+        request_port  = ct:make_control_port(base, "fly_up_request",  4, "fly_up_request"),
+        response_port = ct:make_control_port(base, "fly_up_response", 5, "fly_up_response"),
+        api_name      = "drone_control_fly_up",
+    }
+    self.command_container["fly_down"] = {
+        request_port  = ct:make_control_port(base, "fly_down_request",  6, "fly_down_request"),
+        response_port = ct:make_control_port(base, "fly_down_response", 7, "fly_down_response"),
+        api_name      = "drone_control_fly_down",
+    }
+
+    return self
+end
+-- =========================================================================
+-- Servers (controlled nodes)
+-- =========================================================================
+
+-- FIXED: was `local function DroneControl:...` on all methods below
+function DroneControl:fly_straight_server(column_name, monitor_fn, monitor_data)
+    monitor_data = monitor_data or {}
+    local c = self.command_container["fly_straight"]
+    return self.ct:controlled_node(c.api_name, column_name, monitor_fn, monitor_data,
+                                    c.request_port, c.response_port)
+end
+
+function DroneControl:fly_arc_server(column_name, monitor_fn, monitor_data)
+    monitor_data = monitor_data or {}
+    local c = self.command_container["fly_arc"]
+    return self.ct:controlled_node(c.api_name, column_name, monitor_fn, monitor_data,
+                                    c.request_port, c.response_port)
+end
+
+function DroneControl:fly_up_server(column_name, monitor_fn, monitor_data)
+    monitor_data = monitor_data or {}
+    local c = self.command_container["fly_up"]
+    return self.ct:controlled_node(c.api_name, column_name, monitor_fn, monitor_data,
+                                    c.request_port, c.response_port)
+end
+
+function DroneControl:fly_down_server(column_name, monitor_fn, monitor_data)
+    monitor_data = monitor_data or {}
+    local c = self.command_container["fly_down"]
+    return self.ct:controlled_node(c.api_name, column_name, monitor_fn, monitor_data,
+                                    c.request_port, c.response_port)
+end
+
+-- =========================================================================
+-- Clients (initiator nodes)
+-- =========================================================================
+
+function DroneControl:fly_straight_client(distance, final_altitude, final_speed, heading,
+                                           finalize_fn, finalize_data)
+    finalize_data = finalize_data or {}
+    local c = self.command_container["fly_straight"]
+    local monitor_data = {
+        distance       = distance,
+        final_altitude = final_altitude,
+        final_speed    = final_speed,
+        heading        = heading,
+        finalize_data  = finalize_data,
+    }
+    return self.ct:client_controlled_node(c.api_name, finalize_fn, monitor_data,
+                                           c.request_port, c.response_port)
+end
+
+function DroneControl:fly_arc_client(distance, final_altitude, final_speed, heading,
+                                      finalize_fn, finalize_data)
+    finalize_data = finalize_data or {}
+    local c = self.command_container["fly_arc"]
+    local monitor_data = {
+        distance       = distance,
+        final_altitude = final_altitude,
+        final_speed    = final_speed,
+        heading        = heading,
+        finalize_data  = finalize_data,
+    }
+    return self.ct:client_controlled_node(c.api_name, finalize_fn, monitor_data,
+                                           c.request_port, c.response_port)
+end
+
+function DroneControl:fly_up_client(final_altitude, final_speed, finalize_fn, finalize_data)
+    finalize_data = finalize_data or {}
+    local c = self.command_container["fly_up"]
+    local monitor_data = {
+        final_altitude = final_altitude,
+        final_speed    = final_speed,
+        finalize_data  = finalize_data,
+    }
+    return self.ct:client_controlled_node(c.api_name, finalize_fn, monitor_data,
+                                           c.request_port, c.response_port)
+end
+
+function DroneControl:fly_down_client(final_altitude, final_speed, finalize_fn, finalize_data)
+    finalize_data = finalize_data or {}
+    local c = self.command_container["fly_down"]
+    local monitor_data = {
+        final_altitude = final_altitude,
+        final_speed    = final_speed,
+        finalize_data  = finalize_data,
+    }
+    return self.ct:client_controlled_node(c.api_name, finalize_fn, monitor_data,
+                                           c.request_port, c.response_port)
+end
+
+-- =========================================================================
+-- Test 27
+-- =========================================================================
+
+local function twenty_seventh_test(ct, kb_name)
+    ct.drone_control = DroneControl.new(ct, "drone_control")
+
+    ct:start_test(kb_name, 50)
+
+    local controlled_node_container = ct:controlled_node_container("controlled_node_container")
+    insert_fly_straight_column(ct)
+    insert_fly_arc_column(ct)
+    insert_fly_up_column(ct)
+    insert_fly_down_column(ct)
+    ct:end_column(controlled_node_container)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column: starting client control")
+    local client_control_column = insert_client_control_column(ct)
+    ct:define_join_link(client_control_column)
+
+    ct:asm_log_message("launch column: complete")
+    ct:asm_terminate_system()
+    ct:end_column(launch_column)
+
+    ct:end_test()
+end
+
+-- =========================================================================
+-- Test 28
+-- =========================================================================
+
+local function twenty_eighth_test(ct, kb_name)
+    ct.drone_control = DroneControl.new(ct, "drone_control")
+
+    ct:start_test(kb_name, 50)
+
+    local controlled_node_container = ct:controlled_node_container("controlled_node_container")
+    insert_fly_exception_straight_column(ct)
+    insert_fly_arc_column(ct)
+    insert_fly_up_column(ct)
+    insert_fly_down_column(ct)
+    ct:end_column(controlled_node_container)
+
+    local launch_column = ct:define_column("launch_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("launch column: starting client control")
+    local client_control_column = insert_exception_client_control_column(ct)
+    ct:define_join_link(client_control_column)
+
+    ct:asm_log_message("launch column: complete")
+    ct:asm_terminate_system()
+    ct:end_column(launch_column)
+
+    ct:end_test()
+end
 -- =========================================================================
 -- Header / entry point
 -- =========================================================================
@@ -1946,8 +2329,8 @@ local test_list = {
     "twenty_fourth_test",
     "twenty_fifth_test",
     "twenty_sixth_test",
-    -- "twenty_seventh_test",
-    -- "twenty_eighth_test",
+    "twenty_seventh_test",
+    "twenty_eighth_test",
     -- "twenty_ninth_test",
     -- "thirty_test",
     -- "thirty_one_test",
@@ -1978,8 +2361,8 @@ local test_dict = {
     twenty_fourth_test = twenty_fourth_test,
     twenty_fifth_test = twenty_fifth_test,
     twenty_sixth_test = twenty_sixth_test,
-    -- twenty_seventh_test = twenty_seventh_test,
-    -- twenty_eighth_test = twenty_eighth_test,
+    twenty_seventh_test = twenty_seventh_test,
+    twenty_eighth_test = twenty_eighth_test,
     -- twenty_ninth_test = twenty_ninth_test,
     -- thirty_test = thirty_test,
     -- thirty_one_test = thirty_one_test,

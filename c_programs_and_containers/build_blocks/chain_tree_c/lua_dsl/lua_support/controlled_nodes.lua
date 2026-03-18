@@ -1,4 +1,5 @@
 local ColumnFlow = require("lua_support.column_flow")
+local fnv1a      = require("lua_support.fnv1a")
 
 local ControlledNodes = setmetatable({}, { __index = ColumnFlow })
 ControlledNodes.__index = ControlledNodes
@@ -41,36 +42,48 @@ end
 ---
 --- Ports define the data contract between client and server nodes.
 --- Buffer types are defined in .h files using Avro-style schemas,
---- identified by file name and handler ID.
+--- identified by file name, record name, and handler ID.
+--- The schema_hash is FNV-1a of "<file>.h:<record>" matching the C runtime.
 ---
---- @param file_name string  Name of .h file containing buffer definition
+--- @param file_name string   Name of .h file (without extension) containing buffer definition
+--- @param record_name string  Name of the record type within the file
 --- @param handler_id number  Identifier for specific buffer type within file
---- @param event string  Event name that carries this buffer data
---- @return table  Port definition with file_name, handler_id, and event_id
-function ControlledNodes:make_port(file_name, handler_id, event)
+--- @param event string       Event name that carries this buffer data
+--- @return table  Port definition with schema_hash, handler_id, and event_id
+function ControlledNodes:make_control_port(file_name, record_name, handler_id, event)
     if type(file_name) ~= "string" then
-        error("File name must be a string")
+        error("file_name must be a string (e.g. 'drone_control')")
+    end
+    if type(record_name) ~= "string" then
+        error("record_name must be a string (e.g. 'fly_straight_request')")
     end
     if type(handler_id) ~= "number" then
-        error("Handler id must be a number")
+        error("handler_id must be a number")
     end
     if type(event) ~= "string" then
-        error("Event must be a string")
+        error("event must be a string")
+    end
+    -- Compute per-record hash: FNV-1a of "<file>.h:<record>"
+    local hash_key = file_name .. ".h:" .. record_name
+    local schema_hash = fnv1a.schema_hash(file_name, record_name)
+    -- Convert to signed int32 for JSON round-trip through json_extract_int32_runtime
+    if schema_hash > 0x7FFFFFFF then
+        schema_hash = schema_hash - 0x100000000
     end
     local event_id = self.ctb:register_event(event)
-    return { file_name = file_name, handler_id = handler_id, event_id = event_id }
+    return { schema_hash = schema_hash, handler_id = handler_id, event_id = event_id }
 end
 
 --- Validate that a port is fully defined.
 ---
---- @param port table  Port dictionary to validate
+--- @param port table       Port dictionary to validate
 --- @param port_name string  Name of port for error messages
 --- @param node_name string  Name of node for error messages
 function ControlledNodes:_validate_port_defined(port, port_name, node_name)
     if not port or next(port) == nil then
         error(port_name .. " must be defined for " .. node_name)
     end
-    local required_fields = { "file_name", "handler_id", "event_id" }
+    local required_fields = { "schema_hash", "handler_id", "event_id" }
     for _, field in ipairs(required_fields) do
         if port[field] == nil then
             error(port_name .. " missing required field '" .. field .. "' for " .. node_name)
@@ -80,12 +93,12 @@ end
 
 --- Validate that client and server port definitions match.
 ---
---- @param port_name string  Name of port for error messages
+--- @param port_name string   Name of port for error messages
 --- @param client_port table  Client's port definition
 --- @param server_port table  Server's port definition
---- @param api_name string  API name for error messages
+--- @param api_name string    API name for error messages
 function ControlledNodes:_validate_port_match(port_name, client_port, server_port, api_name)
-    local fields = { "file_name", "handler_id" }
+    local fields = { "schema_hash", "handler_id" }
     for _, field in ipairs(fields) do
         if client_port[field] ~= server_port[field] then
             error(string.format(
@@ -96,7 +109,6 @@ function ControlledNodes:_validate_port_match(port_name, client_port, server_por
         end
     end
 end
-
 --- Define a container for controlled nodes.
 ---
 --- Containers provide structural ownership and memory scope for controlled

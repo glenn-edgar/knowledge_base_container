@@ -54,6 +54,7 @@ static void cfl_server_controlled_node_decode(
     
     // Initialize decoder for this node
     json_decoder_init_from_runtime(runtime, node_index);
+    //json_print_node_data_runtime(runtime, node_index);
     //_node_data_runtime(runtime, node_index);
     
     // Decode request port
@@ -69,7 +70,7 @@ void cfl_controlled_node_init_one_shot_fn(void *handle, unsigned node_index)
 {
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     cfl_server_controlled_node_t *ptr = NULL;
-    
+    printf("cfl_controlled_node_init_one_shot_fn: node_index: %d\n", node_index);
     if (cfl_allocate_state(handle, node_index) == false)
     {
         ptr = (cfl_server_controlled_node_t *)cfl_smart_arena_alloc(
@@ -115,8 +116,8 @@ unsigned cfl_controlled_node_main_main_fn(void *handle, unsigned bool_function_i
         return CFL_HALT;
     }
     if(event_id == CFL_RAISE_EXCEPTION_EVENT){
-        printf("cfl_controlled_node_main_main_fn: Raise exception event\n");
-        if (event_type != CFL_EVENT_TYPE_NODE_ID) {
+        
+        if (event_type != CFL_EVENT_TYPE_JSON_RECORD) {
             EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_JSON_RECORD");
         }
         
@@ -177,7 +178,7 @@ void cfl_client_controlled_node_init_one_shot_fn(void *handle, unsigned node_ind
 {
     cfl_runtime_handle_t *runtime = (cfl_runtime_handle_t *)handle;
     cfl_client_controlled_node_t *ptr = NULL;
-    
+    printf("cfl_client_controlled_node_init_one_shot_fn: node_index: %d\n", node_index);
     if (cfl_allocate_state(handle, node_index) == false)
     {
         ptr = (cfl_client_controlled_node_t *)cfl_smart_arena_alloc(
@@ -261,8 +262,8 @@ unsigned cfl_client_controlled_node_main_main_fn(void *handle, unsigned bool_fun
 
     }
     if(event_id == CFL_RAISE_EXCEPTION_EVENT){
-        if (event_type != CFL_EVENT_TYPE_NODE_ID) {
-            EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_NODE_ID");
+        if (event_type != CFL_EVENT_TYPE_JSON_RECORD) {
+            EXCEPTION("cfl_client_controlled_node_main_main_fn: event_type is not CFL_EVENT_TYPE_JSON_RECORD");
         }
         uint16_t original_node_id = (uint16_t)((size_t)event_data);
     

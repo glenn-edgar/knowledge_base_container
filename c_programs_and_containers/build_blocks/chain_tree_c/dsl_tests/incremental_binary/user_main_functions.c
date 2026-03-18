@@ -28,7 +28,7 @@ unsigned sm_event_filtering_main_main_fn(void *handle, unsigned bool_function_in
     return CFL_CONTINUE;
 
 }
-
+extern unsigned avro_verify_const_packet_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
 /* =====================================================================
  * Register application-specific main functions with binary image loader.
  * Warns if a function is not found in the image.
@@ -40,7 +40,8 @@ extern unsigned avro_verify_packet_main_fn(void*, unsigned, unsigned, unsigned, 
  {
      int missing = 0;
      int rc;
- 
+     rc = cfl_image_register_main(img, "avro_verify_const_packet_main", avro_verify_const_packet_main_fn);
+     if (rc < 0) { fprintf(stderr, "  WARN: app main not found: avro_verify_const_packet_main\n"); missing++; }
      rc = cfl_image_register_main(img, "sm_event_filtering_main_main", sm_event_filtering_main_main_fn);
      if (rc < 0) { fprintf(stderr, "  WARN: app main not found: sm_event_filtering_main_main\n"); missing++; }
  

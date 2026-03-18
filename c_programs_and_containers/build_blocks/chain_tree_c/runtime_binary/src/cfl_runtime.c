@@ -76,7 +76,7 @@
      handle->main_function_data =
          (main_function_data_t *)cfl_perm_alloc_pointer(perm, (uint16_t)sizeof(main_function_data_t));
      cfl_find_main_ids(handle);
-     printf("made it here 2\n");
+     //printf("made it here 2\n");
      /* Memory subsystems */
      handle->perm = perm;
      handle->heap = cfl_heap_init(perm, params->heap_size);
@@ -171,7 +171,7 @@
      if (!handle) {
          EXCEPTION("cfl_runtime_run: NULL handle pointer");
      }
-     printf("made it here 3\n");
+     //printf("made it here 3\n");
      printf("---------------------------------start of runtime run---------------------------------\n");
      printf("cfl_perm_used_bytes: %d\n", cfl_perm_used_bytes(handle->perm));
      printf("cfl_perm_free_bytes: %d\n", cfl_perm_free_bytes(handle->perm));
@@ -336,7 +336,7 @@
  }
  
  bool cfl_add_test_by_index(cfl_runtime_handle_t *handle, uint16_t kb_index) {
-    printf("made it here 4\n");
+    //printf("made it here 4\n");
      if (kb_index >= handle->flash_handle->kb_count) {
          EXCEPTION("cfl_add_test_by_index: kb_index out of bounds");
      }
@@ -360,7 +360,7 @@
      TEST_ACTIVE_SET(handle, kb_index);
      handle->active_test_count++;
  
-     printf("made it here 5\n");
+     //printf("made it here 5\n");
      return true;
  }
  

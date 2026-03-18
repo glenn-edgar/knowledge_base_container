@@ -1,12 +1,12 @@
 local ColumnFlow = require("lua_support.column_flow")
-
+local fnv1a      = require("lua_support.fnv1a")
 local Streaming = setmetatable({}, { __index = ColumnFlow })
 Streaming.__index = Streaming
 
 --------------------------------------------------------------------------------
 -- FNV-1a 32-BIT HASH (inlined — matches avro_dsl.lua and C runtime)
 --------------------------------------------------------------------------------
-
+--[[
 local bxor, band, rshift, lshift, tobit
 
 local ok, bit = pcall(require, "bit")
@@ -44,7 +44,7 @@ local function fnv1a_32(str)
     end
     return hash
 end
-
+--]]
 --------------------------------------------------------------------------------
 
 function Streaming.new(ctb)
@@ -65,16 +65,11 @@ function Streaming:make_port(file_name, record_name, handler_id, event)
     if type(event) ~= "string" then
         error("event must be a string")
     end
-    -- Compute per-record hash: FNV-1a of "<file>.h:<record>"
-    local hash_key = file_name .. ".h:" .. record_name
-    local schema_hash = fnv1a_32(hash_key)
-    -- Convert to signed int32 for JSON round-trip through json_extract_int32_runtime
-    if schema_hash > 0x7FFFFFFF then
-        schema_hash = schema_hash - 0x100000000
-    end
-    local event_id = self.ctb:register_event(event)
+    local event_id    = self.ctb:register_event(event)
+    local schema_hash = fnv1a.schema_hash(file_name, record_name)
     return { schema_hash = schema_hash, handler_id = handler_id, event_id = event_id }
 end
+
 
 function Streaming:asm_streaming_emit_packet(aux_function, aux_function_data, event_column, outport)
     local event_column_id = self.ctb:get_node_index(event_column)

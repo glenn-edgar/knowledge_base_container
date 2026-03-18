@@ -26,6 +26,7 @@ local M = {}
 -- Current state
 local current_file = nil
 local current_container = nil
+local current_const_packet = nil
 
 --------------------------------------------------------------------------------
 -- FNV-1a 32-BIT HASH (matches s_engine C implementation)
@@ -125,6 +126,7 @@ function M.FILE(name)
         pointers = {},
         structs = {},
         records = {},
+        const_packets = {},
     }
 end
 
@@ -200,6 +202,38 @@ function M.END_RECORD()
     current_container = nil
 end
 
+function M.CONST_PACKET(record_name, instance_name, source_node)
+    -- Verify the record exists
+    local found = false
+    for _, r in ipairs(current_file.records) do
+        if r.name == record_name then found = true; break end
+    end
+    if not found then
+        error("CONST_PACKET: unknown record '" .. record_name .. "'")
+    end
+    current_const_packet = {
+        record_name = record_name,
+        instance_name = instance_name,
+        source_node = source_node or 0,
+        fields = {},
+    }
+end
+
+function M.SET(field_name, value)
+    if current_const_packet == nil then
+        error("SET: must be inside CONST_PACKET ... END_CONST_PACKET")
+    end
+    current_const_packet.fields[field_name] = value
+end
+
+function M.END_CONST_PACKET()
+    if current_const_packet == nil then
+        error("END_CONST_PACKET: no matching CONST_PACKET")
+    end
+    table.insert(current_file.const_packets, current_const_packet)
+    current_const_packet = nil
+end
+
 --------------------------------------------------------------------------------
 -- BINARY FORMAT HELPERS
 --------------------------------------------------------------------------------
@@ -213,11 +247,21 @@ local function pack_u8(val)
     return string.char(band(val, 0xFF))
 end
 
+local function pack_i8(val)
+    if val < 0 then val = val + 256 end
+    return string.char(band(val, 0xFF))
+end
+
 local function pack_u16(val)
     return string.char(
         band(val, 0xFF),
         band(rshift(val, 8), 0xFF)
     )
+end
+
+local function pack_i16(val)
+    if val < 0 then val = val + 65536 end
+    return pack_u16(val)
 end
 
 local function pack_u32(val)
@@ -227,6 +271,58 @@ local function pack_u32(val)
         band(rshift(val, 16), 0xFF),
         band(rshift(val, 24), 0xFF)
     )
+end
+
+local function pack_i32(val)
+    if val < 0 then val = val + 0x100000000 end
+    return pack_u32(val)
+end
+
+-- Float/double packing: use string.pack (Lua 5.3+) or ffi (LuaJIT)
+local pack_float, pack_double
+
+local has_ffi, ffi = pcall(require, "ffi")
+if has_ffi then
+    -- LuaJIT: use FFI for IEEE 754 conversion
+    local float_buf = ffi.new("float[1]")
+    local double_buf = ffi.new("double[1]")
+    local uint8_ptr = ffi.typeof("uint8_t*")
+
+    pack_float = function(val)
+        float_buf[0] = val
+        local p = ffi.cast(uint8_ptr, float_buf)
+        return string.char(p[0], p[1], p[2], p[3])
+    end
+
+    pack_double = function(val)
+        double_buf[0] = val
+        local p = ffi.cast(uint8_ptr, double_buf)
+        return string.char(p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7])
+    end
+else
+    -- Lua 5.3+: use string.pack
+    local sp = string.pack
+    pack_float = function(val) return sp("<f", val) end
+    pack_double = function(val) return sp("<d", val) end
+end
+
+local function pack_u64(val)
+    -- For Lua 5.3+ integers or LuaJIT with ULL
+    local lo = band(val, 0xFFFFFFFF)
+    local hi = 0
+    if val >= 0x100000000 then
+        hi = math.floor(val / 0x100000000)
+    end
+    return pack_u32(lo) .. pack_u32(hi)
+end
+
+local function pack_i64(val)
+    if val < 0 then val = val + 2^64 end
+    return pack_u64(val)
+end
+
+local function pack_bool(val)
+    return string.char(val and 1 or 0)
 end
 
 -- Null-terminated string
@@ -411,49 +507,8 @@ function M.GENERATE_BINARY(output_path)
     return blob
 end
 
---------------------------------------------------------------------------------
--- BINARY HEADER GENERATION (embeddable const array)
---------------------------------------------------------------------------------
 
-function M.GENERATE_BINARY_HEADER(output_path, blob)
-    -- Generate binary if not provided
-    if not blob then
-        blob = M.GENERATE_BINARY()
-    end
-    
-    output_path = output_path or (current_file.name .. "_bin.h")
-    local name_upper = current_file.name:upper()
-    
-    local out = io.open(output_path, "w")
-    if not out then
-        error("Cannot open output file: " .. output_path)
-    end
-    
-    out:write("// " .. output_path .. "\n")
-    out:write("// Generated binary schema - DO NOT EDIT\n")
-    out:write("#pragma once\n\n")
-    out:write("#include <stdint.h>\n\n")
-    
-    out:write(string.format("#define %s_BIN_SIZE       %d\n", name_upper, #blob))
-    out:write(string.format("#define %s_RECORD_COUNT   %d\n\n", name_upper, #current_file.records))
-    
-    out:write(string.format("static const uint8_t %s_schema_bin[%d] = {\n", 
-        current_file.name, #blob))
-    
-    -- Write hex bytes, 16 per line
-    for i = 1, #blob, 16 do
-        out:write("    ")
-        for j = i, math.min(i + 15, #blob) do
-            out:write(string.format("0x%02X", blob:byte(j)))
-            if j < #blob then out:write(", ") end
-        end
-        out:write("\n")
-    end
-    out:write("};\n")
-    
-    out:close()
-    print("Generated binary header: " .. output_path)
-end
+
 
 --------------------------------------------------------------------------------
 -- C HEADER GENERATION
@@ -851,15 +906,405 @@ function M.GENERATE(output_path)
     print("Generated: " .. output_path)
 end
 
--- Generate all outputs
-function M.GENERATE_ALL(base_path)
-    base_path = base_path or current_file.name
-    
-    M.GENERATE(base_path .. ".h")
-    local blob = M.GENERATE_BINARY(base_path .. ".bin")
-    M.GENERATE_BINARY_HEADER(base_path .. "_bin.h", blob)
+
+--------------------------------------------------------------------------------
+-- CONST PACKET GENERATION (_bin.h with static const packet structs)
+--------------------------------------------------------------------------------
+
+-- Format a value for C initializer based on DSL type
+local function format_c_value(ftype, value)
+    if ftype == "float" then
+        local s = string.format("%g", value)
+        -- Ensure it has a decimal point and 'f' suffix
+        if not s:find("[%.eE]") then s = s .. ".0" end
+        return s .. "f"
+    elseif ftype == "double" then
+        local s = string.format("%g", value)
+        if not s:find("[%.eE]") then s = s .. ".0" end
+        return s
+    elseif ftype == "bool" then
+        return value and "true" or "false"
+    elseif ftype == "int8" or ftype == "int16" or ftype == "int32" then
+        return string.format("%d", value)
+    elseif ftype == "uint8" or ftype == "uint16" or ftype == "uint32" then
+        return string.format("%uU", value)
+    elseif ftype == "int64" then
+        return string.format("%dLL", value)
+    elseif ftype == "uint64" then
+        return string.format("%uULL", value)
+    else
+        -- Enum or unknown — emit as integer
+        return string.format("%d", value)
+    end
 end
 
+-- Find a record definition by name
+local function find_record(name)
+    for _, r in ipairs(current_file.records) do
+        if r.name == name then return r end
+    end
+    return nil
+end
+
+function M.GENERATE_CONST_PACKETS(output_path)
+    if #current_file.const_packets == 0 then
+        return
+    end
+    
+    output_path = output_path or (current_file.name .. "_bin.h")
+    local name_upper = current_file.name:upper()
+    
+    local out = io.open(output_path, "w")
+    if not out then
+        error("Cannot open output file: " .. output_path)
+    end
+    
+    out:write("// " .. output_path .. "\n")
+    out:write("// Generated const packets - DO NOT EDIT\n")
+    out:write("#pragma once\n\n")
+    out:write(string.format("#include \"%s.h\"\n\n", current_file.name))
+    
+    for _, cp in ipairs(current_file.const_packets) do
+        local rec = find_record(cp.record_name)
+        if not rec then
+            error("GENERATE_CONST_PACKETS: unknown record '" .. cp.record_name .. "'")
+        end
+        
+        local rhash = record_hash(cp.record_name)
+        
+        out:write(string.format("static const %s_packet_t %s = {\n", cp.record_name, cp.instance_name))
+        
+        -- Header
+        out:write("    .header = {\n")
+        out:write("        .timestamp   = 0.0,\n")
+        out:write(string.format("        .schema_hash = %s_SCHEMA_HASH,\n", cp.record_name:upper()))
+        out:write("        .seq         = 0,\n")
+        out:write(string.format("        .source_node = %u,\n", cp.source_node))
+        out:write("    },\n")
+        
+        -- Data fields
+        out:write("    .data = {\n")
+        for i, f in ipairs(rec.fields) do
+            local val = cp.fields[f.name]
+            if val == nil then val = 0 end
+            local comma = (i < #rec.fields) and "," or ","
+            
+            if f.array_size then
+                -- Array field: emit { val, val, ... }
+                out:write(string.format("        .%s = { ", f.name))
+                if type(val) == "table" then
+                    for j, v in ipairs(val) do
+                        out:write(format_c_value(f.type, v))
+                        if j < #val then out:write(", ") end
+                    end
+                else
+                    -- Fill array with single value
+                    for j = 1, f.array_size do
+                        out:write(format_c_value(f.type, val))
+                        if j < f.array_size then out:write(", ") end
+                    end
+                end
+                out:write(" }" .. comma .. "\n")
+            else
+                out:write(string.format("        .%s = %s%s\n", f.name, format_c_value(f.type, val), comma))
+            end
+        end
+        out:write("    },\n")
+        
+        out:write("};\n\n")
+    end
+    
+    out:close()
+    print("Generated const packets: " .. output_path)
+end
+
+--------------------------------------------------------------------------------
+-- BINARY CONST PACKET GENERATION (_bin.h with uint8_t[] blobs + cast macros)
+--------------------------------------------------------------------------------
+
+-- Pack a single field value into little-endian bytes
+local pack_field_fns = {
+    uint8   = pack_u8,
+    int8    = pack_i8,
+    uint16  = pack_u16,
+    int16   = pack_i16,
+    uint32  = pack_u32,
+    int32   = pack_i32,
+    uint64  = pack_u64,
+    int64   = pack_i64,
+    float   = pack_float,
+    double  = pack_double,
+    bool    = pack_bool,
+}
+
+local function pack_field_value(ftype, value)
+    local fn = pack_field_fns[ftype]
+    if fn then return fn(value) end
+    -- Enum types → pack as int32
+    for _, e in ipairs(current_file.enums) do
+        if e.name == ftype then return pack_i32(value) end
+    end
+    -- Fixed arrays → pad with zeros
+    for _, f in ipairs(current_file.fixed) do
+        if f.name == ftype then
+            if type(value) == "string" then
+                return value .. string.rep("\0", f.size - #value)
+            else
+                return string.rep("\0", f.size)
+            end
+        end
+    end
+    error("pack_field_value: unsupported type '" .. ftype .. "'")
+end
+
+-- Serialize a const packet definition into a binary blob
+local function serialize_const_packet(cp)
+    local rec = find_record(cp.record_name)
+    if not rec then
+        error("serialize_const_packet: unknown record '" .. cp.record_name .. "'")
+    end
+    
+    local rhash = record_hash(cp.record_name)
+    local chunks = {}
+    
+    -- Header (16 bytes): timestamp(8) + schema_hash(4) + seq(2) + source_node(2)
+    table.insert(chunks, pack_double(0.0))
+    table.insert(chunks, pack_u32(rhash))
+    table.insert(chunks, pack_u16(0))
+    table.insert(chunks, pack_u16(cp.source_node))
+    
+    -- Data fields
+    for _, f in ipairs(rec.fields) do
+        local val = cp.fields[f.name]
+        if val == nil then val = 0 end
+        local count = f.array_size or 1
+        
+        if f.array_size then
+            if type(val) == "table" then
+                for j = 1, count do
+                    table.insert(chunks, pack_field_value(f.type, val[j] or 0))
+                end
+            else
+                for _ = 1, count do
+                    table.insert(chunks, pack_field_value(f.type, val))
+                end
+            end
+        else
+            table.insert(chunks, pack_field_value(f.type, val))
+        end
+    end
+    
+    return table.concat(chunks)
+end
+
+function M.GENERATE_CONST_PACKETS_BINARY(output_path)
+    if #current_file.const_packets == 0 then
+        return
+    end
+    
+    output_path = output_path or (current_file.name .. "_bin.h")
+    
+    local out = io.open(output_path, "w")
+    if not out then
+        error("Cannot open output file: " .. output_path)
+    end
+    
+    out:write("// " .. output_path .. "\n")
+    out:write("// Generated binary const packets - DO NOT EDIT\n")
+    out:write("#pragma once\n\n")
+    out:write("#include <stdint.h>\n")
+    out:write(string.format("#include \"%s.h\"\n\n", current_file.name))
+    
+    for _, cp in ipairs(current_file.const_packets) do
+        local blob = serialize_const_packet(cp)
+        local name_upper = cp.instance_name:upper()
+        
+        -- Size define
+        out:write(string.format("#define %s_SIZE  %d\n", name_upper, #blob))
+        
+        -- Binary blob
+        out:write(string.format("static const uint8_t %s_bin[%d] = {\n",
+            cp.instance_name, #blob))
+        
+        -- Emit hex bytes, 16 per line, with field comments
+        local offset = 0
+        
+        -- Header comment block
+        out:write("    // header: timestamp(8) + schema_hash(4) + seq(2) + source_node(2)\n")
+        out:write("    ")
+        for i = 1, 16 do
+            out:write(string.format("0x%02X", blob:byte(i)))
+            if i < #blob then out:write(", ") end
+        end
+        out:write("\n")
+        offset = 16
+        
+        -- Data fields
+        local rec = find_record(cp.record_name)
+        for _, f in ipairs(rec.fields) do
+            local fsize = resolve_field_size(f.type)
+            local count = f.array_size or 1
+            local total = fsize * count
+            local val = cp.fields[f.name]
+            if val == nil then val = 0 end
+            
+            local val_str
+            if f.array_size then
+                val_str = "array"
+            elseif f.type == "float" or f.type == "double" then
+                val_str = string.format("%g", val)
+            else
+                val_str = tostring(val)
+            end
+            
+            out:write(string.format("    // %s (%s) = %s\n", f.name, f.type, val_str))
+            out:write("    ")
+            for i = 1, total do
+                local byte_idx = offset + i
+                out:write(string.format("0x%02X", blob:byte(byte_idx)))
+                if byte_idx < #blob then out:write(", ") end
+            end
+            out:write("\n")
+            offset = offset + total
+        end
+        
+        out:write("};\n\n")
+        
+        -- Cast macro
+        out:write(string.format("#define %s_PKT  ((const %s_packet_t*)%s_bin)\n",
+            name_upper, cp.record_name, cp.instance_name))
+        out:write(string.format("#define %s_DATA ((const %s_wire_t*)&%s_PKT->data)\n\n",
+            name_upper, cp.record_name, name_upper))
+    end
+    
+    out:close()
+    print("Generated binary const packets: " .. output_path)
+end
+--------------------------------------------------------------------------------
+-- BINARY HEADER GENERATION (embeddable const array)
+--------------------------------------------------------------------------------
+
+function M.GENERATE_BINARY_HEADER(output_path, blob)
+    -- Generate binary schema blob if not provided
+    if not blob then
+        blob = M.GENERATE_BINARY()
+    end
+
+    output_path = output_path or (current_file.name .. "_bin.h")
+    local name_upper = current_file.name:upper()
+
+    local out = io.open(output_path, "w")
+    if not out then
+        error("Cannot open output file: " .. output_path)
+    end
+
+    -- ----------------------------------------------------------------
+    -- Header
+    -- ----------------------------------------------------------------
+    out:write("// " .. output_path .. "\n")
+    out:write("// Generated binary schema and const packets - DO NOT EDIT\n")
+    out:write("#pragma once\n\n")
+    out:write("#include <stdint.h>\n")
+    out:write(string.format("#include \"%s.h\"\n\n", current_file.name))
+
+    -- ----------------------------------------------------------------
+    -- Schema binary blob
+    -- ----------------------------------------------------------------
+    out:write("// ============ SCHEMA BINARY ============\n")
+    out:write(string.format("#define %s_BIN_SIZE       %d\n", name_upper, #blob))
+    out:write(string.format("#define %s_RECORD_COUNT   %d\n\n", name_upper, #current_file.records))
+
+    out:write(string.format("static const uint8_t %s_schema_bin[%d] = {\n",
+        current_file.name, #blob))
+    for i = 1, #blob, 16 do
+        out:write("    ")
+        for j = i, math.min(i + 15, #blob) do
+            out:write(string.format("0x%02X", blob:byte(j)))
+            if j < #blob then out:write(", ") end
+        end
+        out:write("\n")
+    end
+    out:write("};\n")
+
+    -- ----------------------------------------------------------------
+    -- Const packet blobs + cast macros
+    -- ----------------------------------------------------------------
+    if #current_file.const_packets > 0 then
+        out:write("\n// ============ CONST PACKETS ============\n")
+
+        for _, cp in ipairs(current_file.const_packets) do
+            local cp_blob   = serialize_const_packet(cp)
+            local rec       = find_record(cp.record_name)
+            local inst_upper = cp.instance_name:upper()
+
+            -- Size define
+            out:write(string.format("\n#define %s_SIZE  %d\n", inst_upper, #cp_blob))
+
+            -- Binary blob with annotated comments
+            out:write(string.format("static const uint8_t %s_bin[%d] = {\n",
+                cp.instance_name, #cp_blob))
+
+            -- Header bytes
+            out:write("    // header: timestamp(8) + schema_hash(4) + seq(2) + source_node(2)\n")
+            out:write("    ")
+            for i = 1, 16 do
+                out:write(string.format("0x%02X", cp_blob:byte(i)))
+                if i < #cp_blob then out:write(", ") end
+            end
+            out:write("\n")
+
+            -- Data field bytes with comments
+            local offset = 16
+            for _, f in ipairs(rec.fields) do
+                local fsize = resolve_field_size(f.type)
+                local count = f.array_size or 1
+                local total = fsize * count
+                local val   = cp.fields[f.name]
+                if val == nil then val = 0 end
+
+                local val_str
+                if f.array_size then
+                    val_str = "array"
+                elseif f.type == "float" or f.type == "double" then
+                    val_str = string.format("%g", val)
+                else
+                    val_str = tostring(val)
+                end
+
+                out:write(string.format("    // %s (%s) = %s\n", f.name, f.type, val_str))
+                out:write("    ")
+                for i = 1, total do
+                    local byte_idx = offset + i
+                    out:write(string.format("0x%02X", cp_blob:byte(byte_idx)))
+                    if byte_idx < #cp_blob then out:write(", ") end
+                end
+                out:write("\n")
+                offset = offset + total
+            end
+
+            out:write("};\n\n")
+
+            -- Cast macros so callers can treat the blob as a typed packet
+            out:write(string.format(
+                "#define %s_PKT  ((const %s_packet_t*)%s_bin)\n",
+                inst_upper, cp.record_name, cp.instance_name))
+            out:write(string.format(
+                "#define %s_DATA ((const %s_wire_t*)&%s_PKT->data)\n",
+                inst_upper, cp.record_name, inst_upper))
+        end
+    end
+
+    out:close()
+    print("Generated binary header: " .. output_path)
+end
+function M.GENERATE_ALL(base_path)
+    base_path = base_path or current_file.name
+
+    M.GENERATE(base_path .. ".h")
+    local blob = M.GENERATE_BINARY(base_path .. ".bin")
+    -- Single _bin.h contains both schema blob and all const packets
+    M.GENERATE_BINARY_HEADER(base_path .. "_bin.h", blob)
+end
 --------------------------------------------------------------------------------
 -- MODULE EXPORT
 --------------------------------------------------------------------------------
@@ -879,9 +1324,14 @@ function M.export_globals()
     _G.FIELD           = M.FIELD
     _G.END_STRUCT      = M.END_STRUCT
     _G.END_RECORD      = M.END_RECORD
+    _G.CONST_PACKET    = M.CONST_PACKET
+    _G.SET             = M.SET
+    _G.END_CONST_PACKET = M.END_CONST_PACKET
     _G.GENERATE        = M.GENERATE
     _G.GENERATE_BINARY = M.GENERATE_BINARY
     _G.GENERATE_BINARY_HEADER = M.GENERATE_BINARY_HEADER
+    _G.GENERATE_CONST_PACKETS = M.GENERATE_CONST_PACKETS
+    _G.GENERATE_CONST_PACKETS_BINARY = M.GENERATE_CONST_PACKETS_BINARY
     _G.GENERATE_ALL    = M.GENERATE_ALL
 end
 

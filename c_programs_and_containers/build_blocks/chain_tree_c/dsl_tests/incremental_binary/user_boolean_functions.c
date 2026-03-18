@@ -186,15 +186,26 @@ bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned 
  * ===================================================================== */
 
  #include "cfl_image_loader.h"
- bool packet_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_sink_a_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_sink_b_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_tap_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_collector_boolean_fn(void *handle, unsigned node_index, unsigned port_index, unsigned event_id, void *event_data);
- bool packet_collector_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
- bool packet_verified_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_filter_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_sink_a_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_sink_b_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_tap_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_transform_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_collector_boolean_fn(void *handle, unsigned node_index, unsigned port_index, unsigned event_id, void *event_data);
+ extern bool packet_collector_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_verify_x_range_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool packet_verified_sink_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+ extern bool on_fly_arc_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_down_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_straight_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool on_fly_up_complete_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_arc_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_down_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_straight_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+extern bool fly_up_monitor_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
+extern bool drone_control_exception_catch_boolean_fn(void *handle, unsigned node_index, unsigned event_type, unsigned event_id, void *event_data);
+
  void cfl_register_user_boolean_functions(cfl_image_loader_t *img)
  {
      int missing = 0;
@@ -218,6 +229,28 @@ bool user_skip_condition_boolean_fn(void *handle, unsigned node_index, unsigned 
      REG_APP_BOOL("packet_collector_sink_boolean",         packet_collector_sink_boolean_fn);
      REG_APP_BOOL("packet_verify_x_range_boolean",         packet_verify_x_range_boolean_fn);
      REG_APP_BOOL("packet_verified_sink_boolean",         packet_verified_sink_boolean_fn);
+     REG_APP_BOOL("while_test_boolean",              while_test_boolean_fn);
+     REG_APP_BOOL("catch_all_exception_boolean",     catch_all_exception_boolean_fn);
+     REG_APP_BOOL("exception_filter_boolean",        exception_filter_boolean_fn);
+     REG_APP_BOOL("user_skip_condition_boolean",     user_skip_condition_boolean_fn);
+     REG_APP_BOOL("packet_filter_boolean",           packet_filter_boolean_fn);
+     REG_APP_BOOL("packet_sink_a_boolean",           packet_sink_a_boolean_fn);
+     REG_APP_BOOL("packet_sink_b_boolean",           packet_sink_b_boolean_fn);
+     REG_APP_BOOL("packet_tap_boolean",              packet_tap_boolean_fn);
+     REG_APP_BOOL("packet_transform_boolean",        packet_transform_boolean_fn);
+     REG_APP_BOOL("packet_collector_boolean",        packet_collector_boolean_fn);
+     REG_APP_BOOL("packet_collector_sink_boolean",   packet_collector_sink_boolean_fn);
+     REG_APP_BOOL("packet_verify_x_range_boolean",   packet_verify_x_range_boolean_fn);
+     REG_APP_BOOL("packet_verified_sink_boolean",    packet_verified_sink_boolean_fn);
+     REG_APP_BOOL("fly_straight_monitor_boolean",            fly_straight_monitor_boolean_fn);
+     REG_APP_BOOL("fly_arc_monitor_boolean",                 fly_arc_monitor_boolean_fn);
+     REG_APP_BOOL("fly_up_monitor_boolean",                  fly_up_monitor_boolean_fn);
+     REG_APP_BOOL("fly_down_monitor_boolean",                fly_down_monitor_boolean_fn);
+     REG_APP_BOOL("on_fly_straight_complete_boolean",        on_fly_straight_complete_boolean_fn);
+     REG_APP_BOOL("on_fly_arc_complete_boolean",             on_fly_arc_complete_boolean_fn);
+     REG_APP_BOOL("on_fly_up_complete_boolean",              on_fly_up_complete_boolean_fn);
+     REG_APP_BOOL("on_fly_down_complete_boolean",            on_fly_down_complete_boolean_fn);
+     REG_APP_BOOL("drone_control_exception_catch_boolean",   drone_control_exception_catch_boolean_fn);
      #undef REG_APP_BOOL
  
      
