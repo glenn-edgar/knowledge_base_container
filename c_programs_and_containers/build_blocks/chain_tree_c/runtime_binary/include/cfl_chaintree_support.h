@@ -21,6 +21,10 @@
  #include <stdbool.h>
  #include <stddef.h>
  
+ /* ===== Forward declaration for blackboard types ===== */
+ struct cfl_bb_table;
+ typedef struct cfl_bb_table cfl_bb_table_t;
+
  /* ===== Function Pointer Types ===== */
  
  typedef unsigned (*cfl_main_function_t)(
@@ -184,7 +188,10 @@
  
      /* ---- Hash registration (binary path only, NULL for .h/.c) ---- */
      const cfl_func_registry_t *registry;
- 
+
+     /* ---- Blackboard and constant records (NULL if not defined) ---- */
+     const cfl_bb_table_t *bb_table;
+
  } cfl_chaintree_handle_t;
  
  /* ===== Lookup Functions ===== */

@@ -52,6 +52,7 @@ function ChainTreeHandle:_load_structured()
     self.kb_metadata = self.raw_data.kb_metadata or {}
     self.event_string_table = self.raw_data.event_string_table or {}
     self.bitmask_table = self.raw_data.bitmask_table or {}
+    self.blackboard = self.raw_data.blackboard or nil
     self._node_source = self.raw_data.nodes or {}
 end
 

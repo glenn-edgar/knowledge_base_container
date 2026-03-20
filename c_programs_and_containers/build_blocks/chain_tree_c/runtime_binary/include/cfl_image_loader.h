@@ -49,6 +49,8 @@
  #define CFL_CTB_SECT_KBAL  0x000D
  #define CFL_CTB_SECT_GSTR  0x000E
  #define CFL_CTB_SECT_MUSG  0x000F   /* usage count, original order         */
+ #define CFL_CTB_SECT_BBRD  0x0010   /* blackboard record + fields + defaults */
+ #define CFL_CTB_SECT_CREC  0x0011   /* constant records                      */
  
  /* ===== Binary Header — 64 bytes ===== */
  

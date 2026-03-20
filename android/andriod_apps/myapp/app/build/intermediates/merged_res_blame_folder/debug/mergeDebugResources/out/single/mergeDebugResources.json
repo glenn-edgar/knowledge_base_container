@@ -1,0 +1,46 @@
+[
+    {
+        "merged": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-debug-31:/xml_device_filter.xml.flat",
+        "source": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-main-33:/xml/device_filter.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/layout_activity_main.xml.flat",
+        "source": "com.example.myapp-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-debug-31:/layout_fragment_usb_serial.xml.flat",
+        "source": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-main-33:/layout/fragment_usb_serial.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/layout_grid_cell_type.xml.flat",
+        "source": "com.example.myapp-main-33:/layout/grid_cell_type.xml"
+    },
+    {
+        "merged": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-debug-31:/layout_fragment_bt_spp.xml.flat",
+        "source": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-main-33:/layout/fragment_bt_spp.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/layout_grid_cell_controls.xml.flat",
+        "source": "com.example.myapp-main-33:/layout/grid_cell_controls.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/layout_activity_grid.xml.flat",
+        "source": "com.example.myapp-main-33:/layout/activity_grid.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/layout_grid_cell_key.xml.flat",
+        "source": "com.example.myapp-main-33:/layout/grid_cell_key.xml"
+    },
+    {
+        "merged": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-debug-31:/layout_fragment_ble_terminal.xml.flat",
+        "source": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-main-33:/layout/fragment_ble_terminal.xml"
+    },
+    {
+        "merged": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-debug-31:/layout_activity_main.xml.flat",
+        "source": "/home/gedgar/.gradle/daemon/8.9/com.example.myapp-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.example.myapp-debug-31:/drawable_cell_border.xml.flat",
+        "source": "com.example.myapp-main-33:/drawable/cell_border.xml"
+    }
+]

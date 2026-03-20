@@ -2294,6 +2294,55 @@ local function twenty_eighth_test(ct, kb_name)
     ct:end_test()
 end
 -- =========================================================================
+-- Test 29: Blackboard verification
+--   Calls one-shot functions that verify:
+--     - Mutable blackboard fields (int32, float, uint16, nested struct)
+--     - Constant record lookup and field access
+--     - 64-bit pointer storage in blackboard
+-- =========================================================================
+
+local function twenty_ninth_test(ct, kb_name)
+    -- Define the shared mutable blackboard
+    ct:define_blackboard("system_state")
+        ct:bb_field("mode",          "int32",  0)
+        ct:bb_field("temperature",   "float",  20.0)
+        ct:bb_field("error_count",   "uint16", 0)
+        ct:bb_field("nav.heading",   "int32",  0)
+        ct:bb_field("nav.altitude",  "float",  0.0)
+        ct:bb_field("nav.speed",     "float",  0.0)
+        ct:bb_field("debug_ptr",     "uint64", 0)
+    ct:end_blackboard()
+
+    -- Define a read-only calibration constant record
+    ct:define_const_record("calibration")
+        ct:const_field("gain",      "float",  1.5)
+        ct:const_field("offset",    "float",  -0.25)
+        ct:const_field("max_value", "int32",  1000)
+        ct:const_field("scale_x",   "float",  2.0)
+        ct:const_field("scale_y",   "float",  3.0)
+    ct:end_const_record()
+
+    ct:start_test(kb_name)
+
+    local bb_test_column = ct:define_column("bb_test_column", nil, nil, nil, nil, nil, true)
+    ct:asm_log_message("blackboard test: initializing fields")
+    ct:asm_one_shot_handler("BB_INIT_FIELDS", {})
+    ct:asm_log_message("blackboard test: verifying int32 and float fields")
+    ct:asm_one_shot_handler("BB_VERIFY_BASIC_FIELDS", {})
+    ct:asm_log_message("blackboard test: verifying nested struct fields")
+    ct:asm_one_shot_handler("BB_VERIFY_NESTED_FIELDS", {})
+    ct:asm_log_message("blackboard test: verifying constant record")
+    ct:asm_one_shot_handler("BB_VERIFY_CONST_RECORD", {})
+    ct:asm_log_message("blackboard test: verifying 64-bit pointer field")
+    ct:asm_one_shot_handler("BB_VERIFY_PTR64_FIELD", {})
+    ct:asm_log_message("blackboard test: all verifications passed")
+    ct:asm_terminate_system()
+    ct:end_column(bb_test_column)
+
+    ct:end_test()
+end
+
+-- =========================================================================
 -- Header / entry point
 -- =========================================================================
 
@@ -2331,7 +2380,7 @@ local test_list = {
     "twenty_sixth_test",
     "twenty_seventh_test",
     "twenty_eighth_test",
-    -- "twenty_ninth_test",
+    "twenty_ninth_test",
     -- "thirty_test",
     -- "thirty_one_test",
     -- "thirty_two_test",
@@ -2363,7 +2412,7 @@ local test_dict = {
     twenty_sixth_test = twenty_sixth_test,
     twenty_seventh_test = twenty_seventh_test,
     twenty_eighth_test = twenty_eighth_test,
-    -- twenty_ninth_test = twenty_ninth_test,
+    twenty_ninth_test = twenty_ninth_test,
     -- thirty_test = thirty_test,
     -- thirty_one_test = thirty_one_test,
     -- thirty_two_test = thirty_two_test,

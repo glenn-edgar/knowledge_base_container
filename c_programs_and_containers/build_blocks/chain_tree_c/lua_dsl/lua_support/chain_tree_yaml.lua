@@ -207,6 +207,10 @@ function ChainTreeYaml.new(output_file)
     self.s_one_shot_functions = {}
     self.s_boolean_functions = {}
 
+    -- Blackboard definitions
+    self.blackboard = nil          -- { name, fields: [{name, type, default}] }
+    self.const_records = {}        -- list of { name, fields: [{name, type, value}] }
+
     return self
 end
 
@@ -840,6 +844,18 @@ function ChainTreeYaml:_build_envelope()
         end
     end
 
+    -- Build blackboard section for JSON IR
+    local bb_section = nil
+    if self.blackboard or #self.const_records > 0 then
+        bb_section = {}
+        if self.blackboard then
+            bb_section.record = self.blackboard
+        end
+        if #self.const_records > 0 then
+            bb_section.const_records = self.const_records
+        end
+    end
+
     local envelope = {
         schema_version     = self.SCHEMA_VERSION,
         total_nodes        = self.node_count,
@@ -848,6 +864,7 @@ function ChainTreeYaml:_build_envelope()
         ltree_to_index     = self.ltree_to_index,
         event_string_table = self.event_string_table,
         bitmask_table      = self.bitmask_table,
+        blackboard         = bb_section,
         nodes              = nodes,
     }
 
@@ -960,6 +977,79 @@ function ChainTreeYaml:get_function_mappings(kb_name)
         s_one_shot_functions = self.s_one_shot_functions[kb] or {},
         s_boolean_functions = self.s_boolean_functions[kb] or {},
     }
+end
+
+-- =========================================================================
+-- Blackboard DSL
+-- =========================================================================
+
+--- Define the mutable shared blackboard record.
+--- Only one blackboard per ChainTree configuration.
+--- @param name string Record name (used for hash identification)
+function ChainTreeYaml:define_blackboard(name)
+    if self.blackboard then
+        error("Blackboard already defined: " .. self.blackboard.name)
+    end
+    self.blackboard = { name = name, fields = {} }
+end
+
+--- Add a field to the current blackboard definition.
+--- @param field_name string Field name (supports dotted names for nested access)
+--- @param field_type string Type: "int32", "uint32", "uint16", "float", "uint64"
+--- @param default_value number|nil Default value (0 if nil)
+function ChainTreeYaml:bb_field(field_name, field_type, default_value)
+    if not self.blackboard then
+        error("No blackboard defined — call define_blackboard() first")
+    end
+    self.blackboard.fields[#self.blackboard.fields + 1] = {
+        name = field_name,
+        type = field_type,
+        default = default_value or 0,
+    }
+end
+
+--- Finish the blackboard definition.
+function ChainTreeYaml:end_blackboard()
+    if not self.blackboard then
+        error("No blackboard to end")
+    end
+    -- Validation: at least one field
+    if #self.blackboard.fields == 0 then
+        error("Blackboard '" .. self.blackboard.name .. "' has no fields")
+    end
+end
+
+--- Define a read-only constant record.
+--- @param name string Record name (used for hash identification)
+function ChainTreeYaml:define_const_record(name)
+    self._current_const_record = { name = name, fields = {} }
+end
+
+--- Add a field to the current constant record.
+--- @param field_name string Field name
+--- @param field_type string Type: "int32", "uint32", "uint16", "float", "uint64"
+--- @param value number The constant value
+function ChainTreeYaml:const_field(field_name, field_type, value)
+    if not self._current_const_record then
+        error("No const record defined — call define_const_record() first")
+    end
+    self._current_const_record.fields[#self._current_const_record.fields + 1] = {
+        name = field_name,
+        type = field_type,
+        value = value,
+    }
+end
+
+--- Finish the current constant record definition.
+function ChainTreeYaml:end_const_record()
+    if not self._current_const_record then
+        error("No const record to end")
+    end
+    if #self._current_const_record.fields == 0 then
+        error("Const record '" .. self._current_const_record.name .. "' has no fields")
+    end
+    self.const_records[#self.const_records + 1] = self._current_const_record
+    self._current_const_record = nil
 end
 
 return ChainTreeYaml

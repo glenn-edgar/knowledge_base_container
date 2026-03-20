@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="72dp"
+    android:layout_height="48dp"
+    android:padding="2dp">
+
+    <EditText
+        android:id="@+id/edit_key"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:inputType="number"
+        android:maxLength="3"
+        android:hint="Key"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:background="@drawable/cell_border"
+        android:padding="4dp"
+        android:importantForAutofill="no" />
+
+</FrameLayout>

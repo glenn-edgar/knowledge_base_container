@@ -6,6 +6,7 @@
  */
 
  #include "cfl_image_loader.h"
+ #include "cfl_blackboard.h"
 
  #include <stdlib.h>
  #include <string.h>
@@ -356,9 +357,109 @@
          out->handle.kb_count = hdr->kb_count;
      }
  
+     /* ---- Blackboard (BBRD section, optional) ---- */
+     out->handle.bb_table = NULL;
+     {
+         section_info_t bb_sect = {0};
+         int bb_rc = find_section(image_data, hdr, image_size, CFL_CTB_SECT_BBRD, &bb_sect);
+
+         section_info_t cr_sect = {0};
+         int cr_rc = find_section(image_data, hdr, image_size, CFL_CTB_SECT_CREC, &cr_sect);
+
+         if ((bb_rc == CFL_IMAGE_OK && bb_sect.size > 0) ||
+             (cr_rc == CFL_IMAGE_OK && cr_sect.size > 0)) {
+
+             cfl_bb_table_t *bb_table = (cfl_bb_table_t *)calloc(1, sizeof(cfl_bb_table_t));
+             if (!bb_table) return CFL_IMAGE_ERR_ALLOC;
+
+             /* Parse BBRD: header(12) + fields(8 each) + defaults blob */
+             if (bb_rc == CFL_IMAGE_OK && bb_sect.size >= 12) {
+                 const uint8_t *p = (const uint8_t *)bb_sect.data;
+                 uint32_t name_hash;
+                 uint16_t total_size, field_count;
+                 uint32_t defaults_offset;
+
+                 memcpy(&name_hash, p, 4);
+                 memcpy(&total_size, p + 4, 2);
+                 memcpy(&field_count, p + 6, 2);
+                 memcpy(&defaults_offset, p + 8, 4);
+
+                 cfl_bb_record_t *rec = (cfl_bb_record_t *)calloc(1, sizeof(cfl_bb_record_t));
+                 if (!rec) { free(bb_table); return CFL_IMAGE_ERR_ALLOC; }
+
+                 rec->name_hash = name_hash;
+                 rec->total_size = total_size;
+                 rec->field_count = field_count;
+
+                 /* Field descriptors start at offset 12, 8 bytes each */
+                 cfl_bb_field_t *fields = (cfl_bb_field_t *)calloc(field_count, sizeof(cfl_bb_field_t));
+                 if (!fields) { free(rec); free(bb_table); return CFL_IMAGE_ERR_ALLOC; }
+                 for (uint16_t i = 0; i < field_count; i++) {
+                     const uint8_t *fp = p + 12 + i * 8;
+                     memcpy(&fields[i].name_hash, fp, 4);
+                     memcpy(&fields[i].offset, fp + 4, 2);
+                     memcpy(&fields[i].size, fp + 6, 2);
+                 }
+                 rec->fields = fields;
+
+                 /* Defaults blob */
+                 if (defaults_offset + total_size <= bb_sect.size) {
+                     rec->defaults = p + defaults_offset;
+                 } else {
+                     rec->defaults = NULL;
+                 }
+
+                 bb_table->blackboard = rec;
+             }
+
+             /* Parse CREC: directory(8 per record) + field descs + data blobs */
+             if (cr_rc == CFL_IMAGE_OK && cr_sect.size > 0 && cr_sect.entry_count > 0) {
+                 uint16_t rec_count = cr_sect.entry_count;
+                 const uint8_t *p = (const uint8_t *)cr_sect.data;
+
+                 cfl_bb_const_record_t *records = (cfl_bb_const_record_t *)calloc(
+                     rec_count, sizeof(cfl_bb_const_record_t));
+                 if (!records) { free(bb_table); return CFL_IMAGE_ERR_ALLOC; }
+
+                 /* Read directory entries (8 bytes each) */
+                 uint32_t dir_size_bytes = (uint32_t)rec_count * 8;
+                 const uint8_t *body = p + dir_size_bytes;
+
+                 for (uint16_t i = 0; i < rec_count; i++) {
+                     const uint8_t *dp = p + i * 8;
+                     memcpy(&records[i].name_hash, dp, 4);
+                     memcpy(&records[i].total_size, dp + 4, 2);
+                     memcpy(&records[i].field_count, dp + 6, 2);
+
+                     /* Field descriptors (8 bytes each) */
+                     uint16_t fc = records[i].field_count;
+                     cfl_bb_field_t *fields = (cfl_bb_field_t *)calloc(fc, sizeof(cfl_bb_field_t));
+                     if (!fields) { free(records); free(bb_table); return CFL_IMAGE_ERR_ALLOC; }
+
+                     for (uint16_t j = 0; j < fc; j++) {
+                         memcpy(&fields[j].name_hash, body, 4);
+                         memcpy(&fields[j].offset, body + 4, 2);
+                         memcpy(&fields[j].size, body + 6, 2);
+                         body += 8;
+                     }
+                     records[i].fields = fields;
+
+                     /* Data blob */
+                     records[i].data = body;
+                     body += records[i].total_size;
+                 }
+
+                 bb_table->const_records = records;
+                 bb_table->const_record_count = rec_count;
+             }
+
+             out->handle.bb_table = bb_table;
+         }
+     }
+
      return CFL_IMAGE_OK;
  }
- 
+
  /* ===================================================================
   * cfl_image_free
   * =================================================================== */
@@ -383,7 +484,22 @@
              free((void *)img->handle.kb_table[i].aliases);
          free((void *)img->handle.kb_table);
      }
- 
+
+     /* Free blackboard table */
+     if (img->handle.bb_table) {
+         cfl_bb_table_t *bbt = (cfl_bb_table_t *)img->handle.bb_table;
+         if (bbt->blackboard) {
+             free((void *)bbt->blackboard->fields);
+             free((void *)bbt->blackboard);
+         }
+         if (bbt->const_records) {
+             for (uint16_t i = 0; i < bbt->const_record_count; i++)
+                 free((void *)bbt->const_records[i].fields);
+             free((void *)bbt->const_records);
+         }
+         free(bbt);
+     }
+
      memset(img, 0, sizeof(cfl_image_loader_t));
  }
  

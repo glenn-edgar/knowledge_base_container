@@ -438,4 +438,32 @@ function ChainTreeMaster:list_kbs()
     return result
 end
 
+-- ---------------------------------------------------------------------------
+-- Blackboard DSL (delegates to ChainTreeYaml)
+-- ---------------------------------------------------------------------------
+
+function ChainTreeMaster:define_blackboard(name)
+    self.ctb:define_blackboard(name)
+end
+
+function ChainTreeMaster:bb_field(field_name, field_type, default_value)
+    self.ctb:bb_field(field_name, field_type, default_value)
+end
+
+function ChainTreeMaster:end_blackboard()
+    self.ctb:end_blackboard()
+end
+
+function ChainTreeMaster:define_const_record(name)
+    self.ctb:define_const_record(name)
+end
+
+function ChainTreeMaster:const_field(field_name, field_type, value)
+    self.ctb:const_field(field_name, field_type, value)
+end
+
+function ChainTreeMaster:end_const_record()
+    self.ctb:end_const_record()
+end
+
 return ChainTreeMaster

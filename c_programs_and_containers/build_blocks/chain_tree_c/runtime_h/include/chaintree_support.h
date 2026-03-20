@@ -81,6 +81,10 @@ typedef struct {
     uint32_t num_records;
 } record_control_t;
 
+/* ===== Forward declaration for blackboard types ===== */
+struct cfl_bb_table;
+typedef struct cfl_bb_table cfl_bb_table_t;
+
 /* ===== Handle Structure ===== */
 typedef struct {
     const char *unique_id;
@@ -110,6 +114,8 @@ typedef struct {
     uint16_t node_data_strings_size;
     const record_control_t *node_data_controls;
     uint16_t node_data_controls_count;
+    /* ---- Blackboard and constant records (NULL if not defined) ---- */
+    const cfl_bb_table_t *bb_table;
 } chaintree_handle_t;
 
 /* ===== Generic Lookup Functions ===== */

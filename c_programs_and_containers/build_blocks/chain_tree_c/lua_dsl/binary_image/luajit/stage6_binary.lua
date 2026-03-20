@@ -145,6 +145,8 @@ local SECT_KBIN = 0x000C
 local SECT_KBAL = 0x000D
 local SECT_GSTR = 0x000E
 local SECT_MUSG = 0x000F    -- main function usage count, original order
+local SECT_BBRD = 0x0010    -- blackboard record descriptor + defaults
+local SECT_CREC = 0x0011    -- constant records
 
 -- =========================================================================
 -- Binary Image Emitter
@@ -513,6 +515,246 @@ function BinaryImageEmitter:_build_kb_sections(string_pool)
 end
 
 -- =========================================================================
+-- Blackboard type sizes and alignment
+-- =========================================================================
+
+local bb_type_info = {
+    int32   = { size = 4, align = 4 },
+    uint32  = { size = 4, align = 4 },
+    uint16  = { size = 2, align = 2 },
+    float   = { size = 4, align = 4 },
+    uint64  = { size = 8, align = 8 },
+}
+
+local function compute_field_layout(fields)
+    local layout = {}
+    local offset = 0
+    for _, f in ipairs(fields) do
+        local info = bb_type_info[f.type]
+        if not info then error("Unknown blackboard field type: " .. f.type) end
+        local a = info.align
+        local padding = (a - (offset % a)) % a
+        offset = offset + padding
+        layout[#layout + 1] = {
+            name = f.name,
+            type = f.type,
+            offset = offset,
+            size = info.size,
+            default = f.default or f.value or 0,
+        }
+        offset = offset + info.size
+    end
+    local pad = (4 - (offset % 4)) % 4
+    offset = offset + pad
+    return layout, offset
+end
+
+-- =========================================================================
+-- BBRD section: blackboard record descriptor + field descriptors + defaults
+--
+-- Binary layout:
+--   Header (12 bytes):
+--     u32 name_hash
+--     u16 total_size (blackboard allocation size)
+--     u16 field_count
+--     u32 defaults_offset (offset from section start to defaults blob)
+--   Field descriptors (8 bytes each):
+--     u32 name_hash
+--     u16 offset
+--     u16 size
+--   Defaults blob (total_size bytes, 4-byte aligned)
+-- =========================================================================
+
+function BinaryImageEmitter:_build_blackboard_section()
+    local bb = self.handle.blackboard
+    if not bb or not bb.record then return "", 0 end
+
+    local layout, total = compute_field_layout(bb.record.fields)
+    local field_count = #layout
+
+    -- Defaults blob (typed writes into byte buffer)
+    local defaults = ffi.new("uint8_t[?]", total)
+    ffi.fill(defaults, total, 0)
+    for _, f in ipairs(layout) do
+        if f.default ~= 0 then
+            local info = bb_type_info[f.type]
+            if f.type == "float" then
+                local fp = ffi.cast("float*", defaults + f.offset)
+                fp[0] = f.default
+            elseif f.type == "int32" then
+                local ip = ffi.cast("int32_t*", defaults + f.offset)
+                ip[0] = f.default
+            elseif f.type == "uint32" then
+                local up = ffi.cast("uint32_t*", defaults + f.offset)
+                up[0] = f.default
+            elseif f.type == "uint16" then
+                local sp = ffi.cast("uint16_t*", defaults + f.offset)
+                sp[0] = f.default
+            elseif f.type == "uint64" then
+                local lp = ffi.cast("uint64_t*", defaults + f.offset)
+                lp[0] = f.default
+            end
+        end
+    end
+
+    local defaults_offset = 12 + field_count * 8  -- after header + fields
+    defaults_offset = align4(defaults_offset)
+
+    local parts = {}
+    -- Header
+    parts[#parts + 1] = pack_u32(fnv1a(bb.record.name))
+    parts[#parts + 1] = pack_u16(total)
+    parts[#parts + 1] = pack_u16(field_count)
+    parts[#parts + 1] = pack_u32(defaults_offset)
+
+    -- Field descriptors
+    for _, f in ipairs(layout) do
+        parts[#parts + 1] = pack_u32(fnv1a(f.name))
+        parts[#parts + 1] = pack_u16(f.offset)
+        parts[#parts + 1] = pack_u16(f.size)
+    end
+
+    -- Padding to defaults_offset
+    local current = 12 + field_count * 8
+    if current < defaults_offset then
+        parts[#parts + 1] = string.rep("\0", defaults_offset - current)
+    end
+
+    -- Defaults blob
+    parts[#parts + 1] = ffi.string(defaults, total)
+
+    return table.concat(parts), field_count
+end
+
+-- =========================================================================
+-- CREC section: constant records
+--
+-- Binary layout:
+--   Directory (8 bytes per record):
+--     u32 name_hash
+--     u16 total_size
+--     u16 field_count
+--   For each record, sequentially:
+--     Field descriptors (8 bytes each):
+--       u32 name_hash
+--       u16 offset
+--       u16 size
+--     Data blob (total_size bytes, 4-byte aligned)
+-- =========================================================================
+
+function BinaryImageEmitter:_build_const_records_section()
+    local bb = self.handle.blackboard
+    if not bb or not bb.const_records or #bb.const_records == 0 then
+        return "", 0
+    end
+
+    local records = bb.const_records
+    local record_count = #records
+
+    -- First pass: compute layouts
+    local layouts = {}
+    for i, cr in ipairs(records) do
+        local layout, total = compute_field_layout(cr.fields)
+        layouts[i] = { layout = layout, total = total, name = cr.name }
+    end
+
+    -- Directory (8 bytes per record)
+    local dir_parts = {}
+    for _, l in ipairs(layouts) do
+        dir_parts[#dir_parts + 1] = pack_u32(fnv1a(l.name))
+        dir_parts[#dir_parts + 1] = pack_u16(l.total)
+        dir_parts[#dir_parts + 1] = pack_u16(#l.layout)
+    end
+
+    -- Field descriptors + data blobs for each record
+    local body_parts = {}
+    for _, l in ipairs(layouts) do
+        -- Field descriptors
+        for _, f in ipairs(l.layout) do
+            body_parts[#body_parts + 1] = pack_u32(fnv1a(f.name))
+            body_parts[#body_parts + 1] = pack_u16(f.offset)
+            body_parts[#body_parts + 1] = pack_u16(f.size)
+        end
+
+        -- Data blob (typed writes)
+        local data = ffi.new("uint8_t[?]", l.total)
+        ffi.fill(data, l.total, 0)
+        for _, f in ipairs(l.layout) do
+            if f.default ~= 0 then
+                if f.type == "float" then
+                    ffi.cast("float*", data + f.offset)[0] = f.default
+                elseif f.type == "int32" then
+                    ffi.cast("int32_t*", data + f.offset)[0] = f.default
+                elseif f.type == "uint32" then
+                    ffi.cast("uint32_t*", data + f.offset)[0] = f.default
+                elseif f.type == "uint16" then
+                    ffi.cast("uint16_t*", data + f.offset)[0] = f.default
+                elseif f.type == "uint64" then
+                    ffi.cast("uint64_t*", data + f.offset)[0] = f.default
+                end
+            end
+        end
+        body_parts[#body_parts + 1] = ffi.string(data, l.total)
+    end
+
+    local result = table.concat(dir_parts) .. table.concat(body_parts)
+    return result, record_count
+end
+
+-- =========================================================================
+-- Blackboard offset header (.h with #defines only, no runtime data)
+-- =========================================================================
+
+function BinaryImageEmitter:_write_bb_offset_header()
+    local bb = self.handle.blackboard
+    if not bb then return end
+
+    local guard = self.handle_name:upper() .. "_BLACKBOARD_H"
+    local lines = {}
+    lines[#lines + 1] = "/* Auto-generated by ChainTree Pipeline (Binary) - Blackboard offsets */"
+    lines[#lines + 1] = "#ifndef " .. guard
+    lines[#lines + 1] = "#define " .. guard
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = '#include "cfl_blackboard.h"'
+    lines[#lines + 1] = ""
+
+    if bb.record then
+        local layout, total = compute_field_layout(bb.record.fields)
+        lines[#lines + 1] = "/* ===== Blackboard: " .. bb.record.name .. " ===== */"
+        lines[#lines + 1] = string.format("#define BB_%s_SIZE %d", bb.record.name:upper(), total)
+        lines[#lines + 1] = ""
+        for _, f in ipairs(layout) do
+            local def_name = "BB_" .. f.name:upper():gsub("%.", "_") .. "_OFFSET"
+            lines[#lines + 1] = string.format("#define %-40s %d", def_name, f.offset)
+        end
+        lines[#lines + 1] = ""
+    end
+
+    if bb.const_records then
+        for _, cr in ipairs(bb.const_records) do
+            local layout, total = compute_field_layout(cr.fields)
+            lines[#lines + 1] = "/* ===== Const Record: " .. cr.name .. " ===== */"
+            lines[#lines + 1] = string.format("#define CONST_%s_SIZE %d", cr.name:upper(), total)
+            lines[#lines + 1] = ""
+            for _, f in ipairs(layout) do
+                local def_name = "CONST_" .. cr.name:upper() .. "_" .. f.name:upper():gsub("%.", "_") .. "_OFFSET"
+                lines[#lines + 1] = string.format("#define %-40s %d", def_name, f.offset)
+            end
+            lines[#lines + 1] = ""
+        end
+    end
+
+    lines[#lines + 1] = "#endif /* " .. guard .. " */"
+    lines[#lines + 1] = ""
+
+    local path = self.output_dir .. "/" .. self.handle_name .. "_blackboard.h"
+    local fh = io.open(path, "w")
+    fh:write(table.concat(lines, "\n"))
+    fh:close()
+    print("  Generated: " .. path)
+end
+
+-- =========================================================================
 -- Main emit function
 -- =========================================================================
 
@@ -565,6 +807,10 @@ function BinaryImageEmitter:emit()
         self:_build_kb_sections(string_pool)
     local pool_bin = string_pool:to_binary()
 
+    -- Blackboard sections
+    local bb_bin, bb_field_count     = self:_build_blackboard_section()
+    local crec_bin, crec_count       = self:_build_const_records_section()
+
     -- Step 3: Counts
     local json_rec_count  = 0
     local json_ctrl_count = 0
@@ -591,6 +837,8 @@ function BinaryImageEmitter:emit()
         { type = SECT_KBAL, data = kb_alias_bin,    count = alias_count,                                                    esize = 8  },
         { type = SECT_GSTR, data = pool_bin,        count = 0,                                                              esize = 0  },
         { type = SECT_MUSG, data = usage_bin,       count = fb.main_indexer:get_count(),                                    esize = 2  },
+        { type = SECT_BBRD, data = bb_bin,         count = bb_field_count,                                                  esize = 0  },
+        { type = SECT_CREC, data = crec_bin,       count = crec_count,                                                      esize = 0  },
     }
 
     local section_count = #sections
@@ -692,6 +940,11 @@ function BinaryImageEmitter:emit()
 
     if self.emit_c_header then
         self:_write_c_header(patched)
+    end
+
+    -- Emit blackboard offset header if blackboard is defined
+    if self.handle.blackboard then
+        self:_write_bb_offset_header()
     end
 
     return #patched

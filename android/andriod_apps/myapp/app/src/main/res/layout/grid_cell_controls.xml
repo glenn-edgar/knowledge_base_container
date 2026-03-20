@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="96dp"
+    android:layout_height="48dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="2dp">
+
+    <TextView
+        android:id="@+id/row_number"
+        android:layout_width="24dp"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:gravity="center"
+        android:text="1" />
+
+    <ImageButton
+        android:id="@+id/btn_insert_row"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@android:drawable/ic_input_add"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Insert row above"
+        android:scaleType="centerInside" />
+
+    <ImageButton
+        android:id="@+id/btn_delete_row"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@android:drawable/ic_menu_delete"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Delete row"
+        android:scaleType="centerInside" />
+
+</LinearLayout>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- Toolbar with horizontal scroll for buttons -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:background="#E0E0E0"
+        android:padding="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Button
+                android:id="@+id/btn_add_row"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="+ Row"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btn_save"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Save"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btn_load"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Load"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btn_import"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Import"
+                android:textAllCaps="false"
+                android:textSize="13sp"
+                android:layout_marginEnd="4dp" />
+
+            <Button
+                android:id="@+id/btn_export"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="Export"
+                android:textAllCaps="false"
+                android:textSize="13sp" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Grid area — horizontal scroll wraps the RecyclerView for wide grids -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/grid_recycler"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="4dp" />
+
+    </HorizontalScrollView>
+
+</LinearLayout>

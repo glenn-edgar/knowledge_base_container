@@ -8,6 +8,7 @@
  #include <string.h>
  #include <stdbool.h>
  #include "cfl_runtime.h"
+ #include "cfl_blackboard.h"
  #include "json_node_decoder.h"
  /* cfl_runtime.h → cfl_engine.h transitively provides:
   *   chaintree_support.h, cfl_perm.h, cfl_heap.h, cfl_heap_arena_allocate.h,
@@ -117,7 +118,12 @@
      /* JSON decoder context */
      handle->json_decoder_ctx =
          (json_decoder_ctx_t *)cfl_perm_alloc_pointer(perm, (uint16_t)sizeof(json_decoder_ctx_t));
- 
+
+     /* Shared blackboard */
+     if (!cfl_bb_init(handle)) {
+         EXCEPTION("cfl_runtime_create: blackboard initialization failed");
+     }
+
      memset((void *)handle->flags, 0, params->total_node_count);
  
      cfl_init_test_system(handle);
@@ -144,6 +150,7 @@
      cfl_clear_queue(handle->event_queue);
      handle->bitmask = 0;
      handle->shaddow_bitmask = 0;
+     cfl_bb_reset(handle);
      cfl_engine_init(handle);
      memset((void *)handle->flags, 0, handle->flash_handle->node_count);
  

@@ -62,6 +62,10 @@ After:   JSON IR  →  [Python|LuaJIT]  →  .ctb image file  →  runtime loads
 │  Section 12: KB Alias Table                  │
 ├──────────────────────────────────────────────┤
 │  Section 13: General String Pool             │
+├──────────────────────────────────────────────┤
+│  Section 14: Blackboard Record (optional)    │
+├──────────────────────────────────────────────┤
+│  Section 15: Constant Records (optional)     │
 └──────────────────────────────────────────────┘
 ```
 
@@ -150,6 +154,9 @@ BMSK   0x000B   Bitmask table
 KBIN   0x000C   KB info table
 KBAL   0x000D   KB alias table
 GSTR   0x000E   General string pool
+MUSG   0x000F   Main function usage count
+BBRD   0x0010   Blackboard record descriptor
+CREC   0x0011   Constant records
 ```
 
 ## 5. Section Formats
@@ -313,6 +320,95 @@ KB info entries reference contiguous ranges within this table via `alias_start` 
 
 Packed null-terminated strings. Referenced by offset from event table, bitmask table, KB info, and KB alias sections. Deduplicated — identical strings share the same offset.
 
+### 5.13 Blackboard Record (BBRD, 0x0010)
+
+Defines a single mutable blackboard shared across all knowledge bases. The section contains a header, field descriptors, and a defaults blob. Optional — absent if no blackboard is defined in the DSL.
+
+```
+Header (12 bytes):
+Offset  Size  Type      Field
+──────  ────  ────────  ──────────────────────
+0       4     uint32    name_hash              FNV-1a hash of record name
+4       2     uint16    total_size             Blackboard allocation size in bytes
+6       2     uint16    field_count            Number of field descriptors
+8       4     uint32    defaults_offset        Byte offset from section start to defaults blob
+```
+
+Followed by field descriptors (8 bytes each):
+
+```
+Offset  Size  Type      Field
+──────  ────  ────────  ──────────────────────
+0       4     uint32    name_hash              FNV-1a hash of field name
+4       2     uint16    offset                 Byte offset into blackboard buffer
+6       2     uint16    size                   Field size in bytes
+```
+
+Followed by padding to 4-byte alignment, then the defaults blob (`total_size` bytes). The defaults blob contains typed values at their field offsets — the runtime copies this into the allocated blackboard at startup. Zero-filled bytes represent default value 0.
+
+Supported field types and sizes:
+
+```
+DSL type   C type      Size   Alignment
+─────────  ──────────  ────   ─────────
+int32      int32_t     4      4
+uint32     uint32_t    4      4
+uint16     uint16_t    2      2
+float      float       4      4
+uint64     uint64_t    8      8
+```
+
+Fields are laid out with natural alignment. The total size is padded to 4-byte alignment.
+
+At runtime, `cfl_image_loader.c` parses this section into a `cfl_bb_record_t` and attaches it to `handle.bb_table`. The runtime allocates the blackboard buffer from the permanent allocator and copies the defaults blob. Node functions access fields via compile-time offset macros (`CFL_BB_FIELD(handle, offset, type)`) or dynamic hash lookup (`cfl_bb_field_by_hash()`).
+
+### 5.14 Constant Records (CREC, 0x0011)
+
+An array of read-only named records. Optional — absent if no constant records are defined in the DSL. Multiple constant records are supported; duplicate names are not allowed.
+
+The section is structured as a directory followed by the field descriptors and data blobs for each record, laid out sequentially.
+
+Directory (8 bytes per record):
+
+```
+Offset  Size  Type      Field
+──────  ────  ────────  ──────────────────────
+0       4     uint32    name_hash              FNV-1a hash of record name
+4       2     uint16    total_size             Data size in bytes
+6       2     uint16    field_count            Number of field descriptors
+```
+
+The `entry_count` field in the section directory gives the number of records.
+
+After the directory, for each record in order:
+
+1. **Field descriptors** (8 bytes each, same format as BBRD field descriptors)
+2. **Data blob** (`total_size` bytes, contains typed constant values at field offsets)
+
+At runtime, the image loader parses these into a `cfl_bb_const_record_t` array and attaches it to `handle.bb_table`. The data pointers reference directly into the image memory (zero-copy). User code looks up records by hash (`cfl_bb_const_find()`) and reads fields via offset macros (`CFL_BB_CONST_FIELD(data_ptr, offset, type)`) or hash lookup (`cfl_bb_const_field_by_hash()`).
+
+### 5.15 DSL Definition
+
+The blackboard and constant records are defined in the Lua DSL frontend:
+
+```lua
+-- Mutable blackboard (one per configuration)
+ct:define_blackboard("system_state")
+    ct:bb_field("mode",        "int32",  0)       -- default 0
+    ct:bb_field("temperature", "float",  20.0)    -- default 20.0
+    ct:bb_field("debug_ptr",   "uint64", 0)
+ct:end_blackboard()
+
+-- Read-only constant records (any number, unique names)
+ct:define_const_record("calibration")
+    ct:const_field("gain",   "float",  1.5)
+    ct:const_field("offset", "float", -0.25)
+    ct:const_field("max",    "int32",  1000)
+ct:end_const_record()
+```
+
+These calls can appear anywhere in the Lua file. The data flows through the JSON IR (`"blackboard"` top-level key) into stage 6, which emits the BBRD and CREC binary sections. The pipeline also emits a `{handle_name}_blackboard.h` file containing only `#define` offset constants — no runtime data, no generated C code.
+
 ## 6. Alignment and Padding
 
 - Each section starts at a 4-byte aligned offset.
@@ -466,18 +562,21 @@ Stage 6: Emit binary image  (NEW - replaces C codegen)
 3. **Sort** each hash table by hash value. Record the mapping from original index to sorted position.
 4. **Remap** all node function indices from original ordering to sorted-table positions.
 5. **Build general string pool** — deduplicate all event names, bitmask names, KB names, alias names.
-6. **Compute section sizes and offsets** with 4-byte alignment padding.
-7. **Write header** with all counts, offsets, and flags.
-8. **Write section directory.**
-9. **Write each section** in order, with inter-section padding.
-10. **Compute CRC32** over entire image (checksum field zeroed) and patch the header.
+6. **Build blackboard sections** — if a blackboard is defined in the JSON IR, compute field layouts with natural alignment, hash field names with FNV-1a, write typed defaults blob. Build CREC section for any constant records.
+7. **Compute section sizes and offsets** with 4-byte alignment padding.
+8. **Write header** with all counts, offsets, and flags.
+9. **Write section directory.**
+10. **Write each section** in order, with inter-section padding.
+11. **Compute CRC32** over entire image (checksum field zeroed) and patch the header.
+12. **Emit blackboard offset header** — `{handle_name}_blackboard.h` with `#define` offset constants only (no runtime data, no generated C code).
 
 ### 9.2 Output Formats
 
-The pipeline supports two output modes:
+The pipeline produces:
 
 - **`.ctb` raw binary**: Direct binary file for mmap/load at runtime.
-- **`.h` C array**: `const uint8_t chaintree_image[] = { 0x43, 0x54, ... };` for embedding in firmware where filesystem access is unavailable.
+- **`_image.h` C array**: `const uint8_t chaintree_image[] = { 0x43, 0x54, ... };` for embedding in firmware where filesystem access is unavailable.
+- **`_blackboard.h` offset header** (if blackboard is defined): `#define BB_MODE_OFFSET 0`, `#define CONST_CALIBRATION_GAIN_OFFSET 0`, etc. Compile-time constants only — the runtime data is in the `.ctb` image.
 
 ## 10. Migration Path
 

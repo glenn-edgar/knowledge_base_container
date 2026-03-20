@@ -14,6 +14,9 @@ extern "C" {
 #include "CT_Tree_Walker.h"
 
 
+/* Forward declaration for blackboard descriptor */
+typedef struct cfl_bb_record cfl_bb_record_t;
+
 /* ========================================================================
  * ENGINE EVENT DEFINITIONS
  * ======================================================================== */
@@ -147,7 +150,10 @@ struct CFL_RUNTIME_HANDLE {
     /* Flash reference */
     const chaintree_handle_t *flash_handle;
 
-   
+    /* Shared blackboard (mutable, allocated from perm) */
+    void *blackboard;
+    uint16_t blackboard_size;
+    const cfl_bb_record_t *bb_desc;
 
     /* Serialization (application layer) */
     json_decoder_ctx_t *json_decoder_ctx;

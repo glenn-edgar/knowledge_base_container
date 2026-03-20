@@ -8,9 +8,13 @@
 #include "cfl_function_loader.h"
 #include "cfl_exception.h"
 #include "chaintree_handle_image.h"
+#include "chaintree_handle_blackboard.h"
 #include "user_one_shot_functions.h"
 #include "user_boolean_functions.h"
 #include "user_main_functions.h"
+
+extern void cfl_register_bb_test_functions(cfl_image_loader_t *img);
+
 static cfl_perm_t perm;
 static char perm_buffer[0xffff];
 
@@ -38,6 +42,7 @@ int main(void) {
     cfl_register_user_one_shot_functions(&img);
     cfl_register_user_boolean_functions(&img);
     cfl_register_user_main_functions(&img);
+    cfl_register_bb_test_functions(&img);
     int missing = cfl_image_validate(&img);
     if (missing > 0) {
         printf("Warning: %d function(s) not registered\n", missing);
@@ -115,7 +120,8 @@ int main(void) {
     //cfl_add_test_by_index(handle, 11); //thirteenth test
     //cfl_add_test_by_index(handle, 12); //fourteenth test
     //cfl_add_test_by_index(handle, 13); //seventeenth test
-    cfl_add_test_by_index(handle, 14); //eighteenth test
+    //cfl_add_test_by_index(handle, 14); //eighteenth test
+    cfl_add_test_by_index(handle, 25); //twenty-ninth test
     //cfl_add_test_by_index(handle, 15); //nineteenth test
     //cfl_add_test_by_index(handle, 16); //twentieth test
     //cfl_add_test_by_index(handle, 17); //twenty-first test
