@@ -30,6 +30,7 @@ local ExceptionHandler    = require("lua_support.exception_handler")
 local Streaming           = require("lua_support.streaming")
 local ControlledNodes     = require("lua_support.controlled_nodes")
 local SExpressionNodes    = require("lua_support.s_expression_nodes")
+local SEngine             = require("lua_support.s_engine")
 
 -- ---------------------------------------------------------------------------
 -- Mixin helper: copy all methods from a source table into dest,
@@ -64,6 +65,7 @@ mixin(ChainTreeMaster, ExceptionHandler)
 mixin(ChainTreeMaster, Streaming)
 mixin(ChainTreeMaster, ControlledNodes)
 mixin(ChainTreeMaster, SExpressionNodes)
+mixin(ChainTreeMaster, SEngine)
 mixin(ChainTreeMaster, ColumnFlow)
 
 -- ---------------------------------------------------------------------------

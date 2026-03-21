@@ -11,6 +11,7 @@ void cfl_avro_update_packet_header(cfl_runtime_handle_t *runtime, void *packet) 
 }
 
 void cfl_avro_update_packet_header_source_node(cfl_runtime_handle_t *runtime, void *packet, unsigned source_node) {
+    (void)runtime;
     avro_packet_header_t *header = (avro_packet_header_t *)packet;
     // Only touch timestamp and seq — schema_hash and source_node
     // are already set by _packet_init and must not be overwritten

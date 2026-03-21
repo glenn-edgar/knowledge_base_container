@@ -52,7 +52,10 @@
  extern unsigned cfl_streaming_transform_packet_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  extern unsigned cfl_streaming_collect_packets_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  extern unsigned cfl_streaming_sink_collected_packets_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
- 
+ extern unsigned cfl_se_module_load_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_se_tree_load_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_se_tick_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
  /* ---- One-shot functions ---- */
  extern void cfl_null_one_shot_fn(void*, unsigned);
  extern void cfl_column_init_one_shot_fn(void*, unsigned);
@@ -136,7 +139,13 @@
  extern void cfl_streaming_collect_packets_term_one_shot_fn(void*, unsigned);
  extern void cfl_streaming_sink_collected_packets_init_one_shot_fn(void*, unsigned);
  extern void cfl_streaming_sink_collected_packets_term_one_shot_fn(void*, unsigned);
- 
+ extern void cfl_se_module_load_init_one_shot_fn(void*, unsigned);
+ extern void cfl_se_module_load_term_one_shot_fn(void*, unsigned);
+ extern void cfl_se_tree_load_init_one_shot_fn(void*, unsigned);
+ extern void cfl_se_tree_load_term_one_shot_fn(void*, unsigned);
+ extern void cfl_se_tick_init_one_shot_fn(void*, unsigned);
+ extern void cfl_se_tick_term_one_shot_fn(void*, unsigned);
+
  /* ---- Boolean functions ---- */
  extern bool cfl_null_boolean_fn(void*, unsigned, unsigned, unsigned, void*);
  extern bool cfl_bool_false_boolean_fn(void*, unsigned, unsigned, unsigned, void*);
@@ -216,7 +225,10 @@
      REG_MAIN(img, "cfl_streaming_transform_packet_main",    cfl_streaming_transform_packet_main_fn);
      REG_MAIN(img, "cfl_streaming_collect_packets_main",     cfl_streaming_collect_packets_main_fn);
      REG_MAIN(img, "cfl_streaming_sink_collected_packets_main", cfl_streaming_sink_collected_packets_main_fn);
-    
+     REG_MAIN(img, "cfl_se_module_load_main_main",               cfl_se_module_load_main_fn);
+     REG_MAIN(img, "cfl_se_tree_load_main_main",                cfl_se_tree_load_main_fn);
+     REG_MAIN(img, "cfl_se_tick_main_main",                     cfl_se_tick_main_fn);
+
  }
  
  /* =====================================================================
@@ -307,6 +319,12 @@
      REG_ONE_SHOT(img, "cfl_streaming_collect_packets_term_one_shot",   cfl_streaming_collect_packets_term_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_streaming_sink_collected_packets_init_one_shot", cfl_streaming_sink_collected_packets_init_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_streaming_sink_collected_packets_term_one_shot", cfl_streaming_sink_collected_packets_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_module_load_init_one_shot",                  cfl_se_module_load_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_module_load_term_one_shot",                  cfl_se_module_load_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_tree_load_init_one_shot",                    cfl_se_tree_load_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_tree_load_term_one_shot",                    cfl_se_tree_load_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_tick_init_one_shot",                         cfl_se_tick_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_tick_term_one_shot",                         cfl_se_tick_term_one_shot_fn);
  }
  
  /* =====================================================================
@@ -317,6 +335,7 @@
  {
      REG_BOOLEAN(img, "cfl_null_boolean",                     cfl_null_boolean_fn);
      REG_BOOLEAN(img, "cfl_bool_false_boolean",               cfl_bool_false_boolean_fn);
+     REG_BOOLEAN(img, "cfl_false_boolean",                    cfl_bool_false_boolean_fn);
      REG_BOOLEAN(img, "cfl_column_null_boolean",              cfl_column_null_boolean_fn);
      REG_BOOLEAN(img, "cfl_gate_node_null_boolean",           cfl_gate_node_null_boolean_fn);
      REG_BOOLEAN(img, "cfl_verify_time_out_boolean",          cfl_verify_time_out_boolean_fn);
