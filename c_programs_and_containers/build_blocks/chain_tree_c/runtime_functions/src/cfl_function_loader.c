@@ -55,6 +55,7 @@
  extern unsigned cfl_se_module_load_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  extern unsigned cfl_se_tree_load_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  extern unsigned cfl_se_tick_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_se_engine_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
 
  /* ---- One-shot functions ---- */
  extern void cfl_null_one_shot_fn(void*, unsigned);
@@ -145,6 +146,8 @@
  extern void cfl_se_tree_load_term_one_shot_fn(void*, unsigned);
  extern void cfl_se_tick_init_one_shot_fn(void*, unsigned);
  extern void cfl_se_tick_term_one_shot_fn(void*, unsigned);
+ extern void cfl_se_engine_init_one_shot_fn(void*, unsigned);
+ extern void cfl_se_engine_term_one_shot_fn(void*, unsigned);
 
  /* ---- Boolean functions ---- */
  extern bool cfl_null_boolean_fn(void*, unsigned, unsigned, unsigned, void*);
@@ -228,6 +231,7 @@
      REG_MAIN(img, "cfl_se_module_load_main_main",               cfl_se_module_load_main_fn);
      REG_MAIN(img, "cfl_se_tree_load_main_main",                cfl_se_tree_load_main_fn);
      REG_MAIN(img, "cfl_se_tick_main_main",                     cfl_se_tick_main_fn);
+     REG_MAIN(img, "cfl_se_engine_main_main",                   cfl_se_engine_main_fn);
 
  }
  
@@ -325,6 +329,8 @@
      REG_ONE_SHOT(img, "cfl_se_tree_load_term_one_shot",                    cfl_se_tree_load_term_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_se_tick_init_one_shot",                         cfl_se_tick_init_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_se_tick_term_one_shot",                         cfl_se_tick_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_engine_init_one_shot",                       cfl_se_engine_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_se_engine_term_one_shot",                       cfl_se_engine_term_one_shot_fn);
  }
  
  /* =====================================================================

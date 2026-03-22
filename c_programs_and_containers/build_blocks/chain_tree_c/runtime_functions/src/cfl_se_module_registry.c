@@ -85,6 +85,18 @@ void cfl_se_registry_register_def(
     const uint8_t *binary_data,
     size_t binary_size)
 {
+    cfl_se_registry_register_def_with_user(reg, module_name,
+        binary_data, binary_size, NULL, NULL);
+}
+
+void cfl_se_registry_register_def_with_user(
+    cfl_se_module_registry_t *reg,
+    const char *module_name,
+    const uint8_t *binary_data,
+    size_t binary_size,
+    cfl_se_user_register_fn_t user_register,
+    void *user_ctx)
+{
     if (!reg || !module_name || !binary_data || binary_size == 0) {
         EXCEPTION("cfl_se_registry_register_def: NULL argument");
     }
@@ -95,6 +107,8 @@ void cfl_se_registry_register_def(
     reg->defs[reg->def_count].name_hash = hash;
     reg->defs[reg->def_count].binary_data = binary_data;
     reg->defs[reg->def_count].binary_size = binary_size;
+    reg->defs[reg->def_count].user_register = user_register;
+    reg->defs[reg->def_count].user_ctx = user_ctx;
     reg->def_count++;
 }
 
@@ -445,7 +459,7 @@ void cfl_se_tree_load_term_one_shot_fn(void *handle, uint16_t node_index) {
 static unsigned se_result_to_cfl(s_expr_result_t result, bool *reset_tree) {
     *reset_tree = false;
     switch (result) {
-        /* Application codes — pass through (values match) */
+        /* Application codes — pass through */
         case SE_CONTINUE:       return CFL_CONTINUE;
         case SE_HALT:           return CFL_HALT;
         case SE_TERMINATE:      return CFL_TERMINATE;
@@ -455,21 +469,21 @@ static unsigned se_result_to_cfl(s_expr_result_t result, bool *reset_tree) {
 
         /* Function codes */
         case SE_FUNCTION_CONTINUE:      return CFL_CONTINUE;
-        case SE_FUNCTION_HALT:          return CFL_HALT;
+        case SE_FUNCTION_HALT:          return CFL_CONTINUE;
         case SE_FUNCTION_TERMINATE:     return CFL_DISABLE;
         case SE_FUNCTION_RESET:         *reset_tree = true; return CFL_CONTINUE;
         case SE_FUNCTION_DISABLE:       return CFL_DISABLE;
         case SE_FUNCTION_SKIP_CONTINUE: return CFL_CONTINUE;
 
-        /* Pipeline codes */
+        /* Pipeline codes — all CFL_CONTINUE for now */
         case SE_PIPELINE_CONTINUE:      return CFL_CONTINUE;
-        case SE_PIPELINE_HALT:          return CFL_HALT;
-        case SE_PIPELINE_TERMINATE:     return CFL_DISABLE;
+        case SE_PIPELINE_HALT:          return CFL_CONTINUE;
+        case SE_PIPELINE_TERMINATE:     return CFL_CONTINUE;
         case SE_PIPELINE_RESET:         return CFL_CONTINUE;
-        case SE_PIPELINE_DISABLE:       return CFL_DISABLE;
+        case SE_PIPELINE_DISABLE:       return CFL_CONTINUE;
         case SE_PIPELINE_SKIP_CONTINUE: return CFL_CONTINUE;
 
-        default:                        return CFL_CONTINUE;
+        default:                        return CFL_TERMINATE_SYSTEM;
     }
 }
 
@@ -478,9 +492,11 @@ static bool se_result_is_complete(s_expr_result_t result) {
            result != SE_PIPELINE_DISABLE;
 }
 
+ 
+
 void cfl_se_tick_init_one_shot_fn(void *handle, uint16_t node_index) {
     cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)handle;
-
+    
     /* Allocate arena for node data */
     bool already = cfl_allocate_state(rt, node_index);
     cfl_se_tick_node_data_t *nd;
@@ -520,9 +536,6 @@ void cfl_se_tick_init_one_shot_fn(void *handle, uint16_t node_index) {
 
     /* Set user context to runtime handle for cfl bridge functions */
     s_expr_tree_set_user_ctx(nd->inst, rt);
-
-    /* Reset the tree */
-    s_expr_node_reset(nd->inst);
 }
 
 unsigned cfl_se_tick_main_fn(
@@ -531,6 +544,7 @@ unsigned cfl_se_tick_main_fn(
 {
     (void)bool_function_index;
     (void)event_type;
+    
 
     cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)handle;
     cfl_se_tick_node_data_t *nd = (cfl_se_tick_node_data_t *)
@@ -541,14 +555,10 @@ unsigned cfl_se_tick_main_fn(
 
     s_expr_tree_instance_t *tree = nd->inst;
 
-    /* Map CFL_TIMER_EVENT → SE_EVENT_TICK, all others pass through */
-    uint16_t se_event_id = (event_id == CFL_TIMER_EVENT)
-        ? SE_EVENT_TICK : (uint16_t)event_id;
-
-    /* Tick the tree */
-    s_expr_result_t result = s_expr_node_tick(tree, se_event_id, event_data);
-    printf("[SE_TICK] event_id=%u se_event_id=%u result=%d\n", event_id, se_event_id, result);
-
+    /* Tick the tree — event_id passes through directly */
+    s_expr_result_t result = s_expr_node_tick(tree, (uint16_t)event_id, event_data);
+    //printf("[SE_TICK] tick_count=%u result=%d\n", tick_count, result);
+    
     /* Process queued events */
     uint16_t event_count = s_expr_event_queue_count(tree);
     while (event_count > 0 && !se_result_is_complete(result)) {
@@ -565,7 +575,194 @@ unsigned cfl_se_tick_main_fn(
         s_expr_result_t event_result = s_expr_node_tick(tree, ev_id, ev_data);
 
         tree->tick_type = saved_tick_type;
-        printf("[SE_TICK] event_result=%d\n", event_result);
+        //printf("[SE_TICK] event_result=%d\n", event_result);
+        if (se_result_is_complete(event_result)) {
+            result = event_result;
+            break;
+        }
+
+        event_count = s_expr_event_queue_count(tree);
+    }
+
+    /* Map SE result → CFL result.
+     * se_tick is always a leaf node — use CFL_HALT to hold position
+     * in the column. Only CFL_DISABLE lets the column advance. */
+    bool reset_tree = false;
+    unsigned cfl_result = se_result_to_cfl(result, &reset_tree);
+
+    if (reset_tree) {
+        s_expr_node_reset(tree);
+    }
+
+    /* Leaf override: CFL_CONTINUE → CFL_HALT (hold position in column) */
+    if (cfl_result == CFL_CONTINUE) {
+        cfl_result = CFL_HALT;
+    }
+
+    return cfl_result;
+}
+
+void cfl_se_tick_term_one_shot_fn(void *handle, uint16_t node_index) {
+    (void)handle;
+    (void)node_index;
+    /* Tree lifecycle is owned by the se_tree_load node — nothing to do here */
+}
+
+/* ====================================================================
+ * SE engine composite node functions
+ *
+ * Self-contained composite: init loads module + creates tree + stores
+ * ptr in BB. Main ticks the s-engine tree. Term frees tree + unloads
+ * module + terminates children.
+ *
+ * Children are ChainTree nodes controlled by the s-engine tree via
+ * cfl_enable_child / cfl_disable_children (using ct_node_id).
+ * Init does NOT enable children — the s-engine tree decides when.
+ * ==================================================================== */
+
+void cfl_se_engine_init_one_shot_fn(void *handle, uint16_t node_index) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)handle;
+    cfl_se_module_registry_t *reg =
+        (cfl_se_module_registry_t *)cfl_get_app_extensions(rt);
+
+    if (!reg) {
+        EXCEPTION("cfl_se_engine_init: no registry in app_extensions");
+    }
+
+    /* Allocate arena for node data */
+    bool already = cfl_allocate_state(rt, node_index);
+    cfl_se_engine_node_data_t *nd;
+    if (already) {
+        nd = (cfl_se_engine_node_data_t *)
+            cfl_heap_arena_get_node_ptr(rt->arena_system, node_index);
+    } else {
+        nd = (cfl_se_engine_node_data_t *)
+            cfl_smart_arena_alloc(rt, node_index, sizeof(cfl_se_engine_node_data_t));
+    }
+    if (!nd) {
+        EXCEPTION("cfl_se_engine_init: arena alloc failed");
+    }
+    memset(nd, 0, sizeof(*nd));
+
+    /* Decode module_name, tree_name, tree_bb_field from JSON node data.
+     * Both composite and leaf nodes store under node_dict.column_data.* */
+    const char *module_name = NULL;
+    const char *tree_name = NULL;
+    const char *tree_bb_field = NULL;
+    json_decoder_init_from_runtime(rt, node_index);
+    json_extract_string_runtime(rt, "node_dict.column_data.module_name", &module_name);
+    json_extract_string_runtime(rt, "node_dict.column_data.tree_name", &tree_name);
+    json_extract_string_runtime(rt, "node_dict.column_data.tree_bb_field", &tree_bb_field);
+
+    if (!module_name)   { EXCEPTION("cfl_se_engine_init: module_name missing"); }
+    if (!tree_name)     { EXCEPTION("cfl_se_engine_init: tree_name missing"); }
+    if (!tree_bb_field) { EXCEPTION("cfl_se_engine_init: tree_bb_field missing"); }
+
+    /* Resolve bb field name to offset */
+    void *field_ptr = cfl_bb_field_by_name(rt, tree_bb_field);
+    if (!field_ptr) {
+        EXCEPTION("cfl_se_engine_init: blackboard field not found");
+    }
+    nd->bb_offset = (uint16_t)((uint8_t *)field_ptr - (uint8_t *)rt->blackboard);
+
+    /* ---- Module load ---- */
+    uint32_t name_hash = cfl_fnv1a_32(module_name);
+    nd->module_hash = name_hash;
+
+    /* Check if module already loaded (shared across multiple se_engine nodes) */
+    s_expr_module_t *mod = cfl_se_registry_find(reg, name_hash);
+    if (!mod) {
+        /* Not loaded yet — resolve binary and load */
+        const cfl_se_module_def_entry_t *def_entry =
+            cfl_se_registry_find_def(reg, name_hash);
+        if (!def_entry) {
+            printf("  module_name='%s' hash=0x%08X\n", module_name, name_hash);
+            EXCEPTION("cfl_se_engine_init: module binary not registered");
+        }
+
+        s_expr_allocator_t alloc = cfl_se_make_allocator(reg->rt);
+        s_expr_loaded_module_t *loaded = s_expr_load_from_rom(
+            def_entry->binary_data, def_entry->binary_size, alloc);
+        if (!loaded) {
+            EXCEPTION("cfl_se_engine_init: binary parse failed");
+        }
+        nd->loaded_module = loaded;
+
+        /* Register function tables: builtins + cfl */
+        cfl_se_fn_table_set_t layers[CFL_SE_MAX_FN_LAYERS];
+        layers[0] = (cfl_se_fn_table_set_t){
+            .main_tbl    = s_engine_builtin_main_table(),
+            .oneshot_tbl = s_engine_builtin_oneshot_table(),
+            .pred_tbl    = s_engine_builtin_pred_table(),
+        };
+        layers[1] = (cfl_se_fn_table_set_t){
+            .main_tbl    = cfl_se_get_main_table(),
+            .oneshot_tbl = cfl_se_get_oneshot_table(),
+            .pred_tbl    = cfl_se_get_pred_table(),
+        };
+
+        mod = cfl_se_registry_load(
+            reg, &loaded->def, layers, CFL_SE_MAX_FN_LAYERS,
+            def_entry->user_register, def_entry->user_ctx);
+        if (!mod) {
+            EXCEPTION("cfl_se_engine_init: module load failed");
+        }
+        nd->loaded = true;
+    }
+
+    /* ---- Tree create ---- */
+    uint32_t tree_hash = cfl_fnv1a_32(tree_name);
+    s_expr_tree_instance_t *inst =
+        s_expr_tree_create_by_hash(mod, tree_hash, (uint32_t)node_index);
+    if (!inst) {
+        printf("  tree_hash=0x%08X\n", tree_hash);
+        EXCEPTION("cfl_se_engine_init: tree create failed");
+    }
+    nd->inst = inst;
+
+    /* Set user context to runtime handle for cfl bridge functions */
+    s_expr_tree_set_user_ctx(inst, rt);
+
+    /* Store instance pointer in blackboard uint64 slot */
+    uint64_t *slot = CFL_BB_FIELD(rt, nd->bb_offset, uint64_t);
+    *slot = (uint64_t)(uintptr_t)inst;
+}
+
+unsigned cfl_se_engine_main_fn(
+    void *handle, unsigned bool_function_index, unsigned node_index,
+    unsigned event_type, unsigned event_id, void *event_data)
+{
+    (void)bool_function_index;
+    (void)event_type;
+
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)handle;
+    cfl_se_engine_node_data_t *nd = (cfl_se_engine_node_data_t *)
+        cfl_heap_arena_get_node_ptr(rt->arena_system, node_index);
+    if (!nd || !nd->inst) {
+        EXCEPTION("cfl_se_engine_main: no tree instance");
+    }
+
+    s_expr_tree_instance_t *tree = nd->inst;
+
+    /* Tick the tree — event_id passes through directly */
+    s_expr_result_t result = s_expr_node_tick(tree, (uint16_t)event_id, event_data);
+
+    /* Process queued events */
+    uint16_t event_count = s_expr_event_queue_count(tree);
+    while (event_count > 0 && !se_result_is_complete(result)) {
+        uint16_t tick_type;
+        uint16_t ev_id;
+        void *ev_data;
+
+        s_expr_event_pop(tree, &tick_type, &ev_id, &ev_data);
+
+        uint16_t saved_tick_type = tree->tick_type;
+        tree->tick_type = tick_type;
+
+        s_expr_result_t event_result = s_expr_node_tick(tree, ev_id, ev_data);
+
+        tree->tick_type = saved_tick_type;
+
         if (se_result_is_complete(event_result)) {
             result = event_result;
             break;
@@ -577,7 +774,7 @@ unsigned cfl_se_tick_main_fn(
     /* Map SE result → CFL result */
     bool reset_tree = false;
     unsigned cfl_result = se_result_to_cfl(result, &reset_tree);
-    printf("[SE_TICK] cfl_result=%u reset_tree=%d\n", cfl_result, reset_tree);
+    //printf("[SE_ENGINE] node=%u se_result=%d cfl_result=%u\n", node_index, result, cfl_result);
 
     if (reset_tree) {
         s_expr_node_reset(tree);
@@ -586,8 +783,34 @@ unsigned cfl_se_tick_main_fn(
     return cfl_result;
 }
 
-void cfl_se_tick_term_one_shot_fn(void *handle, uint16_t node_index) {
-    (void)handle;
-    (void)node_index;
-    /* Tree lifecycle is owned by the se_tree_load node — nothing to do here */
+void cfl_se_engine_term_one_shot_fn(void *handle, uint16_t node_index) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)handle;
+    cfl_se_module_registry_t *reg =
+        (cfl_se_module_registry_t *)cfl_get_app_extensions(rt);
+
+    cfl_se_engine_node_data_t *nd = (cfl_se_engine_node_data_t *)
+        cfl_heap_arena_get_node_ptr(rt->arena_system, node_index);
+    if (!nd) {
+        EXCEPTION("cfl_se_engine_term: no node data");
+    }
+
+    /* Children are terminated by the ChainTree engine's own terminate walk.
+     * We only clean up the s-engine tree and module here. */
+
+    /* Free the tree instance */
+    if (nd->inst) {
+        s_expr_node_terminate(nd->inst);
+        s_expr_tree_free(nd->inst);
+
+        /* Clear blackboard slot */
+        uint64_t *slot = CFL_BB_FIELD(rt, nd->bb_offset, uint64_t);
+        *slot = 0;
+        nd->inst = NULL;
+    }
+
+    /* Unload module if this node loaded it */
+    if (nd->loaded && reg) {
+        cfl_se_registry_unload(reg, nd->module_hash);
+        nd->loaded = false;
+    }
 }

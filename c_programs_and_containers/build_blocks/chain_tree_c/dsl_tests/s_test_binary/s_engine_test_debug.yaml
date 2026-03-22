@@ -1,5 +1,5 @@
 # ChainTree Debug YAML Output
-# Generated: 2026-03-21T01:42:53Z
+# Generated: 2026-03-21T18:18:08Z
 ---
 kb.complete_functions_kb.complete_functions.complete_functions:
   label: complete_functions
@@ -204,7 +204,7 @@ kb.se_basic_load_test.GATE_root._0.COL_se_m._0.SE_MOD_LOAD._0:
     parent_ltree_name: kb.se_basic_load_test.GATE_root._0.COL_se_m._0
     termination_function_name: CFL_SE_MODULE_LOAD_TERM
   node_dict:
-    module_name: se_test_module
+    module_name: state_machine_test
   node_name: _0
 kb.se_basic_load_test.GATE_root._0.COL_se_m._0.SE_TICK._2:
   label: SE_TICK
@@ -233,8 +233,8 @@ kb.se_basic_load_test.GATE_root._0.COL_se_m._0.SE_TREE_LOAD._1:
     termination_function_name: CFL_SE_TREE_LOAD_TERM
   node_dict:
     bb_field_name: se_tree_ptr
-    module_name: se_test_module
-    tree_name: se_test_tree
+    module_name: state_machine_test
+    tree_name: state_machine_test
   node_name: _1
 kb.se_basic_load_test_functions.kb.se_basic_load_test:
   label: kb

@@ -25,10 +25,10 @@ local function se_basic_load_test(ct, kb_name)
         -- "USER_REGISTER_S_FUNCTIONS" is the user boolean function called
         -- to register user s-engine function tables.
         -- CFL_NULL would skip user registration.
-        ct:se_module_load("se_test_module", "USER_REGISTER_S_FUNCTIONS")
+        ct:se_module_load("state_machine_test", "USER_REGISTER_S_FUNCTIONS")
 
         -- Load a tree from the module, store instance ptr in blackboard
-        ct:se_tree_load("se_test_module", "se_test_tree", "se_tree_ptr")
+        ct:se_tree_load("state_machine_test", "state_machine_test", "se_tree_ptr")
 
         -- Tick the s-engine tree — runs until the tree terminates or disables
         ct:se_tick("se_tree_ptr")

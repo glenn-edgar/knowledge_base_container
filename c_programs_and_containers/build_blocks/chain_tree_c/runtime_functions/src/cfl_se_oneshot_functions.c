@@ -420,10 +420,9 @@ static void cfl_copy_const_full_oneshot(
     if (!src) { EXCEPTION("CFL_COPY_CONST_FULL: NULL constant"); return; }
 
     uint16_t bb_size = s_expr_tree_get_blackboard_size(inst);
-    uint16_t const_size = params[0].const_size;
-    if (const_size != bb_size) { EXCEPTION("CFL_COPY_CONST_FULL: size mismatch"); return; }
 
-    memcpy(bb, src, const_size);
+    /* Use bb_size for the copy — the constant must match the blackboard record */
+    memcpy(bb, src, bb_size);
 }
 
 /* ====================================================================

@@ -78,7 +78,6 @@ CTestTestfile.cmake
 _deps
 
 # Makefiles (generated)
-Makefile
 *.make
 
 # Visual Studio

@@ -48,6 +48,8 @@ typedef struct {
     uint32_t        name_hash;    /* FNV-1a of module name, 0 = empty */
     const uint8_t  *binary_data;  /* raw binary ROM (from _bin_32.h) */
     size_t          binary_size;  /* size in bytes */
+    cfl_se_user_register_fn_t user_register;  /* optional user fn registration */
+    void           *user_ctx;     /* context for user_register */
 } cfl_se_module_def_entry_t;
 
 typedef struct {
@@ -70,12 +72,23 @@ void cfl_se_registry_destroy(cfl_se_module_registry_t *reg);
 
 /* Register a module binary (ROM) by name.
  * Called by app before engine starts. The init one-shot resolves
- * JSON module_name → name_hash → binary via this table. */
+ * JSON module_name → name_hash → binary via this table.
+ * user_register is optional (NULL = no user functions). */
 void cfl_se_registry_register_def(
     cfl_se_module_registry_t *reg,
     const char *module_name,
     const uint8_t *binary_data,
     size_t binary_size
+);
+
+/* Register with user function callback. */
+void cfl_se_registry_register_def_with_user(
+    cfl_se_module_registry_t *reg,
+    const char *module_name,
+    const uint8_t *binary_data,
+    size_t binary_size,
+    cfl_se_user_register_fn_t user_register,
+    void *user_ctx
 );
 
 /* Find a registered module binary by name hash. */
@@ -180,6 +193,37 @@ unsigned cfl_se_tick_main_fn(
 
 /* Term one-shot: no-op (tree lifecycle owned by the se_tree_load node) */
 void cfl_se_tick_term_one_shot_fn(void *handle, uint16_t node_index);
+
+/* --------------------------------------------------------------------
+ * ChainTree composite node for se_engine
+ *
+ * A composite node whose children are se_module_load and se_tree_load.
+ * Init enables all children (their inits load module + create tree).
+ * Main ticks the s-engine tree each ChainTree tick.
+ * Term terminates all children (their terms free tree + unload module).
+ * -------------------------------------------------------------------- */
+
+/* Node data for the se_engine composite node (stored in heap arena) */
+typedef struct {
+    s_expr_tree_instance_t    *inst;          /* live tree instance */
+    s_expr_loaded_module_t    *loaded_module; /* parsed binary (owns allocations) */
+    uint32_t                   module_hash;   /* for registry unload */
+    uint16_t                   bb_offset;     /* blackboard offset of tree ptr */
+    bool                       loaded;        /* module loaded in registry */
+} cfl_se_engine_node_data_t;
+
+/* Init one-shot: loads module, creates tree, stores ptr in BB.
+ * Children are NOT enabled by init — the s-engine tree controls them
+ * via cfl_enable_child / cfl_disable_children using ct_node_id. */
+void cfl_se_engine_init_one_shot_fn(void *handle, uint16_t node_index);
+
+/* Main: ticks the s-engine tree, processes event queue, maps return codes */
+unsigned cfl_se_engine_main_fn(
+    void *handle, unsigned bool_function_index, unsigned node_index,
+    unsigned event_type, unsigned event_id, void *event_data);
+
+/* Term one-shot: terminates all children */
+void cfl_se_engine_term_one_shot_fn(void *handle, uint16_t node_index);
 
 #ifdef __cplusplus
 }

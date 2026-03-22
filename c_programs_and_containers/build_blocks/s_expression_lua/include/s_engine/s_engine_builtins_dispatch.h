@@ -375,14 +375,14 @@ static s_expr_result_t se_field_dispatch(
     // Invoke current action and handle pipeline reset
     // =========================================================================
     s_expr_result_t result = s_expr_invoke_any(inst, params, action_idx);
-    
-    if (result == SE_PIPELINE_RESET) {
-       // printf("se_field_dispatch: action_idx=%d, result=SE_PIPELINE_RESET\n", action_idx);
-        
+
+    if (result == SE_PIPELINE_RESET || result == SE_PIPELINE_DISABLE ||
+        result == SE_PIPELINE_TERMINATE) {
         terminate_action_at_index(inst, params, action_idx);
         reset_action_at_index(inst, params, action_idx);
+        s_expr_set_user_flags(inst, 0xFFFF);
         return SE_PIPELINE_CONTINUE;
     }
-    
+
     return result;
 }

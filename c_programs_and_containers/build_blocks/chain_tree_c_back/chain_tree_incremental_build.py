@@ -2154,7 +2154,7 @@ def twenty_ninth_test(ct,kb_name): # data f
     ##### register data flow events
     launch_column = ct.define_column(column_name="launch_column",auto_start=True)
     ct.asm_clear_bitmask([0,1,2,3])
-    #insert_s_expression_df_a(ct)
+    insert_s_expression_df_a(ct)
     insert_s_expression_df_b(ct)
 
     ct.asm_log_message("data flow columns are instantiated")

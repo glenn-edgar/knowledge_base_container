@@ -101,7 +101,7 @@ typedef enum {
 // ============================================================================
 
 typedef enum {
-    SE_EVENT_TICK      = 0xffff,
+    SE_EVENT_TICK      = 4,     /* matches CFL_TIMER_EVENT */
     SE_EVENT_INIT      = 0xfffe,
     SE_EVENT_TERMINATE = 0xfffd,
 
