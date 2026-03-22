@@ -1,0 +1,32 @@
+site_name: Knowledge Based Container Utilities
+theme:
+  name: material
+plugins:
+  - search
+  - monorepo
+nav:
+  - Home: index.md
+  - C SYSTEMS:
+    - Knowledge Base Operations:
+      - MQTT: '!include ./c_programs_and_containers/build_blocks/knowledge_base/mqtt/mkdocs.yml'
+      - NATS: '!include ./c_programs_and_containers/build_blocks/knowledge_base/nats/mkdocs.yml'
+      - POSTGRES: '!include ./c_programs_and_containers/build_blocks/knowledge_base/postgres/mkdocs.yml'
+      - SQLITE3: '!include ./c_programs_and_containers/build_blocks/knowledge_base/sqlite3/mkdocs.yml'
+    - Embedded_AVRO_PACKETS: '!include ./c_programs_and_containers/build_blocks/c_avro_packets/mkdocs.yml'
+    - S_ENGINE: '!include ./c_programs_and_containers/build_blocks/s_expression/dsl_tests/mkdocs.yml'
+    - S_ENGINE_LUA:  '!include ./c_programs_and_containers/build_blocks/s_expression_lua/dsl_tests/mkdocs.yml'
+    - SCAN_TREE: '!include ./c_programs_and_containers/build_blocks/scan_tree/mkdocs.yml'  
+  - Luajit Systems:
+    - Knowledge Base Operations:
+        - MQTT: '!include ./luajit_programs_and_containers/building_blocks/knowledge_base/mqtt/mkdocs.yml'
+        - NATS: '!include ./luajit_programs_and_containers/building_blocks/knowledge_base/nats/mkdocs.yml'
+        - POSTGRES: '!include ./luajit_programs_and_containers/building_blocks/knowledge_base/postgres/mkdocs.yml'
+        - SQLITE3: '!include ./luajit_programs_and_containers/building_blocks/knowledge_base/sqlite3/mkdocs.yml'
+    - S_ENGINE: '!include ./luajit_programs_and_containers/building_blocks/s_expression/dsl_tests/mkdocs.yml'
+
+  - Zig SYSTEMS:
+    - Knowledge Base Operations:
+      - MQTT: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/mqtt/mkdocs.yml'
+      - NATS: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/nats/mkdocs.yml'
+      - POSTGRES: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/postgres/mkdocs.yml'
+      - SQLITE3: '!include ./zig_programs_and_containers/building_blocks/knowledge_base/sqlite3/mkdocs.yml'
