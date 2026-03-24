@@ -1,0 +1,97 @@
+{
+  "robot": "fll_runner",
+  "hub": "SPIKE_PRIME",
+  "protocol": "json_newline",
+  "transport": "ble_uart",
+  "menu_field": "run_select",
+
+  "chassis_ports": {
+    "drive_left": { "port": "A", "device": "MOTOR_L" },
+    "drive_right": { "port": "B", "device": "MOTOR_L" },
+    "line_sensor": { "port": "E", "device": "COLOR" },
+    "range_sensor": { "port": "F", "device": "ULTRASONIC" }
+  },
+
+  "drivebase": {
+    "left_motor": "A",
+    "right_motor": "B",
+    "wheel_diameter_mm": 56.0,
+    "axle_track_mm": 128.0
+  },
+
+  "jigs": {
+    "cargo_tray": {
+      "menu_id": 3,
+      "ports": {
+        "tray_lift": { "port": "C", "device": "MOTOR_M" }
+      },
+      "slots": [
+        "IS_TRAY_DONE",
+        "TRAY_STOP",
+        "TRAY_HOLD",
+        "TRAY_TO_ANGLE",
+        "TRAY_HOME",
+        "TRAY_DUMP"
+      ]
+    },
+    "gripper_arm": {
+      "menu_id": 2,
+      "ports": {
+        "arm_lift": { "port": "C", "device": "MOTOR_M" },
+        "gripper": { "port": "D", "device": "MOTOR_M" }
+      },
+      "slots": [
+        "IS_ARM_DONE",
+        "IS_GRIP_DONE",
+        "IS_ARM_STALLED",
+        "ARM_STOP",
+        "ARM_HOLD",
+        "GRIP_STOP",
+        "GRIP_HOLD",
+        "ARM_TO_ANGLE",
+        "ARM_HOME",
+        "GRIP_CLOSE",
+        "GRIP_OPEN"
+      ]
+    },
+    "pusher": {
+      "menu_id": 1,
+      "ports": {
+      },
+      "slots": [
+      ]
+    }
+  },
+
+  "base_bindings": {
+    "IS_ON_LINE": { "kind": "predicate", "rpc": false, "reads": "line_sensor.reflection", "compare": "lt" },
+    "IS_ON_WHITE": { "kind": "predicate", "rpc": false, "reads": "line_sensor.reflection", "compare": "gt" },
+    "IS_OBSTACLE_CLOSE": { "kind": "predicate", "rpc": false, "reads": "range_sensor.distance_mm", "compare": "lt" },
+    "IS_PATH_CLEAR": { "kind": "predicate", "rpc": false, "reads": "range_sensor.distance_mm", "compare": "gt" },
+    "IS_DRIVE_DONE": { "kind": "predicate", "rpc": false, "reads": "drivebase.done" },
+    "IS_DRIVE_STALLED": { "kind": "predicate", "rpc": false, "reads": "drivebase.stalled" },
+    "IS_IMU_READY": { "kind": "predicate", "rpc": false, "reads": "imu.ready" },
+    "IS_HEADING_AT": { "kind": "predicate", "rpc": false, "reads": "imu.heading", "compare": "near" },
+    "FAULT_BATTERY_LOW": { "kind": "predicate", "rpc": false, "reads": "system.battery_mv", "compare": "lt" },
+    "FAULT_BATTERY_CRIT": { "kind": "predicate", "rpc": false, "reads": "system.battery_mv", "compare": "lt" },
+    "FAULT_TILT": { "kind": "predicate", "rpc": false, "reads": "imu.pitch", "compare": "abs_gt" },
+    "FAULT_BUMP": { "kind": "predicate", "rpc": false, "reads": "_derived.bump_detected" },
+    "FAULT_COMM_TIMEOUT": { "kind": "predicate", "rpc": false, "reads": "_derived.comm_timeout" },
+    "STOP_ALL": { "kind": "oneshot", "rpc": true, "command": "stop_all" },
+    "BRAKE_ALL": { "kind": "oneshot", "rpc": true, "command": "brake_all" },
+    "RESET_DRIVEBASE": { "kind": "oneshot", "rpc": true, "command": "reset_drivebase" },
+    "RESET_HEADING": { "kind": "oneshot", "rpc": true, "command": "reset_heading" },
+    "EMERGENCY_STOP": { "kind": "oneshot", "rpc": true, "command": "emergency_stop" },
+    "READ_SENSORS": { "kind": "oneshot", "rpc": true, "command": "read_sensors" },
+    "DRIVE_STRAIGHT": { "kind": "main", "rpc": true, "command": "drive_straight", "params": ["distance_mm"] },
+    "DRIVE_TURN": { "kind": "main", "rpc": true, "command": "drive_turn", "params": ["angle_deg"] },
+    "DRIVE_CURVE": { "kind": "main", "rpc": true, "command": "drive_curve", "params": ["radius_mm", "angle_deg"] },
+    "DRIVE_TO_LINE": { "kind": "main", "rpc": true, "command": "drive_to_line" },
+    "LINE_FOLLOW": { "kind": "main", "rpc": true, "command": "line_follow", "params": ["distance_mm"] },
+    "WALL_RIDE": { "kind": "main", "rpc": true, "command": "wall_ride", "params": ["distance_mm", "wall_side"] },
+    "WAIT_SECONDS": { "kind": "main", "rpc": true, "command": "wait_seconds", "params": ["seconds"] },
+    "ALIGN_TO_WALL": { "kind": "main", "rpc": true, "command": "align_to_wall", "params": ["speed"] },
+    "BUMP_DETECT": { "kind": "main", "rpc": true, "command": "bump_detect" },
+    "SPLINE_FOLLOW": { "kind": "main", "rpc": true, "command": "spline_follow", "params": ["segment_count", "control_points"] }
+  }
+}

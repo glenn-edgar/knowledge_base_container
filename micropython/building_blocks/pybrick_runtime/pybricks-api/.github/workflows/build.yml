@@ -1,0 +1,47 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Build Python package and docs
+
+on: 
+  push:
+    tags-ignore:
+      - '**'
+  pull_request:
+    paths:
+      - doc/**
+      - src/**
+      - poetry.lock
+      - poetry.toml
+      - pyproject.toml
+      - setup.cfg
+
+
+jobs:
+  build:
+
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - name: Install dependencies
+      run: |
+        pip install poetry
+        poetry run python -m pip install --upgrade pip
+        poetry run python -m pip install --upgrade setuptools
+        poetry install
+    - name: Lint Python code
+      run: poetry run flake8
+    - name: Build package
+      run: poetry build
+    - name: Lint docs
+      run: poetry run doc8
+    - name: Build html docs for Read the Docs
+      run: poetry run make -C doc html
+    - name: Install IDE docs dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install dvisvgm preview-latex-style texlive texlive-fonts-extra texlive-latex-extra
+    - name: Build html docs for Pybricks Code IDE
+      run: poetry run make -C doc html TAG=ide

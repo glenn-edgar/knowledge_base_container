@@ -1,0 +1,80 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build movehub",
+            "type": "shell",
+            "command": "make movehub -j"
+        },
+        {
+            "label": "build and deploy primehub",
+            "type": "shell",
+            "command": "make",
+            "args": ["-j", "deploy"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}/bricks/primehub"
+              },
+            "problemMatcher": [
+                {
+                    "owner": "cpp",
+                    "fileLocation": ["relative", "${workspaceFolder}/bricks/primehub"],
+                    "pattern": {
+                        "regexp": "^(.*?):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                        "file": 1,
+                        "line": 2,
+                        "column": 3,
+                        "severity": 4,
+                        "message": 5
+                    }
+                }
+            ],
+            "detail": "Build the PrimeHub project"
+        },
+        {
+            "options": {
+                "cwd": "${workspaceFolder}/bricks/virtualhub"
+            },
+            "label": "build virtualhub (debug)",
+            "type": "shell",
+            "command": "make -C ../../micropython/mpy-cross -j && poetry run make DEBUG=1 BUILD=build-debug -j",
+        },
+        {
+            "label": "build test-pbio",
+            "type": "shell",
+            "command": "poetry run make -C lib/pbio/test DEBUG=1 -j"
+        },
+        {
+            "label": "build debug",
+            "type": "shell",
+            "command": "poetry run make -C bricks/debug DEBUG=1 build/firmware-base.bin -j"
+        },
+        {
+            "label": "Send SIGUSR1 to pybricks-virtualhub",
+            "type": "shell",
+            "command": "pkill -SIGUSR1 -f pybricks-virtualhub",
+            "problemMatcher": [],
+            "presentation": {
+                "close": true,
+            }
+        },
+        {
+            "label": "Run with mpremote",
+            "type": "shell",
+            "command": "mpremote run tests/ev3/basics.py",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>JSON Array Support - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_json_support/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_reading_debug_map/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="2"><a href="#array-handling" class="nav-link">Array Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h2 id="array-handling">Array Handling</h2>
+<h3 id="array-structure-in-binary-format">Array Structure in Binary Format</h3>
+<p>Arrays are stored as sequential values between <code>OPEN_ARRAY</code> and <code>CLOSE_ARRAY</code> tokens:</p>
+<pre><code>OPEN_ARRAY [brace_idx=N]
+  INT [value=10]
+  INT [value=20]
+  INT [value=30]
+  FLOAT [value=3.14]
+  OPEN_DICT [brace_idx=M]
+    ...nested dict...
+  CLOSE_DICT
+CLOSE_ARRAY
+</code></pre>
+<h3 id="dsl-array-syntax">DSL Array Syntax</h3>
+<p>Arrays in Lua tables are compiled directly:</p>
+<pre><code class="language-lua">local config = {
+    -- Simple array of integers
+    thresholds = {10, 20, 30, 40, 50},
+
+    -- Array of floats
+    calibration = {1.0, 1.5, 2.0, 2.5},
+
+    -- Mixed types (valid but less common)
+    mixed = {42, 3.14, &quot;label&quot;},
+
+    -- Array of dictionaries
+    zones = {
+        {id = 1, name = &quot;north&quot;, enabled = 1},
+        {id = 2, name = &quot;south&quot;, enabled = 0},
+        {id = 3, name = &quot;east&quot;, enabled = 1},
+    },
+
+    -- Nested arrays
+    matrix = {
+        {1, 2, 3},
+        {4, 5, 6},
+        {7, 8, 9},
+    }
+}
+</code></pre>
+<h3 id="accessing-arrays-via-path">Accessing Arrays via Path</h3>
+<p>Arrays can be accessed by index using numeric path segments:</p>
+<pre><code class="language-lua">-- Access array element by index (0-based in path)
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;thresholds.0&quot;, &quot;thresh_0&quot;)
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;thresholds.1&quot;, &quot;thresh_1&quot;)
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;thresholds.2&quot;, &quot;thresh_2&quot;)
+
+-- Access nested dict in array
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;zones.0.id&quot;, &quot;zone0_id&quot;)
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;zones.1.id&quot;, &quot;zone1_id&quot;)
+se_dict_extract_hash(&quot;config_ptr&quot;, &quot;zones.0.name&quot;, &quot;zone0_name_hash&quot;)
+
+-- Access nested array element
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;matrix.1.2&quot;, &quot;matrix_1_2&quot;)  -- row 1, col 2 = 6
+</code></pre>
+<h3 id="hash-path-array-access">Hash Path Array Access</h3>
+<p>For hash paths, use <code>SE_IDXH(n)</code> macro or numeric strings:</p>
+<pre><code class="language-lua">-- Using index in hash path
+se_dict_extract_int_h(&quot;config_ptr&quot;, {&quot;thresholds&quot;, &quot;0&quot;}, &quot;thresh_0&quot;)
+se_dict_extract_int_h(&quot;config_ptr&quot;, {&quot;zones&quot;, &quot;0&quot;, &quot;id&quot;}, &quot;zone0_id&quot;)
+se_dict_extract_int_h(&quot;config_ptr&quot;, {&quot;matrix&quot;, &quot;1&quot;, &quot;2&quot;}, &quot;matrix_1_2&quot;)
+</code></pre>
+<p>In C code:</p>
+<pre><code class="language-c">// Using SE_IDXH macro for array indices
+ct_int_t val = se_dicth_get_int(dict, 
+    (s_expr_hash_t[]){s_expr_hash(&quot;thresholds&quot;), SE_IDXH(0)}, 2, 0);
+
+// Or use SE_PATH macros
+ct_int_t val = se_dicth_get_int(dict, SE_PATH_H(&quot;zones&quot;, &quot;0&quot;, &quot;id&quot;), 0);
+</code></pre>
+<h3 id="runtime-array-iteration">Runtime Array Iteration</h3>
+<h4 id="string-path-library-se_dict_stringh">String-Path Library (se_dict_string.h)</h4>
+<pre><code class="language-c">// Get array from path
+const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, &quot;zones&quot;);
+if (!array) return;
+
+// Get array element count
+uint16_t count = se_dicts_array_count(array);
+printf(&quot;Array has %d elements\n&quot;, count);
+
+// Iterate array elements
+se_arrays_iter_t iter;
+se_arrays_iter_init(&amp;iter, array);
+
+const s_expr_param_t* value;
+uint16_t index;
+
+while (se_arrays_iter_next(&amp;iter, &amp;value, &amp;index)) {
+    // value points to current element
+    // index is 0-based position
+
+    uint8_t opcode = value-&gt;type &amp; S_EXPR_OPCODE_MASK;
+
+    if (opcode == S_EXPR_PARAM_INT) {
+        printf(&quot;[%d] = %d\n&quot;, index, (int)value-&gt;int_val);
+    } 
+    else if (opcode == S_EXPR_PARAM_OPEN_DICT) {
+        // Element is a nested dictionary - can navigate further
+        ct_int_t id = se_dicts_get_int(value, mod_def, &quot;id&quot;, -1);
+        printf(&quot;[%d].id = %d\n&quot;, index, (int)id);
+    }
+}
+
+// Reset iterator to start over
+se_arrays_iter_reset(&amp;iter);
+</code></pre>
+<h4 id="hash-path-library-se_dict_hashh">Hash-Path Library (se_dict_hash.h)</h4>
+<pre><code class="language-c">// Get array from path
+const s_expr_param_t* array = se_dicth_get_array(dict, SE_PATH_H(&quot;zones&quot;));
+if (!array) return;
+
+// Get element count
+uint16_t count = se_dicth_array_count(array);
+
+// Get specific element by index
+const s_expr_param_t* elem = se_dicth_array_get(array, 0);  // First element
+
+// Iterate array
+se_arrayh_iter_t iter;
+se_arrayh_iter_init(&amp;iter, array);
+
+const s_expr_param_t* value;
+uint16_t index;
+
+while (se_arrayh_iter_next(&amp;iter, &amp;value, &amp;index)) {
+    if (se_dicth_is_dict(value)) {
+        // Navigate into nested dict using hash path
+        ct_int_t id = se_dicth_get_int(value, SE_PATH_H1(&quot;id&quot;), 0);
+        printf(&quot;[%d].id = %d\n&quot;, index, (int)id);
+    }
+}
+</code></pre>
+<h3 id="built-in-array-helpers">Built-in Array Helpers</h3>
+<p>The standard helpers extract single values. For arrays, you have several options:</p>
+<h4 id="option-1-extract-elements-individually">Option 1: Extract Elements Individually</h4>
+<pre><code class="language-lua">RECORD(&quot;sensor_config&quot;)
+    PTR64_FIELD(&quot;config_ptr&quot;, &quot;void&quot;)
+    FIELD(&quot;cal_0&quot;, &quot;float&quot;)
+    FIELD(&quot;cal_1&quot;, &quot;float&quot;)
+    FIELD(&quot;cal_2&quot;, &quot;float&quot;)
+    FIELD(&quot;cal_3&quot;, &quot;float&quot;)
+END_RECORD()
+
+se_sequence(function()
+    se_load_dictionary(&quot;config_ptr&quot;, config)
+    se_dict_extract_float(&quot;config_ptr&quot;, &quot;calibration.0&quot;, &quot;cal_0&quot;)
+    se_dict_extract_float(&quot;config_ptr&quot;, &quot;calibration.1&quot;, &quot;cal_1&quot;)
+    se_dict_extract_float(&quot;config_ptr&quot;, &quot;calibration.2&quot;, &quot;cal_2&quot;)
+    se_dict_extract_float(&quot;config_ptr&quot;, &quot;calibration.3&quot;, &quot;cal_3&quot;)
+end)
+</code></pre>
+<h4 id="option-2-use-bulk-extraction">Option 2: Use Bulk Extraction</h4>
+<pre><code class="language-lua">se_dict_extract_all(&quot;config_ptr&quot;, {
+    {path = &quot;calibration.0&quot;, dest = &quot;cal_0&quot;, type = &quot;float&quot;},
+    {path = &quot;calibration.1&quot;, dest = &quot;cal_1&quot;, type = &quot;float&quot;},
+    {path = &quot;calibration.2&quot;, dest = &quot;cal_2&quot;, type = &quot;float&quot;},
+    {path = &quot;calibration.3&quot;, dest = &quot;cal_3&quot;, type = &quot;float&quot;},
+})
+</code></pre>
+<h4 id="option-3-create-custom-array-handler">Option 3: Create Custom Array Handler</h4>
+<p>For dynamic or large arrays, create a custom handler:</p>
+<p><strong>DSL Helper:</strong></p>
+<pre><code class="language-lua">function se_dict_extract_float_array(dict_field, array_path, base_field, count)
+    validate_field_is_ptr64(dict_field)
+
+    local call = o_call(&quot;USER_EXTRACT_FLOAT_ARRAY&quot;)
+        field_ref(dict_field)
+        str(array_path)
+        field_ref(base_field)  -- First field in contiguous block
+        int(count)
+    end_call(call)
+end
+</code></pre>
+<p><strong>C Implementation:</strong></p>
+<pre><code class="language-c">void user_extract_float_array(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    if (param_count &lt; 4) return;
+    if (!inst || !inst-&gt;blackboard) return;
+
+    // Get dictionary pointer
+    const s_expr_param_t* dict = get_dict_from_field(inst, &amp;params[0]);
+    if (!dict) return;
+
+    // Get path
+    const char* path = get_string(inst, &amp;params[1]);
+    if (!path) return;
+
+    // Get base field offset and count
+    uint16_t base_offset = params[2].field_offset;
+    uint16_t count = (uint16_t)params[3].int_val;
+
+    // Navigate to array
+    const s_expr_module_def_t* mod_def = inst-&gt;module ? inst-&gt;module-&gt;def : NULL;
+    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
+    if (!array) return;
+
+    // Extract elements into contiguous float fields
+    uint8_t* bb = (uint8_t*)inst-&gt;blackboard;
+    float* dest = (float*)(bb + base_offset);
+
+    se_arrays_iter_t iter;
+    se_arrays_iter_init(&amp;iter, array);
+
+    const s_expr_param_t* value;
+    uint16_t index;
+
+    while (se_arrays_iter_next(&amp;iter, &amp;value, &amp;index) &amp;&amp; index &lt; count) {
+        dest[index] = (float)se_dicts_param_float(value, 0.0f);
+    }
+}
+</code></pre>
+<p><strong>Usage:</strong></p>
+<pre><code class="language-lua">RECORD(&quot;sensor_data&quot;)
+    PTR64_FIELD(&quot;config_ptr&quot;, &quot;void&quot;)
+    -- Contiguous array of floats
+    FIELD(&quot;calibration&quot;, &quot;float&quot;, 8)  -- 8 floats
+END_RECORD()
+
+se_sequence(function()
+    se_load_dictionary(&quot;config_ptr&quot;, config)
+    -- Extract up to 8 floats starting at calibration field
+    se_dict_extract_float_array(&quot;config_ptr&quot;, &quot;sensors.calibration&quot;, &quot;calibration&quot;, 8)
+end)
+</code></pre>
+<h3 id="array-of-structures-pattern">Array of Structures Pattern</h3>
+<p>For arrays of dictionaries, a common pattern is to iterate and process each:</p>
+<p><strong>Configuration:</strong></p>
+<pre><code class="language-lua">local config = {
+    valves = {
+        {id = 1, pin = 10, timeout = 5000},
+        {id = 2, pin = 11, timeout = 3000},
+        {id = 3, pin = 12, timeout = 4000},
+    }
+}
+</code></pre>
+<p><strong>Custom Handler:</strong></p>
+<pre><code class="language-c">typedef struct {
+    uint32_t id;
+    uint32_t pin;
+    uint32_t timeout;
+} valve_config_t;
+
+void user_extract_valve_array(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    if (param_count &lt; 4) return;
+
+    const s_expr_param_t* dict = get_dict_from_field(inst, &amp;params[0]);
+    if (!dict) return;
+
+    const char* path = get_string(inst, &amp;params[1]);
+    if (!path) return;
+
+    uint16_t base_offset = params[2].field_offset;
+    uint16_t max_count = (uint16_t)params[3].int_val;
+
+    const s_expr_module_def_t* mod_def = inst-&gt;module ? inst-&gt;module-&gt;def : NULL;
+    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
+    if (!array) return;
+
+    uint8_t* bb = (uint8_t*)inst-&gt;blackboard;
+    valve_config_t* valves = (valve_config_t*)(bb + base_offset);
+
+    se_arrays_iter_t iter;
+    se_arrays_iter_init(&amp;iter, array);
+
+    const s_expr_param_t* elem;
+    uint16_t index;
+
+    while (se_arrays_iter_next(&amp;iter, &amp;elem, &amp;index) &amp;&amp; index &lt; max_count) {
+        if (!se_dicts_is_dict(elem)) continue;
+
+        valves[index].id = (uint32_t)se_dicts_get_uint(elem, mod_def, &quot;id&quot;, 0);
+        valves[index].pin = (uint32_t)se_dicts_get_uint(elem, mod_def, &quot;pin&quot;, 0);
+        valves[index].timeout = (uint32_t)se_dicts_get_uint(elem, mod_def, &quot;timeout&quot;, 0);
+    }
+}
+</code></pre>
+<h3 id="array-functions-summary">Array Functions Summary</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Library</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_dicts_get_array()</code></td>
+<td>string</td>
+<td>Get array param by path</td>
+</tr>
+<tr>
+<td><code>se_dicts_array_count()</code></td>
+<td>string</td>
+<td>Count elements in array</td>
+</tr>
+<tr>
+<td><code>se_dicts_array_get()</code></td>
+<td>string</td>
+<td>Get element by index</td>
+</tr>
+<tr>
+<td><code>se_arrays_iter_init()</code></td>
+<td>string</td>
+<td>Initialize array iterator</td>
+</tr>
+<tr>
+<td><code>se_arrays_iter_next()</code></td>
+<td>string</td>
+<td>Get next element</td>
+</tr>
+<tr>
+<td><code>se_arrays_iter_reset()</code></td>
+<td>string</td>
+<td>Reset iterator to start</td>
+</tr>
+<tr>
+<td><code>se_dicth_get_array()</code></td>
+<td>hash</td>
+<td>Get array param by hash path</td>
+</tr>
+<tr>
+<td><code>se_dicth_array_count()</code></td>
+<td>hash</td>
+<td>Count elements in array</td>
+</tr>
+<tr>
+<td><code>se_dicth_array_get()</code></td>
+<td>hash</td>
+<td>Get element by index</td>
+</tr>
+<tr>
+<td><code>se_arrayh_iter_init()</code></td>
+<td>hash</td>
+<td>Initialize array iterator</td>
+</tr>
+<tr>
+<td><code>se_arrayh_iter_next()</code></td>
+<td>hash</td>
+<td>Get next element</td>
+</tr>
+<tr>
+<td><code>se_arrayh_iter_reset()</code></td>
+<td>hash</td>
+<td>Reset iterator to start</td>
+</tr>
+</tbody>
+</table></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

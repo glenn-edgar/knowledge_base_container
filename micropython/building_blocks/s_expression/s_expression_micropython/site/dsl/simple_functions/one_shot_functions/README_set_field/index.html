@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../../img/favicon.ico">
+        <title>Set Field - S-Expression Engine -- MicroPython</title>
+        <link href="../../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_se_log/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../predicate_functions/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_set_field-blackboard-field-setter-oneshot" class="nav-link">SE_SET_FIELD - Blackboard Field Setter Oneshot</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#variants" class="nav-link">Variants</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#parameters" class="nav-link">Parameters</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#behavior" class="nav-link">Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lua-dsl" class="nav-link">Lua DSL</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-examples" class="nav-link">Usage Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#accessing-event-data-via-field-offset" class="nav-link">Accessing Event Data via Field Offset</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#record-definition" class="nav-link">Record Definition</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#se_set_field-vs-se_i_set_field" class="nav-link">se_set_field vs se_i_set_field</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-other-field-functions" class="nav-link">Comparison with Other Field Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#implementation-notes" class="nav-link">Implementation Notes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="se_set_field-blackboard-field-setter-oneshot">SE_SET_FIELD - Blackboard Field Setter Oneshot</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_set_field</code> is a ONESHOT function that sets a blackboard field to a specified value. It supports integers, unsigned integers, floats, and string hashes - all 32-bit values that can be stored in the same field.</p>
+<h2 id="variants">Variants</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_set_field</code></td>
+<td>Normal oneshot - fires once per tree cycle</td>
+</tr>
+<tr>
+<td><code>se_i_set_field</code></td>
+<td>IO oneshot - survives tree reset, fires once ever</td>
+</tr>
+</tbody>
+</table>
+<p>Use <code>se_i_set_field</code> for initialization that should only happen once, even if the tree resets.</p>
+<h2 id="parameters">Parameters</h2>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>target_field</code></td>
+<td>field_ref</td>
+<td>Blackboard field to set</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td>int/uint/float/string</td>
+<td>Value to assign</td>
+</tr>
+</tbody>
+</table>
+<h3 id="value-type-handling">Value Type Handling</h3>
+<p>The Lua DSL automatically determines the parameter type:</p>
+<pre><code class="language-lua">local function emit_typed_value(value)
+    local t = type(value)
+    if t == &quot;number&quot; then
+        if math.floor(value) == value then
+            if value &lt; 0 then
+                int(value)   -- Negative integer
+            else
+                uint(value)  -- Non-negative integer
+            end
+        else
+            flt(value)       -- Floating point
+        end
+    elseif t == &quot;string&quot; then
+        str_hash(value)      -- String becomes hash
+    elseif t == &quot;boolean&quot; then
+        uint(value and 1 or 0)  -- Boolean as 0/1
+    end
+end
+</code></pre>
+<h2 id="behavior">Behavior</h2>
+<p>As a ONESHOT function:
+- Fires <strong>once</strong> when invoked
+- Completes <strong>immediately</strong> (same tick)
+- Writes directly to blackboard memory</p>
+<h3 id="c-implementation">C Implementation</h3>
+<pre><code class="language-c">static void se_set_field(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    (void)event_type; (void)event_id; (void)event_data;
+
+    if (param_count &lt; 2) return;
+
+    int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &amp;params[0], int32_t);
+    if (!field_ptr) return;
+    *field_ptr = (int32_t)params[1].int_val;
+}
+</code></pre>
+<p><strong>Note</strong>: The function treats all values as 32-bit and writes via <code>int_val</code>. This works because:
+- <code>int_val</code>, <code>uint_val</code>, <code>float_val</code> share the same memory location in the parameter union
+- All are 32-bit values
+- The blackboard field receives the raw 32 bits</p>
+<h2 id="lua-dsl">Lua DSL</h2>
+<h3 id="integer-values">Integer Values</h3>
+<pre><code class="language-lua">se_set_field(&quot;counter&quot;, 42)      -- Positive → uint
+se_set_field(&quot;offset&quot;, -10)      -- Negative → int
+se_i_set_field(&quot;state&quot;, 0)       -- Initialization (survives reset)
+</code></pre>
+<h3 id="float-values">Float Values</h3>
+<pre><code class="language-lua">se_set_field(&quot;temperature&quot;, 98.6)
+se_set_field(&quot;sensor_reading&quot;, 3.14159)
+</code></pre>
+<h3 id="string-hashes">String Hashes</h3>
+<pre><code class="language-lua">se_set_field(&quot;current_mode&quot;, &quot;IDLE&quot;)     -- Hash of &quot;IDLE&quot;
+se_set_field(&quot;status&quot;, &quot;RUNNING&quot;)        -- Hash of &quot;RUNNING&quot;
+</code></pre>
+<h3 id="boolean-values">Boolean Values</h3>
+<pre><code class="language-lua">se_set_field(&quot;enabled&quot;, true)   -- Stored as 1
+se_set_field(&quot;active&quot;, false)   -- Stored as 0
+</code></pre>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="state-machine-transitions">State Machine Transitions</h3>
+<pre><code class="language-lua">se_case(0, function()
+    se_sequence(function()
+        se_log(&quot;State 0&quot;)
+        se_tick_delay(10)
+        se_set_field(&quot;state&quot;, 1)  -- Transition to state 1
+        se_return_pipeline_disable()
+    end)
+end)
+</code></pre>
+<h3 id="event-data-setup">Event Data Setup</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    se_log(&quot;Generating event&quot;)
+    se_tick_delay(20)
+
+    -- Set event data before queuing
+    se_set_field(&quot;event_data_1&quot;, 1.1)
+    se_set_field(&quot;event_data_2&quot;, 2.2)
+
+    se_queue_event(USER_EVENT_TYPE, USER_EVENT_1, &quot;event_data_1&quot;)
+    se_queue_event(USER_EVENT_TYPE, USER_EVENT_2, &quot;event_data_2&quot;)
+
+    se_return_pipeline_reset()
+end)
+</code></pre>
+<h3 id="initialization-io-variant">Initialization (IO Variant)</h3>
+<pre><code class="language-lua">se_function_interface(function()
+    -- These only fire once, even if tree resets
+    se_i_set_field(&quot;state&quot;, 0)
+    se_i_set_field(&quot;counter&quot;, 0)
+    se_i_set_field(&quot;mode&quot;, &quot;IDLE&quot;)
+
+    se_state_machine(&quot;state&quot;, cases)
+end)
+</code></pre>
+<h2 id="accessing-event-data-via-field-offset">Accessing Event Data via Field Offset</h2>
+<p>When events are queued with <code>se_queue_event</code>, the <code>event_data</code> contains the <strong>field offset</strong>. Here's how to access it in a user-defined oneshot:</p>
+<pre><code class="language-c">void display_event_info(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(params); UNUSED(param_count);
+    UNUSED(event_type); UNUSED(event_id); UNUSED(event_data);
+
+    // Skip regular ticks - only process user events
+    if (event_id == SE_EVENT_TICK) {
+        return;
+    }
+
+    printf(&quot;[display_event_info] Event type: %d, Event ID: %d\n&quot;, 
+           event_type, event_id);
+
+    // event_data is the field offset (cast from void*)
+    uint16_t offset = (uint16_t)(size_t)event_data;
+    printf(&quot;[display_event_info] Field offset: %d\n&quot;, offset);
+
+    // Access the actual value in the blackboard
+    float* value = (float*)((uint8_t*)inst-&gt;blackboard + offset);
+    printf(&quot;[display_event_info] Value: %f\n&quot;, *value);
+}
+</code></pre>
+<h3 id="key-pattern-offset-to-pointer">Key Pattern: Offset to Pointer</h3>
+<pre><code class="language-c">// Generic pattern to access event data
+uint16_t offset = (uint16_t)(size_t)event_data;
+void* field_ptr = (uint8_t*)inst-&gt;blackboard + offset;
+
+// Cast to appropriate type
+int32_t* as_int = (int32_t*)field_ptr;
+float* as_float = (float*)field_ptr;
+uint32_t* as_uint = (uint32_t*)field_ptr;
+</code></pre>
+<h2 id="record-definition">Record Definition</h2>
+<p>Fields must be defined in the blackboard record:</p>
+<pre><code class="language-lua">RECORD(&quot;my_blackboard&quot;)
+    FIELD(&quot;state&quot;, &quot;int32&quot;)
+    FIELD(&quot;counter&quot;, &quot;int32&quot;)
+    FIELD(&quot;temperature&quot;, &quot;float&quot;)
+    FIELD(&quot;mode_hash&quot;, &quot;uint32&quot;)
+    FIELD(&quot;event_data_1&quot;, &quot;float&quot;)
+    FIELD(&quot;event_data_2&quot;, &quot;float&quot;)
+END_RECORD()
+</code></pre>
+<h2 id="se_set_field-vs-se_i_set_field">se_set_field vs se_i_set_field</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_set_field</code></th>
+<th><code>se_i_set_field</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DSL call</td>
+<td><code>o_call</code></td>
+<td><code>io_call</code></td>
+</tr>
+<tr>
+<td>Flag</td>
+<td>Normal oneshot</td>
+<td><code>SURVIVES_RESET</code> (0x40)</td>
+</tr>
+<tr>
+<td>Fires</td>
+<td>Once per tree activation</td>
+<td>Once ever</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td>Runtime updates</td>
+<td>Initialization</td>
+</tr>
+</tbody>
+</table>
+<h3 id="when-tree-resets">When Tree Resets</h3>
+<pre><code class="language-lua">se_function_interface(function()
+    se_i_set_field(&quot;init_value&quot;, 100)  -- Fires once, never again
+    se_set_field(&quot;runtime_value&quot;, 0)   -- Fires each time tree starts
+
+    se_chain_flow(function()
+        -- ...
+        se_return_pipeline_reset()  -- Tree resets here
+    end)
+end)
+</code></pre>
+<p>After <code>se_return_pipeline_reset()</code>:
+- <code>se_i_set_field</code> does NOT fire again
+- <code>se_set_field</code> fires again</p>
+<h2 id="error-handling">Error Handling</h2>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Missing parameters</td>
+<td>Returns silently</td>
+</tr>
+<tr>
+<td>Invalid field reference</td>
+<td>Returns silently (NULL check)</td>
+</tr>
+<tr>
+<td>Wrong field type</td>
+<td>Writes raw 32 bits (may cause issues)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="comparison-with-other-field-functions">Comparison with Other Field Functions</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Purpose</th>
+<th>Parameters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_set_field</code></td>
+<td>Set field to constant value</td>
+<td>field_ref, value</td>
+</tr>
+<tr>
+<td><code>se_i_set_field</code></td>
+<td>Set field once (survives reset)</td>
+<td>field_ref, value</td>
+</tr>
+<tr>
+<td><code>se_copy_field</code></td>
+<td>Copy one field to another</td>
+<td>dest_field, src_field</td>
+</tr>
+<tr>
+<td><code>field_ref</code></td>
+<td>Reference field (for other functions)</td>
+<td>field_name</td>
+</tr>
+</tbody>
+</table>
+<h2 id="implementation-notes">Implementation Notes</h2>
+<p>The function uses <code>S_EXPR_GET_FIELD</code> macro to get a typed pointer:</p>
+<pre><code class="language-c">int32_t* field_ptr = S_EXPR_GET_FIELD(inst, &amp;params[0], int32_t);
+</code></pre>
+<p>This macro:
+1. Extracts the field offset from the parameter
+2. Adds it to the blackboard base address
+3. Returns a typed pointer</p>
+<p>All 32-bit value types (int32, uint32, float, hash) can be written through the same <code>int32_t*</code> pointer because they occupy the same memory size.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../../js/base.js"></script>
+        <script src="../../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

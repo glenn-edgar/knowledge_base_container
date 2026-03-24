@@ -1,0 +1,16 @@
+[submodule "micropython"]
+	path = micropython
+	url = https://github.com/pybricks/micropython
+	branch = pybricks-v3.x
+[submodule "lib/btstack"]
+	path = lib/btstack
+	url = https://github.com/bluekitchen/btstack
+	update = none
+[submodule "lib/STM32_USB_Device_Library"]
+	path = lib/STM32_USB_Device_Library
+	url = https://github.com/STMicroelectronics/stm32_mw_usb_device.git
+	update = none
+[submodule "lib/umm_malloc"]
+	path = lib/umm_malloc
+	url = https://github.com/rhempel/umm_malloc.git
+	update = none

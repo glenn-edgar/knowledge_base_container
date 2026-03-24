@@ -10138,7 +10138,7 @@ end_tree(&quot;my_tree&quot;)
 <li>Parameter marshalling (<code>push_one_param</code>, <code>push_params_table</code>) that converts the C <code>s_expr_param_t</code> array into a Lua table with type-appropriate fields per opcode</li>
 <li>Instance userdata with a metatable providing blackboard access methods</li>
 <li>A Lua-side registry (<code>se_bridge</code> global) with a <code>register()</code> function</li>
-<li>Three trampoline functions (oneshot, main, pred) that look up Lua functions by hash and dispatch</li>
+<li>Three trampoline functions (oneshot, main, pred) that look up Lua functions by hash and dispatch with six arguments: inst userdata, params table, event_type, event_id, event_data (light userdata), and raw C params pointer (light userdata)</li>
 </ul>
 <h3 id="lua-state-wiring">Lua State Wiring</h3>
 <p>The <code>lua_State*</code> pointer is stored in the allocator context field, which propagates through the module to every tree instance:</p>
@@ -10230,14 +10230,39 @@ mod-&gt;oneshot_fns[func_idx](inst, args, arg_count, event_type, event_id, event
 <td>Get tree node count</td>
 </tr>
 <tr>
+<td><code>dict_extract_str</code></td>
+<td><code>inst:dict_extract_str(dict_off, path, dest_off, type)</code></td>
+<td>Generic string-path extraction (type: "int"/"uint"/"float"/"bool"/"hash")</td>
+</tr>
+<tr>
+<td><code>dict_extract_keys</code></td>
+<td><code>inst:dict_extract_keys(dict_off, keys, dest_off, type)</code></td>
+<td>Generic hash-path extraction (type: "int"/"uint"/"float"/"bool"/"hash")</td>
+</tr>
+<tr>
 <td><code>dict_extract_hash_str</code></td>
 <td><code>inst:dict_extract_hash_str(dict_off, path, dest_off)</code></td>
-<td>String-path dict hash extraction</td>
+<td>String-path dict hash extraction (hash type only)</td>
 </tr>
 <tr>
 <td><code>dict_extract_hash_keys</code></td>
 <td><code>inst:dict_extract_hash_keys(dict_off, keys, dest_off)</code></td>
-<td>Hash-path dict hash extraction</td>
+<td>Hash-path dict hash extraction (hash type only)</td>
+</tr>
+<tr>
+<td><code>dict_store_ptr_str</code></td>
+<td><code>inst:dict_store_ptr_str(dict_off, path, dest_off)</code></td>
+<td>Resolve string path, store pointer in PTR64 field</td>
+</tr>
+<tr>
+<td><code>dict_store_ptr_keys</code></td>
+<td><code>inst:dict_store_ptr_keys(dict_off, keys, dest_off)</code></td>
+<td>Resolve hash path, store pointer in PTR64 field</td>
+</tr>
+<tr>
+<td><code>store_raw_param_ptr</code></td>
+<td><code>inst:store_raw_param_ptr(raw_params, index, dest_off)</code></td>
+<td>Store C param address into PTR64 (for dict loading)</td>
 </tr>
 </tbody>
 </table>
@@ -10279,14 +10304,15 @@ end
 </code></pre>
 <p>Then register functions by hash and type:</p>
 <pre><code class="language-lua">bridge.register(fnv1a_32(&quot;MY_FUNCTION_NAME&quot;), &quot;oneshot&quot;,
-    function(inst, params, event_type, event_id, event_data)
+    function(inst, params, event_type, event_id, event_data, raw_params)
         -- function body
+        -- raw_params is light userdata; most functions ignore it
     end
 )
 </code></pre>
 <p>The string passed to <code>fnv1a_32()</code> must exactly match the name used in the DSL declaration and tree calls. Case matters.</p>
 <h3 id="function-signatures">Function Signatures</h3>
-<p>All three function types receive the same five arguments:</p>
+<p>All three function types receive the same six arguments:</p>
 <table>
 <thead>
 <tr>
@@ -10321,8 +10347,14 @@ end
 <td>light userdata</td>
 <td>Opaque pointer from C (pass back to inst methods)</td>
 </tr>
+<tr>
+<td><code>raw_params</code></td>
+<td>light userdata</td>
+<td>Raw C param array pointer (for store_raw_param_ptr)</td>
+</tr>
 </tbody>
 </table>
+<p>The sixth argument (<code>raw_params</code>) is a light userdata pointing to the original C <code>s_expr_param_t</code> array. Most functions ignore it. It is only needed by dictionary loading functions that must store a pointer into the compiled binary param stream via <code>inst:store_raw_param_ptr()</code>.</p>
 <p>Return values differ by type:</p>
 <ul>
 <li><strong>Oneshot</strong>: No return value (void)</li>
@@ -10363,7 +10395,7 @@ local ival = inst:read_i32_ptr(event_data)
 <h3 id="blackboard-access">Blackboard Access</h3>
 <p>Read and write blackboard fields using byte offsets from the param's <code>field_offset</code>:</p>
 <pre><code class="language-lua">bridge.register(fnv1a_32(&quot;MY_HANDLER&quot;), &quot;main&quot;,
-    function(inst, params, event_type, event_id, event_data)
+    function(inst, params, event_type, event_id, event_data, raw_params)
         -- params[1] is a FIELD ref to &quot;sensor_value&quot;
         local offset = params[1].field_offset
         local current = inst:read_f32(offset)
@@ -10377,14 +10409,21 @@ local ival = inst:read_i32_ptr(event_data)
 )
 </code></pre>
 <h3 id="dictionary-navigation">Dictionary Navigation</h3>
-<p>Lua functions can navigate compiled dictionary structures without heap allocation:</p>
-<pre><code class="language-lua">-- String-path lookup: reads PTR64 dict from blackboard, navigates by dot path
-inst:dict_extract_hash_str(dict_field_offset, &quot;path.to.key&quot;, dest_field_offset)
+<p>Lua functions can navigate compiled dictionary structures without heap allocation. The bridge provides generic typed extraction and pointer storage methods that wrap the C dictionary APIs:</p>
+<pre><code class="language-lua">-- Generic string-path extraction (type = &quot;int&quot;|&quot;uint&quot;|&quot;float&quot;|&quot;bool&quot;|&quot;hash&quot;)
+inst:dict_extract_str(dict_field_offset, &quot;path.to.key&quot;, dest_field_offset, &quot;float&quot;)
 
--- Hash-path lookup: same but with pre-computed hash keys
-inst:dict_extract_hash_keys(dict_field_offset, {hash1, hash2}, dest_field_offset)
+-- Generic hash-path extraction
+inst:dict_extract_keys(dict_field_offset, {hash1, hash2}, dest_field_offset, &quot;int&quot;)
+
+-- Store pointer to resolved sub-dictionary in a PTR64 field
+inst:dict_store_ptr_str(dict_field_offset, &quot;path.to.subdict&quot;, dest_ptr_offset)
+inst:dict_store_ptr_keys(dict_field_offset, {hash1, hash2}, dest_ptr_offset)
+
+-- Store raw param stream pointer (for dictionary loading)
+inst:store_raw_param_ptr(raw_params, param_index, dest_ptr_offset)
 </code></pre>
-<p>These methods call into the C dictionary navigation code (<code>se_dict_string.h</code>, <code>se_dict_hash.h</code>) and write results directly to the blackboard. The dictionary binary data stays in flash ROM throughout.</p>
+<p>These methods call into the C dictionary navigation code (<code>se_dict_string.h</code>, <code>se_dict_hash.h</code>) and write results directly to the blackboard. The dictionary binary data stays in flash ROM throughout. The Lua function never sees the binary format — it passes offsets and paths, and C does the traversal.</p>
 <hr />
 <h2 id="test-applications">Test Applications</h2>
 <h3 id="dispatch-test">Dispatch Test</h3>
@@ -10397,8 +10436,19 @@ inst:dict_extract_hash_keys(dict_field_offset, {hash1, hash2}, dest_field_offset
 <p>Demonstrates Lua functions within a state machine. <code>CFL_DISABLE_CHILDREN</code> and <code>CFL_ENABLE_CHILD</code> are declared as Lua oneshots. The state machine cycles through states 0→1→2→0, with each state transition disabling all children and enabling one via the Lua functions.</p>
 <p>Key validation: Lua functions work correctly in the context of state transitions, where node enable/disable state management must remain consistent across ticks.</p>
 <h3 id="json-dictionary-test">JSON Dictionary Test</h3>
-<p>Demonstrates Lua functions performing dictionary navigation. Two Lua oneshots (<code>LUA_DICT_EXTRACT_HASH</code> and <code>LUA_DICT_EXTRACT_HASH_H</code>) replace the C builtins for hash extraction from string-keyed and hash-keyed dictionaries. The Lua functions parse the param stream to extract field offsets and path keys, then call <code>inst:dict_extract_hash_str()</code> and <code>inst:dict_extract_hash_keys()</code> which wrap the C dictionary navigation.</p>
-<p>Key validation: Lua functions produce identical hash extraction results to the C builtins across five passes (string paths, hash paths, array access, string pointer extraction, hash pointer extraction). Dictionary data remains in flash ROM with zero heap allocation.</p>
+<p>Demonstrates complete dictionary operation replacement — every <code>SE_DICT_*</code> and <code>SE_LOAD_DICTIONARY</code> C builtin replaced with a Lua implementation. Fourteen Lua oneshot functions cover the full dictionary API: loading (string-keyed and hash-keyed), typed extraction (int, uint, float, bool, hash) for both string paths and hash paths, and pointer storage for both path variants.</p>
+<p>The Lua functions access both dictionary formats compiled into flash:</p>
+<ul>
+<li>
+<p><strong>String-keyed dictionaries</strong> (<code>json()</code> in DSL) — navigated via <code>inst:dict_extract_str()</code> and <code>inst:dict_store_ptr_str()</code>, which wrap <code>se_dicts_resolve()</code> from the C string dictionary API. Dot-separated paths like <code>"integers.nested.deep.value"</code> are resolved at runtime without string allocation.</p>
+</li>
+<li>
+<p><strong>Hash-keyed dictionaries</strong> (<code>json_hash()</code> in DSL) — navigated via <code>inst:dict_extract_keys()</code> and <code>inst:dict_store_ptr_keys()</code>, which wrap <code>se_dicth_resolve()</code> from the C hash dictionary API. Pre-computed FNV-1a hash arrays provide O(n) key lookup with zero string comparison.</p>
+</li>
+</ul>
+<p>The test runs five passes: string-path scalar extraction, hash-path scalar extraction, array element access by index, string-path pointer storage with sub-dictionary extraction, and hash-path pointer storage with sub-dictionary extraction. Each pass verifies extracted values against known expected results.</p>
+<p>The dictionary loading functions (<code>LUA_LOAD_DICTIONARY</code>, <code>LUA_LOAD_DICTIONARY_HASH</code>) use the raw C param pointer — the sixth trampoline argument — to store the address of the compiled dictionary structure directly into a blackboard PTR64 field via <code>inst:store_raw_param_ptr()</code>. This is the only operation that requires the raw param pointer; all subsequent extraction and pointer storage operations work through the PTR64 field.</p>
+<p>Key validation: all 36 extraction results match the C builtin outputs exactly. Both string-keyed and hash-keyed dictionary formats are fully accessible from Lua. Dictionary data compiled from Lua tables at build time remains in flash ROM with zero heap allocation during navigation. The Lua functions never construct tables to hold dictionary content — they parse the param stream, call C bridge methods, and C writes results directly to the blackboard.</p>
 <hr />
 <h2 id="memory-model">Memory Model</h2>
 <table>

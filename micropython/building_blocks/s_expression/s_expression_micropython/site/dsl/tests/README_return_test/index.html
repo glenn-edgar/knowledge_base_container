@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Return Codes - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_test_overview/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../black_board/README_test_overview/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            
+            
+            <li class="nav-item" data-bs-level="2"><a href="#runtime-interface" class="nav-link">Runtime Interface</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#test-execution-flow" class="nav-link">Test Execution Flow</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#test-cases" class="nav-link">Test Cases</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#debug-output" class="nav-link">Debug Output</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#result-code-reference" class="nav-link">Result Code Reference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="2"><a href="#building-and-running" class="nav-link">Building and Running</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<pre><code class="language-markdown"># S_Engine Return Code Tests
+
+## Overview
+
+This test suite validates the S_Engine's return code system by defining minimal trees that return each possible result code. The tests verify that return codes propagate correctly from DSL source through compilation to runtime execution.
+
+## Return Code Architecture
+
+The S_Engine uses a symmetric 3-tier return code system with 6 codes per tier:
+
+| Code | Application (0-5) | Function (6-11) | Pipeline (12-17) |
+|------|-------------------|-----------------|------------------|
+| CONTINUE | 0 | 6 | 12 |
+| HALT | 1 | 7 | 13 |
+| TERMINATE | 2 | 8 | 14 |
+| RESET | 3 | 9 | 15 |
+| DISABLE | 4 | 10 | 16 |
+| SKIP_CONTINUE | 5 | 11 | 17 |
+
+This design enables simple layer/code extraction: `base_code = result % 6`, `layer = result / 6`.
+
+## Test Structure
+
+### DSL Source (Lua)
+```lua
+local M = require(&quot;s_expr_dsl&quot;)
+local mod = start_module(&quot;return_tests&quot;)
+use_32bit()
+set_debug(true)
+
+-- Application result codes (0-5)
+start_tree(&quot;return_continue_test&quot;)
+    se_return_continue()
+end_tree(&quot;return_continue_test&quot;)
+
+start_tree(&quot;return_halt_test&quot;)
+    se_return_halt()
+end_tree(&quot;return_halt_test&quot;)
+
+start_tree(&quot;return_terminate_test&quot;)
+    se_return_terminate()
+end_tree(&quot;return_terminate_test&quot;)
+
+start_tree(&quot;return_reset_test&quot;)
+    se_return_reset()
+end_tree(&quot;return_reset_test&quot;)
+
+start_tree(&quot;return_disable_test&quot;)
+    se_return_disable()
+end_tree(&quot;return_disable_test&quot;)
+
+start_tree(&quot;return_skip_continue_test&quot;)
+    se_return_skip_continue()
+end_tree(&quot;return_skip_continue_test&quot;)
+
+-- Function result codes (6-11)
+start_tree(&quot;return_function_continue_test&quot;)
+    se_return_function_continue()
+end_tree(&quot;return_function_continue_test&quot;)
+
+-- ... additional trees for each return code ...
+
+local result = end_module(mod)
+</code></pre>
+<p>Each tree contains a single node that immediately returns a specific result code. This isolates the return code mechanism from any composite node logic.</p>
+<h3 id="generated-outputs">Generated Outputs</h3>
+<p>The DSL compiler produces:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>return_tests_32.bin</code></td>
+<td>Binary module for file-based loading</td>
+</tr>
+<tr>
+<td><code>return_tests_bin_32.h</code></td>
+<td>C header with embedded binary (ROM loading)</td>
+</tr>
+<tr>
+<td><code>return_tests.h</code></td>
+<td>Tree hash definitions for lookup</td>
+</tr>
+<tr>
+<td><code>return_tests_user_functions.h</code></td>
+<td>User function stubs (if any)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tree-hash-definitions">Tree Hash Definitions</h3>
+<pre><code class="language-c">// From return_tests.h
+
+// Application result code trees
+#define RETURN_CONTINUE_TEST_HASH                0x...
+#define RETURN_HALT_TEST_HASH                    0x...
+#define RETURN_TERMINATE_TEST_HASH               0x...
+#define RETURN_RESET_TEST_HASH                   0x...
+#define RETURN_DISABLE_TEST_HASH                 0x...
+#define RETURN_SKIP_CONTINUE_TEST_HASH           0x...
+
+// Function result code trees
+#define RETURN_FUNCTION_CONTINUE_TEST_HASH       0x...
+#define RETURN_FUNCTION_HALT_TEST_HASH           0x...
+#define RETURN_FUNCTION_TERMINATE_TEST_HASH      0x...
+#define RETURN_FUNCTION_RESET_TEST_HASH          0x...
+#define RETURN_FUNCTION_DISABLE_TEST_HASH        0x...
+#define RETURN_FUNCTION_SKIP_CONTINUE_TEST_HASH  0x...
+
+// Pipeline result code trees
+#define RETURN_PIPELINE_CONTINUE_TEST_HASH       0x...
+#define RETURN_PIPELINE_HALT_TEST_HASH           0x...
+#define RETURN_PIPELINE_TERMINATE_TEST_HASH      0x...
+#define RETURN_PIPELINE_RESET_TEST_HASH          0x...
+#define RETURN_PIPELINE_DISABLE_TEST_HASH        0x...
+#define RETURN_PIPELINE_SKIP_CONTINUE_TEST_HASH  0x...
+</code></pre>
+<p>Trees are identified by FNV-1a hashes of their names, enabling O(1) lookup without string comparison.</p>
+<hr />
+<h2 id="runtime-interface">Runtime Interface</h2>
+<h3 id="engine-initialization">Engine Initialization</h3>
+<p>The S_Engine provides two general-purpose loading functions:</p>
+<p><strong>Function Signatures</strong></p>
+<pre><code class="language-c">typedef void (*s_engine_user_register_fn)(s_engine_handle_t* engine);
+typedef void (*s_engine_debug_callback_fn)(s_expr_tree_instance_t* inst, const char* msg);
+
+bool s_engine_load_from_file(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const char* filepath,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+);
+
+bool s_engine_load_from_rom(
+    s_engine_handle_t* engine,
+    s_expr_allocator_t* alloc,
+    const uint8_t* binary_data,
+    size_t binary_size,
+    s_engine_debug_callback_fn debug_cb,
+    size_t user_fn_count,
+    s_engine_user_register_fn* user_fns
+);
+</code></pre>
+<p><strong>ROM Loading (Embedded Binary)</strong></p>
+<pre><code class="language-c">#include &quot;return_tests_bin_32.h&quot;
+
+bool result = s_engine_load_from_rom(
+    &amp;engine,
+    &amp;alloc,
+    return_tests_module_bin_32,
+    RETURN_TESTS_MODULE_BIN_32_SIZE,
+    debug_callback,
+    0,      // No user functions
+    NULL
+);
+</code></pre>
+<p>Used for embedded systems where the module is compiled into flash.</p>
+<p><strong>File Loading</strong></p>
+<pre><code class="language-c">bool result = s_engine_load_from_file(
+    &amp;engine,
+    &amp;alloc,
+    &quot;return_tests_32.bin&quot;,
+    debug_callback,
+    0,      // No user functions
+    NULL
+);
+</code></pre>
+<p>Used for development or systems with filesystem access.</p>
+<p><strong>With User Functions</strong></p>
+<pre><code class="language-c">s_engine_user_register_fn user_fns[] = {
+    register_sensor_functions,
+    register_motor_functions,
+    register_protocol_functions
+};
+
+bool result = s_engine_load_from_file(
+    &amp;engine,
+    &amp;alloc,
+    &quot;robot_controller.bin&quot;,
+    debug_callback,
+    3,
+    user_fns
+);
+</code></pre>
+<h3 id="allocator-interface">Allocator Interface</h3>
+<p>The S_Engine uses a pluggable allocator for all dynamic memory:</p>
+<pre><code class="language-c">typedef struct {
+    void* (*malloc)(void* ctx, size_t size);
+    void  (*free)(void* ctx, void* ptr);
+    void* ctx;                        // User context passed to malloc/free
+    double (*get_time)(void* ctx);    // Monotonic time source
+} s_expr_allocator_t;
+</code></pre>
+<p>This allows integration with custom memory managers, arena allocators, or RTOS heap implementations.</p>
+<pre><code class="language-c">// Example: Simple malloc wrapper
+static void* simple_malloc(void* ctx, size_t size) {
+    (void)ctx;
+    return malloc(size);
+}
+
+static void simple_free(void* ctx, void* ptr) {
+    (void)ctx;
+    free(ptr);
+}
+
+static double linux_get_time(void* ctx) {
+    (void)ctx;
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &amp;ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
+}
+
+s_expr_allocator_t alloc = {
+    .malloc   = simple_malloc,
+    .free     = simple_free,
+    .ctx      = NULL,
+    .get_time = linux_get_time
+};
+</code></pre>
+<h3 id="tree-instantiation">Tree Instantiation</h3>
+<p>Create a tree instance by hash:</p>
+<pre><code class="language-c">s_expr_tree_instance_t* tree = s_expr_tree_create_by_hash(
+    &amp;engine.module,
+    RETURN_CONTINUE_TEST_HASH,
+    0                              // Flags (reserved)
+);
+
+if (!tree) {
+    printf(&quot;Failed to create tree\n&quot;);
+    return;
+}
+</code></pre>
+<p>Each tree instance has its own:
+- Node state array (<code>node_states[]</code>)
+- Pointer array (if any nodes require it)
+- Execution context</p>
+<p>Multiple instances of the same tree definition can exist simultaneously.</p>
+<h3 id="tree-execution">Tree Execution</h3>
+<p>Tick the tree with an event:</p>
+<pre><code class="language-c">s_expr_result_t result = s_expr_node_tick(
+    tree,
+    SE_EVENT_TICK,                 // Event type
+    NULL                           // Event data (optional)
+);
+</code></pre>
+<p>The tick function:
+1. Delivers the event to the root node
+2. Executes the tree according to its structure
+3. Returns the propagated result code</p>
+<h3 id="event-types">Event Types</h3>
+<pre><code class="language-c">typedef enum {
+    SE_EVENT_INIT,      // Initialize tree (run oneshot functions)
+    SE_EVENT_TICK,      // Normal execution tick
+    SE_EVENT_TERM,      // Termination request
+    SE_EVENT_RESET,     // Reset request
+} s_expr_event_t;
+</code></pre>
+<h3 id="tree-cleanup">Tree Cleanup</h3>
+<pre><code class="language-c">s_expr_tree_free(tree);
+</code></pre>
+<p>Releases node states, pointer slots, and the instance structure.</p>
+<h3 id="engine-cleanup">Engine Cleanup</h3>
+<pre><code class="language-c">s_engine_free(&amp;engine);
+</code></pre>
+<p>Releases all module resources, function tables, and allocated memory.</p>
+<hr />
+<h2 id="test-execution-flow">Test Execution Flow</h2>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        Test Runner                              │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Initialize allocator                                         │
+│    - malloc/free wrappers                                       │
+│    - time source                                                │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. Load module (ROM or file)                                    │
+│    - Parse binary header                                        │
+│    - Map tree/function/string tables                            │
+│    - Register built-in functions                                │
+│    - Register user functions (if any)                           │
+│    - Set debug callback (if provided)                           │
+│    - Validate all function references                           │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. For each test tree:                                          │
+│    a. Create tree instance by hash                              │
+│    b. Tick with SE_EVENT_TICK                                   │
+│    c. Verify returned result code                               │
+│    d. Free tree instance                                        │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. Free engine                                                  │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr />
+<h2 id="test-cases">Test Cases</h2>
+<h3 id="application-result-codes-0-5">Application Result Codes (0-5)</h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>DSL Function</th>
+<th>Expected Result</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>return_continue_test</code></td>
+<td><code>se_return_continue()</code></td>
+<td><code>SE_CONTINUE</code> (0)</td>
+<td>ChainTree</td>
+</tr>
+<tr>
+<td><code>return_halt_test</code></td>
+<td><code>se_return_halt()</code></td>
+<td><code>SE_HALT</code> (1)</td>
+<td>ChainTree</td>
+</tr>
+<tr>
+<td><code>return_terminate_test</code></td>
+<td><code>se_return_terminate()</code></td>
+<td><code>SE_TERMINATE</code> (2)</td>
+<td>ChainTree</td>
+</tr>
+<tr>
+<td><code>return_reset_test</code></td>
+<td><code>se_return_reset()</code></td>
+<td><code>SE_RESET</code> (3)</td>
+<td>ChainTree</td>
+</tr>
+<tr>
+<td><code>return_disable_test</code></td>
+<td><code>se_return_disable()</code></td>
+<td><code>SE_DISABLE</code> (4)</td>
+<td>ChainTree</td>
+</tr>
+<tr>
+<td><code>return_skip_continue_test</code></td>
+<td><code>se_return_skip_continue()</code></td>
+<td><code>SE_SKIP_CONTINUE</code> (5)</td>
+<td>ChainTree</td>
+</tr>
+</tbody>
+</table>
+<p>These codes pass through to the ChainTree walker unchanged.</p>
+<h3 id="function-result-codes-6-11">Function Result Codes (6-11)</h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>DSL Function</th>
+<th>Expected Result</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>return_function_continue_test</code></td>
+<td><code>se_return_function_continue()</code></td>
+<td><code>SE_FUNCTION_CONTINUE</code> (6)</td>
+<td>S-expression function</td>
+</tr>
+<tr>
+<td><code>return_function_halt_test</code></td>
+<td><code>se_return_function_halt()</code></td>
+<td><code>SE_FUNCTION_HALT</code> (7)</td>
+<td>S-expression function</td>
+</tr>
+<tr>
+<td><code>return_function_terminate_test</code></td>
+<td><code>se_return_function_terminate()</code></td>
+<td><code>SE_FUNCTION_TERMINATE</code> (8)</td>
+<td>S-expression function</td>
+</tr>
+<tr>
+<td><code>return_function_reset_test</code></td>
+<td><code>se_return_function_reset()</code></td>
+<td><code>SE_FUNCTION_RESET</code> (9)</td>
+<td>S-expression function</td>
+</tr>
+<tr>
+<td><code>return_function_disable_test</code></td>
+<td><code>se_return_function_disable()</code></td>
+<td><code>SE_FUNCTION_DISABLE</code> (10)</td>
+<td>S-expression function</td>
+</tr>
+<tr>
+<td><code>return_function_skip_continue_test</code></td>
+<td><code>se_return_function_skip_continue()</code></td>
+<td><code>SE_FUNCTION_SKIP_CONTINUE</code> (11)</td>
+<td>S-expression function</td>
+</tr>
+</tbody>
+</table>
+<p>These codes are handled at the S_Engine function boundary.</p>
+<h3 id="pipeline-result-codes-12-17">Pipeline Result Codes (12-17)</h3>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>DSL Function</th>
+<th>Expected Result</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>return_pipeline_continue_test</code></td>
+<td><code>se_return_pipeline_continue()</code></td>
+<td><code>SE_PIPELINE_CONTINUE</code> (12)</td>
+<td>Composite node</td>
+</tr>
+<tr>
+<td><code>return_pipeline_halt_test</code></td>
+<td><code>se_return_pipeline_halt()</code></td>
+<td><code>SE_PIPELINE_HALT</code> (13)</td>
+<td>Composite node</td>
+</tr>
+<tr>
+<td><code>return_pipeline_terminate_test</code></td>
+<td><code>se_return_pipeline_terminate()</code></td>
+<td><code>SE_PIPELINE_TERMINATE</code> (14)</td>
+<td>Composite node</td>
+</tr>
+<tr>
+<td><code>return_pipeline_reset_test</code></td>
+<td><code>se_return_pipeline_reset()</code></td>
+<td><code>SE_PIPELINE_RESET</code> (15)</td>
+<td>Composite node</td>
+</tr>
+<tr>
+<td><code>return_pipeline_disable_test</code></td>
+<td><code>se_return_pipeline_disable()</code></td>
+<td><code>SE_PIPELINE_DISABLE</code> (16)</td>
+<td>Composite node</td>
+</tr>
+<tr>
+<td><code>return_pipeline_skip_continue_test</code></td>
+<td><code>se_return_pipeline_skip_continue()</code></td>
+<td><code>SE_PIPELINE_SKIP_CONTINUE</code> (17)</td>
+<td>Composite node</td>
+</tr>
+</tbody>
+</table>
+<p>These codes are handled internally by composite nodes (pipeline, sequence, state_machine, etc.).</p>
+<hr />
+<h2 id="debug-output">Debug Output</h2>
+<p>With <code>set_debug(true)</code> in the DSL and a debug callback registered, execution traces are available:</p>
+<pre><code class="language-c">static void debug_callback(s_expr_tree_instance_t* inst, const char* msg) {
+    (void)inst;
+    printf(&quot;  [DEBUG] %s\n&quot;, msg);
+}
+</code></pre>
+<p>Example output:</p>
+<pre><code>Testing RETURN_CONTINUE...
+  [DEBUG] TICK: return_continue_test
+  [DEBUG] INVOKE: se_return_continue -&gt; SE_CONTINUE
+  result: 0 (expected SE_CONTINUE=0)
+</code></pre>
+<hr />
+<h2 id="result-code-reference">Result Code Reference</h2>
+<pre><code class="language-c">typedef enum {
+    // APPLICATION RESULT CODES (0-5) - pass through to ChainTree
+    SE_CONTINUE           = 0,
+    SE_HALT               = 1,
+    SE_TERMINATE          = 2,
+    SE_RESET              = 3,
+    SE_DISABLE            = 4,
+    SE_SKIP_CONTINUE      = 5,
+
+    // FUNCTION RESULT CODES (6-11) - handled at function boundary
+    SE_FUNCTION_CONTINUE      = 6,
+    SE_FUNCTION_HALT          = 7,
+    SE_FUNCTION_TERMINATE     = 8,
+    SE_FUNCTION_RESET         = 9,
+    SE_FUNCTION_DISABLE       = 10,
+    SE_FUNCTION_SKIP_CONTINUE = 11,
+
+    // PIPELINE RESULT CODES (12-17) - handled by composite nodes
+    SE_PIPELINE_CONTINUE      = 12,
+    SE_PIPELINE_HALT          = 13,
+    SE_PIPELINE_TERMINATE     = 14,
+    SE_PIPELINE_RESET         = 15,
+    SE_PIPELINE_DISABLE       = 16,
+    SE_PIPELINE_SKIP_CONTINUE = 17,
+} s_expr_result_t;
+</code></pre>
+<hr />
+<h2 id="building-and-running">Building and Running</h2>
+<pre><code class="language-bash"># Compile DSL to binary
+lua return_tests.lua
+
+# Build test executable
+gcc -o return_tests_runner \
+    main.c \
+    s_engine_*.c \
+    -I. -lm
+
+# Run tests
+./return_tests_runner
+</code></pre>
+<p>Expected output:</p>
+<pre><code>╔════════════════════════════════════════════════════════════════╗
+║           S-EXPRESSION ENGINE TEST SUITE                       ║
+╚════════════════════════════════════════════════════════════════╝
+
+Loading module from ROM...
+
+=== Initializing Engine ===
+✅ Module loaded successfully
+   Trees:    18
+   Records:  0
+   Strings:  0
+   Oneshot:  0
+   Main:     18
+   Pred:     0
+
+=== Registering Functions ===
+✅ Built-in functions registered
+✅ Debug callback set
+
+=== Validating Function Resolution ===
+✅ All functions resolved successfully
+
+╔════════════════════════════════════════════════════════════════╗
+║                    RETURN VALUE TESTS                          ║
+╚════════════════════════════════════════════════════════════════╝
+
+--- Application Result Codes (0-5) ---
+
+Testing SE_CONTINUE...
+  ✅ PASS: CONTINUE (0)
+Testing SE_HALT...
+  ✅ PASS: HALT (1)
+Testing SE_TERMINATE...
+  ✅ PASS: TERMINATE (2)
+Testing SE_RESET...
+  ✅ PASS: RESET (3)
+Testing SE_DISABLE...
+  ✅ PASS: DISABLE (4)
+Testing SE_SKIP_CONTINUE...
+  ✅ PASS: SKIP_CONTINUE (5)
+
+--- Function Result Codes (6-11) ---
+
+Testing SE_FUNCTION_CONTINUE...
+  ✅ PASS: FUNCTION_CONTINUE (6)
+Testing SE_FUNCTION_HALT...
+  ✅ PASS: FUNCTION_HALT (7)
+Testing SE_FUNCTION_TERMINATE...
+  ✅ PASS: FUNCTION_TERMINATE (8)
+Testing SE_FUNCTION_RESET...
+  ✅ PASS: FUNCTION_RESET (9)
+Testing SE_FUNCTION_DISABLE...
+  ✅ PASS: FUNCTION_DISABLE (10)
+Testing SE_FUNCTION_SKIP_CONTINUE...
+  ✅ PASS: FUNCTION_SKIP_CONTINUE (11)
+
+--- Pipeline Result Codes (12-17) ---
+
+Testing SE_PIPELINE_CONTINUE...
+  ✅ PASS: PIPELINE_CONTINUE (12)
+Testing SE_PIPELINE_HALT...
+  ✅ PASS: PIPELINE_HALT (13)
+Testing SE_PIPELINE_TERMINATE...
+  ✅ PASS: PIPELINE_TERMINATE (14)
+Testing SE_PIPELINE_RESET...
+  ✅ PASS: PIPELINE_RESET (15)
+Testing SE_PIPELINE_DISABLE...
+  ✅ PASS: PIPELINE_DISABLE (16)
+Testing SE_PIPELINE_SKIP_CONTINUE...
+  ✅ PASS: PIPELINE_SKIP_CONTINUE (17)
+
+╔════════════════════════════════════════════════════════════════╗
+║                        TEST SUMMARY                            ║
+╠════════════════════════════════════════════════════════════════╣
+║  Passed: 18                                                    ║
+║  Failed:  0                                                    ║
+║  Total:  18                                                    ║
+╚════════════════════════════════════════════════════════════════╝
+
+✅ ALL TESTS PASSED
+</code></pre>
+<p>```</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

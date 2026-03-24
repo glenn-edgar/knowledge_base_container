@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Inner Engine Design - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_stack_equation_handler/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_outer_engine_design/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s-expression-engine-s_engine-inner-engine-design-document" class="nav-link">S-Expression Engine (s_engine) — Inner Engine Design Document</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#1-overview" class="nav-link">1. Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#2-architecture" class="nav-link">2. Architecture</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#3-core-data-structures" class="nav-link">3. Core Data Structures</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#4-tick-and-dispatch" class="nav-link">4. Tick and Dispatch</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#5-node-api" class="nav-link">5. Node API</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#6-parameter-stack" class="nav-link">6. Parameter Stack</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#7-event-queue" class="nav-link">7. Event Queue</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#8-blackboard-field-access" class="nav-link">8. Blackboard / Field Access</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#9-module-system" class="nav-link">9. Module System</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#10-exception-handling" class="nav-link">10. Exception Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#11-memory-budget" class="nav-link">11. Memory Budget</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#12-thread-safety" class="nav-link">12. Thread Safety</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#13-summary" class="nav-link">13. Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s-expression-engine-s_engine-inner-engine-design-document">S-Expression Engine (s_engine) — Inner Engine Design Document</h1>
+<h2 id="1-overview">1. Overview</h2>
+<p>The s_engine is a compact, deterministic execution engine for evaluating flattened S-expression programs on resource-constrained embedded systems (ARM Cortex-M, 32KB+ RAM) and larger server targets (64-bit). It implements the inner evaluation core of the ChainTree architecture, providing unified control flow for behavior trees, state machines, and sequential pipelines.</p>
+<p>The engine uses a <strong>modified Tcl execution model</strong>: programs are defined by a single root function that controls all evaluation. Parameters are tokenized by the DSL at compile time but <strong>not evaluated</strong> — evaluation is controlled by the builtin functions themselves, which decide how to interpret their arguments. This is analogous to Tcl's "everything is a command" philosophy, but with Lisp-style S-expression syntax for nesting, and a flat compiled representation for embedded efficiency.</p>
+<p>There is no tree walker. The engine enters through a single root function via <code>s_expr_node_tick()</code>. That root function — typically a composite like <code>sequence</code>, <code>selector</code>, or <code>parallel</code> — explicitly invokes its children, which may in turn invoke their children. The program structure emerges entirely from how functions choose to evaluate their parameters.</p>
+<h3 id="key-design-principles">Key Design Principles</h3>
+<ul>
+<li><strong>Zero heap allocation during tick</strong> — all runtime state is pre-allocated; the tick path never calls malloc.</li>
+<li><strong>Deterministic execution</strong> — identical inputs produce identical outputs; no hidden state or randomness.</li>
+<li><strong>Fail-fast via EXCEPTION macro</strong> — invalid states halt the system (watchdog reset on embedded targets) rather than propagating corrupt data. NULL pointer errors are always fatal and terminate the engine immediately.</li>
+<li><strong>Parameters are data until evaluated</strong> — functions receive tokenized but unevaluated parameter arrays and decide what to do with them: invoke as callables, read as values, pass to children, or ignore entirely.</li>
+<li><strong>Dual-width support</strong> — the same source compiles for 32-bit (8-byte params) and 64-bit (16-byte params) via <code>MODULE_IS_64BIT</code>.</li>
+</ul>
+<hr />
+<h2 id="2-architecture">2. Architecture</h2>
+<h3 id="21-layer-diagram">2.1 Layer Diagram</h3>
+<pre><code>┌─────────────────────────────────────────────────┐
+│  Application / ChainTree Nodes                  │
+│  (behavior tree composites, state machines)      │
+├─────────────────────────────────────────────────┤
+│  Outer Engine                                    │
+│  (s_expr_skip_param, module creation, binding)   │
+├─────────────────────────────────────────────────┤
+│  s_engine_node.h  — Node lifecycle + children    │
+│  (tick via root, child enumeration/invocation)   │
+├─────────────────────────────────────────────────┤
+│  s_engine_eval.h  — Dispatch core                │
+│  (dispatch_main, dispatch_pred, dispatch_oneshot)│
+├─────────────────────────────────────────────────┤
+│  s_engine_stack.h — Per-tree parameter stack      │
+│  (Lua-style indexing, frames, locals, scratch)    │
+├─────────────────────────────────────────────────┤
+│  s_engine_event_queue.h — Per-tree event queue    │
+│  (circular buffer, tick_type + event_id + data)   │
+├─────────────────────────────────────────────────┤
+│  s_engine_types.h — Core type definitions         │
+│  (s_expr_param_t, result codes, opcodes, flags)   │
+├─────────────────────────────────────────────────┤
+│  s_engine_module.h — Module lifecycle             │
+│  (create, bind functions, allocate instances)     │
+├─────────────────────────────────────────────────┤
+│  s_engine_exception.h — Fatal error handler       │
+│  (file/func/line/msg → spin for watchdog)         │
+└─────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="22-execution-model-modified-tcl">2.2 Execution Model: Modified Tcl</h3>
+<p>The s_engine borrows from three language traditions:</p>
+<table>
+<thead>
+<tr>
+<th>Tradition</th>
+<th>What s_engine takes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lisp</strong></td>
+<td>S-expression nesting syntax, prefix notation, code-as-data</td>
+</tr>
+<tr>
+<td><strong>Tcl</strong></td>
+<td>Parameters are tokenized but not evaluated; functions control evaluation of their arguments</td>
+</tr>
+<tr>
+<td><strong>Behavior Trees</strong></td>
+<td>MAIN/ONESHOT/PRED function types, tick-driven lifecycle, result code propagation</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key difference from Tcl:</strong> Parameters are compiled to a flat binary representation at build time by the DSL, not parsed at runtime from strings. This gives embedded-friendly O(1) access patterns with zero runtime parsing overhead.</p>
+<p><strong>Key difference from Lisp:</strong> There is no general-purpose <code>eval</code>. Each builtin function decides how to interpret its parameter list — some invoke children as callables, some read values, some do both. The evaluation strategy is a property of each function, not of the engine.</p>
+<h3 id="23-program-structure">2.3 Program Structure</h3>
+<p>A program is a single root callable. All behavior emerges from how that root function and its descendants evaluate their parameters:</p>
+<pre><code>(sequence                          ← root MAIN function
+    (init_hardware 0x40 0x01)      ← ONESHOT with value args
+    (check_sensor threshold:42)    ← PRED with named constant
+    (state_machine                 ← MAIN composite
+        (state_idle ...)           ← MAIN child
+        (state_active ...)))       ← MAIN child
+</code></pre>
+<p>The DSL compiles this to a flat param array. At runtime, <code>s_expr_node_tick()</code> invokes the root <code>sequence</code>. The sequence function calls <code>s_expr_child_invoke()</code> on each child in order. Each child function receives its own tokenized arguments and decides how to use them.</p>
+<h3 id="24-inner-outer-engine-boundary">2.4 Inner / Outer Engine Boundary</h3>
+<p>The inner engine (this document) provides dispatch, lifecycle, stack, and event queue primitives. The <strong>outer engine</strong> provides:</p>
+<ul>
+<li><code>s_expr_skip_param()</code> — skip over a logical parameter (atom or nested structure), used by the inner engine's <code>s_expr_count_params()</code>, <code>s_expr_find_param()</code>, and <code>s_expr_iterate_params()</code>.</li>
+<li>Module creation, function binding, and instance allocation.</li>
+<li>Higher-level coordination and scheduling.</li>
+</ul>
+<h3 id="25-compilation-model">2.5 Compilation Model</h3>
+<pre><code>  YAML/S-expr DSL source
+       │
+       ▼
+  Code Generator (Python)
+       │
+       ├─ Tokenizes parameters (but does not evaluate)
+       ├─ Resolves function names to hash/index pairs
+       ├─ Computes brace_idx offsets for O(1) structure skipping
+       │
+       ▼
+  C source: module_def_t + tree_def_t + param arrays (ROM)
+       │
+       ▼
+  s_engine links against generated ROM tables
+       │
+       ▼
+  Runtime: module_t (RAM) binds function pointers to hashes
+       │
+       ▼
+  Runtime: tree_instance_t (RAM) holds per-execution state
+</code></pre>
+<hr />
+<h2 id="3-core-data-structures">3. Core Data Structures</h2>
+<h3 id="31-s_expr_param_t-the-universal-token">3.1 <code>s_expr_param_t</code> — The Universal Token</h3>
+<p>Every element in a tree's flat parameter array is an <code>s_expr_param_t</code>. These are <strong>tokens</strong>, not evaluated values — the distinction is central to the engine's Tcl-style model. A MAIN param is a reference to a callable, not a result. An INT param is a literal, not a computed value. Functions decide which tokens to evaluate and how.</p>
+<p>The <code>type</code> byte encodes both the opcode (bits 5:0) and modifier flags (bits 7:6).</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Size (32-bit)</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td>1 byte</td>
+<td>Opcode + flags</td>
+</tr>
+<tr>
+<td><code>index_to_pointer</code></td>
+<td>1 byte</td>
+<td>Index into <code>pointer_array[]</code> for <code>pt_m_call</code></td>
+</tr>
+<tr>
+<td>Union payload</td>
+<td>4 bytes</td>
+<td>Value, indices, or brace offset</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Total size:</strong> 8 bytes (32-bit) or 16 bytes (64-bit), enforced by <code>_Static_assert</code>.</p>
+<p><strong>Type byte layout:</strong></p>
+<pre><code>  Bit 7:  S_EXPR_FLAG_POINTER        (pt_m_call — uses pointer_array)
+  Bit 6:  S_EXPR_FLAG_SURVIVES_RESET  (io_call — oneshot survives tree reset)
+  Bits 5:0: Opcode (S_EXPR_OPCODE_MASK = 0x3F, 64 possible opcodes)
+</code></pre>
+<p><strong>Opcode categories:</strong></p>
+<p>All opcodes are <code>#define</code> constants sharing a flat namespace (0x00–0x1C):</p>
+<table>
+<thead>
+<tr>
+<th>Range</th>
+<th>Category</th>
+<th>Opcodes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x00–0x03</td>
+<td>Primitive values</td>
+<td>INT, UINT, FLOAT, STR_HASH</td>
+</tr>
+<tr>
+<td>0x04</td>
+<td>Legacy</td>
+<td>SLOT</td>
+</tr>
+<tr>
+<td>0x05–0x06</td>
+<td>List structure</td>
+<td>OPEN, CLOSE</td>
+</tr>
+<tr>
+<td>0x07</td>
+<td>Call structure</td>
+<td>OPEN_CALL</td>
+</tr>
+<tr>
+<td>0x08–0x0A</td>
+<td>Function refs</td>
+<td>ONESHOT, MAIN, PRED</td>
+</tr>
+<tr>
+<td>0x0B–0x0E</td>
+<td>Data access</td>
+<td>FIELD, RESULT, STR_IDX, CONST_REF</td>
+</tr>
+<tr>
+<td>0x10–0x17</td>
+<td>Collections</td>
+<td>DICT, KEY, ARRAY, TUPLE open/close pairs</td>
+</tr>
+<tr>
+<td>0x18–0x1C</td>
+<td>Stack ops</td>
+<td>STACK_TOS, STACK_LOCAL, NULL, STACK_PUSH, STACK_POP</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Result codes</strong> are a separate <code>s_expr_result_t</code> enum (values 0–17) with no overlap into the opcode space.</p>
+<h3 id="32-s_expr_node_state_t-per-node-runtime-state">3.2 <code>s_expr_node_state_t</code> — Per-Node Runtime State</h3>
+<p>Each function node in a tree has a 4-byte state record:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Size</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>flags</code></td>
+<td>1 byte</td>
+<td>System flags (bits 3:0) + user flags (bits 7:4)</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>1 byte</td>
+<td>User state machine value (0–255)</td>
+</tr>
+<tr>
+<td><code>user_data</code></td>
+<td>2 bytes</td>
+<td>Dispatch tracking, counters, etc.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>System flags:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ACTIVE</code></td>
+<td>0x01</td>
+<td>Node will be dispatched on tick</td>
+</tr>
+<tr>
+<td><code>INITIALIZED</code></td>
+<td>0x02</td>
+<td>Node has received SE_EVENT_INIT</td>
+</tr>
+<tr>
+<td><code>EVER_INIT</code></td>
+<td>0x04</td>
+<td>Node has ever been initialized (survives reset)</td>
+</tr>
+<tr>
+<td><code>ERROR</code></td>
+<td>0x08</td>
+<td>Node is in error state</td>
+</tr>
+</tbody>
+</table>
+<h3 id="33-s_expr_slot_t-64-bit-pointervalue-storage">3.3 <code>s_expr_slot_t</code> — 64-bit Pointer/Value Storage</h3>
+<p>An 8-byte union for <code>pt_m_call</code> functions that need persistent storage larger than the 4-byte <code>node_state_t</code> provides:</p>
+<pre><code class="language-c">typedef union {
+    void*    ptr;
+    uint64_t u64;
+    int64_t  i64;
+    double   f64;
+} s_expr_slot_t;
+</code></pre>
+<p>Indexed by <code>index_to_pointer</code> in the param, accessed via <code>s_expr_get_user_u64()</code> / <code>s_expr_set_user_ptr()</code> etc. These accessors enforce that they are only called from within a <code>pt_m_call</code> context (<code>inst-&gt;in_pointer_call == true</code>).</p>
+<h3 id="34-s_expr_tree_instance_t-per-execution-state">3.4 <code>s_expr_tree_instance_t</code> — Per-Execution State</h3>
+<p>The central runtime structure containing:</p>
+<ul>
+<li><strong>Module reference</strong> — shared function tables and allocator</li>
+<li><strong>Tree definition</strong> — ROM param array pointer</li>
+<li><strong>Node states</strong> — <code>node_states[node_count]</code> array</li>
+<li><strong>Pointer array</strong> — <code>pointer_array[pointer_count]</code> for pt_m_call storage</li>
+<li><strong>Blackboard</strong> — typed record binding for field access</li>
+<li><strong>Execution context</strong> — current node index, event info, pointer call state</li>
+<li><strong>Parameter stack</strong> — optional Lua-style stack for dynamic computation</li>
+<li><strong>Event queue</strong> — circular buffer (inline, 16 slots) for deferred event delivery</li>
+</ul>
+<hr />
+<h2 id="4-tick-and-dispatch">4. Tick and Dispatch</h2>
+<h3 id="41-entry-point">4.1 Entry Point</h3>
+<p>The engine has a single entry point per tick:</p>
+<pre><code class="language-c">s_expr_result_t s_expr_node_tick(
+    s_expr_tree_instance_t* inst,
+    uint16_t event_id,
+    void* event_data
+);
+</code></pre>
+<p>This invokes the root function only. The root function is responsible for invoking its children, which invoke their children, and so on. There is no automatic traversal — all control flow is explicit, driven by the functions themselves.</p>
+<h3 id="42-three-function-types">4.2 Three Function Types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Signature</th>
+<th>Returns</th>
+<th>Lifecycle</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MAIN</strong></td>
+<td><code>s_expr_main_fn_t</code></td>
+<td><code>s_expr_result_t</code></td>
+<td>INIT → TICK* → TERMINATE</td>
+<td>Long-lived nodes (composites, state machines)</td>
+</tr>
+<tr>
+<td><strong>ONESHOT</strong></td>
+<td><code>s_expr_oneshot_fn_t</code></td>
+<td>void</td>
+<td>Runs once per reset cycle</td>
+<td>Setup, I/O binding, one-time actions</td>
+</tr>
+<tr>
+<td><strong>PRED</strong></td>
+<td><code>s_expr_pred_fn_t</code></td>
+<td>bool</td>
+<td>Stateless</td>
+<td>Guards, conditions, predicates</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-main-function-three-phase-lifecycle">4.3 MAIN Function Three-Phase Lifecycle</h3>
+<pre><code>dispatch_main(inst, func_param, args, ...)
+    │
+    ├─ PHASE 1: INITIALIZATION (first call only)
+    │   if !(flags &amp; INITIALIZED):
+    │       set INITIALIZED
+    │       call fn(inst, args, SE_EVENT_INIT, ...)
+    │
+    ├─ PHASE 2: REGULAR EVENT
+    │   result = fn(inst, args, event_type, ...)
+    │
+    └─ PHASE 3: TERMINATION (if result == SE_PIPELINE_DISABLE)
+        call fn(inst, args, SE_EVENT_TERMINATE, ...)
+        clear ACTIVE flag
+</code></pre>
+<h3 id="44-oneshot-execution-model">4.4 ONESHOT Execution Model</h3>
+<p>Oneshot functions run exactly once per lifecycle. The <code>check_flag</code> depends on the <code>S_EXPR_FLAG_SURVIVES_RESET</code> modifier:</p>
+<ul>
+<li><strong>Normal oneshot:</strong> Checks <code>S_EXPR_NODE_FLAG_INITIALIZED</code>. Runs once after each reset.</li>
+<li><strong>io_call oneshot (survives reset):</strong> Checks <code>S_EXPR_NODE_FLAG_EVER_INIT</code>. Runs once for the entire lifetime of the tree instance, surviving resets.</li>
+</ul>
+<h3 id="45-result-code-hierarchy">4.5 Result Code Hierarchy</h3>
+<p>Results are organized into three tiers for different scoping:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Range</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Application</strong> (0–5)</td>
+<td>SE_CONTINUE through SE_SKIP_CONTINUE</td>
+<td>Propagate to application level</td>
+</tr>
+<tr>
+<td><strong>Function</strong> (6–11)</td>
+<td>SE_FUNCTION_CONTINUE through SE_FUNCTION_SKIP_CONTINUE</td>
+<td>Scoped to function internals</td>
+</tr>
+<tr>
+<td><strong>Pipeline</strong> (12–17)</td>
+<td>SE_PIPELINE_CONTINUE through SE_PIPELINE_SKIP_CONTINUE</td>
+<td>Scoped to composite node pipeline</td>
+</tr>
+</tbody>
+</table>
+<p>All NULL pointer errors and unrecoverable faults return <code>SE_TERMINATE</code>, which causes immediate engine termination.</p>
+<h3 id="46-unevaluated-parameters-and-brace-skipping">4.6 Unevaluated Parameters and Brace Skipping</h3>
+<p>Because parameters are tokenized but not evaluated, functions receive flat spans of tokens and navigate them using <code>brace_idx</code> for O(1) skip-over of nested structures:</p>
+<pre><code>idx:     0          1         2    3    4
+param: [OPEN_CALL] [MAIN:fn] [INT] [INT] [CLOSE]
+        brace_idx=4
+
+args = &amp;params[2], arg_count = 4 - 0 - 2 = 2
+</code></pre>
+<p>A function receiving this param span sees two INT tokens as its arguments. It can read them as literal values, or — if it were a higher-order function — it could treat nested OPEN_CALL tokens as callables to invoke via <code>s_expr_child_invoke()</code>. The evaluation strategy is entirely up to the function.</p>
+<h3 id="47-context-saverestore">4.7 Context Save/Restore</h3>
+<p>All dispatch functions save and restore <code>current_node_index</code>, <code>in_pointer_call</code>, and <code>pointer_base</code> on the C stack, enabling safe re-entrant invocation from composite nodes that call children.</p>
+<hr />
+<h2 id="5-node-api">5. Node API</h2>
+<h3 id="51-lifecycle">5.1 Lifecycle</h3>
+<ul>
+<li><code>s_expr_node_tick()</code> — invoke root function with event</li>
+<li><code>s_expr_node_reset()</code> — all nodes inactive except root</li>
+<li><code>s_expr_node_terminate()</code> — backward walk, TERMINATE to initialized nodes</li>
+<li><code>s_expr_node_full_reset()</code> — terminate then reset</li>
+<li><code>s_expr_node_init_states()</code> — set root active only</li>
+</ul>
+<h3 id="52-child-enumeration-and-invocation">5.2 Child Enumeration and Invocation</h3>
+<p>Functions that act as composites use these to control their children:</p>
+<ul>
+<li><code>s_expr_child_count/index()</code> — enumerate logical children in the param array</li>
+<li><code>s_expr_child_invoke()</code> — invoke Nth child, auto-detect type (primary API)</li>
+<li><code>s_expr_child_invoke_main/pred/oneshot()</code> — type-specific invocation</li>
+<li><code>s_expr_child_invoke_ex()</code> — invoke with explicit event context</li>
+<li><code>s_expr_children_broadcast_ex()</code> — fan-out event to all children</li>
+</ul>
+<h3 id="53-child-lifecycle-control">5.3 Child Lifecycle Control</h3>
+<ul>
+<li><code>s_expr_child_reset/reset_recursive()</code> — clear child flags for re-initialization</li>
+<li><code>s_expr_child_terminate()</code> — send TERMINATE to child</li>
+<li><code>s_expr_children_terminate_all()</code> — terminate all children in reverse order</li>
+<li><code>s_expr_children_reset_all()</code> — reset all children without TERMINATE</li>
+</ul>
+<h3 id="54-eval-layer-dispatch">5.4 Eval-Layer Dispatch</h3>
+<p>The eval layer provides lower-level dispatch for direct param index access:</p>
+<ul>
+<li><code>s_expr_invoke_main/oneshot/pred/any()</code> — dispatch a callable at a given param index</li>
+<li><code>s_expr_tree_reset/terminate/full_reset()</code> — bulk lifecycle operations</li>
+<li><code>s_expr_invoke_params()</code> — execute S-expression received via event_data</li>
+</ul>
+<hr />
+<h2 id="6-parameter-stack">6. Parameter Stack</h2>
+<p>The optional per-tree stack (<code>s_expr_stack_t</code>) provides Lua-style 1-based indexing with negative indices from the top. It supports:</p>
+<ul>
+<li><strong>Typed push/pop</strong> — int, uint, float, hash, pointer</li>
+<li><strong>Stack frames</strong> — <code>push_frame(num_params, num_locals)</code> / <code>pop_frame()</code> for structured function calls</li>
+<li><strong>Manipulation</strong> — insert, remove, replace, rotate, swap, dup, copy</li>
+<li><strong>Scratch area</strong> — per-frame scratch space above locals via <code>poke()</code></li>
+<li><strong>Type introspection</strong> — <code>isint()</code>, <code>isfloat()</code>, <code>isnumeric()</code>, <code>isptr()</code>, etc.</li>
+</ul>
+<p><strong>Frame layout:</strong></p>
+<pre><code>  ┌─────────────┐  ← base_ptr
+  │ param 0     │
+  │ param 1     │
+  │ ...         │
+  │ param N-1   │  ← num_params
+  │ local 0     │
+  │ local 1     │
+  │ ...         │
+  │ local M-1   │  ← num_locals
+  ├─────────────┤  ← scratch_base
+  │ scratch...  │
+  │             │  ← sp
+  └─────────────┘
+</code></pre>
+<p>Maximum frame depth: <code>S_EXPR_MAX_FRAMES = 16</code>.</p>
+<hr />
+<h2 id="7-event-queue">7. Event Queue</h2>
+<p>A per-tree circular buffer (<code>S_EXPR_EVENT_QUEUE_SIZE = 16</code>) embedded inline in the tree instance for deferring events:</p>
+<pre><code class="language-c">typedef struct {
+    uint16_t tick_type;
+    uint16_t event_id;
+    void*    event_data;
+} s_expr_queued_event_t;
+</code></pre>
+<p><strong>API:</strong> <code>s_expr_event_push()</code>, <code>s_expr_event_pop()</code>, <code>s_expr_event_queue_clear()</code>.</p>
+<p>The queue uses head/count management. <code>event_data</code> pointers must remain valid until the event is consumed. All functions validate the <code>inst</code> pointer and will EXCEPTION on NULL (fatal, consistent with engine-wide policy).</p>
+<hr />
+<h2 id="8-blackboard-field-access">8. Blackboard / Field Access</h2>
+<p>Trees can bind a typed record (struct) as a blackboard. FIELD-type params carry <code>field_offset</code> and <code>field_size</code>, enabling direct memory access into the bound record:</p>
+<pre><code class="language-c">#define S_EXPR_GET_FIELD(inst, param, type) \
+    ((type*)((uint8_t*)(inst)-&gt;blackboard + (param)-&gt;field_offset))
+</code></pre>
+<p>Record and field descriptors (<code>s_expr_record_desc_t</code>, <code>s_expr_field_desc_t</code>) support runtime introspection via hash-based lookup.</p>
+<hr />
+<h2 id="9-module-system">9. Module System</h2>
+<h3 id="91-module-definition-rom">9.1 Module Definition (ROM)</h3>
+<p><code>s_expr_module_def_t</code> is generated by the DSL and contains:</p>
+<ul>
+<li>Tree definitions with param arrays</li>
+<li>Function hash tables (oneshot, main, pred) for binding</li>
+<li>Record descriptors for blackboard schemas</li>
+<li>String table for interned strings</li>
+<li>Constants table for ROM data references</li>
+<li>Maximum resource counts for pre-allocation</li>
+</ul>
+<h3 id="92-module-instance-ram">9.2 Module Instance (RAM)</h3>
+<p><code>s_expr_module_t</code> holds:</p>
+<ul>
+<li>Resolved function pointer arrays (bound by hash lookup at init time)</li>
+<li>Allocator interface for runtime memory management</li>
+<li>Debug/error callback hooks</li>
+<li>Pool table for slot management</li>
+</ul>
+<hr />
+<h2 id="10-exception-handling">10. Exception Handling</h2>
+<p>The engine uses a <code>EXCEPTION(msg)</code> macro that expands to <code>cfl_exception_handler(__FILE__, __func__, __LINE__, msg)</code>. On embedded targets, this:</p>
+<ol>
+<li>Prints file, function, line, and message via <code>puts()</code> (heap-safe)</li>
+<li>Spins in an infinite loop waiting for the hardware watchdog to reset the system</li>
+</ol>
+<p>This is a <strong>fail-fast, never-recover</strong> model appropriate for safety-critical embedded systems where corrupt state is worse than a restart. All NULL pointer dereference paths lead to EXCEPTION, which terminates the engine immediately.</p>
+<hr />
+<h2 id="11-memory-budget">11. Memory Budget</h2>
+<p>For a typical embedded deployment (32-bit, 20 function nodes, 8 pointer slots):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Size</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Node states</td>
+<td>80 bytes</td>
+<td>20 × 4 bytes</td>
+</tr>
+<tr>
+<td>Pointer array</td>
+<td>64 bytes</td>
+<td>8 × 8 bytes</td>
+</tr>
+<tr>
+<td>Slot flags</td>
+<td>8 bytes</td>
+<td>8 × 1 byte</td>
+</tr>
+<tr>
+<td>Stack (64 slots)</td>
+<td>516 bytes</td>
+<td>header + 64 × 8 bytes</td>
+</tr>
+<tr>
+<td>Event queue</td>
+<td>96 bytes</td>
+<td>16 × 6 bytes (embedded in instance)</td>
+</tr>
+<tr>
+<td>Instance struct</td>
+<td>~80 bytes</td>
+<td>Pointers + context fields</td>
+</tr>
+<tr>
+<td><strong>Total per tree</strong></td>
+<td><strong>~844 bytes</strong></td>
+<td>Excludes ROM param arrays</td>
+</tr>
+</tbody>
+</table>
+<p>Param arrays are in ROM and cost 8 bytes per param (32-bit mode).</p>
+<hr />
+<h2 id="12-thread-safety">12. Thread Safety</h2>
+<p>The engine is <strong>not thread-safe</strong>. A tree instance must be ticked from a single thread or protected by external synchronization. The event queue can be used to marshal cross-thread events, but the push/pop operations themselves are not atomic.</p>
+<p>For multi-core embedded systems, each core should own its tree instances. Cross-core communication should go through NATS JetStream or MQTT at the ChainTree layer, not through shared s_engine state.</p>
+<hr />
+<h2 id="13-summary">13. Summary</h2>
+<p>The s_engine inner core is a Tcl-inspired command dispatch engine operating on Lisp-style S-expressions compiled to flat parameter arrays. Programs are defined by a single root function invoked via <code>s_expr_node_tick()</code>. That function — and every function it calls — receives tokenized but unevaluated parameters, giving each builtin full control over argument interpretation. This model combines the composability of S-expressions with the simplicity of Tcl's evaluation rules, compiled to a zero-allocation flat representation suitable for deterministic embedded execution.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

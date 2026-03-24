@@ -1,0 +1,47 @@
+div.disclaimer {
+    margin-top: 12px;
+    font-size: 10px;
+    font-style: italic;
+}
+div.figure p.caption {
+    padding-top: 0.8em;
+}
+span.caption-number:after {
+    content: ": ";
+ }
+
+/* 
+    Make the rubric look like the H3 header.
+    
+    This way, we can add headings to organize classes
+    with many methods, without affecting how the methods
+    and attributes look or how they are indented.
+
+*/
+.rst-content p.rubric {
+    font-size: 20px;
+    font-weight: 700;
+    color: #404040;
+    font-family: "Roboto Slab","ff-tisa-web-pro","Georgia",Arial,sans-serif;
+    margin-bottom: 24px !important;
+}
+
+/* decorate external links in navigation side bar */
+.wy-nav-side a.reference.external:after {
+    font-family: FontAwesome;
+    content: "";
+    color: #b3b3b3;
+    vertical-align: super;
+    font-size: 60%;
+    margin: 0 0.2em;
+}
+
+/* don't show external link on figures */
+/* https://github.com/readthedocs/sphinx_rtd_theme/pull/494#issuecomment-354063112 */
+.figure > a.reference.external::after {
+    content: none !important;
+}
+
+.wy-side-nav-search > div.version {
+    color: hsla(0, 0%, 100%, 0.75);
+}

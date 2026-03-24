@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Stack Equations - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_stack_operations/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_inner_engine_design/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s_expr_compiler-expression-compiler-for-chaintree-quad-operations" class="nav-link">s_expr_compiler — Expression Compiler for ChainTree Quad Operations</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#architecture" class="nav-link">Architecture</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#api-reference" class="nav-link">API Reference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#expression-syntax" class="nav-link">Expression Syntax</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#type-inference" class="nav-link">Type Inference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#constant-folding" class="nav-link">Constant Folding</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#scratch-variables" class="nav-link">Scratch Variables</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#integration" class="nav-link">Integration</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#compiler-internals" class="nav-link">Compiler Internals</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#version-history" class="nav-link">Version History</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s_expr_compiler-expression-compiler-for-chaintree-quad-operations">s_expr_compiler — Expression Compiler for ChainTree Quad Operations</h1>
+<h2 id="overview">Overview</h2>
+<p><code>s_expr_compiler.lua</code> is a compile-time expression compiler that translates C-like
+arithmetic expressions into sequences of quad and p_quad operations for the
+S-Expression DSL engine. It runs inside LuaJIT during tree compilation, not at
+runtime on the target. The generated quad operations become binary tree nodes
+that execute on platforms ranging from 32KB ARM Cortex-M microcontrollers to
+multi-gigabyte servers.</p>
+<p>The compiler replaces hand-written chains of <code>quad_iadd</code>, <code>quad_fsub</code>, <code>quad_mov</code>,
+etc. with readable infix expressions while producing identical output.</p>
+<pre><code class="language-lua">-- Before: 4 lines of raw quad calls
+quad_iadd(field_val(&quot;x&quot;), uint_val(5), field_val(&quot;tmp&quot;))()
+quad_imul(field_val(&quot;tmp&quot;), field_val(&quot;y&quot;), field_val(&quot;tmp&quot;))()
+quad_isub(field_val(&quot;tmp&quot;), uint_val(2), field_val(&quot;result&quot;))()
+
+-- After: 1 line
+quad_expr(&quot;@result = (@x + 5) * @y - 2&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+</code></pre>
+<h2 id="architecture">Architecture</h2>
+<pre><code>Expression string
+       │
+       ▼
+   Tokenizer ──────► Token stream
+       │
+       ▼
+   Parser (Pratt) ──► AST
+       │
+       ▼
+   Constant Folder ─► Optimized AST
+       │
+       ▼
+   Type Inference ──► float/int decision per node
+       │
+       ▼
+   Code Generator ──► {fn, args} operation list
+       │
+       ▼
+   Closure ─────────► Emits quad DSL nodes when called
+</code></pre>
+<p>All phases run at DSL compile time in LuaJIT. The returned closure, when
+invoked with <code>()</code>, emits binary tree node parameters into the compilation
+stream. No parsing or AST traversal happens at runtime on the target.</p>
+<h2 id="api-reference">API Reference</h2>
+<h3 id="frame_varslocals-scratch">frame_vars(locals, scratch)</h3>
+<p>Creates a variable table mapping names to stack frame parameter emitters.
+Must be called inside <code>se_frame_allocate</code> where the stack frame exists.</p>
+<pre><code class="language-lua">local v = frame_vars(
+    {&quot;x:float&quot;, &quot;y:float&quot;, &quot;count:int&quot;},   -- locals (stack_local)
+    {&quot;t0:float&quot;, &quot;t1:int&quot;, &quot;t2:float&quot;}     -- scratch (stack_tos)
+)
+</code></pre>
+<p>Each declaration is <code>"name"</code> or <code>"name:type"</code> where type is <code>float</code> or <code>int</code>
+(default: <code>int</code>). The type annotation drives the compiler's type inference
+for operations involving that variable.</p>
+<p>Returns a table where <code>v[name]</code> is a parameter-emitting closure, plus metadata
+fields <code>v[name.."_is_float"]</code>, <code>v[name.."_type"]</code>, <code>v._local_count</code>, and
+<code>v._scratch_count</code>.</p>
+<p><strong>Important:</strong> This <code>frame_vars</code> replaces the simpler version in
+<code>s_engine_helpers.lua</code>. The helpers file must not redefine <code>frame_vars</code>
+after loading the compiler, or type annotations will be lost.</p>
+<h3 id="quad_exprexpr_str-vars-scratch_names">quad_expr(expr_str, vars, scratch_names)</h3>
+<p>Compiles a single assignment expression into quad operations.</p>
+<pre><code class="language-lua">quad_expr(&quot;dest = expression&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+</code></pre>
+<p><strong>Parameters:</strong>
+- <code>expr_str</code> — Assignment in the form <code>"dest = expr"</code> or compound <code>"dest += expr"</code>.
+  Destination can be a variable name or <code>@field_name</code>.
+- <code>vars</code> — Table from <code>frame_vars()</code>.
+- <code>scratch_names</code> — List of scratch variable names from <code>vars</code> for intermediate results.</p>
+<p><strong>Returns:</strong> A closure. Call it with <code>()</code> to emit the compiled quad operations.</p>
+<p><strong>Examples:</strong></p>
+<pre><code class="language-lua">-- Simple field arithmetic
+quad_expr(&quot;@result = @x + 5&quot;, v, {&quot;t0&quot;})()
+
+-- Float with parenthesized subexpression
+quad_expr(&quot;@out = (@a + 1.0) * sqrt(@b)&quot;, v, {&quot;t0&quot;, &quot;t1&quot;, &quot;t2&quot;})()
+
+-- Variable-to-variable
+quad_expr(&quot;result = x + y&quot;, v, {&quot;t0&quot;})()
+
+-- Pure assignment (emits quad_mov)
+quad_expr(&quot;@field_a = @field_b&quot;, v, {})()
+
+-- Compound assignment
+quad_expr(&quot;@counter += 1&quot;, v, {&quot;t0&quot;})()
+
+-- Constant folding: compiles to single quad_mov of 14
+quad_expr(&quot;result = 2 + 3 * 4&quot;, v, {})()
+</code></pre>
+<h3 id="quad_predexpr_str-vars-scratch_names">quad_pred(expr_str, vars, scratch_names)</h3>
+<p>Compiles a boolean expression into p_quad (predicate) operations for use
+as conditions in <code>se_if_then</code>, <code>se_while</code>, and other control structures.</p>
+<pre><code class="language-lua">se_while(quad_pred(&quot;@count &lt; 100&quot;, v, {}), function()
+    -- loop body
+end)
+
+se_if_then(quad_pred(&quot;@x &gt; 5.0 &amp;&amp; @y &lt;= 10.0&quot;, v, {&quot;t0&quot;, &quot;t1&quot;}), function()
+    -- then branch
+end)
+</code></pre>
+<p>Comparisons emit <code>p_icmp_*</code> / <code>p_fcmp_*</code> and logical connectives emit
+<code>p_log_and</code> / <code>p_log_or</code> instead of the oneshot <code>quad_*</code> variants.</p>
+<h3 id="quad_multiexpr_str-vars-scratch_names">quad_multi(expr_str, vars, scratch_names)</h3>
+<p>Compiles multiple semicolon-separated assignments as a single batch.
+Variables assigned in earlier statements are available to later ones.</p>
+<pre><code class="language-lua">quad_multi(
+    &quot;a = @sensor + 1.0; &quot;  ..
+    &quot;@filtered = a * 0.5; &quot; ..
+    &quot;b = @filtered - @offset&quot;,
+    v, {&quot;t0&quot;, &quot;t1&quot;}
+)()
+</code></pre>
+<p>Each statement is compiled independently via <code>quad_expr</code>, so scratch is
+reused across statements. Local variables (<code>a</code>, <code>b</code>) persist within the
+enclosing <code>se_frame_allocate</code> scope.</p>
+<h3 id="quad_pred_accconditions-vars-count_var">quad_pred_acc(conditions, vars, count_var)</h3>
+<p>Compiles multiple independent comparison conditions with accumulate semantics.
+Each true condition increments a counter variable. Useful for multi-condition
+evaluation where you need a count of passing conditions rather than a
+short-circuit boolean.</p>
+<pre><code class="language-lua">quad_pred_acc(
+    {&quot;@temp &gt; 100&quot;, &quot;@pressure &gt; 50.0&quot;, &quot;@flow_rate &lt; 2.0&quot;},
+    v, &quot;alarm_count&quot;
+)()
+-- alarm_count = number of true conditions (0–3)
+</code></pre>
+<p><strong>Restrictions:</strong> Each condition must be a single comparison with leaf operands
+(variables, fields, or constants). No compound expressions in individual conditions.</p>
+<h3 id="quad_expr_debug-quad_pred_debug">quad_expr_debug / quad_pred_debug</h3>
+<p>Debug variants that print the AST before and after constant folding, the
+generated operation sequence, and scratch usage, then return a working closure.</p>
+<pre><code class="language-lua">quad_expr_debug(&quot;result = (x + 5.0) * y - 2.0&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+-- Output:
+--   === quad_expr_debug: result = (x + 5.0) * y - 2.0 ===
+--     AST (before fold): (((x + 5) * y) - 2)
+--     AST (after fold):  (((x + 5) * y) - 2)
+--     1: quad_fadd(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     2: quad_fmul(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     3: quad_fsub(&lt;ref&gt;, &lt;ref&gt;, &lt;ref&gt;)
+--     scratch used: 2 / 2
+--   ===
+</code></pre>
+<h2 id="expression-syntax">Expression Syntax</h2>
+<h3 id="operand-types">Operand Types</h3>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Type</th>
+<th>Example</th>
+<th>Emits</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>@name</code></td>
+<td>Blackboard field</td>
+<td><code>@sensor_val</code></td>
+<td><code>field_val("sensor_val")</code></td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>Frame variable</td>
+<td><code>x</code>, <code>t0</code></td>
+<td><code>vars[name]</code> closure</td>
+</tr>
+<tr>
+<td><code>42</code></td>
+<td>Integer literal</td>
+<td><code>42</code>, <code>0</code></td>
+<td><code>uint_val(42)</code></td>
+</tr>
+<tr>
+<td><code>-5</code></td>
+<td>Negative integer</td>
+<td><code>-5</code></td>
+<td><code>int_val(-5)</code></td>
+</tr>
+<tr>
+<td><code>3.14</code></td>
+<td>Float literal</td>
+<td><code>3.14</code>, <code>0.0</code></td>
+<td><code>float_val(3.14)</code></td>
+</tr>
+<tr>
+<td><code>3f</code></td>
+<td>Float (suffix)</td>
+<td><code>3f</code>, <code>42f</code></td>
+<td><code>float_val(3.0)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="operators-by-precedence-low-to-high">Operators (by precedence, low to high)</h3>
+<table>
+<thead>
+<tr>
+<th>Prec</th>
+<th>Operators</th>
+<th>Category</th>
+<th>Result Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>\|\|</code></td>
+<td>Logical OR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>&amp;&amp;</code></td>
+<td>Logical AND</td>
+<td>int</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>\|</code></td>
+<td>Bitwise OR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>^</code></td>
+<td>Bitwise XOR</td>
+<td>int</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>&amp;</code></td>
+<td>Bitwise AND</td>
+<td>int</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>==</code> <code>!=</code></td>
+<td>Equality</td>
+<td>int (0/1)</td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td>
+<td>Relational</td>
+<td>int (0/1)</td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>&lt;&lt;</code> <code>&gt;&gt;</code></td>
+<td>Shift</td>
+<td>int</td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>+</code> <code>-</code></td>
+<td>Additive</td>
+<td>float if either operand float</td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>*</code> <code>/</code> <code>%</code></td>
+<td>Multiplicative</td>
+<td>float if either operand float</td>
+</tr>
+<tr>
+<td>11</td>
+<td><code>-x</code> <code>!x</code> <code>~x</code></td>
+<td>Unary (prefix)</td>
+<td>inherits / int / int</td>
+</tr>
+</tbody>
+</table>
+<p>All operators are left-associative. Parentheses override precedence.</p>
+<h3 id="compound-assignment">Compound Assignment</h3>
+<p>Supported for both variables and <code>@field</code> destinations:</p>
+<pre><code>+=  -=  *=  /=  %=  &amp;=  |=  ^=  &lt;&lt;=  &gt;&gt;=
+</code></pre>
+<p>Desugared at compile time: <code>@x += 5</code> becomes <code>@x = @x + (5)</code>.</p>
+<h3 id="built-in-functions">Built-in Functions</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Arity</th>
+<th>Float</th>
+<th>Int</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sqrt(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>abs(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>sin(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>cos(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>tan(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>asin(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>acos(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>atan(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>exp(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log10(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>log2(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>sinh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>cosh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>tanh(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>neg(x)</code></td>
+<td>1</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>min(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>max(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>✓</td>
+<td></td>
+</tr>
+<tr>
+<td><code>pow(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+<tr>
+<td><code>atan2(a,b)</code></td>
+<td>2</td>
+<td>✓</td>
+<td>—</td>
+<td>Always float</td>
+</tr>
+</tbody>
+</table>
+<p>Functions without an integer variant (<code>fn_i</code>) always produce float results
+regardless of argument types.</p>
+<h2 id="type-inference">Type Inference</h2>
+<p>The compiler infers float vs. integer for each operation bottom-up through
+the AST. No explicit casts are needed.</p>
+<p><strong>Rules:</strong></p>
+<ol>
+<li>Numeric literals: float if they contain <code>.</code> or <code>f</code> suffix, otherwise int.</li>
+<li>Variables: float if <code>frame_vars</code> declared with <code>:float</code>, otherwise int.</li>
+<li>Field references (<code>@field</code>): default to int. Use float literals on the
+   other side of the operation to force float dispatch.</li>
+<li>Arithmetic (<code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code>): float if <strong>either</strong> operand infers float.</li>
+<li>Bitwise (<code>&amp;</code> <code>|</code> <code>^</code> <code>&lt;&lt;</code> <code>&gt;&gt;</code>): always int.</li>
+<li>Comparison (<code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code>): always int result (0 or 1),
+   but operand comparison uses <code>fcmp</code> if either side is float.</li>
+<li>Logical (<code>&amp;&amp;</code> <code>||</code> <code>!</code>): always int.</li>
+<li>Function calls: float if function has no <code>fn_i</code> variant, otherwise
+   follows argument types.</li>
+</ol>
+<p><strong>Example type dispatch:</strong></p>
+<pre><code class="language-lua">quad_expr(&quot;@out = @x + 5&quot;, v, {&quot;t0&quot;})()     -- int + int → quad_iadd
+quad_expr(&quot;@out = @x + 5.0&quot;, v, {&quot;t0&quot;})()   -- int + float → quad_fadd
+quad_expr(&quot;@out = @x + 5f&quot;, v, {&quot;t0&quot;})()    -- int + float → quad_fadd
+</code></pre>
+<p><strong>Tip:</strong> When operating on float blackboard fields, use float literals
+(<code>1.0</code> not <code>1</code>) to ensure the compiler selects float operations. The
+compiler has no access to the record schema at compile time, so <code>@field</code>
+alone does not carry type information.</p>
+<h2 id="constant-folding">Constant Folding</h2>
+<p>The compiler evaluates constant subexpressions at compile time using LuaJIT
+math, reducing them to single literal values. This eliminates runtime
+operations and can reduce scratch usage.</p>
+<pre><code class="language-lua">-- Folds to: quad_mov(14, result)
+quad_expr(&quot;result = 2 + 3 * 4&quot;, v, {})()
+
+-- Folds 1.0 + 5.0 → 6.0, then compiles (p0 + 6.0) - 2.0
+-- Uses 1 scratch instead of 2
+quad_expr(&quot;r0 = (p0 + 1.0 + 5.0) - 2.0&quot;, cv, {&quot;ct0&quot;})()
+
+-- Folds sqrt(2.0) at compile time
+quad_expr(&quot;scale = sqrt(2.0) * @amplitude&quot;, v, {&quot;t0&quot;})()
+</code></pre>
+<p>Folding applies to all operators, all unary/binary math functions, and
+propagates through nested expressions. Division by zero and <code>sqrt</code> of
+negative values are not folded (left for runtime).</p>
+<h2 id="scratch-variables">Scratch Variables</h2>
+<p>Complex expressions need temporary storage for intermediate results. The
+compiler allocates scratch variables from the list you provide, in order.
+Scratch is freed after the parent operation consumes the intermediate, so
+deep expression trees may reuse slots.</p>
+<p><strong>How many scratch slots do I need?</strong></p>
+<p>For a simple binary operation on two leaves: 0 extra (result goes to dest).
+Each level of nesting where both sides are non-leaf adds 1 scratch.</p>
+<pre><code class="language-lua">-- 0 scratch: both operands are leaves
+quad_expr(&quot;@out = @a + @b&quot;, v, {})()
+
+-- 0 scratch: one operand is leaf, result goes to dest
+quad_expr(&quot;@out = @a + 5&quot;, v, {})()
+
+-- 1 scratch: (a+5) needs a temp, then temp*b goes to dest
+quad_expr(&quot;@out = (@a + 5) * @b&quot;, v, {&quot;t0&quot;})()
+
+-- 2 scratch: both sides of * are non-leaf
+quad_expr(&quot;@out = (@a + 5) * (@b - 2)&quot;, v, {&quot;t0&quot;, &quot;t1&quot;})()
+
+-- Function call: argument computation may need scratch
+quad_expr(&quot;@out = sqrt(@a + @b)&quot;, v, {&quot;t0&quot;})()
+</code></pre>
+<p>If you provide too few scratch variables, the compiler errors at compile time
+with a message showing how many were needed. Over-allocating is safe but
+wastes stack space on constrained targets.</p>
+<h2 id="integration">Integration</h2>
+<h3 id="loading">Loading</h3>
+<p>The compiler is loaded by <code>s_engine_helpers.lua</code> at startup:</p>
+<pre><code class="language-lua">dofile(&quot;s_engine_equation.lua&quot;)  -- loads s_expr_compiler.lua
+</code></pre>
+<p>This defines <code>frame_vars</code>, <code>quad_expr</code>, <code>quad_pred</code>, <code>quad_multi</code>,
+<code>quad_pred_acc</code>, and the debug variants as globals.</p>
+<h3 id="frame_vars-conflict">frame_vars Conflict</h3>
+<p><strong>Critical:</strong> <code>s_engine_helpers.lua</code> historically defines its own simpler
+<code>frame_vars</code> function (without type annotations) that overwrites the
+compiler's version. This must be removed from the helpers file. The
+compiler's <code>frame_vars</code> handles both typed (<code>"x:float"</code>) and untyped
+(<code>"x"</code>) declarations, defaulting untyped to <code>int</code>.</p>
+<p>Without type annotations, the compiler cannot determine whether local/scratch
+variables are float or int, and will default all operations to integer.
+Field references (<code>@field</code>) are unaffected since they bypass the vars table.</p>
+<h3 id="usage-pattern">Usage Pattern</h3>
+<pre><code class="language-lua">se_frame_allocate(0, num_locals, num_scratch, function()
+    local v = frame_vars(
+        {&quot;a:float&quot;, &quot;b:float&quot;, &quot;result:float&quot;},
+        {&quot;t0:float&quot;, &quot;t1:float&quot;}
+    )
+
+    -- Arithmetic assignment
+    quad_expr(&quot;a = @sensor_1 + @offset&quot;, v, {&quot;t0&quot;})()
+
+    -- Multi-statement batch
+    quad_multi(&quot;b = a * 0.95; @output = b + @bias&quot;, v, {&quot;t0&quot;})()
+
+    -- Predicate for control flow
+    se_if_then(quad_pred(&quot;@output &gt; @threshold&quot;, v, {}), function()
+        quad_expr(&quot;@alarm = 1&quot;, v, {})()
+    end)
+
+    -- Compound assignment
+    quad_expr(&quot;@counter += 1&quot;, v, {&quot;t0&quot;})()
+end)
+</code></pre>
+<h3 id="inside-se_call">Inside se_call</h3>
+<p>Call bodies create their own <code>frame_vars</code> scope. Parameters are locals at
+the start of the frame, return values are locals at designated indices.</p>
+<pre><code class="language-lua">se_call(2, 2, 3, {2, 3}, {
+    function()
+        local cv = frame_vars(
+            {&quot;p0:float&quot;, &quot;p1:float&quot;, &quot;r0:float&quot;, &quot;r1:float&quot;},
+            {&quot;ct0:float&quot;, &quot;ct1:float&quot;, &quot;ct2:float&quot;}
+        )
+        quad_expr(&quot;r0 = (p0 + 1.0 + 5.0) - 2.0&quot;, cv, {&quot;ct0&quot;, &quot;ct1&quot;})()
+        quad_expr(&quot;r1 = p1 * 2.0&quot;, cv, {&quot;ct0&quot;})()
+        se_return_pipeline_terminate()
+    end
+})
+</code></pre>
+<h2 id="compiler-internals">Compiler Internals</h2>
+<h3 id="ast-node-types">AST Node Types</h3>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Fields</th>
+<th>Produced By</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>num</code></td>
+<td><code>value</code>, <code>is_float</code></td>
+<td>Numeric literals</td>
+</tr>
+<tr>
+<td><code>var</code></td>
+<td><code>name</code></td>
+<td>Identifiers not followed by <code>(</code></td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td><code>name</code></td>
+<td><code>@identifier</code> tokens</td>
+</tr>
+<tr>
+<td><code>binop</code></td>
+<td><code>op</code>, <code>left</code>, <code>right</code></td>
+<td>Binary operators</td>
+</tr>
+<tr>
+<td><code>unop</code></td>
+<td><code>op</code>, <code>operand</code></td>
+<td>Unary <code>-</code>, <code>!</code>, <code>~</code></td>
+</tr>
+<tr>
+<td><code>call</code></td>
+<td><code>name</code>, <code>args</code></td>
+<td><code>ident(args)</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="code-generation">Code Generation</h3>
+<p>The <code>emit(node, dest_name)</code> function recursively walks the AST:</p>
+<ol>
+<li><strong>Leaf nodes</strong> with <code>dest_name</code>: emit <code>quad_mov</code> from source to destination.</li>
+<li><strong>Leaf nodes</strong> without <code>dest_name</code>: return the parameter-emitting closure directly (no quad op).</li>
+<li><strong>Binary operations</strong>: emit children first (allocating scratch for non-leaf intermediates),
+   then emit the operation targeting <code>dest_name</code> or a fresh scratch slot.</li>
+<li><strong>Function calls</strong>: emit argument sub-trees, then emit the function quad with
+   all argument refs followed by the destination ref.</li>
+</ol>
+<p>The scratch allocator is a simple stack: <code>alloc_scratch()</code> increments an index
+and returns the next name from the scratch list, <code>free_scratch()</code> decrements it.
+A high-water mark tracks peak usage for the debug output.</p>
+<h3 id="operation-list">Operation List</h3>
+<p>The code generator produces a list of <code>{fn = "quad_name", args = {ref, ref, ...}}</code>
+entries. The outer closure iterates this list, resolving each <code>fn</code> from <code>_G</code> and
+calling it with the argument refs. Each quad function returns a closure that is
+immediately invoked with <code>()</code> to emit the tree node.</p>
+<h2 id="version-history">Version History</h2>
+<h3 id="v11">v1.1</h3>
+<ul>
+<li><code>@field_name</code> works as assignment destination in <code>quad_expr</code> and <code>quad_multi</code></li>
+<li><code>ref_for()</code> detects <code>@</code> prefix and delegates to <code>field_val()</code></li>
+<li>Leaf-to-dest assignment emits <code>quad_mov</code> (previously silently dropped)</li>
+<li>Compound assignment patterns extended for <code>@field</code> destinations</li>
+<li>Destination regex updated to <code>@?[%w_.]+</code></li>
+</ul>
+<h3 id="v10">v1.0</h3>
+<ul>
+<li>Initial release with full expression parsing, type inference, constant folding</li>
+<li><code>quad_expr</code>, <code>quad_pred</code>, <code>quad_multi</code>, <code>quad_pred_acc</code> API</li>
+<li>Debug variants for AST inspection</li>
+<li>Typed <code>frame_vars</code> with <code>:float</code> / <code>:int</code> annotations</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

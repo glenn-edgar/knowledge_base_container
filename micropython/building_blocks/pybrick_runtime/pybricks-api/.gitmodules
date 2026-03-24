@@ -1,0 +1,3 @@
+[submodule "media/ev3dev-media"]
+	path = media/ev3dev-media
+	url = https://github.com/ev3dev/ev3dev-media.git

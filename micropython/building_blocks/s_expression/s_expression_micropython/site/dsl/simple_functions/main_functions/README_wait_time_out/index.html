@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../../img/favicon.ico">
+        <title>Wait Timeout - S-Expression Engine -- MicroPython</title>
+        <link href="../../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_wait_event/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_verify/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_wait_timeout" class="nav-link">SE_WAIT_TIMEOUT</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#function-type" class="nav-link">Function Type</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#parameters" class="nav-link">Parameters</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lua-dsl" class="nav-link">Lua DSL</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#behavior" class="nav-link">Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-examples" class="nav-link">Usage Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-related-functions" class="nav-link">Comparison with Related Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-differences" class="nav-link">Key Differences</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-function-behavior" class="nav-link">Error Function Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#c-implementation-notes" class="nav-link">C Implementation Notes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#notes" class="nav-link">Notes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="se_wait_timeout">SE_WAIT_TIMEOUT</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_wait_timeout</code> is a blocking wait function with timeout protection. It waits for a predicate to become true, but if the timeout is exceeded before the predicate passes, it invokes an error handler and either resets or terminates. This combines the functionality of <code>se_wait</code> with the timeout protection of <code>se_verify_and_check_elapsed_time</code>.</p>
+<h2 id="function-type">Function Type</h2>
+<ul>
+<li><strong>Type:</strong> MAIN (pt_m_call)</li>
+<li><strong>Storage:</strong> 64-bit pointer array slot (stores start time as f64)</li>
+<li><strong>Blocking:</strong> Yes (returns <code>SE_PIPELINE_HALT</code> while waiting)</li>
+</ul>
+<h2 id="parameters">Parameters</h2>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>PRED</td>
+<td>Predicate function to evaluate</td>
+</tr>
+<tr>
+<td>1</td>
+<td>FLOAT</td>
+<td>Timeout in seconds</td>
+</tr>
+<tr>
+<td>2</td>
+<td>INT</td>
+<td>Reset flag (0 = terminate, 1 = reset)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ONESHOT</td>
+<td>Error function to invoke on timeout</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lua-dsl">Lua DSL</h2>
+<pre><code class="language-lua">se_wait_timeout(pred_function, timeout, reset_flag, error_function)
+</code></pre>
+<h3 id="parameters_1">Parameters</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pred_function</code></td>
+<td>function</td>
+<td>Predicate to evaluate each tick</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>number</td>
+<td>Maximum wait time in seconds</td>
+</tr>
+<tr>
+<td><code>reset_flag</code></td>
+<td>boolean</td>
+<td><code>true</code> = <code>SE_PIPELINE_RESET</code>, <code>false</code> = <code>SE_PIPELINE_TERMINATE</code></td>
+</tr>
+<tr>
+<td><code>error_function</code></td>
+<td>function</td>
+<td>ONESHOT function to invoke when timeout exceeded</td>
+</tr>
+</tbody>
+</table>
+<h3 id="validation">Validation</h3>
+<ul>
+<li><code>pred_function</code> must be a function</li>
+<li><code>timeout</code> must be a number</li>
+<li><code>reset_flag</code> must be a boolean</li>
+<li><code>error_function</code> must be a function</li>
+</ul>
+<h2 id="behavior">Behavior</h2>
+<h3 id="state-machine">State Machine</h3>
+<pre><code>┌─────────────────────────────────────────────────────┐
+│                      INIT                           │
+│  • Record start_time = get_time()                   │
+│  • Store in 64-bit pointer slot                     │
+│  • Return SE_PIPELINE_CONTINUE                      │
+└─────────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────┐
+│                    WAITING                          │
+│  • On SE_EVENT_TICK only:                           │
+│    1. Evaluate predicate                            │
+│       - If true: return SE_PIPELINE_DISABLE         │
+│    2. Check elapsed time                            │
+│       - If elapsed &gt; timeout: TIMEOUT               │
+│       - Else: return SE_PIPELINE_HALT               │
+│  • On other events: return SE_PIPELINE_HALT         │
+└─────────────────────────────────────────────────────┘
+           │                           │
+           ▼ (predicate true)          ▼ (timeout)
+┌─────────────────────┐    ┌─────────────────────────┐
+│      COMPLETE       │    │        TIMEOUT          │
+│  SE_PIPELINE_DISABLE│    │  • Reset error function │
+└─────────────────────┘    │  • Invoke error function│
+                           │  • Return RESET or TERM │
+                           └─────────────────────────┘
+</code></pre>
+<h3 id="event-handling">Event Handling</h3>
+<table>
+<thead>
+<tr>
+<th>Event Type</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SE_EVENT_INIT</code></td>
+<td>Record start time in f64 storage</td>
+</tr>
+<tr>
+<td><code>SE_EVENT_TERMINATE</code></td>
+<td>Return <code>SE_PIPELINE_CONTINUE</code> (no cleanup)</td>
+</tr>
+<tr>
+<td><code>SE_EVENT_TICK</code></td>
+<td>Evaluate predicate, check timeout</td>
+</tr>
+<tr>
+<td>Other events</td>
+<td>Return <code>SE_PIPELINE_HALT</code> (still waiting)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="return-codes">Return Codes</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Predicate becomes true</td>
+<td><code>SE_PIPELINE_DISABLE</code> (complete)</td>
+</tr>
+<tr>
+<td>Waiting (within timeout)</td>
+<td><code>SE_PIPELINE_HALT</code></td>
+</tr>
+<tr>
+<td>Timeout + reset_flag=true</td>
+<td><code>SE_PIPELINE_RESET</code></td>
+</tr>
+<tr>
+<td>Timeout + reset_flag=false</td>
+<td><code>SE_PIPELINE_TERMINATE</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="reset-flag-behavior">Reset Flag Behavior</h3>
+<table>
+<thead>
+<tr>
+<th>reset_flag</th>
+<th>On Timeout</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>true</code></td>
+<td><code>SE_PIPELINE_RESET</code></td>
+<td>Retry operation from beginning</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td><code>SE_PIPELINE_TERMINATE</code></td>
+<td>Fatal error, abort</td>
+</tr>
+</tbody>
+</table>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="basic-wait-with-timeout-fatal">Basic Wait with Timeout (Fatal)</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    se_log(&quot;Waiting for sensor ready (max 5 seconds)...&quot;)
+
+    se_wait_timeout(se_pred(&quot;SENSOR_READY&quot;), 5.0, false, function()
+        se_log(&quot;FATAL: Sensor did not respond in time!&quot;)
+        se_set_field(&quot;error_code&quot;, ERR_SENSOR_TIMEOUT)
+    end)
+
+    se_log(&quot;Sensor ready!&quot;)
+    se_do_sensor_work()
+    se_return_pipeline_disable()
+end)
+</code></pre>
+<h3 id="wait-with-retry-on-timeout">Wait with Retry on Timeout</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    se_log(&quot;Attempting connection (will retry on timeout)...&quot;)
+
+    se_wait_timeout(se_pred(&quot;CONNECTED&quot;), 2.0, true, function()
+        se_log(&quot;Connection timeout - retrying...&quot;)
+        se_increment_field(&quot;retry_count&quot;, 1)
+    end)
+
+    se_log(&quot;Connected!&quot;)
+    se_return_pipeline_disable()
+end)
+</code></pre>
+<h3 id="wait-for-field-condition">Wait for Field Condition</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    se_log(&quot;Waiting for counter to reach 100...&quot;)
+
+    se_wait_timeout(se_field_ge(&quot;counter&quot;, 100), 30.0, false, function()
+        se_log(&quot;Timeout: Counter never reached 100&quot;)
+        se_log_int(&quot;Final value: %d&quot;, &quot;counter&quot;)
+    end)
+
+    se_log(&quot;Counter reached 100!&quot;)
+    se_return_pipeline_disable()
+end)
+</code></pre>
+<h3 id="immediate-completion-predicate-already-true">Immediate Completion (Predicate Already True)</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    se_set_field(&quot;ready&quot;, 1)
+
+    -- Completes immediately because predicate is already true
+    se_wait_timeout(se_field_eq(&quot;ready&quot;, 1), 5.0, false, function()
+        se_log(&quot;This will never fire&quot;)
+    end)
+
+    se_log(&quot;Continued immediately!&quot;)
+    se_return_pipeline_disable()
+end)
+</code></pre>
+<h3 id="complex-predicate">Complex Predicate</h3>
+<pre><code class="language-lua">se_chain_flow(function()
+    -- Build complex predicate: (mode == READY) AND (level &gt; 0)
+    pred_begin()
+        local and1 = se_pred_and()
+            se_field_eq(&quot;mode&quot;, MODE_READY)
+            se_field_gt(&quot;level&quot;, 0)
+        pred_close(and1)
+    local ready_condition = pred_end()
+
+    se_wait_timeout(ready_condition, 10.0, false, function()
+        se_log(&quot;System failed to reach ready state&quot;)
+    end)
+
+    se_log(&quot;System ready!&quot;)
+    se_return_pipeline_disable()
+end)
+</code></pre>
+<h3 id="repeated-retry-with-se_false">Repeated Retry with se_false()</h3>
+<pre><code class="language-lua">-- This will timeout and reset forever (for testing)
+se_chain_flow(function()
+    se_log(&quot;Starting retry loop&quot;)
+
+    se_wait_timeout(se_false(), 2.0, true, function()
+        se_log(&quot;Timeout - resetting...&quot;)
+        se_increment_field(&quot;timeout_count&quot;, 1)
+    end)
+
+    -- Never reached because se_false() never becomes true
+    se_log(&quot;This will never print&quot;)
+end)
+</code></pre>
+<h2 id="comparison-with-related-functions">Comparison with Related Functions</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Waits For</th>
+<th>Timeout</th>
+<th>On Success</th>
+<th>On Timeout</th>
+<th>Blocking</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_wait_timeout</code></td>
+<td>Predicate</td>
+<td>Yes</td>
+<td>DISABLE</td>
+<td>RESET/TERMINATE</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_wait</code></td>
+<td>Predicate</td>
+<td>No</td>
+<td>DISABLE</td>
+<td>N/A</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_wait_event</code></td>
+<td>Event N times</td>
+<td>No</td>
+<td>DISABLE</td>
+<td>N/A</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_verify</code></td>
+<td>Predicate fail</td>
+<td>N/A</td>
+<td>CONTINUE</td>
+<td>RESET/TERMINATE</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>se_verify_and_check_elapsed_time</code></td>
+<td>Timeout</td>
+<td>Yes</td>
+<td>N/A</td>
+<td>RESET/TERMINATE</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-differences">Key Differences</h2>
+<h3 id="vs-se_wait">vs se_wait</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_wait</code></th>
+<th><code>se_wait_timeout</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Timeout</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Error handler</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>None (m_call)</td>
+<td>64-bit (pt_m_call)</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td>Simple wait</td>
+<td>Wait with protection</td>
+</tr>
+</tbody>
+</table>
+<h3 id="vs-se_verify_and_check_elapsed_time">vs se_verify_and_check_elapsed_time</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_verify_and_check_elapsed_time</code></th>
+<th><code>se_wait_timeout</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Blocking</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>On success</td>
+<td>Continues monitoring</td>
+<td>Completes (DISABLE)</td>
+</tr>
+<tr>
+<td>Purpose</td>
+<td>Watchdog</td>
+<td>Protected wait</td>
+</tr>
+</tbody>
+</table>
+<h2 id="error-function-behavior">Error Function Behavior</h2>
+<p>The error function is reset before invocation to allow repeated firing on <code>reset_flag=true</code>:</p>
+<pre><code class="language-c">// Reset and invoke error function at logical child 3
+s_expr_child_reset(inst, params, param_count, 3);
+s_expr_child_invoke_oneshot(inst, params, param_count, 3);
+</code></pre>
+<p>This ensures the error function fires on <strong>every</strong> timeout, not just the first.</p>
+<h2 id="c-implementation-notes">C Implementation Notes</h2>
+<h3 id="logical-child-indexing">Logical Child Indexing</h3>
+<p>Because the predicate is an OPEN_CALL that spans multiple physical indices, scalar parameters must be found using <code>s_expr_child_index</code>:</p>
+<pre><code class="language-c">// Logical child mapping:
+// 0: OPEN_CALL(PRED) — predicate function
+// 1: FLOAT — timeout
+// 2: INT — reset_flag
+// 3: OPEN_CALL(ONESHOT) — error function
+
+uint16_t timeout_idx = s_expr_child_index(params, param_count, 1);
+ct_float_t timeout = params[timeout_idx].float_val;
+
+uint16_t reset_flag_idx = s_expr_child_index(params, param_count, 2);
+bool reset_flag = (params[reset_flag_idx].int_val != 0);
+</code></pre>
+<h3 id="event-filtering">Event Filtering</h3>
+<p>Returns <code>SE_PIPELINE_HALT</code> on non-tick events to maintain blocking behavior:</p>
+<pre><code class="language-c">if (event_id != SE_EVENT_TICK) {
+    return SE_PIPELINE_HALT;  // Still waiting
+}
+</code></pre>
+<h3 id="time-storage">Time Storage</h3>
+<p>Uses 64-bit pointer slot to store start time as <code>double</code>:</p>
+<pre><code class="language-c">// INIT
+s_expr_set_user_f64(inst, start_time);
+
+// TICK
+double start_time = s_expr_get_user_f64(inst);
+</code></pre>
+<h2 id="error-handling">Error Handling</h2>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>param_count &lt; 4</code></td>
+<td>Missing parameters in INIT</td>
+</tr>
+<tr>
+<td><code>timeout not found</code></td>
+<td>Logical child 1 missing</td>
+</tr>
+<tr>
+<td><code>reset_flag not found</code></td>
+<td>Logical child 2 missing</td>
+</tr>
+</tbody>
+</table>
+<p>Exceptions halt execution (Erlang-style fail-fast).</p>
+<h2 id="notes">Notes</h2>
+<ul>
+<li>Predicate is evaluated <strong>first</strong> each tick, so immediate completion is possible if predicate is already true</li>
+<li>The timeout is checked on every <code>SE_EVENT_TICK</code>, not on user events</li>
+<li>Non-tick events return <code>SE_PIPELINE_HALT</code> (maintains blocking) rather than <code>SE_PIPELINE_CONTINUE</code> (would indicate non-blocking)</li>
+<li>If <code>get_time</code> is not provided, times will be 0.0 and timeout may trigger immediately</li>
+<li>The error function reset ensures repeated firing when <code>reset_flag=true</code></li>
+<li>When the parent composite resets this function, the start time is re-recorded (timer restarts)</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../../js/base.js"></script>
+        <script src="../../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

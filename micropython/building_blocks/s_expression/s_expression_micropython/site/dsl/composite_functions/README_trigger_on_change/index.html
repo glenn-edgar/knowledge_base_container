@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Trigger on Change - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_field_dispatch/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_engine_interface/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_trigger_on_change-edge-detection-composite" class="nav-link">se_trigger_on_change - Edge Detection Composite</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lua-dsl" class="nav-link">Lua DSL</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#behavior" class="nav-link">Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#initial-state" class="nav-link">Initial State</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#result-code-handling" class="nav-link">Result Code Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#c-implementation" class="nav-link">C Implementation</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-examples" class="nav-link">Usage Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#multiple-triggers-in-parallel" class="nav-link">Multiple Triggers in Parallel</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-other-dispatch-mechanisms" class="nav-link">Comparison with Other Dispatch Mechanisms</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-points" class="nav-link">Key Points</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#files" class="nav-link">Files</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="se_trigger_on_change-edge-detection-composite">se_trigger_on_change - Edge Detection Composite</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_trigger_on_change</code> is a composite function that monitors a predicate and fires actions when the predicate transitions between true and false states. It provides edge detection for boolean conditions, enabling reactive behavior in behavior trees.</p>
+<h2 id="lua-dsl">Lua DSL</h2>
+<h3 id="primary-function">Primary Function</h3>
+<pre><code class="language-lua">function se_trigger_on_change(initial_state, pred_fn, then_fn, else_fn)
+    local c = m_call(&quot;SE_TRIGGER_ON_CHANGE&quot;)
+        int(initial_state)
+        pred_fn()
+        then_fn()
+        else_fn()
+    end_call(c)
+end
+</code></pre>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>initial_state</code></td>
+<td>int (0 or 1)</td>
+<td>Starting state of the predicate (prevents spurious trigger on first tick)</td>
+</tr>
+<tr>
+<td><code>pred_fn</code></td>
+<td>function</td>
+<td>Predicate that returns true/false</td>
+</tr>
+<tr>
+<td><code>then_fn</code></td>
+<td>function</td>
+<td>Action executed on rising edge (false → true)</td>
+</tr>
+<tr>
+<td><code>else_fn</code></td>
+<td>function</td>
+<td>Action executed on falling edge (true → false)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="convenience-functions">Convenience Functions</h3>
+<pre><code class="language-lua">-- Rising edge only - fires when predicate goes from false to true
+function se_on_rising_edge(pred_fn, action_fn)
+    se_trigger_on_change(0, pred_fn, action_fn, function()
+        se_nop()
+    end)
+end
+
+-- Falling edge only - fires when predicate goes from true to false
+function se_on_falling_edge(pred_fn, action_fn)
+    se_trigger_on_change(1, pred_fn, function()
+        se_nop()
+    end, action_fn)
+end
+</code></pre>
+<h2 id="behavior">Behavior</h2>
+<h3 id="state-machine">State Machine</h3>
+<pre><code>                    ┌──────────────────────────────────────────┐
+                    │         se_trigger_on_change             │
+                    │                                          │
+                    │   ┌─────────────────────────────────┐   │
+                    │   │         State Machine           │   │
+                    │   │                                 │   │
+   predicate        │   │    ┌───────┐     ┌───────┐     │   │
+   becomes ────────►│   │    │ FALSE │────►│ TRUE  │     │   │
+   true             │   │    │ state │     │ state │     │   │
+                    │   │    └───────┘◄────└───────┘     │   │
+   predicate        │   │         ▲           │         │   │
+   becomes ◄────────│   │         │           │         │   │
+   false            │   │         │           ▼         │   │
+                    │   │    ┌─────────────────────┐    │   │
+                    │   │    │   Execute Action    │    │   │
+                    │   │    │  (rising/falling)   │    │   │
+                    │   │    └─────────────────────┘    │   │
+                    │   │                                 │   │
+                    │   └─────────────────────────────────┘   │
+                    │                                          │
+                    └──────────────────────────────────────────┘
+</code></pre>
+<h3 id="execution-flow">Execution Flow</h3>
+<p>Each tick:</p>
+<ol>
+<li><strong>Evaluate predicate</strong> - Call the predicate function to get current boolean state</li>
+<li><strong>Compare with stored state</strong> - Check if predicate result differs from last known state</li>
+<li><strong>On state change:</strong></li>
+<li>Terminate and reset the previously running action (if any)</li>
+<li>Reset the new action to be invoked</li>
+<li>Invoke the appropriate action (rising or falling)</li>
+<li>Update stored state</li>
+<li><strong>No state change:</strong></li>
+<li>Continue running the current action (if any)</li>
+</ol>
+<h3 id="rising-edge-false-true">Rising Edge (false → true)</h3>
+<pre><code>Tick N:   predicate = false, state = 0
+Tick N+1: predicate = true,  state = 0 → RISING EDGE DETECTED
+          → terminate falling action (if running)
+          → reset falling action
+          → reset rising action
+          → invoke rising action
+          → state = 1
+</code></pre>
+<h3 id="falling-edge-true-false">Falling Edge (true → false)</h3>
+<pre><code>Tick N:   predicate = true,  state = 1
+Tick N+1: predicate = false, state = 1 → FALLING EDGE DETECTED
+          → terminate rising action (if running)
+          → reset rising action
+          → reset falling action
+          → invoke falling action
+          → state = 0
+</code></pre>
+<h2 id="initial-state">Initial State</h2>
+<p>The <code>initial_state</code> parameter is critical for preventing spurious triggers on the first tick:</p>
+<table>
+<thead>
+<tr>
+<th>initial_state</th>
+<th>Predicate on first tick</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>false</td>
+<td>No action (state matches)</td>
+</tr>
+<tr>
+<td>0</td>
+<td>true</td>
+<td>Rising action fires</td>
+</tr>
+<tr>
+<td>1</td>
+<td>true</td>
+<td>No action (state matches)</td>
+</tr>
+<tr>
+<td>1</td>
+<td>false</td>
+<td>Falling action fires</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rule of thumb:</strong>
+- Set <code>initial_state = 0</code> if predicate is expected to start false
+- Set <code>initial_state = 1</code> if predicate is expected to start true</p>
+<h3 id="not-predicate-example">NOT Predicate Example</h3>
+<p>For a NOT predicate (inverted logic), the initial state is inverted:</p>
+<pre><code class="language-lua">-- NOT bit5: When bit5=0, predicate is TRUE
+-- So initial_state should be 1 (predicate starts true when bit5=0)
+se_trigger_on_change(1,
+    function()
+        local pred = p_call(&quot;SE_PRED_NOT&quot;)
+            local p1 = p_call(&quot;TEST_BIT&quot;) int(5) end_call(p1)
+        end_call(pred)
+    end,
+    function()
+        -- Rising: NOT bit5 went true (bit5 was cleared)
+        se_chain_flow(function()
+            se_log(&quot;Bit 5 cleared!&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        -- Falling: NOT bit5 went false (bit5 was set)
+        se_chain_flow(function()
+            se_log(&quot;Bit 5 set!&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h2 id="result-code-handling">Result Code Handling</h2>
+<p><code>se_trigger_on_change</code> uses the three-tier result code system:</p>
+<h3 id="non-pipeline-codes-0-11">Non-PIPELINE Codes (0-11)</h3>
+<p>Propagated immediately to caller without modification:</p>
+<pre><code class="language-c">if (r &lt; SE_PIPELINE_CONTINUE) return r;
+</code></pre>
+<h3 id="pipeline-codes-12-17">PIPELINE Codes (12-17)</h3>
+<p>Handled internally:</p>
+<table>
+<thead>
+<tr>
+<th>Result Code</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SE_PIPELINE_CONTINUE</td>
+<td>Action running, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_HALT</td>
+<td>Action paused, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_DISABLE</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_TERMINATE</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_RESET</td>
+<td>Terminate and reset action, return CONTINUE</td>
+</tr>
+<tr>
+<td>SE_PIPELINE_SKIP_CONTINUE</td>
+<td>Return CONTINUE</td>
+</tr>
+</tbody>
+</table>
+<p>The trigger always returns <code>SE_PIPELINE_CONTINUE</code> to keep the parent composite running.</p>
+<h2 id="c-implementation">C Implementation</h2>
+<h3 id="child-structure">Child Structure</h3>
+<pre><code class="language-c">// Child indices
+const uint16_t INIT_STATE_CHILD = 0;  // Initial state (INT 0 or 1)
+const uint16_t PRED_CHILD = 1;        // Predicate function
+const uint16_t RISING_CHILD = 2;      // Rising edge action
+const uint16_t FALLING_CHILD = 3;     // Falling edge action (optional)
+</code></pre>
+<h3 id="event-handling">Event Handling</h3>
+<pre><code class="language-c">// TERMINATE EVENT
+if (event_type == SE_EVENT_TERMINATE) {
+    s_expr_children_terminate_all(inst, params, param_count);
+    return SE_PIPELINE_CONTINUE;
+}
+
+// INIT EVENT
+if (event_type == SE_EVENT_INIT) {
+    uint16_t init_phys_idx = s_expr_child_index(params, param_count, INIT_STATE_CHILD);
+    int32_t initial_state = (int32_t)params[init_phys_idx].int_val;
+    s_expr_set_state(inst, initial_state ? 1 : 0);
+    return SE_PIPELINE_CONTINUE;
+}
+</code></pre>
+<h3 id="tick-handling">Tick Handling</h3>
+<pre><code class="language-c">// TICK EVENT
+// 1. Evaluate predicate
+uint16_t pred_phys_idx = s_expr_child_index(params, param_count, PRED_CHILD);
+bool pred_result = s_expr_invoke_pred(inst, params, pred_phys_idx);
+
+// 2. Get current state
+uint8_t current_state = s_expr_get_state(inst);
+bool rising = (pred_result &amp;&amp; current_state == 0);
+bool falling = (!pred_result &amp;&amp; current_state == 1);
+
+// 3. Handle rising edge
+if (rising) {
+    // Terminate and reset falling action (if exists)
+    if (has_falling) {
+        s_expr_child_terminate(inst, params, param_count, FALLING_CHILD);
+        s_expr_child_reset(inst, params, param_count, FALLING_CHILD);
+    }
+    // Reset rising action
+    s_expr_child_terminate(inst, params, param_count, RISING_CHILD);
+    s_expr_child_reset(inst, params, param_count, RISING_CHILD);
+
+    // Invoke rising action
+    uint16_t phys_idx = s_expr_child_index(params, param_count, RISING_CHILD);
+    s_expr_result_t r = s_expr_invoke_any(inst, params, phys_idx);
+
+    // Update state
+    s_expr_set_state(inst, 1);
+
+    // Handle result...
+}
+
+// 4. Handle falling edge (similar)
+</code></pre>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="simple-bit-monitor">Simple Bit Monitor</h3>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;TEST_BIT&quot;)
+            int(0)  -- bit index
+        end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Bit 0 went HIGH&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Bit 0 went LOW&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="compound-condition-and">Compound Condition (AND)</h3>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;SE_PRED_AND&quot;)
+            local p1 = p_call(&quot;IS_ENABLED&quot;) end_call(p1)
+            local p2 = p_call(&quot;HAS_DATA&quot;) end_call(p2)
+        end_call(pred)
+    end,
+    function()
+        -- Both conditions now true
+        se_chain_flow(function()
+            se_log(&quot;System ready: enabled AND has data&quot;)
+            se_return_continue()
+        end)
+    end,
+    function()
+        -- At least one condition now false
+        se_chain_flow(function()
+            se_log(&quot;System not ready&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="rising-edge-only">Rising Edge Only</h3>
+<pre><code class="language-lua">se_on_rising_edge(
+    function()
+        local pred = p_call(&quot;BUTTON_PRESSED&quot;) end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Button pressed!&quot;)
+            se_set_field(&quot;button_count&quot;, 1)  -- Increment would need custom function
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="falling-edge-only">Falling Edge Only</h3>
+<pre><code class="language-lua">se_on_falling_edge(
+    function()
+        local pred = p_call(&quot;MOTOR_RUNNING&quot;) end_call(pred)
+    end,
+    function()
+        se_chain_flow(function()
+            se_log(&quot;Motor stopped&quot;)
+            se_queue_event(SE_EVENT_USER, MOTOR_STOPPED_EVENT, &quot;motor_id&quot;)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h3 id="looping-actions">Looping Actions</h3>
+<p>Actions can loop by returning <code>SE_PIPELINE_RESET</code>:</p>
+<pre><code class="language-lua">se_trigger_on_change(0,
+    function()
+        local pred = p_call(&quot;ALARM_ACTIVE&quot;) end_call(pred)
+    end,
+    function()
+        -- Continuously flash while alarm is active
+        se_chain_flow(function()
+            se_set_field(&quot;led&quot;, 1)
+            se_tick_delay(10)
+            se_set_field(&quot;led&quot;, 0)
+            se_tick_delay(10)
+            se_return_pipeline_reset()  -- Loop until alarm clears
+        end)
+    end,
+    function()
+        -- Turn off LED when alarm clears
+        se_chain_flow(function()
+            se_set_field(&quot;led&quot;, 0)
+            se_return_continue()
+        end)
+    end
+)
+</code></pre>
+<h2 id="multiple-triggers-in-parallel">Multiple Triggers in Parallel</h2>
+<p>Use <code>se_function_interface</code> to run multiple triggers simultaneously:</p>
+<pre><code class="language-lua">se_function_interface(function()
+
+    -- Monitor bit 0
+    se_trigger_on_change(0,
+        function() local p = p_call(&quot;TEST_BIT&quot;) int(0) end_call(p) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 0 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 0 LOW&quot;) se_return_continue() end) end
+    )
+
+    -- Monitor bit 1
+    se_trigger_on_change(0,
+        function() local p = p_call(&quot;TEST_BIT&quot;) int(1) end_call(p) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 1 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bit 1 LOW&quot;) se_return_continue() end) end
+    )
+
+    -- Monitor bits 2 AND 3
+    se_trigger_on_change(0,
+        function()
+            local pred = p_call(&quot;SE_PRED_AND&quot;)
+                local p1 = p_call(&quot;TEST_BIT&quot;) int(2) end_call(p1)
+                local p2 = p_call(&quot;TEST_BIT&quot;) int(3) end_call(p2)
+            end_call(pred)
+        end,
+        function() se_chain_flow(function() se_log(&quot;Bits 2&amp;3 HIGH&quot;) se_return_continue() end) end,
+        function() se_chain_flow(function() se_log(&quot;Bits 2&amp;3 LOW&quot;) se_return_continue() end) end
+    )
+
+    se_return_continue()
+end)
+</code></pre>
+<h2 id="comparison-with-other-dispatch-mechanisms">Comparison with Other Dispatch Mechanisms</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>se_trigger_on_change</th>
+<th>se_field_dispatch</th>
+<th>se_state_machine</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Trigger</td>
+<td>Predicate edge</td>
+<td>Field value change</td>
+<td>Action completion</td>
+</tr>
+<tr>
+<td>Actions</td>
+<td>2 (rise/fall)</td>
+<td>N (one per value)</td>
+<td>N (one per state)</td>
+</tr>
+<tr>
+<td>Looping</td>
+<td>Via PIPELINE_RESET</td>
+<td>Via PIPELINE_RESET</td>
+<td>Via next_state</td>
+</tr>
+<tr>
+<td>Use Case</td>
+<td>Boolean conditions</td>
+<td>Multi-value selection</td>
+<td>State-driven flow</td>
+</tr>
+</tbody>
+</table>
+<h2 id="key-points">Key Points</h2>
+<ol>
+<li><strong>Edge Detection</strong> - Only fires on transitions, not while condition holds</li>
+<li><strong>Initial State</strong> - Prevents spurious trigger on first tick</li>
+<li><strong>Action Reset</strong> - Actions automatically reset after completion, enabling re-trigger</li>
+<li><strong>Mutual Exclusion</strong> - Rising and falling actions are mutually exclusive (one terminates the other)</li>
+<li><strong>Predicate Flexibility</strong> - Any predicate (simple or composite) can be used</li>
+<li><strong>PIPELINE_CONTINUE</strong> - Always returns CONTINUE to keep parent running</li>
+<li><strong>Parallel Operation</strong> - Multiple triggers can run simultaneously in <code>se_function_interface</code></li>
+</ol>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>s_expr_primitives.c</code></td>
+<td>C implementation of se_trigger_on_change</td>
+</tr>
+<tr>
+<td><code>s_expr_dsl_primitives.lua</code></td>
+<td>Lua DSL helper functions</td>
+</tr>
+<tr>
+<td><code>s_engine_eval.c</code></td>
+<td>Predicate invocation (s_expr_invoke_pred)</td>
+</tr>
+</tbody>
+</table></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

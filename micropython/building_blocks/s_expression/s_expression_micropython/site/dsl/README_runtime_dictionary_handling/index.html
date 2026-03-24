@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Runtime Dictionary Handling - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_outer_engine_design/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../composite_functions/README_composite_functions/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#dictionary-subsystem-design-document" class="nav-link">Dictionary Subsystem Design Document</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#1-overview" class="nav-link">1. Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#2-dictionary-token-layout" class="nav-link">2. Dictionary Token Layout</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#3-path-resolution" class="nav-link">3. Path Resolution</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#4-typed-value-extraction" class="nav-link">4. Typed Value Extraction</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#5-iteration" class="nav-link">5. Iteration</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#6-blackboard-integration" class="nav-link">6. Blackboard Integration</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#7-error-reporting" class="nav-link">7. Error Reporting</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#8-issues-found" class="nav-link">8. Issues Found</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#9-performance-characteristics" class="nav-link">9. Performance Characteristics</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#10-summary" class="nav-link">10. Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="dictionary-subsystem-design-document">Dictionary Subsystem Design Document</h1>
+<h2 id="1-overview">1. Overview</h2>
+<p>The dictionary subsystem provides two parallel APIs for navigating nested key-value structures stored in the s_engine's flat compiled parameter arrays. Both operate on the same underlying <code>OPEN_DICT / OPEN_KEY / CLOSE_KEY / CLOSE_DICT</code> and <code>OPEN_ARRAY / CLOSE_ARRAY</code> token sequences — they differ only in how keys are specified at the call site.</p>
+<ul>
+<li>
+<p><strong><code>se_dict_string</code></strong> — keys specified as dot-separated path strings, parsed at runtime. Designed for JSON-style configuration access and debugging convenience. String segments are hashed to FNV-1a at lookup time and compared against <code>OPEN_KEY.str_hash</code>.</p>
+</li>
+<li>
+<p><strong><code>se_dict_hash</code></strong> — keys specified as pre-computed FNV-1a hash arrays, no string parsing at runtime. Designed for performance-critical paths where key hashes are known at compile time via <code>SE_PATH_H("key1", "key2")</code> macros.</p>
+</li>
+</ul>
+<p>Both APIs share the same dictionary token layout and provide identical typed extraction, iteration, and blackboard integration capabilities.</p>
+<hr />
+<h2 id="2-dictionary-token-layout">2. Dictionary Token Layout</h2>
+<p>Dictionaries and arrays are stored inline in the flat <code>s_expr_param_t</code> array using matched open/close tokens with <code>brace_idx</code> offsets for O(1) skip:</p>
+<pre><code>Dictionary:
+  OPEN_DICT  (brace_idx → CLOSE_DICT)
+    OPEN_KEY   (str_hash = FNV-1a of key name)
+      &lt;value&gt;  (scalar, nested dict, array, or callable)
+    CLOSE_KEY
+    OPEN_KEY   (str_hash = ...)
+      &lt;value&gt;
+    CLOSE_KEY
+  CLOSE_DICT
+
+Array:
+  OPEN_ARRAY  (brace_idx → CLOSE_ARRAY)
+    &lt;value&gt;
+    &lt;value&gt;
+    ...
+  CLOSE_ARRAY
+</code></pre>
+<p>Key observations:</p>
+<ul>
+<li>Keys are always stored as FNV-1a hashes in <code>OPEN_KEY.str_hash</code>, never as string pointers. Both APIs ultimately do hash-to-hash comparison.</li>
+<li><code>brace_idx</code> on any open token gives the offset to the matching close token, enabling <code>skip_value()</code> to jump over nested structures in O(1).</li>
+<li>Values can be any param type: scalars (<code>INT</code>, <code>UINT</code>, <code>FLOAT</code>, <code>STR_HASH</code>, <code>STR_IDX</code>), nested containers (<code>OPEN_DICT</code>, <code>OPEN_ARRAY</code>), or callables (<code>OPEN_CALL</code>).</li>
+</ul>
+<hr />
+<h2 id="3-path-resolution">3. Path Resolution</h2>
+<h3 id="31-string-path-resolution-se_dicts_resolve">3.1 String Path Resolution (<code>se_dicts_resolve</code>)</h3>
+<p>Parses a dot-separated path string one segment at a time. For each segment:</p>
+<ol>
+<li>If current node is <code>OPEN_DICT</code> → hash the segment, call <code>se_dicts_find()</code> for hash match</li>
+<li>If current node is <code>OPEN_ARRAY</code> → parse segment as numeric index, call <code>se_dicts_array_get()</code></li>
+<li>Otherwise → <code>TYPE_MISMATCH</code> error</li>
+</ol>
+<pre><code class="language-c">// Example: resolve &quot;hw.gpio.mode&quot; through nested dicts
+const s_expr_param_t* val = se_dicts_resolve(dict, mod_def, &quot;hw.gpio.mode&quot;, &amp;ctx);
+</code></pre>
+<h3 id="32-hash-path-resolution-se_dicth_resolve">3.2 Hash Path Resolution (<code>se_dicth_resolve</code>)</h3>
+<p>Takes a pre-computed array of FNV-1a hashes and a depth count. For each level:</p>
+<ol>
+<li>If current node is <code>OPEN_DICT</code> → call <code>se_dicth_find()</code> with hash</li>
+<li>If current node is <code>OPEN_ARRAY</code> → brute-force reverse-lookup to convert hash back to numeric index, then call <code>se_dicth_array_get()</code></li>
+<li>Otherwise → <code>TYPE_MISMATCH</code> error</li>
+</ol>
+<pre><code class="language-c">// Example: same lookup, zero string parsing at runtime
+ct_int_t mode = se_dicth_get_int(dict, SE_PATH_H(&quot;hw&quot;, &quot;gpio&quot;, &quot;mode&quot;), 0);
+</code></pre>
+<h3 id="33-single-level-lookup">3.3 Single-Level Lookup</h3>
+<p>Both <code>se_dicts_find()</code> and <code>se_dicth_find()</code> perform linear scan through <code>OPEN_KEY</code> tokens comparing <code>str_hash</code>. On match, they return a pointer to the value (the param immediately after <code>OPEN_KEY</code>). On mismatch, <code>skip_value()</code> jumps past the value and <code>CLOSE_KEY</code> to the next entry.</p>
+<hr />
+<h2 id="4-typed-value-extraction">4. Typed Value Extraction</h2>
+<p>Both APIs provide identical typed getters that resolve a path then extract a value:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Returns</th>
+<th>Coercion</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get_int</code></td>
+<td><code>ct_int_t</code></td>
+<td>INT direct, UINT/FLOAT cast</td>
+</tr>
+<tr>
+<td><code>get_uint</code></td>
+<td><code>ct_uint_t</code></td>
+<td>UINT direct, INT/FLOAT cast</td>
+</tr>
+<tr>
+<td><code>get_float</code></td>
+<td><code>ct_float_t</code></td>
+<td>FLOAT direct, INT/UINT cast</td>
+</tr>
+<tr>
+<td><code>get_bool</code></td>
+<td><code>bool</code></td>
+<td>INT/UINT/FLOAT != 0</td>
+</tr>
+<tr>
+<td><code>get_hash</code></td>
+<td><code>s_expr_hash_t</code></td>
+<td>STR_HASH direct, STR_IDX → lookup+hash, INT/UINT as-is</td>
+</tr>
+<tr>
+<td><code>get_dict</code></td>
+<td><code>const s_expr_param_t*</code></td>
+<td>Returns NULL if not OPEN_DICT</td>
+</tr>
+<tr>
+<td><code>get_array</code></td>
+<td><code>const s_expr_param_t*</code></td>
+<td>Returns NULL if not OPEN_ARRAY</td>
+</tr>
+<tr>
+<td><code>get_callable</code></td>
+<td><code>const s_expr_param_t*</code></td>
+<td>Returns NULL if not OPEN_CALL</td>
+</tr>
+<tr>
+<td><code>get_string</code></td>
+<td><code>bool</code> + out params</td>
+<td>STR_IDX only, returns index + length</td>
+</tr>
+<tr>
+<td><code>get_string_ptr</code></td>
+<td><code>const char*</code></td>
+<td>STR_IDX → string table lookup (string API only)</td>
+</tr>
+</tbody>
+</table>
+<p>All getters return a caller-supplied default on resolution failure.</p>
+<hr />
+<h2 id="5-iteration">5. Iteration</h2>
+<p>Both APIs provide dictionary and array iterators with identical structure:</p>
+<pre><code class="language-c">// Dictionary iteration
+se_dicth_iter_t iter;
+se_dicth_iter_init(&amp;iter, dict);
+s_expr_hash_t key;
+const s_expr_param_t* value;
+while (se_dicth_iter_next(&amp;iter, &amp;key, &amp;value)) {
+    // process key-value pair
+}
+
+// Array iteration
+se_arrayh_iter_t aiter;
+se_arrayh_iter_init(&amp;aiter, array);
+const s_expr_param_t* elem;
+uint16_t idx;
+while (se_arrayh_iter_next(&amp;aiter, &amp;elem, &amp;idx)) {
+    // process element
+}
+</code></pre>
+<p>Iterators track current position, end boundary, and entry index. <code>skip_value()</code> advances past each value. Both support <code>reset()</code> to restart from the beginning.</p>
+<hr />
+<h2 id="6-blackboard-integration">6. Blackboard Integration</h2>
+<p>Both APIs provide helpers to extract a dictionary pointer stored in a blackboard field:</p>
+<pre><code class="language-c">const s_expr_param_t* dict = se_dicth_from_instance(inst, FIELD_OFFSET_CONFIG);
+ct_int_t val = se_dicth_get_int(dict, SE_PATH_H(&quot;timeout&quot;), 1000);
+</code></pre>
+<p>The blackboard field stores a <code>uint64_t</code> that is cast to a <code>s_expr_param_t*</code> pointer. This allows trees to receive configuration dictionaries via blackboard binding.</p>
+<hr />
+<h2 id="7-error-reporting">7. Error Reporting</h2>
+<p>Both APIs provide a context struct for detailed error reporting:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>result</code></td>
+<td>Resolved param pointer (NULL on error)</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>Status enum (OK, NOT_FOUND, TYPE_MISMATCH, INVALID_INDEX, etc.)</td>
+</tr>
+<tr>
+<td><code>depth</code></td>
+<td>How many levels were successfully resolved before failure</td>
+</tr>
+<tr>
+<td><code>failed_hash</code></td>
+<td>Hash of the segment that failed (for debugging)</td>
+</tr>
+<tr>
+<td><code>failed_segment_start/len</code></td>
+<td>Character offsets into path string (string API only)</td>
+</tr>
+</tbody>
+</table>
+<p>The context is optional — passing NULL skips error recording.</p>
+<hr />
+<h2 id="8-issues-found">8. Issues Found</h2>
+<h3 id="81-bug-alignment-fault-in-se_dicts_from_blackboard-se_dicth_from_blackboard">8.1 BUG: Alignment fault in <code>se_dicts_from_blackboard</code> / <code>se_dicth_from_blackboard</code></h3>
+<p>Both headers contain:</p>
+<pre><code class="language-c">static inline const s_expr_param_t* se_dicts_from_blackboard(
+    const void* blackboard, uint16_t field_offset
+) {
+    const uint64_t* ptr = (const uint64_t*)((const uint8_t*)blackboard + field_offset);
+    return (const s_expr_param_t*)(uintptr_t)*ptr;
+}
+</code></pre>
+<p>This casts an arbitrary <code>blackboard + field_offset</code> address to <code>uint64_t*</code> and dereferences it. On ARM Cortex-M with strict alignment requirements, if <code>field_offset</code> is not 8-byte aligned, this is a hard fault. The DSL presumably aligns pointer fields to 8 bytes in record layouts, but the C code has no guard.</p>
+<p><strong>Fix:</strong> Use <code>memcpy</code> to safely read the 8 bytes:</p>
+<pre><code class="language-c">static inline const s_expr_param_t* se_dicts_from_blackboard(
+    const void* blackboard, uint16_t field_offset
+) {
+    if (!blackboard) return NULL;
+    uint64_t val;
+    memcpy(&amp;val, (const uint8_t*)blackboard + field_offset, sizeof(val));
+    return (const s_expr_param_t*)(uintptr_t)val;
+}
+</code></pre>
+<h3 id="82-performance-hash-path-array-index-reverse-lookup-is-o256">8.2 PERFORMANCE: Hash-path array index reverse-lookup is O(256)</h3>
+<p>In <code>se_dicth_resolve()</code>, when the current node is an array:</p>
+<pre><code class="language-c">for (uint16_t idx = 0; idx &lt; 256; idx++) {
+    if (se_dicth_index_hash(idx) == path_hashes[i]) {
+        index = idx;
+        break;
+    }
+}
+</code></pre>
+<p>This brute-forces up to 256 hash computations to convert a hash back to a numeric index. For indices 0–15 it hits the lookup table (cheap), but 16–255 each compute a hash via digit decomposition. This is an inherent design tension — the hash-path API uses hashes uniformly, but arrays need numeric indices.</p>
+<p><strong>Options:</strong>
+- Extend the lookup table to 256 entries (adds 1 KB ROM, eliminates runtime computation)
+- Store array indices differently in the path (e.g., use a sentinel bit to distinguish index hashes from key hashes)
+- Accept the cost — array access through hash paths is presumably rare compared to dict access</p>
+<h3 id="83-dead-parameter-se_dicts_find-accepts-but-ignores-module_def">8.3 DEAD PARAMETER: <code>se_dicts_find()</code> accepts but ignores <code>module_def</code></h3>
+<pre><code class="language-c">const s_expr_param_t* se_dicts_find(
+    const s_expr_param_t* dict,
+    const s_expr_module_def_t* module_def,  // ← unused
+    const char* key,
+    uint16_t key_len
+) {
+    (void)module_def;
+</code></pre>
+<p>The function hashes the key segment and compares against <code>OPEN_KEY.str_hash</code> — it never does string comparison against the string table. The <code>module_def</code> parameter is dead weight. The header comment says "Find key in dictionary by string comparison" but the implementation does hash comparison.</p>
+<p><strong>Options:</strong>
+- Remove <code>module_def</code> from the signature (breaking change if external code calls it)
+- Keep it for future use if string-comparison fallback on hash collision is ever needed
+- At minimum, fix the header comment to say "by hash comparison"</p>
+<h3 id="84-code-duplication-skip_value-is-identically-defined-in-both-c-files">8.4 CODE DUPLICATION: <code>skip_value()</code> is identically defined in both .c files</h3>
+<p>Both <code>se_dict_string.c</code> and <code>se_dict_hash.c</code> define the same <code>static skip_value()</code> function. Same with the param type check inlines and param value extraction inlines in both headers. Consider extracting to a shared <code>se_dict_common.h</code> / <code>se_dict_common.c</code>.</p>
+<h3 id="85-duplicate-functionality-se_dicts_find_hash-duplicates-se_dicth_find">8.5 DUPLICATE FUNCTIONALITY: <code>se_dicts_find_hash()</code> duplicates <code>se_dicth_find()</code></h3>
+<p><code>se_dicts_find_hash()</code> in <code>se_dict_string.c</code> is functionally identical to <code>se_dicth_find()</code> in <code>se_dict_hash.c</code> — both do single-level dict lookup by hash. The string API includes it as a "fallback" but it's pure duplication.</p>
+<hr />
+<h2 id="9-performance-characteristics">9. Performance Characteristics</h2>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>String API</th>
+<th>Hash API</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Path parsing</td>
+<td>O(path_len) per call</td>
+<td>Zero (pre-computed)</td>
+</tr>
+<tr>
+<td>Per-level dict lookup</td>
+<td>O(n) key scan + FNV hash of segment</td>
+<td>O(n) key scan</td>
+</tr>
+<tr>
+<td>Per-level array access</td>
+<td>O(n) element scan + atoi parse</td>
+<td>O(n) element scan + O(256) reverse hash</td>
+</tr>
+<tr>
+<td>Skip nested value</td>
+<td>O(1) via brace_idx</td>
+<td>O(1) via brace_idx</td>
+</tr>
+<tr>
+<td>Memory overhead</td>
+<td>Zero allocation (read-only traversal)</td>
+<td>Zero allocation (read-only traversal)</td>
+</tr>
+</tbody>
+</table>
+<p>Both APIs are read-only — they traverse the compiled parameter array without allocation or modification.</p>
+<hr />
+<h2 id="10-summary">10. Summary</h2>
+<p>The dictionary subsystem provides two access patterns for the same underlying data: string paths for convenience and debugging, hash paths for performance. The core traversal logic is identical — linear scan through <code>OPEN_KEY</code> tokens with O(1) nested value skip via <code>brace_idx</code>. The alignment issue in the blackboard integration helpers (#8.1) is the only real bug; the rest are design observations about duplication and the hash-path array reverse-lookup cost.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

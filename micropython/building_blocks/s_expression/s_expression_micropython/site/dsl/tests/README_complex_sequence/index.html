@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Complex Sequence Test - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_advanced_predicates/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_loop_test/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#complex-sequence-test" class="nav-link">Complex Sequence Test</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-configuration" class="nav-link">Test Configuration</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#blackboard-definition" class="nav-link">Blackboard Definition</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-sequence" class="nav-link">Test Sequence</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-1-wait-event-test-ticks-1-110" class="nav-link">Test 1: Wait Event Test (Ticks 1-110)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-2-verify-time-test-ticks-111-160" class="nav-link">Test 2: Verify Time Test (Ticks 111-160)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-3-verify-events-test-ticks-161-270" class="nav-link">Test 3: Verify Events Test (Ticks 161-270)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-4-complex-sequence-test-ticks-271-336" class="nav-link">Test 4: Complex Sequence Test (Ticks 271-336)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-5-wait-timeout-test-ticks-337-437" class="nav-link">Test 5: Wait Timeout Test (Ticks 337-437)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#functions-tested" class="nav-link">Functions Tested</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#result-summary" class="nav-link">Result Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-function-behavior" class="nav-link">Error Function Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="complex-sequence-test">Complex Sequence Test</h1>
+<h2 id="overview">Overview</h2>
+<p>This test suite validates the ChainTree S-Expression engine's verification, waiting, and timeout functions. It runs a series of sequential tests that exercise parallel execution, event-based synchronization, time-based watchdogs, and predicate-based verification.</p>
+<h2 id="test-configuration">Test Configuration</h2>
+<ul>
+<li><strong>Tick Rate:</strong> 0.1 seconds (100ms per tick)</li>
+<li><strong>Total Duration:</strong> ~43.7 seconds (437 ticks)</li>
+<li><strong>Module:</strong> <code>complex_sequence</code></li>
+</ul>
+<h2 id="blackboard-definition">Blackboard Definition</h2>
+<pre><code class="language-lua">RECORD(&quot;complex_sequence_blackboard&quot;)
+    FIELD(&quot;complex_sequence_condition_1&quot;, &quot;uint32&quot;)  -- Condition flag 1
+    FIELD(&quot;complex_sequence_condition_2&quot;, &quot;uint32&quot;)  -- Condition flag 2
+    FIELD(&quot;event_field&quot;, &quot;float&quot;)                    -- Event data payload
+    FIELD(&quot;field_test_counter&quot;, &quot;uint32&quot;)            -- Loop counter
+    FIELD(&quot;field_test_increment&quot;, &quot;uint32&quot;)          -- Loop increment
+    FIELD(&quot;field_test_limit&quot;, &quot;uint32&quot;)              -- Loop limit
+END_RECORD()
+</code></pre>
+<h2 id="test-sequence">Test Sequence</h2>
+<p>The tests run sequentially via <code>se_fork_join</code>, ensuring each test completes before the next begins.</p>
+<pre><code>se_function_interface
+├── se_fork_join(wait_event_test_fn)           -- Test 1: Event waiting
+├── se_fork_join(verify_time_test_fn)          -- Test 2: Time-based verification
+├── se_fork_join(verify_events_test_fn)        -- Test 3: Event count verification
+├── se_fork_join(complex_sequence_test_fn)     -- Test 4: Predicate verification
+├── se_fork_join(wait_timeout_test_fn)         -- Test 5: Wait with timeout
+└── se_return_terminate()                      -- Clean termination
+</code></pre>
+<hr />
+<h2 id="test-1-wait-event-test-ticks-1-110">Test 1: Wait Event Test (Ticks 1-110)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait_event</code> — waiting for a specific event to occur N times.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Event Generator (se_chain_flow)
+│   └── se_while loop: 10 iterations, 1.0s delay each
+│       └── se_queue_event(1, 43, &quot;event_field&quot;)
+└── Event Waiter (se_chain_flow)
+    └── se_wait_event(43, 10)  -- Wait for event 43 to occur 10 times
+</code></pre>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 1 | 0.0s | Generator and waiter start |
+| Iterations | 1-100 | 0-10.0s | Generator sends events every 1.0s |
+| Complete | 100-110 | 10.0s | Waiter receives 10th event, completes |</p>
+<p><strong>Output:</strong></p>
+<pre><code>event generator start
+event generator iteration 1
+wait event test start
+...
+event generator iteration 10
+wait event test end
+event generator end
+</code></pre>
+<hr />
+<h2 id="test-2-verify-time-test-ticks-111-160">Test 2: Verify Time Test (Ticks 111-160)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_verify_and_check_elapsed_time</code> — time-based watchdog that terminates on timeout.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_chain_flow
+├── se_log(&quot;verify time test start&quot;)
+├── se_verify_and_check_elapsed_time(5.0, false, error_function)
+├── se_log(&quot;waiting for termination...&quot;)
+└── se_return_pipeline_continue()  -- Keep running until timeout
+</code></pre>
+<p><strong>Configuration:</strong>
+- Timeout: 5.0 seconds
+- Reset flag: <code>false</code> (terminate on timeout)
+- Error function: Logs "verify timeout expired this is expected"</p>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 111 | 0.0s | Verification starts, timer begins |
+| Waiting | 111-159 | 0-4.9s | Monitoring elapsed time |
+| Timeout | 160 | 5.0s | Timeout exceeded, error function fires, terminates |</p>
+<p><strong>Output:</strong></p>
+<pre><code>verify time test start
+waiting for termination due to elapsed time
+... (50 ticks waiting) ...
+verify timeout expired this is expected
+</code></pre>
+<hr />
+<h2 id="test-3-verify-events-test-ticks-161-270">Test 3: Verify Events Test (Ticks 161-270)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_verify_and_check_elapsed_events</code> — event count watchdog that terminates when count exceeded.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Event Generator (se_chain_flow)
+│   └── se_while loop: 10 iterations, 1.0s delay each
+│       └── se_queue_event(1, 43, &quot;event_field&quot;)
+└── Event Monitor (se_chain_flow)
+    └── se_verify_and_check_elapsed_events(43, 9, false, error_function)
+</code></pre>
+<p><strong>Configuration:</strong>
+- Target event: 43
+- Max count: 9 (triggers on 10th event)
+- Reset flag: <code>false</code> (terminate on count exceeded)</p>
+<p><strong>Timeline:</strong>
+| Phase | Ticks | Time | Description |
+|-------|-------|------|-------------|
+| Start | 161 | 0.0s | Generator starts, monitor watches event 43 |
+| Events 1-9 | 161-259 | 0-9.9s | Events counted, within limit |
+| Event 10 | 260 | 10.0s | 10th event exceeds limit, error function fires |
+| Complete | 270 | 11.0s | Generator finishes |</p>
+<p><strong>Output:</strong></p>
+<pre><code>event generator start
+event generator iteration 1
+verify events test start
+waiting for termination due to elapsed events
+...
+event generator iteration 10
+verify timeout expired this is expected
+...
+event generator end
+</code></pre>
+<hr />
+<h2 id="test-4-complex-sequence-test-ticks-271-336">Test 4: Complex Sequence Test (Ticks 271-336)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait</code>, <code>se_verify</code>, and the interaction between parallel condition generator and sequence verifier.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Condition Generator (se_chain_flow)
+│   ├── Set (0,0) → delay 10 ticks
+│   ├── Set (1,0) → delay 10 ticks
+│   ├── Set (1,1) → delay 10 ticks
+│   ├── Set (0,1) → delay 10 ticks  ← Triggers reset!
+│   ├── Set (1,1) → delay 10 ticks
+│   ├── Set (1,0) → delay 10 ticks  ← Triggers terminate!
+│   └── se_return_pipeline_terminate()
+└── Sequence Verifier (se_chain_flow)
+    ├── se_wait(condition_1 == 1)
+    ├── se_verify(condition_1 == 1, reset=true, error_fn_1)
+    ├── se_wait(condition_2 == 1)
+    ├── se_verify(condition_2 == 1, reset=false, error_fn_2)
+    └── se_return_pipeline_continue()
+</code></pre>
+<p><strong>Condition Sequence:</strong>
+| State | Cond1 | Cond2 | Verifier Action |
+|-------|-------|-------|-----------------|
+| 0,0 | 0 | 0 | Waiting for cond1 |
+| 1,0 | 1 | 0 | Pass test 1, wait for cond2 |
+| 1,1 | 1 | 1 | Pass test 2, monitoring |
+| 0,1 | 0 | 1 | <strong>Verify fails!</strong> Reset triggered |
+| 1,1 | 1 | 1 | Pass both tests again |
+| 1,0 | 1 | 0 | <strong>Verify fails!</strong> Terminate triggered |</p>
+<p><strong>Timeline:</strong>
+| Ticks | State | Event |
+|-------|-------|-------|
+| 271-281 | (0,0) | Verifier waiting for condition_1 |
+| 282 | (1,0) | condition_1=1, pass test 1, wait for condition_2 |
+| 293 | (1,1) | condition_2=1, pass test 2, monitoring |
+| 304 | (0,1) | condition_1=0, <strong>verify fails → RESET</strong> |
+| 305-314 | (0,1) | Verifier reset, waiting for condition_1 |
+| 315 | (1,1) | condition_1=1, pass test 1 &amp; 2 quickly |
+| 326 | (1,0) | condition_2=0, <strong>verify fails → TERMINATE</strong> |</p>
+<p><strong>Output:</strong></p>
+<pre><code>condition generator start
+condition generator set 0,0
+complex sequence test start
+condition generator set 1,0
+complex sequence pass test 1
+condition generator set 1,1
+complex sequence pass test 2
+waiting for error actions
+condition generator set 0,1
+error function 1 when high condition is expected and will produce a reset
+complex sequence test start              ← Reset occurred!
+condition generator set 1,1
+complex sequence pass test 1
+complex sequence pass test 2
+waiting for error actions
+condition generator set 1,0
+error function 2 when low condition is expected and will produce a terminate
+condition generator end
+</code></pre>
+<hr />
+<h2 id="test-5-wait-timeout-test-ticks-337-437">Test 5: Wait Timeout Test (Ticks 337-437)</h2>
+<p><strong>Purpose:</strong> Validate <code>se_wait_timeout</code> — waiting for a predicate with timeout protection.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork
+├── Terminate Test (se_chain_flow)
+│   └── se_wait_timeout(se_false(), 5.0, false, error_fn_2)
+│       └── Will timeout after 5s and TERMINATE
+├── Reset Test (se_chain_flow)
+│   └── se_wait_timeout(se_false(), 2.0, true, error_fn_1)
+│       └── Will timeout after 2s and RESET repeatedly
+└── Normal Test (se_chain_flow)
+    ├── se_wait_timeout(se_true(), 5.0, false, error_fn_1)
+    │   └── Completes immediately (predicate true)
+    ├── se_time_delay(10.0)
+    └── se_return_terminate()
+</code></pre>
+<p><strong>Test Cases:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Predicate</th>
+<th>Timeout</th>
+<th>Reset</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Terminate</td>
+<td><code>se_false()</code></td>
+<td>5.0s</td>
+<td>false</td>
+<td>Times out, terminates</td>
+</tr>
+<tr>
+<td>Reset</td>
+<td><code>se_false()</code></td>
+<td>2.0s</td>
+<td>true</td>
+<td>Times out, resets, repeats</td>
+</tr>
+<tr>
+<td>Normal</td>
+<td><code>se_true()</code></td>
+<td>5.0s</td>
+<td>false</td>
+<td>Completes immediately</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Timeline:</strong>
+| Ticks | Time | Event |
+|-------|------|-------|
+| 337 | 0.0s | All three chains start |
+| 356 | 2.0s | Reset test times out (1st), resets |
+| 377 | 4.0s | Reset test times out (2nd), resets |
+| 386 | 5.0s | Terminate test times out, terminates |
+| 398 | 6.0s | Reset test times out (3rd), resets |
+| 420 | 8.0s | Reset test times out (4th), resets |
+| 436 | 10.0s | Normal test's time delay completes |
+| 437 | 10.0s | Normal test returns TERMINATE, tree ends |</p>
+<p><strong>Output:</strong></p>
+<pre><code>wait timeout terminate test start
+wait timeout resettest start
+wait normal timeout test start
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #1
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #2
+... (8 ticks) ...
+error function 2 when low condition is expected and will produce a terminate  ← 5s timeout
+... (12 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #3
+... (20 ticks) ...
+error function 1 when high condition is expected and will produce a reset
+wait timeout resettest start    ← Reset #4
+... (16 ticks) ...
+ending timeout test             ← 10s delay complete
+</code></pre>
+<hr />
+<h2 id="functions-tested">Functions Tested</h2>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Test</th>
+<th>Behavior Validated</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_wait_event</code></td>
+<td>1</td>
+<td>Wait for N occurrences of event</td>
+</tr>
+<tr>
+<td><code>se_verify_and_check_elapsed_time</code></td>
+<td>2</td>
+<td>Timeout-based watchdog</td>
+</tr>
+<tr>
+<td><code>se_verify_and_check_elapsed_events</code></td>
+<td>3</td>
+<td>Event count watchdog</td>
+</tr>
+<tr>
+<td><code>se_wait</code></td>
+<td>4</td>
+<td>Wait for predicate</td>
+</tr>
+<tr>
+<td><code>se_verify</code></td>
+<td>4</td>
+<td>Continuous predicate verification</td>
+</tr>
+<tr>
+<td><code>se_wait_timeout</code></td>
+<td>5</td>
+<td>Wait with timeout protection</td>
+</tr>
+<tr>
+<td><code>se_fork</code></td>
+<td>1,3,4,5</td>
+<td>Parallel execution</td>
+</tr>
+<tr>
+<td><code>se_fork_join</code></td>
+<td>All</td>
+<td>Sequential test execution</td>
+</tr>
+<tr>
+<td><code>se_chain_flow</code></td>
+<td>All</td>
+<td>Sequential step execution</td>
+</tr>
+<tr>
+<td><code>se_while</code></td>
+<td>1,3</td>
+<td>Predicate-controlled loops</td>
+</tr>
+<tr>
+<td><code>se_queue_event</code></td>
+<td>1,3</td>
+<td>Event generation</td>
+</tr>
+<tr>
+<td><code>se_time_delay</code></td>
+<td>1,3,5</td>
+<td>Time-based delays</td>
+</tr>
+<tr>
+<td><code>se_tick_delay</code></td>
+<td>4</td>
+<td>Tick-based delays</td>
+</tr>
+<tr>
+<td><code>se_field_increment_and_test</code></td>
+<td>1,3</td>
+<td>Counter-based loop predicate</td>
+</tr>
+<tr>
+<td><code>se_field_eq</code></td>
+<td>4</td>
+<td>Field equality predicate</td>
+</tr>
+<tr>
+<td><code>se_true</code> / <code>se_false</code></td>
+<td>5</td>
+<td>Constant predicates</td>
+</tr>
+</tbody>
+</table>
+<h2 id="result-summary">Result Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+<th>Key Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wait Event</td>
+<td>~11s (110 ticks)</td>
+<td>✅</td>
+<td>Event synchronization</td>
+</tr>
+<tr>
+<td>Verify Time</td>
+<td>~5s (50 ticks)</td>
+<td>✅</td>
+<td>Time watchdog, terminate</td>
+</tr>
+<tr>
+<td>Verify Events</td>
+<td>~11s (110 ticks)</td>
+<td>✅</td>
+<td>Event count watchdog</td>
+</tr>
+<tr>
+<td>Complex Sequence</td>
+<td>~6.6s (66 ticks)</td>
+<td>✅</td>
+<td>Reset and terminate behavior</td>
+</tr>
+<tr>
+<td>Wait Timeout</td>
+<td>~10s (101 ticks)</td>
+<td>✅</td>
+<td>Timeout with reset/terminate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Final Result:</strong> <code>TERMINATE</code> after 437 ticks (~43.7 seconds)</p>
+<h2 id="error-function-behavior">Error Function Behavior</h2>
+<p>The test validates that error functions fire correctly:</p>
+<ol>
+<li><strong>Single fire on terminate:</strong> Error function fires once before termination</li>
+<li><strong>Repeated fire on reset:</strong> Error function fires on each reset cycle (validated by reset test firing 4+ times)</li>
+<li><strong>Reset clears ONESHOT flag:</strong> <code>s_expr_child_reset()</code> is called before <code>s_expr_child_invoke_oneshot()</code> to allow repeated firing</li>
+</ol></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

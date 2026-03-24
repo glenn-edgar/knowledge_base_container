@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>External Tree Test - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_callback_function_test/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../car_window_controller/README_cardoor_requirements/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#function-dictionary-external-tree-test" class="nav-link">Function Dictionary &amp; External Tree Test</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#purpose" class="nav-link">Purpose</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#module-structure" class="nav-link">Module Structure</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#blackboard-records" class="nav-link">Blackboard Records</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#function-dictionary-entries" class="nav-link">Function Dictionary Entries</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#stm32f4-peripheral-constants" class="nav-link">STM32F4 Peripheral Constants</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#parent-tree-flow-call_tree" class="nav-link">Parent Tree Flow (call_tree)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-design-patterns-demonstrated" class="nav-link">Key Design Patterns Demonstrated</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#dependencies" class="nav-link">Dependencies</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="function-dictionary-external-tree-test">Function Dictionary &amp; External Tree Test</h1>
+<h2 id="overview">Overview</h2>
+<p>This test demonstrates hierarchical tree composition combined with a function dictionary
+pattern. A parent tree (<code>call_tree</code>) spawns a child tree (<code>function_dictionary</code>) at runtime,
+injects a command hash into the child's blackboard, and ticks the child to execute a
+complete STM32F4 peripheral initialization sequence — all driven by dictionary-dispatched
+functions that use stack-based parameter passing.</p>
+<h2 id="purpose">Purpose</h2>
+<p>This test validates three core capabilities of the external tree system:</p>
+<ol>
+<li>
+<p><strong>External tree lifecycle management</strong> — How to spawn, tick, and terminate a child tree
+   from a parent tree using <code>se_spawn_tree</code>, <code>se_tick_tree</code>, and the automatic cleanup
+   on <code>SE_EVENT_TERMINATE</code>.</p>
+</li>
+<li>
+<p><strong>Cross-tree parameter passing</strong> — How to write values into a child tree's blackboard
+   from the parent using <code>se_set_external_field</code> with compile-time field offsets obtained
+   via <code>get_field_offset</code>. This provides a clean, typed interface between trees without
+   requiring shared global state.</p>
+</li>
+<li>
+<p><strong>Shared dictionary invocation across trees</strong> — How to call a specific dictionary entry
+   in another tree by injecting a function hash into the child's blackboard before ticking.
+   This is significant because it means a large function dictionary only needs to exist in
+   one tree and can be invoked by any number of other trees. Without this pattern, every
+   tree that needs dictionary functions would have to include its own copy, wasting ROM
+   and increasing maintenance burden on memory-constrained embedded targets.</p>
+</li>
+</ol>
+<h2 id="module-structure">Module Structure</h2>
+<p><strong>Module name:</strong> <code>external_tree</code></p>
+<h3 id="trees">Trees</h3>
+<table>
+<thead>
+<tr>
+<th>Tree</th>
+<th>Record</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>function_dictionary</code></td>
+<td><code>cpu_config_blackboard</code></td>
+<td>Contains a function dictionary with peripheral configuration routines. Executes whichever dictionary entry is named by <code>fn_hash</code>.</td>
+</tr>
+<tr>
+<td><code>call_tree</code></td>
+<td><code>call_blackboard</code></td>
+<td>Parent tree that spawns <code>function_dictionary</code>, sets the command hash, ticks the child, and terminates.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="blackboard-records">Blackboard Records</h2>
+<h3 id="cpu_config_blackboard">cpu_config_blackboard</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fn_dict</code></td>
+<td><code>ptr64</code></td>
+<td>Pointer to the loaded function dictionary</td>
+</tr>
+<tr>
+<td><code>fn_hash</code></td>
+<td><code>uint32</code></td>
+<td>Hash of the dictionary function to execute</td>
+</tr>
+<tr>
+<td><code>gpio_port</code></td>
+<td><code>uint32</code></td>
+<td>GPIO port base address</td>
+</tr>
+<tr>
+<td><code>gpio_pin</code></td>
+<td><code>uint32</code></td>
+<td>GPIO pin number</td>
+</tr>
+<tr>
+<td><code>gpio_mode</code></td>
+<td><code>uint32</code></td>
+<td>GPIO mode (input/output/alt-fn/analog)</td>
+</tr>
+<tr>
+<td><code>gpio_speed</code></td>
+<td><code>uint32</code></td>
+<td>GPIO speed setting</td>
+</tr>
+<tr>
+<td><code>gpio_pull</code></td>
+<td><code>uint32</code></td>
+<td>GPIO pull-up/pull-down setting</td>
+</tr>
+<tr>
+<td><code>uart_channel</code></td>
+<td><code>uint32</code></td>
+<td>UART channel number (0 = disabled)</td>
+</tr>
+<tr>
+<td><code>uart_baud</code></td>
+<td><code>uint32</code></td>
+<td>UART baud rate divisor</td>
+</tr>
+<tr>
+<td><code>uart_parity</code></td>
+<td><code>uint32</code></td>
+<td>UART parity setting</td>
+</tr>
+<tr>
+<td><code>uart_stop_bits</code></td>
+<td><code>uint32</code></td>
+<td>UART stop bits</td>
+</tr>
+<tr>
+<td><code>uart_flow_ctrl</code></td>
+<td><code>uint32</code></td>
+<td>UART flow control</td>
+</tr>
+<tr>
+<td><code>spi_channel</code></td>
+<td><code>uint32</code></td>
+<td>SPI channel number (0 = disabled)</td>
+</tr>
+<tr>
+<td><code>spi_clock_div</code></td>
+<td><code>uint32</code></td>
+<td>SPI clock divider</td>
+</tr>
+<tr>
+<td><code>spi_mode</code></td>
+<td><code>uint32</code></td>
+<td>SPI mode (0-3)</td>
+</tr>
+<tr>
+<td><code>spi_bit_order</code></td>
+<td><code>uint32</code></td>
+<td>SPI bit order (MSB/LSB first)</td>
+</tr>
+<tr>
+<td><code>config_state</code></td>
+<td><code>uint32</code></td>
+<td>Configuration state machine state</td>
+</tr>
+<tr>
+<td><code>error_code</code></td>
+<td><code>uint32</code></td>
+<td>Error code</td>
+</tr>
+<tr>
+<td><code>peripherals_ready</code></td>
+<td><code>uint32</code></td>
+<td>Set to 1 when all peripherals are configured</td>
+</tr>
+<tr>
+<td><code>temp_reg_addr</code></td>
+<td><code>uint32</code></td>
+<td>Scratch register address</td>
+</tr>
+<tr>
+<td><code>temp_reg_value</code></td>
+<td><code>uint32</code></td>
+<td>Scratch register value</td>
+</tr>
+</tbody>
+</table>
+<h3 id="call_blackboard">call_blackboard</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tree_pointer</code></td>
+<td><code>ptr64</code></td>
+<td>Pointer to the spawned child tree instance</td>
+</tr>
+<tr>
+<td><code>dictionary_hash</code></td>
+<td><code>uint32</code></td>
+<td>Hash value to inject into the child's <code>fn_hash</code> field</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="function-dictionary-entries">Function Dictionary Entries</h2>
+<p>The <code>function_dictionary</code> tree contains a dictionary of stack-based callable functions
+that form a layered peripheral abstraction. Each function uses <code>se_call</code> with <code>frame_vars</code>
+for safe local variable management.</p>
+<h3 id="call-hierarchy">Call Hierarchy</h3>
+<pre><code>init_all_peripherals
+├── enable_peripheral_clock  (×3: GPIOA, USART1, SPI1)
+│   └── read_modify_write
+│       └── write_register
+├── configure_gpio_pin
+│   └── read_modify_write  (×3: MODER, OSPEEDR, PUPDR)
+│       └── write_register
+├── configure_uart  (conditional: uart_channel != 0)
+│   ├── read_modify_write  (disable USART)
+│   ├── write_register     (set BRR)
+│   ├── read_modify_write  (set CR1 config)
+│   └── read_modify_write  (enable USART)
+└── configure_spi   (conditional: spi_channel != 0)
+    ├── read_modify_write  (disable SPI)
+    ├── write_register     (write CR1)
+    └── read_modify_write  (enable SPI)
+</code></pre>
+<h3 id="function-details">Function Details</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Stack Params</th>
+<th>Locals</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>write_register</code></td>
+<td>addr, value</td>
+<td>—</td>
+<td>Low-level register write</td>
+</tr>
+<tr>
+<td><code>read_modify_write</code></td>
+<td>addr, clear_mask, set_bits</td>
+<td>current, inv_mask</td>
+<td>Read-modify-write: clears bits then sets bits</td>
+</tr>
+<tr>
+<td><code>enable_peripheral_clock</code></td>
+<td>clock_reg_addr, peripheral_bit</td>
+<td>—</td>
+<td>Calls <code>read_modify_write</code> to set a clock enable bit</td>
+</tr>
+<tr>
+<td><code>configure_gpio_pin</code></td>
+<td>port_base, pin, mode, speed, pull</td>
+<td>shift, mask, reg_addr, set_val</td>
+<td>Configures MODER, OSPEEDR, and PUPDR registers</td>
+</tr>
+<tr>
+<td><code>configure_uart</code></td>
+<td>usart_base, baud_div, config_bits</td>
+<td>reg_addr</td>
+<td>Disables USART, sets baud rate and config, re-enables</td>
+</tr>
+<tr>
+<td><code>configure_spi</code></td>
+<td>spi_base, clock_div, mode, bit_order</td>
+<td>cr1</td>
+<td>Disables SPI, builds and writes CR1, re-enables</td>
+</tr>
+<tr>
+<td><code>init_all_peripherals</code></td>
+<td>—</td>
+<td>—</td>
+<td>Top-level orchestrator that enables clocks and configures all peripherals</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="stm32f4-peripheral-constants">STM32F4 Peripheral Constants</h2>
+<p>The test uses realistic STM32F4 base addresses and register offsets:</p>
+<table>
+<thead>
+<tr>
+<th>Constant</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RCC_AHB1ENR</code></td>
+<td><code>0x40023830</code></td>
+<td>AHB1 peripheral clock enable register</td>
+</tr>
+<tr>
+<td><code>RCC_APB2ENR</code></td>
+<td><code>0x40023844</code></td>
+<td>APB2 peripheral clock enable register</td>
+</tr>
+<tr>
+<td><code>GPIOA_BASE</code></td>
+<td><code>0x40020000</code></td>
+<td>GPIO Port A base address</td>
+</tr>
+<tr>
+<td><code>USART1_BASE</code></td>
+<td><code>0x40011000</code></td>
+<td>USART1 base address</td>
+</tr>
+<tr>
+<td><code>SPI1_BASE</code></td>
+<td><code>0x40013000</code></td>
+<td>SPI1 base address</td>
+</tr>
+</tbody>
+</table>
+<p>Register offsets follow the STM32F4 reference manual (e.g., MODER at +0, OSPEEDR at +8,
+PUPDR at +12, USART BRR at +8, USART CR1 at +12).</p>
+<hr />
+<h2 id="parent-tree-flow-call_tree">Parent Tree Flow (call_tree)</h2>
+<p>The <code>call_tree</code> demonstrates the external tree management pattern:</p>
+<pre><code>1. se_spawn_tree(&quot;tree_pointer&quot;, &quot;function_dictionary&quot;, 128)
+   → Creates child tree with stack capacity of 128
+
+2. se_set_hash_field(&quot;dictionary_hash&quot;, &quot;init_all_peripherals&quot;)
+   → Stores the FNV-1a hash of &quot;init_all_peripherals&quot; in local blackboard
+
+3. se_set_external_field(&quot;dictionary_hash&quot;, &quot;tree_pointer&quot;, dictionary_offset)
+   → Copies the hash value into the child tree's fn_hash field
+
+4. se_tick_tree(&quot;tree_pointer&quot;)
+   → Ticks the child tree, which executes init_all_peripherals
+
+5. se_log(&quot;call_tree: called&quot;)
+   → Confirms execution
+
+6. se_return_function_terminate()
+   → Terminates the parent tree
+</code></pre>
+<p>The key mechanism is <code>get_field_offset("cpu_config_blackboard", "fn_hash")</code> which retrieves
+the byte offset of <code>fn_hash</code> in the child's blackboard at DSL compile time, allowing
+<code>se_set_external_field</code> to write directly to the correct location.</p>
+<hr />
+<h2 id="key-design-patterns-demonstrated">Key Design Patterns Demonstrated</h2>
+<h3 id="stack-based-parameter-passing">Stack-Based Parameter Passing</h3>
+<p>Dictionary functions receive parameters via the stack using <code>frame_vars</code> to declare
+named parameters and locals. Values are pushed with <code>stack_push_ref()</code> before calling
+<code>se_exec_dict_internal()</code>.</p>
+<h3 id="frame-variable-safety">Frame Variable Safety</h3>
+<p>All values that survive a <code>stack_push_ref()</code> call are stored in frame locals, not
+scratch (TOS) variables. This is critical because <code>stack_push</code> advances <code>sp</code>, which
+invalidates scratch-relative offsets.</p>
+<h3 id="expression-compilation">Expression Compilation</h3>
+<p><code>quad_expr</code> compiles arithmetic expressions (shifts, masks, bitwise operations) into
+sequences of quad operations, enabling register-manipulation math within the DSL.</p>
+<h3 id="conditional-peripheral-configuration">Conditional Peripheral Configuration</h3>
+<p><code>se_if_then_else</code> with <code>se_field_ne</code> predicates allows peripheral configuration to be
+skipped when the corresponding channel field is zero, demonstrating runtime branching.</p>
+<h3 id="cross-tree-communication">Cross-Tree Communication</h3>
+<p>The parent tree writes into the child's blackboard using a compile-time field offset,
+providing a clean interface between trees without requiring the child to know about
+the parent.</p>
+<hr />
+<h2 id="dependencies">Dependencies</h2>
+<ul>
+<li><code>se_spawn_tree</code> / <code>se_tick_tree</code> / <code>se_set_external_field</code> — External tree management</li>
+<li><code>se_load_function_dict</code> / <code>se_exec_dict_fn_ptr</code> / <code>se_exec_dict_internal</code> — Function dictionary</li>
+<li><code>se_call</code> / <code>frame_vars</code> / <code>stack_push_ref</code> — Stack-based calling convention</li>
+<li><code>quad_expr</code> / <code>quad_mov</code> / <code>quad_not</code> / <code>quad_and</code> / <code>quad_or</code> — Expression compilation</li>
+<li><code>se_function_interface</code> / <code>se_sequence_once</code> / <code>se_if_then_else</code> — Control flow</li>
+<li><code>se_set_field</code> / <code>se_i_set_field</code> / <code>se_set_hash_field</code> — Blackboard access</li>
+<li><code>get_field_offset</code> — Compile-time field offset lookup</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

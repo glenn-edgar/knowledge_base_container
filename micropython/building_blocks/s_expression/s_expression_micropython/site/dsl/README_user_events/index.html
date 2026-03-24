@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>User Events - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_user_defined_functions/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_json_support/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s-engine-user-event-system" class="nav-link">S-Engine User Event System</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#architecture" class="nav-link">Architecture</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#data-structures" class="nav-link">Data Structures</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#api-reference" class="nav-link">API Reference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage" class="nav-link">Usage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#how-se_event_dispatch-works" class="nav-link">How se_event_dispatch Works</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#event-data" class="nav-link">Event Data</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#complete-example" class="nav-link">Complete Example</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#configuration" class="nav-link">Configuration</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#best-practices" class="nav-link">Best Practices</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-external-events" class="nav-link">Comparison with External Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s-engine-user-event-system">S-Engine User Event System</h1>
+<h2 id="overview">Overview</h2>
+<p>The S-Engine provides a user event system that enables behavior trees to generate and respond to internal events. Events are queued during tree execution and processed by the external tick loop, allowing for reactive event-driven programming within the behavior tree framework.</p>
+<h2 id="architecture">Architecture</h2>
+<h3 id="event-flow">Event Flow</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        TICK LOOP                                │
+│                                                                 │
+│  1. Regular Tick ──────────────────────────────────────────┐   │
+│     s_expr_node_tick(tree, SE_EVENT_TICK, NULL)            │   │
+│                                                             │   │
+│          ┌──────────────────────────────────────┐          │   │
+│          │        BEHAVIOR TREE                 │          │   │
+│          │                                      │          │   │
+│          │  se_state_machine ───────────────┐   │          │   │
+│          │       │                          │   │          │   │
+│          │       └─► se_queue_event() ──────┼───┼──► EVENT │   │
+│          │                                  │   │    QUEUE │   │
+│          │  se_event_dispatch ◄─────────────┘   │          │   │
+│          │       │                              │          │   │
+│          │       └─► (handles events)           │          │   │
+│          └──────────────────────────────────────┘          │   │
+│                                                             │   │
+│  2. Check Queue ◄───────────────────────────────────────────┘   │
+│     event_count = s_expr_event_queue_count(tree)                │
+│                                                                 │
+│  3. Process Events (while event_count &gt; 0)                      │
+│     s_expr_event_pop(tree, &amp;tick_type, &amp;event_id, &amp;event_data)  │
+│     tree-&gt;tick_type = tick_type  (save/set/restore)             │
+│     s_expr_node_tick(tree, event_id, event_data)                │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="key-components">Key Components</h3>
+<ol>
+<li><strong>Event Queue</strong> - Circular buffer in tree instance (default 16 events)</li>
+<li><strong>tick_type</strong> - Distinguishes regular ticks from user events</li>
+<li><strong>se_queue_event</strong> - DSL function to queue events from tree</li>
+<li><strong>se_event_dispatch</strong> - Composite that handles user events</li>
+</ol>
+<h2 id="data-structures">Data Structures</h2>
+<h3 id="tree-instance-event-fields">Tree Instance Event Fields</h3>
+<pre><code class="language-c">struct s_expr_tree_instance {
+    // ... other fields ...
+
+    // Event queue (circular buffer)
+    s_expr_queued_event_t  event_queue[S_EXPR_EVENT_QUEUE_SIZE];
+    uint8_t                event_queue_head;
+    uint8_t                event_queue_count;
+
+    // Current tick type
+    uint16_t               tick_type;  // SE_EVENT_TICK or SE_EVENT_USER
+};
+</code></pre>
+<h3 id="queued-event-structure">Queued Event Structure</h3>
+<pre><code class="language-c">typedef struct {
+    uint16_t  tick_type;    // SE_EVENT_USER for user events
+    uint16_t  event_id;     // Application-defined event identifier
+    void*     event_data;   // Pointer to event data (typically blackboard field)
+} s_expr_queued_event_t;
+</code></pre>
+<h3 id="tick-types">Tick Types</h3>
+<pre><code class="language-c">typedef enum {
+    SE_EVENT_TICK = 0,       // Regular tick (default)
+    SE_EVENT_INIT = 1,       // Initialization
+    SE_EVENT_TERMINATE = 2,  // Termination
+    SE_EVENT_USER = 3,       // User-defined event
+} s_expr_event_type_t;
+</code></pre>
+<h2 id="api-reference">API Reference</h2>
+<h3 id="queue-management">Queue Management</h3>
+<pre><code class="language-c">// Initialize queue (called by s_expr_tree_create)
+void s_expr_event_queue_init(s_expr_tree_instance_t* inst);
+
+// Get number of queued events
+uint16_t s_expr_event_queue_count(s_expr_tree_instance_t* inst);
+
+// Push event onto queue
+void s_expr_event_push(
+    s_expr_tree_instance_t* inst,
+    uint16_t tick_type,
+    uint16_t event_id,
+    void* event_data
+);
+
+// Pop event from queue
+void s_expr_event_pop(
+    s_expr_tree_instance_t* inst,
+    uint16_t* tick_type,
+    uint16_t* event_id,
+    void** event_data
+);
+
+// Clear all queued events
+void s_expr_event_queue_clear(s_expr_tree_instance_t* inst);
+</code></pre>
+<h3 id="lua-dsl">Lua DSL</h3>
+<pre><code class="language-lua">-- Queue an event with data from blackboard field
+se_queue_event(event_type, event_id, &quot;field_name&quot;)
+</code></pre>
+<h2 id="usage">Usage</h2>
+<h3 id="1-define-event-constants">1. Define Event Constants</h3>
+<pre><code class="language-lua">local USER_EVENT_TYPE = 1  -- Application event type
+local USER_EVENT_1 = 1     -- Specific event IDs
+local USER_EVENT_2 = 2
+local USER_EVENT_3 = 3
+</code></pre>
+<h3 id="2-queue-events-from-tree">2. Queue Events from Tree</h3>
+<p>Events are queued using <code>se_queue_event</code>, which takes:
+- <code>event_type</code> - The tick_type (typically <code>SE_EVENT_USER</code>)
+- <code>event_id</code> - Application-defined event identifier
+- <code>field_name</code> - Blackboard field containing event data</p>
+<pre><code class="language-lua">se_case(0, function()
+    se_chain_flow(function()
+        se_log(&quot;State 0 - generating events&quot;)
+        se_tick_delay(20)
+
+        -- Set event data in blackboard
+        se_set_field(&quot;event_data_1&quot;, 1.1)
+        se_set_field(&quot;event_data_2&quot;, 2.2)
+
+        -- Queue events (processed after this tick)
+        se_queue_event(USER_EVENT_TYPE, USER_EVENT_1, &quot;event_data_1&quot;)
+        se_queue_event(USER_EVENT_TYPE, USER_EVENT_2, &quot;event_data_2&quot;)
+
+        se_return_pipeline_reset()
+    end)
+end)
+</code></pre>
+<h3 id="3-handle-events-with-se_event_dispatch">3. Handle Events with se_event_dispatch</h3>
+<pre><code class="language-lua">event_handlers = {}
+
+event_handlers[1] = function()
+    se_event_case(USER_EVENT_1, function()
+        se_chain_flow(function()
+            se_log(&quot;Handling USER_EVENT_1&quot;)
+            local o = o_call(&quot;DISPLAY_EVENT_INFO&quot;)
+            end_call(o)
+            se_set_field(&quot;state&quot;, 1)  -- Trigger state change
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+event_handlers[2] = function()
+    se_event_case(USER_EVENT_2, function()
+        se_chain_flow(function()
+            se_log(&quot;Handling USER_EVENT_2&quot;)
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+event_handlers[3] = function()
+    se_event_case('default', function()
+        se_chain_flow(function()
+            -- Default: do nothing on regular ticks
+            se_return_pipeline_halt()
+        end)
+    end)
+end
+</code></pre>
+<h3 id="4-implement-tick-loop">4. Implement Tick Loop</h3>
+<p>The external tick loop must process queued events:</p>
+<pre><code class="language-c">do {
+    // Regular tick
+    result = s_expr_node_tick(tree, SE_EVENT_TICK, NULL);
+    tick_count++;
+
+    // Process queued events
+    uint16_t event_count = s_expr_event_queue_count(tree);
+
+    while (event_count &gt; 0) {
+        uint16_t tick_type;
+        uint16_t event_id;
+        void* event_data;
+
+        // Pop event from queue
+        s_expr_event_pop(tree, &amp;tick_type, &amp;event_id, &amp;event_data);
+
+        // Save, set, execute, restore
+        uint16_t saved_tick_type = tree-&gt;tick_type;
+        tree-&gt;tick_type = tick_type;
+
+        s_expr_result_t event_result = s_expr_node_tick(tree, event_id, event_data);
+
+        tree-&gt;tick_type = saved_tick_type;
+
+        if (result_is_complete(event_result)) {
+            result = event_result;
+            break;
+        }
+
+        event_count = s_expr_event_queue_count(tree);
+    }
+
+} while (!result_is_complete(result) &amp;&amp; tick_count &lt; max_ticks);
+</code></pre>
+<h2 id="how-se_event_dispatch-works">How se_event_dispatch Works</h2>
+<p>The <code>se_event_dispatch</code> composite checks <code>inst-&gt;tick_type</code> to determine behavior:</p>
+<table>
+<thead>
+<tr>
+<th>tick_type</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SE_EVENT_TICK</code></td>
+<td>Dispatch to <strong>default</strong> case (typically no-op)</td>
+</tr>
+<tr>
+<td><code>SE_EVENT_USER</code></td>
+<td>Dispatch to matching <strong>event_id</strong> case</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="language-c">// Inside se_event_dispatch
+if (inst-&gt;tick_type == SE_EVENT_USER) {
+    dispatch_event_id = event_id;  // Match against event cases
+} else {
+    dispatch_event_id = (uint16_t)-1;  // Use default case
+}
+</code></pre>
+<p>This means:
+- <strong>Regular ticks</strong>: Default case runs (usually <code>se_return_pipeline_halt()</code>)
+- <strong>User event ticks</strong>: Matching event handler runs</p>
+<h2 id="event-data">Event Data</h2>
+<p>Event data is passed as a pointer to blackboard data:</p>
+<pre><code class="language-lua">-- In tree: set field, then queue event referencing it
+se_set_field(&quot;sensor_reading&quot;, 42.5)
+se_queue_event(USER_EVENT_TYPE, SENSOR_EVENT, &quot;sensor_reading&quot;)
+</code></pre>
+<pre><code class="language-c">// In event handler: event_data points to blackboard field
+void handle_sensor_event(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    ...
+) {
+    // event_data is available via inst-&gt;current_event_data
+    float* reading = (float*)inst-&gt;current_event_data;
+    printf(&quot;Sensor reading: %f\n&quot;, *reading);
+}
+</code></pre>
+<h2 id="complete-example">Complete Example</h2>
+<pre><code class="language-lua">-- Constants
+local USER_EVENT_TYPE = 1
+local SENSOR_EVENT = 1
+local TIMER_EVENT = 2
+local ALARM_EVENT = 3
+
+-- Record with event data fields
+RECORD(&quot;controller_blackboard&quot;)
+    FIELD(&quot;state&quot;, &quot;int32&quot;)
+    FIELD(&quot;sensor_data&quot;, &quot;float&quot;)
+    FIELD(&quot;timer_data&quot;, &quot;float&quot;)
+    FIELD(&quot;alarm_level&quot;, &quot;int32&quot;)
+END_RECORD()
+
+-- Event handlers
+event_handlers = {}
+
+event_handlers[1] = function()
+    se_event_case(SENSOR_EVENT, function()
+        se_chain_flow(function()
+            se_log(&quot;Sensor event received&quot;)
+            -- Process sensor data, possibly change state
+            se_set_field(&quot;state&quot;, 1)
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+event_handlers[2] = function()
+    se_event_case(TIMER_EVENT, function()
+        se_chain_flow(function()
+            se_log(&quot;Timer event received&quot;)
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+event_handlers[3] = function()
+    se_event_case(ALARM_EVENT, function()
+        se_chain_flow(function()
+            se_log(&quot;ALARM!&quot;)
+            se_set_field(&quot;state&quot;, 99)  -- Emergency state
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+event_handlers[4] = function()
+    se_event_case('default', function()
+        se_chain_flow(function()
+            se_return_pipeline_halt()
+        end)
+    end)
+end
+
+-- State machine that generates events
+state_cases = {}
+
+state_cases[1] = function()
+    se_case(0, function()
+        se_chain_flow(function()
+            se_log(&quot;Idle - checking sensors&quot;)
+            se_tick_delay(10)
+            se_set_field(&quot;sensor_data&quot;, 25.5)
+            se_queue_event(USER_EVENT_TYPE, SENSOR_EVENT, &quot;sensor_data&quot;)
+            se_return_pipeline_reset()
+        end)
+    end)
+end
+
+-- Tree structure
+start_tree(&quot;event_demo&quot;)
+    use_record(&quot;controller_blackboard&quot;)
+
+    se_function_interface(function()
+        se_i_set_field(&quot;state&quot;, 0)
+
+        -- All run in parallel
+        se_event_dispatch(event_handlers)  -- Handles events
+        se_state_machine(&quot;state&quot;, state_cases)  -- Generates events
+    end)
+end_tree(&quot;event_demo&quot;)
+</code></pre>
+<h2 id="configuration">Configuration</h2>
+<h3 id="queue-size">Queue Size</h3>
+<p>Default queue size is 16 events:</p>
+<pre><code class="language-c">#define S_EXPR_EVENT_QUEUE_SIZE 16
+</code></pre>
+<p>Adjust in <code>s_engine_types.h</code> if needed for your application.</p>
+<h3 id="error-handling">Error Handling</h3>
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Queue full on push</td>
+<td><code>EXCEPTION("s_expr_event_push: queue full")</code></td>
+</tr>
+<tr>
+<td>Queue empty on pop</td>
+<td><code>EXCEPTION("s_expr_event_pop: queue empty")</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="best-practices">Best Practices</h2>
+<ol>
+<li>
+<p><strong>Always check queue after tick</strong> - Events generated during a tick should be processed before the next tick</p>
+</li>
+<li>
+<p><strong>Use default case</strong> - Always provide a default handler in <code>se_event_dispatch</code> to handle regular ticks gracefully</p>
+</li>
+<li>
+<p><strong>Save/set/restore tick_type</strong> - Essential for <code>se_event_dispatch</code> to distinguish event ticks from regular ticks</p>
+</li>
+<li>
+<p><strong>Store event data in blackboard</strong> - The event_data pointer should reference stable memory (blackboard fields)</p>
+</li>
+<li>
+<p><strong>Process all events</strong> - Continue popping events until queue is empty or tree terminates</p>
+</li>
+</ol>
+<h2 id="comparison-with-external-events">Comparison with External Events</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>Internal Events (queue)</th>
+<th>External Events</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Source</td>
+<td>Tree via <code>se_queue_event</code></td>
+<td>Application code</td>
+</tr>
+<tr>
+<td>Timing</td>
+<td>Processed after generating tick</td>
+<td>Injected into tick loop</td>
+</tr>
+<tr>
+<td>Data</td>
+<td>Blackboard field reference</td>
+<td>Application-provided</td>
+</tr>
+<tr>
+<td>Use case</td>
+<td>Inter-component communication</td>
+<td>Hardware/network events</td>
+</tr>
+</tbody>
+</table>
+<p>External events can be injected by calling <code>s_expr_event_push</code> directly from application code, or by calling <code>s_expr_node_tick</code> with custom event_id and event_data.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

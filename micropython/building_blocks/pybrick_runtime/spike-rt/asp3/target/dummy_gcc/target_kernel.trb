@@ -1,0 +1,37 @@
+# -*- coding: utf-8 -*-
+# 
+#		パス2の生成スクリプトのターゲット依存部（ダミーターゲット用）
+#
+#   $Id: target_kernel.trb 1325 2019-11-29 13:21:38Z ertl-hiro $
+# 
+
+# 
+#  使用できる割込み番号とそれに対応する割込みハンドラ番号
+# 
+$INTNO_VALID = [ *(0..31) ]
+$INHNO_VALID = $INTNO_VALID
+
+#
+#  CFG_INTで使用できる割込み優先度
+#
+#  カーネル管理外の割込み用に，TMIN_INTPRI-1を使えるようにする．
+#
+$INTPRI_CFGINT_VALID = ($TMIN_INTPRI-1).upto($TMAX_INTPRI).to_a
+
+#
+#  カーネル管理／カーネル管理外に固定の割込み番号／割込みハンドラ番号
+#
+$INTNO_FIX_KERNEL = [ 30 ]
+$INHNO_FIX_KERNEL = [ 30 ]
+$INTNO_FIX_NONKERNEL = [ 31 ]
+$INHNO_FIX_NONKERNEL = [ 31 ]
+
+# 
+#  使用できるCPU例外ハンドラ番号
+# 
+$EXCNO_VALID = [ *(0..7) ]
+
+#
+#  ターゲット非依存部のインクルード
+#
+IncludeTrb("kernel/kernel.trb")

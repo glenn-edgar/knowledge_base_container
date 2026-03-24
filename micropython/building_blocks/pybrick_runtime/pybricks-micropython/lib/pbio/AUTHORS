@@ -1,0 +1,26 @@
+**Project:** `pybricks-micropython/lib/pbio`
+
+**The Pybricks Authors (copyright holders of this project):**
+- Laurens Valk
+- David Lechner
+- LEGO System A/S
+
+**Maintainers:**
+- Laurens Valk (@laurensvalk)
+- David Lechner (@dlech)
+
+**Contributors:**
+- Nard Strijbosch (@NStrijbosch)
+
+**Authors of included libraries:**
+
+The pbio library includes portions of code from the NxOS project. The following
+is from the AUTHORS file from the NxOS project. In alphabetical order:
+
+- Sarah Amsellem (sarah.amsellem (at) gmail.com)
+- David Anderson (@danderson)
+- Romain Boissat (rboissat (at) gmail.com)
+- Jérôme Flesch (@jflesch)
+- Maxime Petazzoni (@mpetazzoni)
+- Edward Nys (edward.nys (at) gmail.com)
+- Giovanni Simoni (@dacav)

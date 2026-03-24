@@ -1,0 +1,59 @@
+{
+    "files.exclude": {
+      "**/__pycache__": true,
+    },
+    "python.defaultInterpreterPath": ".venv/bin/python",
+    "python.autoComplete.extraPaths": ["jedi/src"],
+    "python.formatting.provider": "none",
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.pycodestyleEnabled": false,
+    "python.linting.enabled": true,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.languageServer": "Pylance",
+    "python.testing.pytestArgs": [
+        "jedi/tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "files.associations": {"*.inc": "restructuredtext"},
+    "restructuredtext.confPath": "${workspaceFolder}/doc/main",
+    "spellright.language": [
+        "en_US"
+    ],
+    "spellright.ignoreFiles": [
+         "**/.gitignore",
+         "**/.vscode",
+         "**/conf.py"
+    ],
+    "spellright.ignoreRegExps": [
+        "/:math:`[^]*?`/gm",
+        "/``[^]*?``/gm",
+        "/'[^]*?'/gm",
+        "/.. data:: [^]*?'*$/gm",
+        "/.. figure:: [^]*?'*$/gm",
+        "/.. include:: [^]*?'*$/gm",
+        "/.. raw:: [^]*?'*$/gm",
+        "/.. currentmodule:: [^]*?'*$/gm",
+        "/.. _[^]*?'*$/gm",
+        "/:target:[^]*?'*$/gm",
+        "/:alt:[^]*?'*$/gm",
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext",
+        "python",
+        "restructuredtext",
+    ],
+    "rewrap.wrappingColumn": 78,
+    "python.analysis.extraPaths": [
+        "jedi/src"
+    ],
+    "yaml.schemas": {
+        "https://json.schemastore.org/github-workflow.json": "file:///home/david/work/pybricks/pybricks-api/.github/workflows/build.yml"
+    },
+}

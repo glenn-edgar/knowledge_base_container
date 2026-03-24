@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>DSL Closures - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_DSL/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_return_codes/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s-expression-dsl-understanding-function-end" class="nav-link">S-Expression DSL: Understanding function() ... end</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#what-it-is" class="nav-link">What It Is</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#why-the-dsl-requires-it" class="nav-link">Why The DSL Requires It</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#the-two-rules" class="nav-link">The Two Rules</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#when-you-need-closures-vs-when-you-dont" class="nav-link">When You Need Closures vs When You Don't</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#predicate-closures" class="nav-link">Predicate Closures</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#quick-reference" class="nav-link">Quick Reference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#common-mistakes" class="nav-link">Common Mistakes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#summary" class="nav-link">Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s-expression-dsl-understanding-function-end">S-Expression DSL: Understanding <code>function() ... end</code></h1>
+<h2 id="what-it-is">What It Is</h2>
+<p>Lua has no dedicated lambda syntax. Where other languages write:</p>
+<pre><code class="language-python"># Python
+lambda: do_something()
+</code></pre>
+<pre><code class="language-javascript">// JavaScript
+() =&gt; doSomething()
+</code></pre>
+<pre><code class="language-c">// C has no lambdas at all
+</code></pre>
+<p>Lua writes:</p>
+<pre><code class="language-lua">function() do_something() end
+</code></pre>
+<p>Every <code>function() ... end</code> in the DSL is a <strong>deferred block</strong> — code that is
+defined now but executed later, when the engine decides to run it. This is
+Lua's only mechanism for passing code as data.</p>
+<h2 id="why-the-dsl-requires-it">Why The DSL Requires It</h2>
+<p>The DSL builds a tree of nodes. Each node must know its children, but
+children must not emit themselves until they are inside their parent's
+scope. The problem:</p>
+<pre><code class="language-lua">-- WRONG: se_set_field executes immediately, BEFORE se_if_then runs
+se_if_then(
+    some_predicate,
+    se_set_field(&quot;motor_state&quot;, STATE_IDLE)  -- emits node NOW, orphaned
+)
+</code></pre>
+<pre><code class="language-lua">-- RIGHT: closure defers emission until se_if_then calls it
+se_if_then(
+    some_predicate,
+    function() se_set_field(&quot;motor_state&quot;, STATE_IDLE) end  -- emits when called
+)
+</code></pre>
+<p>The closure hands <strong>unevaluated code</strong> to the parent node. The parent calls
+it at the right moment, so the child nodes land inside the parent's scope
+in the node tree.</p>
+<h2 id="the-two-rules">The Two Rules</h2>
+<h3 id="rule-1-wrap-when-passing-code-to-a-dsl-construct">Rule 1: Wrap when passing code to a DSL construct</h3>
+<p>Any DSL function that takes "an action" or "a predicate" expects a closure.
+The closure is called by the construct to emit child nodes.</p>
+<pre><code class="language-lua">se_if_then(
+    function() ... end,   -- predicate: called to emit pred nodes
+    function() ... end    -- action: called to emit action nodes
+)
+
+se_sequence(
+    function() ... end    -- body: called to emit children
+)
+
+se_while(
+    function() ... end,   -- condition
+    function() ... end    -- body
+)
+</code></pre>
+<h3 id="rule-2-dont-wrap-when-calling-a-dsl-function-directly">Rule 2: Don't wrap when calling a DSL function directly</h3>
+<p>Inside a closure body, DSL calls execute immediately — that's the point.
+No extra wrapping needed.</p>
+<pre><code class="language-lua">se_sequence(function()
+    se_set_field(&quot;a&quot;, 1)       -- direct call, emits node
+    se_set_field(&quot;b&quot;, 2)       -- direct call, emits node
+    se_log(&quot;done&quot;)             -- direct call, emits node
+end)
+</code></pre>
+<h2 id="when-you-need-closures-vs-when-you-dont">When You Need Closures vs When You Don't</h2>
+<h3 id="pass-a-function-reference-directly">Pass a function reference directly</h3>
+<p>If you already have a zero-argument function, pass it by name.
+Do NOT wrap it in another closure.</p>
+<pre><code class="language-lua">-- These are defined elsewhere as zero-argument functions:
+local function monitor_thermal() ... end
+local function monitor_voltage() ... end
+
+-- GOOD: pass by reference
+se_fork(
+    monitor_thermal,
+    monitor_voltage
+)
+
+-- REDUNDANT: wrapper does nothing
+se_fork(
+    function() monitor_thermal() end,
+    function() monitor_voltage() end
+)
+</code></pre>
+<h3 id="use-a-closure-to-bind-arguments">Use a closure to bind arguments</h3>
+<p>If the call needs arguments, there is no function reference to pass —
+you need a closure to capture the arguments.</p>
+<pre><code class="language-lua">-- se_state_machine needs two arguments; no pre-bound function exists
+se_fork(
+    branch_serial_handler,                                     -- no args, direct ref
+    function() se_state_machine(&quot;motor_state&quot;, motor_cases) end  -- has args, needs closure
+)
+</code></pre>
+<h3 id="use-a-closure-to-group-multiple-statements">Use a closure to group multiple statements</h3>
+<p>A single DSL call is one node. Multiple calls need a container so the
+parent sees one child.</p>
+<pre><code class="language-lua">-- ONE node — no container needed
+se_cond_case(
+    function() se_field_eq(&quot;emergency&quot;, 1) end,
+    function() se_set_field(&quot;motor_state&quot;, STATE_EMERGENCY) end
+)
+
+-- TWO nodes — se_sequence groups them into one child
+se_cond_case(
+    function() se_field_eq(&quot;open_request&quot;, 1) end,
+    function() se_sequence(function()
+        se_set_field(&quot;open_request&quot;, 0)
+        se_set_field(&quot;motor_state&quot;, STATE_OPENING)
+    end) end
+)
+</code></pre>
+<h2 id="predicate-closures">Predicate Closures</h2>
+<p>Predicates have a subtlety. Functions like <code>se_field_eq</code> behave differently
+depending on context:</p>
+<ul>
+<li><strong>Inside <code>pred_begin/pred_end</code></strong>: they register a leaf in the predicate
+  builder (no closure needed around the result).</li>
+<li><strong>Outside the builder</strong>: they <strong>return</strong> a closure that must be called
+  to emit the p_call node.</li>
+</ul>
+<p>The safest pattern for single predicates is a helper that handles this:</p>
+<pre><code class="language-lua">local function pred_field_eq(field_name, value)
+    return function()
+        pred_begin()
+            se_field_eq(field_name, value)
+        local p = pred_end()
+        p()
+    end
+end
+
+-- Use directly — it's already a closure
+se_while(
+    pred_field_eq(&quot;system_shutdown&quot;, 0),
+    function() ... end
+)
+</code></pre>
+<p>For compound predicates, build inline:</p>
+<pre><code class="language-lua">se_if_then(
+    function()
+        pred_begin()
+            local or_id = se_pred_or()
+                se_field_lt(&quot;voltage&quot;, 9.0)
+                se_field_gt(&quot;voltage&quot;, 16.0)
+            pred_close(or_id)
+        local p = pred_end()
+        p()
+    end,
+    function() ... end
+)
+</code></pre>
+<h2 id="quick-reference">Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Pattern</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single action, no args</td>
+<td><code>function() se_set_field("x", 1) end</code></td>
+</tr>
+<tr>
+<td>Multiple actions</td>
+<td><code>function() se_sequence(function() ... end) end</code></td>
+</tr>
+<tr>
+<td>Pre-existing function, no args</td>
+<td><code>my_function</code> (direct reference)</td>
+</tr>
+<tr>
+<td>Function call with args</td>
+<td><code>function() se_foo("a", "b") end</code></td>
+</tr>
+<tr>
+<td>Single predicate</td>
+<td><code>pred_field_eq("field", value)</code> (returns closure)</td>
+</tr>
+<tr>
+<td>Compound predicate</td>
+<td><code>function() pred_begin() ... pred_end()() end</code></td>
+</tr>
+<tr>
+<td>Immediate execution inside body</td>
+<td>Just call it: <code>se_log("msg")</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="common-mistakes">Common Mistakes</h2>
+<p><strong>Discarded return value</strong> — predicate emits nothing:</p>
+<pre><code class="language-lua">-- WRONG: se_field_eq returns a closure, nobody calls it
+se_if_then(
+    function() se_field_eq(&quot;flag&quot;, 1) end,   -- closure returned and thrown away
+    function() ... end
+)
+
+-- RIGHT: use pred_begin/pred_end
+se_if_then(
+    pred_field_eq(&quot;flag&quot;, 1),
+    function() ... end
+)
+</code></pre>
+<p><strong>Immediate execution</strong> — node emits outside parent scope:</p>
+<pre><code class="language-lua">-- WRONG: se_set_field runs before se_cond_case sees it
+se_cond_case(
+    pred_fn,
+    se_set_field(&quot;x&quot;, 1)    -- executes NOW, not when case matches
+)
+
+-- RIGHT: deferred
+se_cond_case(
+    pred_fn,
+    function() se_set_field(&quot;x&quot;, 1) end
+)
+</code></pre>
+<p><strong>Unnecessary wrapping</strong> — adds noise, no benefit:</p>
+<pre><code class="language-lua">-- WRONG: pointless extra layer
+se_fork(
+    function() monitor_thermal() end
+)
+
+-- RIGHT: monitor_thermal is already a function
+se_fork(
+    monitor_thermal
+)
+</code></pre>
+<h2 id="summary">Summary</h2>
+<p><code>function() ... end</code> is Lua's lambda. In this DSL it means "don't run this
+now — hand it to the parent construct, which will run it at the right time
+to build the node tree correctly." Use it when passing code to DSL
+constructs. Don't use it when you already have a callable reference, or
+when you're already inside a closure body executing directly.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

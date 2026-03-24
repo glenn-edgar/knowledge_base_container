@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2022-2025 The Pybricks Authors
+
+
+#include "py/mpconfig.h"
+#include "py/obj.h"
+#include "py/runtime.h"
+
+#include "pb_type_async.h"
+
+#include <pybricks/tools.h>
+#include <pybricks/util_pb/pb_error.h>
+
+/**
+ * Makes the iterable exhaust the next time it is iterated.
+ *
+ * This will not call close(). Safe to call even if iter is NULL or if it is
+ * already complete.
+ *
+ * This is useful when all we need is for the ongoing awaitable to stop, with
+ * the newly created iterable taking care of the hardware. For example, if the
+ * new operation takes over the speaker, the old one only has to stop iterating,
+ * not stop the speaker as it would do with close().
+ *
+ * @param [in] iter The awaitable object.
+ */
+void pb_type_async_schedule_stop_iteration(pb_type_async_t *iter) {
+    if (!iter || iter->parent_obj == MP_OBJ_NULL) {
+        // Don't schedule if already complete.
+        return;
+    }
+    // Don't set it to MP_OBJ_NULL right away, or the calling code wouldn't
+    // know it was exhausted, and it would await on the renewed operation.
+    iter->parent_obj = MP_OBJ_SENTINEL;
+}
+
+mp_obj_t pb_type_async_close(mp_obj_t iter_in) {
+    pb_type_async_t *iter = MP_OBJ_TO_PTR(iter_in);
+    // Close only if there is a close function and we aren't already closing
+    // or scheduled it to close next time.
+    if (iter->close && iter->parent_obj != MP_OBJ_NULL && iter->parent_obj != MP_OBJ_SENTINEL) {
+        iter->close(iter->parent_obj);
+    }
+    // Closing is stronger than cancellation. In case of close, we expect that
+    // the awaitable is no longer to be iterated afterwards, so it would not
+    // reach exhaustion on its own and could never be re-used, so do it here.
+    iter->parent_obj = MP_OBJ_NULL;
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_1(pb_type_async_close_obj, pb_type_async_close);
+
+static mp_obj_t pb_type_async_iternext(mp_obj_t iter_in) {
+    pb_type_async_t *iter = MP_OBJ_TO_PTR(iter_in);
+
+    // It was scheduled for cancellation externally (or exhausted normally
+    // previously). We are hereby letting the calling code know we are
+    // exhausted, so now we can set parent_obj to MP_OBJ_NULL to indicate it is
+    // ready to be used again. This assumes user did not keep a reference to it
+    // and does not next() or await it again. It is safe if they do, but the
+    // user code would be awaiting whatever it is re-used for.
+    if (iter->parent_obj == MP_OBJ_SENTINEL || iter->parent_obj == MP_OBJ_NULL) {
+        iter->parent_obj = MP_OBJ_NULL;
+        return MP_OBJ_STOP_ITERATION;
+    }
+
+    // Special case without iterator means yield exactly once and then complete.
+    if (!iter->iter_once) {
+        pb_type_async_schedule_stop_iteration(iter);
+        return mp_const_none;
+    }
+
+    // Run one iteration of the protothread.
+    pbio_error_t err = iter->iter_once(&iter->state, iter->parent_obj);
+
+    // Yielded, keep going.
+    if (err == PBIO_ERROR_AGAIN) {
+        return mp_const_none;
+    }
+
+    // Raises on other errors, Proceeds on successful completion.
+    pb_assert(err);
+
+    // This causes the stop iteration to provide the return value.
+    if (iter->return_map) {
+        mp_make_stop_iteration(iter->return_map(iter->parent_obj));
+    }
+
+    // As above, notify caller of exhaustion so this iterable can be re-used.
+    iter->parent_obj = MP_OBJ_NULL;
+    return MP_OBJ_STOP_ITERATION;
+}
+
+static const mp_rom_map_elem_t pb_type_async_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_close), MP_ROM_PTR(&pb_type_async_close_obj) },
+};
+MP_DEFINE_CONST_DICT(pb_type_async_locals_dict, pb_type_async_locals_dict_table);
+
+MP_DEFINE_CONST_OBJ_TYPE(pb_type_async,
+    MP_QSTR_Async,
+    MP_TYPE_FLAG_ITER_IS_ITERNEXT,
+    iter, pb_type_async_iternext,
+    locals_dict, &pb_type_async_locals_dict);
+
+/**
+ * Returns an awaitable operation if the runloop is active, or awaits the
+ * operation here and now.
+ *
+ * @param  [in]       config     Configuration of the operation. NB: State will not be reset.
+ * @param  [in, out]  prev       Candidate iterable object that might be re-used, otherwise assigned newly allocated object.
+ * @param  [in]       stop_prev  Whether to stop ongoing awaitable if it is active.
+ * @returns An awaitable if the runloop is active, otherwise the mapped return value.
+ */
+mp_obj_t pb_type_async_wait_or_await(pb_type_async_t *config, pb_type_async_t **prev, bool stop_prev) {
+
+    config->base.type = &pb_type_async;
+
+    // Return allocated awaitable if runloop active.
+    if (pb_module_tools_run_loop_is_active()) {
+
+        // Optionally schedule ongoing awaitable to stop (next time) if busy.
+        if (prev && stop_prev) {
+            pb_type_async_schedule_stop_iteration(*prev);
+        }
+
+        // Re-use existing awaitable if exists and is free, otherwise allocate
+        // another one. This allows many resources with one concurrent physical
+        // operation like a motor to operate without re-allocation.
+        pb_type_async_t *iter = (prev && *prev && (*prev)->parent_obj == MP_OBJ_NULL) ?
+            *prev : (pb_type_async_t *)m_malloc(sizeof(pb_type_async_t));
+
+        // Copy the confuration to the object on heap so it lives on.
+        *iter = *config;
+
+        // Attaches newly defined awaitable (or no-op if reused) to the parent
+        // object. The object that was here before is detached, so we no longer
+        // prevent it from being garbage collected.
+        if (prev) {
+            *prev = iter;
+        }
+
+        return MP_OBJ_FROM_PTR(iter);
+    }
+
+    // Otherwise wait for completion here without allocating the iterable.
+    pbio_error_t err;
+    while ((err = config->iter_once(&config->state, config->parent_obj)) == PBIO_ERROR_AGAIN) {
+        mp_event_wait_indefinite();
+    }
+    pb_assert(err);
+    return config->return_map ? config->return_map(config->parent_obj) : mp_const_none;
+}
+
+/**
+ * Iteration for a constant awaitable that yields once before returning.
+ *
+ * This is different from omitting iter_once to achieve a single yield, since
+ * that special case cannot have a return value.
+ *
+ * @param  [in]   state        Protothread state.
+ * @param  [in]   parent_obj   The constant.
+ */
+static pbio_error_t pb_type_async_constant_iter_once(pbio_os_state_t *state, mp_obj_t parent_obj) {
+    PBIO_OS_ASYNC_BEGIN(state);
+    PBIO_OS_AWAIT_ONCE(state);
+    PBIO_OS_ASYNC_END(PBIO_SUCCESS);
+}
+
+/**
+ * Return map for a constant awaitable.
+ *
+ * @param  [in]   parent_obj   The constant.
+ * @returns                    The same constant.
+ */
+static mp_obj_t pb_type_async_constant_return_map(mp_obj_t parent_obj) {
+    return parent_obj;
+}
+
+/**
+ * Returns an awaitable operation that yields once and then returns a constant
+ * result. If the runloop is not active, this just returns the given value.
+ *
+ * Can be used to return constants from functions that still need to be
+ * awaitable for other reasons.
+ *
+ * @param  [in]       result_obj Return result.
+ * @param  [in, out]  prev       Candidate iterable object that might be
+ *                               re-used, otherwise assigned newly allocated object.
+ * @returns An awaitable if the runloop is active, otherwise the constant return value.
+ */
+mp_obj_t pb_type_async_return_result(mp_obj_t result_obj, pb_type_async_t **prev) {
+
+    // In synchronous mode, return right away.
+    if (!pb_module_tools_run_loop_is_active()) {
+        return result_obj;
+    }
+
+    // Async case returns soon.
+    pb_type_async_t config = {
+        .parent_obj = result_obj,
+        .iter_once = pb_type_async_constant_iter_once,
+        .return_map = pb_type_async_constant_return_map,
+        .state = 0,
+    };
+    return pb_type_async_wait_or_await(&config, prev, false);
+}

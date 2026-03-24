@@ -1,0 +1,202 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - '**'
+    tags-ignore:
+    - '@pybricks/**'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAKEOPTS: -j2
+
+jobs:
+  upload_pr_number:
+    name: upload pull request number
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Save PR number
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          mkdir -p ./pr
+          echo $PR_NUMBER > ./pr/pr_number
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr_number
+          path: pr/
+
+  mpy_cross:
+    name: mpy-cross
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Build mpy-cross
+      run: make $MAKEOPTS -C micropython/mpy-cross
+    - name: Upload mpy-cross
+      if: ${{ success() }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: mpy-cross
+        path: micropython/mpy-cross/build/mpy-cross
+
+  unix_coverage:
+    name: unix coverage
+    needs: mpy_cross
+    runs-on: ubuntu-24.04
+    env:
+      PYBRICKS_NO_REDIRECT_STDOUT: 1
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Download mpy-cross
+      uses: actions/download-artifact@v4
+      with:
+        name: mpy-cross
+        path: micropython/mpy-cross/build
+    - name: Fix file permission
+      run: chmod +x micropython/mpy-cross/build/mpy-cross
+    - name: Build
+      run: |
+        cd micropython
+        make ${MAKEOPTS} -C ports/unix VARIANT=coverage submodules
+        make ${MAKEOPTS} -C ports/unix VARIANT=coverage deplibs
+        make ${MAKEOPTS} -C ports/unix VARIANT=coverage
+    - name: Test
+      if: ${{ success() }}
+      run: |
+        ulimit -n 1024 # needed for micropython/tests/extmod/select_poll_fd.py
+        cd micropython
+        make -C ports/unix VARIANT=coverage test_full
+        (cd tests && MICROPY_CPYTHON3=python3 MICROPY_MICROPYTHON=../ports/unix/build-coverage/micropython ./run-multitests.py multi_net/*.py)
+    - name: List failed tests
+      if: failure()
+      run: micropython/tests/run-tests.py --print-failures
+
+  firmware:
+    name: firmware
+    strategy:
+      fail-fast: false
+      matrix:
+        hub: [cityhub, essentialhub, movehub, nxt, primehub, technichub, ev3, buildhat]
+    needs: [mpy_cross]
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Install cross-compiler
+      run: sudo apt-get update && sudo apt-get install --yes gcc-arm-none-eabi
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+    - name: Download mpy-cross
+      uses: actions/download-artifact@v4
+      with:
+        name: mpy-cross
+        path: micropython/mpy-cross/build
+    - name: Fix file permission
+      run: chmod +x micropython/mpy-cross/build/mpy-cross
+    - run: pipx install poetry
+    - run: poetry install --only=build
+    - name: Build firmware (pull request)
+      if: ${{ github.base_ref != null }}
+      run: poetry run .github/build-each-commit.py ${{ matrix.hub }} ${{ github.sha }}
+    - name: Build firmware (non-master branch)
+      if: ${{ github.base_ref == null && github.ref != 'refs/heads/master' }}
+      env:
+        STORAGE_ACCOUNT: ${{ secrets.STORAGE_ACCOUNT }}
+        STORAGE_KEY: ${{ secrets.STORAGE_KEY }}
+        STORAGE_URL: ${{ secrets.STORAGE_URL }}
+        FIRMWARE_SIZE_TABLE: ${{ secrets.FIRMWARE_SIZE_TABLE }}
+      run: poetry run .github/build-each-commit.py ${{ matrix.hub }} ${{ github.ref_name }}
+    - name: Build firmware (master branch)
+      if: ${{ github.base_ref == null && github.ref == 'refs/heads/master' }}
+      run: |
+        export MICROPY_GIT_TAG=ci-build-${{ github.run_number }}-$(git describe --tags --dirty --always --exclude "@pybricks/*")
+        export MICROPY_GIT_HASH=$(echo ${{ github.sha }} | cut -c1-8)
+        [ "${{ matrix.hub }}" = "buildhat" ] && make -C bricks/${{ matrix.hub }} submodules
+        poetry run make -C bricks/${{ matrix.hub }}
+    - name: Extract firmware.zip for upload
+      if: ${{ success()}}
+      working-directory: bricks/${{ matrix.hub }}/build
+      run: unzip firmware.zip -d upload
+    - name: Short hash
+      id: vars
+      run: echo "short_sha=$(echo ${{ github.sha }} | cut -c1-8)" >> $GITHUB_OUTPUT
+    - name: Upload firmware
+      if: ${{ success()}}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.hub }}-firmware-build-${{ github.run_number }}-git${{ steps.vars.outputs.short_sha }}
+        path: bricks/${{ matrix.hub }}/build/upload/*
+
+  virtualhub:
+    name: virtual hub
+    needs: [mpy_cross]
+    runs-on: ubuntu-24.04
+    steps:
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install lcov pipx
+    - name: Install Pybricksdev
+      run: pipx install pybricksdev
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+    - name: Checkout submodules
+      run: |
+        cd micropython
+        git submodule update --init --depth 0 lib/axtls
+        git submodule update --init --depth 0 lib/berkeley-db-1.xx
+        git submodule update --init --depth 0 lib/libffi
+    - name: Download mpy-cross
+      uses: actions/download-artifact@v4
+      with:
+        name: mpy-cross
+        path: micropython/mpy-cross/build
+    - name: Fix file permission
+      run: chmod +x micropython/mpy-cross/build/mpy-cross
+    - run: pipx install poetry
+    - run: poetry install --only=build
+    - name: Build and test
+      run: poetry run ./test-virtualhub.sh
+
+  pbio:
+    name: pbio tests
+    runs-on: ubuntu-24.04
+    env:
+      PBIO_TEST_RESULTS_DIR: lib/pbio/test/results
+    steps:
+    - name: Install prerequisites
+      run: |
+        sudo apt-get update
+        sudo apt-get install --yes doxygen graphviz lcov
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+    - name: Setup poetry
+      run: |
+        pipx install poetry
+        poetry install --only=build
+    - name: Build
+      run: |
+        poetry run make $MAKEOPTS -C lib/pbio/test
+    - name: Build docs
+      run: |
+        make $MAKEOPTS -C lib/pbio/doc
+    - name: Build coverage
+      run: |
+        poetry run make $MAKEOPTS -C lib/pbio/test build-coverage/lcov.info

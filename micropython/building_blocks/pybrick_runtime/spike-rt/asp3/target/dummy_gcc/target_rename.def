@@ -1,0 +1,23 @@
+# target_kernel_impl.h
+lock_cpu
+unlock_cpu
+sense_lock
+
+# target_kernel_impl.c
+dispatch
+start_dispatch
+exit_and_dispatch
+int_handler_entry
+exc_handler_entry
+call_exit_kernel
+start_r
+target_initialize
+target_exit
+
+# target_timer.c
+target_hrt_initialize
+target_hrt_terminate
+target_hrt_handler
+target_ovrtimer_initialize
+target_ovrtimer_terminate
+target_ovrtimer_handler

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>JSON Support - S-Expression Engine -- MicroPython</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_user_events/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_json_array_support/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s-engine-json-dictionary-system" class="nav-link">S-Engine JSON Dictionary System</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#strategy" class="nav-link">Strategy</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#file-organization" class="nav-link">File Organization</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#dsl-helper-functions" class="nav-link">DSL Helper Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#c-oneshot-functions" class="nav-link">C Oneshot Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#runtime-libraries" class="nav-link">Runtime Libraries</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-example" class="nav-link">Usage Example</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#creating-custom-json-handlers" class="nav-link">Creating Custom JSON Handlers</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#performance-considerations" class="nav-link">Performance Considerations</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#binary-format" class="nav-link">Binary Format</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#summary" class="nav-link">Summary</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s-engine-json-dictionary-system">S-Engine JSON Dictionary System</h1>
+<h2 id="overview">Overview</h2>
+<p>The S-Engine JSON dictionary system provides <strong>zero-copy, compile-time JSON configuration</strong> for embedded and real-time systems. Lua tables in DSL code are compiled directly into binary parameter arrays, enabling configuration data to live in ROM/Flash with no runtime parsing or memory allocation.</p>
+<h2 id="strategy">Strategy</h2>
+<p>The system follows a three-layer architecture:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│  DSL Layer (Lua)                                                │
+│  - se_load_dictionary(), se_dict_extract_*() helpers            │
+│  - Compile-time validation and code generation                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Oneshot Functions (C)                                          │
+│  - SE_LOAD_DICTIONARY, SE_DICT_EXTRACT_INT, etc.                │
+│  - Bridge between DSL and runtime libraries                     │
+├─────────────────────────────────────────────────────────────────┤
+│  Runtime Libraries (C)                                          │
+│  - se_dict_string.h/c - String path navigation                  │
+│  - se_dict_hash.h/c - Hash path navigation (faster)             │
+│  - Zero-copy value extraction from binary params                │
+└─────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="core-concept">Core Concept</h3>
+<ol>
+<li><strong>Load</strong>: Store a physical pointer to the dictionary structure in a PTR64 blackboard field</li>
+<li><strong>Extract</strong>: Functions take that pointer and navigate the binary structure to extract values</li>
+<li><strong>Store</strong>: Helper functions write extracted values directly into blackboard fields</li>
+</ol>
+<p>This approach eliminates:
+- Runtime JSON parsing
+- Dynamic memory allocation
+- String comparisons (when using hash paths)
+- Data copying</p>
+<h2 id="file-organization">File Organization</h2>
+<pre><code>├── s_engine_helpers.lua      # DSL helper functions
+├── s_engine_builtins.c       # Oneshot function implementations
+├── se_dict_string.h/c        # String-path runtime library
+├── se_dict_hash.h/c          # Hash-path runtime library
+└── se_dict_extract.h/c       # Extraction oneshot functions
+</code></pre>
+<h2 id="dsl-helper-functions">DSL Helper Functions</h2>
+<h3 id="dictionary-loading">Dictionary Loading</h3>
+<pre><code class="language-lua">-- Load dictionary with string keys (human-readable, slower lookup)
+se_load_dictionary(blackboard_field, lua_table)
+
+-- Load dictionary with hash keys (faster lookup, same data)
+se_load_dictionary_hash(blackboard_field, lua_table)
+</code></pre>
+<h3 id="string-path-extraction">String Path Extraction</h3>
+<p>Navigate using dot-separated paths like <code>"system.config.timeout"</code>:</p>
+<pre><code class="language-lua">se_dict_extract_int(dict_field, path, dest_field)
+se_dict_extract_uint(dict_field, path, dest_field)
+se_dict_extract_float(dict_field, path, dest_field)
+se_dict_extract_bool(dict_field, path, dest_field)
+se_dict_extract_hash(dict_field, path, dest_field)
+</code></pre>
+<h3 id="hash-path-extraction">Hash Path Extraction</h3>
+<p>Navigate using pre-computed key hashes (faster, no string parsing):</p>
+<pre><code class="language-lua">se_dict_extract_int_h(dict_field, {&quot;key1&quot;, &quot;key2&quot;, &quot;key3&quot;}, dest_field)
+se_dict_extract_uint_h(dict_field, {&quot;key1&quot;, &quot;key2&quot;}, dest_field)
+se_dict_extract_float_h(dict_field, {&quot;key1&quot;, &quot;key2&quot;}, dest_field)
+se_dict_extract_bool_h(dict_field, {&quot;key1&quot;, &quot;key2&quot;}, dest_field)
+se_dict_extract_hash_h(dict_field, {&quot;key1&quot;, &quot;key2&quot;}, dest_field)
+</code></pre>
+<h3 id="bulk-extraction">Bulk Extraction</h3>
+<p>Extract multiple values in one call:</p>
+<pre><code class="language-lua">se_dict_extract_all(dict_field, {
+    {path = &quot;system.timeout&quot;, dest = &quot;timeout_ms&quot;, type = &quot;int&quot;},
+    {path = &quot;hardware.voltage&quot;, dest = &quot;voltage&quot;, type = &quot;float&quot;},
+    {path = &quot;network.enabled&quot;, dest = &quot;net_flag&quot;, type = &quot;bool&quot;}
+})
+
+se_dict_extract_all_h(dict_field, {
+    {path = {&quot;system&quot;, &quot;timeout&quot;}, dest = &quot;timeout_ms&quot;, type = &quot;int&quot;},
+    {path = {&quot;hardware&quot;, &quot;voltage&quot;}, dest = &quot;voltage&quot;, type = &quot;float&quot;},
+})
+</code></pre>
+<h2 id="c-oneshot-functions">C Oneshot Functions</h2>
+<h3 id="registration">Registration</h3>
+<pre><code class="language-c">// Function table for registration
+static const s_expr_fn_entry_named_t se_dict_oneshots[] = {
+    {&quot;SE_LOAD_DICTIONARY&quot;,      (void*)se_load_dictionary},
+    {&quot;SE_DICT_EXTRACT_INT&quot;,     (void*)se_dict_extract_int},
+    {&quot;SE_DICT_EXTRACT_UINT&quot;,    (void*)se_dict_extract_uint},
+    {&quot;SE_DICT_EXTRACT_FLOAT&quot;,   (void*)se_dict_extract_float},
+    {&quot;SE_DICT_EXTRACT_BOOL&quot;,    (void*)se_dict_extract_bool},
+    {&quot;SE_DICT_EXTRACT_HASH&quot;,    (void*)se_dict_extract_hash},
+    {&quot;SE_DICT_EXTRACT_INT_H&quot;,   (void*)se_dict_extract_int_h},
+    {&quot;SE_DICT_EXTRACT_UINT_H&quot;,  (void*)se_dict_extract_uint_h},
+    {&quot;SE_DICT_EXTRACT_FLOAT_H&quot;, (void*)se_dict_extract_float_h},
+    {&quot;SE_DICT_EXTRACT_BOOL_H&quot;,  (void*)se_dict_extract_bool_h},
+    {&quot;SE_DICT_EXTRACT_HASH_H&quot;,  (void*)se_dict_extract_hash_h},
+};
+</code></pre>
+<h3 id="parameter-layout">Parameter Layout</h3>
+<p><strong>SE_LOAD_DICTIONARY</strong>:</p>
+<pre><code>[0] FIELD (PTR64)    - Blackboard field to store dictionary pointer
+[1] OPEN_DICT        - Start of dictionary structure in params
+</code></pre>
+<p><strong>SE_DICT_EXTRACT_* (string path)</strong>:</p>
+<pre><code>[0] FIELD (PTR64)    - Dictionary pointer field
+[1] STR_IDX          - Path string (e.g., &quot;system.config.timeout&quot;)
+[2] FIELD            - Destination field for extracted value
+</code></pre>
+<p><strong>SE_DICT_EXTRACT_*_H (hash path)</strong>:</p>
+<pre><code>[0] FIELD (PTR64)    - Dictionary pointer field
+[1..N-1] STR_HASH    - Path key hashes
+[N] FIELD            - Destination field for extracted value
+</code></pre>
+<h2 id="runtime-libraries">Runtime Libraries</h2>
+<h3 id="se_dict_stringhc-string-path-navigation">se_dict_string.h/c (String Path Navigation)</h3>
+<p>For human-readable paths with runtime string parsing:</p>
+<pre><code class="language-c">// Resolve path to parameter
+const s_expr_param_t* se_dicts_resolve(
+    const s_expr_param_t* dict,
+    const s_expr_module_def_t* module_def,
+    const char* path,
+    se_paths_context_t* ctx
+);
+
+// Typed extraction
+ct_int_t se_dicts_get_int(dict, module_def, &quot;path.to.value&quot;, default_val);
+ct_uint_t se_dicts_get_uint(dict, module_def, &quot;path.to.value&quot;, default_val);
+ct_float_t se_dicts_get_float(dict, module_def, &quot;path.to.value&quot;, default_val);
+bool se_dicts_get_bool(dict, module_def, &quot;path.to.value&quot;, default_val);
+s_expr_hash_t se_dicts_get_hash(dict, module_def, &quot;path.to.value&quot;, default_val);
+
+// Dictionary iteration
+se_dicts_iter_t iter;
+se_dicts_iter_init(&amp;iter, dict, module_def);
+while (se_dicts_iter_next(&amp;iter, &amp;key_str, &amp;key_hash, &amp;value)) {
+    // Process key-value pairs
+}
+</code></pre>
+<h3 id="se_dict_hashhc-hash-path-navigation">se_dict_hash.h/c (Hash Path Navigation)</h3>
+<p>For maximum performance with pre-computed hashes:</p>
+<pre><code class="language-c">// Resolve path using hash array
+const s_expr_param_t* se_dicth_resolve(
+    const s_expr_param_t* dict,
+    const s_expr_hash_t* path_hashes,
+    uint16_t path_depth,
+    se_pathh_context_t* ctx
+);
+
+// Typed extraction
+ct_int_t se_dicth_get_int(dict, path_hashes, depth, default_val);
+ct_uint_t se_dicth_get_uint(dict, path_hashes, depth, default_val);
+ct_float_t se_dicth_get_float(dict, path_hashes, depth, default_val);
+bool se_dicth_get_bool(dict, path_hashes, depth, default_val);
+s_expr_hash_t se_dicth_get_hash(dict, path_hashes, depth, module_def, default_val);
+
+// Convenience macros for C code
+ct_int_t val = se_dicth_get_int(dict, SE_PATH_H(&quot;system&quot;, &quot;timeout&quot;), 0);
+</code></pre>
+<h2 id="usage-example">Usage Example</h2>
+<h3 id="dsl-code">DSL Code</h3>
+<pre><code class="language-lua">local mod = start_module(&quot;zone_controller&quot;)
+
+RECORD(&quot;zone_state&quot;)
+    PTR64_FIELD(&quot;config_ptr&quot;, &quot;void&quot;)
+    FIELD(&quot;zone_id&quot;, &quot;uint32&quot;)
+    FIELD(&quot;timeout_ms&quot;, &quot;uint32&quot;)
+    FIELD(&quot;threshold&quot;, &quot;float&quot;)
+    FIELD(&quot;enabled&quot;, &quot;uint32&quot;)
+    FIELD(&quot;state_hash&quot;, &quot;uint32&quot;)
+END_RECORD()
+
+local zone_config = {
+    zone = {
+        id = 42,
+        timeout = 5000,
+        threshold = 75.5,
+        enabled = 1,
+        state = &quot;idle&quot;
+    },
+    hardware = {
+        gpio_pin = 17,
+        adc_channel = 3
+    }
+}
+
+start_tree(&quot;zone_init&quot;)
+use_record(&quot;zone_state&quot;)
+
+se_sequence(function()
+    -- Load configuration pointer
+    se_load_dictionary(&quot;config_ptr&quot;, zone_config)
+
+    -- Extract values using string paths
+    se_dict_extract_uint(&quot;config_ptr&quot;, &quot;zone.id&quot;, &quot;zone_id&quot;)
+    se_dict_extract_uint(&quot;config_ptr&quot;, &quot;zone.timeout&quot;, &quot;timeout_ms&quot;)
+    se_dict_extract_float(&quot;config_ptr&quot;, &quot;zone.threshold&quot;, &quot;threshold&quot;)
+    se_dict_extract_bool(&quot;config_ptr&quot;, &quot;zone.enabled&quot;, &quot;enabled&quot;)
+    se_dict_extract_hash(&quot;config_ptr&quot;, &quot;zone.state&quot;, &quot;state_hash&quot;)
+
+    se_return_terminate()
+end)
+
+end_tree(&quot;zone_init&quot;)
+return end_module(mod)
+</code></pre>
+<h3 id="alternative-with-hash-paths-faster">Alternative with Hash Paths (Faster)</h3>
+<pre><code class="language-lua">se_sequence(function()
+    se_load_dictionary_hash(&quot;config_ptr&quot;, zone_config)
+
+    se_dict_extract_uint_h(&quot;config_ptr&quot;, {&quot;zone&quot;, &quot;id&quot;}, &quot;zone_id&quot;)
+    se_dict_extract_uint_h(&quot;config_ptr&quot;, {&quot;zone&quot;, &quot;timeout&quot;}, &quot;timeout_ms&quot;)
+    se_dict_extract_float_h(&quot;config_ptr&quot;, {&quot;zone&quot;, &quot;threshold&quot;}, &quot;threshold&quot;)
+    se_dict_extract_bool_h(&quot;config_ptr&quot;, {&quot;zone&quot;, &quot;enabled&quot;}, &quot;enabled&quot;)
+    se_dict_extract_hash_h(&quot;config_ptr&quot;, {&quot;zone&quot;, &quot;state&quot;}, &quot;state_hash&quot;)
+
+    se_return_terminate()
+end)
+</code></pre>
+<h2 id="creating-custom-json-handlers">Creating Custom JSON Handlers</h2>
+<p>When the built-in extraction functions don't meet your needs, you can create custom handlers.</p>
+<h3 id="step-1-define-dsl-helper-function">Step 1: Define DSL Helper Function</h3>
+<p>In <code>s_engine_helpers.lua</code>:</p>
+<pre><code class="language-lua">-- Custom handler: extract array of integers into consecutive fields
+function se_dict_extract_int_array(dict_field, path, dest_fields)
+    validate_field_is_ptr64(dict_field)
+
+    local call = o_call(&quot;USER_EXTRACT_INT_ARRAY&quot;)
+        field_ref(dict_field)
+        str(path)
+        int(#dest_fields)  -- count
+        for _, dest in ipairs(dest_fields) do
+            field_ref(dest)
+        end
+    end_call(call)
+end
+</code></pre>
+<h3 id="step-2-implement-c-oneshot-function">Step 2: Implement C Oneshot Function</h3>
+<pre><code class="language-c">#include &quot;se_dict_string.h&quot;
+
+void user_extract_int_array(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    UNUSED(event_type);
+    UNUSED(event_id);
+    UNUSED(event_data);
+
+    if (param_count &lt; 4) return;
+
+    // Get dictionary pointer from blackboard field
+    const s_expr_param_t* dict = get_dict_from_field(inst, &amp;params[0]);
+    if (!dict) return;
+
+    // Get path string
+    const char* path = get_string(inst, &amp;params[1]);
+    if (!path) return;
+
+    // Get count
+    uint16_t count = (uint16_t)params[2].int_val;
+
+    // Navigate to array
+    const s_expr_module_def_t* mod_def = inst-&gt;module ? inst-&gt;module-&gt;def : NULL;
+    const s_expr_param_t* array = se_dicts_get_array(dict, mod_def, path);
+    if (!array) return;
+
+    // Iterate array and extract values
+    se_arrays_iter_t iter;
+    se_arrays_iter_init(&amp;iter, array);
+
+    const s_expr_param_t* value;
+    uint16_t index;
+    uint16_t dest_idx = 3;  // First destination field
+
+    while (se_arrays_iter_next(&amp;iter, &amp;value, &amp;index) &amp;&amp; index &lt; count) {
+        if (dest_idx &gt;= param_count) break;
+
+        ct_int_t int_val = se_dicts_param_int(value, 0);
+        write_int_to_field(inst, &amp;params[dest_idx], int_val);
+        dest_idx++;
+    }
+}
+</code></pre>
+<h3 id="step-3-register-function">Step 3: Register Function</h3>
+<pre><code class="language-c">static const s_expr_fn_entry_named_t user_oneshots[] = {
+    {&quot;USER_EXTRACT_INT_ARRAY&quot;, (void*)user_extract_int_array},
+};
+</code></pre>
+<h3 id="step-4-use-in-dsl">Step 4: Use in DSL</h3>
+<pre><code class="language-lua">RECORD(&quot;sensor_data&quot;)
+    PTR64_FIELD(&quot;config_ptr&quot;, &quot;void&quot;)
+    FIELD(&quot;sensor_0&quot;, &quot;int32&quot;)
+    FIELD(&quot;sensor_1&quot;, &quot;int32&quot;)
+    FIELD(&quot;sensor_2&quot;, &quot;int32&quot;)
+    FIELD(&quot;sensor_3&quot;, &quot;int32&quot;)
+END_RECORD()
+
+local config = {
+    sensors = {
+        calibration = {10, 20, 30, 40}
+    }
+}
+
+se_sequence(function()
+    se_load_dictionary(&quot;config_ptr&quot;, config)
+    se_dict_extract_int_array(&quot;config_ptr&quot;, &quot;sensors.calibration&quot;, 
+        {&quot;sensor_0&quot;, &quot;sensor_1&quot;, &quot;sensor_2&quot;, &quot;sensor_3&quot;})
+end)
+</code></pre>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="string-paths-vs-hash-paths">String Paths vs Hash Paths</h3>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th>String Paths</th>
+<th>Hash Paths</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lookup</td>
+<td>O(n) string compare</td>
+<td>O(n) hash compare</td>
+</tr>
+<tr>
+<td>Path parsing</td>
+<td>Runtime strtok</td>
+<td>None (pre-computed)</td>
+</tr>
+<tr>
+<td>Debugging</td>
+<td>Human-readable</td>
+<td>Requires hash lookup</td>
+</tr>
+<tr>
+<td>Code size</td>
+<td>Smaller</td>
+<td>Slightly larger</td>
+</tr>
+<tr>
+<td>Best for</td>
+<td>Development, debugging</td>
+<td>Production, hot paths</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory-layout">Memory Layout</h3>
+<p>Dictionaries are stored as flat arrays of <code>s_expr_param_t</code> structures:</p>
+<pre><code>OPEN_DICT [brace_idx=N]
+  OPEN_KEY [str_hash=hash(&quot;key1&quot;)]
+    INT [value=42]
+  CLOSE
+  OPEN_KEY [str_hash=hash(&quot;nested&quot;)]
+    OPEN_DICT [brace_idx=M]
+      OPEN_KEY [str_hash=hash(&quot;value&quot;)]
+        FLOAT [value=3.14]
+      CLOSE
+    CLOSE_DICT
+  CLOSE
+CLOSE_DICT
+</code></pre>
+<h3 id="typical-use-pattern">Typical Use Pattern</h3>
+<pre><code class="language-lua">-- INIT: Load dictionary once
+se_load_dictionary(&quot;config_ptr&quot;, config_table)
+
+-- INIT: Extract all needed values once
+se_dict_extract_int(&quot;config_ptr&quot;, &quot;timeout&quot;, &quot;timeout_field&quot;)
+se_dict_extract_float(&quot;config_ptr&quot;, &quot;threshold&quot;, &quot;threshold_field&quot;)
+
+-- TICK: Use blackboard fields directly (no dictionary access)
+se_field_gt(&quot;sensor_value&quot;, &quot;threshold_field&quot;)
+</code></pre>
+<h2 id="binary-format">Binary Format</h2>
+<p>The JSON dictionary is compiled into binary <code>s_expr_param_t</code> tokens:</p>
+<table>
+<thead>
+<tr>
+<th>Token Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPEN_DICT</code></td>
+<td>Dictionary start, <code>brace_idx</code> points to <code>CLOSE_DICT</code></td>
+</tr>
+<tr>
+<td><code>CLOSE_DICT</code></td>
+<td>Dictionary end</td>
+</tr>
+<tr>
+<td><code>OPEN_KEY</code></td>
+<td>Key entry, <code>str_hash</code> contains FNV-1a hash</td>
+</tr>
+<tr>
+<td><code>CLOSE</code></td>
+<td>Key entry end</td>
+</tr>
+<tr>
+<td><code>OPEN_ARRAY</code></td>
+<td>Array start</td>
+</tr>
+<tr>
+<td><code>CLOSE_ARRAY</code></td>
+<td>Array end</td>
+</tr>
+<tr>
+<td><code>INT</code></td>
+<td>Signed integer value</td>
+</tr>
+<tr>
+<td><code>UINT</code></td>
+<td>Unsigned integer value</td>
+</tr>
+<tr>
+<td><code>FLOAT</code></td>
+<td>Floating-point value</td>
+</tr>
+<tr>
+<td><code>STR_IDX</code></td>
+<td>String table index</td>
+</tr>
+<tr>
+<td><code>STR_HASH</code></td>
+<td>Pre-computed string hash</td>
+</tr>
+</tbody>
+</table>
+<h2 id="error-handling">Error Handling</h2>
+<p>Resolution functions return status codes:</p>
+<pre><code class="language-c">typedef enum {
+    SE_PATHS_OK = 0,
+    SE_PATHS_NOT_FOUND,
+    SE_PATHS_TYPE_MISMATCH,
+    SE_PATHS_INVALID_INDEX,
+    SE_PATHS_INVALID_PATH,
+    SE_PATHS_NULL_DICT,
+    SE_PATHS_NULL_PATH,
+    SE_PATHS_NULL_MODULE,
+} se_paths_status_t;
+</code></pre>
+<p>Context structures provide detailed error information:</p>
+<pre><code class="language-c">se_paths_context_t ctx;
+se_paths_context_init(&amp;ctx);
+
+const s_expr_param_t* value = se_dicts_resolve(dict, mod, path, &amp;ctx);
+if (!value) {
+    printf(&quot;Resolution failed at depth %d: %s\n&quot;, 
+           ctx.depth, se_paths_status_name(ctx.status));
+}
+</code></pre>
+<h2 id="summary">Summary</h2>
+<p>The S-Engine JSON dictionary system provides:</p>
+<ul>
+<li><strong>Zero-copy</strong> - Configuration lives in ROM, no runtime allocation</li>
+<li><strong>Type-safe</strong> - Compile-time field validation in DSL</li>
+<li><strong>Flexible</strong> - String paths for debugging, hash paths for performance</li>
+<li><strong>Extensible</strong> - Easy to add custom extraction handlers</li>
+<li><strong>Embedded-friendly</strong> - No dynamic memory, deterministic performance</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

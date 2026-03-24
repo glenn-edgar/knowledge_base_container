@@ -1,0 +1,60 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019-2021 The Pybricks Authors
+
+#include <pbdrv/config.h>
+
+#if PBDRV_CONFIG_CLOCK_TEST
+
+#include <pbio/os.h>
+
+// Clock implementation for tests. This allows tests to exactly control the
+// clock ticks to get repeatable tests rather than relying on a system clock.
+
+#include <stdint.h>
+
+
+static uint32_t clock_ticks;
+
+/**
+ * Increase the current clock ticks and poll etimers.
+ * @param [in]  ticks   The number of ticks to add to the clock.
+ */
+void pbio_test_clock_tick(uint32_t ticks) {
+    clock_ticks += ticks;
+    pbio_os_request_poll();
+}
+
+/**
+ * Simulates incrementing the clock after a certain number of CPU cycles.
+ *
+ * This should be called from loops that take a very small but nonzero amount
+ * of time.
+ */
+void pbio_clock_test_advance_eventually(void) {
+
+    static uint32_t count = 0;
+
+    if (++count % 16) {
+        return;
+    }
+
+    pbio_test_clock_tick(1);
+}
+
+void pbdrv_clock_init(void) {
+}
+
+uint32_t pbdrv_clock_get_ms(void) {
+    return clock_ticks;
+}
+
+uint32_t pbdrv_clock_get_100us(void) {
+    return clock_ticks * 10;
+}
+
+uint32_t pbdrv_clock_get_us(void) {
+    return clock_ticks * 1000;
+}
+
+
+#endif // PBDRV_CONFIG_CLOCK_TEST

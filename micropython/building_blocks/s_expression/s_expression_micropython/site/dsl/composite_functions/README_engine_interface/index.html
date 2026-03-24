@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Engine Interface - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_trigger_on_change/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_function_dictionary_handling/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_function_interface-tick-engine-interface-composite" class="nav-link">SE_FUNCTION_INTERFACE - Tick Engine Interface Composite</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#purpose" class="nav-link">Purpose</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#behavior" class="nav-link">Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lifecycle-events" class="nav-link">Lifecycle Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage" class="nav-link">Usage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#blocking-behavior" class="nav-link">Blocking Behavior</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-se_fork" class="nav-link">Comparison with SE_FORK</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#important-restrictions" class="nav-link">Important Restrictions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#state-storage" class="nav-link">State Storage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#execution-flow-example" class="nav-link">Execution Flow Example</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="se_function_interface-tick-engine-interface-composite">SE_FUNCTION_INTERFACE - Tick Engine Interface Composite</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_function_interface</code> is the top-level composite that interfaces between the tick engine and the internal pipeline system. It executes all children in parallel (like <code>se_fork</code>) but translates result codes to <code>SE_FUNCTION_*</code> level for the external tick engine.</p>
+<h2 id="purpose">Purpose</h2>
+<p>The S-Expression engine uses a three-tier result code system:</p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Codes</th>
+<th>Range</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>APPLICATION</td>
+<td><code>SE_CONTINUE</code>, <code>SE_HALT</code>, <code>SE_TERMINATE</code>, etc.</td>
+<td>0-5</td>
+<td>Fatal/global control</td>
+</tr>
+<tr>
+<td>FUNCTION</td>
+<td><code>SE_FUNCTION_CONTINUE</code>, <code>SE_FUNCTION_HALT</code>, etc.</td>
+<td>6-11</td>
+<td>Tick engine interface</td>
+</tr>
+<tr>
+<td>PIPELINE</td>
+<td><code>SE_PIPELINE_CONTINUE</code>, <code>SE_PIPELINE_HALT</code>, etc.</td>
+<td>12-17</td>
+<td>Internal composite coordination</td>
+</tr>
+</tbody>
+</table>
+<p><code>se_function_interface</code> sits at the boundary:
+- <strong>Absorbs</strong> PIPELINE codes (12-17) - handles internally
+- <strong>Propagates</strong> FUNCTION codes (6-11) - passes to tick engine
+- <strong>Propagates</strong> APPLICATION codes (0-5) - passes to tick engine</p>
+<h2 id="behavior">Behavior</h2>
+<h3 id="execution-model">Execution Model</h3>
+<ul>
+<li>Invokes <strong>all active children</strong> on each tick (parallel execution)</li>
+<li>Children returning <code>SE_FUNCTION_HALT</code> block remaining siblings</li>
+<li>Children returning PIPELINE codes are handled internally</li>
+<li>Returns <code>SE_FUNCTION_*</code> codes to the tick engine</li>
+</ul>
+<h3 id="result-code-handling">Result Code Handling</h3>
+<table>
+<thead>
+<tr>
+<th>Child Returns</th>
+<th>Function Interface Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>APPLICATION (0-5)</strong></td>
+<td>Propagate immediately to tick engine</td>
+</tr>
+<tr>
+<td><strong>FUNCTION (6-11)</strong></td>
+<td>Propagate immediately to tick engine</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_CONTINUE</code> (12)</td>
+<td>Child running - count as active</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_HALT</code> (13)</td>
+<td>Child running - count as active</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_DISABLE</code> (16)</td>
+<td>Child complete - terminate it</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_TERMINATE</code> (14)</td>
+<td>Child complete - terminate it</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_RESET</code> (15)</td>
+<td>Child complete - terminate and reset</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_SKIP_CONTINUE</code> (17)</td>
+<td>Skip remaining children this tick</td>
+</tr>
+</tbody>
+</table>
+<h3 id="return-values-to-tick-engine">Return Values to Tick Engine</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>All children complete</td>
+<td><code>SE_FUNCTION_DISABLE</code></td>
+</tr>
+<tr>
+<td>Children still running</td>
+<td><code>SE_FUNCTION_CONTINUE</code></td>
+</tr>
+<tr>
+<td>Child returns FUNCTION code</td>
+<td>That code (propagated)</td>
+</tr>
+<tr>
+<td>Child returns APPLICATION code</td>
+<td>That code (propagated)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lifecycle-events">Lifecycle Events</h2>
+<h3 id="init">INIT</h3>
+<ul>
+<li>Sets state to <code>FORK_STATE_RUNNING</code></li>
+<li>Resets all callable children</li>
+<li>Returns <code>SE_FUNCTION_CONTINUE</code></li>
+</ul>
+<h3 id="terminate">TERMINATE</h3>
+<ul>
+<li>Terminates all children</li>
+<li>Sets state to <code>FORK_STATE_COMPLETE</code></li>
+<li>Returns <code>SE_FUNCTION_CONTINUE</code></li>
+</ul>
+<h3 id="tick">TICK</h3>
+<ul>
+<li>Invokes all active children</li>
+<li>Handles result codes as described above</li>
+<li>Returns appropriate <code>SE_FUNCTION_*</code> code</li>
+</ul>
+<h2 id="usage">Usage</h2>
+<h3 id="lua-dsl">Lua DSL</h3>
+<pre><code class="language-lua">se_function_interface(function()
+    -- All children run in parallel
+    se_fork_join(function()
+        se_tick_delay(10)
+    end)
+
+    se_state_machine(&quot;state&quot;, cases)
+    se_tick_delay(350)
+
+    se_return_function_terminate()
+end)
+</code></pre>
+<h3 id="typical-tree-structure">Typical Tree Structure</h3>
+<pre><code class="language-lua">start_tree(&quot;my_tree&quot;)
+    use_record(&quot;my_blackboard&quot;)
+
+    se_function_interface(function()
+        -- Phase 1: Blocking initialization
+        se_fork_join(function()
+            se_log(&quot;Initializing...&quot;)
+            se_tick_delay(10)
+        end)
+
+        -- Phase 2: Parallel execution
+        se_fork(function()
+            -- Background task
+            se_tick_delay(100)
+        end)
+
+        se_state_machine(&quot;state&quot;, case_fn)
+        se_tick_delay(350)  -- Overall timeout
+
+        -- Termination
+        se_return_function_terminate()
+    end)
+end_tree(&quot;my_tree&quot;)
+</code></pre>
+<h2 id="blocking-behavior">Blocking Behavior</h2>
+<p>Children that return <code>SE_FUNCTION_HALT</code> (like <code>se_fork_join</code> and <code>se_tick_delay</code>) block subsequent siblings:</p>
+<pre><code class="language-lua">se_function_interface(function()
+    se_fork_join(function()     -- Returns SE_FUNCTION_HALT while running
+        se_tick_delay(10)       -- Blocks siblings for 10 ticks
+    end)
+
+    -- These don't start until fork_join completes:
+    se_log(&quot;After fork_join&quot;)
+    se_state_machine(&quot;state&quot;, cases)
+end)
+</code></pre>
+<p><strong>Why?</strong> When a child returns <code>SE_FUNCTION_HALT</code> (code 7), it's <code>&lt; SE_PIPELINE_CONTINUE</code> (12), so the function_interface propagates it immediately and exits the loop.</p>
+<h2 id="comparison-with-se_fork">Comparison with SE_FORK</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_function_interface</code></th>
+<th><code>se_fork</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Purpose</strong></td>
+<td>Tick engine interface</td>
+<td>Internal parallel execution</td>
+</tr>
+<tr>
+<td><strong>Returns</strong></td>
+<td><code>SE_FUNCTION_*</code> codes</td>
+<td><code>SE_PIPELINE_*</code> codes</td>
+</tr>
+<tr>
+<td><strong>FUNCTION codes</strong></td>
+<td>Propagates</td>
+<td>Converts to PIPELINE</td>
+</tr>
+<tr>
+<td><strong>Used as</strong></td>
+<td>Top-level tree root</td>
+<td>Nested composite</td>
+</tr>
+</tbody>
+</table>
+<h2 id="important-restrictions">Important Restrictions</h2>
+<h3 id="return-code-functions">Return Code Functions</h3>
+<p>Return code functions like <code>se_return_function_terminate()</code> should be placed <strong>directly</strong> inside <code>se_function_interface</code>, not inside nested composites:</p>
+<p><strong>GOOD:</strong></p>
+<pre><code class="language-lua">se_function_interface(function()
+    se_fork_join(function()
+        se_tick_delay(10)
+    end)
+    se_return_function_terminate()  -- Correct: at function_interface level
+end)
+</code></pre>
+<p><strong>BAD:</strong></p>
+<pre><code class="language-lua">se_function_interface(function()
+    se_fork(function()
+        se_tick_delay(10)
+        se_return_function_terminate()  -- WRONG: inside se_fork (will hang)
+    end)
+end)
+</code></pre>
+<h3 id="one-per-tree">One Per Tree</h3>
+<p>Typically, each tree has exactly one <code>se_function_interface</code> at the root level. It's the entry point from the tick engine.</p>
+<h2 id="state-storage">State Storage</h2>
+<ul>
+<li><strong>state</strong> (uint8_t): <code>FORK_STATE_RUNNING</code> or <code>FORK_STATE_COMPLETE</code></li>
+<li><strong>user_flags</strong> (uint16_t): Set to 0 (not used)</li>
+</ul>
+<h2 id="execution-flow-example">Execution Flow Example</h2>
+<pre><code>Tick Engine
+    │
+    ▼
+se_function_interface
+    │
+    ├── se_fork_join ──► Returns SE_FUNCTION_HALT (blocking)
+    │                    Loop exits, returns SE_FUNCTION_HALT to tick engine
+    │
+    ... (fork_join completes) ...
+    │
+    ├── se_fork_join ──► Returns SE_PIPELINE_DISABLE (complete)
+    │                    Terminate child, continue loop
+    │
+    ├── se_fork ──────► Returns SE_PIPELINE_CONTINUE
+    │                    Count as active, continue loop
+    │
+    ├── se_state_machine ► Returns SE_PIPELINE_HALT
+    │                    Count as active, continue loop
+    │
+    ├── se_tick_delay ──► Returns SE_FUNCTION_HALT
+    │                    Loop exits, returns SE_FUNCTION_HALT to tick engine
+    │
+    ... (tick_delay completes) ...
+    │
+    └── se_return_function_terminate ► Returns SE_FUNCTION_TERMINATE
+                         Loop exits, returns SE_FUNCTION_TERMINATE to tick engine
+</code></pre>
+<h2 id="error-handling">Error Handling</h2>
+<ul>
+<li>Unknown result codes increment active count and continue</li>
+<li>Non-callable parameters are skipped</li>
+<li>Inactive children are skipped</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

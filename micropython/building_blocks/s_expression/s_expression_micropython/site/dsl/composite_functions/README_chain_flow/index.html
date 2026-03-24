@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Chain Flow - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_composite_functions/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_sequence/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_chain_flow-chaintree-walker-emulation-composite" class="nav-link">SE_CHAIN_FLOW - ChainTree Walker Emulation Composite</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lua-dsl" class="nav-link">Lua DSL</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#child-type-handling" class="nav-link">Child Type Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#result-code-handling-main-children-only" class="nav-link">Result Code Handling (MAIN children only)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#lifecycle-events" class="nav-link">Lifecycle Events</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-behaviors" class="nav-link">Key Behaviors</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-examples" class="nav-link">Usage Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#comparison-with-other-composites" class="nav-link">Comparison with Other Composites</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#state-storage" class="nav-link">State Storage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="se_chain_flow-chaintree-walker-emulation-composite">SE_CHAIN_FLOW - ChainTree Walker Emulation Composite</h1>
+<h2 id="overview">Overview</h2>
+<p><code>se_chain_flow</code> emulates the default sequencing behavior of ChainTree's tree walker. It processes children in a <strong>chain</strong> where each child's result determines whether to continue, halt, reset, or terminate the entire chain.</p>
+<p>This is the fundamental control flow primitive that ChainTree is built around.</p>
+<h2 id="lua-dsl">Lua DSL</h2>
+<pre><code class="language-lua">function se_chain_flow(...)
+    local children = {...}
+    local f = m_call(&quot;SE_CHAIN_FLOW&quot;)
+    for _, child in ipairs(children) do
+        if type(child) == &quot;function&quot; then
+            child()
+        end
+    end
+    end_call(f)
+end
+</code></pre>
+<h2 id="child-type-handling">Child Type Handling</h2>
+<p><code>se_chain_flow</code> handles the three function types differently:</p>
+<h3 id="oneshot-functions">ONESHOT Functions</h3>
+<p>ONESHOT children are <strong>fire-and-forget</strong> actions. They execute exactly once per chain activation:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the function</li>
+<li>Immediately terminate (mark inactive)</li>
+<li>Do not add to active count</li>
+<li>Continue to next child</li>
+</ol>
+<p>This means oneshots:
+- Execute on their first tick only
+- Are skipped on all subsequent ticks
+- Do not block chain progression
+- Do not contribute to completion detection</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Fires once on tick 1&quot;) end,      -- ONESHOT
+    function() se_tick_delay(10) end,                    -- MAIN: halts chain
+    function() se_log(&quot;Fires once on tick 11&quot;) end,     -- ONESHOT
+    function() se_log(&quot;Also fires once on tick 11&quot;) end -- ONESHOT
+)
+</code></pre>
+<h3 id="pred-functions">PRED Functions</h3>
+<p>Predicate children follow the same pattern as oneshots:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the predicate</li>
+<li>Immediately terminate (mark inactive)</li>
+<li>Do not add to active count</li>
+<li>Continue to next child</li>
+</ol>
+<p>The predicate's return value is ignored in chain_flow context. Use <code>se_if</code> or <code>se_while</code> for conditional behavior based on predicates.</p>
+<h3 id="main-functions">MAIN Functions</h3>
+<p>MAIN children are <strong>stateful actions</strong> that control chain flow through result codes:</p>
+<ol>
+<li>Check if child is active</li>
+<li>If active: invoke the function</li>
+<li>Handle the result code (see table below)</li>
+<li>Result determines whether to continue, halt, reset, or terminate</li>
+</ol>
+<p>Only MAIN children:
+- Can halt chain progression
+- Contribute to active count
+- Control chain lifecycle via result codes</p>
+<h2 id="result-code-handling-main-children-only">Result Code Handling (MAIN children only)</h2>
+<table>
+<thead>
+<tr>
+<th>Child Returns</th>
+<th>Chain Flow Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SE_FUNCTION_HALT</code> (7)</td>
+<td>Return <code>SE_PIPELINE_HALT</code> to caller</td>
+</tr>
+<tr>
+<td><strong>APPLICATION (0-5)</strong></td>
+<td>Propagate immediately to caller</td>
+</tr>
+<tr>
+<td><strong>FUNCTION (6, 8-11)</strong></td>
+<td>Propagate immediately to caller</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_CONTINUE</code> (12)</td>
+<td>Increment active count, continue to next child</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_HALT</code> (13)</td>
+<td><strong>Stop chain this tick</strong>, return CONTINUE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_DISABLE</code> (14)</td>
+<td>Terminate child, continue to next</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_TERMINATE</code> (15)</td>
+<td><strong>Terminate ALL children</strong>, return TERMINATE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_RESET</code> (16)</td>
+<td><strong>Reset ALL children</strong>, return CONTINUE</td>
+</tr>
+<tr>
+<td><code>SE_PIPELINE_SKIP_CONTINUE</code> (17)</td>
+<td>Increment active count, skip remaining children this tick</td>
+</tr>
+</tbody>
+</table>
+<h2 id="lifecycle-events">Lifecycle Events</h2>
+<h3 id="init">INIT</h3>
+<ul>
+<li>Returns <code>SE_PIPELINE_CONTINUE</code></li>
+<li>All children start active</li>
+</ul>
+<h3 id="terminate">TERMINATE</h3>
+<ul>
+<li>Terminates all children (ONESHOT, PRED, and MAIN)</li>
+<li>Returns <code>SE_PIPELINE_CONTINUE</code></li>
+</ul>
+<h3 id="tick">TICK</h3>
+<ul>
+<li>Iterates through children in order</li>
+<li>Skips inactive children</li>
+<li>ONESHOT: fire, terminate, continue</li>
+<li>PRED: fire, terminate, continue</li>
+<li>MAIN: invoke, handle result code</li>
+<li>Returns <code>SE_PIPELINE_DISABLE</code> when <code>active_count == 0</code></li>
+</ul>
+<h2 id="key-behaviors">Key Behaviors</h2>
+<h3 id="oneshot-execution-timing">ONESHOT Execution Timing</h3>
+<p>ONESHOTs execute when the chain reaches them, not necessarily on the first tick:</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_tick_delay(10) end,    -- MAIN: halts on tick 1
+    function() se_log(&quot;Delayed&quot;) end     -- ONESHOT: fires on tick 11
+)
+</code></pre>
+<h3 id="oneshot-after-reset">ONESHOT After Reset</h3>
+<p>When <code>SE_PIPELINE_RESET</code> resets the chain, all children (including oneshots) are reset to active and will fire again:</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Fires every loop&quot;) end,  -- ONESHOT: reset reactivates
+    function() se_tick_delay(10) end,
+    function() se_return_pipeline_reset() end   -- Resets all children
+)
+-- Output: &quot;Fires every loop&quot; on tick 1, 12, 23, 34, ...
+</code></pre>
+<h3 id="pipeline_halt-stops-the-chain">PIPELINE_HALT Stops the Chain</h3>
+<p>When a MAIN child returns <code>SE_PIPELINE_HALT</code>, the chain stops processing for this tick but returns <code>SE_PIPELINE_CONTINUE</code> to its parent. ONESHOTs after the halt point wait until the chain resumes.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;A&quot;) end,           -- Tick 1: fires
+    function() se_tick_delay(10) end,     -- Tick 1: HALT, chain stops
+    function() se_log(&quot;B&quot;) end            -- Tick 11: fires
+)
+</code></pre>
+<h3 id="pipeline_reset-resets-everything">PIPELINE_RESET Resets Everything</h3>
+<p>When a child returns <code>SE_PIPELINE_RESET</code>, ALL children are terminated and reset. This reactivates oneshots for the next iteration.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Loop start&quot;) end,   -- Fires each iteration
+    function() se_tick_delay(10) end,
+    function() se_queue_event(...) end,    -- Fires each iteration
+    function() se_return_pipeline_reset() end
+)
+</code></pre>
+<h3 id="automatic-completion">Automatic Completion</h3>
+<p>When all MAIN children have completed (returned DISABLE or been terminated), <code>active_count</code> reaches zero and the chain returns <code>SE_PIPELINE_DISABLE</code>. ONESHOT and PRED children do not affect completion — a chain with only oneshots completes immediately after firing them all.</p>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;A&quot;) end,  -- ONESHOT: fires, doesn't count
+    function() se_log(&quot;B&quot;) end,  -- ONESHOT: fires, doesn't count
+    function() se_log(&quot;C&quot;) end   -- ONESHOT: fires, doesn't count
+)
+-- Returns SE_PIPELINE_DISABLE on tick 1 (active_count = 0)
+</code></pre>
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="sequential-actions-with-delays">Sequential Actions with Delays</h3>
+<pre><code class="language-lua">se_chain_flow(
+    function() se_log(&quot;Step 1&quot;) end,
+    function() se_tick_delay(10) end,
+    function() se_log(&quot;Step 2&quot;) end,
+    function() se_tick_delay(10) end,
+    function() se_log(&quot;Step 3&quot;) end,
+    function() se_return_pipeline_disable() end
+)
+</code></pre>
+<h3 id="cyclic-event-generator">Cyclic Event Generator</h3>
+<pre><code class="language-lua">se_case(1, function()
+    se_chain_flow(
+        function() se_log(&quot;State 1&quot;) end,
+        function() se_tick_delay(20) end,
+        function() se_set_field(&quot;event_data&quot;, 3.3) end,
+        function() se_queue_event(USER_EVENT_TYPE, USER_EVENT_ID, &quot;event_data&quot;) end,
+        function() se_return_pipeline_reset() end
+    )
+end)
+</code></pre>
+<h3 id="initialization-pattern">Initialization Pattern</h3>
+<pre><code class="language-lua">se_chain_flow(
+    -- Initialization oneshots (fire once at start)
+    function() se_set_field(&quot;counter&quot;, 0) end,
+    function() se_log(&quot;Initialized&quot;) end,
+
+    -- Main loop
+    function() se_while(some_condition, 
+        function() se_tick_delay(10) end,
+        function() se_increment_field(&quot;counter&quot;) end
+    ) end,
+
+    -- Cleanup oneshot (fires when while completes)
+    function() se_log(&quot;Complete&quot;) end
+)
+</code></pre>
+<h2 id="comparison-with-other-composites">Comparison with Other Composites</h2>
+<table>
+<thead>
+<tr>
+<th>Aspect</th>
+<th><code>se_chain_flow</code></th>
+<th><code>se_fork_join</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Execution</strong></td>
+<td>Sequential with control</td>
+<td>Parallel</td>
+</tr>
+<tr>
+<td><strong>ONESHOT</strong></td>
+<td>Fire once, terminate, continue</td>
+<td>Fire once, skip thereafter</td>
+</tr>
+<tr>
+<td><strong>PRED</strong></td>
+<td>Fire once, terminate, continue</td>
+<td>Fire once, skip thereafter</td>
+</tr>
+<tr>
+<td><strong>PIPELINE_HALT</strong></td>
+<td>Stops chain, returns CONTINUE</td>
+<td>Child still running</td>
+</tr>
+<tr>
+<td><strong>PIPELINE_RESET</strong></td>
+<td>Resets ALL children</td>
+<td>Resets that child</td>
+</tr>
+<tr>
+<td><strong>Looping</strong></td>
+<td>Yes (via RESET)</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Completion</strong></td>
+<td>When active_count == 0</td>
+<td>When all MAIN complete</td>
+</tr>
+</tbody>
+</table>
+<h2 id="state-storage">State Storage</h2>
+<ul>
+<li>No state variable used</li>
+<li>No user_flags used</li>
+<li>Active status tracked per-child via node flags</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

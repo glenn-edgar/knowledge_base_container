@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Stack Test - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../../simple_functions/one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../simple_functions/predicate_functions/" class="dropdown-item">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../README_json/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../README_stack_equation_test/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#stack_testlua-stack-frame-and-quad-operations-test" class="nav-link">stack_test.lua — Stack Frame and Quad Operations Test</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#record-definition" class="nav-link">Record Definition</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-actions" class="nav-link">Test Actions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-sequence" class="nav-link">Test Sequence</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#key-dsl-features-exercised" class="nav-link">Key DSL Features Exercised</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#stack-layout-during-action_3-call" class="nav-link">Stack Layout During action_3 Call</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="stack_testlua-stack-frame-and-quad-operations-test">stack_test.lua — Stack Frame and Quad Operations Test</h1>
+<h2 id="overview">Overview</h2>
+<p>This test exercises the S-Expression Engine's stack frame management, quad arithmetic operations, and function call/return mechanism. It validates that stack-based local variables, scratch space, parameter passing, and return value retrieval all work correctly across nested frames.</p>
+<p>The test runs three sequential actions inside <code>se_function_interface</code>, each progressively more complex.</p>
+<h2 id="record-definition">Record Definition</h2>
+<pre><code>stack_test_state
+├── int_val_1    (int32)    — integer workspace
+├── int_val_2    (int32)    — integer workspace
+├── int_val_3    (int32)    — integer workspace
+├── uint_val_1   (uint32)   — unsigned workspace
+├── uint_val_2   (uint32)   — unsigned workspace
+├── uint_val_3   (uint32)   — unsigned workspace
+├── float_val_1  (float)    — float workspace
+├── float_val_2  (float)    — float workspace
+├── float_val_3  (float)    — float workspace
+└── loop_count   (uint32)   — loop iteration counter
+</code></pre>
+<h2 id="test-actions">Test Actions</h2>
+<h3 id="action_1-integer-quad-operations-with-frame-allocation">action_1 — Integer Quad Operations with Frame Allocation</h3>
+<p><strong>Purpose:</strong> Validate integer quad arithmetic using blackboard fields inside a stack frame, with a loop and tick delays.</p>
+<p><strong>Structure:</strong>
+- <code>se_fork_join</code> → <code>se_while</code> (100 iterations) → <code>se_frame_allocate(0, 5, 5)</code>
+- Each iteration delayed by 5 ticks</p>
+<p><strong>Operations per iteration:</strong>
+1. <code>int_val_2 = int_val_1 + 1</code> (quad_iadd with float coercion)
+2. <code>int_val_2 = int_val_1 + 5</code> (quad_iadd with uint)
+3. <code>int_val_3 = int_val_2 - 2</code> (quad_isub)
+4. <code>int_val_1 = int_val_3</code> (quad_mov)</p>
+<p><strong>Net effect:</strong> <code>int_val_1</code> increases by 3 each iteration (0, 3, 6, 9, ..., 297).</p>
+<p><strong>Validates:</strong>
+- Integer quad operations (iadd, isub, mov)
+- Blackboard field reads/writes from quads
+- Frame allocation/deallocation across loop iterations
+- Mixed type coercion (float literal to int)</p>
+<h3 id="action_2-float-quad-operations-with-frame-allocation">action_2 — Float Quad Operations with Frame Allocation</h3>
+<p><strong>Purpose:</strong> Same structure as action_1 but with floating-point arithmetic.</p>
+<p><strong>Structure:</strong>
+- <code>se_fork_join</code> → <code>se_while</code> (10 iterations) → <code>se_frame_allocate(0, 5, 5)</code>
+- Each iteration delayed by 5 ticks</p>
+<p><strong>Operations per iteration:</strong>
+1. <code>float_val_2 = float_val_1 + 1.0</code> (quad_fadd)
+2. <code>float_val_2 = float_val_1 + 5.0</code> (quad_fadd, overwrites previous)
+3. <code>float_val_3 = float_val_2 - 2.0</code> (quad_fsub)
+4. <code>float_val_1 = float_val_3</code> (quad_mov)</p>
+<p><strong>Net effect:</strong> <code>float_val_1</code> increases by 3.0 each iteration (0.0, 3.0, 6.0, ..., 27.0).</p>
+<p><strong>Validates:</strong>
+- Float quad operations (fadd, fsub, mov)
+- Float blackboard field reads/writes
+- Uint-to-float coercion in subtraction</p>
+<h3 id="action_3-stack-locals-scratch-and-function-callreturn">action_3 — Stack Locals, Scratch, and Function Call/Return</h3>
+<p><strong>Purpose:</strong> Full integration test of stack frame locals, scratch variables, parameter passing via <code>stack_push</code>, function call with <code>se_call</code>, and return value retrieval via <code>stack_pop</code>.</p>
+<p><strong>Structure:</strong></p>
+<pre><code>se_fork_join
+└── se_while (10 iterations, using p_icmp_lt_acc on loop_count)
+    └── se_frame_allocate(0 params, 5 locals, 5 scratch)
+        ├── [compute using locals and scratch]
+        ├── [push 2 params]
+        ├── se_call(2 params, 2 locals, 3 scratch, returns {2, 3})
+        │   └── [compute r0, r1 from p0, p1]
+        ├── [pop 2 return values]
+        └── [store results to blackboard]
+</code></pre>
+<p><strong>Outer frame variables:</strong>
+- Locals: <code>a</code>, <code>b</code>, <code>c</code>, <code>e</code>, <code>f</code> (indices 0–4)
+- Scratch: <code>t0</code>, <code>t1</code>, <code>t2</code>, <code>t3</code>, <code>t4</code> (TOS offsets 0–4)</p>
+<p><strong>Outer frame operations per iteration:</strong>
+1. <code>a = float_val_1 + 1.0</code>
+2. <code>float_val_2 = a + 5.0</code>
+3. <code>b = float_val_2</code>
+4. <code>float_val_3 = b - 2.0</code>
+5. <code>float_val_1 = float_val_3</code></p>
+<p>Net: <code>float_val_1 += 4.0</code> each iteration.</p>
+<p><strong>Call setup:</strong>
+1. <code>stack_push(float_val_1)</code> — becomes p0
+2. <code>stack_push(float_val_2)</code> — becomes p1</p>
+<p><strong>Call frame variables:</strong>
+- Locals: <code>p0</code> (param 0), <code>p1</code> (param 1), <code>r0</code> (return 0), <code>r1</code> (return 1)
+- Scratch: <code>ct0</code>, <code>ct1</code>, <code>ct2</code></p>
+<p><strong>Call operations:</strong>
+1. <code>ct0 = p0 + 1.0</code>
+2. <code>ct1 = ct0 + 5.0</code>
+3. <code>r0 = ct1 - 2.0</code> → result: <code>p0 + 4.0</code>
+4. <code>r1 = p1 * 2.0</code> → result: <code>p1 * 2.0</code></p>
+<p><strong>Return:</strong> <code>return_vars = {2, 3}</code> → copies locals 2 (<code>r0</code>) and 3 (<code>r1</code>) to caller's stack.</p>
+<p><strong>Return value retrieval:</strong>
+1. <code>stack_pop() → v.e</code> (gets r1, last pushed is on top)
+2. <code>stack_pop() → v.f</code> (gets r0)
+3. <code>float_val_2 = v.e</code> (= r1)
+4. <code>float_val_3 = v.f</code> (= r0)</p>
+<p><strong>Expected values (iteration where float_val_1 enters as 36.0):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>float_val_1 (input)</td>
+<td>36.0</td>
+</tr>
+<tr>
+<td>a = 36.0 + 1.0</td>
+<td>37.0</td>
+</tr>
+<tr>
+<td>float_val_2 = 37.0 + 5.0</td>
+<td>42.0</td>
+</tr>
+<tr>
+<td>float_val_3 = 42.0 - 2.0</td>
+<td>40.0</td>
+</tr>
+<tr>
+<td>float_val_1 = 40.0</td>
+<td>40.0</td>
+</tr>
+<tr>
+<td>p0 = 40.0, p1 = 42.0</td>
+<td>—</td>
+</tr>
+<tr>
+<td>r0 = (40+1+5) - 2</td>
+<td>44.0</td>
+</tr>
+<tr>
+<td>r1 = 42 * 2</td>
+<td>84.0</td>
+</tr>
+<tr>
+<td>call result float_val_2</td>
+<td>84.0</td>
+</tr>
+<tr>
+<td>call result float_val_3</td>
+<td>44.0</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Validates:</strong>
+- <code>stack_local()</code> reads/writes for local variables
+- <code>stack_tos()</code> reads/writes for scratch variables
+- <code>stack_push</code> destination mode in quad operations
+- <code>stack_pop</code> source mode in quad operations
+- <code>se_call</code> parameter passing via stack
+- <code>SE_STACK_FRAME_INSTANCE</code> frame lifecycle (INIT → push frame, TERMINATE → copy returns, pop frame)
+- <code>copy_return_vars_and_pop</code> correctly copying return values
+- Return value ordering (LIFO pop)
+- Nested frame allocation (outer <code>se_frame_allocate</code> + inner <code>se_call</code>)</p>
+<h2 id="test-sequence">Test Sequence</h2>
+<pre><code>1. Log initial stack state
+2. Initialize int_val_1 = 0, float_val_1 = 0.0
+3. action_1: 100 iterations of integer arithmetic (500 ticks)
+4. action_2: 10 iterations of float arithmetic (50 ticks)
+5. Reset int_val_1 = 0, float_val_1 = 0.0
+6. action_3: 10 iterations of call/return test (50 ticks)
+7. Log final stack state
+8. Terminate
+</code></pre>
+<h2 id="key-dsl-features-exercised">Key DSL Features Exercised</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Where Used</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_frame_allocate</code></td>
+<td>All actions — creates stack frame with locals + scratch</td>
+</tr>
+<tr>
+<td><code>frame_vars</code></td>
+<td>action_3 — named references to locals and scratch</td>
+</tr>
+<tr>
+<td><code>quad_iadd/isub/mov</code></td>
+<td>action_1 — integer arithmetic</td>
+</tr>
+<tr>
+<td><code>quad_fadd/fsub/fmul/mov</code></td>
+<td>action_2, action_3 — float arithmetic</td>
+</tr>
+<tr>
+<td><code>stack_push_ref()</code></td>
+<td>action_3 — push call parameters</td>
+</tr>
+<tr>
+<td><code>stack_pop_ref()</code></td>
+<td>action_3 — retrieve return values</td>
+</tr>
+<tr>
+<td><code>se_call</code></td>
+<td>action_3 — function call with frame and returns</td>
+</tr>
+<tr>
+<td><code>p_icmp_lt_acc</code></td>
+<td>action_3 — predicate-based loop control</td>
+</tr>
+<tr>
+<td><code>se_state_increment_and_test</code></td>
+<td>action_1, action_2 — counter-based loop control</td>
+</tr>
+<tr>
+<td><code>se_while</code></td>
+<td>All actions — loop construct</td>
+</tr>
+<tr>
+<td><code>se_tick_delay</code></td>
+<td>All actions — multi-tick delay</td>
+</tr>
+<tr>
+<td><code>se_fork_join</code></td>
+<td>All actions — parallel execution wrapper</td>
+</tr>
+<tr>
+<td><code>se_log</code> / <code>se_log_slot_*</code></td>
+<td>All actions — debug output</td>
+</tr>
+</tbody>
+</table>
+<h2 id="stack-layout-during-action_3-call">Stack Layout During action_3 Call</h2>
+<pre><code>                    ┌─────────────────────┐
+                    │  scratch (ct0-ct2)  │ ← TOS during call body
+                    ├─────────────────────┤
+                    │  r1 (local 3)       │ ← return var
+                    │  r0 (local 2)       │ ← return var
+                    ├─────────────────────┤
+                    │  p1 (param 1)       │ ← from stack_push
+                    │  p0 (param 0)       │ ← from stack_push
+  call frame ──►   ├═════════════════════┤ ← base_ptr (call)
+                    │  scratch (t0-t4)    │ ← TOS during outer body
+                    ├─────────────────────┤
+                    │  f  (local 4)       │
+                    │  e  (local 3)       │
+                    │  c  (local 2)       │
+                    │  b  (local 1)       │
+                    │  a  (local 0)       │
+  outer frame ──►  ├═════════════════════┤ ← base_ptr (outer)
+                    │  (empty - 0 params) │
+                    └─────────────────────┘
+</code></pre>
+<p>After <code>se_call</code> returns, return values <code>r0</code> and <code>r1</code> are copied to the caller's stack top via <code>copy_return_vars_and_pop</code>, then retrieved with <code>stack_pop</code>.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

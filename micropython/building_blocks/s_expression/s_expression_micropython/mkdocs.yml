@@ -1,0 +1,81 @@
+site_name: S-Expression Engine -- MicroPython
+docs_dir: docs
+nav:
+  - Home: index.md
+  - MicroPython Port:
+    - Runtime Architecture: micropython/README_runtime_architecture.md
+    - ROM-Resident Design: micropython/README_rom_resident_design.md
+    - Slim Runtime (SPIKE): micropython/README_slim_runtime.md
+    - SPIKE Prime Integration: micropython/README_spike_integration.md
+    - Test Results: micropython/README_test_results.md
+  - DSL Reference:
+    - Design Overview: dsl/README_top_design.md
+    - DSL: dsl/README_DSL.md
+    - DSL Closures: dsl/README_DSL_closure_guide.md
+    - Return Codes: dsl/README_return_codes.md
+    - Predicate System: dsl/README_predicate_system.md
+    - User Defined Functions: dsl/README_user_defined_functions.md
+    - User Events: dsl/README_user_events.md
+    - JSON Support: dsl/README_json_support.md
+    - JSON Array Support: dsl/README_json_array_support.md
+    - Reading Debug Map: dsl/README_reading_debug_map.md
+    - Stack Operations: dsl/README_stack_operations.md
+    - Stack Equations: dsl/README_stack_equation_handler.md
+    - Inner Engine Design: dsl/README_inner_engine_design.md
+    - Outer Engine Design: dsl/README_outer_engine_design.md
+    - Runtime Dictionary Handling: dsl/README_runtime_dictionary_handling.md
+  - Composite Functions:
+    - Overview: dsl/composite_functions/README_composite_functions.md
+    - Chain Flow: dsl/composite_functions/README_chain_flow.md
+    - Sequence: dsl/composite_functions/README_sequence.md
+    - State Machine: dsl/composite_functions/README_state_machine.md
+    - Cond: dsl/composite_functions/README_cond.md
+    - Fork: dsl/composite_functions/README_fork.md
+    - Fork Join: dsl/composite_functions/README_fork_join.md
+    - While: dsl/composite_functions/README_while.md
+    - Event Dispatch: dsl/composite_functions/README_event_dispatch.md
+    - Field Dispatch: dsl/composite_functions/README_field_dispatch.md
+    - Trigger on Change: dsl/composite_functions/README_trigger_on_change.md
+    - Engine Interface: dsl/composite_functions/README_engine_interface.md
+    - Function Dictionary: dsl/composite_functions/README_function_dictionary_handling.md
+    - External Tree: dsl/composite_functions/README_external_tree.md
+  - Simple Functions:
+    - Main Functions:
+      - Wait: dsl/simple_functions/main_functions/README_wait.md
+      - Wait Event: dsl/simple_functions/main_functions/README_wait_event.md
+      - Wait Timeout: dsl/simple_functions/main_functions/README_wait_time_out.md
+      - Verify: dsl/simple_functions/main_functions/README_verify.md
+      - Verify Elapsed Events: dsl/simple_functions/main_functions/README_verify_elasped_events.md
+      - Verify Elapsed Time: dsl/simple_functions/main_functions/README_verify_elasped_time.md
+      - Tick Time Delay: dsl/simple_functions/main_functions/README_tick_time_delay.md
+    - One Shot Functions:
+      - Dictionary Functions: dsl/simple_functions/one_shot_functions/README_dictionary_functions.md
+      - Queue Event: dsl/simple_functions/one_shot_functions/README_queue_event.md
+      - SE Log: dsl/simple_functions/one_shot_functions/README_se_log.md
+      - Set Field: dsl/simple_functions/one_shot_functions/README_set_field.md
+    - Predicate Functions: dsl/simple_functions/predicate_functions/README.md
+  - Unit Tests:
+    - Overview: dsl/tests/README_test_overview.md
+    - Return Codes: dsl/tests/README_return_test.md
+    - Black Board Tests:
+      - Overview: dsl/tests/black_board/README_test_overview.md
+      - DSL: dsl/tests/black_board/README_DSL.md
+      - Initialization: dsl/tests/black_board/README_black_board_initializations.md
+      - Nested Fields: dsl/tests/black_board/README_field_ref_nested_field_ref.md
+      - Main Test: dsl/tests/black_board/README_MAIN.md
+      - User Functions Test: dsl/tests/black_board/README_USER_FUNCTIONS.md
+    - Dispatch Test: dsl/tests/README_dispatch.md
+    - State Machine Test: dsl/tests/README_state_machine.md
+    - Basic Predicate Test: dsl/tests/README_basic_predicates.md
+    - Advanced Predicate Test: dsl/tests/README_advanced_predicates.md
+    - Complex Sequence Test: dsl/tests/README_complex_sequence.md
+    - Loop Test: dsl/tests/README_loop_test.md
+    - Json Test: dsl/tests/README_json.md
+    - Stack Test: dsl/tests/README_stack_test.md
+    - Stack Equations Test: dsl/tests/README_stack_equation_test.md
+    - Function Dictionary Test: dsl/tests/README_function_dictionary.md
+    - Callback Function Test: dsl/tests/README_callback_function_test.md
+    - External Tree Test: dsl/tests/README_external_tree_management.md
+  - Car Window Controller:
+    - Requirements: dsl/car_window_controller/README_cardoor_requirements.md
+    - Implementation: dsl/car_window_controller/README_cardoor_s_engine_implementation.md

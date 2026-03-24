@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2018-2020 The Pybricks Authors
+
+#include "py/mpconfig.h"
+
+#if PYBRICKS_PY_IODEVICES
+
+#include <pybricks/common.h>
+#include "iodevices.h"
+
+static const mp_rom_map_elem_t iodevices_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__),         MP_ROM_QSTR(MP_QSTR_iodevices)                },
+    #if PYBRICKS_PY_IODEVICES_ANALOG_SENSOR
+    { MP_ROM_QSTR(MP_QSTR_AnalogSensor),     MP_ROM_PTR(&pb_type_iodevices_AnalogSensor)   },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_DC_MOTOR
+    { MP_ROM_QSTR(MP_QSTR_DCMotor),          MP_ROM_PTR(&pb_type_DCMotor)                  },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_I2C_DEVICE
+    { MP_ROM_QSTR(MP_QSTR_I2CDevice),        MP_ROM_PTR(&pb_type_i2c_device)               },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_LUMP_DEVICE
+    { MP_ROM_QSTR(MP_QSTR_LUMPDevice),       MP_ROM_PTR(&pb_type_iodevices_PUPDevice)      },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_LWP3_DEVICE
+    { MP_ROM_QSTR(MP_QSTR_LWP3Device),       MP_ROM_PTR(&pb_type_lwp3device)               },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_PUP_DEVICE
+    { MP_ROM_QSTR(MP_QSTR_PUPDevice),        MP_ROM_PTR(&pb_type_iodevices_PUPDevice)      },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_UART_DEVICE
+    { MP_ROM_QSTR(MP_QSTR_UARTDevice),       MP_ROM_PTR(&pb_type_uart_device)              },
+    #endif
+    #if PYBRICKS_PY_IODEVICES_XBOX_CONTROLLER
+    { MP_ROM_QSTR(MP_QSTR_XboxController),   MP_ROM_PTR(&pb_type_iodevices_XboxController) },
+    #endif
+};
+static MP_DEFINE_CONST_DICT(pb_module_iodevices_globals, iodevices_globals_table);
+
+const mp_obj_module_t pb_module_iodevices = {
+    .base = { &mp_type_module },
+    .globals = (mp_obj_dict_t *)&pb_module_iodevices_globals,
+};
+
+#if !MICROPY_MODULE_BUILTIN_SUBPACKAGES
+MP_REGISTER_MODULE(MP_QSTR_pybricks_dot_iodevices, pb_module_iodevices);
+#endif
+
+#endif // PYBRICKS_PY_IODEVICES

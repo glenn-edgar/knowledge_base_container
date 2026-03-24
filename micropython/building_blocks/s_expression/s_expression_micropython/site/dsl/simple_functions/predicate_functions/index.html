@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        
+        
+        <link rel="shortcut icon" href="../../../img/favicon.ico">
+        <title>Predicate Functions - S-Expression Engine -- MicroPython</title>
+        <link href="../../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../../css/brands.min.css" rel="stylesheet">
+        <link href="../../../css/solid.min.css" rel="stylesheet">
+        <link href="../../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../../..">S-Expression Engine -- MicroPython</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">MicroPython Port</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../../micropython/README_runtime_architecture/" class="dropdown-item">Runtime Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_rom_resident_design/" class="dropdown-item">ROM-Resident Design</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_slim_runtime/" class="dropdown-item">Slim Runtime (SPIKE)</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_spike_integration/" class="dropdown-item">SPIKE Prime Integration</a>
+</li>
+                                    
+<li>
+    <a href="../../../micropython/README_test_results/" class="dropdown-item">Test Results</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">DSL Reference</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../README_top_design/" class="dropdown-item">Design Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL/" class="dropdown-item">DSL</a>
+</li>
+                                    
+<li>
+    <a href="../../README_DSL_closure_guide/" class="dropdown-item">DSL Closures</a>
+</li>
+                                    
+<li>
+    <a href="../../README_return_codes/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+<li>
+    <a href="../../README_predicate_system/" class="dropdown-item">Predicate System</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_defined_functions/" class="dropdown-item">User Defined Functions</a>
+</li>
+                                    
+<li>
+    <a href="../../README_user_events/" class="dropdown-item">User Events</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_support/" class="dropdown-item">JSON Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_json_array_support/" class="dropdown-item">JSON Array Support</a>
+</li>
+                                    
+<li>
+    <a href="../../README_reading_debug_map/" class="dropdown-item">Reading Debug Map</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_operations/" class="dropdown-item">Stack Operations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_stack_equation_handler/" class="dropdown-item">Stack Equations</a>
+</li>
+                                    
+<li>
+    <a href="../../README_inner_engine_design/" class="dropdown-item">Inner Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_outer_engine_design/" class="dropdown-item">Outer Engine Design</a>
+</li>
+                                    
+<li>
+    <a href="../../README_runtime_dictionary_handling/" class="dropdown-item">Runtime Dictionary Handling</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Composite Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../composite_functions/README_composite_functions/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_chain_flow/" class="dropdown-item">Chain Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_sequence/" class="dropdown-item">Sequence</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_state_machine/" class="dropdown-item">State Machine</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_cond/" class="dropdown-item">Cond</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork/" class="dropdown-item">Fork</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_fork_join/" class="dropdown-item">Fork Join</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_while/" class="dropdown-item">While</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_event_dispatch/" class="dropdown-item">Event Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_field_dispatch/" class="dropdown-item">Field Dispatch</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_trigger_on_change/" class="dropdown-item">Trigger on Change</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_engine_interface/" class="dropdown-item">Engine Interface</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_function_dictionary_handling/" class="dropdown-item">Function Dictionary</a>
+</li>
+                                    
+<li>
+    <a href="../../composite_functions/README_external_tree/" class="dropdown-item">External Tree</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Simple Functions</a>
+                                <ul class="dropdown-menu">
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Main Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../main_functions/README_wait/" class="dropdown-item">Wait</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_wait_event/" class="dropdown-item">Wait Event</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_wait_time_out/" class="dropdown-item">Wait Timeout</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_verify/" class="dropdown-item">Verify</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_verify_elasped_events/" class="dropdown-item">Verify Elapsed Events</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_verify_elasped_time/" class="dropdown-item">Verify Elapsed Time</a>
+</li>
+            
+<li>
+    <a href="../main_functions/README_tick_time_delay/" class="dropdown-item">Tick Time Delay</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">One Shot Functions</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../one_shot_functions/README_dictionary_functions/" class="dropdown-item">Dictionary Functions</a>
+</li>
+            
+<li>
+    <a href="../one_shot_functions/README_queue_event/" class="dropdown-item">Queue Event</a>
+</li>
+            
+<li>
+    <a href="../one_shot_functions/README_se_log/" class="dropdown-item">SE Log</a>
+</li>
+            
+<li>
+    <a href="../one_shot_functions/README_set_field/" class="dropdown-item">Set Field</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Predicate Functions</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Unit Tests</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../tests/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_return_test/" class="dropdown-item">Return Codes</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">Black Board Tests</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../tests/black_board/README_test_overview/" class="dropdown-item">Overview</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_DSL/" class="dropdown-item">DSL</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_black_board_initializations/" class="dropdown-item">Initialization</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_field_ref_nested_field_ref/" class="dropdown-item">Nested Fields</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_MAIN/" class="dropdown-item">Main Test</a>
+</li>
+            
+<li>
+    <a href="../../tests/black_board/README_USER_FUNCTIONS/" class="dropdown-item">User Functions Test</a>
+</li>
+    </ul>
+  </li>
+                                    
+<li>
+    <a href="../../tests/README_dispatch/" class="dropdown-item">Dispatch Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_state_machine/" class="dropdown-item">State Machine Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_basic_predicates/" class="dropdown-item">Basic Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_advanced_predicates/" class="dropdown-item">Advanced Predicate Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_complex_sequence/" class="dropdown-item">Complex Sequence Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_loop_test/" class="dropdown-item">Loop Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_json/" class="dropdown-item">Json Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_test/" class="dropdown-item">Stack Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_stack_equation_test/" class="dropdown-item">Stack Equations Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_function_dictionary/" class="dropdown-item">Function Dictionary Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_callback_function_test/" class="dropdown-item">Callback Function Test</a>
+</li>
+                                    
+<li>
+    <a href="../../tests/README_external_tree_management/" class="dropdown-item">External Tree Test</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Car Window Controller</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_requirements/" class="dropdown-item">Requirements</a>
+</li>
+                                    
+<li>
+    <a href="../../car_window_controller/README_cardoor_s_engine_implementation/" class="dropdown-item">Implementation</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../one_shot_functions/README_set_field/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../tests/README_test_overview/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#s-expression-engine-predicate-functions" class="nav-link">S-Expression Engine Predicate Functions</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#overview" class="nav-link">Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#predicate-characteristics" class="nav-link">Predicate Characteristics</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#predicate-builder-system" class="nav-link">Predicate Builder System</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#composite-predicates-boolean-logic" class="nav-link">Composite Predicates (Boolean Logic)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#constant-predicates" class="nav-link">Constant Predicates</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#event-predicates" class="nav-link">Event Predicates</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#field-comparison-predicates" class="nav-link">Field Comparison Predicates</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#user-defined-predicates" class="nav-link">User-Defined Predicates</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#stateful-counter-predicates" class="nav-link">Stateful Counter Predicates</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            
+            <li class="nav-item" data-bs-level="1"><a href="#se_field_increment_and_test" class="nav-link">se_field_increment_and_test</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#predicate-quick-reference" class="nav-link">Predicate Quick Reference</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#usage-examples" class="nav-link">Usage Examples</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="s-expression-engine-predicate-functions">S-Expression Engine Predicate Functions</h1>
+<h2 id="overview">Overview</h2>
+<p>The S-Expression engine provides predicate functions that return boolean values for conditional control flow. Predicates are used with composites like <code>se_while</code>, <code>se_cond</code>, <code>se_if_then_else</code>, and <code>se_trigger_on_change</code>.</p>
+<h2 id="predicate-characteristics">Predicate Characteristics</h2>
+<p>Unlike MAIN functions, predicates:
+- Return <code>bool</code> instead of result codes
+- Are typically stateless (evaluate and return immediately)
+- Do not receive explicit <code>SE_EVENT_INIT</code> or <code>SE_EVENT_TERMINATE</code> events from the engine</p>
+<p>However, predicates <strong>do</strong> have a <code>node_index</code> and access to:
+- <code>node_states[]</code> — flags, state, user_data
+- Blackboard fields via field references</p>
+<p>This allows certain predicates to maintain state across invocations.</p>
+<hr />
+<h2 id="predicate-builder-system">Predicate Builder System</h2>
+<p>The Lua DSL provides a stack-based predicate builder for composing complex predicates.</p>
+<h3 id="simple-predicates-outside-builder">Simple Predicates (Outside Builder)</h3>
+<p>Simple predicates can be used directly without the builder:</p>
+<pre><code class="language-lua">se_while(se_field_lt(&quot;counter&quot;, 10), ...)
+se_cond_case(se_check_event(USER_EVENT_1), ...)
+se_if_then_else(se_pred(&quot;SENSOR_READY&quot;), ...)
+</code></pre>
+<h3 id="composite-predicates-inside-builder">Composite Predicates (Inside Builder)</h3>
+<p>For complex boolean logic, use <code>pred_begin()</code> / <code>pred_end()</code>:</p>
+<pre><code class="language-lua">pred_begin()
+    local or1 = se_pred_or()
+        local and1 = se_pred_and()
+            se_field_eq(&quot;mode&quot;, 1)
+            se_field_gt(&quot;temp&quot;, 100)
+        pred_close(and1)
+        local not1 = se_pred_not()
+            se_check_event(USER_EVENT_4)
+        pred_close(not1)
+    pred_close(or1)
+local complex_pred = pred_end()
+
+se_cond_case(complex_pred, ...)
+</code></pre>
+<h3 id="builder-functions">Builder Functions</h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pred_begin()</code></td>
+<td>Start building a composite predicate</td>
+</tr>
+<tr>
+<td><code>pred_end()</code></td>
+<td>Finish and return the predicate closure</td>
+</tr>
+<tr>
+<td><code>pred_close(id)</code></td>
+<td>Close a composite predicate (validates matching id)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="composite-predicates-boolean-logic">Composite Predicates (Boolean Logic)</h2>
+<p>These predicates combine child predicates using boolean logic. They must be used inside <code>pred_begin()</code> / <code>pred_end()</code>.</p>
+<h3 id="se_pred_and">se_pred_and</h3>
+<p><strong>Purpose:</strong> Returns true if ALL child predicates return true.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_and()
+        se_field_eq(&quot;mode&quot;, 1)
+        se_field_gt(&quot;temp&quot;, 50)
+        se_pred(&quot;SENSOR_READY&quot;)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Short-circuit evaluation — stops on first false.</p>
+<p><strong>Truth table (2 inputs):</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>F</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>F</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>F</td>
+</tr>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>T</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="se_pred_or">se_pred_or</h3>
+<p><strong>Purpose:</strong> Returns true if ANY child predicate returns true.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_or()
+        se_check_event(USER_EVENT_1)
+        se_check_event(USER_EVENT_2)
+        se_field_eq(&quot;error&quot;, 1)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Short-circuit evaluation — stops on first true.</p>
+<p><strong>Truth table (2 inputs):</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>F</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>T</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="se_pred_not">se_pred_not</h3>
+<p><strong>Purpose:</strong> Returns the inverse of the first child predicate.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_not()
+        se_pred(&quot;ALARM_ACTIVE&quot;)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Evaluates first child predicate, returns negation. Additional children are ignored.</p>
+<p><strong>Truth table:</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="se_pred_nand">se_pred_nand</h3>
+<p><strong>Purpose:</strong> Returns true if NOT all child predicates are true (NOT AND).</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_nand()
+        se_field_eq(&quot;a&quot;, 1)
+        se_field_eq(&quot;b&quot;, 1)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Equivalent to <code>NOT(AND(children))</code>.</p>
+<p><strong>Truth table (2 inputs):</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>F</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="se_pred_nor">se_pred_nor</h3>
+<p><strong>Purpose:</strong> Returns true if NO child predicates are true (NOT OR).</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_nor()
+        se_check_event(ERROR_EVENT)
+        se_field_eq(&quot;fault&quot;, 1)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Equivalent to <code>NOT(OR(children))</code>.</p>
+<p><strong>Truth table (2 inputs):</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>F</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>F</td>
+</tr>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>F</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="se_pred_xor">se_pred_xor</h3>
+<p><strong>Purpose:</strong> Returns true if EXACTLY ONE child predicate is true.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">pred_begin()
+    local id = se_pred_xor()
+        se_field_eq(&quot;mode&quot;, 1)
+        se_field_eq(&quot;mode&quot;, 2)
+    pred_close(id)
+local pred = pred_end()
+</code></pre>
+<p><strong>Behavior:</strong> Counts true results, returns true only if count equals 1.</p>
+<p><strong>Truth table (2 inputs):</strong></p>
+<table>
+<thead>
+<tr>
+<th>A</th>
+<th>B</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>F</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>F</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Note:</strong> For more than 2 inputs, XOR returns true only if exactly one is true (not the chained XOR of some languages).</p>
+<hr />
+<h2 id="constant-predicates">Constant Predicates</h2>
+<h3 id="se_true">se_true</h3>
+<p><strong>Purpose:</strong> Always returns true.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_true()
+</code></pre>
+<p><strong>Use cases:</strong>
+- Default case in <code>se_cond</code> (like Lisp's <code>t</code>)
+- Placeholder during development
+- Unconditional branches</p>
+<hr />
+<h3 id="se_false">se_false</h3>
+<p><strong>Purpose:</strong> Always returns false.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_false()
+</code></pre>
+<p><strong>Use cases:</strong>
+- Disabling branches during development
+- Testing conditional logic</p>
+<hr />
+<h2 id="event-predicates">Event Predicates</h2>
+<h3 id="se_check_event">se_check_event</h3>
+<p><strong>Purpose:</strong> Returns true if the current event_id matches any of the provided values.</p>
+<p><strong>Param layout:</strong> <code>[INT event_id_1] [INT event_id_2] ...</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">-- Single event
+se_check_event(USER_EVENT_1)
+
+-- Multiple events (OR logic)
+se_check_event(USER_EVENT_1, USER_EVENT_2, USER_EVENT_3)
+</code></pre>
+<p><strong>Behavior:</strong> Iterates through parameters, returns true if any match the current <code>event_id</code>.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">se_cond({
+    se_cond_case(
+        se_check_event(BUTTON_PRESS, TOUCH_EVENT),
+        function()
+            se_chain_flow(function()
+                se_log(&quot;User input detected&quot;)
+                se_return_pipeline_reset()
+            end)
+        end
+    ),
+    se_cond_default(...)
+})
+</code></pre>
+<hr />
+<h2 id="field-comparison-predicates">Field Comparison Predicates</h2>
+<p>All field comparison predicates follow the pattern:
+- Parameter 0: Field reference
+- Parameter 1: Comparison value (INT or UINT)</p>
+<h3 id="se_field_eq">se_field_eq</h3>
+<p><strong>Purpose:</strong> Returns true if field equals value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_eq(&quot;mode&quot;, 1)
+se_field_eq(&quot;state&quot;, 0)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field == value)</code></p>
+<hr />
+<h3 id="se_field_ne">se_field_ne</h3>
+<p><strong>Purpose:</strong> Returns true if field does not equal value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_ne(&quot;error_code&quot;, 0)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field != value)</code> (implemented as <code>!se_field_eq</code>)</p>
+<hr />
+<h3 id="se_field_gt">se_field_gt</h3>
+<p><strong>Purpose:</strong> Returns true if field is greater than value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_gt(&quot;temperature&quot;, 100)
+se_field_gt(&quot;counter&quot;, 0)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field &gt; value)</code></p>
+<hr />
+<h3 id="se_field_ge">se_field_ge</h3>
+<p><strong>Purpose:</strong> Returns true if field is greater than or equal to value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_ge(&quot;level&quot;, 5)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field &gt;= value)</code></p>
+<hr />
+<h3 id="se_field_lt">se_field_lt</h3>
+<p><strong>Purpose:</strong> Returns true if field is less than value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_lt(&quot;fuel&quot;, 10)
+se_field_lt(&quot;retries&quot;, 3)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field &lt; value)</code></p>
+<hr />
+<h3 id="se_field_le">se_field_le</h3>
+<p><strong>Purpose:</strong> Returns true if field is less than or equal to value.</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT value]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_le(&quot;power&quot;, 50)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field &lt;= value)</code></p>
+<hr />
+<h3 id="se_field_in_range">se_field_in_range</h3>
+<p><strong>Purpose:</strong> Returns true if field is within inclusive range [min, max].</p>
+<p><strong>Param layout:</strong> <code>[FIELD field_ref] [INT/UINT min] [INT/UINT max]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_field_in_range(&quot;temperature&quot;, 20, 80)
+se_field_in_range(&quot;speed&quot;, 0, 100)
+</code></pre>
+<p><strong>Behavior:</strong> <code>return (*field &gt;= min &amp;&amp; *field &lt;= max)</code></p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">se_cond({
+    se_cond_case(
+        se_field_in_range(&quot;temp&quot;, 0, 20),
+        function() se_chain_flow(function() se_log(&quot;Cold&quot;) end) end
+    ),
+    se_cond_case(
+        se_field_in_range(&quot;temp&quot;, 21, 30),
+        function() se_chain_flow(function() se_log(&quot;Normal&quot;) end) end
+    ),
+    se_cond_case(
+        se_field_gt(&quot;temp&quot;, 30),
+        function() se_chain_flow(function() se_log(&quot;Hot&quot;) end) end
+    ),
+    se_cond_default(...)
+})
+</code></pre>
+<hr />
+<h2 id="user-defined-predicates">User-Defined Predicates</h2>
+<h3 id="se_pred">se_pred</h3>
+<p><strong>Purpose:</strong> Invoke a user-defined predicate function by name (no parameters).</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_pred(&quot;SENSOR_READY&quot;)
+se_pred(&quot;MOTOR_RUNNING&quot;)
+se_pred(&quot;CALIBRATED&quot;)
+</code></pre>
+<p><strong>C registration:</strong></p>
+<pre><code class="language-c">static bool my_sensor_ready(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    s_expr_event_type_t event_type,
+    uint16_t event_id,
+    void* event_data
+) {
+    // Custom logic
+    return check_sensor_status();
+}
+
+// Register in predicate table
+{ s_expr_hash(&quot;SENSOR_READY&quot;), (void*)my_sensor_ready },
+</code></pre>
+<hr />
+<h3 id="se_pred_with">se_pred_with</h3>
+<p><strong>Purpose:</strong> Invoke a user-defined predicate function with parameters.</p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_pred_with(&quot;TEST_BIT&quot;, function() int(0) end)
+se_pred_with(&quot;CHECK_THRESHOLD&quot;, function() 
+    field_ref(&quot;value&quot;)
+    int(100) 
+end)
+</code></pre>
+<p><strong>Example with bit testing:</strong></p>
+<pre><code class="language-lua">-- Test if bit 5 is set
+se_pred_with(&quot;TEST_BIT&quot;, function() int(5) end)
+
+-- C implementation
+static bool test_bit(
+    s_expr_tree_instance_t* inst,
+    const s_expr_param_t* params,
+    uint16_t param_count,
+    ...
+) {
+    if (param_count &lt; 1) return false;
+    uint8_t bit_index = (uint8_t)params[0].int_val;
+    uint32_t* flags = get_flags_register();
+    return (*flags &amp; (1 &lt;&lt; bit_index)) != 0;
+}
+</code></pre>
+<hr />
+<h2 id="stateful-counter-predicates">Stateful Counter Predicates</h2>
+<p>These predicates maintain state across invocations for loop counting. They use <strong>self-initialization</strong> since the engine does not send <code>SE_EVENT_INIT</code> to predicates.</p>
+<h3 id="self-initialization-pattern">Self-Initialization Pattern</h3>
+<pre><code class="language-c">uint8_t system_flag = s_expr_get_system_flags(inst);
+if (!(system_flag &amp; S_EXPR_NODE_FLAG_INITIALIZED)) {
+    s_expr_set_system_flags(inst, system_flag | S_EXPR_NODE_FLAG_INITIALIZED);
+    // One-time initialization here
+}
+</code></pre>
+<p>This ensures initialization happens exactly once per predicate activation.</p>
+<hr />
+<h3 id="se_state_increment_and_test">se_state_increment_and_test</h3>
+<p><strong>Purpose:</strong> Loop counter using node's <code>user_flags</code> storage (16-bit).</p>
+<p><strong>Param layout:</strong> <code>[UINT increment] [UINT limit]</code></p>
+<p><strong>Lua DSL:</strong></p>
+<pre><code class="language-lua">se_state_increment_and_test(increment, limit)
+</code></pre>
+<p><strong>Behavior:</strong>
+1. On first invocation (not initialized):
+   - Set <code>S_EXPR_NODE_FLAG_INITIALIZED</code>
+   - Set <code>user_flags</code> to 0
+2. On every invocation:
+   - <code>count = user_flags + increment</code>
+   - Store <code>count</code> in <code>user_flags</code>
+   - Return <code>(count &lt;= limit)</code></p>
+<p><strong>Storage:</strong> Uses the predicate's own <code>user_flags</code> (16-bit) — no blackboard field required.</p>
+<p><strong>Example:</strong></p>
+<pre><code class="language-lua">-- Loop 5 times
+se_while(se_state_increment_and_test(1, 5),
+    function() se_log(&quot;Iteration&quot;) end,
+    function() se_tick_delay(10) end
+)
+</code></pre>
+<p><strong>Execution timeline:</strong></p>
+<pre><code>Invocation 1: init, count=0+1=1, return (1 &lt;= 5) = true
+Invocation 2: count=1+1=2, return (2 &lt;= 5) = true
+Invocation 3: count=2+1=3, return (3 &lt;= 5) = true
+Invocation 4: count=3+1=4, return (4 &lt;= 5) = true
+Invocation 5: count=4+1=5, return (5 &lt;= 5) = true
+Invocation 6: count=5+1=6, return (6 &lt;= 5) = false → loop exits
+</code></pre>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Range</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>increment</code></td>
+<td>UINT</td>
+<td>1-65535</td>
+<td>Amount to add each invocation</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>UINT</td>
+<td>0-65535</td>
+<td>Maximum value for true result</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="se_field_increment_and_test">se_field_increment_and_test</h1>
+<p>Purpose: Loop counter using blackboard fields for storage, increment, and limit — all values are runtime-configurable.
+Param layout: [FIELD counter_ref] [FIELD increment_ref] [FIELD limit_ref]
+Lua DSL:
+luase_field_increment_and_test(counter_field, increment_field, limit_field)
+Parameters:
+ParameterTypeDescriptioncounter_fieldstringBlackboard field name for the counterincrement_fieldstringBlackboard field name for the increment valuelimit_fieldstringBlackboard field name for the limit value
+Behavior:</p>
+<p>On first invocation (not initialized):</p>
+<p>Set S_EXPR_NODE_FLAG_INITIALIZED
+Set counter field to 0</p>
+<p>On every invocation:</p>
+<p>counter += increment
+Return (counter &lt;= limit)</p>
+<p>Storage: Uses three blackboard fields (ct_int_t) — all visible to other functions and modifiable at runtime.
+Example:
+luase_chain_flow(function()
+    -- Initialize fields
+    se_set_field("counter", 0)
+    se_set_field("increment", 1)
+    se_set_field("limit", 10)</p>
+<pre><code>se_while(se_field_increment_and_test("counter", "increment", "limit"),
+    function()
+        se_log_int("counter = %d", "counter")
+    end,
+    function()
+        se_tick_delay(10)
+    end
+)
+
+se_log("Loop complete")
+se_return_pipeline_disable()
+</code></pre>
+<p>end)</p>
+<pre><code>
+**Execution timeline (increment=1, limit=5):**
+</code></pre>
+<p>Invocation 1: init counter=0, counter=0+1=1, return (1 &lt;= 5) = true
+Invocation 2: counter=1+1=2, return (2 &lt;= 5) = true
+Invocation 3: counter=2+1=3, return (3 &lt;= 5) = true
+Invocation 4: counter=3+1=4, return (4 &lt;= 5) = true
+Invocation 5: counter=4+1=5, return (5 &lt;= 5) = true
+Invocation 6: counter=5+1=6, return (6 &lt;= 5) = false → loop exits
+Runtime Configuration:
+Because all three parameters are field references, you can modify loop behavior at runtime:
+luase_chain_flow(function()
+    se_set_field("counter", 0)
+    se_set_field("increment", 1)
+    se_set_field("limit", 5)</p>
+<pre><code>se_while(se_field_increment_and_test("counter", "increment", "limit"),
+    function()
+        se_log_int("Iteration %d", "counter")
+
+        -- Double the increment after iteration 3
+        se_cond({
+            se_cond_case(se_field_eq("counter", 3), function()
+                se_set_field("increment", 2)
+                se_log("Doubled increment!")
+            end),
+            se_cond_default(function() end)
+        })
+    end
+)
+</code></pre>
+<p>end)</p>
+<pre><code>
+**Output:**
+</code></pre>
+<p>Iteration 1
+Iteration 2
+Iteration 3
+Doubled increment!
+Iteration 5   (jumped from 3+2=5)
+Loop exits    (5+2=7 &gt; 5)
+Advantages:</p>
+<p>Counter, increment, and limit all visible to other functions
+Runtime modification of loop parameters
+Can implement variable-rate loops
+Useful for adaptive algorithms</p>
+<p>Comparison: State vs Field Counter
+Aspectse_state_increment_and_testse_field_increment_and_testStorageNode's user_flags (16-bit)Blackboard fields (ct_int_t)Counter visibilityPrivate to predicateVisible to all functionsIncrementFixed at compile timeRuntime-configurable fieldLimitFixed at compile timeRuntime-configurable fieldAuto-zeroedYes (on init)Yes (counter field on init)Max value65535Platform-dependent (32/64-bit)Parameters2 values (increment, limit)3 field names (counter, increment, limit)Use caseSimple fixed loopsDynamic loops, shared counters</p>
+<p>Stateful Counters Quick Reference
+PredicateParametersStorageRuntime Configse_state_increment_and_test(inc, limit)2 values16-bit node stateNose_field_increment_and_test(counter, inc, limit)3 field namesBlackboard fieldsYes</p>
+<hr />
+<h2 id="predicate-quick-reference">Predicate Quick Reference</h2>
+<h3 id="composite-boolean-logic">Composite (Boolean Logic)</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+<th>Builder Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_pred_and()</code></td>
+<td>All children true</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_pred_or()</code></td>
+<td>Any child true</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_pred_not()</code></td>
+<td>Negate first child</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_pred_nand()</code></td>
+<td>NOT all children true</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_pred_nor()</code></td>
+<td>NO children true</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>se_pred_xor()</code></td>
+<td>Exactly one child true</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="constants">Constants</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_true()</code></td>
+<td>Always true</td>
+</tr>
+<tr>
+<td><code>se_false()</code></td>
+<td>Always false</td>
+</tr>
+</tbody>
+</table>
+<h3 id="events">Events</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_check_event(id, ...)</code></td>
+<td>Current event matches any id</td>
+</tr>
+</tbody>
+</table>
+<h3 id="field-comparisons">Field Comparisons</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_field_eq(field, val)</code></td>
+<td>field == val</td>
+</tr>
+<tr>
+<td><code>se_field_ne(field, val)</code></td>
+<td>field != val</td>
+</tr>
+<tr>
+<td><code>se_field_gt(field, val)</code></td>
+<td>field &gt; val</td>
+</tr>
+<tr>
+<td><code>se_field_ge(field, val)</code></td>
+<td>field &gt;= val</td>
+</tr>
+<tr>
+<td><code>se_field_lt(field, val)</code></td>
+<td>field &lt; val</td>
+</tr>
+<tr>
+<td><code>se_field_le(field, val)</code></td>
+<td>field &lt;= val</td>
+</tr>
+<tr>
+<td><code>se_field_in_range(field, min, max)</code></td>
+<td>min &lt;= field &lt;= max</td>
+</tr>
+</tbody>
+</table>
+<h3 id="user-defined">User-Defined</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_pred(name)</code></td>
+<td>Call named predicate (no params)</td>
+</tr>
+<tr>
+<td><code>se_pred_with(name, params_fn)</code></td>
+<td>Call named predicate with params</td>
+</tr>
+</tbody>
+</table>
+<h3 id="stateful-counters">Stateful Counters</h3>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>se_state_increment_and_test(inc, limit)</code></td>
+<td>Counter in node state</td>
+</tr>
+<tr>
+<td><code>se_field_increment_and_test(field, inc, limit)</code></td>
+<td>Counter in blackboard</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="usage-examples">Usage Examples</h2>
+<h3 id="simple-field-check">Simple Field Check</h3>
+<pre><code class="language-lua">se_while(se_field_lt(&quot;retries&quot;, 3),
+    function() se_log(&quot;Attempt&quot;) end,
+    function() se_tick_delay(10) end,
+    function() se_increment_field(&quot;retries&quot;) end
+)
+</code></pre>
+<h3 id="event-driven-condition">Event-Driven Condition</h3>
+<pre><code class="language-lua">se_cond({
+    se_cond_case(
+        se_check_event(ALARM_EVENT, CRITICAL_EVENT),
+        function() se_chain_flow(...) end
+    ),
+    se_cond_default(...)
+})
+</code></pre>
+<h3 id="complex-boolean-logic">Complex Boolean Logic</h3>
+<pre><code class="language-lua">pred_begin()
+    local or1 = se_pred_or()
+        -- Condition 1: mode=1 AND temp&gt;100
+        local and1 = se_pred_and()
+            se_field_eq(&quot;mode&quot;, 1)
+            se_field_gt(&quot;temp&quot;, 100)
+        pred_close(and1)
+        -- Condition 2: emergency flag set
+        se_field_eq(&quot;emergency&quot;, 1)
+        -- Condition 3: NOT in safe mode
+        local not1 = se_pred_not()
+            se_field_eq(&quot;safe_mode&quot;, 1)
+        pred_close(not1)
+    pred_close(or1)
+local alarm_condition = pred_end()
+
+se_trigger_on_change(0, alarm_condition,
+    function() se_chain_flow(...) end,  -- Rising edge
+    function() se_chain_flow(...) end   -- Falling edge
+)
+</code></pre>
+<h3 id="loop-with-visible-counter">Loop with Visible Counter</h3>
+<pre><code class="language-lua">se_function_interface(function()
+    se_i_set_field(&quot;i&quot;, 0)
+
+    se_while(se_field_increment_and_test(&quot;i&quot;, 1, 10),
+        function() se_log_int(&quot;Processing item %d&quot;, &quot;i&quot;) end,
+        function() process_item() end,
+        function() se_tick_delay(5) end
+    )
+
+    se_log(&quot;Processed 10 items&quot;)
+    se_return_function_terminate()
+end)
+</code></pre>
+<hr />
+<h2 id="error-handling">Error Handling</h2>
+<p>All predicates use <code>EXCEPTION()</code> for parameter validation failures:</p>
+<table>
+<thead>
+<tr>
+<th>Predicate</th>
+<th>Error Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Field predicates</td>
+<td>Missing parameters, invalid field reference</td>
+</tr>
+<tr>
+<td><code>se_state_increment_and_test</code></td>
+<td><code>param_count &lt; 2</code>, invalid type</td>
+</tr>
+<tr>
+<td><code>se_field_increment_and_test</code></td>
+<td><code>param_count &lt; 3</code>, invalid field, invalid type</td>
+</tr>
+</tbody>
+</table>
+<p>Exceptions halt execution (Erlang-style fail-fast).</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../../js/base.js"></script>
+        <script src="../../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
