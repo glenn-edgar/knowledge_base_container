@@ -1,11 +1,11 @@
 # ==========================================================================
-# main_mpy.py - ChainTree + S-Engine advanced integration test
+# main_mpy.py - ChainTree + S-Engine integration test
 #
 # Usage:
 #   micropython main_mpy.py [tree_name_or_index ...]
 #   micropython main_mpy.py                # interactive selector
 #   micropython main_mpy.py 0              # run first tree by index
-#   micropython main_mpy.py twenty_ninth_test  # run by name
+#   micropython main_mpy.py se_basic_load_test  # run by name
 # ==========================================================================
 
 import sys
@@ -17,10 +17,10 @@ import ct_runtime as ct
 from ct_builtins import builtins as ct_builtins
 import se_runtime as se
 from se_builtins_all import builtins as se_builtins
-import s_engine_test_2_module_mpy as ct_module_data
+import s_engine_test_module_mpy as ct_module_data
 
 sys.path.insert(0, "s_engine")
-import chain_flow_dsl_tests_module_mpy as se_module_data
+import state_machine_test_module_mpy as se_module_data
 
 DELTA_TIME = 0.1
 MAX_TICKS = 2000
@@ -104,19 +104,30 @@ def select_tree(trees):
 # Main
 # ==========================================================================
 print("=" * 60)
-print("  ChainTree + S-Engine Advanced Integration Test")
+print("  ChainTree + S-Engine Integration Test")
 print("=" * 60)
 print()
 
+# User stubs — C-oriented callbacks, no-op in MicroPython
+user_fns = {
+    "USER_REGISTER_S_FUNCTIONS": lambda inst, node: True,
+}
+
+# SE oneshot stubs — ChainTree bridge functions used by SE modules
+se_user_fns = {
+    "CFL_DISABLE_CHILDREN": lambda inst, node: None,
+    "CFL_ENABLE_CHILD": lambda inst, node: None,
+}
+
 se_modules = {
-    "chain_flow_dsl_tests": {
+    "state_machine_test": {
         "module_data": se_module_data,
         "builtins": se_builtins,
-        "user_fns": {},
+        "user_fns": se_user_fns,
     },
 }
 
-mod = ct.new_module(ct_module_data, ct_builtins)
+mod = ct.new_module(ct_module_data, ct.merge_fns(ct_builtins, user_fns))
 
 user_ctx = {
     "se_runtime": se,

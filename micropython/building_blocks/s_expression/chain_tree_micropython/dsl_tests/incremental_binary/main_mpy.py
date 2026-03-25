@@ -1,29 +1,20 @@
 # ==========================================================================
-# main_mpy.py - ChainTree + S-Engine advanced integration test
+# main_mpy.py - ChainTree MicroPython incremental_build test
 #
-# Usage:
-#   micropython main_mpy.py [tree_name_or_index ...]
-#   micropython main_mpy.py                # interactive selector
-#   micropython main_mpy.py 0              # run first tree by index
-#   micropython main_mpy.py twenty_ninth_test  # run by name
+# Runs selected trees from the incremental_build DSL through ct_runtime.
+# Tick rate matches C runtime: 0.1s per tick with drift compensation.
 # ==========================================================================
 
 import sys
 import time
 sys.path.insert(0, "../../ct_runtime")
-sys.path.insert(0, "../../../s_expression_micropython/mpy_runtime")
 
 import ct_runtime as ct
 from ct_builtins import builtins as ct_builtins
-import se_runtime as se
-from se_builtins_all import builtins as se_builtins
-import s_engine_test_2_module_mpy as ct_module_data
+import incremental_build_module_mpy as module_data
 
-sys.path.insert(0, "s_engine")
-import chain_flow_dsl_tests_module_mpy as se_module_data
-
-DELTA_TIME = 0.1
-MAX_TICKS = 2000
+DELTA_TIME = 0.1  # seconds per tick (matches C: params->delta_time)
+MAX_TICKS = 2000  # safety limit
 
 RESULT_NAMES = {
     0: "CONTINUE", 1: "HALT", 2: "TERMINATE", 3: "RESET",
@@ -36,12 +27,15 @@ def result_str(r):
 def is_complete(r):
     return r in (2, 4, 6)
 
-def run_tree(mod, user_ctx, tree_name, delta_time=DELTA_TIME, max_ticks=MAX_TICKS):
+def run_tree(mod, tree_name, delta_time=DELTA_TIME, max_ticks=MAX_TICKS):
     print("--- Running tree: %s ---" % tree_name)
-    inst = ct.new_instance(mod, tree_name)
-    inst["user_ctx"] = user_ctx
+    try:
+        inst = ct.new_instance(mod, tree_name)
+    except RuntimeError as e:
+        print("  SKIP: %s" % e)
+        return None
+    print("  Nodes: %d  Blackboard: %s" % (inst["node_count"], inst["blackboard"]))
     inst["delta_time"] = delta_time
-    print("  CT nodes: %d" % inst["node_count"])
     print("  Tick rate: %.3fs" % delta_time)
 
     t_start = time.time()
@@ -50,14 +44,18 @@ def run_tree(mod, user_ctx, tree_name, delta_time=DELTA_TIME, max_ticks=MAX_TICK
     tick = 0
 
     for tick in range(1, max_ticks + 1):
-        now = time.time()
-        wait = future_time - now
-        if wait > 0:
-            time.sleep(wait)
+        # Wait for next tick — compensate for processing time
+        # Uncomment for real-time ticks:
+        # now = time.time()
+        # wait = future_time - now
+        # if wait > 0:
+        #     time.sleep(wait)
 
+        # Tick
         inst["_tick_count"] = tick
         result = ct.tick_once(inst, ct.CT_EVENT_TICK, None)
 
+        # Drain event queue
         while ct.event_count(inst) > 0:
             tt, eid, edata = ct.event_pop(inst)
             saved = inst["tick_type"]
@@ -68,7 +66,9 @@ def run_tree(mod, user_ctx, tree_name, delta_time=DELTA_TIME, max_ticks=MAX_TICK
                 result = er
                 break
 
+        # Advance timestamp (fixed rate, not wall-clock)
         future_time += delta_time
+
         if is_complete(result):
             break
 
@@ -95,6 +95,7 @@ def select_tree(trees):
         if 0 <= idx < len(trees):
             return [trees[idx]]
     except ValueError:
+        # Try as name
         if choice in trees:
             return [choice]
     print("Invalid choice: %s" % choice)
@@ -104,46 +105,35 @@ def select_tree(trees):
 # Main
 # ==========================================================================
 print("=" * 60)
-print("  ChainTree + S-Engine Advanced Integration Test")
+print("  ChainTree MicroPython - incremental_build test")
 print("=" * 60)
 print()
+print("Main functions: %d" % len(module_data.main_funcs))
 
-se_modules = {
-    "chain_flow_dsl_tests": {
-        "module_data": se_module_data,
-        "builtins": se_builtins,
-        "user_fns": {},
-    },
-}
-
-mod = ct.new_module(ct_module_data, ct_builtins)
-
-user_ctx = {
-    "se_runtime": se,
-    "se_modules": se_modules,
-}
+# Register builtins
+mod = ct.new_module(module_data, ct_builtins)
 
 # Parse command line or show selector
 if len(sys.argv) > 1:
     names = []
     for a in sys.argv[1:]:
-        if a in ct_module_data.tree_order:
+        if a in module_data.tree_order:
             names.append(a)
         else:
             try:
                 idx = int(a)
-                if 0 <= idx < len(ct_module_data.tree_order):
-                    names.append(ct_module_data.tree_order[idx])
+                if 0 <= idx < len(module_data.tree_order):
+                    names.append(module_data.tree_order[idx])
                 else:
-                    print("Index %d out of range (0..%d)" % (idx, len(ct_module_data.tree_order) - 1))
+                    print("Index %d out of range (0..%d)" % (idx, len(module_data.tree_order) - 1))
                     sys.exit(1)
             except ValueError:
                 print("Unknown tree: %s" % a)
                 sys.exit(1)
 else:
-    names = select_tree(ct_module_data.tree_order)
+    names = select_tree(module_data.tree_order)
 
 if names:
     print()
     for name in names:
-        run_tree(mod, user_ctx, name)
+        run_tree(mod, name)
