@@ -25,9 +25,10 @@ DEPFLAGS = -MMD -MP
 BUILD_DIR       = build
 CORE_LIB_DIR    = ../../runtime_binary
 FUNC_LIB_DIR    = ../../runtime_functions
+SE_LIB_DIR      = ../../s_expression
 
 # --- Include paths: local + both libraries ---
-CFLAGS += -I. -I$(CORE_LIB_DIR)/include -I$(FUNC_LIB_DIR)/include
+CFLAGS += -I. -I$(CORE_LIB_DIR)/include -I$(FUNC_LIB_DIR)/include -I$(SE_LIB_DIR)/include
 
 # --- Output binary ---
 TARGET = main
@@ -35,6 +36,7 @@ TARGET = main
 # --- Static libraries ---
 CORE_LIB = $(CORE_LIB_DIR)/libcfl_binarycore.a
 FUNC_LIB = $(FUNC_LIB_DIR)/libcfl_core_functions.a
+SE_LIB   = $(SE_LIB_DIR)/lib/libs_s_engine.a
 
 # --- Library source/header files (for change detection) ---
 CORE_LIB_SOURCES = $(wildcard $(CORE_LIB_DIR)/src/*.c) $(wildcard $(CORE_LIB_DIR)/include/*.h)
@@ -52,8 +54,8 @@ DEPS = $(OBJS:.o=.d)
 all: $(TARGET)
 
 # Link order matters: functions depends on core, so functions comes first
-$(TARGET): $(OBJS) $(FUNC_LIB) $(CORE_LIB)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(FUNC_LIB) $(CORE_LIB) -lm
+$(TARGET): $(OBJS) $(FUNC_LIB) $(SE_LIB) $(CORE_LIB)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(FUNC_LIB) $(SE_LIB) $(CORE_LIB) -lm
 
 # --- Rebuild libraries when any of their .c or .h files change ---
 $(CORE_LIB): $(CORE_LIB_SOURCES)

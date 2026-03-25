@@ -109,7 +109,7 @@ int main(void) {
    //cfl_add_test_by_index(handle, 0); //first test
     //cfl_add_test_by_index(handle, 1); //second test
     //cfl_add_test_by_index(handle, 2);//fourth test
-    //cfl_add_test_by_index(handle, 3); //fifth test
+   cfl_add_test_by_index(handle, 3); //fifth test
     //cfl_add_test_by_index(handle, 4); //sixth test
     //cfl_add_test_by_index(handle, 5); //seventh test
     //cfl_add_test_by_index(handle, 6); //eighth test
@@ -121,7 +121,7 @@ int main(void) {
     //cfl_add_test_by_index(handle, 12); //fourteenth test
     //cfl_add_test_by_index(handle, 13); //seventeenth test
     //cfl_add_test_by_index(handle, 14); //eighteenth test
-    cfl_add_test_by_index(handle, 25); //twenty-ninth test
+    //cfl_add_test_by_index(handle, 25); //twenty-ninth test
     //cfl_add_test_by_index(handle, 15); //nineteenth test
     //cfl_add_test_by_index(handle, 16); //twentieth test
     //cfl_add_test_by_index(handle, 17); //twenty-first test

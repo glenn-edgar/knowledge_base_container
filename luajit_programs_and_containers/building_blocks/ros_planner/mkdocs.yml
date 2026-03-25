@@ -1,0 +1,28 @@
+site_name: ROS Planner — ChainTree Mission Planning
+site_description: Knowledge-base planner for SPIKE Prime robotics using ChainTree s-expression engine
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: blue
+    accent: cyan
+
+nav:
+  - Background: README_background.md
+  - Planner Architecture:
+    - SPIKE Interface: README_planner_spike_interface.md
+    - Integrated Planner: README_integrated_planner.md
+    - Session 2026-03-22: README_03_22.md
+  - Knowledge Base:
+    - Input & Storage: README_knowledge_base_input_storeage.md
+    - Map Integration: README_knowledge_base_map_integration.md
+    - Gaps Filled: README_knowledge_base_gaps_filled.md
+  - Reference:
+    - PlanSys2 Input/Output: README_PlanSys2_input_output.md
+
+markdown_extensions:
+  - tables
+  - fenced_code
+  - codehilite
