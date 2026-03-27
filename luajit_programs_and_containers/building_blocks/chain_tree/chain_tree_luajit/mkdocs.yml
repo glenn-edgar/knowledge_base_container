@@ -1,0 +1,113 @@
+site_name: ChainTree Documentation
+site_description: ChainTree control flow engine — architecture, DSL reference, build pipeline, runtime API, and integration tests
+docs_dir: docs
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - ChainTree Design: README_chaintree_design.md
+  - Build Pipeline: README_build_pipeline.md
+  - Makefile Patterns: README_makefile_patterns.md
+  - ChainTree:
+    - DSL Reference: README_chaintree_dsl.md
+    - File Structure & Tutorial: README_chaintree_file_structure.md
+    - Binary Image Design: chaintree/README_binary_image_design.md
+    - JSON IR Schema: chaintree/README_dsl_schema.md
+    - Schema: chaintree/SCHEMEA.md
+  - S-Expression Engine:
+    - DSL Quick Reference: README_s_expression_dsl.md
+    - File Structure & Tutorial: README_s_expression_file_structure.md
+    - DSL Full Specification: s_expression/README_DSL.md
+    - Architecture:
+      - Top-Level Design: s_expression/README_top_design.md
+      - Outer Engine: s_expression/README_outer_engine_design.md
+      - Inner Engine: s_expression/README_inner_engine_design.md
+    - Return Codes: s_expression/README_return_codes.md
+    - Predicate System: s_expression/README_predicate_system.md
+    - User Functions: s_expression/README_user_defined_functions.md
+    - User Events: s_expression/README_user_events.md
+    - DSL Closure Guide: s_expression/README_DSL_closure_guide.md
+    - Debug Map: s_expression/README_reading_debug_map.md
+    - JSON Support: s_expression/README_json_support.md
+    - JSON Arrays: s_expression/README_json_array_support.md
+    - Dictionary Handling: s_expression/README_runtime_dictionary_handling.md
+    - Stack Operations: s_expression/README_stack_operations.md
+    - Stack Equations: s_expression/README_stack_equation_handler.md
+    - Composite Functions:
+      - Overview: s_expression/composite_functions/README_composite_functions.md
+      - Sequence: s_expression/composite_functions/README_sequence.md
+      - Chain Flow: s_expression/composite_functions/README_chain_flow.md
+      - Fork: s_expression/composite_functions/README_fork.md
+      - Fork Join: s_expression/composite_functions/README_fork_join.md
+      - While: s_expression/composite_functions/README_while.md
+      - State Machine: s_expression/composite_functions/README_state_machine.md
+      - Field Dispatch: s_expression/composite_functions/README_field_dispatch.md
+      - Event Dispatch: s_expression/composite_functions/README_event_dispatch.md
+      - Trigger on Change: s_expression/composite_functions/README_trigger_on_change.md
+      - Cond: s_expression/composite_functions/README_cond.md
+      - Engine Interface: s_expression/composite_functions/README_engine_interface.md
+      - External Tree: s_expression/composite_functions/README_external_tree.md
+      - Function Dictionary: s_expression/composite_functions/README_function_dictionary_handling.md
+    - Simple Functions:
+      - Main:
+        - Tick/Time Delay: s_expression/simple_functions/main_functions/README_tick_time_delay.md
+        - Wait: s_expression/simple_functions/main_functions/README_wait.md
+        - Wait Event: s_expression/simple_functions/main_functions/README_wait_event.md
+        - Wait Timeout: s_expression/simple_functions/main_functions/README_wait_time_out.md
+        - Verify: s_expression/simple_functions/main_functions/README_verify.md
+        - Verify Elapsed Time: s_expression/simple_functions/main_functions/README_verify_elasped_time.md
+        - Verify Elapsed Events: s_expression/simple_functions/main_functions/README_verify_elasped_events.md
+      - Oneshot:
+        - Log: s_expression/simple_functions/one_shot_functions/README_se_log.md
+        - Set Field: s_expression/simple_functions/one_shot_functions/README_set_field.md
+        - Queue Event: s_expression/simple_functions/one_shot_functions/README_queue_event.md
+        - Dictionary: s_expression/simple_functions/one_shot_functions/README_dictionary_functions.md
+      - Predicate:
+        - Overview: s_expression/simple_functions/predicate_functions/README.md
+    - Test Reference:
+      - Overview: s_expression/tests/README_test_overview.md
+      - Basic Primitives: s_expression/tests/README_basic_primitive_test.md
+      - Advanced Primitives: s_expression/tests/README_advanced_primitive_test.md
+      - Basic Predicates: s_expression/tests/README_basic_predicates.md
+      - Advanced Predicates: s_expression/tests/README_advanced_predicates.md
+      - Complex Sequence: s_expression/tests/README_complex_sequence.md
+      - Dispatch: s_expression/tests/README_dispatch.md
+      - State Machine: s_expression/tests/README_state_machine.md
+      - Loop: s_expression/tests/README_loop_test.md
+      - Return: s_expression/tests/README_return_test.md
+      - Stack: s_expression/tests/README_stack_test.md
+      - Stack Equations: s_expression/tests/README_stack_equation_test.md
+      - JSON: s_expression/tests/README_json.md
+      - Callback: s_expression/tests/README_callback_function_test.md
+      - External Tree: s_expression/tests/README_external_tree_management.md
+      - Function Dictionary: s_expression/tests/README_function_dictionary.md
+      - Blackboard:
+        - Overview: s_expression/tests/black_board/README_test_overview.md
+        - DSL: s_expression/tests/black_board/README_DSL.md
+        - Main: s_expression/tests/black_board/README_MAIN.md
+        - User Functions: s_expression/tests/black_board/README_USER_FUNCTIONS.md
+        - Initialization: s_expression/tests/black_board/README_black_board_initializations.md
+        - Field References: s_expression/tests/black_board/README_field_ref_nested_field_ref.md
+    - Car Window Controller:
+      - Requirements: s_expression/car_window_controller/README_cardoor_requirements.md
+      - Implementation: s_expression/car_window_controller/README_cardoor_s_engine_implementation.md
+  - CFL Bridge: README_cfl_bridge.md
+  - Blackboard: README_blackboard.md
+  - User Functions: README_user_functions.md
+  - Runtime API: README_runtime_api.md
+  - Cross-Compilation: README_cross_compilation.md
+  - Patterns:
+    - Exception Handler: README_exception_handler.md
+    - Controlled Nodes: README_controlled_nodes.md
+    - Streaming Pipeline: README_streaming_tutorial.md
+  - Runtime:
+    - Binary Runtime: runtime/README_runtime_binary.md
+    - Header Runtime: runtime/README_runtime_h.md
+  - Avro Packets:
+    - Commands: avro/README_avro_commands.md
+    - Packet Format: avro/README_c_avro_packtes.md
+  - Integration Tests:
+    - ChainTree Binary Tests: README_incremental_binary.md
+    - S-Engine Test 1 (se_tick): README_s_test_binary.md
+    - S-Engine Test 2 (se_engine): README_s_engine_test_2.md
