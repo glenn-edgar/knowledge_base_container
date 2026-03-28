@@ -477,7 +477,7 @@ M.main.AVRO_VERIFY_PACKET = function(handle, bool_fn, node, event_id, event_data
             if pkt_data then
                 print(string.format("[AVRO_VERIFY] x=%.3f y=%.3f z=%.3f", tonumber(pkt_data.x), tonumber(pkt_data.y), tonumber(pkt_data.z)))
                 ns.verified = true
-                return defs.CFL_DISABLE
+                return defs.CFL_TERMINATE
             end
         end
     end
@@ -497,7 +497,7 @@ M.main.AVRO_VERIFY_CONST_PACKET = function(handle, bool_fn, node, event_id, even
             if pkt_data then
                 print(string.format("[AVRO_VERIFY_CONST] x=%.3f y=%.3f z=%.3f", tonumber(pkt_data.x), tonumber(pkt_data.y), tonumber(pkt_data.z)))
                 ns.verified = true
-                return defs.CFL_DISABLE
+                return defs.CFL_TERMINATE
             end
         end
     end
@@ -645,15 +645,88 @@ end
 -- PACKET_COLLECTOR: accept packet into collector
 M.boolean.PACKET_COLLECTOR = function(handle, node, event_id, event_data)
     if event_id == defs.CFL_INIT_EVENT or event_id == defs.CFL_TERMINATE_EVENT then return false end
-    return true  -- accept all packets
+    load_schemas()
+    if not stream_schema or not ffi_ok or type(event_data) ~= "cdata" then return true end
+    local pkt_data = stream_schema.packet_verify(event_data, "accelerometer_reading")
+    if not pkt_data then return true end
+    local node_id = node.label_dict.ltree_name
+    local ns = common.get_node_state(handle, node_id)
+    local port = (ns and ns.current_port_index or 1) - 1  -- 0-based for display
+    local count = ns and ns.container_count or 0
+    local capacity = ns and ns.container_capacity or 3
+    local x = tonumber(pkt_data.x)
+    if x < 0.05 then
+        print(string.format("collector: evaluating packet from port %d (x=%.3f)", port, x))
+        print(string.format("collector: REJECTED (x too low)"))
+        return false
+    end
+    print(string.format("collector: evaluating packet from port %d (x=%.3f)", port, x))
+    print(string.format("collector: ACCEPTED (count will be %d/%d)", count + 1, capacity))
+    return true
 end
 
 -- PACKET_COLLECTOR_SINK: consume collected packet container
 M.boolean.PACKET_COLLECTOR_SINK = function(handle, node, event_id, event_data)
     if event_id == defs.CFL_INIT_EVENT or event_id == defs.CFL_TERMINATE_EVENT then return false end
+    load_schemas()
+    local nd = node.node_dict and node.node_dict.aux_data or {}
+    local msg = nd.sink_message or "collected packet received"
     if type(event_data) == "table" and event_data.count then
-        print(string.format("[COLLECTOR_SINK] received %d packets", event_data.count))
+        print(string.format("collector_sink [%s]: received %d packets", msg, event_data.count))
+        if stream_schema and ffi_ok then
+            for i = 1, event_data.count do
+                local pkt = event_data.packets[i]
+                local port = event_data.port_indices[i] or 0
+                if type(pkt) == "cdata" then
+                    local d = stream_schema.packet_verify(pkt, "accelerometer_reading")
+                    if d then
+                        print(string.format("  [%d] port=%d, x=%.3f, y=%.3f, z=%.3f",
+                            i-1, port-1, tonumber(d.x), tonumber(d.y), tonumber(d.z)))
+                    end
+                end
+            end
+        end
     end
+    return true
+end
+
+-- PACKET_VERIFY_X_RANGE: verify packet x is within [min_x, max_x]
+M.boolean.PACKET_VERIFY_X_RANGE = function(handle, node, event_id, event_data)
+    local node_id = node.label_dict.ltree_name
+    local ns = common.get_node_state(handle, node_id)
+    if not ns then return false end
+
+    if event_id == defs.CFL_INIT_EVENT then
+        -- Read limits from fn_data.aux_data (set by CFL_VERIFY_INIT)
+        local aux = ns.fn_data and ns.fn_data.aux_data or {}
+        ns.verify_min_x = aux.min_x or 0.0
+        ns.verify_max_x = aux.max_x or 1.0
+        print(string.format("verify_x_range: initialized with range [%.3f, %.3f]",
+            ns.verify_min_x, ns.verify_max_x))
+        return true
+    end
+
+    if event_id == defs.CFL_TERMINATE_EVENT then
+        return true
+    end
+
+    load_schemas()
+    if not stream_schema or not ffi_ok or type(event_data) ~= "cdata" then return false end
+    local pkt_data = stream_schema.packet_verify(event_data, "accelerometer_reading")
+    if not pkt_data then
+        print("verify_x_range: packet decode failed")
+        return false
+    end
+
+    local x = tonumber(pkt_data.x)
+    if x < ns.verify_min_x or x > ns.verify_max_x then
+        print(string.format("verify_x_range: FAILED - x=%.3f not in range [%.3f, %.3f] -> RESET",
+            x, ns.verify_min_x, ns.verify_max_x))
+        return false
+    end
+
+    print(string.format("verify_x_range: PASSED - x=%.3f in range [%.3f, %.3f]",
+        x, ns.verify_min_x, ns.verify_max_x))
     return true
 end
 
@@ -673,36 +746,22 @@ end
 -- DRONE CONTROL / CONTROLLED NODE STUBS (no-ops)
 -- ============================================================================
 
--- UPDATE_FLY_*_FINAL: finalization one-shots (print completion)
-M.one_shot.UPDATE_FLY_STRAIGHT_FINAL = function(handle, node)
-    print("[DRONE] fly_straight finalized")
-end
-M.one_shot.UPDATE_FLY_ARC_FINAL = function(handle, node)
-    print("[DRONE] fly_arc finalized")
-end
-M.one_shot.UPDATE_FLY_UP_FINAL = function(handle, node)
-    print("[DRONE] fly_up finalized")
-end
-M.one_shot.UPDATE_FLY_DOWN_FINAL = function(handle, node)
-    print("[DRONE] fly_down finalized")
-end
+-- UPDATE_FLY_*_FINAL: finalization one-shots (no-ops in C reference)
+M.one_shot.UPDATE_FLY_STRAIGHT_FINAL = function(handle, node) end
+M.one_shot.UPDATE_FLY_ARC_FINAL      = function(handle, node) end
+M.one_shot.UPDATE_FLY_UP_FINAL       = function(handle, node) end
+M.one_shot.UPDATE_FLY_DOWN_FINAL     = function(handle, node) end
 
 -- ON_FLY_*_COMPLETE: client booleans
 -- On INIT: set up request packet data from node_dict.aux_data
 -- On response event: return true (command complete)
-local function make_on_fly_complete(api_name)
+local function make_on_fly_complete(fn_name)
     return function(handle, node, event_id, event_data)
         local node_id = node.label_dict.ltree_name
         local ns = common.get_node_state(handle, node_id)
         if not ns then return false end
 
         if event_id == defs.CFL_INIT_EVENT then
-            -- Verify API name matches
-            local nd = node.node_dict or {}
-            if nd.api_name and nd.api_name ~= api_name then
-                print(string.format("[DRONE] WARNING: API name mismatch: %s vs %s", nd.api_name, api_name))
-            end
-            print(string.format("[DRONE] %s: request initialized", api_name))
             return false
         end
         if event_id == defs.CFL_TERMINATE_EVENT then
@@ -711,7 +770,7 @@ local function make_on_fly_complete(api_name)
 
         -- Response received — check if this is our response event
         if ns.response_port and event_id == ns.response_port.event_id then
-            print(string.format("[DRONE] %s: response received — complete", api_name))
+            print(string.format("%s: response successful", fn_name))
             return true
         end
 
@@ -719,19 +778,18 @@ local function make_on_fly_complete(api_name)
     end
 end
 
-M.boolean.ON_FLY_STRAIGHT_COMPLETE = make_on_fly_complete("drone_control_fly_straight")
-M.boolean.ON_FLY_ARC_COMPLETE      = make_on_fly_complete("drone_control_fly_arc")
-M.boolean.ON_FLY_UP_COMPLETE       = make_on_fly_complete("drone_control_fly_up")
-M.boolean.ON_FLY_DOWN_COMPLETE     = make_on_fly_complete("drone_control_fly_down")
+M.boolean.ON_FLY_STRAIGHT_COMPLETE = make_on_fly_complete("on_fly_straight_complete_boolean_fn")
+M.boolean.ON_FLY_ARC_COMPLETE      = make_on_fly_complete("on_fly_arc_complete_boolean_fn")
+M.boolean.ON_FLY_UP_COMPLETE       = make_on_fly_complete("on_fly_up_complete_boolean_fn")
+M.boolean.ON_FLY_DOWN_COMPLETE     = make_on_fly_complete("on_fly_down_complete_boolean_fn")
 
 -- fly_*_monitor: server booleans
--- On request event: log and return true (accept request)
+-- On request event: return true (accept request) — no print in C reference
 local function make_fly_monitor(name)
     return function(handle, node, event_id, event_data)
         if event_id == defs.CFL_INIT_EVENT or event_id == defs.CFL_TERMINATE_EVENT then
             return false
         end
-        print(string.format("[DRONE] %s: request received, processing", name))
         return true
     end
 end

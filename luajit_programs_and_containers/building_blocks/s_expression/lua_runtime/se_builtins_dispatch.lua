@@ -345,10 +345,13 @@ M.se_field_dispatch = function(inst, node, event_id, event_data)
     -- Invoke current action
     local result = child_invoke(inst, node, action_child_idx, event_id, event_data)
 
-    -- PIPELINE_RESET: terminate+reset, return CONTINUE
-    if result == SE_PIPELINE_RESET then
+    -- DISABLE/TERMINATE/RESET: terminate+reset action, clear state sentinel
+    if result == SE_PIPELINE_RESET
+    or result == SE_PIPELINE_DISABLE
+    or result == SE_PIPELINE_TERMINATE then
         child_terminate(inst, node, action_child_idx)
         child_reset_recursive(inst, node, action_child_idx)
+        ns.user_data = 0xFFFF  -- reset state sentinel (no previous branch)
         return SE_PIPELINE_CONTINUE
     end
 

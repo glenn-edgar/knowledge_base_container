@@ -993,7 +993,9 @@ local function streaming_event_matches(handle, event_id, event_data, inport)
     if type(event_data) == "cdata" then
         local ffi = require("ffi")
         local hash_ptr = ffi.cast("uint32_t*", ffi.cast("uint8_t*", event_data) + 8)
-        return hash_ptr[0] == inport.schema_hash
+        -- Normalize both to int32: JSON may store hashes > 2^31 as negative
+        -- Lua numbers, causing sign-extension mismatch with FFI uint32_t
+        return bit.tobit(tonumber(hash_ptr[0])) == bit.tobit(inport.schema_hash)
     end
     return true
 end
@@ -1049,6 +1051,7 @@ M.main.CFL_STREAMING_COLLECT_PACKETS = function(handle, bool_fn, node, event_id,
 
     for i, inport in ipairs(ns.inports) do
         if streaming_event_matches(handle, event_id, event_data, inport) then
+            ns.current_port_index = i  -- pass port index to boolean via node state
             local accept = bool_fn(handle, node, event_id, event_data)
             if accept and ns.container_count < ns.container_capacity then
                 ns.container_count = ns.container_count + 1
@@ -1056,7 +1059,6 @@ M.main.CFL_STREAMING_COLLECT_PACKETS = function(handle, bool_fn, node, event_id,
                 ns.container_port_indices[ns.container_count] = i
 
                 if ns.container_count >= ns.container_capacity then
-                    ns.container_pending = true
                     table.insert(handle.event_queue, {
                         node_id = ns.output_event_column_id,
                         event_id = ns.output_event_id,
@@ -1067,6 +1069,11 @@ M.main.CFL_STREAMING_COLLECT_PACKETS = function(handle, bool_fn, node, event_id,
                             count = ns.container_count,
                         },
                     })
+                    -- Reset container for next collection cycle
+                    ns.container_count = 0
+                    ns.container_packets = {}
+                    ns.container_port_indices = {}
+                    ns.container_pending = false
                 end
             end
             break
@@ -1706,9 +1713,11 @@ M.one_shot.CFL_START_STOP_TESTS = noop_oneshot
 -- ---------- Controlled node stubs ----------
 M.one_shot.CFL_CONTROLLED_NODE_INIT = function(handle, node)
     local node_id = node.label_dict.ltree_name
+    local node_index = handle.ltree_to_index and handle.ltree_to_index[node_id] or "?"
     local ns = common.alloc_node_state(handle, node_id)
     local nd = node.node_dict or {}
     local cd = nd.column_data or {}
+    print(string.format("cfl_controlled_node_init_one_shot_fn: node_index: %s", tostring(node_index)))
     -- Store request/response port info
     if cd.request_port then
         ns.request_port = {
@@ -1716,6 +1725,9 @@ M.one_shot.CFL_CONTROLLED_NODE_INIT = function(handle, node)
             handler_id = cd.request_port.handler_id,
             schema_hash = cd.request_port.schema_hash,
         }
+        print("cfl_avro_decode_port: port_path: node_dict.column_data.request_port")
+        print(string.format("cfl_avro_decode_port: schema_hash: %d", bit.tobit(cd.request_port.schema_hash)))
+        print(string.format("cfl_avro_decode_port: handler_id: %d", cd.request_port.handler_id))
     end
     if cd.response_port then
         ns.response_port = {
@@ -1723,6 +1735,9 @@ M.one_shot.CFL_CONTROLLED_NODE_INIT = function(handle, node)
             handler_id = cd.response_port.handler_id,
             schema_hash = cd.response_port.schema_hash,
         }
+        print("cfl_avro_decode_port: port_path: node_dict.column_data.response_port")
+        print(string.format("cfl_avro_decode_port: schema_hash: %d", bit.tobit(cd.response_port.schema_hash)))
+        print(string.format("cfl_avro_decode_port: handler_id: %d", cd.response_port.handler_id))
     end
 end
 M.one_shot.CFL_CONTROLLED_NODE_TERM = function(handle, node)
@@ -1743,8 +1758,10 @@ M.one_shot.CFL_CONTROLLED_NODE_TERM = function(handle, node)
 end
 M.one_shot.CFL_CLIENT_CONTROLLED_NODE_INIT = function(handle, node)
     local node_id = node.label_dict.ltree_name
+    local node_index = handle.ltree_to_index and handle.ltree_to_index[node_id] or "?"
     local ns = common.alloc_node_state(handle, node_id)
     local nd = node.node_dict or {}
+    print(string.format("cfl_client_controlled_node_init_one_shot_fn: node_index: %s", tostring(node_index)))
     -- Store port info
     if nd.request_port then
         ns.request_port = {
@@ -1752,6 +1769,9 @@ M.one_shot.CFL_CLIENT_CONTROLLED_NODE_INIT = function(handle, node)
             handler_id = nd.request_port.handler_id,
             schema_hash = nd.request_port.schema_hash,
         }
+        print("cfl_avro_decode_port: port_path: node_dict.request_port")
+        print(string.format("cfl_avro_decode_port: schema_hash: %d", bit.tobit(nd.request_port.schema_hash)))
+        print(string.format("cfl_avro_decode_port: handler_id: %d", nd.request_port.handler_id))
     end
     if nd.response_port then
         ns.response_port = {
@@ -1759,6 +1779,9 @@ M.one_shot.CFL_CLIENT_CONTROLLED_NODE_INIT = function(handle, node)
             handler_id = nd.response_port.handler_id,
             schema_hash = nd.response_port.schema_hash,
         }
+        print("cfl_avro_decode_port: port_path: node_dict.response_port")
+        print(string.format("cfl_avro_decode_port: schema_hash: %d", bit.tobit(nd.response_port.schema_hash)))
+        print(string.format("cfl_avro_decode_port: handler_id: %d", nd.response_port.handler_id))
     end
     -- Resolve server node index to ltree
     ns.server_node_id = nd.server_node_index
@@ -2072,24 +2095,73 @@ M.boolean.CFL_WAIT_FOR_BITMASK = function(handle, node, event_id, event_data)
 end
 
 -- Verify tests active: true while any KB is active
+-- CFL_VERIFY_TESTS_ACTIVE: checks if specific KB(s) are active
+-- In single-KB mode, the target KB is never started by START_STOP_TESTS, so return false
 M.boolean.CFL_VERIFY_TESTS_ACTIVE = function(handle, node, event_id, event_data)
     if event_id == CFL_INIT_EVENT or event_id == CFL_TERMINATE_EVENT then
         return false
     end
-    return handle.active_test_count and handle.active_test_count > 0 or false
+    -- Multi-KB not implemented: target KB never started → verify fails
+    return false
 end
 
--- Wait for tests complete: true when no KBs active
+-- CFL_WAIT_FOR_TESTS_COMPLETE: true when target KB(s) complete
+-- In single-KB mode, return true immediately (no other KB to wait for)
 M.boolean.CFL_WAIT_FOR_TESTS_COMPLETE = function(handle, node, event_id, event_data)
     if event_id == CFL_INIT_EVENT or event_id == CFL_TERMINATE_EVENT then
         return false
     end
-    return handle.active_test_count and handle.active_test_count <= 0 or false
+    return true
 end
 
--- Streaming verify packet stub
+-- Streaming verify packet boolean: wraps user aux function with inport matching
+-- Returns true for non-streaming events (nothing to verify = pass-through).
+-- Only returns false when a matching streaming packet fails the user check.
 M.boolean.CFL_STREAMING_VERIFY_PACKET = function(handle, node, event_id, event_data)
-    return false
+    local node_id = nid(node)
+    local ns = common.get_node_state(handle, node_id)
+    if not ns then return true end
+
+    if event_id == CFL_INIT_EVENT then
+        -- Set up streaming inport from verify fn_data
+        if ns.fn_data and ns.fn_data.inport then
+            ns.verify_inport = {
+                event_id = ns.fn_data.inport.event_id,
+                handler_id = ns.fn_data.inport.handler_id,
+                schema_hash = ns.fn_data.inport.schema_hash,
+            }
+        end
+        ns.user_aux_function = ns.fn_data and ns.fn_data.user_aux_function
+        -- Forward INIT to user aux function
+        if ns.user_aux_function then
+            local user_fn = handle.boolean_functions[ns.user_aux_function]
+            if user_fn then user_fn(handle, node, event_id, event_data) end
+        end
+        return true
+    end
+
+    if event_id == CFL_TERMINATE_EVENT then
+        if ns.user_aux_function then
+            local user_fn = handle.boolean_functions[ns.user_aux_function]
+            if user_fn then user_fn(handle, node, event_id, event_data) end
+        end
+        return true
+    end
+
+    -- Non-streaming events: nothing to verify, pass through
+    if not ns.verify_inport then return true end
+    if not streaming_event_matches(handle, event_id, event_data, ns.verify_inport) then
+        return true
+    end
+
+    -- Matching streaming event: delegate to user aux function
+    if ns.user_aux_function then
+        local user_fn = handle.boolean_functions[ns.user_aux_function]
+        if user_fn then
+            return user_fn(handle, node, event_id, event_data)
+        end
+    end
+    return true
 end
 
 -- ---------- Avro/user boolean stubs (all return false) ----------

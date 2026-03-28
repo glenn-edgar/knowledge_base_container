@@ -26,6 +26,29 @@ local EXC_RECOVERY_STATE   = 48   -- enum (int)
 local SM_EVENT_ID = 0  -- int32_t
 local SM_SIZE     = 4
 
+-- sequence_start_fn_data_t
+local SEQ_SEQUENCE_NUMBER      = 4    -- int32_t
+local SEQ_RESULT_DATA_ARRAY    = 16   -- void* (-> sequence_result_data_t[])
+local SEQ_FINAL_STATUS         = 32   -- bool (uint8_t)
+local SEQ_SEQUENCE_TYPE        = 33   -- uint8_t
+
+-- sequence_result_data_t (4 bytes each)
+local SRD_SEQUENCE_RESULT = 0   -- uint16_t
+local SRD_NODE_INDEX      = 2   -- uint16_t
+local SRD_SIZE            = 4
+
+-- sequence_aggregate_data_t
+local AGG_TRY_NODE_COUNT    = 4    -- int32_t
+local AGG_TRY_NODE_INDEXES  = 8    -- void* (-> uint16_t[])
+
+-- cfl_supervisor_data_t
+local SUP_FAILURE_ARRAY     = 0    -- void* (-> cfl_supervisor_failure_t[])
+local SUP_FAILED_LINK_INDEX = 28   -- uint8_t
+
+-- cfl_supervisor_failure_t (8 bytes each)
+local SF_NODE_ID = 4   -- int16_t
+local SF_SIZE    = 8
+
 -----------------------------------------------------------------------
 -- One-Shot Functions
 -----------------------------------------------------------------------
@@ -53,17 +76,72 @@ end
 function display_sequence_till_result_one_shot(handle, node_index)
     local ptr = cfl.arena_get(handle, node_index)
     if not ptr then return end
+
     local msg = cfl.json_extract_string(handle, node_index,
         "node_dict.column_data.user_data.message")
     print(string.format("display_sequence_till_result_one_shot_fn message: %s", msg))
+
+    local seq_type = cfl.read_u8(ptr, SEQ_SEQUENCE_TYPE)
+    local final_status = cfl.read_bool(ptr, SEQ_FINAL_STATUS)
+    print(string.format("sequence_type: %d", seq_type))
+    print(string.format("sequence_result: %d", final_status and 1 or 0))
+
+    local seq_number = cfl.read_i32(ptr, SEQ_SEQUENCE_NUMBER)
+    local result_array = cfl.read_ptr(ptr, SEQ_RESULT_DATA_ARRAY)
+    if result_array then
+        for i = 0, seq_number - 1 do
+            local offset = i * SRD_SIZE
+            local ni = cfl.read_u16(result_array, offset + SRD_NODE_INDEX)
+            local sr = cfl.read_u16(result_array, offset + SRD_SEQUENCE_RESULT)
+            print(string.format("node_index: [%d] sequence_result: %d", ni, sr))
+        end
+        print("now examinng nodes that set sequence_results")
+        for i = 0, seq_number - 1 do
+            local offset = i * SRD_SIZE
+            local ni = cfl.read_u16(result_array, offset + SRD_NODE_INDEX)
+            print(string.format("dictonary node_index: %d", ni))
+        end
+    end
 end
 
 function display_sequence_result_one_shot(handle, node_index)
-    print(string.format("display_sequence_result_one_shot node index: %d", node_index))
+    local ptr = cfl.arena_get(handle, node_index)
+    if not ptr then
+        print(string.format("display_sequence_result_one_shot node index: %d", node_index))
+        return
+    end
+
+    local try_count = cfl.read_i32(ptr, AGG_TRY_NODE_COUNT)
+    local indexes_ptr = cfl.read_ptr(ptr, AGG_TRY_NODE_INDEXES)
+    print(string.format("try_node_count: %d", try_count))
+
+    if indexes_ptr then
+        for i = 0, try_count - 1 do
+            local ni = cfl.read_u16(indexes_ptr, i * 2)
+            print(string.format("try_node_indexes[%d]: %d", i, ni))
+            -- Recursively display the sequence result for each try node
+            display_sequence_till_result_one_shot(handle, ni)
+        end
+    end
 end
 
 function display_failure_window_result_one_shot(handle, node_index)
-    print(string.format("display_failure_window_result_one_shot node index: %d", node_index))
+    local ptr = cfl.arena_get(handle, node_index)
+    if not ptr then return end
+
+    local failed_link_idx = cfl.read_u8(ptr, SUP_FAILED_LINK_INDEX)
+    local failure_array = cfl.read_ptr(ptr, SUP_FAILURE_ARRAY)
+    if not failure_array then return end
+
+    local failed_node_id = cfl.read_u16(failure_array, failed_link_idx * SF_SIZE + SF_NODE_ID)
+    local uplink_node_id = cfl.json_extract_int32(handle, node_index,
+        "node_dict.column_data.user_data.uplink_node_id")
+
+    print(string.format("failed_link_index: %d", failed_link_idx))
+    print(string.format("failed_node_index: %d", failed_node_id))
+    print(string.format("uplink_node_id: %d if communicating with uplink node", uplink_node_id))
+    print("dump of json data for failed node")
+    cfl.json_print_node(handle, failed_node_id)
 end
 
 function watch_dog_time_out_one_shot(handle, node_index)

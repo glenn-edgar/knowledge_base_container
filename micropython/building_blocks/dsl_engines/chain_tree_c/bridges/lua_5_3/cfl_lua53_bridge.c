@@ -400,6 +400,28 @@ static int l_read_u16(lua_State *L)
     return 1;
 }
 
+/* cfl.read_u8(ptr, offset) -> integer */
+static int l_read_u8(lua_State *L)
+{
+    void *ptr = lua_touserdata(L, 1);
+    int offset = (int)luaL_checkinteger(L, 2);
+    uint8_t val;
+    memcpy(&val, (uint8_t *)ptr + offset, sizeof(uint8_t));
+    lua_pushinteger(L, (lua_Integer)val);
+    return 1;
+}
+
+/* cfl.read_bool(ptr, offset) -> boolean */
+static int l_read_bool(lua_State *L)
+{
+    void *ptr = lua_touserdata(L, 1);
+    int offset = (int)luaL_checkinteger(L, 2);
+    uint8_t val;
+    memcpy(&val, (uint8_t *)ptr + offset, sizeof(uint8_t));
+    lua_pushboolean(L, val != 0);
+    return 1;
+}
+
 /* cfl.read_float(ptr, offset) -> number */
 static int l_read_float(lua_State *L)
 {
@@ -491,6 +513,8 @@ static const luaL_Reg cfl_lib[] = {
     {"read_i32",             l_read_i32},
     {"write_i32",            l_write_i32},
     {"read_u16",             l_read_u16},
+    {"read_u8",              l_read_u8},
+    {"read_bool",            l_read_bool},
     {"read_float",           l_read_float},
     {"read_ptr",             l_read_ptr},
     {"write_ptr",            l_write_ptr},
