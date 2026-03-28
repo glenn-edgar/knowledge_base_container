@@ -247,11 +247,12 @@ static s_expr_result_t se_state_machine(
             // Action completed - terminate and reset for next activation
             terminate_action_at_index(inst, params, action_idx);
             reset_action_at_index(inst, params, action_idx);
+            s_expr_set_user_flags(inst, 0xFFFF);
             return SE_PIPELINE_CONTINUE;
-            
+
         case SE_PIPELINE_SKIP_CONTINUE:
             return SE_PIPELINE_CONTINUE;
-            
+
         default:
             EXCEPTION("se_state_machine: unknown result code");
             return SE_PIPELINE_CONTINUE;

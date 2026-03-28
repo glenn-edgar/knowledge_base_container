@@ -75,23 +75,23 @@ s_engine_test_2/
 
 ### 1. Compile the s-engine module
 ```bash
-./s_expression/s_build.sh dsl_tests/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua dsl_tests/s_engine_test_2/s_engine/
+./s_expression/s_build.sh dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/
 ```
 **Important:** After this step, restore the manual `chain_flow_dsl_tests_user_registration.c` — the compiler overwrites it with CFL bridge symbols that must not be double-registered.
 
 ### 2. Generate ChainTree JSON from DSL
 ```bash
-./s_build_json.sh dsl_tests/s_engine_test_2/s_engine_test_2.lua dsl_tests/s_engine_test_2/
+./s_build_json.sh dsl_tests/dsl_tests_c/s_engine_test_2/s_engine_test_2.lua dsl_tests/dsl_tests_c/s_engine_test_2/
 ```
 
 ### 3. Generate ChainTree binary image from JSON
 ```bash
-./s_build_headers_binary.sh dsl_tests/s_engine_test_2/s_engine_test_2.json dsl_tests/s_engine_test_2/
+./s_build_headers_binary.sh dsl_tests/dsl_tests_c/s_engine_test_2/s_engine_test_2.json dsl_tests/dsl_tests_c/s_engine_test_2/
 ```
 
 ### 4. Build and run
 ```bash
-cd dsl_tests/s_engine_test_2
+cd dsl_tests/dsl_tests_c/s_engine_test_2
 make clean && make
 ./main 0   # twenty_ninth_test
 ./main 1   # thirty_test

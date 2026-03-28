@@ -40,7 +40,7 @@ Compiles the ChainTree Lua DSL into a JSON intermediate representation. This is 
 
 **Example:**
 ```bash
-./s_build_json.sh dsl_tests/incremental_binary/incremental_build.lua dsl_tests/incremental_binary/
+./s_build_json.sh dsl_tests/dsl_tests_c/incremental_binary/incremental_build.lua dsl_tests/dsl_tests_c/incremental_binary/
 ```
 
 **Requires:** `luajit`
@@ -66,7 +66,7 @@ Generates matched `.h`/`.c` file pairs that compile directly into the applicatio
 
 **Example:**
 ```bash
-./s_build_headers_luajit.sh dsl_tests/incremental_build/incremental_build.json dsl_tests/incremental_build/
+./s_build_headers_luajit.sh dsl_tests/dsl_tests_c/incremental_build/incremental_build.json dsl_tests/dsl_tests_c/incremental_build/
 ```
 
 **Outputs:** 9 matched `.h`/`.c` file pairs compiled into the application.
@@ -87,7 +87,7 @@ Generates a single `.ctb` binary image loadable at runtime via mmap or embedded 
 
 **Example:**
 ```bash
-./s_build_headers_binary.sh dsl_tests/incremental_binary/incremental_build.json dsl_tests/incremental_binary/
+./s_build_headers_binary.sh dsl_tests/dsl_tests_c/incremental_binary/incremental_build.json dsl_tests/dsl_tests_c/incremental_binary/
 ```
 
 **Outputs:**
@@ -119,7 +119,7 @@ The S-Expression engine has its own compiler that produces binary module files. 
 
 **Example:**
 ```bash
-./s_expression/s_build.sh dsl_tests/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua dsl_tests/s_engine_test_2/s_engine/
+./s_expression/s_build.sh dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/
 ```
 
 **Requires:** `luajit`
@@ -180,21 +180,21 @@ cfl_se_registry_register_def_with_user(reg, "module_name",
 ```bash
 # 1. Compile s-engine module
 ./s_expression/s_build.sh \
-    dsl_tests/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua \
-    dsl_tests/s_engine_test_2/s_engine/
+    dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/chain_flow_dsl_tests.lua \
+    dsl_tests/dsl_tests_c/s_engine_test_2/s_engine/
 
 # 2. Generate ChainTree JSON IR from Lua DSL
 ./s_build_json.sh \
-    dsl_tests/s_engine_test_2/s_engine_test_2.lua \
-    dsl_tests/s_engine_test_2/
+    dsl_tests/dsl_tests_c/s_engine_test_2/s_engine_test_2.lua \
+    dsl_tests/dsl_tests_c/s_engine_test_2/
 
 # 3. Generate ChainTree binary image
 ./s_build_headers_binary.sh \
-    dsl_tests/s_engine_test_2/s_engine_test_2.json \
-    dsl_tests/s_engine_test_2/
+    dsl_tests/dsl_tests_c/s_engine_test_2/s_engine_test_2.json \
+    dsl_tests/dsl_tests_c/s_engine_test_2/
 
 # 4. Build C application
-cd dsl_tests/s_engine_test_2
+cd dsl_tests/dsl_tests_c/s_engine_test_2
 make clean && make
 
 # 5. Run
@@ -206,16 +206,16 @@ make clean && make
 ```bash
 # 1. Generate JSON IR
 ./s_build_json.sh \
-    dsl_tests/incremental_binary/incremental_build.lua \
-    dsl_tests/incremental_binary/
+    dsl_tests/dsl_tests_c/incremental_binary/incremental_build.lua \
+    dsl_tests/dsl_tests_c/incremental_binary/
 
 # 2. Generate binary image
 ./s_build_headers_binary.sh \
-    dsl_tests/incremental_binary/incremental_build.json \
-    dsl_tests/incremental_binary/
+    dsl_tests/dsl_tests_c/incremental_binary/incremental_build.json \
+    dsl_tests/dsl_tests_c/incremental_binary/
 
 # 3. Build and run
-cd dsl_tests/incremental_binary
+cd dsl_tests/dsl_tests_c/incremental_binary
 make clean && make && ./main
 ```
 

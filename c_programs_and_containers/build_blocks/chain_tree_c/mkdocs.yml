@@ -92,7 +92,10 @@ nav:
     - Car Window Controller:
       - Requirements: s_expression/car_window_controller/README_cardoor_requirements.md
       - Implementation: s_expression/car_window_controller/README_cardoor_s_engine_implementation.md
-  - CFL Bridge: README_cfl_bridge.md
+  - Bridges:
+    - CFL-SE Bridge: README_cfl_bridge.md
+    - Lua 5.3 Bridge: README_lua53_bridge.md
+    - MicroPython Bridge: README_micropython_bridge.md
   - Blackboard: README_blackboard.md
   - User Functions: README_user_functions.md
   - Runtime API: README_runtime_api.md

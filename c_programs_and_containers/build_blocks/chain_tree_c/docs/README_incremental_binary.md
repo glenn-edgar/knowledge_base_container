@@ -60,13 +60,13 @@ incremental_binary/
 
 ```bash
 # 1. Generate ChainTree JSON
-./s_build_json.sh dsl_tests/incremental_binary/incremental_build.lua dsl_tests/incremental_binary/
+./s_build_json.sh dsl_tests/dsl_tests_c/incremental_binary/incremental_build.lua dsl_tests/dsl_tests_c/incremental_binary/
 
 # 2. Generate binary image
-./s_build_headers_binary.sh dsl_tests/incremental_binary/incremental_build.json dsl_tests/incremental_binary/
+./s_build_headers_binary.sh dsl_tests/dsl_tests_c/incremental_binary/incremental_build.json dsl_tests/dsl_tests_c/incremental_binary/
 
 # 3. Build and run
-cd dsl_tests/incremental_binary && make clean && make
+cd dsl_tests/dsl_tests_c/incremental_binary && make clean && make
 ./main
 ```
 

@@ -102,6 +102,15 @@ C API for embedding ChainTree in applications.
 | [Blackboard](README_blackboard.md) | Shared mutable state — ChainTree blackboard, s-engine per-tree blackboard, constant records, cross-engine interaction |
 | [CFL Bridge](README_cfl_bridge.md) | Bridge architecture, node types (se_engine, se_engine_link, se_tick), return code mapping, module registry, event flow |
 
+### 5a. Language Bridges
+
+Write user functions in Lua or Python instead of C.
+
+| Document | Description |
+|----------|-------------|
+| [Lua 5.3+ Bridge](README_lua53_bridge.md) | Trampoline architecture, "cfl" Lua module (JSON/blackboard/arena/heap access), C struct offset convention, mixed C+Lua registration, building and testing. **26/26 tests pass.** |
+| [MicroPython Bridge](README_micropython_bridge.md) | USER_C_MODULES integration, "cfl" Python module, lifecycle API (load/register/run from Python), GC root safety, platform-specific config, building for unix/ESP32/STM32. **23/26 tests pass** (3 need Avro C). |
+
 ### 6. Patterns & Tutorials
 
 Common design patterns with working examples.
@@ -170,3 +179,9 @@ Internal specifications and format documentation.
 1. [Cross-Compilation](README_cross_compilation.md) — ARM setup and sizing
 2. [Runtime API](README_runtime_api.md) — C lifecycle and memory configuration
 3. [User Functions](README_user_functions.md) — implementing application logic
+
+**Using Lua 5.3+ instead of C:**
+1. [Lua 5.3+ Bridge](README_lua53_bridge.md) — trampoline architecture, the "cfl" Lua module, building
+
+**Using MicroPython instead of C:**
+1. [MicroPython Bridge](README_micropython_bridge.md) — building custom firmware, Python lifecycle API, testing

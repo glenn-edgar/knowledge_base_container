@@ -34,22 +34,22 @@ s_test_binary/
 
 ### 1. Compile the s-engine module
 ```bash
-./s_expression/s_build.sh dsl_tests/s_test_binary/s_engine/se_test_module.lua dsl_tests/s_test_binary/s_engine/
+./s_expression/s_build.sh dsl_tests/dsl_tests_c/s_test_binary/s_engine/se_test_module.lua dsl_tests/dsl_tests_c/s_test_binary/s_engine/
 ```
 
 ### 2. Generate ChainTree JSON from DSL
 ```bash
-./s_build_json.sh dsl_tests/s_test_binary/s_engine_test.lua dsl_tests/s_test_binary/
+./s_build_json.sh dsl_tests/dsl_tests_c/s_test_binary/s_engine_test.lua dsl_tests/dsl_tests_c/s_test_binary/
 ```
 
 ### 3. Generate ChainTree binary image from JSON
 ```bash
-./s_build_headers_binary.sh dsl_tests/s_test_binary/s_engine_test.json dsl_tests/s_test_binary/
+./s_build_headers_binary.sh dsl_tests/dsl_tests_c/s_test_binary/s_engine_test.json dsl_tests/dsl_tests_c/s_test_binary/
 ```
 
 ### 4. Build and run
 ```bash
-cd dsl_tests/s_test_binary
+cd dsl_tests/dsl_tests_c/s_test_binary
 make
 ./main
 ```

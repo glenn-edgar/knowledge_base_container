@@ -994,9 +994,9 @@ void json_print_record(
             break;
             
         case JSON_TYPE_FLOAT32:
-            printf("%f\n", record->value.f32_value);
+            printf("%f\n", (double)record->value.f32_value);
             break;
-            
+
         case JSON_TYPE_STRING: {
             const char *str = json_get_string(ctx, record->value.string_offset);
             printf("\"%s\"\n", str ? str : "(null)");
@@ -1050,7 +1050,7 @@ void json_print_record(
                                 printf("%d\n", val_rec->value.i32_value);
                                 break;
                             case JSON_TYPE_FLOAT32:
-                                printf("%f\n", val_rec->value.f32_value);
+                                printf("%f\n", (double)val_rec->value.f32_value);
                                 break;
                             case JSON_TYPE_STRING: {
                                 const char *str = json_get_string(ctx, val_rec->value.string_offset);

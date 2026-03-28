@@ -192,7 +192,7 @@
      }
  
      handle->cfl_node_execution_count++;
-     //printf("cfl_node_execution_count: %d\n", handle->cfl_node_execution_count);
+ 
      /* Initialize node if not already initialized */
      if (!cfl_engine_node_is_initialized(handle, node_id)) {
          if (node->init_function_index != 0) {
@@ -222,7 +222,6 @@
          return CT_CONTINUE;
  
      case CFL_HALT:
-        
          return CT_STOP_SIBLINGS;
  
      case CFL_RESET:

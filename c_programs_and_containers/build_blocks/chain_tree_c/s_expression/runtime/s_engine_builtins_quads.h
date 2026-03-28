@@ -141,7 +141,7 @@ static ct_float_t quad_read_float(
             if (inst->blackboard) {
                 uint8_t* src = (uint8_t*)inst->blackboard + p->field_offset;
                 if (p->field_size == 4) return *(float*)src;
-                if (p->field_size == 8) return *(double*)src;
+                if (p->field_size == 8) return (ct_float_t)*(double*)src;
             }
             return 0.0f;
         case S_EXPR_PARAM_STACK_TOS: {
