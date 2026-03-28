@@ -1,0 +1,8 @@
+site_name: SCAN TREE
+nav:
+  - Design Overview: README_scan_tree_introduction.md
+  - DSL and Runtime Library: README_dsl_runtime_library.md
+  - DSL Built In Functions: README_builtin_functions.md
+  - Tests:
+    - Pump Test: README_pump_test.md
+    - VTF Fuse Test: README_vtf_fuse_test.md

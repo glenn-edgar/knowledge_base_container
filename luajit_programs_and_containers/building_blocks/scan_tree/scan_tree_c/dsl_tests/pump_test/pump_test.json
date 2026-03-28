@@ -1,0 +1,518 @@
+{
+  "levels": [
+    {
+      "level_number": 0,
+      "name": "power",
+      "output_buffer": {
+        "category": "layer",
+        "description": "Power summary",
+        "json_properties": {},
+        "name": "power_output",
+        "path": "pump_station.power.power_output",
+        "pins": [
+          {
+            "description": "At least one source available",
+            "name": "power_ok",
+            "position": 0
+          }
+        ],
+        "size": 1,
+        "type": "bool"
+      },
+      "path": "pump_station.power",
+      "sub_levels": [],
+      "virtual_functions": [
+        {
+          "class": "system",
+          "inputs": [
+            {
+              "buffer": "pump_station.power_status",
+              "count": 2,
+              "role": 0,
+              "start": 0
+            }
+          ],
+          "lib_func": "st_vft_or",
+          "output": {
+            "buffer": "pump_station.power.power_output",
+            "count": 1,
+            "start": 0
+          },
+          "vft_name": "VFT_or"
+        }
+      ]
+    },
+    {
+      "level_number": 1,
+      "name": "actuation",
+      "output_buffer": {
+        "category": "layer",
+        "description": "Pump system status",
+        "json_properties": {},
+        "name": "actuation_output",
+        "path": "pump_station.actuation.actuation_output",
+        "pins": [
+          {
+            "description": "Pumps healthy",
+            "name": "pumps_ok",
+            "position": 0
+          },
+          {
+            "description": "Power prerequisite",
+            "name": "has_power",
+            "position": 1
+          }
+        ],
+        "size": 2,
+        "type": "bool"
+      },
+      "path": "pump_station.actuation",
+      "sub_levels": [
+        {
+          "name": "group_a",
+          "output_buffer": {
+            "category": "layer",
+            "description": "Group A status",
+            "json_properties": {},
+            "name": "group_a_output",
+            "path": "pump_station.actuation.group_a.group_a_output",
+            "pins": [
+              {
+                "description": "Pump 0 healthy",
+                "name": "p0_healthy",
+                "position": 0
+              },
+              {
+                "description": "Pump 1 healthy",
+                "name": "p1_healthy",
+                "position": 1
+              },
+              {
+                "description": "Group A OK",
+                "name": "ga_ok",
+                "position": 2
+              }
+            ],
+            "size": 3,
+            "type": "bool"
+          },
+          "path": "pump_station.actuation.group_a",
+          "sub_levels": [],
+          "virtual_functions": [
+            {
+              "class": "user",
+              "input_specs": [
+                {
+                  "count": 1,
+                  "name": "current",
+                  "type": "float"
+                },
+                {
+                  "count": 1,
+                  "name": "threshold",
+                  "type": "float"
+                }
+              ],
+              "inputs": [
+                {
+                  "buffer": "pump_station.motor_current",
+                  "count": 1,
+                  "input_name": "current",
+                  "role": 0,
+                  "start": 0
+                },
+                {
+                  "buffer": "pump_station.motor_thresholds",
+                  "count": 1,
+                  "input_name": "threshold",
+                  "role": 0,
+                  "start": 0
+                }
+              ],
+              "output": {
+                "buffer": "pump_station.actuation.group_a.group_a_output",
+                "count": 1,
+                "start": 0
+              },
+              "user_func": "user_vft_motor_health_check",
+              "vft_name": "VFT_user_motor_health_check"
+            },
+            {
+              "class": "user",
+              "input_specs": [
+                {
+                  "count": 1,
+                  "name": "current",
+                  "type": "float"
+                },
+                {
+                  "count": 1,
+                  "name": "threshold",
+                  "type": "float"
+                }
+              ],
+              "inputs": [
+                {
+                  "buffer": "pump_station.motor_current",
+                  "count": 1,
+                  "input_name": "current",
+                  "role": 0,
+                  "start": 1
+                },
+                {
+                  "buffer": "pump_station.motor_thresholds",
+                  "count": 1,
+                  "input_name": "threshold",
+                  "role": 0,
+                  "start": 1
+                }
+              ],
+              "output": {
+                "buffer": "pump_station.actuation.group_a.group_a_output",
+                "count": 1,
+                "start": 1
+              },
+              "user_func": "user_vft_motor_health_check",
+              "vft_name": "VFT_user_motor_health_check"
+            },
+            {
+              "class": "system",
+              "inputs": [
+                {
+                  "buffer": "pump_station.actuation.group_a.group_a_output",
+                  "count": 2,
+                  "role": 0,
+                  "start": 0
+                }
+              ],
+              "lib_func": "st_vft_or",
+              "output": {
+                "buffer": "pump_station.actuation.group_a.group_a_output",
+                "count": 1,
+                "start": 2
+              },
+              "vft_name": "VFT_or"
+            }
+          ]
+        },
+        {
+          "name": "group_b",
+          "output_buffer": {
+            "category": "layer",
+            "description": "Group B status",
+            "json_properties": {},
+            "name": "group_b_output",
+            "path": "pump_station.actuation.group_b.group_b_output",
+            "pins": [
+              {
+                "description": "Pump 2 healthy",
+                "name": "p2_healthy",
+                "position": 0
+              },
+              {
+                "description": "Pump 3 healthy",
+                "name": "p3_healthy",
+                "position": 1
+              },
+              {
+                "description": "Group B OK",
+                "name": "gb_ok",
+                "position": 2
+              }
+            ],
+            "size": 3,
+            "type": "bool"
+          },
+          "path": "pump_station.actuation.group_b",
+          "sub_levels": [],
+          "virtual_functions": [
+            {
+              "class": "user",
+              "input_specs": [
+                {
+                  "count": 1,
+                  "name": "current",
+                  "type": "float"
+                },
+                {
+                  "count": 1,
+                  "name": "threshold",
+                  "type": "float"
+                }
+              ],
+              "inputs": [
+                {
+                  "buffer": "pump_station.motor_current",
+                  "count": 1,
+                  "input_name": "current",
+                  "role": 0,
+                  "start": 2
+                },
+                {
+                  "buffer": "pump_station.motor_thresholds",
+                  "count": 1,
+                  "input_name": "threshold",
+                  "role": 0,
+                  "start": 2
+                }
+              ],
+              "output": {
+                "buffer": "pump_station.actuation.group_b.group_b_output",
+                "count": 1,
+                "start": 0
+              },
+              "user_func": "user_vft_motor_health_check",
+              "vft_name": "VFT_user_motor_health_check"
+            },
+            {
+              "class": "user",
+              "input_specs": [
+                {
+                  "count": 1,
+                  "name": "current",
+                  "type": "float"
+                },
+                {
+                  "count": 1,
+                  "name": "threshold",
+                  "type": "float"
+                }
+              ],
+              "inputs": [
+                {
+                  "buffer": "pump_station.motor_current",
+                  "count": 1,
+                  "input_name": "current",
+                  "role": 0,
+                  "start": 3
+                },
+                {
+                  "buffer": "pump_station.motor_thresholds",
+                  "count": 1,
+                  "input_name": "threshold",
+                  "role": 0,
+                  "start": 3
+                }
+              ],
+              "output": {
+                "buffer": "pump_station.actuation.group_b.group_b_output",
+                "count": 1,
+                "start": 1
+              },
+              "user_func": "user_vft_motor_health_check",
+              "vft_name": "VFT_user_motor_health_check"
+            },
+            {
+              "class": "system",
+              "inputs": [
+                {
+                  "buffer": "pump_station.actuation.group_b.group_b_output",
+                  "count": 2,
+                  "role": 0,
+                  "start": 0
+                }
+              ],
+              "lib_func": "st_vft_or",
+              "output": {
+                "buffer": "pump_station.actuation.group_b.group_b_output",
+                "count": 1,
+                "start": 2
+              },
+              "vft_name": "VFT_or"
+            }
+          ]
+        }
+      ],
+      "virtual_functions": [
+        {
+          "class": "system",
+          "inputs": [
+            {
+              "buffer": "pump_station.actuation.group_a.group_a_output",
+              "count": 1,
+              "role": 0,
+              "start": 2
+            }
+          ],
+          "lib_func": "st_vft_copy",
+          "output": {
+            "buffer": "pump_station.actuation.actuation_output",
+            "count": 1,
+            "start": 0
+          },
+          "vft_name": "VFT_copy"
+        },
+        {
+          "class": "system",
+          "inputs": [
+            {
+              "buffer": "pump_station.power.power_output",
+              "count": 1,
+              "role": 0,
+              "start": 0
+            }
+          ],
+          "lib_func": "st_vft_copy",
+          "output": {
+            "buffer": "pump_station.actuation.actuation_output",
+            "count": 1,
+            "start": 1
+          },
+          "vft_name": "VFT_copy"
+        }
+      ]
+    }
+  ],
+  "name": "pump_station",
+  "raw_buffers": [
+    {
+      "category": "raw",
+      "description": "Pump fault signals",
+      "json_properties": {},
+      "name": "pump_faults",
+      "path": "pump_station.pump_faults",
+      "pins": [
+        {
+          "description": "Pump 0 fault",
+          "name": "p0_fault",
+          "position": 0
+        },
+        {
+          "description": "Pump 1 fault",
+          "name": "p1_fault",
+          "position": 1
+        },
+        {
+          "description": "Pump 2 fault",
+          "name": "p2_fault",
+          "position": 2
+        },
+        {
+          "description": "Pump 3 fault",
+          "name": "p3_fault",
+          "position": 3
+        }
+      ],
+      "size": 4,
+      "type": "bool"
+    },
+    {
+      "category": "raw",
+      "description": "Power source status",
+      "json_properties": {},
+      "name": "power_status",
+      "path": "pump_station.power_status",
+      "pins": [
+        {
+          "description": "Grid power",
+          "name": "grid_power",
+          "position": 0
+        },
+        {
+          "description": "Backup power",
+          "name": "backup_power",
+          "position": 1
+        }
+      ],
+      "size": 2,
+      "type": "bool"
+    },
+    {
+      "category": "raw",
+      "description": "Operator alarm clear",
+      "json_properties": {},
+      "name": "alarm_clear",
+      "path": "pump_station.alarm_clear",
+      "pins": [
+        {
+          "description": "Clear pump 0",
+          "name": "clr_p0",
+          "position": 0
+        },
+        {
+          "description": "Clear pump 1",
+          "name": "clr_p1",
+          "position": 1
+        },
+        {
+          "description": "Clear pump 2",
+          "name": "clr_p2",
+          "position": 2
+        },
+        {
+          "description": "Clear pump 3",
+          "name": "clr_p3",
+          "position": 3
+        }
+      ],
+      "size": 4,
+      "type": "bool"
+    },
+    {
+      "category": "raw",
+      "description": "Motor current readings",
+      "json_properties": {
+        "units": "amps"
+      },
+      "name": "motor_current",
+      "path": "pump_station.motor_current",
+      "pins": [
+        {
+          "description": "Pump 0 amps",
+          "name": "p0_amps",
+          "position": 0
+        },
+        {
+          "description": "Pump 1 amps",
+          "name": "p1_amps",
+          "position": 1
+        },
+        {
+          "description": "Pump 2 amps",
+          "name": "p2_amps",
+          "position": 2
+        },
+        {
+          "description": "Pump 3 amps",
+          "name": "p3_amps",
+          "position": 3
+        }
+      ],
+      "size": 4,
+      "type": "float"
+    },
+    {
+      "category": "raw",
+      "description": "Motor overcurrent thresholds",
+      "json_properties": {
+        "units": "amps"
+      },
+      "name": "motor_thresholds",
+      "path": "pump_station.motor_thresholds",
+      "pins": [
+        {
+          "description": "Pump 0 max",
+          "name": "p0_max",
+          "position": 0
+        },
+        {
+          "description": "Pump 1 max",
+          "name": "p1_max",
+          "position": 1
+        },
+        {
+          "description": "Pump 2 max",
+          "name": "p2_max",
+          "position": 2
+        },
+        {
+          "description": "Pump 3 max",
+          "name": "p3_max",
+          "position": 3
+        }
+      ],
+      "size": 4,
+      "type": "float"
+    }
+  ]
+}

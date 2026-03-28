@@ -1,8 +1,8 @@
-build-standard/micropython/../../runtime_binary/src/cfl_image_loader.o: \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_image_loader.c \
+build-standard/cfl_micropython/../../runtime_binary/src/cfl_image_loader.o: \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_image_loader.c \
  /usr/include/stdc-predef.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_image_loader.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_chaintree_support.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_image_loader.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_chaintree_support.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -21,8 +21,8 @@ build-standard/micropython/../../runtime_binary/src/cfl_image_loader.o: \
  /usr/include/aarch64-linux-gnu/bits/stdint-least.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdbool.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stddef.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_fnv1a.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_blackboard.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_fnv1a.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_blackboard.h \
  /usr/include/string.h \
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h \
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h \
@@ -62,10 +62,10 @@ build-standard/micropython/../../runtime_binary/src/cfl_image_loader.o: \
  /usr/include/aarch64-linux-gnu/bits/types/struct_FILE.h \
  /usr/include/aarch64-linux-gnu/bits/types/cookie_io_functions_t.h \
  /usr/include/aarch64-linux-gnu/bits/stdio_lim.h
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_image_loader.c :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_image_loader.c :
  /usr/include/stdc-predef.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_image_loader.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_chaintree_support.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_image_loader.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_chaintree_support.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h :
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h :
  /usr/include/features.h /usr/include/features-time64.h :
@@ -84,8 +84,8 @@ build-standard/micropython/../../runtime_binary/src/cfl_image_loader.o: \
  /usr/include/aarch64-linux-gnu/bits/stdint-least.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdbool.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stddef.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_fnv1a.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_blackboard.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_fnv1a.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_blackboard.h :
  /usr/include/string.h :
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h :
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h :

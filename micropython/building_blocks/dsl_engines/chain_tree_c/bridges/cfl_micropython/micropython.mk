@@ -22,3 +22,6 @@ CFLAGS_USERMOD += -I$(CFL_ROOT)/s_expression/include
 CFLAGS_USERMOD += -I$(CFL_ROOT)/s_expression/include/s_engine
 CFLAGS_USERMOD += -DCFL_MICROPYTHON=1
 CFLAGS_USERMOD += -Wno-double-promotion -Wno-float-conversion -Wno-error
+
+# Relax warnings for CFL library sources (not processed for MP_QSTR_)
+CFLAGS_USERMOD_LIB += -Wno-double-promotion -Wno-float-conversion -Wno-error

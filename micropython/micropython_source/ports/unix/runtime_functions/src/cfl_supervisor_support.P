@@ -1,5 +1,5 @@
-build-standard/micropython/../../runtime_functions/src/cfl_supervisor_support.o: \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/src/cfl_supervisor_support.c \
+build-standard/cfl_micropython/../../runtime_functions/src/cfl_supervisor_support.o: \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/src/cfl_supervisor_support.c \
  /usr/include/stdc-predef.h /usr/include/stdlib.h \
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -57,28 +57,28 @@ build-standard/micropython/../../runtime_functions/src/cfl_supervisor_support.o:
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h \
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h \
  /usr/include/strings.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_runtime.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_global_definitions.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_engine.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_perm.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_heap.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_heap_arena_allocate.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_event_queue.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_timer_system.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_runtime.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_global_definitions.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_engine.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_perm.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_heap.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_heap_arena_allocate.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_event_queue.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_timer_system.h \
  /usr/include/time.h /usr/include/aarch64-linux-gnu/bits/time.h \
  /usr/include/aarch64-linux-gnu/bits/types/struct_tm.h \
  /usr/include/aarch64-linux-gnu/bits/types/struct_itimerspec.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_chaintree_support.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/CT_Tree_Walker.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_common_functions.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_engine.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/json_node_decoder.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_runtime.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_common_functions.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/include/cfl_common_function_headers.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/include/cfl_supervisor_support.h
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/src/cfl_supervisor_support.c :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_chaintree_support.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/CT_Tree_Walker.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_common_functions.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_engine.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/json_node_decoder.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_runtime.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_common_functions.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/include/cfl_common_function_headers.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/include/cfl_supervisor_support.h
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/src/cfl_supervisor_support.c :
  /usr/include/stdc-predef.h /usr/include/stdlib.h :
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h :
  /usr/include/features.h /usr/include/features-time64.h :
@@ -136,24 +136,24 @@ build-standard/micropython/../../runtime_functions/src/cfl_supervisor_support.o:
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h :
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h :
  /usr/include/strings.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_runtime.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_global_definitions.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_engine.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_perm.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_heap.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_heap_arena_allocate.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_event_queue.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_timer_system.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_runtime.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_global_definitions.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_engine.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_perm.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_heap.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_heap_arena_allocate.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_event_queue.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_timer_system.h :
  /usr/include/time.h /usr/include/aarch64-linux-gnu/bits/time.h :
  /usr/include/aarch64-linux-gnu/bits/types/struct_tm.h :
  /usr/include/aarch64-linux-gnu/bits/types/struct_itimerspec.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_chaintree_support.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/CT_Tree_Walker.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_common_functions.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_engine.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/json_node_decoder.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_runtime.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_common_functions.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/include/cfl_common_function_headers.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_functions/include/cfl_supervisor_support.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_chaintree_support.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/CT_Tree_Walker.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_common_functions.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_engine.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/json_node_decoder.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_runtime.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_common_functions.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/include/cfl_common_function_headers.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_functions/include/cfl_supervisor_support.h :

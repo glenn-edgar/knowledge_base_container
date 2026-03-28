@@ -1,7 +1,7 @@
-build-standard/micropython/../../runtime_binary/src/cfl_event_queue.o: \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_event_queue.c \
+build-standard/cfl_micropython/../../runtime_binary/src/cfl_event_queue.o: \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_event_queue.c \
  /usr/include/stdc-predef.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_event_queue.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_event_queue.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -19,10 +19,10 @@ build-standard/micropython/../../runtime_binary/src/cfl_event_queue.o: \
  /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h \
  /usr/include/aarch64-linux-gnu/bits/stdint-least.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdbool.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_perm.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_global_definitions.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_perm.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_global_definitions.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h \
  /usr/include/string.h /usr/lib/gcc/aarch64-linux-gnu/13/include/stddef.h \
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h \
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h \
@@ -62,9 +62,9 @@ build-standard/micropython/../../runtime_binary/src/cfl_event_queue.o: \
  /usr/include/aarch64-linux-gnu/bits/types/struct_FILE.h \
  /usr/include/aarch64-linux-gnu/bits/types/cookie_io_functions_t.h \
  /usr/include/aarch64-linux-gnu/bits/stdio_lim.h
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_event_queue.c :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_event_queue.c :
  /usr/include/stdc-predef.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_event_queue.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_event_queue.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h :
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h :
  /usr/include/features.h /usr/include/features-time64.h :
@@ -82,10 +82,10 @@ build-standard/micropython/../../runtime_binary/src/cfl_event_queue.o: \
  /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h :
  /usr/include/aarch64-linux-gnu/bits/stdint-least.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdbool.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_perm.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_global_definitions.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_perm.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_global_definitions.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h :
  /usr/include/string.h /usr/lib/gcc/aarch64-linux-gnu/13/include/stddef.h :
  /usr/include/aarch64-linux-gnu/bits/types/locale_t.h :
  /usr/include/aarch64-linux-gnu/bits/types/__locale_t.h :

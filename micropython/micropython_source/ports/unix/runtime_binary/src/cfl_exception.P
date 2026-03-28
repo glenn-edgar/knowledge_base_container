@@ -1,7 +1,7 @@
-build-standard/micropython/../../runtime_binary/src/cfl_exception.o: \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_exception.c \
+build-standard/cfl_micropython/../../runtime_binary/src/cfl_exception.o: \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_exception.c \
  /usr/include/stdc-predef.h \
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h \
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h \
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h \
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h \
  /usr/include/features.h /usr/include/features-time64.h \
@@ -96,9 +96,9 @@ build-standard/micropython/../../runtime_binary/src/cfl_exception.o: \
  /usr/include/aarch64-linux-gnu/bits/getopt_posix.h \
  /usr/include/aarch64-linux-gnu/bits/getopt_core.h \
  /usr/include/aarch64-linux-gnu/bits/unistd_ext.h
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/src/cfl_exception.c :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/src/cfl_exception.c :
  /usr/include/stdc-predef.h :
- /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/micropython/../../runtime_binary/include/cfl_exception.h :
+ /home/gedgar/knowledge_base_assembly/micropython/building_blocks/dsl_engines/chain_tree_c/bridges/cfl_micropython/../../runtime_binary/include/cfl_exception.h :
  /usr/lib/gcc/aarch64-linux-gnu/13/include/stdint.h /usr/include/stdint.h :
  /usr/include/aarch64-linux-gnu/bits/libc-header-start.h :
  /usr/include/features.h /usr/include/features-time64.h :

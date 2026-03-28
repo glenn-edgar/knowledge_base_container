@@ -297,7 +297,7 @@ static inline bool se_dicth_param_bool(const s_expr_param_t* p, bool def) {
     uint8_t op = p->type & S_EXPR_OPCODE_MASK;
     if (op == S_EXPR_PARAM_INT) return p->int_val != 0;
     if (op == S_EXPR_PARAM_UINT) return p->uint_val != 0;
-    if (op == S_EXPR_PARAM_FLOAT) return p->float_val != 0.0;
+    if (op == S_EXPR_PARAM_FLOAT) return p->float_val != 0.0f;
     return def;
 }
 

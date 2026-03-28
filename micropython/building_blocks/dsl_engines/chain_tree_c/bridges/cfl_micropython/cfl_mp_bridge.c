@@ -294,6 +294,59 @@ static mp_obj_t mp_heap_free(mp_obj_t h, mp_obj_t p) {
 }
 static MP_DEFINE_CONST_FUN_OBJ_2(mp_heap_free_obj, mp_heap_free);
 
+/* cfl.additional_alloc(handle_int, node_index, size) -> int (ptr) or None */
+static mp_obj_t mp_additional_alloc(mp_obj_t h, mp_obj_t ni, mp_obj_t sz) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)(uintptr_t)mp_obj_get_int(h);
+    void *ptr = cfl_additional_arena_alloc(rt, (unsigned)mp_obj_get_int(ni), (uint16_t)mp_obj_get_int(sz));
+    if (ptr) return mp_obj_new_int_from_uint((uintptr_t)ptr);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mp_additional_alloc_obj, mp_additional_alloc);
+
+/* cfl.bb_get_uint32(handle_int, field_name) -> int */
+static mp_obj_t mp_bb_get_uint32(mp_obj_t h, mp_obj_t field) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)(uintptr_t)mp_obj_get_int(h);
+    return mp_obj_new_int_from_uint(cfl_bb_get_uint32(rt, cfl_bb_hash(mp_obj_str_get_str(field)), 0));
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mp_bb_get_uint32_obj, mp_bb_get_uint32);
+
+/* cfl.bb_set_uint32(handle_int, field_name, value) */
+static mp_obj_t mp_bb_set_uint32(mp_obj_t h, mp_obj_t field, mp_obj_t val) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)(uintptr_t)mp_obj_get_int(h);
+    cfl_bb_set_uint32(rt, cfl_bb_hash(mp_obj_str_get_str(field)), (uint32_t)mp_obj_get_int(val));
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_3(mp_bb_set_uint32_obj, mp_bb_set_uint32);
+
+/* cfl.json_print_node(handle_int, node_index) */
+static mp_obj_t mp_json_print_node(mp_obj_t h, mp_obj_t ni) {
+    cfl_runtime_handle_t *rt = (cfl_runtime_handle_t *)(uintptr_t)mp_obj_get_int(h);
+    unsigned node_index = (unsigned)mp_obj_get_int(ni);
+    json_print_node_data_runtime(rt, node_index);
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mp_json_print_node_obj, mp_json_print_node);
+
+/* cfl.read_u8(ptr_int, offset) -> int */
+static mp_obj_t mp_read_u8(mp_obj_t p, mp_obj_t off) {
+    void *ptr = (void *)(uintptr_t)mp_obj_get_int(p);
+    int offset = mp_obj_get_int(off);
+    uint8_t val;
+    memcpy(&val, (uint8_t *)ptr + offset, sizeof(uint8_t));
+    return mp_obj_new_int(val);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mp_read_u8_obj, mp_read_u8);
+
+/* cfl.read_bool(ptr_int, offset) -> bool */
+static mp_obj_t mp_read_bool(mp_obj_t p, mp_obj_t off) {
+    void *ptr = (void *)(uintptr_t)mp_obj_get_int(p);
+    int offset = mp_obj_get_int(off);
+    uint8_t val;
+    memcpy(&val, (uint8_t *)ptr + offset, sizeof(uint8_t));
+    return mp_obj_new_bool(val != 0);
+}
+static MP_DEFINE_CONST_FUN_OBJ_2(mp_read_bool_obj, mp_read_bool);
+
 /* cfl.read_i32(ptr_int, offset) -> int */
 static mp_obj_t mp_read_i32(mp_obj_t p, mp_obj_t off) {
     void *ptr = (void *)(uintptr_t)mp_obj_get_int(p);
@@ -493,20 +546,26 @@ static const mp_rom_map_elem_t cfl_module_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_json_extract_int32),   MP_ROM_PTR(&mp_json_extract_int32_obj) },
     { MP_ROM_QSTR(MP_QSTR_json_extract_float),   MP_ROM_PTR(&mp_json_extract_float_obj) },
     { MP_ROM_QSTR(MP_QSTR_json_extract_bool),    MP_ROM_PTR(&mp_json_extract_bool_obj) },
+    { MP_ROM_QSTR(MP_QSTR_json_print_node),      MP_ROM_PTR(&mp_json_print_node_obj) },
 
     /* Blackboard */
     { MP_ROM_QSTR(MP_QSTR_bb_get_int32),         MP_ROM_PTR(&mp_bb_get_int32_obj) },
     { MP_ROM_QSTR(MP_QSTR_bb_set_int32),         MP_ROM_PTR(&mp_bb_set_int32_obj) },
     { MP_ROM_QSTR(MP_QSTR_bb_get_float),         MP_ROM_PTR(&mp_bb_get_float_obj) },
     { MP_ROM_QSTR(MP_QSTR_bb_set_float),         MP_ROM_PTR(&mp_bb_set_float_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bb_get_uint32),        MP_ROM_PTR(&mp_bb_get_uint32_obj) },
+    { MP_ROM_QSTR(MP_QSTR_bb_set_uint32),        MP_ROM_PTR(&mp_bb_set_uint32_obj) },
 
     /* Arena / heap */
     { MP_ROM_QSTR(MP_QSTR_arena_get),            MP_ROM_PTR(&mp_arena_get_obj) },
     { MP_ROM_QSTR(MP_QSTR_smart_alloc),          MP_ROM_PTR(&mp_smart_alloc_obj) },
+    { MP_ROM_QSTR(MP_QSTR_additional_alloc),     MP_ROM_PTR(&mp_additional_alloc_obj) },
     { MP_ROM_QSTR(MP_QSTR_heap_alloc),           MP_ROM_PTR(&mp_heap_alloc_obj) },
     { MP_ROM_QSTR(MP_QSTR_heap_free),            MP_ROM_PTR(&mp_heap_free_obj) },
 
     /* Raw memory */
+    { MP_ROM_QSTR(MP_QSTR_read_u8),              MP_ROM_PTR(&mp_read_u8_obj) },
+    { MP_ROM_QSTR(MP_QSTR_read_bool),            MP_ROM_PTR(&mp_read_bool_obj) },
     { MP_ROM_QSTR(MP_QSTR_read_i32),             MP_ROM_PTR(&mp_read_i32_obj) },
     { MP_ROM_QSTR(MP_QSTR_write_i32),            MP_ROM_PTR(&mp_write_i32_obj) },
     { MP_ROM_QSTR(MP_QSTR_read_u16),             MP_ROM_PTR(&mp_read_u16_obj) },
