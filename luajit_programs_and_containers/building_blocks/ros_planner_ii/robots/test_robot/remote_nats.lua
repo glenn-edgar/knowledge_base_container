@@ -27,13 +27,17 @@ io.stderr:flush()
 
 -- Action durations (ticks per command type)
 local action_durations = {
-    [cmd_packets.TYPE_INIT_CHECK]   = 2,
-    [cmd_packets.TYPE_PATH_SEGMENT] = 3,
-    [cmd_packets.TYPE_ROTATE]       = 2,
-    [cmd_packets.TYPE_ARM]          = 4,
-    [cmd_packets.TYPE_RPC_REQUEST]  = 2,
-    [cmd_packets.TYPE_SENSOR_READ]  = 1,
-    [cmd_packets.TYPE_IDLE]         = 1,
+    [cmd_packets.TYPE_INIT_CHECK]      = 15,
+    [cmd_packets.TYPE_PATH_SPLINE]     = 25,
+    [cmd_packets.TYPE_PATH_LINE]       = 25,
+    [cmd_packets.TYPE_PATH_WALL]       = 25,
+    [cmd_packets.TYPE_PATH_ROTATE]     = 15,
+    [cmd_packets.TYPE_DELIVER_PART]    = 20,
+    [cmd_packets.TYPE_PAINT_SAMPLE]    = 20,
+    [cmd_packets.TYPE_LOAD_SHIPPING]   = 20,
+    [cmd_packets.TYPE_PASS_GATE]       = 15,
+    [cmd_packets.TYPE_INSPECTION_SCAN] = 12,
+    [cmd_packets.TYPE_IDLE]            = 5,
 }
 
 -- Execution state
@@ -85,13 +89,15 @@ while true do
                 test_id = current_cmd.test_id or 0,
                 success = true,
             }
-            if current_cmd.packet_type == cmd_packets.TYPE_PATH_SEGMENT then
+            local pt = current_cmd.packet_type
+            if pt == cmd_packets.TYPE_PATH_SPLINE or pt == cmd_packets.TYPE_PATH_LINE or pt == cmd_packets.TYPE_PATH_WALL then
                 kb_done.delta_x = (current_cmd.to_x or 0) - (current_cmd.from_x or 0)
                 kb_done.delta_y = (current_cmd.to_y or 0) - (current_cmd.from_y or 0)
-            elseif current_cmd.packet_type == cmd_packets.TYPE_ROTATE then
+            elseif pt == cmd_packets.TYPE_PATH_ROTATE then
                 kb_done.delta_heading = (current_cmd.to_heading or 0) - (current_cmd.from_heading or 0)
-            elseif current_cmd.packet_type == cmd_packets.TYPE_ARM then
-                kb_done.delta_arm_angle = current_cmd.arm_target or 0
+            elseif pt == cmd_packets.TYPE_DELIVER_PART or pt == cmd_packets.TYPE_PAINT_SAMPLE or pt == cmd_packets.TYPE_LOAD_SHIPPING then
+                local params = current_cmd.params or current_cmd
+                kb_done.delta_arm_angle = params.arm_target or current_cmd.arm_target or 0
             end
             tx:send_stream(json_util.encode(kb_done))
         end

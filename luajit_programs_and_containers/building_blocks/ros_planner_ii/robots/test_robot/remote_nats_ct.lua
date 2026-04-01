@@ -1,9 +1,9 @@
 --[[
     remote_nats_ct.lua -- ChainTree remote process over NATS.
 
-    Standalone process. Connects to NATS independently.
-    Queue monitor drains inbound rpc jobs, injects as events.
-    ChainTree runtime processes events, user functions send responses.
+    Dual KB architecture:
+      - controller KB: always active, receives commands, manages workers
+      - worker KBs: dormant until controller activates them
 
     Usage: luajit remote_nats_ct.lua <robot_id>
 ]]
@@ -25,7 +25,7 @@ io.stderr:write(string.format("REMOTE_CT [%s]: connecting to %s\n", robot_id, se
 -- NATS transport
 local nats_transport = require("nats_transport")
 local tx = nats_transport.remote_side(robot_id, server)
-tx:flush()  -- drain stale jobs from previous runs
+tx:flush()
 
 -- ChainTree runtime
 local ct_runtime    = require("ct_runtime")
@@ -43,6 +43,17 @@ local remote_data = ct_loader.load(remote_json)
 local remote_fns = require("remote_user_functions")
 remote_fns.set_transport(tx)
 
+-- Optional: KB runtime for status/stream tables
+local kb_db_file = os.getenv("VMRT_KB_DB")
+if kb_db_file then
+    local kb_runtime = require("kb_runtime")
+    local site = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
+    local kb_rt = kb_runtime.new(kb_db_file, site, robot_id)
+    remote_fns.set_kb_runtime(kb_rt)
+    io.stderr:write(string.format("REMOTE_CT [%s]: KB runtime connected (%s)\n",
+        robot_id, kb_db_file))
+end
+
 fn_registry.register_functions(remote_data, builtins, remote_fns.registry)
 
 local ok, missing = fn_registry.validate(remote_data)
@@ -54,9 +65,19 @@ end
 
 local remote_handle = ct_runtime.create({delta_time = 0.1, max_ticks = 50000}, remote_data)
 
--- Activate remote_unit KB
-engine.init_test(remote_handle, "remote_unit")
-remote_handle.active_tests["remote_unit"] = true
+-- Ensure boolean fields are proper booleans (DSL defaults are 0, not false)
+remote_handle.blackboard.shutdown_requested = false
+remote_handle.blackboard.watchdog_expired = false
+remote_handle.blackboard.worker_done = false
+remote_handle.blackboard.worker_success = false
+remote_handle.blackboard.exec_active = false
+remote_handle.blackboard.exec_start = false
+remote_handle.blackboard.controller_active = false
+remote_handle.blackboard.lookahead_pending = false
+
+-- Activate ONLY the controller KB (workers stay dormant)
+engine.init_test(remote_handle, "controller")
+remote_handle.active_tests["controller"] = true
 remote_handle.active_test_count = 1
 
 -- Queue monitor: drains rpc queue, injects ROBOT_RPC_COMMAND events
@@ -66,27 +87,20 @@ local monitor = queue_monitor.new({
     direction = "robot",
 })
 
--- Ensure shutdown_requested is a proper boolean (DSL default is 0, not false)
-remote_handle.blackboard.shutdown_requested = false
-
-io.stderr:write(string.format("REMOTE_CT [%s]: running\n", robot_id))
+io.stderr:write(string.format("REMOTE_CT [%s]: running (controller + %d workers)\n",
+    robot_id, 7))
 io.stderr:flush()
 
 -- Tick loop
-local tick_count = 0
 while true do
-    tick_count = tick_count + 1
     if remote_handle.blackboard.shutdown_requested == true then
-        io.stderr:write(string.format("REMOTE_CT [%s]: shutdown_requested at tick %d\n",
-            robot_id, tick_count))
-        io.stderr:flush()
         break
     end
 
     -- Drain inbound queue → inject events
     monitor:tick()
 
-    -- Inject timer event for active KBs
+    -- Timer events for ALL active KBs (controller + any active worker)
     for kb_name, _ in pairs(remote_handle.active_tests) do
         local kb = remote_handle.kb_table[kb_name]
         if kb then

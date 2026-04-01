@@ -1,5 +1,5 @@
 # ChainTree Debug YAML Output
-# Generated: 2026-04-01T01:33:31Z
+# Generated: 2026-04-01T20:10:32Z
 ---
 kb.complete_functions_kb.complete_functions.complete_functions:
   label: complete_functions
@@ -195,7 +195,7 @@ kb.deliver_part.GATE_root._0.COL_deli._0.LEAF._0:
 kb.deliver_part_functions.kb.deliver_part:
   label: kb
   label_dict:
-    array_index: "74"
+    array_index: "104"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -209,7 +209,7 @@ kb.deliver_part_functions.kb.deliver_part:
 kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "75"
+    array_index: "105"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -226,7 +226,7 @@ kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions:
 kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "78"
+    array_index: "108"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -242,7 +242,7 @@ kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions.vi
 kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "79"
+    array_index: "109"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -261,7 +261,7 @@ kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions.vi
 kb.deliver_part_functions.kb.deliver_part.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "77"
+    array_index: "107"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -360,7 +360,7 @@ kb.error_recovery.GATE_root._0.COL_erro._0.RECOVERY_WAIT._2:
 kb.error_recovery_functions.kb.error_recovery:
   label: kb
   label_dict:
-    array_index: "110"
+    array_index: "68"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -374,7 +374,7 @@ kb.error_recovery_functions.kb.error_recovery:
 kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "111"
+    array_index: "69"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -391,7 +391,7 @@ kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_function
 kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "114"
+    array_index: "72"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -407,7 +407,7 @@ kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_function
 kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "115"
+    array_index: "73"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -424,7 +424,7 @@ kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_function
 kb.error_recovery_functions.kb.error_recovery.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "113"
+    array_index: "71"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -524,7 +524,7 @@ kb.idle.GATE_root._0.COL_idle._0.LEAF._0:
 kb.idle_functions.kb.idle:
   label: kb
   label_dict:
-    array_index: "104"
+    array_index: "134"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -538,7 +538,7 @@ kb.idle_functions.kb.idle:
 kb.idle_functions.kb.idle.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "105"
+    array_index: "135"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -555,7 +555,7 @@ kb.idle_functions.kb.idle.virtual_functions.virtual_functions:
 kb.idle_functions.kb.idle.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "108"
+    array_index: "138"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -571,7 +571,7 @@ kb.idle_functions.kb.idle.virtual_functions.virtual_functions.virtual_functions.
 kb.idle_functions.kb.idle.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "109"
+    array_index: "139"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -587,7 +587,7 @@ kb.idle_functions.kb.idle.virtual_functions.virtual_functions.virtual_functions.
 kb.idle_functions.kb.idle.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "107"
+    array_index: "137"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -710,7 +710,7 @@ kb.init_check.GATE_root._0.COL_init._0.LEAF._0:
 kb.init_check_functions.kb.init_check:
   label: kb
   label_dict:
-    array_index: "116"
+    array_index: "74"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -724,7 +724,7 @@ kb.init_check_functions.kb.init_check:
 kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "117"
+    array_index: "75"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -741,7 +741,7 @@ kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions:
 kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "120"
+    array_index: "78"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -757,7 +757,7 @@ kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions.virtua
 kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "121"
+    array_index: "79"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -776,7 +776,7 @@ kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions.virtua
 kb.init_check_functions.kb.init_check.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "119"
+    array_index: "77"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -896,7 +896,7 @@ kb.inspection_scan.GATE_root._0.COL_insp._0.LEAF._0:
 kb.inspection_scan_functions.kb.inspection_scan:
   label: kb
   label_dict:
-    array_index: "98"
+    array_index: "128"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -910,7 +910,7 @@ kb.inspection_scan_functions.kb.inspection_scan:
 kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "99"
+    array_index: "129"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -927,7 +927,7 @@ kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functi
 kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "102"
+    array_index: "132"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -943,7 +943,7 @@ kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functi
 kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "103"
+    array_index: "133"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -962,7 +962,7 @@ kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functi
 kb.inspection_scan_functions.kb.inspection_scan.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "101"
+    array_index: "131"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1089,7 +1089,7 @@ kb.load_shipping.GATE_root._0.COL_load._0.LEAF._0:
 kb.load_shipping_functions.kb.load_shipping:
   label: kb
   label_dict:
-    array_index: "86"
+    array_index: "116"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1103,7 +1103,7 @@ kb.load_shipping_functions.kb.load_shipping:
 kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "87"
+    array_index: "117"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1120,7 +1120,7 @@ kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions:
 kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "90"
+    array_index: "120"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1136,7 +1136,7 @@ kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions.
 kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "91"
+    array_index: "121"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1155,7 +1155,7 @@ kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions.
 kb.load_shipping_functions.kb.load_shipping.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "89"
+    array_index: "119"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1279,7 +1279,7 @@ kb.paint_sample.GATE_root._0.COL_pain._0.LEAF._0:
 kb.paint_sample_functions.kb.paint_sample:
   label: kb
   label_dict:
-    array_index: "80"
+    array_index: "110"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1293,7 +1293,7 @@ kb.paint_sample_functions.kb.paint_sample:
 kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "81"
+    array_index: "111"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1310,7 +1310,7 @@ kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions:
 kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "84"
+    array_index: "114"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1326,7 +1326,7 @@ kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions.vi
 kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "85"
+    array_index: "115"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1345,7 +1345,7 @@ kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions.vi
 kb.paint_sample_functions.kb.paint_sample.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "83"
+    array_index: "113"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1474,7 +1474,7 @@ kb.pass_gate.GATE_root._0.COL_pass._0.LEAF._0:
 kb.pass_gate_functions.kb.pass_gate:
   label: kb
   label_dict:
-    array_index: "92"
+    array_index: "122"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1488,7 +1488,7 @@ kb.pass_gate_functions.kb.pass_gate:
 kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "93"
+    array_index: "123"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1505,7 +1505,7 @@ kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions:
 kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "96"
+    array_index: "126"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1521,7 +1521,7 @@ kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions.virtual_
 kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "97"
+    array_index: "127"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1540,7 +1540,7 @@ kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions.virtual_
 kb.pass_gate_functions.kb.pass_gate.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "95"
+    array_index: "125"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1666,7 +1666,7 @@ kb.path_line.GATE_root._0.COL_path._0.LEAF._0:
 kb.path_line_functions.kb.path_line:
   label: kb
   label_dict:
-    array_index: "128"
+    array_index: "86"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1680,7 +1680,7 @@ kb.path_line_functions.kb.path_line:
 kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "129"
+    array_index: "87"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1697,7 +1697,7 @@ kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions:
 kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "132"
+    array_index: "90"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1713,7 +1713,7 @@ kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions.virtual_
 kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "133"
+    array_index: "91"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1732,7 +1732,7 @@ kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions.virtual_
 kb.path_line_functions.kb.path_line.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "131"
+    array_index: "89"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1853,7 +1853,7 @@ kb.path_rotate.GATE_root._0.COL_path._0.LEAF._0:
 kb.path_rotate_functions.kb.path_rotate:
   label: kb
   label_dict:
-    array_index: "68"
+    array_index: "98"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1867,7 +1867,7 @@ kb.path_rotate_functions.kb.path_rotate:
 kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "69"
+    array_index: "99"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1884,7 +1884,7 @@ kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions:
 kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "72"
+    array_index: "102"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1900,7 +1900,7 @@ kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions.virt
 kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "73"
+    array_index: "103"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1919,7 +1919,7 @@ kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions.virt
 kb.path_rotate_functions.kb.path_rotate.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "71"
+    array_index: "101"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2045,7 +2045,7 @@ kb.path_spline.GATE_root._0.COL_path._0.LEAF._0:
 kb.path_spline_functions.kb.path_spline:
   label: kb
   label_dict:
-    array_index: "122"
+    array_index: "80"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2059,7 +2059,7 @@ kb.path_spline_functions.kb.path_spline:
 kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "123"
+    array_index: "81"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2076,7 +2076,7 @@ kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions:
 kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "126"
+    array_index: "84"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2092,7 +2092,7 @@ kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions.virt
 kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "127"
+    array_index: "85"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2111,7 +2111,7 @@ kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions.virt
 kb.path_spline_functions.kb.path_spline.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "125"
+    array_index: "83"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2240,7 +2240,7 @@ kb.path_wall.GATE_root._0.COL_path._0.LEAF._0:
 kb.path_wall_functions.kb.path_wall:
   label: kb
   label_dict:
-    array_index: "134"
+    array_index: "92"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2254,7 +2254,7 @@ kb.path_wall_functions.kb.path_wall:
 kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "135"
+    array_index: "93"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2271,7 +2271,7 @@ kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions:
 kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "138"
+    array_index: "96"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2287,7 +2287,7 @@ kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions.virtual_
 kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "139"
+    array_index: "97"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2306,7 +2306,7 @@ kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions.virtual_
 kb.path_wall_functions.kb.path_wall.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "137"
+    array_index: "95"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []

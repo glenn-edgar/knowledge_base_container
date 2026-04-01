@@ -3,7 +3,7 @@ local common_tree = require("kb.common_tree")
 return {
     name           = "path_spline",
     index          = 2,
-    packet_ctype   = "cmd_path_segment_t",
+    packet_ctype   = "cmd_path_spline_t",
     packet_type_id = 2,
 
     json_schema = {
@@ -15,7 +15,6 @@ return {
         { name = "distance",       type = "float", default = 0 },
         { name = "segment_index",  type = "uint16", default = 0 },
         { name = "total_segments", type = "uint16", default = 1 },
-        { name = "nav_method",     type = "uint8",  default = 0 },
     },
 
     mapping = {},

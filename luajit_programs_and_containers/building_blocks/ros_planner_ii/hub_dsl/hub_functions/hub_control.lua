@@ -58,23 +58,13 @@ function M.on_tick(bb)
     end
 end
 
--- Called when delta pose arrives from remote stream
+-- Called when kb_done arrives: accumulate final deltas onto global pose
 function M.apply_delta_pose(bb, delta)
-    if delta.delta_x then
-        global_pose.x = (bb.kb_ref_x or 0) + delta.delta_x
-    end
-    if delta.delta_y then
-        global_pose.y = (bb.kb_ref_y or 0) + delta.delta_y
-    end
-    if delta.delta_z then
-        global_pose.z = (bb.kb_ref_z or 0) + delta.delta_z
-    end
-    if delta.delta_heading then
-        global_pose.heading = (bb.kb_ref_heading or 0) + delta.delta_heading
-    end
-    if delta.delta_arm_angle then
-        global_pose.arm_angle = (bb.kb_ref_arm_angle or 0) + delta.delta_arm_angle
-    end
+    global_pose.x         = global_pose.x + (delta.delta_x or 0)
+    global_pose.y         = global_pose.y + (delta.delta_y or 0)
+    global_pose.z         = global_pose.z + (delta.delta_z or 0)
+    global_pose.heading   = global_pose.heading + (delta.delta_heading or 0)
+    global_pose.arm_angle = global_pose.arm_angle + (delta.delta_arm_angle or 0)
 
     -- Write current global pose to blackboard
     bb.global_x = global_pose.x

@@ -25,6 +25,7 @@ M.HUB_STREAM_SENSOR      = 104   -- sensor reading
 M.HUB_STREAM_KB_DONE     = 105   -- robot reports KB action complete
 M.HUB_STREAM_FAULT       = 106   -- robot reports fault
 M.HUB_STREAM_DELTA_POSE  = 107   -- delta position since KB start
+M.HUB_STREAM_HEARTBEAT   = 108   -- periodic heartbeat with delta pose from remote
 
 ---------------------------------------------------------------------------
 -- Robot inbound: rpc commands from hub → robot ChainTree
@@ -53,6 +54,7 @@ M.hub_inbound = {
     kb_done     = M.HUB_STREAM_KB_DONE,
     fault       = M.HUB_STREAM_FAULT,
     delta_pose  = M.HUB_STREAM_DELTA_POSE,
+    heartbeat   = M.HUB_STREAM_HEARTBEAT,
 }
 
 -- Robot side: maps "type" field from rpc queue messages
@@ -75,6 +77,7 @@ M.names = {
     [M.HUB_STREAM_KB_DONE]    = "HUB_STREAM_KB_DONE",
     [M.HUB_STREAM_FAULT]      = "HUB_STREAM_FAULT",
     [M.HUB_STREAM_DELTA_POSE] = "HUB_STREAM_DELTA_POSE",
+    [M.HUB_STREAM_HEARTBEAT]  = "HUB_STREAM_HEARTBEAT",
     [M.ROBOT_RPC_COMMAND]     = "ROBOT_RPC_COMMAND",
     [M.ROBOT_RPC_SHUTDOWN]    = "ROBOT_RPC_SHUTDOWN",
     [M.SYSTEM_SHUTDOWN]       = "SYSTEM_SHUTDOWN",

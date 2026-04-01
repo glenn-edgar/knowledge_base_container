@@ -8,15 +8,17 @@ LuaJIT FFI bindings for the five NATS C libraries: KeyStore, KbStore, JobQueue, 
 nats_luajit/
 ├── lib/
 │   ├── nats.lua              # Unified entry point
-│   ├── nats_key_store.lua    # KeyStore (JetStream KV operations)
-│   ├── nats_kb_store.lua     # KbStore  (hierarchical knowledge base)
-│   ├── nats_job_queue.lua    # JobQueue (priority job queue)
-│   ├── nats_rpc.lua          # RPC      (client + server)
-│   └── nats_pubsub.lua       # PubSub   (publish/subscribe)
+│   ├── nats_key_store.lua    # KeyStore     (JetStream KV operations)
+│   ├── nats_kb_store.lua     # KbStore      (hierarchical knowledge base)
+│   ├── nats_job_queue.lua    # JobQueue     (priority job queue)
+│   ├── nats_rpc.lua          # RPC          (client + server)
+│   ├── nats_pubsub.lua       # PubSub       (publish/subscribe)
+│   └── nats_stream.lua       # StreamBuffer (persistent circular buffer)
 └── test/
     ├── test_key_store.lua    # KeyStore integration tests
     ├── test_pubsub.lua       # PubSub integration tests
-    └── test_rpc.lua          # RPC integration tests
+    ├── test_rpc.lua          # RPC integration tests
+    └── test_stream.lua       # StreamBuffer integration tests (9 tests)
 ```
 
 ## Prerequisites
@@ -63,6 +65,7 @@ local kb  = nats.KbStore.new("nats://127.0.0.1:4222", "my_kb", "desc")
 local jq  = nats.JobQueue.new(ks:handle(), "worker-1")
 local cli = nats.RpcClient.new({})
 local ps  = nats.PubSub.new({})
+local buf = nats.StreamBuffer.new(ps, ks, "sensor.temp", 10)
 ```
 
 ### KeyStore
@@ -250,6 +253,33 @@ ps:disconnect()
 ps:destroy()
 ```
 
+### StreamBuffer
+
+```lua
+local ks = require("lib.nats_key_store").KeyStore.new({
+    server = "nats://127.0.0.1:4222", bucket = "streams"
+})
+ks:connect()
+
+local ps_lib = require("lib.nats_pubsub")
+local ps = ps_lib.PubSub.new({ server = "nats://127.0.0.1:4222" })
+ps:connect()
+
+local stream = require("lib.nats_stream")
+local buf = stream.StreamBuffer.new(ps, ks, "sensor.temp", 10)
+
+-- Messages arrive asynchronously and persist to JetStream KV...
+local msg  = buf:latest()          -- most recent entry or nil
+local all  = buf:entries()         -- all entries, oldest → newest
+local n    = buf:count()           -- entries currently stored
+local full = buf:is_full()         -- true when count == capacity
+local tot  = buf:total_received()  -- lifetime counter (including overwritten)
+
+buf:clear()                        -- reset buffer + KV, keep subscription
+buf:stop()                         -- unsubscribe (KV data preserved for reload)
+buf:purge()                        -- delete all KV data permanently
+```
+
 ## API Summary
 
 | C Library | LuaJIT Module | Class | Requires JetStream |
@@ -259,6 +289,7 @@ ps:destroy()
 | `libnats_job_queue` | `lib.nats_job_queue` | `JobQueue` | Yes |
 | `libnats_rpc`       | `lib.nats_rpc`       | `RpcServer`, `RpcClient` | No |
 | `libnats_pubsub`    | `lib.nats_pubsub`    | `PubSub`   | No |
+| *(pure Lua)*        | `lib.nats_stream`    | `StreamBuffer` | Yes (via KeyStore) |
 
 ## Design Notes
 
@@ -285,4 +316,5 @@ export LD_LIBRARY_PATH=/path/to/builds:$LD_LIBRARY_PATH
 luajit test/test_key_store.lua
 luajit test/test_pubsub.lua
 luajit test/test_rpc.lua
+luajit test/test_stream.lua
 ```

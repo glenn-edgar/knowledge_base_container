@@ -16,15 +16,17 @@ local kb_store  = require("lib.nats_kb_store")
 local job_queue = require("lib.nats_job_queue")
 local rpc       = require("lib.nats_rpc")
 local pubsub    = require("lib.nats_pubsub")
+local stream    = require("lib.nats_stream")
 
 return {
     -- Classes
-    KeyStore  = key_store.KeyStore,
-    KbStore   = kb_store.KbStore,
-    JobQueue  = job_queue.JobQueue,
-    RpcServer = rpc.RpcServer,
-    RpcClient = rpc.RpcClient,
-    PubSub    = pubsub.PubSub,
+    KeyStore     = key_store.KeyStore,
+    KbStore      = kb_store.KbStore,
+    JobQueue     = job_queue.JobQueue,
+    RpcServer    = rpc.RpcServer,
+    RpcClient    = rpc.RpcClient,
+    PubSub       = pubsub.PubSub,
+    StreamBuffer = stream.StreamBuffer,
 
     -- Sub-modules (for status codes, raw C handles, etc.)
     key_store = key_store,
@@ -32,4 +34,5 @@ return {
     job_queue = job_queue,
     rpc       = rpc,
     pubsub    = pubsub,
+    stream    = stream,
 }

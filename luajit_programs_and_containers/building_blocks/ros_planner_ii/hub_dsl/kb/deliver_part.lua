@@ -3,18 +3,18 @@ local common_tree = require("kb.common_tree")
 return {
     name           = "deliver_part",
     index          = 6,
-    packet_ctype   = "cmd_arm_t",
-    packet_type_id = 4,
+    packet_ctype   = "cmd_deliver_part_t",
+    packet_type_id = 6,
 
     json_schema = {
         { name = "arm_target",   type = "float",  required = true },
         { name = "arm_speed",    type = "float",  default = 80 },
         { name = "arm_return",   type = "float",  default = 0 },
-        { name = "payload",      type = "uint8",  default = 1,
+        { name = "payload_type", type = "uint8",  default = 1,
           enum = { none = 0, part = 1, container = 2 } },
     },
 
-    mapping = { payload = "payload_type" },
+    mapping = {},
 
     bitmask = {
         { name = "arm_at_target",    bit = 0 },

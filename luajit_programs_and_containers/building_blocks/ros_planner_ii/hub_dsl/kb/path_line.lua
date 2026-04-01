@@ -3,19 +3,16 @@ local common_tree = require("kb.common_tree")
 return {
     name           = "path_line",
     index          = 3,
-    packet_ctype   = "cmd_path_segment_t",
-    packet_type_id = 2,
+    packet_ctype   = "cmd_path_line_t",
+    packet_type_id = 3,
 
     json_schema = {
-        { name = "from_x",         type = "float", default = 0 },
-        { name = "from_y",         type = "float", default = 0 },
-        { name = "to_x",           type = "float", default = 0 },
-        { name = "to_y",           type = "float", default = 0 },
-        { name = "speed",          type = "float", default = 100 },
-        { name = "distance",       type = "float", default = 0 },
-        { name = "segment_index",  type = "uint16", default = 0 },
-        { name = "total_segments", type = "uint16", default = 1 },
-        { name = "nav_method",     type = "uint8",  default = 1 },
+        { name = "from_x",    type = "float", default = 0 },
+        { name = "from_y",    type = "float", default = 0 },
+        { name = "to_x",      type = "float", default = 0 },
+        { name = "to_y",      type = "float", default = 0 },
+        { name = "speed",     type = "float", default = 100 },
+        { name = "distance",  type = "float", default = 0 },
     },
 
     mapping = {},

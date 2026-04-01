@@ -112,17 +112,17 @@ end
 -- Test each virtual node
 ---------------------------------------------------------------------------
 
-test_virtual_node("init_check",      cmd_packets.TYPE_INIT_CHECK,   1)
-test_virtual_node("path_spline",     cmd_packets.TYPE_PATH_SEGMENT, 2, { nav_method = 0 })
-test_virtual_node("path_line",       cmd_packets.TYPE_PATH_SEGMENT, 3, { nav_method = 1 })
-test_virtual_node("path_wall",       cmd_packets.TYPE_PATH_SEGMENT, 4, { nav_method = 2 })
-test_virtual_node("path_rotate",     cmd_packets.TYPE_ROTATE,       5)
-test_virtual_node("deliver_part",    cmd_packets.TYPE_ARM,          6)
-test_virtual_node("paint_sample",    cmd_packets.TYPE_ARM,          7)
-test_virtual_node("load_shipping",   cmd_packets.TYPE_ARM,          8)
-test_virtual_node("pass_gate",       cmd_packets.TYPE_RPC_REQUEST,  9)
-test_virtual_node("inspection_scan", cmd_packets.TYPE_SENSOR_READ,  10)
-test_virtual_node("idle",            cmd_packets.TYPE_IDLE,         11)
+test_virtual_node("init_check",      cmd_packets.TYPE_INIT_CHECK,      1)
+test_virtual_node("path_spline",     cmd_packets.TYPE_PATH_SPLINE,     2)
+test_virtual_node("path_line",       cmd_packets.TYPE_PATH_LINE,       3)
+test_virtual_node("path_wall",       cmd_packets.TYPE_PATH_WALL,       4)
+test_virtual_node("path_rotate",     cmd_packets.TYPE_PATH_ROTATE,     5)
+test_virtual_node("deliver_part",    cmd_packets.TYPE_DELIVER_PART,    6)
+test_virtual_node("paint_sample",    cmd_packets.TYPE_PAINT_SAMPLE,    7)
+test_virtual_node("load_shipping",   cmd_packets.TYPE_LOAD_SHIPPING,   8)
+test_virtual_node("pass_gate",       cmd_packets.TYPE_PASS_GATE,       9)
+test_virtual_node("inspection_scan", cmd_packets.TYPE_INSPECTION_SCAN, 10)
+test_virtual_node("idle",            cmd_packets.TYPE_IDLE,            11)
 
 ---------------------------------------------------------------------------
 -- Shutdown remote

@@ -240,66 +240,128 @@ local function test_virtual_node(plugin, action_json)
 end
 
 ---------------------------------------------------------------------------
--- Test each virtual node
+-- Test route on landing_zone board:
+--   lander_pad(0,0) → habitat_site(800,0) → mining_zone_a(1600,0)
+--   → rotate 90° → mining_zone_b(1600,800) [deliver_part]
+--   → charging_station(800,800) [paint_sample]
+--   → rotate 90° → construction_bay(800,1600) [load_shipping]
+--   → survey_point_2(0,1600) [pass_gate]
+--   → survey_point_1(0,800) [inspection_scan]
+--   → lander_pad(0,0) [idle]
 ---------------------------------------------------------------------------
 
+-- 1. Preflight at lander_pad
 test_virtual_node(kb_by_name["init_check"], {
     test_id = 1, next_test = 2,
 })
 
+-- 2. lander_pad(0,0) → habitat_site(800,0)
 test_virtual_node(kb_by_name["path_spline"], {
     test_id = 2, next_test = 3,
     from_x = 0, from_y = 0, to_x = 800, to_y = 0,
     speed = 150, distance = 800, segment_index = 0, total_segments = 1,
-    nav_method = 0,
 })
 
+-- 3. habitat_site(800,0) → mining_zone_a(1600,0)
 test_virtual_node(kb_by_name["path_line"], {
     test_id = 3, next_test = 4,
     from_x = 800, from_y = 0, to_x = 1600, to_y = 0,
-    speed = 120, distance = 800, segment_index = 0, total_segments = 1,
-    nav_method = 1,
+    speed = 120, distance = 800,
 })
 
-test_virtual_node(kb_by_name["path_wall"], {
-    test_id = 4, next_test = 5,
-    from_x = 1600, from_y = 0, to_x = 1600, to_y = 400,
-    speed = 100, distance = 400, segment_index = 0, total_segments = 1,
-    nav_method = 2,
-})
-
+-- 4. Rotate 0→90 at mining_zone_a
 test_virtual_node(kb_by_name["path_rotate"], {
-    test_id = 5, next_test = 6,
+    test_id = 4, next_test = 5,
     from_heading = 0, to_heading = 90,
 })
 
+-- 5. mining_zone_a(1600,0) → mining_zone_b(1600,800) wall ride
+test_virtual_node(kb_by_name["path_wall"], {
+    test_id = 5, next_test = 6,
+    from_x = 1600, from_y = 0, to_x = 1600, to_y = 800,
+    speed = 100, distance = 800, wall_standoff = 50,
+})
+
+-- 6. Deliver part at mining_zone_b
 test_virtual_node(kb_by_name["deliver_part"], {
     test_id = 6, next_test = 7,
-    params = { arm_target = -45, arm_speed = 80, arm_return = 0, payload = "part" },
+    arm_target = -45, arm_speed = 80, arm_return = 0, payload_type = 1,
 })
 
-test_virtual_node(kb_by_name["paint_sample"], {
+-- 7. mining_zone_b(1600,800) → charging_station(800,800)
+test_virtual_node(kb_by_name["path_spline"], {
     test_id = 7, next_test = 8,
-    params = { arm_target = -60, arm_speed = 60, arm_return = 0 },
+    from_x = 1600, from_y = 800, to_x = 800, to_y = 800,
+    speed = 130, distance = 800, segment_index = 0, total_segments = 1,
 })
 
-test_virtual_node(kb_by_name["load_shipping"], {
+-- 8. Paint sample at charging_station
+test_virtual_node(kb_by_name["paint_sample"], {
     test_id = 8, next_test = 9,
-    params = { arm_target = -30, arm_speed = 80, arm_return = 0, payload = "container" },
+    arm_target = -60, arm_speed = 60, arm_return = 0, hold_time = 500,
 })
 
-test_virtual_node(kb_by_name["pass_gate"], {
+-- 9. Rotate 90→180 at charging_station
+test_virtual_node(kb_by_name["path_rotate"], {
     test_id = 9, next_test = 10,
-    params = { rpc_hash = 12345, drive_through = 200 },
+    from_heading = 90, to_heading = 180,
 })
 
-test_virtual_node(kb_by_name["inspection_scan"], {
+-- 10. charging_station(800,800) → construction_bay(800,1600)
+test_virtual_node(kb_by_name["path_spline"], {
     test_id = 10, next_test = 11,
-    params = { sensor_port = 0, sensor_type = "color" },
+    from_x = 800, from_y = 800, to_x = 800, to_y = 1600,
+    speed = 130, distance = 800, segment_index = 0, total_segments = 1,
 })
 
+-- 11. Load shipping at construction_bay
+test_virtual_node(kb_by_name["load_shipping"], {
+    test_id = 11, next_test = 12,
+    arm_target = -30, arm_speed = 80, arm_return = 0, payload_type = 2,
+})
+
+-- 12. construction_bay(800,1600) → survey_point_2(0,1600)
+test_virtual_node(kb_by_name["path_line"], {
+    test_id = 12, next_test = 13,
+    from_x = 800, from_y = 1600, to_x = 0, to_y = 1600,
+    speed = 120, distance = 800,
+})
+
+-- 13. Pass gate at survey_point_2
+test_virtual_node(kb_by_name["pass_gate"], {
+    test_id = 13, next_test = 14,
+    rpc_open_hash = 1001, rpc_close_hash = 1002, drive_through = 200,
+})
+
+-- 14. survey_point_2(0,1600) → survey_point_1(0,800)
+test_virtual_node(kb_by_name["path_line"], {
+    test_id = 14, next_test = 15,
+    from_x = 0, from_y = 1600, to_x = 0, to_y = 800,
+    speed = 100, distance = 800,
+})
+
+-- 15. Inspection scan at survey_point_1
+test_virtual_node(kb_by_name["inspection_scan"], {
+    test_id = 15, next_test = 16,
+    sensor_port = 0, sensor_type = 0,
+})
+
+-- 16. Rotate 180→270 for return
+test_virtual_node(kb_by_name["path_rotate"], {
+    test_id = 16, next_test = 17,
+    from_heading = 180, to_heading = 270,
+})
+
+-- 17. survey_point_1(0,800) → lander_pad(0,0)
+test_virtual_node(kb_by_name["path_spline"], {
+    test_id = 17, next_test = 18,
+    from_x = 0, from_y = 800, to_x = 0, to_y = 0,
+    speed = 120, distance = 800, segment_index = 0, total_segments = 1,
+})
+
+-- 18. Idle at lander_pad
 test_virtual_node(kb_by_name["idle"], {
-    test_id = 11, next_test = 0,
+    test_id = 18, next_test = 0,
 })
 
 ---------------------------------------------------------------------------

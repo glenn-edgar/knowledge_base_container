@@ -3,8 +3,8 @@ local common_tree = require("kb.common_tree")
 return {
     name           = "path_rotate",
     index          = 5,
-    packet_ctype   = "cmd_rotate_t",
-    packet_type_id = 3,
+    packet_ctype   = "cmd_path_rotate_t",
+    packet_type_id = 5,
 
     json_schema = {
         { name = "from_heading", type = "float", required = true },

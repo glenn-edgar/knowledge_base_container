@@ -3,8 +3,8 @@ local common_tree = require("kb.common_tree")
 return {
     name           = "inspection_scan",
     index          = 10,
-    packet_ctype   = "cmd_sensor_read_t",
-    packet_type_id = 6,
+    packet_ctype   = "cmd_inspection_scan_t",
+    packet_type_id = 10,
 
     json_schema = {
         { name = "sensor_port", type = "uint8", default = 0 },
