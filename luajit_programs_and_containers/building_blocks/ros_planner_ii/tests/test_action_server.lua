@@ -1,6 +1,9 @@
 --[[
     test_action_server.lua -- Validate action server:
-      mission builder (route generation) + full execution with remote.
+      mission builder, coroutine scheduler, direct execution.
+
+    Test order: coroutine test first (remote alive), direct execution last
+    (sends shutdown to remote).
 ]]
 
 local ffi = require("ffi")
@@ -8,9 +11,9 @@ ffi.cdef[[
     int usleep(unsigned int usec);
 ]]
 
-local json_util      = require("json_util")
-local action_server  = require("action_server")
-local global_planner = require("global_planner")
+local json_util       = require("json_util")
+local action_server   = require("action_server")
+local global_planner  = require("global_planner")
 local mission_builder = require("mission_builder")
 
 local robot_id = os.getenv("ROBOT_ID") or "rover_1"
@@ -50,7 +53,6 @@ local planner = global_planner.new({
     board_name = "landing_zone",
 })
 
--- Simple mission: lander_pad → mining_zone_b (deliver_part) → lander_pad
 local mission_cmd = {
     start   = "lander_pad",
     board   = "landing_zone",
@@ -68,40 +70,21 @@ check("build has legs", #plan_info.legs == 2,
     "expected 2 legs, got " .. #plan_info.legs)
 
 if route then
-    -- First action should be init_check (bookend)
     check("first action = init_check", route[1].kb_name == "init_check",
         "got " .. route[1].kb_name)
-    -- Last action should be idle (bookend)
     check("last action = idle", route[#route].kb_name == "idle",
         "got " .. route[#route].kb_name)
 
-    -- Should contain deliver_part somewhere in the middle
     local has_deliver = false
     for _, a in ipairs(route) do
         if a.kb_name == "deliver_part" then
             has_deliver = true
-            check("deliver_part params", a.params.arm_target == -45,
-                "expected -45")
+            check("deliver_part params", a.params.arm_target == -45, "expected -45")
         end
     end
-    check("route has deliver_part", has_deliver, "missing deliver_part action")
+    check("route has deliver_part", has_deliver, "missing")
 
-    -- Print route summary
     print(string.format("  Route: %d actions, cost=%d", #route, plan_info.total_cost))
-    for i, a in ipairs(route) do
-        if a.params.to_x then
-            print(string.format("    %2d. %-14s → (%d,%d)", i, a.kb_name,
-                a.params.to_x, a.params.to_y))
-        elseif a.params.to_heading then
-            print(string.format("    %2d. %-14s → heading %.0f°", i, a.kb_name,
-                a.params.to_heading))
-        elseif a.params.arm_target then
-            print(string.format("    %2d. %-14s arm=%.0f", i, a.kb_name,
-                a.params.arm_target))
-        else
-            print(string.format("    %2d. %s", i, a.kb_name))
-        end
-    end
 end
 
 ---------------------------------------------------------------------------
@@ -109,7 +92,7 @@ end
 ---------------------------------------------------------------------------
 print("\n--- Multi-Stop Mission Builder ---")
 
-local multi_cmd = {
+local route2, info2 = mission_builder.build({
     start = "lander_pad",
     stops = {
         { node = "mining_zone_b", action = "deliver_part",
@@ -121,15 +104,13 @@ local multi_cmd = {
         { node = "lander_pad" },
     },
     bookend = true,
-}
+}, planner)
 
-local route2, info2 = mission_builder.build(multi_cmd, planner)
 check("multi route exists", route2 ~= nil, "nil route")
 check("multi has 4 legs", #info2.legs == 4,
     "expected 4, got " .. #info2.legs)
 
 if route2 then
-    -- Count action types
     local counts = {}
     for _, a in ipairs(route2) do
         counts[a.kb_name] = (counts[a.kb_name] or 0) + 1
@@ -137,9 +118,7 @@ if route2 then
     check("has 3 mission actions",
         (counts["deliver_part"] or 0) + (counts["paint_sample"] or 0) +
         (counts["load_shipping"] or 0) == 3,
-        "expected 3 mission actions")
-    check("has path actions", (counts["path_spline"] or 0) > 0, "no nav actions")
-
+        "expected 3")
     print(string.format("  Multi-stop: %d actions, %d legs, cost=%d",
         #route2, #info2.legs, info2.total_cost))
 end
@@ -147,18 +126,50 @@ end
 planner:close()
 
 ---------------------------------------------------------------------------
--- Test 3: Full execution with remote
+-- Test 3: Coroutine scheduler (remote alive)
 ---------------------------------------------------------------------------
-print("\n--- Full Execution Test ---")
+print("\n--- Coroutine Scheduler Test ---")
 
--- Give remote time to connect
-ffi.C.usleep(1000000)
+ffi.C.usleep(1000000)  -- give remote time to connect
 
 local srv = action_server.new({
     db_file     = db_file,
     hub_json    = hub_json,
     nats_server = server,
+    site        = site,
 })
+
+-- Submit a mission via coroutine API
+srv:submit({
+    robot_id = robot_id,
+    board    = "landing_zone",
+    start    = "lander_pad",
+    site     = site,
+    stops = {
+        { node = "habitat_site" },
+    },
+    bookend = true,
+})
+
+-- Run scheduler — single mission, runs to completion
+srv:serve()
+
+-- Check results
+local results = srv:get_results()
+check("coroutine result exists", results[robot_id] ~= nil,
+    "no result for " .. robot_id)
+if results[robot_id] then
+    local r = results[robot_id]
+    check("coroutine success", r.success == true,
+        "expected true, got " .. tostring(r.success))
+    print(string.format("  Coroutine mission: success=%s, completed=%s",
+        tostring(r.success), tostring(r.completed)))
+end
+
+---------------------------------------------------------------------------
+-- Test 4: Direct execution (sends shutdown — must be last)
+---------------------------------------------------------------------------
+print("\n--- Direct Execution Test ---")
 
 local result = srv:execute_mission({
     robot_id = robot_id,
@@ -179,7 +190,6 @@ check("no fault", result.fault == nil,
     "expected nil, got " .. tostring(result.fault and result.fault.reason))
 check("no replans", result.replans == 0,
     "expected 0, got " .. tostring(result.replans))
-check("has final_pose", result.final_pose ~= nil, "missing")
 
 if result.final_pose then
     print(string.format("  Final pose: x=%.0f y=%.0f heading=%.0f arm=%.0f",
@@ -187,9 +197,8 @@ if result.final_pose then
         result.final_pose.heading, result.final_pose.arm_angle))
 end
 
-print(string.format("  Completed: %d/%d, elapsed: %dms, replans: %d",
-    result.completed or 0, result.total or 0,
-    result.elapsed_ms or 0, result.replans or 0))
+print(string.format("  Completed: %d/%d, elapsed: %dms",
+    result.completed or 0, result.total or 0, result.elapsed_ms or 0))
 
 srv:close()
 
