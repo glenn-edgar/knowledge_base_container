@@ -35,7 +35,8 @@ echo ""
 
 # LUA_PATH: include NATS libs
 LOCAL_PLANNER_DIR="$ROOT_DIR/local_planner/lib"
-export LUA_PATH="$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+GLOBAL_PLANNER_DIR="$ROOT_DIR/global_planner/lib"
+export LUA_PATH="$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;;"
 
 export ROBOT_ID="${ROBOT_ID:-rover_1}"
@@ -188,6 +189,23 @@ run_hub_rt() {
     return $TEST_RC
 }
 
+run_planner() {
+    echo "=== Global Planner Test ==="
+
+    # Build KB database (no ChainTree needed for pure planner tests)
+    cd "$KB_CONSTRUCT"
+    rm -f surface_ops.db
+    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
+    echo ""
+
+    cd "$SCRIPT_DIR"
+    luajit test_global_planner.lua
+    local TEST_RC=$?
+
+    echo ""
+    return $TEST_RC
+}
+
 run_sequencer() {
     echo "=== Sequencer Test ==="
 
@@ -241,7 +259,8 @@ case "${1:-nats}" in
     nats)               run_nats ;;
     nats_ct)            run_nats_ct ;;
     hub_rt)             run_hub_rt ;;
+    planner)            run_planner ;;
     sequencer)          run_sequencer ;;
-    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer ;;
-    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|all]"; exit 1 ;;
+    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer; run_planner ;;
+    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|planner|all]"; exit 1 ;;
 esac
