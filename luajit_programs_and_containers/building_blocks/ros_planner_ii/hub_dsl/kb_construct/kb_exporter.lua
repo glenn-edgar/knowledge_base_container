@@ -91,6 +91,32 @@ function M.export(opts)
         end
     end
 
+    -- Export robot classes (infra + hardware)
+    local classes = q:list_robot_classes()
+    local class_count = 0
+    for _, class_name in ipairs(classes) do
+        local infra = q:get_robot_infra(class_name)
+        if infra then
+            local key = site .. ".ROBOT_CLASS." .. class_name .. ".infra"
+            ks:put(key, json_util.encode(infra))
+            keys_written = keys_written + 1
+            class_count = class_count + 1
+        end
+
+        -- Export per-instance hardware configs
+        for _, robot_name in ipairs(robots) do
+            local cls = q:find_class_for_instance(robot_name)
+            if cls == class_name then
+                local hw = q:get_robot_hw(class_name, robot_name)
+                if hw then
+                    local key = site .. ".ROBOT_CLASS." .. class_name .. ".hw." .. robot_name
+                    ks:put(key, json_util.encode(hw))
+                    keys_written = keys_written + 1
+                end
+            end
+        end
+    end
+
     -- Export virtual node definitions
     local vn_all = q:get_all_virtual_nodes()
     local vn_count = 0
@@ -126,11 +152,12 @@ function M.export(opts)
     ks:destroy()
 
     return {
-        keys_written  = keys_written,
-        site          = site,
-        robots        = #robots,
-        boards        = #boards,
-        virtual_nodes = vn_count,
+        keys_written   = keys_written,
+        site           = site,
+        robots         = #robots,
+        boards         = #boards,
+        virtual_nodes  = vn_count,
+        robot_classes  = class_count,
     }
 end
 

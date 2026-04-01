@@ -42,6 +42,17 @@ export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;;"
 
 export ROBOT_ID="${ROBOT_ID:-rover_1}"
 export NATS_SERVER="${NATS_SERVER:-nats://127.0.0.1:4222}"
+
+# Build KB, then trees (KB must exist before hub_dsl.lua merges VN data)
+build_all() {
+    cd "$KB_CONSTRUCT"
+    rm -f surface_ops.db
+    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
+
+    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
+    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
+    echo ""
+}
 export LD_LIBRARY_PATH="$NATS_BASE:${LD_LIBRARY_PATH:-}"
 
 run_loopback() {
@@ -98,17 +109,7 @@ run_nats() {
 
 run_nats_ct() {
     echo "=== NATS ChainTree Full Test ==="
-
-    # Build trees
-    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    echo ""
-
-    # Build KB database
-    cd "$KB_CONSTRUCT"
-    rm -f surface_ops.db
-    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
-    echo ""
+    build_all
 
     # Flush stale NATS queues BEFORE starting any process
     cd "$SCRIPT_DIR"
@@ -145,17 +146,7 @@ run_nats_ct() {
 
 run_hub_rt() {
     echo "=== Hub Runtime Module Test ==="
-
-    # Build trees
-    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    echo ""
-
-    # Build KB database
-    cd "$KB_CONSTRUCT"
-    rm -f surface_ops.db
-    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
-    echo ""
+    build_all
 
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"
@@ -192,17 +183,7 @@ run_hub_rt() {
 
 run_action() {
     echo "=== Action Server Test ==="
-
-    # Build trees
-    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    echo ""
-
-    # Build KB database
-    cd "$KB_CONSTRUCT"
-    rm -f surface_ops.db
-    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
-    echo ""
+    build_all
 
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"
@@ -239,13 +220,7 @@ run_action() {
 
 run_planner() {
     echo "=== Global Planner Test ==="
-
-    # Build KB database (no ChainTree needed for pure planner tests)
-    cd "$KB_CONSTRUCT"
-    rm -f surface_ops.db
-    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
-    echo ""
-
+    build_all
     cd "$SCRIPT_DIR"
     luajit test_global_planner.lua
     local TEST_RC=$?
@@ -256,17 +231,7 @@ run_planner() {
 
 run_sequencer() {
     echo "=== Sequencer Test ==="
-
-    # Build trees
-    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
-    echo ""
-
-    # Build KB database
-    cd "$KB_CONSTRUCT"
-    rm -f surface_ops.db
-    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
-    echo ""
+    build_all
 
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"

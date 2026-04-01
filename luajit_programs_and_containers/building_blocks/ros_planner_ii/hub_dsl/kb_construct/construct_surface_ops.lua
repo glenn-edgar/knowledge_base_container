@@ -49,7 +49,7 @@ kb:select_kb(SITE)
 -- BOARD: landing_zone — virtual node graph
 -- =====================================================================
 kb:add_info_node("BOARD", "landing_zone",
-    { board_type = "outdoor", dimensions = "2400x2400" },
+    { board_type = "outdoor", dimensions = "2400x2400", bidirectional = true },
     {
         nodes = {
             { name = "lander_pad",       x = 0,    y = 0,    type = "base" },
@@ -196,7 +196,8 @@ kb:add_header_node("ROBOT_CLASS", "construction_arm", {}, {},
         { comm_type = "nats" },
         {
             virtual_nodes = {
-                "init_check", "arm", "sensor_read", "idle",
+                "init_check", "deliver_part", "load_shipping",
+                "inspection_scan", "idle",
             },
             topics = {
                 rpc    = "{site}.{instance}.rpc",
@@ -206,8 +207,8 @@ kb:add_header_node("ROBOT_CLASS", "construction_arm", {}, {},
             heartbeat_interval = 10,
             controller_kb      = "controller",
             worker_kbs = {
-                "worker_init_check", "worker_arm",
-                "worker_sensor_read", "worker_idle",
+                "worker_init_check", "worker_deliver_part", "worker_load_shipping",
+                "worker_inspection_scan", "worker_idle",
             },
         },
         "Construction arm infrastructure configuration")

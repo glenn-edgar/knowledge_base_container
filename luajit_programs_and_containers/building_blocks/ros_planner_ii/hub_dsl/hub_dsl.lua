@@ -53,6 +53,53 @@ end
 table.sort(kb_plugins, function(a, b) return a.index < b.index end)
 
 -- =========================================================================
+-- Merge KB virtual node definitions into plugins
+-- =========================================================================
+
+local function merge_kb_data(plugins)
+    -- Try to load VN definitions from KB (surface_ops.db)
+    local ok, kb_query = pcall(require, "kb_query")
+    if not ok then return end
+
+    local kb_construct_dir = script_dir .. "kb_construct/"
+    local db_file = kb_construct_dir .. "surface_ops.db"
+
+    -- Check if DB exists
+    local f = io.open(db_file, "r")
+    if not f then return end
+    f:close()
+
+    local q_ok, q = pcall(kb_query.new, db_file, "knowledge_base", "/usr/local/lib/ltree")
+    if not q_ok then return end
+
+    local vn_defs = q:get_all_virtual_nodes()
+    q:close()
+
+    if not vn_defs or not next(vn_defs) then return end
+
+    for _, plugin in ipairs(plugins) do
+        local vn = vn_defs[plugin.name]
+        if vn then
+            -- Merge KB data into plugin (KB is source of truth)
+            plugin.packet_type_id = vn.packet_type_id or plugin.packet_type_id
+            plugin.json_schema    = vn.json_schema or plugin.json_schema or {}
+            plugin.bitmask        = vn.bitmask or plugin.bitmask or {}
+            plugin.pose_fields    = vn.pose_fields or plugin.pose_fields or {}
+            plugin.mapping        = plugin.mapping or {}
+        else
+            -- Plugin not in KB (e.g. error_recovery with packet_type_id=7/idle)
+            -- Keep plugin defaults
+            plugin.json_schema = plugin.json_schema or {}
+            plugin.bitmask     = plugin.bitmask or {}
+            plugin.pose_fields = plugin.pose_fields or {}
+            plugin.mapping     = plugin.mapping or {}
+        end
+    end
+end
+
+merge_kb_data(kb_plugins)
+
+-- =========================================================================
 -- Blackboard (auto-assembled)
 -- =========================================================================
 

@@ -1,31 +1,10 @@
+-- path_spline.lua — Code-only plugin. Data comes from KB VN definitions.
 local common_tree = require("kb.common_tree")
 
 return {
-    name           = "path_spline",
-    index          = 2,
-    packet_ctype   = "cmd_path_spline_t",
-    packet_type_id = 2,
-
-    json_schema = {
-        { name = "from_x",         type = "float", default = 0 },
-        { name = "from_y",         type = "float", default = 0 },
-        { name = "to_x",           type = "float", default = 0 },
-        { name = "to_y",           type = "float", default = 0 },
-        { name = "speed",          type = "float", default = 100 },
-        { name = "distance",       type = "float", default = 0 },
-        { name = "segment_index",  type = "uint16", default = 0 },
-        { name = "total_segments", type = "uint16", default = 1 },
-    },
-
-    mapping = {},
-
-    bitmask = {
-        { name = "seg_complete",   bit = 0 },
-        { name = "obstacle",       bit = 1 },
-        { name = "motor_fault",    bit = 2 },
-    },
-
-    pose_fields = { "delta_x", "delta_y", "delta_heading" },
+    name         = "path_spline",
+    index        = 2,
+    packet_ctype = "cmd_path_spline_t",
 
     define_tree = function(ct, kb_name, one_shot_name, plugin)
         common_tree.build(ct, kb_name, one_shot_name, plugin)
