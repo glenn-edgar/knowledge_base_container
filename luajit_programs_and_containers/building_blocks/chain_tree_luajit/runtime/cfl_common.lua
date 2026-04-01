@@ -146,4 +146,27 @@ function M.get_node_data_field(handle, node_id, path)
     return data
 end
 
+-- ============================================================================
+-- Walk parent chain to find nearest exception catch node
+-- Returns node_id or nil
+-- ============================================================================
+function M.find_parent_exception_node(handle, node_id)
+    local nodes = handle.flash_handle.nodes
+    local names = handle.flash_handle.main_function_names
+    local cur = node_id
+    while true do
+        local node = nodes[cur]
+        if not node then return nil end
+        local pid = node.parent_index
+        if not pid or pid == defs.CFL_NO_PARENT then return nil end
+        local pnode = nodes[pid]
+        if not pnode then return nil end
+        local fn_name = names[pnode.main_function_index]
+        if fn_name == "CFL_EXCEPTION_CATCH_MAIN" or fn_name == "CFL_EXCEPTION_CATCH_ALL_MAIN" then
+            return pid
+        end
+        cur = pid
+    end
+end
+
 return M

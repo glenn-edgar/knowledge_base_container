@@ -108,4 +108,15 @@ M.CFL_CHANGED_DOY    = 0x20
 -- ============================================================================
 M.CFL_NO_PARENT = 0xFFFF
 
+-- ============================================================================
+-- Exception catch stages (cfl_exception_support.h)
+-- ============================================================================
+M.CFL_EXCEPTION_MAIN_LINK     = 1   -- 1-based Lua index into catch_links
+M.CFL_EXCEPTION_RECOVERY_LINK = 2
+M.CFL_EXCEPTION_FINALIZE_LINK = 3
+
+-- Exception types (for logging)
+M.CFL_EXCEPTION_RAISED            = 1
+M.CFL_EXCEPTION_HEARTBEAT_TIMEOUT = 2
+
 return M

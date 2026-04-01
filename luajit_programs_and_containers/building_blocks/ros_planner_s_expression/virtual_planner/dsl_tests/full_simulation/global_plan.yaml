@@ -1,0 +1,471 @@
+# Global Plan YAML Output
+# Generated: 2026-03-29T20:32:01Z
+---
+actions:
+  - 
+    action_type: path
+    from:
+      x: 0
+      y: 0
+    from_name: launch
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 800
+        from:
+          x: 0
+          y: 0
+        from_name: launch
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 800
+          y: 0
+        to_name: gate_zone
+        waypoints:
+          - [0, 0]
+          - [200, 10]
+          - [600, -5]
+          - [800, 0]
+    speed: 150
+    step: 1
+    to:
+      x: 800
+      y: 0
+    to_name: gate_zone
+    total_distance: 800
+  - 
+    action_type: path
+    from:
+      x: 800
+      y: 0
+    from_name: gate_zone
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 800
+        from:
+          x: 800
+          y: 0
+        from_name: gate_zone
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 1600
+          y: 0
+        to_name: shipping
+    speed: 150
+    step: 2
+    to:
+      x: 1600
+      y: 0
+    to_name: shipping
+    total_distance: 800
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 0
+    from_name: shipping
+    max_distance: 800
+    nav_method: wall_ride
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 0
+        from_name: shipping
+        nav: wall_ride
+        speed: 100
+        to:
+          x: 1600
+          y: 400
+        to_name: assembly
+    speed: 100
+    step: 3
+    to:
+      x: 1600
+      y: 400
+    to_name: assembly
+    total_distance: 400
+  - 
+    action_type: mission
+    approach_heading: 270
+    board_node: assembly
+    catalog_key: deliver_part
+    name: deliver_part
+    params:
+      arm_return: 0
+      arm_speed: 80
+      arm_target: -45
+      payload: part
+    points: 15
+    step: 4
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 400
+    from_name: assembly
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 400
+        from_name: assembly
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 1600
+          y: 800
+        to_name: corridor_e
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 800
+        from_name: corridor_e
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 1600
+          y: 1200
+        to_name: painting
+    speed: 130
+    step: 5
+    to:
+      x: 1600
+      y: 1200
+    to_name: painting
+    total_distance: 800
+  - 
+    action_type: mission
+    approach_heading: 270
+    board_node: painting
+    catalog_key: paint_sample
+    name: paint_sample
+    params:
+      arm_return: 0
+      arm_speed: 60
+      arm_target: -60
+      hold_time: 500
+    points: 20
+    step: 6
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 1200
+    from_name: painting
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 1200
+        from_name: painting
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 1600
+          y: 800
+        to_name: corridor_e
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 800
+        from_name: corridor_e
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 1600
+          y: 400
+        to_name: assembly
+    speed: 130
+    step: 7
+    to:
+      x: 1600
+      y: 400
+    to_name: assembly
+    total_distance: 800
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 400
+    from_name: assembly
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 800
+        from:
+          x: 1600
+          y: 400
+        from_name: assembly
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 800
+          y: 400
+        to_name: corridor_s
+      - 
+        distance: 400
+        from:
+          x: 800
+          y: 400
+        from_name: corridor_s
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 800
+          y: 0
+        to_name: gate_zone
+    speed: 150
+    step: 8
+    to:
+      x: 800
+      y: 0
+    to_name: gate_zone
+    total_distance: 1200
+  - 
+    action_type: mission
+    approach_heading: 0
+    board_node: gate_zone
+    catalog_key: pass_gate
+    name: pass_gate
+    params:
+      drive_through: 200
+      rpc_close: gate.close
+      rpc_open: gate.open
+    points: 25
+    step: 9
+  - 
+    action_type: path
+    from:
+      x: 800
+      y: 0
+    from_name: gate_zone
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 800
+        from:
+          x: 800
+          y: 0
+        from_name: gate_zone
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 1600
+          y: 0
+        to_name: shipping
+    speed: 150
+    step: 10
+    to:
+      x: 1600
+      y: 0
+    to_name: shipping
+    total_distance: 800
+  - 
+    action_type: mission
+    approach_heading: 0
+    board_node: shipping
+    catalog_key: load_shipping
+    name: load_shipping
+    params:
+      arm_return: 0
+      arm_speed: 80
+      arm_target: -30
+      payload: container
+    points: 20
+    step: 11
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 0
+    from_name: shipping
+    max_distance: 800
+    nav_method: wall_ride
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 0
+        from_name: shipping
+        nav: wall_ride
+        speed: 100
+        to:
+          x: 1600
+          y: 400
+        to_name: assembly
+    speed: 100
+    step: 12
+    to:
+      x: 1600
+      y: 400
+    to_name: assembly
+    total_distance: 400
+  - 
+    action_type: path
+    from:
+      x: 1600
+      y: 400
+    from_name: assembly
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 1600
+          y: 400
+        from_name: assembly
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 1600
+          y: 800
+        to_name: corridor_e
+      - 
+        distance: 800
+        from:
+          x: 1600
+          y: 800
+        from_name: corridor_e
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 800
+          y: 800
+        to_name: crossroads
+      - 
+        distance: 400
+        from:
+          x: 800
+          y: 800
+        from_name: crossroads
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 800
+          y: 1200
+        to_name: inspection
+    speed: 130
+    step: 13
+    to:
+      x: 800
+      y: 1200
+    to_name: inspection
+    total_distance: 1600
+  - 
+    action_type: mission
+    approach_heading: 0
+    board_node: inspection
+    catalog_key: inspection_scan
+    name: inspection_scan
+    params:
+      sensor_port: inspect
+      sensor_type: color
+    points: 20
+    step: 14
+  - 
+    action_type: path
+    from:
+      x: 800
+      y: 1200
+    from_name: inspection
+    max_distance: 2000
+    nav_method: spline_follow
+    segments:
+      - 
+        distance: 400
+        from:
+          x: 800
+          y: 1200
+        from_name: inspection
+        nav: spline_follow
+        speed: 130
+        to:
+          x: 800
+          y: 800
+        to_name: crossroads
+      - 
+        distance: 800
+        from:
+          x: 800
+          y: 800
+        from_name: crossroads
+        nav: spline_follow
+        speed: 150
+        to:
+          x: 0
+          y: 800
+        to_name: corridor_n
+      - 
+        distance: 400
+        from:
+          x: 0
+          y: 800
+        from_name: corridor_n
+        nav: line_follow
+        speed: 120
+        to:
+          x: 0
+          y: 400
+        to_name: warehouse
+      - 
+        distance: 400
+        from:
+          x: 0
+          y: 400
+        from_name: warehouse
+        nav: spline_follow
+        speed: 120
+        to:
+          x: 0
+          y: 0
+        to_name: launch
+        waypoints:
+          - [0, 0]
+          - [-10, 100]
+          - [5, 300]
+          - [0, 400]
+    speed: 130
+    step: 15
+    to:
+      x: 0
+      y: 0
+    to_name: launch
+    total_distance: 2000
+mission_order:
+  - deliver_part
+  - paint_sample
+  - pass_gate
+  - load_shipping
+  - inspection_scan
+total_cost: 9600
+virtual_route:
+  - launch
+  - gate_zone
+  - shipping
+  - assembly
+  - painting
+  - assembly
+  - gate_zone
+  - shipping
+  - assembly
+  - inspection
+  - launch

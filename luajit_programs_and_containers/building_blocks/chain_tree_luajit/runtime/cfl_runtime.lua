@@ -79,6 +79,9 @@ function M.create(params, flash_handle)
         -- Event data pointer (set before each event execution)
         event_data_ptr = nil,
 
+        -- Test run control
+        tests_running = true,
+
         -- User context
         user_handle = nil,
 
@@ -176,6 +179,17 @@ function M.run(handle)
         end
         if not any_active then break end
 
+        -- Pause: keep ticking the timer but skip event processing
+        if not handle.tests_running then
+            timer_mod.tick(handle.timer)
+            tick_count = tick_count + 1
+            handle.tick_count = tick_count
+            if handle.max_ticks and tick_count >= handle.max_ticks then
+                break
+            end
+            goto continue_loop
+        end
+
         -- Timer tick
         local tick_result = timer_mod.tick(handle.timer)
         tick_count = tick_count + 1
@@ -225,6 +239,8 @@ function M.run(handle)
         if handle.max_ticks and tick_count >= handle.max_ticks then
             break
         end
+
+        ::continue_loop::
     end
 
     return true

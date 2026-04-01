@@ -16,8 +16,9 @@ local M = {}
 local bit  = require("bit")
 local band, bor = bit.band, bit.bor
 
-local defs   = require("cfl_definitions")
-local common = require("cfl_common")
+local defs      = require("cfl_definitions")
+local common    = require("cfl_common")
+local streaming = require("cfl_streaming")
 local engine -- loaded lazily to avoid circular require
 
 local CFL_CONTINUE         = defs.CFL_CONTINUE
@@ -526,36 +527,184 @@ M.CFL_EXCEPTION_CATCH_ALL_MAIN = function(handle, bool_fn_idx, node_idx, event_t
     return CFL_DISABLE
 end
 
--- Exception catch (filtered): checks boolean filter, can re-raise
+-- Exception catch (filtered): 3-stage pipeline with heartbeat monitoring
+-- Stages: MAIN_LINK -> RECOVERY_LINK -> FINALIZE_LINK
 M.CFL_EXCEPTION_CATCH_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns then return CFL_TERMINATE_SYSTEM end
+
+    local CFL_EXCEPTION_MAIN_LINK     = defs.CFL_EXCEPTION_MAIN_LINK
+    local CFL_EXCEPTION_RECOVERY_LINK = defs.CFL_EXCEPTION_RECOVERY_LINK
+    local CFL_EXCEPTION_FINALIZE_LINK = defs.CFL_EXCEPTION_FINALIZE_LINK
+
+    -- Forward exception event to parent exception handler
+    local function forward_exception(original_node_id)
+        if ns.parent_exception_node then
+            local eq = require("cfl_event_queue")
+            eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_HIGH,
+                ns.parent_exception_node, CFL_EVENT_TYPE_NULL,
+                CFL_RAISE_EXCEPTION_EVENT, original_node_id)
+        end
+    end
+
+    -- Transition from current stage to RECOVERY
+    local function transition_to_recovery()
+        if ns.catch_links and ns.catch_links[CFL_EXCEPTION_MAIN_LINK] then
+            get_engine().terminate_node_tree(handle, ns.catch_links[CFL_EXCEPTION_MAIN_LINK])
+        end
+        ns.exception_stage = CFL_EXCEPTION_RECOVERY_LINK
+        if ns.catch_links and ns.catch_links[CFL_EXCEPTION_RECOVERY_LINK] then
+            get_engine().enable_node(handle, ns.catch_links[CFL_EXCEPTION_RECOVERY_LINK])
+        end
+    end
+
+    -- ---- Handle exception raise ----
     if event_id == CFL_RAISE_EXCEPTION_EVENT then
+        local original_node_id = event_data
+        ns.original_node_id = original_node_id
+        ns.exception_type = defs.CFL_EXCEPTION_RAISED
+
+        -- Log the exception
+        if ns.logging_fn and ns.logging_fn ~= 0 then
+            local log_fn = handle.flash_handle.one_shot_functions[ns.logging_fn]
+            if log_fn then log_fn(handle, node_idx) end
+        end
+
+        -- Check boolean filter: true = not handled, forward to parent
         local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
         if bool_fn(handle, node_idx, event_type, event_id, event_data) then
-            local ns = common.get_node_state(handle, node_idx)
-            if ns and ns.logging_fn then
-                local log_fn = handle.flash_handle.one_shot_functions[ns.logging_fn]
-                if log_fn then
-                    if ns then ns.original_node_id = event_data end
-                    log_fn(handle, node_idx)
-                end
-            end
-            -- Terminate catch links and restart
-            if ns and ns.catch_links then
-                for _, cid in ipairs(ns.catch_links) do
-                    get_engine().terminate_node_tree(handle, cid)
-                    get_engine().enable_node(handle, cid)
-                end
-            end
+            forward_exception(original_node_id)
+            return CFL_DISABLE
+        end
+
+        -- Handled: transition based on current stage
+        if ns.exception_stage == CFL_EXCEPTION_MAIN_LINK then
+            transition_to_recovery()
             return CFL_CONTINUE
         end
-        -- Not caught — exception propagates up
+
+        -- Already in RECOVERY or FINALIZE — can't handle, forward up
+        forward_exception(original_node_id)
+        return CFL_DISABLE
+    end
+
+    -- ---- Handle step count event ----
+    if event_id == defs.CFL_SET_EXCEPTION_STEP_EVENT then
+        ns.step_count = event_data or 0
         return CFL_CONTINUE
     end
 
-    if event_id ~= CFL_TIMER_EVENT then
+    -- ---- Handle heartbeat control events ----
+    if event_id == defs.CFL_TURN_HEARTBEAT_ON_EVENT then
+        ns.heartbeat_enabled  = true
+        ns.heartbeat_time_out = event_data or 0
+        ns.heartbeat_count    = 0
         return CFL_CONTINUE
     end
 
+    if event_id == defs.CFL_TURN_HEARTBEAT_OFF_EVENT then
+        ns.heartbeat_enabled = false
+        return CFL_CONTINUE
+    end
+
+    if event_id == defs.CFL_HEARTBEAT_EVENT then
+        ns.heartbeat_count = 0
+        return CFL_CONTINUE
+    end
+
+    -- ---- Timer tick: heartbeat timeout check ----
+    if event_id == CFL_TIMER_EVENT then
+        if ns.heartbeat_enabled then
+            ns.heartbeat_count = ns.heartbeat_count + 1
+            if ns.heartbeat_count >= ns.heartbeat_time_out then
+                ns.heartbeat_enabled = false
+                ns.original_node_id = node_idx
+                ns.exception_type = defs.CFL_EXCEPTION_HEARTBEAT_TIMEOUT
+
+                if ns.logging_fn and ns.logging_fn ~= 0 then
+                    local log_fn = handle.flash_handle.one_shot_functions[ns.logging_fn]
+                    if log_fn then log_fn(handle, node_idx) end
+                end
+
+                if ns.exception_stage == CFL_EXCEPTION_MAIN_LINK then
+                    transition_to_recovery()
+                    return CFL_CONTINUE
+                end
+
+                -- Already past MAIN — forward to parent and disable
+                forward_exception(node_idx)
+                return CFL_DISABLE
+            end
+        end
+    end
+
+    -- ---- Normal tick: check if active stage child is still enabled ----
+    if not ns.catch_links then return CFL_DISABLE end
+    local active_child = ns.catch_links[ns.exception_stage]
+    if active_child and band(handle.flags[active_child], CT_FLAG_USER3) ~= 0 then
+        return CFL_CONTINUE
+    end
+
+    -- Active stage child finished — advance to next stage
+    if ns.exception_stage == CFL_EXCEPTION_MAIN_LINK then
+        -- MAIN completed normally: skip RECOVERY, go to FINALIZE
+        ns.exception_stage = CFL_EXCEPTION_FINALIZE_LINK
+        if ns.catch_links[CFL_EXCEPTION_FINALIZE_LINK] then
+            get_engine().enable_node(handle, ns.catch_links[CFL_EXCEPTION_FINALIZE_LINK])
+        end
+        return CFL_CONTINUE
+    elseif ns.exception_stage == CFL_EXCEPTION_RECOVERY_LINK then
+        -- RECOVERY completed: go to FINALIZE
+        ns.exception_stage = CFL_EXCEPTION_FINALIZE_LINK
+        if ns.catch_links[CFL_EXCEPTION_FINALIZE_LINK] then
+            get_engine().enable_node(handle, ns.catch_links[CFL_EXCEPTION_FINALIZE_LINK])
+        end
+        return CFL_CONTINUE
+    elseif ns.exception_stage == CFL_EXCEPTION_FINALIZE_LINK then
+        -- FINALIZE completed: done
+        return CFL_DISABLE
+    end
+
+    return CFL_CONTINUE
+end
+
+-- Controlled node container: structural owner, delegates to CFL_COLUMN_MAIN (no-op in C too)
+M.CFL_CONTROLLED_NODE_CONTAINER_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    return M.CFL_COLUMN_MAIN(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+end
+
+-- Controlled node (server): dormant until request event, runs children, sends response on term
+M.CFL_CONTROLLED_NODE_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns then return CFL_CONTINUE end
+
+    -- Match request event
+    if ns.request_port and event_id == ns.request_port.event_id
+       and event_type == defs.CFL_EVENT_TYPE_STREAMING_DATA then
+        -- Store request data
+        ns.request_data = event_data
+
+        -- Call boolean function (user processes request data)
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        bool_fn(handle, node_idx, event_type, event_id, event_data)
+
+        -- Enable all children (the processing pipeline)
+        common.enable_children(handle, node_idx)
+        return CFL_HALT
+    end
+
+    -- Handle exception: forward to client node
+    if event_id == CFL_RAISE_EXCEPTION_EVENT then
+        if ns.client_node_index then
+            local eq = require("cfl_event_queue")
+            eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_HIGH,
+                ns.client_node_index, CFL_EVENT_TYPE_NULL,
+                CFL_RAISE_EXCEPTION_EVENT, event_data)
+        end
+        return CFL_DISABLE
+    end
+
+    -- Normal tick: check if children still active
     local node = handle.flash_handle.nodes[node_idx]
     local link_start = node.link_start
     local link_count = band(node.link_count, CFL_LINK_COUNT_MASK)
@@ -571,24 +720,216 @@ M.CFL_EXCEPTION_CATCH_MAIN = function(handle, bool_fn_idx, node_idx, event_type,
     return CFL_DISABLE
 end
 
--- Controlled node stubs (Avro-dependent)
-M.CFL_CONTROLLED_NODE_CONTAINER_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
-    return M.CFL_COLUMN_MAIN(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
-end
-M.CFL_CONTROLLED_NODE_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
-    return CFL_CONTINUE
-end
+-- Client controlled node: activates server, waits for response
 M.CFL_CLIENT_CONTROLLED_NODE_MAIN = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns then return CFL_CONTINUE end
+
+    -- First tick: activate server node directly (mirrors C cfl_client_controlled_node_main)
+    if not ns.node_is_active then
+        local server_id = ns.server_node_id
+        if not server_id then return CFL_HALT end
+
+        -- Enable server node with initialized flag set
+        -- (so engine won't re-run init one-shot — we handle it here)
+        local bor = bit.bor
+        handle.flags[server_id] = bor(
+            band(handle.flags[server_id], bit.bnot(defs.CT_FLAG_USER_MASK)),
+            defs.CT_FLAG_USER3, defs.CT_FLAG_USER2)
+
+        -- Ensure all ancestors of server are enabled (container may have
+        -- disabled itself when all children completed on a previous call)
+        local nodes = handle.flash_handle.nodes
+        local pid = nodes[server_id] and nodes[server_id].parent_index
+        while pid and pid ~= defs.CFL_NO_PARENT do
+            if band(handle.flags[pid], defs.CT_FLAG_USER3) == 0 then
+                handle.flags[pid] = bor(
+                    band(handle.flags[pid], bit.bnot(defs.CT_FLAG_USER_MASK)),
+                    defs.CT_FLAG_USER3, defs.CT_FLAG_USER2)
+            end
+            pid = nodes[pid] and nodes[pid].parent_index
+        end
+
+        -- Initialize server: call init one-shot + boolean init
+        local server_node = handle.flash_handle.nodes[server_id]
+        if server_node then
+            local init_fn = handle.flash_handle.one_shot_functions[server_node.init_function_index]
+            if init_fn then init_fn(handle, server_id) end
+
+            if server_node.aux_function_index ~= 0 then
+                local aux_fn = handle.flash_handle.boolean_functions[server_node.aux_function_index]
+                if aux_fn then
+                    aux_fn(handle, server_id, CFL_EVENT_TYPE_NULL, CFL_INIT_EVENT, nil)
+                end
+            end
+        end
+
+        -- Store client node on server state for response routing
+        local server_ns = common.get_node_state(handle, server_id)
+        if server_ns then
+            server_ns.client_node_index = node_idx
+        end
+
+        -- Send request event to server (high priority, processed immediately)
+        if ns.request_port then
+            local eq = require("cfl_event_queue")
+            eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_HIGH,
+                server_id, defs.CFL_EVENT_TYPE_STREAMING_DATA,
+                ns.request_port.event_id, ns.request_packet)
+        end
+
+        ns.node_is_active = true
+        return CFL_HALT
+    end
+
+    -- Wait for response event
+    if ns.response_port and event_id == ns.response_port.event_id then
+        -- Accept both FFI cdata and Lua table responses
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        if not bool_fn(handle, node_idx, event_type, event_id, event_data) then
+            return CFL_TERMINATE
+        end
+        return CFL_DISABLE
+    end
+
+    -- Handle exception forwarded from server
+    if event_id == CFL_RAISE_EXCEPTION_EVENT then
+        -- Forward to parent exception handler
+        local parent_exc = common.find_parent_exception_node(handle, node_idx)
+        if parent_exc then
+            local eq = require("cfl_event_queue")
+            eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_HIGH,
+                parent_exc, CFL_EVENT_TYPE_NULL,
+                CFL_RAISE_EXCEPTION_EVENT, event_data)
+        end
+        return CFL_DISABLE
+    end
+
+    return CFL_HALT
+end
+
+-- Streaming sink: match inport -> call boolean (user processes packet)
+M.CFL_STREAMING_SINK_PACKET = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns or not ns.inport then return CFL_CONTINUE end
+
+    if streaming.event_matches(event_type, event_id, event_data, ns.inport) then
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        bool_fn(handle, node_idx, event_type, event_id, event_data)
+    end
+
     return CFL_CONTINUE
 end
 
--- Streaming stubs (Avro-dependent)
-M.CFL_STREAMING_FILTER_PACKET           = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
-M.CFL_STREAMING_SINK_PACKET             = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
-M.CFL_STREAMING_TAP_PACKET              = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
-M.CFL_STREAMING_TRANSFORM_PACKET        = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
-M.CFL_STREAMING_COLLECT_PACKETS         = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
-M.CFL_STREAMING_SINK_COLLECTED_PACKETS  = function(h, b, n, et, ei, ed) return CFL_CONTINUE end
+-- Streaming tap: match inport -> call boolean (observation, non-blocking)
+M.CFL_STREAMING_TAP_PACKET = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns or not ns.inport then return CFL_CONTINUE end
+
+    if streaming.event_matches(event_type, event_id, event_data, ns.inport) then
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        bool_fn(handle, node_idx, event_type, event_id, event_data)
+    end
+
+    return CFL_CONTINUE
+end
+
+-- Streaming filter: match inport -> call boolean -> false = CFL_HALT
+M.CFL_STREAMING_FILTER_PACKET = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns or not ns.inport then return CFL_CONTINUE end
+
+    if streaming.event_matches(event_type, event_id, event_data, ns.inport) then
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        if not bool_fn(handle, node_idx, event_type, event_id, event_data) then
+            return CFL_HALT
+        end
+    end
+
+    return CFL_CONTINUE
+end
+
+-- Streaming transform: match inport -> call boolean (user transforms + emits on outport)
+M.CFL_STREAMING_TRANSFORM_PACKET = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns or not ns.inport then return CFL_CONTINUE end
+
+    if streaming.event_matches(event_type, event_id, event_data, ns.inport) then
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        bool_fn(handle, node_idx, event_type, event_id, event_data)
+    end
+
+    return CFL_CONTINUE
+end
+
+-- Streaming collect: accumulate packets from multiple inports, emit when full
+M.CFL_STREAMING_COLLECT_PACKETS = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns or not ns.inports then return CFL_CONTINUE end
+
+    -- Don't accept while container is pending consumption
+    if ns.container_pending then return CFL_CONTINUE end
+
+    for i, inport in ipairs(ns.inports) do
+        if streaming.event_matches(event_type, event_id, event_data, inport) then
+            local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+            -- Boolean receives port index as event_type (matches C convention)
+            local accept = bool_fn(handle, node_idx, i, event_id, event_data)
+
+            if accept and ns.container_count < ns.container_capacity then
+                ns.container_count = ns.container_count + 1
+                ns.container_packets[ns.container_count] = event_data
+                ns.container_port_indices[ns.container_count] = i
+
+                if ns.container_count >= ns.container_capacity then
+                    ns.container_pending = true
+                    -- Emit collected packets event
+                    local container = {
+                        packets      = ns.container_packets,
+                        port_indices = ns.container_port_indices,
+                        count        = ns.container_count,
+                        capacity     = ns.container_capacity,
+                    }
+                    streaming.send_collected_event(handle,
+                        ns.output_event_column_id,
+                        ns.output_event_id, container)
+                end
+            end
+            break
+        end
+    end
+
+    return CFL_CONTINUE
+end
+
+-- Streaming sink collected: match collected event -> call boolean -> reset container
+M.CFL_STREAMING_SINK_COLLECTED_PACKETS = function(handle, bool_fn_idx, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns then return CFL_CONTINUE end
+
+    if streaming.collected_event_matches(event_type, event_id, ns.event_id) then
+        local bool_fn = handle.flash_handle.boolean_functions[bool_fn_idx]
+        bool_fn(handle, node_idx, event_type, event_id, event_data)
+
+        -- Reset the source container after user processes it
+        if type(event_data) == "table" then
+            -- Find the collect node and reset its container
+            -- event_data is the container table passed by collect node
+            if event_data.packets then
+                for k = 1, (event_data.capacity or 0) do
+                    event_data.packets[k] = nil
+                    if event_data.port_indices then
+                        event_data.port_indices[k] = nil
+                    end
+                end
+            end
+            -- Signal back that container is consumed
+            -- The collect node checks container_pending on next event
+        end
+    end
+
+    return CFL_CONTINUE
+end
 
 
 -- ============================================================================
@@ -699,7 +1040,7 @@ M.CFL_VERIFY_TESTS_ACTIVE = function(handle, node_idx, event_type, event_id, eve
         return false
     end
     -- Returns true while tests are still running (any KB active)
-    return handle.active_kb_count and handle.active_kb_count > 0
+    return handle.active_test_count and handle.active_test_count > 0
 end
 
 -- Wait for tests complete boolean
@@ -707,11 +1048,64 @@ M.CFL_WAIT_FOR_TESTS_COMPLETE = function(handle, node_idx, event_type, event_id,
     if event_id == CFL_INIT_EVENT or event_id == CFL_TERMINATE_EVENT then
         return false
     end
-    return handle.active_kb_count and handle.active_kb_count <= 0
+    return handle.active_test_count and handle.active_test_count <= 0
 end
 
--- Streaming verify packet stub
+-- Streaming verify packet: match inport -> delegate to user boolean
 M.CFL_STREAMING_VERIFY_PACKET = function(handle, node_idx, event_type, event_id, event_data)
+    local ns = common.get_node_state(handle, node_idx)
+    if not ns then return false end
+
+    -- On init: set up verify packet state (inport + user function)
+    if event_id == CFL_INIT_EVENT then
+        if not ns._verify_packet then
+            local inport = streaming.decode_port(handle, node_idx, "fn_data.inport")
+            local user_fn_name = common.get_node_data_field(handle, node_idx, "fn_data.user_aux_function")
+            local user_fn_idx = 0
+            if user_fn_name and user_fn_name ~= "" and user_fn_name ~= "CFL_NULL" then
+                user_fn_idx = handle.flash_handle._bool_fn_idx[user_fn_name] or 0
+            end
+            ns._verify_packet = {
+                inport = inport,
+                user_fn_idx = user_fn_idx,
+            }
+        end
+        -- Forward init to user function
+        local vp = ns._verify_packet
+        if vp.user_fn_idx ~= 0 then
+            local user_fn = handle.flash_handle.boolean_functions[vp.user_fn_idx]
+            return user_fn(handle, node_idx, event_type, event_id, event_data)
+        end
+        return false
+    end
+
+    local vp = ns._verify_packet
+    if not vp then return false end
+
+    if event_id == CFL_TERMINATE_EVENT then
+        if vp.user_fn_idx ~= 0 then
+            local user_fn = handle.flash_handle.boolean_functions[vp.user_fn_idx]
+            return user_fn(handle, node_idx, event_type, event_id, event_data)
+        end
+        return false
+    end
+
+    -- Non-streaming events pass through (return true = keep running)
+    if event_type ~= defs.CFL_EVENT_TYPE_STREAMING_DATA then
+        return true
+    end
+
+    -- Check if event matches inport
+    if not streaming.event_matches(event_type, event_id, event_data, vp.inport) then
+        return true
+    end
+
+    -- Delegate to user verification function
+    if vp.user_fn_idx ~= 0 then
+        local user_fn = handle.flash_handle.boolean_functions[vp.user_fn_idx]
+        return user_fn(handle, node_idx, event_type, event_id, event_data)
+    end
+
     return false
 end
 
@@ -1006,7 +1400,20 @@ M.CFL_EXCEPTION_CATCH_INIT = function(handle, node_idx)
     local log_name = common.get_node_data_field(handle, node_idx, "column_data.logging_function")
     ns.logging_fn = resolve_oneshot_idx(handle, log_name)
 
+    -- Heartbeat state
+    ns.heartbeat_enabled  = false
+    ns.heartbeat_time_out = 0
+    ns.heartbeat_count    = 0
+
+    -- 3-stage pipeline: MAIN -> RECOVERY -> FINALIZE
+    ns.exception_stage = defs.CFL_EXCEPTION_MAIN_LINK
+    ns.step_count      = 0
+
+    -- Find parent exception node for forwarding
+    ns.parent_exception_node = common.find_parent_exception_node(handle, node_idx)
+
     -- Resolve exception_catch_links (original indices -> final indices)
+    -- catch_links[1]=MAIN, [2]=RECOVERY, [3]=FINALIZE
     local raw_links = common.get_node_data_field(handle, node_idx, "column_data.exception_catch_links")
     if raw_links then
         ns.catch_links = {}
@@ -1018,33 +1425,140 @@ M.CFL_EXCEPTION_CATCH_INIT = function(handle, node_idx)
             end
         end
     end
+
+    -- Enable MAIN link child
+    if ns.catch_links and ns.catch_links[defs.CFL_EXCEPTION_MAIN_LINK] then
+        get_engine().enable_node(handle, ns.catch_links[defs.CFL_EXCEPTION_MAIN_LINK])
+    end
 end
 
 M.CFL_EXCEPTION_CATCH_TERM = function(handle, node_idx)
     handle.node_state[node_idx] = nil
 end
 
--- ---------- Controlled node stubs ----------
+-- ---------- Controlled node container ----------
 M.CFL_CONTROLLED_NODE_CONTAINER_INIT = M.CFL_COLUMN_INIT
 M.CFL_CONTROLLED_NODE_CONTAINER_TERM = M.CFL_COLUMN_TERM
-M.CFL_CONTROLLED_NODE_INIT           = noop_oneshot
-M.CFL_CONTROLLED_NODE_TERM           = noop_oneshot
-M.CFL_CLIENT_CONTROLLED_NODE_INIT    = noop_oneshot
-M.CFL_CLIENT_CONTROLLED_NODE_TERM    = noop_oneshot
 
--- ---------- Streaming stubs ----------
-M.CFL_STREAMING_FILTER_PACKET_INIT          = noop_oneshot
-M.CFL_STREAMING_FILTER_PACKET_TERM          = noop_oneshot
-M.CFL_STREAMING_SINK_PACKET_INIT            = noop_oneshot
-M.CFL_STREAMING_SINK_PACKET_TERM            = noop_oneshot
-M.CFL_STREAMING_TAP_PACKET_INIT             = noop_oneshot
-M.CFL_STREAMING_TAP_PACKET_TERM             = noop_oneshot
-M.CFL_STREAMING_TRANSFORM_PACKET_INIT       = noop_oneshot
-M.CFL_STREAMING_TRANSFORM_PACKET_TERM       = noop_oneshot
-M.CFL_STREAMING_COLLECT_PACKETS_INIT        = noop_oneshot
-M.CFL_STREAMING_COLLECT_PACKETS_TERM        = noop_oneshot
-M.CFL_STREAMING_SINK_COLLECTED_PACKETS_INIT = noop_oneshot
-M.CFL_STREAMING_SINK_COLLECTED_PACKETS_TERM = noop_oneshot
+-- ---------- Controlled node (server) ----------
+M.CFL_CONTROLLED_NODE_INIT = function(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+    -- Decode request/response ports from column_data
+    ns.request_port  = streaming.decode_port(handle, node_idx, "column_data.request_port")
+    ns.response_port = streaming.decode_port(handle, node_idx, "column_data.response_port")
+    ns.client_node_index = nil
+end
+
+M.CFL_CONTROLLED_NODE_TERM = function(handle, node_idx)
+    local ns = common.get_node_state(handle, node_idx)
+    if ns and ns.response_port and ns.client_node_index then
+        -- Send response back to client (high priority so it's processed next)
+        local response = ns.response_packet or { success = true }
+        local eq = require("cfl_event_queue")
+        eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_HIGH,
+            ns.client_node_index, defs.CFL_EVENT_TYPE_STREAMING_DATA,
+            ns.response_port.event_id, response)
+    end
+    handle.node_state[node_idx] = nil
+end
+
+-- ---------- Client controlled node ----------
+M.CFL_CLIENT_CONTROLLED_NODE_INIT = function(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+    ns.request_port  = streaming.decode_port(handle, node_idx, "request_port")
+    ns.response_port = streaming.decode_port(handle, node_idx, "response_port")
+    ns.node_is_active = false
+
+    -- Resolve server node index (original -> final)
+    local server_orig = common.get_node_data_field(handle, node_idx, "server_node_index")
+    if server_orig then
+        local o2f = handle.flash_handle.original_to_final
+        ns.server_node_id = o2f and o2f[server_orig]
+    end
+
+    -- Store aux_data and api_name for user code access
+    local nd = common.get_node_data(handle, node_idx)
+    ns.aux_data = nd and nd.aux_data
+    ns.api_name = nd and nd.api_name
+
+    -- Create request packet as Lua table (user boolean fills details on INIT)
+    ns.request_packet = { aux_data = ns.aux_data }
+end
+
+M.CFL_CLIENT_CONTROLLED_NODE_TERM = function(handle, node_idx)
+    handle.node_state[node_idx] = nil
+end
+
+-- ---------- Streaming inport nodes (sink, tap, filter) ----------
+local function streaming_inport_init(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+    ns.inport = streaming.decode_port(handle, node_idx, "inport")
+end
+
+local function streaming_inport_term(handle, node_idx)
+    handle.node_state[node_idx] = nil
+end
+
+M.CFL_STREAMING_SINK_PACKET_INIT   = streaming_inport_init
+M.CFL_STREAMING_SINK_PACKET_TERM   = streaming_inport_term
+M.CFL_STREAMING_TAP_PACKET_INIT    = streaming_inport_init
+M.CFL_STREAMING_TAP_PACKET_TERM    = streaming_inport_term
+M.CFL_STREAMING_FILTER_PACKET_INIT = streaming_inport_init
+M.CFL_STREAMING_FILTER_PACKET_TERM = streaming_inport_term
+
+-- ---------- Streaming transform (inport + outport) ----------
+M.CFL_STREAMING_TRANSFORM_PACKET_INIT = function(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+    ns.inport  = streaming.decode_port(handle, node_idx, "inport")
+    ns.outport = streaming.decode_port(handle, node_idx, "outport")
+    ns.output_event_column_id = common.get_node_data_field(handle, node_idx, "output_event_column_id")
+end
+
+M.CFL_STREAMING_TRANSFORM_PACKET_TERM = function(handle, node_idx)
+    handle.node_state[node_idx] = nil
+end
+
+-- ---------- Streaming collect (multiple inports + container) ----------
+M.CFL_STREAMING_COLLECT_PACKETS_INIT = function(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+
+    -- Decode array of inports
+    local raw_inports = common.get_node_data_field(handle, node_idx, "inports") or {}
+    ns.inports = {}
+    for i, ip in ipairs(raw_inports) do
+        ns.inports[i] = {
+            schema_hash = ip.schema_hash or 0,
+            handler_id  = ip.handler_id or 0,
+            event_id    = ip.event_id or 0,
+        }
+    end
+
+    -- Output event config
+    ns.output_event_id        = common.get_node_data_field(handle, node_idx, "output_event_id") or 0
+    ns.output_event_column_id = common.get_node_data_field(handle, node_idx, "output_event_column_id") or 0
+
+    -- Container
+    local expected = common.get_node_data_field(handle, node_idx, "aux_data.expected_count") or #raw_inports
+    ns.container_capacity     = expected
+    ns.container_count        = 0
+    ns.container_pending      = false
+    ns.container_packets      = {}
+    ns.container_port_indices = {}
+end
+
+M.CFL_STREAMING_COLLECT_PACKETS_TERM = function(handle, node_idx)
+    handle.node_state[node_idx] = nil
+end
+
+-- ---------- Streaming sink collected packets ----------
+M.CFL_STREAMING_SINK_COLLECTED_PACKETS_INIT = function(handle, node_idx)
+    local ns = common.alloc_node_state(handle, node_idx)
+    ns.event_id = common.get_node_data_field(handle, node_idx, "event_id") or 0
+end
+
+M.CFL_STREAMING_SINK_COLLECTED_PACKETS_TERM = function(handle, node_idx)
+    handle.node_state[node_idx] = nil
+end
 
 
 -- ============================================================================
@@ -1178,20 +1692,31 @@ M.CFL_DISABLE_NODES = function(handle, node_idx)
     end
 end
 
--- Heartbeat operations
+-- Heartbeat operations — send events to parent exception catch node
 M.CFL_HEARTBEAT_EVENT = function(handle, node_idx)
+    local target = common.find_parent_exception_node(handle, node_idx)
+    if not target then return end
     local eq = require("cfl_event_queue")
-    local target = handle.node_start_index or 0
     eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_LOW,
         target, CFL_EVENT_TYPE_NULL, defs.CFL_HEARTBEAT_EVENT, nil)
 end
 
 M.CFL_TURN_HEARTBEAT_ON = function(handle, node_idx)
-    handle.heartbeat_enabled = true
+    local target = common.find_parent_exception_node(handle, node_idx)
+    if not target then return end
+    local nd = common.get_node_data(handle, node_idx)
+    local time_out = nd and nd.time_out or 0
+    local eq = require("cfl_event_queue")
+    eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_LOW,
+        target, CFL_EVENT_TYPE_NULL, defs.CFL_TURN_HEARTBEAT_ON_EVENT, time_out)
 end
 
 M.CFL_TURN_HEARTBEAT_OFF = function(handle, node_idx)
-    handle.heartbeat_enabled = false
+    local target = common.find_parent_exception_node(handle, node_idx)
+    if not target then return end
+    local eq = require("cfl_event_queue")
+    eq.send(handle.event_queue, defs.CFL_EVENT_PRIORITY_LOW,
+        target, CFL_EVENT_TYPE_NULL, defs.CFL_TURN_HEARTBEAT_OFF_EVENT, nil)
 end
 
 -- Watchdog control

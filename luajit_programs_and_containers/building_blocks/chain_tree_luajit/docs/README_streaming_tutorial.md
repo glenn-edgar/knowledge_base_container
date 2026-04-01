@@ -124,43 +124,83 @@ end
 
 ## User Function Signatures
 
-All streaming user functions are boolean functions:
+All streaming user functions are boolean functions.
 
+### C Signatures
 ```c
-// Generator — fill packet, return true to emit
-bool sensor_gen_fn(void *handle, unsigned node_index,
-                   unsigned event_type, unsigned event_id, void *event_data);
-
-// Sink — process received packet
-bool data_logger_fn(void *handle, unsigned node_index,
-                    unsigned event_type, unsigned event_id, void *event_data);
-
-// Filter — return true to pass, false to block
-bool range_filter_fn(void *handle, unsigned node_index,
-                     unsigned event_type, unsigned event_id, void *event_data);
+// Sink/Tap/Filter/Transform — process or filter packet
+bool my_fn(void *handle, unsigned node_index,
+           unsigned event_type, unsigned event_id, void *event_data);
 ```
 
-The packet pointer is accessed via `event_data` when `event_id` matches the port's event.
+### LuaJIT CFL Runtime Signatures
+```lua
+-- Boolean (sink, tap, filter, transform, collector, collector_sink, verify)
+function MY_FN(handle, node_idx, event_type, event_id, event_data)
+    -- event_data is FFI cdata packet or Lua table
+    -- return true/false
+end
 
-## Avro Packet Format
+-- One-shot (emit packet / generator)
+function MY_GENERATOR(handle, node_idx)
+    local schema = require("stream_test_1_ffi")
+    local pkt = schema.new_packet("accelerometer_reading")
+    schema.packet_init(pkt, "accelerometer_reading", node_idx)
+    pkt.data.x = 1.0
+    -- Emit via streaming helper
+    local streaming = require("cfl_streaming")
+    local nd = require("cfl_common").get_node_data(handle, node_idx)
+    streaming.send_streaming_event(handle, target_node, nd.outport.event_id, pkt)
+end
+```
 
-Packets use a fixed header followed by application-defined fields:
+## Runtime Implementation (`runtime/`)
+
+The streaming subsystem is implemented across two modules:
+
+### `cfl_streaming.lua` — Port and Packet Matching
+- `decode_port(handle, node_idx, path)` — reads port config from JSON IR node_data
+- `event_matches(event_type, event_id, event_data, port)` — checks event_type == STREAMING_DATA, event_id match, and schema_hash match
+- `get_schema_hash(packet)` — extracts hash from FFI cdata (header offset 8) or Lua table
+- `send_streaming_event(handle, target, event_id, packet)` — sends via CFL event queue
+- `send_collected_event(handle, target, event_id, container)` — sends collected packets event
+
+### `cfl_builtins.lua` — Streaming Functions
+Each streaming node type has init/main/term functions. Init decodes ports from node_data into node_state. Main matches events and dispatches to user boolean. Term clears node_state.
+
+| Function | Init Reads | Main Behavior |
+|----------|-----------|---------------|
+| `CFL_STREAMING_SINK_PACKET` | `inport` | match → call boolean |
+| `CFL_STREAMING_TAP_PACKET` | `inport` | match → call boolean (same as sink) |
+| `CFL_STREAMING_FILTER_PACKET` | `inport` | match → call boolean → false=CFL_HALT |
+| `CFL_STREAMING_TRANSFORM_PACKET` | `inport`, `outport`, `output_event_column_id` | match → call boolean (user emits on outport) |
+| `CFL_STREAMING_COLLECT_PACKETS` | `inports[]`, container config | match any inport → accumulate → emit when full |
+| `CFL_STREAMING_SINK_COLLECTED_PACKETS` | `event_id` | match collected event → call boolean → reset container |
+| `CFL_STREAMING_VERIFY_PACKET` | `fn_data.inport`, `fn_data.user_aux_function` | delegate to user boolean for matched packets |
+
+### Packet Format
+
+Packets use a 16-byte packed header followed by application-defined fields:
 
 ```c
-typedef struct {
-    uint32_t schema_hash;    // identifies packet type
-    uint32_t seq;            // sequence number (auto-incremented)
-    double   timestamp;      // set by runtime
-    unsigned source_node;    // generating node index
-} avro_packet_header_t;
-
-// Application packet extends the header:
-typedef struct {
-    avro_packet_header_t header;
-    float temperature;
-    float pressure;
-    uint32_t sensor_id;
-} sensor_packet_t;
+typedef struct __attribute__((packed)) {
+    double      timestamp;     // 8 bytes (offset 0)
+    uint32_t    schema_hash;   // 4 bytes (offset 8) — FNV-1a of "file.h:record"
+    uint16_t    seq;           // 2 bytes (offset 12)
+    uint16_t    source_node;   // 2 bytes (offset 14)
+} avro_packet_header_t;       // 16 bytes total
 ```
+
+The Avro DSL generates both C headers and LuaJIT FFI bindings (`_ffi.lua`) with `packet_init()`, `packet_verify()`, and `new_packet()` helpers. Schema hash is `FNV-1a("<file>.h:<record>")`.
+
+### Test Coverage
+
+Tests 19-22 in `dsl_tests/incremental_binary/` exercise all streaming node types:
+- Test 19 (`twenty_third_test`): Basic packet emit + verify
+- Test 20 (`twenty_fourth_test`): Sink, tap, filter, transform pipeline
+- Test 21 (`twenty_fifth_test`): Multi-source collector + sink collected
+- Test 22 (`twenty_sixth_test`): Streaming verify packet with reset
+
+Run with: `luajit dsl_tests/incremental_binary/test_cfl.lua 19`
 
 See [avro/README_avro_commands.md](avro/README_avro_commands.md) and [avro/README_c_avro_packtes.md](avro/README_c_avro_packtes.md) for the Avro packet DSL and format details.
