@@ -16,7 +16,9 @@
       ├── ROBOT_INSTANCE.rover_1
       ├── ROBOT_INSTANCE.rover_2
       ├── ROBOT_INSTANCE.arm_1
-      └── PLANNER.route_planner
+      ├── PLANNER.route_planner
+      └── VIRTUAL_NODES.definitions
+          └── VN_TYPE.{init_check, path_spline, ..., idle}
 
     Usage:
       luajit construct_surface_ops.lua <db_file>
@@ -364,6 +366,220 @@ kb:add_header_node("PLANNER", "route_planner", {}, {},
         })
 
 kb:leave_header_node("PLANNER", "route_planner")
+
+-- =====================================================================
+-- VIRTUAL_NODES: master definitions for all virtual node types
+-- Single source of truth for schema, packet type, bitmask, pose fields.
+-- Hub DSL plugins and robot capabilities reference these.
+-- =====================================================================
+kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
+    "Master virtual node type definitions")
+
+    kb:add_info_node("VN_TYPE", "init_check",
+        { packet_type_id = 1 },
+        {
+            description = "Preflight self-test",
+            json_schema = {},
+            bitmask = {
+                { name = "battery_ok",  bit = 0 },
+                { name = "motors_ok",   bit = 1 },
+                { name = "sensors_ok",  bit = 2 },
+                { name = "comms_ok",    bit = 3 },
+            },
+            pose_fields = {},
+        },
+        "Init check virtual node")
+
+    kb:add_info_node("VN_TYPE", "path_spline",
+        { packet_type_id = 2 },
+        {
+            description = "Follow spline path",
+            json_schema = {
+                { name = "from_x",          type = "float", default = 0 },
+                { name = "from_y",          type = "float", default = 0 },
+                { name = "to_x",            type = "float", default = 0 },
+                { name = "to_y",            type = "float", default = 0 },
+                { name = "speed",           type = "float", default = 100 },
+                { name = "distance",        type = "float", default = 0 },
+                { name = "segment_index",   type = "uint32", default = 0 },
+                { name = "total_segments",  type = "uint32", default = 1 },
+            },
+            bitmask = {
+                { name = "seg_complete", bit = 0 },
+                { name = "obstacle",     bit = 1 },
+                { name = "motor_fault",  bit = 2 },
+            },
+            pose_fields = { "delta_x", "delta_y", "delta_heading" },
+        },
+        "Path spline virtual node")
+
+    kb:add_info_node("VN_TYPE", "path_line",
+        { packet_type_id = 3 },
+        {
+            description = "Follow line",
+            json_schema = {
+                { name = "from_x",   type = "float", default = 0 },
+                { name = "from_y",   type = "float", default = 0 },
+                { name = "to_x",     type = "float", default = 0 },
+                { name = "to_y",     type = "float", default = 0 },
+                { name = "speed",    type = "float", default = 100 },
+                { name = "distance", type = "float", default = 0 },
+            },
+            bitmask = {
+                { name = "seg_complete", bit = 0 },
+                { name = "obstacle",     bit = 1 },
+                { name = "motor_fault",  bit = 2 },
+            },
+            pose_fields = { "delta_x", "delta_y", "delta_heading" },
+        },
+        "Path line virtual node")
+
+    kb:add_info_node("VN_TYPE", "path_wall",
+        { packet_type_id = 4 },
+        {
+            description = "Wall follow",
+            json_schema = {
+                { name = "from_x",        type = "float", default = 0 },
+                { name = "from_y",        type = "float", default = 0 },
+                { name = "to_x",          type = "float", default = 0 },
+                { name = "to_y",          type = "float", default = 0 },
+                { name = "speed",         type = "float", default = 100 },
+                { name = "distance",      type = "float", default = 0 },
+                { name = "wall_standoff", type = "float", default = 50 },
+            },
+            bitmask = {
+                { name = "seg_complete", bit = 0 },
+                { name = "obstacle",     bit = 1 },
+                { name = "motor_fault",  bit = 2 },
+                { name = "wall_lost",    bit = 3 },
+            },
+            pose_fields = { "delta_x", "delta_y", "delta_heading" },
+        },
+        "Path wall virtual node")
+
+    kb:add_info_node("VN_TYPE", "path_rotate",
+        { packet_type_id = 5 },
+        {
+            description = "Rotate in place",
+            json_schema = {
+                { name = "from_heading", type = "float", required = true },
+                { name = "to_heading",   type = "float", required = true },
+            },
+            bitmask = {
+                { name = "rotate_complete", bit = 0 },
+                { name = "motor_fault",     bit = 1 },
+            },
+            pose_fields = { "delta_heading" },
+        },
+        "Path rotate virtual node")
+
+    kb:add_info_node("VN_TYPE", "deliver_part",
+        { packet_type_id = 6 },
+        {
+            description = "Arm delivery at assembly station",
+            json_schema = {
+                { name = "arm_target",   type = "float", required = true },
+                { name = "arm_speed",    type = "float", default = 80 },
+                { name = "arm_return",   type = "float", default = 0 },
+                { name = "payload_type", type = "uint8", default = 0, enum = { none = 0, part = 1, container = 2 } },
+            },
+            bitmask = {
+                { name = "arm_at_target",   bit = 0 },
+                { name = "payload_gripped", bit = 1 },
+                { name = "action_complete", bit = 2 },
+                { name = "arm_fault",       bit = 3 },
+            },
+            pose_fields = { "delta_arm_angle" },
+        },
+        "Deliver part virtual node")
+
+    kb:add_info_node("VN_TYPE", "paint_sample",
+        { packet_type_id = 7 },
+        {
+            description = "Paint operation",
+            json_schema = {
+                { name = "arm_target", type = "float", required = true },
+                { name = "arm_speed",  type = "float", default = 60 },
+                { name = "arm_return", type = "float", default = 0 },
+                { name = "hold_time",  type = "float", default = 500 },
+            },
+            bitmask = {
+                { name = "arm_at_target",   bit = 0 },
+                { name = "action_complete", bit = 1 },
+                { name = "arm_fault",       bit = 2 },
+            },
+            pose_fields = { "delta_arm_angle" },
+        },
+        "Paint sample virtual node")
+
+    kb:add_info_node("VN_TYPE", "load_shipping",
+        { packet_type_id = 8 },
+        {
+            description = "Load container at shipping station",
+            json_schema = {
+                { name = "arm_target",   type = "float", required = true },
+                { name = "arm_speed",    type = "float", default = 80 },
+                { name = "arm_return",   type = "float", default = 0 },
+                { name = "payload_type", type = "uint8", default = 0, enum = { none = 0, part = 1, container = 2 } },
+            },
+            bitmask = {
+                { name = "arm_at_target",   bit = 0 },
+                { name = "payload_gripped", bit = 1 },
+                { name = "action_complete", bit = 2 },
+                { name = "arm_fault",       bit = 3 },
+            },
+            pose_fields = { "delta_arm_angle" },
+        },
+        "Load shipping virtual node")
+
+    kb:add_info_node("VN_TYPE", "pass_gate",
+        { packet_type_id = 9 },
+        {
+            description = "Open gate, drive through, close gate",
+            json_schema = {
+                { name = "rpc_open_hash",  type = "uint32", default = 0 },
+                { name = "rpc_close_hash", type = "uint32", default = 0 },
+                { name = "drive_through",  type = "float",  default = 200 },
+            },
+            bitmask = {
+                { name = "gate_opened",     bit = 0 },
+                { name = "drive_complete",  bit = 1 },
+                { name = "gate_closed",     bit = 2 },
+                { name = "action_complete", bit = 3 },
+            },
+            pose_fields = { "delta_x", "delta_y", "delta_heading" },
+        },
+        "Pass gate virtual node")
+
+    kb:add_info_node("VN_TYPE", "inspection_scan",
+        { packet_type_id = 10 },
+        {
+            description = "Sensor read at inspection point",
+            json_schema = {
+                { name = "sensor_port", type = "uint8", default = 0 },
+                { name = "sensor_type", type = "uint8", default = 0, enum = { color = 0, distance = 1, force = 2 } },
+            },
+            bitmask = {
+                { name = "reading_ready", bit = 0 },
+                { name = "sensor_fault",  bit = 1 },
+            },
+            pose_fields = {},
+        },
+        "Inspection scan virtual node")
+
+    kb:add_info_node("VN_TYPE", "idle",
+        { packet_type_id = 11 },
+        {
+            description = "Park robot",
+            json_schema = {},
+            bitmask = {
+                { name = "parked", bit = 0 },
+            },
+            pose_fields = {},
+        },
+        "Idle virtual node")
+
+kb:leave_header_node("VIRTUAL_NODES", "definitions")
 
 -- =====================================================================
 -- Bit masks (per-robot-class, registered at KB level)

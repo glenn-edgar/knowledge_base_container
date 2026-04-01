@@ -286,6 +286,56 @@ function M:get_robot_config(instance_name)
     }
 end
 
+---------------------------------------------------------------------------
+-- Virtual node definitions
+---------------------------------------------------------------------------
+
+--- Get a single virtual node type definition.
+-- @param vn_name string: e.g. "path_spline"
+-- @return table: { packet_type_id, description, json_schema, bitmask, pose_fields }
+function M:get_virtual_node(vn_name)
+    local site = self:get_site()
+    local path = site .. ".VIRTUAL_NODES.definitions.VN_TYPE." .. vn_name
+    local rows = self.kb:find_by_pattern(path)
+    if #rows > 0 then
+        local r = parse_row(rows[1])
+        local result = r.data or {}
+        if r.properties and r.properties.packet_type_id then
+            result.packet_type_id = r.properties.packet_type_id
+        end
+        result.name = vn_name
+        return result
+    end
+    return nil
+end
+
+--- List all virtual node type names.
+-- @return array of strings
+function M:list_virtual_nodes()
+    local site = self:get_site()
+    local parent = site .. ".VIRTUAL_NODES.definitions"
+    local rows = self.kb:find_descendants(parent)
+    local names = {}
+    for _, row in ipairs(rows) do
+        local name = row.path:match("VN_TYPE%.([^.]+)$")
+        if name then
+            names[#names + 1] = name
+        end
+    end
+    return names
+end
+
+--- Get all virtual node definitions as a table keyed by name.
+-- @return table: { name = { packet_type_id, json_schema, bitmask, pose_fields } }
+function M:get_all_virtual_nodes()
+    local names = self:list_virtual_nodes()
+    local result = {}
+    for _, name in ipairs(names) do
+        result[name] = self:get_virtual_node(name)
+    end
+    return result
+end
+
 function M:get_site_config()
     local site = self:get_site()
     local boards = self:list_boards()
@@ -297,10 +347,11 @@ function M:get_site_config()
     end
 
     return {
-        site    = site,
-        boards  = boards,
-        robots  = robot_configs,
-        planner = self:get_planner_state(),
+        site          = site,
+        boards        = boards,
+        robots        = robot_configs,
+        planner       = self:get_planner_state(),
+        virtual_nodes = self:get_all_virtual_nodes(),
     }
 end
 

@@ -1,2 +1,6 @@
 *.db
 *.so
+hub_dsl/hub.json
+hub_dsl/hub_debug.yaml
+robots/*/remote.json
+robots/*/remote_debug.yaml

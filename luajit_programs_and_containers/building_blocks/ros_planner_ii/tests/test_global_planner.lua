@@ -261,6 +261,96 @@ check("heading south", math.abs(route_builder.compute_heading(0,0, 0,-100) - 270
 planner:close()
 
 ---------------------------------------------------------------------------
+-- Test 12: Virtual node definitions in KB
+---------------------------------------------------------------------------
+print("\n--- Virtual Node KB Tests ---")
+
+local kb_query = require("kb_query")
+local q = kb_query.new(db_file, "knowledge_base", "/usr/local/lib/ltree")
+
+local vn_names = q:list_virtual_nodes()
+check("KB has 11 virtual nodes", #vn_names == 11,
+    "expected 11, got " .. #vn_names)
+print("  VN types: " .. table.concat(vn_names, ", "))
+
+local vn = q:get_virtual_node("path_spline")
+check("path_spline exists", vn ~= nil, "not found")
+if vn then
+    check("path_spline packet_type_id = 2", vn.packet_type_id == 2,
+        "got " .. tostring(vn.packet_type_id))
+    check("path_spline has 8 schema fields", #vn.json_schema == 8,
+        "got " .. #vn.json_schema)
+    check("path_spline has 3 bitmask fields", #vn.bitmask == 3,
+        "got " .. #vn.bitmask)
+    check("path_spline has 3 pose fields", #vn.pose_fields == 3,
+        "got " .. #vn.pose_fields)
+end
+
+local all_vn = q:get_all_virtual_nodes()
+check("get_all has 11 entries",
+    (function() local n=0; for _ in pairs(all_vn) do n=n+1 end; return n end)() == 11,
+    "wrong count")
+
+q:close()
+
+---------------------------------------------------------------------------
+-- Test 13: KB exporter to NATS KeyStore
+---------------------------------------------------------------------------
+print("\n--- KB Exporter Tests ---")
+
+local kb_exporter = require("kb_exporter")
+local stats = kb_exporter.export({
+    db_file     = db_file,
+    nats_server = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222",
+    bucket      = "kb_export_test",
+})
+
+check("exporter wrote keys", stats.keys_written > 0,
+    "expected > 0, got " .. stats.keys_written)
+check("exporter found robots", stats.robots > 0,
+    "expected > 0, got " .. stats.robots)
+check("exporter found VN defs", stats.virtual_nodes == 11,
+    "expected 11, got " .. stats.virtual_nodes)
+check("exporter found boards", stats.boards > 0,
+    "expected > 0, got " .. stats.boards)
+
+print(string.format("  Exported: %d keys (%d robots, %d boards, %d VN defs)",
+    stats.keys_written, stats.robots, stats.boards, stats.virtual_nodes))
+
+-- Read back via reader
+local reader = kb_exporter.reader({
+    nats_server = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222",
+    bucket      = "kb_export_test",
+})
+
+local conn = reader:get_robot_connection(stats.site, "rover_1")
+check("reader: rover_1 connection", conn ~= nil, "not found")
+if conn then
+    check("reader: comm_type = nats", conn.comm_type == "nats",
+        "got " .. tostring(conn.comm_type))
+end
+
+local caps = reader:get_robot_capabilities(stats.site, "rover_1")
+check("reader: rover_1 capabilities", caps ~= nil and #caps == 11,
+    "expected 11 caps, got " .. tostring(caps and #caps))
+
+local vn_spline = reader:get_virtual_node(stats.site, "path_spline")
+check("reader: path_spline VN", vn_spline ~= nil, "not found")
+if vn_spline then
+    check("reader: path_spline packet_type_id", vn_spline.packet_type_id == 2,
+        "got " .. tostring(vn_spline.packet_type_id))
+end
+
+local board = reader:get_board(stats.site, "landing_zone")
+check("reader: landing_zone board", board ~= nil, "not found")
+if board then
+    check("reader: board has nodes", board.nodes ~= nil and #board.nodes == 8,
+        "expected 8 nodes")
+end
+
+reader:close()
+
+---------------------------------------------------------------------------
 -- Results
 ---------------------------------------------------------------------------
 print(string.format("\n--- Results ---"))
