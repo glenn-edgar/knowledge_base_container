@@ -84,8 +84,9 @@ kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
         { comm_type = "nats" },
         {
             virtual_nodes = {
-                "init_check", "path_spline", "path_line", "path_rotate",
-                "sensor_read", "idle",
+                "init_check", "path_spline", "path_line", "path_wall",
+                "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+                "pass_gate", "inspection_scan", "idle",
             },
             topics = {
                 rpc    = "{site}.{instance}.rpc",
@@ -95,8 +96,10 @@ kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
             heartbeat_interval = 10,
             controller_kb      = "controller",
             worker_kbs = {
-                "worker_init_check", "worker_path_segment", "worker_rotate",
-                "worker_sensor_read", "worker_idle",
+                "worker_init_check", "worker_path_spline", "worker_path_line",
+                "worker_path_wall", "worker_path_rotate", "worker_deliver_part",
+                "worker_paint_sample", "worker_load_shipping", "worker_pass_gate",
+                "worker_inspection_scan", "worker_idle",
             },
         },
         "Lunar rover infrastructure configuration")
@@ -262,11 +265,12 @@ kb:add_header_node("ROBOT_INSTANCE", "rover_1", {}, {},
         })
 
     kb:add_status_field("connection", {},
-        "NATS connection info",
+        "Connection info",
         {
-            robot_id    = "rover_1",
-            nats_server = "nats://127.0.0.1:4222",
-            rpc_topic   = "moonbase.alpha.surface_ops.rover_1.rpc",
+            comm_type    = "nats",
+            robot_id     = "rover_1",
+            nats_server  = "nats://127.0.0.1:4222",
+            rpc_topic    = "moonbase.alpha.surface_ops.rover_1.rpc",
             stream_topic = "moonbase.alpha.surface_ops.rover_1.stream",
         })
 
@@ -296,8 +300,9 @@ kb:add_header_node("ROBOT_INSTANCE", "rover_2", {}, {},
         })
 
     kb:add_status_field("connection", {},
-        "NATS connection info",
+        "Connection info",
         {
+            comm_type    = "nats",
             robot_id     = "rover_2",
             nats_server  = "nats://127.0.0.1:4222",
             rpc_topic    = "moonbase.alpha.surface_ops.rover_2.rpc",
@@ -328,8 +333,9 @@ kb:add_header_node("ROBOT_INSTANCE", "arm_1", {}, {},
         })
 
     kb:add_status_field("connection", {},
-        "NATS connection info",
+        "Connection info",
         {
+            comm_type    = "nats",
             robot_id     = "arm_1",
             nats_server  = "nats://127.0.0.1:4222",
             rpc_topic    = "moonbase.alpha.surface_ops.arm_1.rpc",

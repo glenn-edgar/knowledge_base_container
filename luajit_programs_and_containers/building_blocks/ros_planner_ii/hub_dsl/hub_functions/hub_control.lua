@@ -24,9 +24,11 @@ function M.get_global_pose()
 end
 
 function M.set_global_pose(pose)
-    for k, v in pairs(pose) do
-        global_pose[k] = v
-    end
+    global_pose.x         = pose.x or 0
+    global_pose.y         = pose.y or 0
+    global_pose.z         = pose.z or 0
+    global_pose.heading   = pose.heading or 0
+    global_pose.arm_angle = pose.arm_angle or 0
 end
 
 -- Called when a KB is activated: set reference point, start timer
