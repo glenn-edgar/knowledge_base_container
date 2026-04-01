@@ -35,8 +35,9 @@ echo ""
 
 # LUA_PATH: include NATS libs
 LOCAL_PLANNER_DIR="$ROOT_DIR/local_planner/lib"
+ACTION_SERVER_DIR="$ROOT_DIR/action_server/lib"
 GLOBAL_PLANNER_DIR="$ROOT_DIR/global_planner/lib"
-export LUA_PATH="$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+export LUA_PATH="$ACTION_SERVER_DIR/?.lua;$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;;"
 
 export ROBOT_ID="${ROBOT_ID:-rover_1}"
@@ -189,6 +190,53 @@ run_hub_rt() {
     return $TEST_RC
 }
 
+run_action() {
+    echo "=== Action Server Test ==="
+
+    # Build trees
+    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh)
+    (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh)
+    echo ""
+
+    # Build KB database
+    cd "$KB_CONSTRUCT"
+    rm -f surface_ops.db
+    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
+    echo ""
+
+    # Flush stale NATS queues
+    cd "$SCRIPT_DIR"
+    luajit -e "
+        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        tx:flush()
+        tx:close()
+        print('Queues flushed.')
+    "
+
+    # Start remote ChainTree process
+    export VMRT_REMOTE_JSON="$ROBOT_DIR/remote.json"
+    export VMRT_KB_DB="$KB_CONSTRUCT/surface_ops.db"
+    export VMRT_KB_SITE="moonbase.alpha.surface_ops"
+    luajit "$ROBOT_DIR/remote_nats_ct.lua" "$ROBOT_ID" &
+    REMOTE_PID=$!
+    echo "Remote CT started (pid=$REMOTE_PID)"
+
+    sleep 1
+    luajit test_action_server.lua
+    local TEST_RC=$?
+
+    sleep 0.5
+    if kill -0 $REMOTE_PID 2>/dev/null; then
+        kill $REMOTE_PID 2>/dev/null
+        wait $REMOTE_PID 2>/dev/null || true
+    else
+        wait $REMOTE_PID 2>/dev/null || true
+    fi
+
+    echo ""
+    return $TEST_RC
+}
+
 run_planner() {
     echo "=== Global Planner Test ==="
 
@@ -261,6 +309,7 @@ case "${1:-nats}" in
     hub_rt)             run_hub_rt ;;
     planner)            run_planner ;;
     sequencer)          run_sequencer ;;
-    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer; run_planner ;;
-    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|planner|all]"; exit 1 ;;
+    action)             run_action ;;
+    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer; run_planner; run_action ;;
+    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|planner|action|all]"; exit 1 ;;
 esac
