@@ -5,11 +5,11 @@
     publishes to NATS KeyStore. Any process (bridge, dashboard, etc.)
     can read from NATS KV without SQLite access.
 
-    NATS KV keys mirror SQLite KB paths:
-      {site}.ROBOT_INSTANCE.{name}.connection  → connection JSON
-      {site}.ROBOT_INSTANCE.{name}.capabilities → virtual_nodes array
-      {site}.VIRTUAL_NODES.{name}              → VN definition JSON
-      {site}.BOARD.{name}                      → board data JSON
+    NATS KV keys mirror SQLite KB paths (lowercase namespace):
+      {site}.robots.{name}.connection     → connection JSON
+      {site}.robots.{name}.capabilities   → virtual_nodes array
+      {site}.virtual_nodes.{name}         → VN definition JSON
+      {site}.boards.{name}                → board data JSON
 
     Usage:
         local kb_exporter = require("kb_exporter")
@@ -64,29 +64,36 @@ function M.export(opts)
 
         -- Connection info (includes comm_type)
         if config.connection then
-            local key = site .. ".ROBOT_INSTANCE." .. robot_name .. ".connection"
+            local key = site .. ".robots." .. robot_name .. ".connection"
             ks:put(key, json_util.encode(config.connection))
             keys_written = keys_written + 1
         end
 
         -- Capabilities
         if config.capabilities then
-            local key = site .. ".ROBOT_INSTANCE." .. robot_name .. ".capabilities"
+            local key = site .. ".robots." .. robot_name .. ".capabilities"
             ks:put(key, json_util.encode(config.capabilities))
             keys_written = keys_written + 1
         end
 
         -- NATS topics
         if config.nats then
-            local key = site .. ".ROBOT_INSTANCE." .. robot_name .. ".nats"
+            local key = site .. ".robots." .. robot_name .. ".nats"
             ks:put(key, json_util.encode(config.nats))
             keys_written = keys_written + 1
         end
 
         -- Hardware
         if config.hardware then
-            local key = site .. ".ROBOT_INSTANCE." .. robot_name .. ".hardware"
+            local key = site .. ".robots." .. robot_name .. ".hardware"
             ks:put(key, json_util.encode(config.hardware))
+            keys_written = keys_written + 1
+        end
+
+        -- Energy budget
+        if config.energy then
+            local key = site .. ".robots." .. robot_name .. ".energy"
+            ks:put(key, json_util.encode(config.energy))
             keys_written = keys_written + 1
         end
     end
@@ -97,7 +104,7 @@ function M.export(opts)
     for _, class_name in ipairs(classes) do
         local infra = q:get_robot_infra(class_name)
         if infra then
-            local key = site .. ".ROBOT_CLASS." .. class_name .. ".infra"
+            local key = site .. ".robot_class." .. class_name .. ".infra"
             ks:put(key, json_util.encode(infra))
             keys_written = keys_written + 1
             class_count = class_count + 1
@@ -109,7 +116,7 @@ function M.export(opts)
             if cls == class_name then
                 local hw = q:get_robot_hw(class_name, robot_name)
                 if hw then
-                    local key = site .. ".ROBOT_CLASS." .. class_name .. ".hw." .. robot_name
+                    local key = site .. ".robot_class." .. class_name .. ".hw." .. robot_name
                     ks:put(key, json_util.encode(hw))
                     keys_written = keys_written + 1
                 end
@@ -121,7 +128,7 @@ function M.export(opts)
     local vn_all = q:get_all_virtual_nodes()
     local vn_count = 0
     for vn_name, vn_def in pairs(vn_all) do
-        local key = site .. ".VIRTUAL_NODES." .. vn_name
+        local key = site .. ".virtual_nodes." .. vn_name
         ks:put(key, json_util.encode(vn_def))
         keys_written = keys_written + 1
         vn_count = vn_count + 1
@@ -132,7 +139,7 @@ function M.export(opts)
     for _, board_name in ipairs(boards) do
         local board_data = q:get_board(board_name)
         if board_data then
-            local key = site .. ".BOARD." .. board_name
+            local key = site .. ".boards." .. board_name
             ks:put(key, json_util.encode(board_data))
             keys_written = keys_written + 1
         end
@@ -141,7 +148,7 @@ function M.export(opts)
     -- Export planner state
     local planner = q:get_planner_state()
     if planner then
-        local key = site .. ".PLANNER.state"
+        local key = site .. ".planner.state"
         ks:put(key, json_util.encode(planner))
         keys_written = keys_written + 1
     end
@@ -188,19 +195,19 @@ function M.reader(opts)
     end
 
     function R:get_robot_connection(site, robot_name)
-        return self:get(site .. ".ROBOT_INSTANCE." .. robot_name .. ".connection")
+        return self:get(site .. ".robots." .. robot_name .. ".connection")
     end
 
     function R:get_robot_capabilities(site, robot_name)
-        return self:get(site .. ".ROBOT_INSTANCE." .. robot_name .. ".capabilities")
+        return self:get(site .. ".robots." .. robot_name .. ".capabilities")
     end
 
     function R:get_virtual_node(site, vn_name)
-        return self:get(site .. ".VIRTUAL_NODES." .. vn_name)
+        return self:get(site .. ".virtual_nodes." .. vn_name)
     end
 
     function R:get_board(site, board_name)
-        return self:get(site .. ".BOARD." .. board_name)
+        return self:get(site .. ".boards." .. board_name)
     end
 
     function R:close()

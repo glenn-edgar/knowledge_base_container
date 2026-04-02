@@ -82,7 +82,7 @@ for _, r in ipairs(robots) do
 
     local conn = q:get_connection(r)
     if conn then
-        print("    NATS: " .. conn.rpc_topic .. " / " .. conn.stream_topic)
+        print("    NATS: " .. conn.rpc_topic .. " / " .. conn.stream_bus_topic)
     end
 
     local state = q:get_robot_state(r)

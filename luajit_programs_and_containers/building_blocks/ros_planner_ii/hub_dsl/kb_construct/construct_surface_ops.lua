@@ -4,21 +4,27 @@
     Builds the SQLite KB for moonbase.alpha.surface_ops.
     Compatible with Postgres structure (same paths, same hierarchy).
 
-    Hierarchy:
+    Namespace convention: all lowercase, dot-separated.
       moonbase.alpha.surface_ops
-      ├── BOARD.landing_zone
-      ├── ROBOT_CLASS.lunar_rover
-      │   ├── ROBOT_INFRA.shared
-      │   └── ROBOT_HW.rover_1
-      ├── ROBOT_CLASS.construction_arm
-      │   ├── ROBOT_INFRA.shared
-      │   └── ROBOT_HW.arm_1
-      ├── ROBOT_INSTANCE.rover_1
-      ├── ROBOT_INSTANCE.rover_2
-      ├── ROBOT_INSTANCE.arm_1
-      ├── PLANNER.route_planner
-      └── VIRTUAL_NODES.definitions
-          └── VN_TYPE.{init_check, path_spline, ..., idle}
+      +-- boards.landing_zone
+      +-- robot_class.lunar_rover
+      |   +-- infra.shared
+      |   +-- hw.rover_1
+      +-- robot_class.construction_arm
+      |   +-- infra.shared
+      |   +-- hw.arm_1
+      +-- robots.rover_1
+      |   +-- status.state
+      |   +-- status.connection
+      |   +-- stream.telemetry
+      +-- robots.rover_2
+      +-- robots.arm_1
+      +-- planner.route_planner
+      |   +-- status.planner_state
+      +-- virtual_nodes.init_check
+      +-- virtual_nodes.path_spline
+      +-- ...
+      +-- virtual_nodes.idle
 
     Usage:
       luajit construct_surface_ops.lua <db_file>
@@ -46,9 +52,9 @@ kb:add_kb(SITE, "Moon Base Alpha — Surface Operations")
 kb:select_kb(SITE)
 
 -- =====================================================================
--- BOARD: landing_zone — virtual node graph
+-- boards.landing_zone — virtual node graph
 -- =====================================================================
-kb:add_info_node("BOARD", "landing_zone",
+kb:add_info_node("boards", "landing_zone",
     { board_type = "outdoor", dimensions = "2400x2400", bidirectional = true },
     {
         nodes = {
@@ -76,23 +82,24 @@ kb:add_info_node("BOARD", "landing_zone",
     "Landing zone virtual node graph")
 
 -- =====================================================================
--- ROBOT_CLASS: lunar_rover
+-- robot_class.lunar_rover
 -- =====================================================================
-kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
+kb:add_header_node("robot_class", "lunar_rover", {}, {},
     "Lunar rover — wheeled platform with sensors and sample arm")
 
     -- Infrastructure (shared across all lunar_rover instances)
-    kb:add_info_node("ROBOT_INFRA", "shared",
+    kb:add_info_node("infra", "shared",
         { comm_type = "nats" },
         {
+            energy_max = 10000,
             virtual_nodes = {
                 "init_check", "path_spline", "path_line", "path_wall",
                 "path_rotate", "deliver_part", "paint_sample", "load_shipping",
-                "pass_gate", "inspection_scan", "idle",
+                "pass_gate", "inspection_scan", "recharge", "idle",
             },
             topics = {
-                rpc    = "{site}.{instance}.rpc",
-                stream = "{site}.{instance}.stream",
+                rpc        = "{site}.robots.{instance}.rpc",
+                stream_bus = "{site}.robots.{instance}.stream_bus",
             },
             tick_rate_ms       = 100,
             heartbeat_interval = 10,
@@ -101,13 +108,13 @@ kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
                 "worker_init_check", "worker_path_spline", "worker_path_line",
                 "worker_path_wall", "worker_path_rotate", "worker_deliver_part",
                 "worker_paint_sample", "worker_load_shipping", "worker_pass_gate",
-                "worker_inspection_scan", "worker_idle",
+                "worker_inspection_scan", "worker_recharge", "worker_idle",
             },
         },
         "Lunar rover infrastructure configuration")
 
     -- Hardware config: rover_1
-    kb:add_info_node("ROBOT_HW", "rover_1",
+    kb:add_info_node("hw", "rover_1",
         {},
         {
             bitmask_defs = {
@@ -146,7 +153,7 @@ kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
         "Rover unit 1 hardware configuration")
 
     -- Hardware config: rover_2
-    kb:add_info_node("ROBOT_HW", "rover_2",
+    kb:add_info_node("hw", "rover_2",
         {},
         {
             bitmask_defs = {
@@ -184,36 +191,37 @@ kb:add_header_node("ROBOT_CLASS", "lunar_rover", {}, {},
         },
         "Rover unit 2 hardware configuration")
 
-kb:leave_header_node("ROBOT_CLASS", "lunar_rover")
+kb:leave_header_node("robot_class", "lunar_rover")
 
 -- =====================================================================
--- ROBOT_CLASS: construction_arm
+-- robot_class.construction_arm
 -- =====================================================================
-kb:add_header_node("ROBOT_CLASS", "construction_arm", {}, {},
+kb:add_header_node("robot_class", "construction_arm", {}, {},
     "Construction arm — stationary manipulator at construction bay")
 
-    kb:add_info_node("ROBOT_INFRA", "shared",
+    kb:add_info_node("infra", "shared",
         { comm_type = "nats" },
         {
+            energy_max = 5000,
             virtual_nodes = {
                 "init_check", "deliver_part", "load_shipping",
-                "inspection_scan", "idle",
+                "inspection_scan", "recharge", "idle",
             },
             topics = {
-                rpc    = "{site}.{instance}.rpc",
-                stream = "{site}.{instance}.stream",
+                rpc        = "{site}.robots.{instance}.rpc",
+                stream_bus = "{site}.robots.{instance}.stream_bus",
             },
             tick_rate_ms       = 100,
             heartbeat_interval = 10,
             controller_kb      = "controller",
             worker_kbs = {
                 "worker_init_check", "worker_deliver_part", "worker_load_shipping",
-                "worker_inspection_scan", "worker_idle",
+                "worker_inspection_scan", "worker_recharge", "worker_idle",
             },
         },
         "Construction arm infrastructure configuration")
 
-    kb:add_info_node("ROBOT_HW", "arm_1",
+    kb:add_info_node("hw", "arm_1",
         {},
         {
             bitmask_defs = {
@@ -244,16 +252,16 @@ kb:add_header_node("ROBOT_CLASS", "construction_arm", {}, {},
         },
         "Construction arm unit 1 hardware configuration")
 
-kb:leave_header_node("ROBOT_CLASS", "construction_arm")
+kb:leave_header_node("robot_class", "construction_arm")
 
 -- =====================================================================
--- ROBOT_INSTANCE: rover_1
+-- robots.rover_1
 -- =====================================================================
-kb:add_header_node("ROBOT_INSTANCE", "rover_1", {}, {},
+kb:add_header_node("robots", "rover_1", {}, {},
     "Lunar rover unit 1")
 
     kb:add_link_mount("rover_1_class_link", "Link to rover class definition")
-    -- Note: add_link_node would reference ROBOT_CLASS.lunar_rover.ROBOT_HW.rover_1
+    -- Note: add_link_node would reference robot_class.lunar_rover.hw.rover_1
 
     kb:add_status_field("state", {},
         "Runtime state",
@@ -270,22 +278,29 @@ kb:add_header_node("ROBOT_INSTANCE", "rover_1", {}, {},
     kb:add_status_field("connection", {},
         "Connection info",
         {
-            comm_type    = "nats",
-            robot_id     = "rover_1",
-            nats_server  = "nats://127.0.0.1:4222",
-            rpc_topic    = "moonbase.alpha.surface_ops.rover_1.rpc",
-            stream_topic = "moonbase.alpha.surface_ops.rover_1.stream",
+            comm_type       = "nats",
+            robot_id        = "rover_1",
+            nats_server     = "nats://127.0.0.1:4222",
+            rpc_topic       = "moonbase.alpha.surface_ops.robots.rover_1.rpc",
+            stream_bus_topic = "moonbase.alpha.surface_ops.robots.rover_1.stream_bus",
+        })
+
+    kb:add_status_field("energy", {},
+        "Energy budget",
+        {
+            energy_max       = 10000,
+            energy_remaining = 10000,
         })
 
     kb:add_stream_field("telemetry", 100,
         "Heartbeat and telemetry stream")
 
-kb:leave_header_node("ROBOT_INSTANCE", "rover_1")
+kb:leave_header_node("robots", "rover_1")
 
 -- =====================================================================
--- ROBOT_INSTANCE: rover_2
+-- robots.rover_2
 -- =====================================================================
-kb:add_header_node("ROBOT_INSTANCE", "rover_2", {}, {},
+kb:add_header_node("robots", "rover_2", {}, {},
     "Lunar rover unit 2")
 
     kb:add_link_mount("rover_2_class_link", "Link to rover class definition")
@@ -305,22 +320,29 @@ kb:add_header_node("ROBOT_INSTANCE", "rover_2", {}, {},
     kb:add_status_field("connection", {},
         "Connection info",
         {
-            comm_type    = "nats",
-            robot_id     = "rover_2",
-            nats_server  = "nats://127.0.0.1:4222",
-            rpc_topic    = "moonbase.alpha.surface_ops.rover_2.rpc",
-            stream_topic = "moonbase.alpha.surface_ops.rover_2.stream",
+            comm_type       = "nats",
+            robot_id        = "rover_2",
+            nats_server     = "nats://127.0.0.1:4222",
+            rpc_topic       = "moonbase.alpha.surface_ops.robots.rover_2.rpc",
+            stream_bus_topic = "moonbase.alpha.surface_ops.robots.rover_2.stream_bus",
+        })
+
+    kb:add_status_field("energy", {},
+        "Energy budget",
+        {
+            energy_max       = 10000,
+            energy_remaining = 10000,
         })
 
     kb:add_stream_field("telemetry", 100,
         "Heartbeat and telemetry stream")
 
-kb:leave_header_node("ROBOT_INSTANCE", "rover_2")
+kb:leave_header_node("robots", "rover_2")
 
 -- =====================================================================
--- ROBOT_INSTANCE: arm_1
+-- robots.arm_1
 -- =====================================================================
-kb:add_header_node("ROBOT_INSTANCE", "arm_1", {}, {},
+kb:add_header_node("robots", "arm_1", {}, {},
     "Construction arm unit 1")
 
     kb:add_link_mount("arm_1_class_link", "Link to arm class definition")
@@ -338,22 +360,29 @@ kb:add_header_node("ROBOT_INSTANCE", "arm_1", {}, {},
     kb:add_status_field("connection", {},
         "Connection info",
         {
-            comm_type    = "nats",
-            robot_id     = "arm_1",
-            nats_server  = "nats://127.0.0.1:4222",
-            rpc_topic    = "moonbase.alpha.surface_ops.arm_1.rpc",
-            stream_topic = "moonbase.alpha.surface_ops.arm_1.stream",
+            comm_type       = "nats",
+            robot_id        = "arm_1",
+            nats_server     = "nats://127.0.0.1:4222",
+            rpc_topic       = "moonbase.alpha.surface_ops.robots.arm_1.rpc",
+            stream_bus_topic = "moonbase.alpha.surface_ops.robots.arm_1.stream_bus",
+        })
+
+    kb:add_status_field("energy", {},
+        "Energy budget",
+        {
+            energy_max       = 5000,
+            energy_remaining = 5000,
         })
 
     kb:add_stream_field("telemetry", 50,
         "Heartbeat and telemetry stream")
 
-kb:leave_header_node("ROBOT_INSTANCE", "arm_1")
+kb:leave_header_node("robots", "arm_1")
 
 -- =====================================================================
--- PLANNER: route_planner
+-- planner.route_planner
 -- =====================================================================
-kb:add_header_node("PLANNER", "route_planner", {}, {},
+kb:add_header_node("planner", "route_planner", {}, {},
     "Surface operations route planner")
 
     kb:add_status_field("planner_state", {},
@@ -366,17 +395,18 @@ kb:add_header_node("PLANNER", "route_planner", {}, {},
             actions_complete = 0,
         })
 
-kb:leave_header_node("PLANNER", "route_planner")
+kb:leave_header_node("planner", "route_planner")
 
 -- =====================================================================
--- VIRTUAL_NODES: master definitions for all virtual node types
+-- virtual_nodes: master definitions for all virtual node types
 -- Single source of truth for schema, packet type, bitmask, pose fields.
 -- Hub DSL plugins and robot capabilities reference these.
+-- Flattened: virtual_nodes.{name} instead of VIRTUAL_NODES.definitions.VN_TYPE.{name}
 -- =====================================================================
-kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
+kb:add_header_node("virtual_nodes", "definitions", {}, {},
     "Master virtual node type definitions")
 
-    kb:add_info_node("VN_TYPE", "init_check",
+    kb:add_info_node("vn_type", "init_check",
         { packet_type_id = 1 },
         {
             description = "Preflight self-test",
@@ -391,7 +421,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Init check virtual node")
 
-    kb:add_info_node("VN_TYPE", "path_spline",
+    kb:add_info_node("vn_type", "path_spline",
         { packet_type_id = 2 },
         {
             description = "Follow spline path",
@@ -414,7 +444,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Path spline virtual node")
 
-    kb:add_info_node("VN_TYPE", "path_line",
+    kb:add_info_node("vn_type", "path_line",
         { packet_type_id = 3 },
         {
             description = "Follow line",
@@ -435,7 +465,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Path line virtual node")
 
-    kb:add_info_node("VN_TYPE", "path_wall",
+    kb:add_info_node("vn_type", "path_wall",
         { packet_type_id = 4 },
         {
             description = "Wall follow",
@@ -458,7 +488,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Path wall virtual node")
 
-    kb:add_info_node("VN_TYPE", "path_rotate",
+    kb:add_info_node("vn_type", "path_rotate",
         { packet_type_id = 5 },
         {
             description = "Rotate in place",
@@ -474,7 +504,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Path rotate virtual node")
 
-    kb:add_info_node("VN_TYPE", "deliver_part",
+    kb:add_info_node("vn_type", "deliver_part",
         { packet_type_id = 6 },
         {
             description = "Arm delivery at assembly station",
@@ -494,7 +524,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Deliver part virtual node")
 
-    kb:add_info_node("VN_TYPE", "paint_sample",
+    kb:add_info_node("vn_type", "paint_sample",
         { packet_type_id = 7 },
         {
             description = "Paint operation",
@@ -513,7 +543,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Paint sample virtual node")
 
-    kb:add_info_node("VN_TYPE", "load_shipping",
+    kb:add_info_node("vn_type", "load_shipping",
         { packet_type_id = 8 },
         {
             description = "Load container at shipping station",
@@ -533,7 +563,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Load shipping virtual node")
 
-    kb:add_info_node("VN_TYPE", "pass_gate",
+    kb:add_info_node("vn_type", "pass_gate",
         { packet_type_id = 9 },
         {
             description = "Open gate, drive through, close gate",
@@ -552,7 +582,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Pass gate virtual node")
 
-    kb:add_info_node("VN_TYPE", "inspection_scan",
+    kb:add_info_node("vn_type", "inspection_scan",
         { packet_type_id = 10 },
         {
             description = "Sensor read at inspection point",
@@ -568,7 +598,23 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Inspection scan virtual node")
 
-    kb:add_info_node("VN_TYPE", "idle",
+    kb:add_info_node("vn_type", "recharge",
+        { packet_type_id = 12 },
+        {
+            description = "Recharge energy at charging station",
+            json_schema = {
+                { name = "target_energy", type = "float", default = 0 },
+            },
+            bitmask = {
+                { name = "charging",         bit = 0 },
+                { name = "charge_complete",  bit = 1 },
+                { name = "charger_fault",    bit = 2 },
+            },
+            pose_fields = {},
+        },
+        "Recharge virtual node")
+
+    kb:add_info_node("vn_type", "idle",
         { packet_type_id = 11 },
         {
             description = "Park robot",
@@ -580,7 +626,7 @@ kb:add_header_node("VIRTUAL_NODES", "definitions", {}, {},
         },
         "Idle virtual node")
 
-kb:leave_header_node("VIRTUAL_NODES", "definitions")
+kb:leave_header_node("virtual_nodes", "definitions")
 
 -- =====================================================================
 -- Bit masks (per-robot-class, registered at KB level)
@@ -623,7 +669,7 @@ local h = require("sqlite3_helpers")
 local db_handle = kb.kb:get_db_objects()
 
 local status_rows = h.sql_query(db_handle,
-    string.format("SELECT path, data FROM %s WHERE label = 'KB_STATUS_FIELD'", DATABASE), {})
+    string.format("SELECT path, data FROM %s WHERE label = 'status'", DATABASE), {})
 
 for _, row in ipairs(status_rows) do
     if row.data and row.data ~= "" and row.data ~= "{}" then

@@ -39,6 +39,7 @@ local hub_rt = hub_runtime.new({
     robot_id     = robot_id,
     nats_server  = server,
     hub_json     = hub_json,
+    site         = site,
     initial_pose = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
 })
 

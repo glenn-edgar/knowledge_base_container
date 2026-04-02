@@ -54,13 +54,13 @@ function M.new(db_file, site, instance_name, database)
     self.status_table = database .. "_status"
     self.stream_table = database .. "_stream"
 
-    -- Pre-compute paths
-    self.status_path = site .. ".ROBOT_INSTANCE." .. instance_name ..
-        ".KB_STATUS_FIELD.state"
-    self.connection_path = site .. ".ROBOT_INSTANCE." .. instance_name ..
-        ".KB_STATUS_FIELD.connection"
-    self.stream_path = site .. ".ROBOT_INSTANCE." .. instance_name ..
-        ".KB_STREAM_FIELD.telemetry"
+    -- Pre-compute paths (lowercase namespace convention)
+    self.status_path = site .. ".robots." .. instance_name ..
+        ".status.state"
+    self.connection_path = site .. ".robots." .. instance_name ..
+        ".status.connection"
+    self.stream_path = site .. ".robots." .. instance_name ..
+        ".stream.telemetry"
 
     return self
 end

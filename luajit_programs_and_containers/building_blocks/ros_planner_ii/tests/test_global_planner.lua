@@ -269,7 +269,7 @@ local kb_query = require("kb_query")
 local q = kb_query.new(db_file, "knowledge_base", "/usr/local/lib/ltree")
 
 local vn_names = q:list_virtual_nodes()
-check("KB has 11 virtual nodes", #vn_names == 11,
+check("KB has 12 virtual nodes", #vn_names == 12,
     "expected 11, got " .. #vn_names)
 print("  VN types: " .. table.concat(vn_names, ", "))
 
@@ -288,7 +288,7 @@ end
 
 local all_vn = q:get_all_virtual_nodes()
 check("get_all has 11 entries",
-    (function() local n=0; for _ in pairs(all_vn) do n=n+1 end; return n end)() == 11,
+    (function() local n=0; for _ in pairs(all_vn) do n=n+1 end; return n end)() == 12,
     "wrong count")
 
 q:close()
@@ -309,7 +309,7 @@ check("exporter wrote keys", stats.keys_written > 0,
     "expected > 0, got " .. stats.keys_written)
 check("exporter found robots", stats.robots > 0,
     "expected > 0, got " .. stats.robots)
-check("exporter found VN defs", stats.virtual_nodes == 11,
+check("exporter found VN defs", stats.virtual_nodes == 12,
     "expected 11, got " .. stats.virtual_nodes)
 check("exporter found boards", stats.boards > 0,
     "expected > 0, got " .. stats.boards)
@@ -331,7 +331,7 @@ if conn then
 end
 
 local caps = reader:get_robot_capabilities(stats.site, "rover_1")
-check("reader: rover_1 capabilities", caps ~= nil and #caps == 11,
+check("reader: rover_1 capabilities", caps ~= nil and #caps == 12,
     "expected 11 caps, got " .. tostring(caps and #caps))
 
 local vn_spline = reader:get_virtual_node(stats.site, "path_spline")

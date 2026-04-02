@@ -36,6 +36,7 @@ local json_util       = require("json_util")
 local global_planner  = require("global_planner")
 local sequencer_mod   = require("sequencer")
 local mission_builder = require("mission_builder")
+local kb_query_mod    = require("kb_query")
 
 local M = {}
 M.__index = M
@@ -81,10 +82,11 @@ function M:_ensure_nats()
     local ks_lib = require("lib.nats_key_store")
     local jq_lib = require("lib.nats_job_queue")
 
+    local site_bucket = self.site:gsub("%.", "_")
     self._ks = ks_lib.KeyStore.new({
         server        = self.nats_server,
-        bucket        = "action_server",
-        description   = "Action server mission queue and status",
+        bucket        = site_bucket .. "_action_server",
+        description   = "Action server mission queue and status: " .. self.site,
         create_bucket = true,
         history       = 1,
         client_name   = "action_server",
@@ -100,8 +102,31 @@ end
 
 --- Submit a mission for coroutine execution.
 -- @param mission_cmd  table: { robot_id, board, start, stops[], bookend }
+-- @return true on success, nil + reason on rejection
 function M:submit(mission_cmd)
+    local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
+
+    -- Reject if robot already has an active mission
+    local existing = self.missions[robot_id]
+    if existing and existing.state == "active" then
+        return nil, "robot " .. robot_id .. " already has an active mission"
+    end
+
     self.pending[#self.pending + 1] = mission_cmd
+    return true
+end
+
+--- Cancel an active mission for a robot.
+-- The mission's sequencer will see the abort flag on its next tick.
+-- @param robot_id  string
+-- @return true on success, nil + reason if no active mission
+function M:cancel(robot_id)
+    local m = self.missions[robot_id]
+    if not m or m.state ~= "active" then
+        return nil, "no active mission for " .. robot_id
+    end
+    m.cancel_requested = true
+    return true
 end
 
 --- Submit a mission to NATS JobQueue (for external clients).
@@ -109,7 +134,7 @@ end
 function M:submit_nats(mission_cmd)
     self:_ensure_nats()
     local payload = json_util.encode(mission_cmd)
-    return self._jq:submit(payload, "action_server.missions", 5, 1, 600)
+    return self._jq:submit(payload, self.site .. ".action_server.missions", 5, 1, 600)
 end
 
 ---------------------------------------------------------------------------
@@ -118,7 +143,7 @@ end
 
 function M:get_mission_status(robot_id)
     self:_ensure_nats()
-    local val = self._ks:get("action_server." .. robot_id .. ".status")
+    local val = self._ks:get(self.site .. ".action_server." .. robot_id .. ".status")
     if val then
         local ok, decoded = pcall(json_util.decode, val)
         if ok then return decoded end
@@ -128,7 +153,7 @@ end
 
 function M:get_mission_result(robot_id)
     self:_ensure_nats()
-    local val = self._ks:get("action_server." .. robot_id .. ".result")
+    local val = self._ks:get(self.site .. ".action_server." .. robot_id .. ".result")
     if val then
         local ok, decoded = pcall(json_util.decode, val)
         if ok then return decoded end
@@ -153,6 +178,12 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Publish starting status
         srv:_publish_status(robot_id, { state = "planning" })
 
+        -- Query robot capabilities and energy_max from KB
+        local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
+        local capabilities = kb_q:get_capabilities(robot_id)
+        local energy_max = kb_q:get_energy_max(robot_id) or 0
+        kb_q:close()
+
         -- Create planner
         local planner = global_planner.new({
             db_file    = srv.db_file,
@@ -160,34 +191,70 @@ function M:_make_mission_coroutine(mission_cmd)
             ltree_path = srv.ltree_path,
         })
 
+        -- Build route with capability validation
+        local route, plan_info = mission_builder.build(mission_cmd, planner, capabilities)
+        if not route then
+            local error_detail = plan_info.error
+            if plan_info.unsupported then
+                error_detail = error_detail .. ": " .. table.concat(plan_info.unsupported, "; ")
+            end
+            result = {
+                success = false,
+                fault   = { reason = "planning_failed", detail = error_detail },
+                replans = 0,
+            }
+            srv:_publish_status(robot_id, {
+                state = "failed",
+                error = error_detail,
+                unsupported = plan_info.unsupported,
+            })
+            planner:close()
+            return result
+        end
+
+        -- Check energy budget: read current energy from NATS status board
+        local energy_remaining = energy_max  -- default to full if no status published yet
+        local energy_data = srv:_read_robot_energy(robot_id)
+        if energy_data then
+            energy_remaining = energy_data.energy_remaining or energy_max
+        end
+
+        if plan_info.total_cost > energy_remaining then
+            local detail = string.format(
+                "insufficient energy: need %d, have %d",
+                plan_info.total_cost, energy_remaining)
+            result = {
+                success = false,
+                fault   = { reason = "insufficient_energy", detail = detail },
+                replans = 0,
+            }
+            srv:_publish_status(robot_id, {
+                state = "failed",
+                error = detail,
+                energy_required  = plan_info.total_cost,
+                energy_remaining = energy_remaining,
+            })
+            planner:close()
+            return result
+        end
+
         -- Create sequencer with yield-aware tick
         local seq = sequencer_mod.new({
             robot_id    = robot_id,
             db_file     = srv.db_file,
             hub_json    = srv.hub_json,
             nats_server = srv.nats_server,
-            site        = mission_cmd.site or srv.site,
+            site        = srv.site,
             tick_usleep = 0,  -- no sleep — scheduler controls timing
+            energy_max       = energy_max,
+            energy_remaining = energy_remaining,
         })
-
-        -- Build route
-        local route, plan_info = mission_builder.build(mission_cmd, planner)
-        if not route then
-            result = {
-                success = false,
-                fault   = { reason = "planning_failed", detail = plan_info.error },
-                replans = 0,
-            }
-            srv:_publish_status(robot_id, { state = "failed", error = plan_info.error })
-            seq:shutdown()
-            planner:close()
-            return result
-        end
 
         srv:_publish_status(robot_id, {
             state   = "executing",
             actions = #route,
             cost    = plan_info.total_cost,
+            energy_remaining = energy_remaining,
         })
 
         -- Execute with yield-aware run
@@ -314,9 +381,10 @@ function M:_run_with_yield(seq, robot_id)
                 break
             end
 
-            if mission:is_abort_requested() then
+            if mission:is_abort_requested() or
+               (self.missions[robot_id] and self.missions[robot_id].cancel_requested) then
                 hub_rt:deactivate_kb(kb_name)
-                fault = { reason = "abort_requested", action_index = action_index, kb_name = kb_name }
+                fault = { reason = "cancelled", action_index = action_index, kb_name = kb_name }
                 break
             end
 
@@ -357,7 +425,7 @@ function M:_run_with_yield(seq, robot_id)
 
     return {
         success      = success,
-        needs_replan = (fault ~= nil) and (fault.reason ~= "abort_requested"),
+        needs_replan = (fault ~= nil) and (fault.reason ~= "abort_requested") and (fault.reason ~= "cancelled"),
         final_pose   = final_pose,
         completed    = seq.action_offset,
         total        = mission.route_length,
@@ -448,11 +516,15 @@ function M:_drain_nats_queue()
     self:_ensure_nats()
     -- Claim up to 5 jobs per cycle
     for _ = 1, 5 do
-        local job = self._jq:claim_job({"action_server.missions"})
+        local job = self._jq:claim_job({self.site .. ".action_server.missions"})
         if not job then break end
 
         local ok, cmd = pcall(json_util.decode, job.payload_json)
-        if ok and cmd.robot_id then
+        if not ok or not cmd.robot_id then
+            self._jq:fail_job(job.id, "invalid mission JSON")
+        elseif self.missions[cmd.robot_id] and self.missions[cmd.robot_id].state == "active" then
+            self._jq:fail_job(job.id, "robot " .. cmd.robot_id .. " already has an active mission")
+        else
             local co = self:_make_mission_coroutine(cmd)
             self.missions[cmd.robot_id] = {
                 coroutine = co,
@@ -462,8 +534,6 @@ function M:_drain_nats_queue()
             }
             self.mission_count = self.mission_count + 1
             self._jq:complete_job(job.id, '{"status":"started"}')
-        else
-            self._jq:fail_job(job.id, "invalid mission JSON")
         end
     end
 end
@@ -477,15 +547,40 @@ function M:_publish_status(robot_id, data)
         self:_ensure_nats()
         data.robot_id  = robot_id
         data.timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        self._ks:put("action_server." .. robot_id .. ".status",
+        self._ks:put(self.site .. ".action_server." .. robot_id .. ".status",
             json_util.encode(data))
     end)
+end
+
+function M:_read_robot_energy(robot_id)
+    local ok, result = pcall(function()
+        self:_ensure_nats()
+        local ks_lib = require("lib.nats_key_store")
+        local site_bucket = self.site:gsub("%.", "_")
+        local ks = ks_lib.KeyStore.new({
+            server  = self.nats_server,
+            bucket  = site_bucket .. "_robot_status",
+            history = 1,
+            client_name = "action_server_energy_reader",
+        })
+        ks:connect()
+        local key = self.site .. ".robots." .. robot_id .. ".status.energy"
+        local val = ks:get(key)
+        ks:disconnect()
+        ks:destroy()
+        if val then
+            return json_util.decode(val)
+        end
+        return nil
+    end)
+    if ok then return result end
+    return nil
 end
 
 function M:_publish_result(robot_id, result)
     pcall(function()
         self:_ensure_nats()
-        self._ks:put("action_server." .. robot_id .. ".result",
+        self._ks:put(self.site .. ".action_server." .. robot_id .. ".result",
             json_util.encode({
                 success    = result.success,
                 completed  = result.completed,
@@ -506,33 +601,75 @@ function M:execute_mission(mission_cmd)
     local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
     local board    = mission_cmd.board    or error("action_server: board required")
 
+    -- Query robot capabilities and energy_max from KB
+    local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
+    local capabilities = kb_q:get_capabilities(robot_id)
+    local energy_max = kb_q:get_energy_max(robot_id) or 0
+    kb_q:close()
+
     local planner = global_planner.new({
         db_file    = self.db_file,
         board_name = board,
         ltree_path = self.ltree_path,
     })
 
+    local route, plan_info = mission_builder.build(mission_cmd, planner, capabilities)
+    if not route then
+        local error_detail = plan_info.error
+        if plan_info.unsupported then
+            error_detail = error_detail .. ": " .. table.concat(plan_info.unsupported, "; ")
+        end
+        self:_publish_status(robot_id, {
+            state = "failed",
+            error = error_detail,
+            unsupported = plan_info.unsupported,
+        })
+        planner:close()
+        return {
+            success = false,
+            fault   = { reason = "planning_failed", detail = error_detail },
+            replans = 0,
+        }
+    end
+
+    -- Check energy budget
+    local energy_remaining = energy_max
+    local energy_data = self:_read_robot_energy(robot_id)
+    if energy_data then
+        energy_remaining = energy_data.energy_remaining or energy_max
+    end
+
+    if plan_info.total_cost > energy_remaining then
+        local detail = string.format(
+            "insufficient energy: need %d, have %d",
+            plan_info.total_cost, energy_remaining)
+        self:_publish_status(robot_id, {
+            state = "failed",
+            error = detail,
+            energy_required  = plan_info.total_cost,
+            energy_remaining = energy_remaining,
+        })
+        planner:close()
+        return {
+            success = false,
+            fault   = { reason = "insufficient_energy", detail = detail },
+            replans = 0,
+        }
+    end
+
     local seq = sequencer_mod.new({
         robot_id    = robot_id,
         db_file     = self.db_file,
         hub_json    = self.hub_json,
         nats_server = self.nats_server,
-        site        = mission_cmd.site,
+        site        = self.site,
+        energy_max       = energy_max,
+        energy_remaining = energy_remaining,
     })
 
-    local route, plan_info = mission_builder.build(mission_cmd, planner)
-    if not route then
-        seq:shutdown()
-        planner:close()
-        return {
-            success = false,
-            fault   = { reason = "planning_failed", detail = plan_info.error },
-            replans = 0,
-        }
-    end
-
-    print(string.format("Mission: %s on %s, %d stops, %d actions (cost=%d)",
-        robot_id, board, #mission_cmd.stops, #route, plan_info.total_cost))
+    print(string.format("Mission: %s on %s, %d stops, %d actions (cost=%d, energy=%d/%d)",
+        robot_id, board, #mission_cmd.stops, #route, plan_info.total_cost,
+        energy_remaining, energy_max))
 
     seq:load_route(route)
     local result = seq:run()

@@ -4,6 +4,13 @@
     Reads the surface ops KB using KnowledgeBaseManager's ltree queries.
     Provides structured data for planner startup and runtime.
 
+    All paths use lowercase namespace convention:
+      {site}.robots.{name}.status.connection
+      {site}.boards.{name}
+      {site}.robot_class.{name}.infra.shared
+      {site}.virtual_nodes.definitions.vn_type.{name}
+      {site}.planner.route_planner.status.planner_state
+
     Usage:
         local kb_query = require("kb_query")
         local q = kb_query.new("surface_ops.db")
@@ -67,7 +74,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:get_site()
-    -- The site is the KB name — find it via find_by_pattern at depth 3
+    -- The site is the KB name — find it via find_by_pattern at depth 0
     -- (e.g., moonbase.alpha.surface_ops)
     local rows = self.kb:find_by_depth(0)
     if #rows > 0 then
@@ -90,7 +97,7 @@ end
 function M:get_board(board_name)
     local site = self:get_site()
     if not site then return nil end
-    local pattern = site .. ".BOARD." .. board_name
+    local pattern = site .. ".boards." .. board_name
     local rows = self.kb:find_by_pattern(pattern)
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -101,10 +108,10 @@ end
 function M:list_boards()
     local site = self:get_site()
     if not site then return {} end
-    local rows = self.kb:find_by_pattern(site .. ".BOARD.*")
+    local rows = self.kb:find_by_pattern(site .. ".boards.*")
     local boards = {}
     for _, row in ipairs(rows) do
-        if row.label == "BOARD" then
+        if row.label == "boards" then
             boards[#boards + 1] = row.name
         end
     end
@@ -118,7 +125,7 @@ end
 function M:get_robot_infra(class_name)
     local site = self:get_site()
     if not site then return nil end
-    local pattern = site .. ".ROBOT_CLASS." .. class_name .. ".ROBOT_INFRA.shared"
+    local pattern = site .. ".robot_class." .. class_name .. ".infra.shared"
     local rows = self.kb:find_by_pattern(pattern)
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -129,7 +136,7 @@ end
 function M:get_robot_hw(class_name, hw_name)
     local site = self:get_site()
     if not site then return nil end
-    local pattern = site .. ".ROBOT_CLASS." .. class_name .. ".ROBOT_HW." .. hw_name
+    local pattern = site .. ".robot_class." .. class_name .. ".hw." .. hw_name
     local rows = self.kb:find_by_pattern(pattern)
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -140,11 +147,11 @@ end
 function M:list_robot_classes()
     local site = self:get_site()
     if not site then return {} end
-    local rows = self.kb:find_by_pattern(site .. ".ROBOT_CLASS.*")
+    local rows = self.kb:find_by_pattern(site .. ".robot_class.*")
     local classes = {}
     local seen = {}
     for _, row in ipairs(rows) do
-        if row.label == "ROBOT_CLASS" and not seen[row.name] then
+        if row.label == "robot_class" and not seen[row.name] then
             classes[#classes + 1] = row.name
             seen[row.name] = true
         end
@@ -153,17 +160,17 @@ function M:list_robot_classes()
 end
 
 ---------------------------------------------------------------------------
--- ROBOT_INSTANCE
+-- ROBOTS (instances)
 ---------------------------------------------------------------------------
 
 function M:list_robots()
     local site = self:get_site()
     if not site then return {} end
-    local rows = self.kb:find_by_pattern(site .. ".ROBOT_INSTANCE.*")
+    local rows = self.kb:find_by_pattern(site .. ".robots.*")
     local robots = {}
     local seen = {}
     for _, row in ipairs(rows) do
-        if row.label == "ROBOT_INSTANCE" and not seen[row.name] then
+        if row.label == "robots" and not seen[row.name] then
             robots[#robots + 1] = row.name
             seen[row.name] = true
         end
@@ -174,12 +181,10 @@ end
 function M:get_connection(instance_name)
     local site = self:get_site()
     if not site then return nil end
-    local pattern = site .. ".ROBOT_INSTANCE." .. instance_name ..
-        ".KB_STATUS_FIELD.connection"
+    local pattern = site .. ".robots." .. instance_name ..
+        ".status.connection"
     local rows = self.kb:find_by_pattern(pattern)
     if #rows > 0 then
-        -- Status field data is in the status table, not main KB
-        -- Read initial data from KB data field
         return parse_row(rows[1]).data
     end
     return nil
@@ -188,8 +193,8 @@ end
 function M:get_robot_state(instance_name)
     local site = self:get_site()
     if not site then return nil end
-    local pattern = site .. ".ROBOT_INSTANCE." .. instance_name ..
-        ".KB_STATUS_FIELD.state"
+    local pattern = site .. ".robots." .. instance_name ..
+        ".status.state"
     local rows = self.kb:find_by_pattern(pattern)
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -198,14 +203,14 @@ function M:get_robot_state(instance_name)
 end
 
 ---------------------------------------------------------------------------
--- CAPABILITIES: instance → class → ROBOT_INFRA → virtual_nodes
+-- CAPABILITIES: instance → class → infra → virtual_nodes
 ---------------------------------------------------------------------------
 
 function M:find_class_for_instance(instance_name)
     local site = self:get_site()
     if not site then return nil end
-    -- Find ROBOT_HW.<instance_name> to determine class
-    local rows = self.kb:find_by_pattern(site .. ".ROBOT_CLASS.*.ROBOT_HW." .. instance_name)
+    -- Find hw.<instance_name> to determine class
+    local rows = self.kb:find_by_pattern(site .. ".robot_class.*.hw." .. instance_name)
     if #rows > 0 then
         -- Extract class name from path
         local path = rows[1].path
@@ -214,7 +219,7 @@ function M:find_class_for_instance(instance_name)
             parts[#parts + 1] = part
         end
         for i, p in ipairs(parts) do
-            if p == "ROBOT_CLASS" and parts[i + 1] then
+            if p == "robot_class" and parts[i + 1] then
                 return parts[i + 1]
             end
         end
@@ -228,6 +233,29 @@ function M:get_capabilities(instance_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return {} end
     return infra.virtual_nodes or {}
+end
+
+---------------------------------------------------------------------------
+-- ENERGY
+---------------------------------------------------------------------------
+
+function M:get_energy(instance_name)
+    local site = self:get_site()
+    if not site then return nil end
+    local pattern = site .. ".robots." .. instance_name .. ".status.energy"
+    local rows = self.kb:find_by_pattern(pattern)
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+function M:get_energy_max(instance_name)
+    local class_name = self:find_class_for_instance(instance_name)
+    if not class_name then return nil end
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
+    return infra.energy_max
 end
 
 ---------------------------------------------------------------------------
@@ -248,7 +276,7 @@ function M:get_planner_state()
     local site = self:get_site()
     if not site then return nil end
     local rows = self.kb:find_by_pattern(
-        site .. ".PLANNER.route_planner.KB_STATUS_FIELD.planner_state")
+        site .. ".planner.route_planner.status.planner_state")
     if #rows > 0 then
         return parse_row(rows[1]).data
     end
@@ -263,10 +291,10 @@ function M:get_nats_topics(instance_name)
     local conn = self:get_connection(instance_name)
     if not conn then return nil end
     return {
-        rpc_topic    = conn.rpc_topic,
-        stream_topic = conn.stream_topic,
-        nats_server  = conn.nats_server,
-        robot_id     = conn.robot_id,
+        rpc_topic        = conn.rpc_topic,
+        stream_bus_topic = conn.stream_bus_topic,
+        nats_server      = conn.nats_server,
+        robot_id         = conn.robot_id,
     }
 end
 
@@ -282,6 +310,8 @@ function M:get_robot_config(instance_name)
         hardware     = self:get_hardware(instance_name),
         connection   = self:get_connection(instance_name),
         state        = self:get_robot_state(instance_name),
+        energy       = self:get_energy(instance_name),
+        energy_max   = self:get_energy_max(instance_name),
         nats         = self:get_nats_topics(instance_name),
     }
 end
@@ -295,7 +325,7 @@ end
 -- @return table: { packet_type_id, description, json_schema, bitmask, pose_fields }
 function M:get_virtual_node(vn_name)
     local site = self:get_site()
-    local path = site .. ".VIRTUAL_NODES.definitions.VN_TYPE." .. vn_name
+    local path = site .. ".virtual_nodes.definitions.vn_type." .. vn_name
     local rows = self.kb:find_by_pattern(path)
     if #rows > 0 then
         local r = parse_row(rows[1])
@@ -313,11 +343,11 @@ end
 -- @return array of strings
 function M:list_virtual_nodes()
     local site = self:get_site()
-    local parent = site .. ".VIRTUAL_NODES.definitions"
+    local parent = site .. ".virtual_nodes.definitions"
     local rows = self.kb:find_descendants(parent)
     local names = {}
     for _, row in ipairs(rows) do
-        local name = row.path:match("VN_TYPE%.([^.]+)$")
+        local name = row.path:match("vn_type%.([^.]+)$")
         if name then
             names[#names + 1] = name
         end

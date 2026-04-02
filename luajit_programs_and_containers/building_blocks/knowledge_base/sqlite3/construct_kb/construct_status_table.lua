@@ -84,7 +84,7 @@ function Construct_Status_Table:add_status_field(status_key, properties, descrip
 
     print(string.format("Added status field '%s'", status_key))
 
-    self.construct_kb:add_info_node("KB_STATUS_FIELD", status_key,
+    self.construct_kb:add_info_node("status", status_key,
         initial_properties, initial_data, description)
 
     return {
@@ -112,7 +112,7 @@ function Construct_Status_Table:check_installation()
 
     -- Get specified paths from knowledge base
     rows = sql_query(self.db, string.format([[
-        SELECT path FROM %s WHERE label = 'KB_STATUS_FIELD'
+        SELECT path FROM %s WHERE label = 'status'
     ]], self.database), {})
 
     local specified_paths = {}

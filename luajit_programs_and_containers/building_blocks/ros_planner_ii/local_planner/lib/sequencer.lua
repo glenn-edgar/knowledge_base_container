@@ -97,11 +97,14 @@ function M.new(opts)
 
     -- Initialize hub runtime
     self.hub_rt = hub_runtime.new({
-        robot_id     = self.robot_id,
-        nats_server  = self.nats_server,
-        hub_json     = hub_json,
-        initial_pose = opts.initial_pose or
+        robot_id         = self.robot_id,
+        nats_server      = self.nats_server,
+        hub_json         = hub_json,
+        site             = self.site,
+        initial_pose     = opts.initial_pose or
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
+        energy_max       = opts.energy_max,
+        energy_remaining = opts.energy_remaining,
     })
 
     -- Initialize mission telemetry
@@ -134,25 +137,26 @@ function M:load_route(route)
 end
 
 --- Validate that every action in the loaded route is supported by this robot.
--- @return true, warnings_array (empty if all match)
--- Returns true even with warnings — KB capabilities may be incomplete.
--- Caller decides whether to treat warnings as errors.
+-- @return true if valid, false + errors if unsupported actions found
 function M:validate_route()
     if not self.route then return false, {"no route loaded"} end
 
-    local warnings = {}
+    -- If no capabilities in KB, skip validation (accept all)
+    if not next(self.capabilities) then return true, {} end
 
-    -- If no capabilities in KB, skip validation
-    if not next(self.capabilities) then return true, warnings end
-
+    local errors = {}
     for i, action in ipairs(self.route) do
         if not self.capabilities[action.kb_name] then
-            warnings[#warnings + 1] = string.format(
-                "action %d: '%s' not in KB capabilities for %s",
+            errors[#errors + 1] = string.format(
+                "action %d: '%s' not supported by %s",
                 i, action.kb_name, self.robot_id)
         end
     end
-    return true, warnings
+
+    if #errors > 0 then
+        return false, errors
+    end
+    return true, {}
 end
 
 ---------------------------------------------------------------------------

@@ -77,7 +77,7 @@ run_nats() {
     # Flush stale queues
     cd "$SCRIPT_DIR"
     luajit -e "
-        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
         tx:flush()
         tx:close()
         print('Queues flushed.')
@@ -114,7 +114,7 @@ run_nats_ct() {
     # Flush stale NATS queues BEFORE starting any process
     cd "$SCRIPT_DIR"
     luajit -e "
-        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
         tx:flush()
         tx:close()
         print('Queues flushed.')
@@ -151,7 +151,7 @@ run_hub_rt() {
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"
     luajit -e "
-        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
         tx:flush()
         tx:close()
         print('Queues flushed.')
@@ -188,7 +188,7 @@ run_action() {
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"
     luajit -e "
-        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
         tx:flush()
         tx:close()
         print('Queues flushed.')
@@ -236,7 +236,7 @@ run_sequencer() {
     # Flush stale NATS queues
     cd "$SCRIPT_DIR"
     luajit -e "
-        local tx = require('nats_transport').hub_side('$ROBOT_ID')
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
         tx:flush()
         tx:close()
         print('Queues flushed.')

@@ -35,6 +35,7 @@ local packet_mapper = require("packet_mapper")
 
 local robot_id = os.getenv("ROBOT_ID") or "test_robot_1"
 local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 local script_dir  = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir    = script_dir .. "../"
@@ -46,12 +47,12 @@ print(string.format("Robot: %s, Server: %s\n", robot_id, server))
 ---------------------------------------------------------------------------
 -- NATS transport + KeyStore blackboard
 ---------------------------------------------------------------------------
-local tx = nats_transport.hub_side(robot_id, server)
+local tx = nats_transport.hub_side(robot_id, server, site)
 tx:flush()
 print("Hub connected to NATS (queues flushed).")
 
 -- KeyStore-backed blackboard
-local bb = ks_blackboard.new(robot_id, server)
+local bb = ks_blackboard.new(robot_id, server, site)
 print("KeyStore blackboard connected.")
 
 -- Give remote time to connect

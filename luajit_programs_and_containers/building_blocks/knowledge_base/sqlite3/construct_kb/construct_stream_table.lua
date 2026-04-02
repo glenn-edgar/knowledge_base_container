@@ -82,7 +82,7 @@ function Construct_Stream_Table:add_stream_field(stream_key, stream_length, desc
 
     local properties = { stream_length = stream_length }
 
-    self.construct_kb:add_info_node("KB_STREAM_FIELD", stream_key, properties, {}, description)
+    self.construct_kb:add_info_node("stream", stream_key, properties, {}, description)
 
     return {
         stream = "success",
@@ -177,7 +177,7 @@ function Construct_Stream_Table:check_installation()
     -- Get specified stream data from knowledge base
     rows = sql_query(self.db, string.format([[
         SELECT path, label, name, properties FROM %s
-        WHERE label = 'KB_STREAM_FIELD'
+        WHERE label = 'stream'
     ]], self.database), {})
 
     local specified_stream_paths = {}

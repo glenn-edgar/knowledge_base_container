@@ -12,6 +12,7 @@ ffi.cdef[[ int usleep(unsigned int usec); ]]
 
 local robot_id = arg and arg[1] or "test_robot_1"
 local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 io.stderr:write(string.format("REMOTE [%s]: connecting to %s\n", robot_id, server))
 
@@ -19,7 +20,7 @@ local nats_transport = require("nats_transport")
 local json_util      = require("json_util")
 local cmd_packets    = require("command_packets")
 
-local tx = nats_transport.remote_side(robot_id, server)
+local tx = nats_transport.remote_side(robot_id, server, site)
 tx:flush()  -- drain stale jobs
 
 io.stderr:write(string.format("REMOTE [%s]: connected, waiting for commands\n", robot_id))

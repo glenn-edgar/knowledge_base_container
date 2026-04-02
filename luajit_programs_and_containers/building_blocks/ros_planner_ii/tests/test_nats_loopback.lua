@@ -16,12 +16,13 @@ local nats_transport = require("nats_transport")
 
 local robot_id = os.getenv("ROBOT_ID") or "test_robot_1"
 local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 print("=== NATS JobQueue Loopback Test ===\n")
 print(string.format("Robot: %s, Server: %s\n", robot_id, server))
 
 -- Connect hub side
-local tx = nats_transport.hub_side(robot_id, server)
+local tx = nats_transport.hub_side(robot_id, server, site)
 tx:flush()
 print("Hub connected to NATS (queues flushed).\n")
 

@@ -25,19 +25,21 @@ local json_util = require("json_util")
 
 local M = {}
 
-function M.new(robot_id, server)
+function M.new(robot_id, server, site)
     server = server or "nats://127.0.0.1:4222"
+    site = site or "moonbase.alpha.surface_ops"
 
+    local site_bucket = site:gsub("%.", "_")
     local ks_lib = require("lib.nats_key_store")
     local ks = ks_lib.KeyStore.new({
         server = server,
-        bucket = "bb_" .. robot_id,
+        bucket = site_bucket .. "_blackboard",
         create_bucket = true,
         history = 1,
     })
     ks:connect()
 
-    local prefix = "hub." .. robot_id .. "."
+    local prefix = site .. ".robots." .. robot_id .. ".bb."
 
     -- Local cache: field_name → value
     local cache = {}

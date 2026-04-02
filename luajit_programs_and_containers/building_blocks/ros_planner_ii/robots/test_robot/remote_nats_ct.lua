@@ -13,6 +13,7 @@ ffi.cdef[[ int usleep(unsigned int usec); ]]
 
 local robot_id = arg and arg[1] or "test_robot_1"
 local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 local remote_json = os.getenv("VMRT_REMOTE_JSON")
 
 if not remote_json then
@@ -24,7 +25,7 @@ io.stderr:write(string.format("REMOTE_CT [%s]: connecting to %s\n", robot_id, se
 
 -- NATS transport
 local nats_transport = require("nats_transport")
-local tx = nats_transport.remote_side(robot_id, server)
+local tx = nats_transport.remote_side(robot_id, server, site)
 tx:flush()
 
 -- ChainTree runtime
@@ -47,7 +48,6 @@ remote_fns.set_transport(tx)
 local kb_db_file = os.getenv("VMRT_KB_DB")
 if kb_db_file then
     local kb_runtime = require("kb_runtime")
-    local site = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
     local kb_rt = kb_runtime.new(kb_db_file, site, robot_id)
     remote_fns.set_kb_runtime(kb_rt)
     io.stderr:write(string.format("REMOTE_CT [%s]: KB runtime connected (%s)\n",

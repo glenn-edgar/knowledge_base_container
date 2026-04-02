@@ -34,14 +34,41 @@ local M = {}
 --- Build a flat route from a multi-stop mission.
 -- @param mission_cmd  table: mission command with start, stops, bookend
 -- @param planner      global_planner instance (already loaded with board)
+-- @param capabilities optional array of VN names the robot supports
 -- @return route       array of {kb_name, params} or nil
 -- @return plan_info   leg details for replan, or {error=string}
-function M.build(mission_cmd, planner)
+function M.build(mission_cmd, planner, capabilities)
     local start = mission_cmd.start or error("mission_builder: start required")
     local stops = mission_cmd.stops or error("mission_builder: stops required")
 
     if #stops == 0 then
         return nil, { error = "no stops in mission" }
+    end
+
+    -- Build capabilities lookup if provided
+    local cap_set = nil
+    if capabilities and #capabilities > 0 then
+        cap_set = {}
+        for _, name in ipairs(capabilities) do
+            cap_set[name] = true
+        end
+    end
+
+    -- Validate stop actions against capabilities before planning
+    if cap_set then
+        local unsupported = {}
+        for i, stop in ipairs(stops) do
+            if stop.action and not cap_set[stop.action] then
+                unsupported[#unsupported + 1] = string.format(
+                    "stop %d: '%s' not supported by robot", i, stop.action)
+            end
+        end
+        if #unsupported > 0 then
+            return nil, {
+                error = "unsupported_capabilities",
+                unsupported = unsupported,
+            }
+        end
     end
 
     local route = {}
@@ -126,6 +153,24 @@ function M.build(mission_cmd, planner)
     -- Optional idle bookend
     if mission_cmd.bookend then
         route[#route + 1] = { kb_name = "idle", params = {} }
+    end
+
+    -- Validate all route actions against capabilities (includes nav VNs)
+    if cap_set then
+        local unsupported = {}
+        for i, action in ipairs(route) do
+            if not cap_set[action.kb_name] then
+                unsupported[#unsupported + 1] = string.format(
+                    "action %d: '%s' not supported by robot", i, action.kb_name)
+            end
+        end
+        if #unsupported > 0 then
+            return nil, {
+                error = "unsupported_capabilities",
+                unsupported = unsupported,
+                route = route,  -- include partial route for diagnostics
+            }
+        end
     end
 
     return route, {

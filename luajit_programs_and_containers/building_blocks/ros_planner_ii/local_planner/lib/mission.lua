@@ -13,8 +13,8 @@
       - Final mission status
 
     NATS subjects/keys match SQLite KB paths from DSL tree:
-      status:    {site}.ROBOT_INSTANCE.{robot_id}.KB_STATUS_FIELD.state
-      stream:    {site}.ROBOT_INSTANCE.{robot_id}.KB_STREAM_FIELD.telemetry
+      status:    {site}.robots.{robot_id}.status.state
+      stream:    {site}.robots.{robot_id}.stream.telemetry
 
     Usage:
         local mission = require("mission")
@@ -55,21 +55,23 @@ function M.new(opts)
     self.nats_server  = nats_server
 
     -- Build KB paths (same strings used as NATS keys)
-    self.status_path = site .. ".ROBOT_INSTANCE." .. self.robot_id ..
-        ".KB_STATUS_FIELD.state"
-    self.stream_path = site .. ".ROBOT_INSTANCE." .. self.robot_id ..
-        ".KB_STREAM_FIELD.telemetry"
+    self.status_path = site .. ".robots." .. self.robot_id ..
+        ".status.state"
+    self.stream_path = site .. ".robots." .. self.robot_id ..
+        ".stream.telemetry"
 
     -- SQLite kb_runtime (durable bookends)
     local kb_runtime = require("kb_runtime")
     self.kb_rt = kb_runtime.new(db_file, site, self.robot_id)
 
     -- NATS KeyStore (status + abort signaling)
+    -- Bucket name derived from site namespace
+    local site_bucket = site:gsub("%.", "_")
     local ks_lib = require("lib.nats_key_store")
     self.ks = ks_lib.KeyStore.new({
         server        = nats_server,
-        bucket        = "mission_" .. self.robot_id,
-        description   = "Mission status and abort signaling for " .. self.robot_id,
+        bucket        = site_bucket .. "_mission",
+        description   = "Mission status and abort signaling: " .. site,
         create_bucket = true,
         history       = 1,
         client_name   = "mission_ks_" .. self.robot_id,
@@ -82,8 +84,8 @@ function M.new(opts)
     self.stream_size = opts.stream_size or 200
     self.stream_ks = ks_lib.KeyStore.new({
         server        = nats_server,
-        bucket        = "stream_" .. self.robot_id,
-        description   = "Mission heartbeat stream for " .. self.robot_id,
+        bucket        = site_bucket .. "_stream",
+        description   = "Mission heartbeat stream: " .. site,
         create_bucket = true,
         history       = 1,
         client_name   = "mission_stream_" .. self.robot_id,
@@ -96,8 +98,8 @@ function M.new(opts)
     self._stream_count  = 0
     self._stream_total  = 0
 
-    -- Abort key
-    self.abort_key = "planner." .. self.robot_id .. ".abort"
+    -- Abort key (within site namespace)
+    self.abort_key = site .. ".robots." .. self.robot_id .. ".abort"
 
     -- Clear any stale abort request
     pcall(function() self.ks:delete(self.abort_key) end)

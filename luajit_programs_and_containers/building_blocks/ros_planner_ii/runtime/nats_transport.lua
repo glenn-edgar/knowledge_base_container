@@ -2,19 +2,23 @@
     nats_transport.lua -- NATS-based hub↔robot transport using JobQueue.
 
     Two job queues per robot, backed by one KeyStore bucket:
-      rpc queue:    hub submits commands, robot claims
-      stream queue: robot submits updates, hub claims
+      rpc queue:        hub submits commands, robot claims
+      stream_bus queue: robot submits updates, hub claims
+
+    Queue names follow KB namespace:
+      {site}.robots.{id}.rpc
+      {site}.robots.{id}.stream_bus
 
     No callbacks, no pub/sub, no threading issues.
     Pure synchronous claim/complete lifecycle.
 
     Hub side:
       tx:send_rpc(json)      -- submit command to rpc queue
-      tx:recv_stream()       -- claim next stream job (nil if empty)
+      tx:recv_stream()       -- claim next stream_bus job (nil if empty)
 
     Remote side:
       tx:recv_rpc()          -- claim next rpc job (nil if empty)
-      tx:send_stream(json)   -- submit update to stream queue
+      tx:send_stream(json)   -- submit update to stream_bus queue
 ]]
 
 local M = {}
@@ -25,13 +29,14 @@ local NATS_SERVER = "nats://127.0.0.1:4222"
 -- Shared: create KeyStore + JobQueue for a robot
 ---------------------------------------------------------------------------
 
-local function make_jq(robot_id, worker_name, server)
+local function make_jq(site, robot_id, worker_name, server)
     local ks_lib = require("lib.nats_key_store")
     local jq_lib = require("lib.nats_job_queue")
 
+    local site_bucket = site:gsub("%.", "_")
     local ks = ks_lib.KeyStore.new({
         server = server,
-        bucket = "robot_" .. robot_id,
+        bucket = site_bucket .. "_transport",
         create_bucket = true,
         history = 1,
     })
@@ -56,13 +61,14 @@ end
 -- Hub side
 ---------------------------------------------------------------------------
 
-function M.hub_side(robot_id, server)
+function M.hub_side(robot_id, server, site)
     server = server or NATS_SERVER
+    site = site or "moonbase.alpha.surface_ops"
 
-    local ks, jq = make_jq(robot_id, "hub_" .. robot_id, server)
+    local ks, jq = make_jq(site, robot_id, "hub_" .. robot_id, server)
 
-    local rpc_queue    = "robot." .. robot_id .. ".rpc"
-    local stream_queue = "robot." .. robot_id .. ".stream"
+    local rpc_queue    = site .. ".robots." .. robot_id .. ".rpc"
+    local stream_queue = site .. ".robots." .. robot_id .. ".stream_bus"
 
     local tx = {}
 
@@ -98,13 +104,14 @@ end
 -- Remote side
 ---------------------------------------------------------------------------
 
-function M.remote_side(robot_id, server)
+function M.remote_side(robot_id, server, site)
     server = server or NATS_SERVER
+    site = site or "moonbase.alpha.surface_ops"
 
-    local ks, jq = make_jq(robot_id, "robot_" .. robot_id, server)
+    local ks, jq = make_jq(site, robot_id, "robot_" .. robot_id, server)
 
-    local rpc_queue    = "robot." .. robot_id .. ".rpc"
-    local stream_queue = "robot." .. robot_id .. ".stream"
+    local rpc_queue    = site .. ".robots." .. robot_id .. ".rpc"
+    local stream_queue = site .. ".robots." .. robot_id .. ".stream_bus"
 
     local tx = {}
 

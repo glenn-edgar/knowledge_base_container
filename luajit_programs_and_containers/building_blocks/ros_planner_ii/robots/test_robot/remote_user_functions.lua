@@ -22,8 +22,13 @@ local transport = nil
 local kb_rt = nil
 local global_pos = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
+-- Energy tracking (set from class config at startup)
+local energy = { max = 10000, remaining = 10000 }
+
 function M.set_transport(tx) transport = tx end
 function M.set_kb_runtime(rt) kb_rt = rt end
+function M.set_energy(max_energy) energy.max = max_energy; energy.remaining = max_energy end
+function M.get_energy() return energy end
 
 -- Worker KB name by packet_type (one per virtual node)
 local worker_by_packet_type = {
@@ -38,6 +43,7 @@ local worker_by_packet_type = {
     [cmd_packets.TYPE_PASS_GATE]       = "worker_pass_gate",
     [cmd_packets.TYPE_INSPECTION_SCAN] = "worker_inspection_scan",
     [cmd_packets.TYPE_IDLE]            = "worker_idle",
+    [cmd_packets.TYPE_RECHARGE]        = "worker_recharge",
 }
 
 local action_durations = {
@@ -51,7 +57,24 @@ local action_durations = {
     [cmd_packets.TYPE_LOAD_SHIPPING]   = 20,
     [cmd_packets.TYPE_PASS_GATE]       = 15,
     [cmd_packets.TYPE_INSPECTION_SCAN] = 12,
+    [cmd_packets.TYPE_RECHARGE]        = 30,
     [cmd_packets.TYPE_IDLE]            = 5,
+}
+
+-- Simulated energy cost per action type (real robot would measure actual consumption)
+local energy_costs = {
+    [cmd_packets.TYPE_INIT_CHECK]      = 50,
+    [cmd_packets.TYPE_PATH_SPLINE]     = 200,
+    [cmd_packets.TYPE_PATH_LINE]       = 200,
+    [cmd_packets.TYPE_PATH_WALL]       = 200,
+    [cmd_packets.TYPE_PATH_ROTATE]     = 50,
+    [cmd_packets.TYPE_DELIVER_PART]    = 100,
+    [cmd_packets.TYPE_PAINT_SAMPLE]    = 100,
+    [cmd_packets.TYPE_LOAD_SHIPPING]   = 100,
+    [cmd_packets.TYPE_PASS_GATE]       = 80,
+    [cmd_packets.TYPE_INSPECTION_SCAN] = 30,
+    [cmd_packets.TYPE_RECHARGE]        = 0,
+    [cmd_packets.TYPE_IDLE]            = 10,
 }
 
 local default_max_time = {
@@ -65,6 +88,7 @@ local default_max_time = {
     [cmd_packets.TYPE_LOAD_SHIPPING]   = 150,
     [cmd_packets.TYPE_PASS_GATE]       = 100,
     [cmd_packets.TYPE_INSPECTION_SCAN] = 50,
+    [cmd_packets.TYPE_RECHARGE]        = 200,
     [cmd_packets.TYPE_IDLE]            = 20,
 }
 
@@ -251,6 +275,16 @@ M.main.CTRL_COMPLETION_MAIN = function(handle, bool_fn, node, event_id)
         global_pos.heading = global_pos.heading + (bb.delta_heading or 0)
         global_pos.arm_angle = global_pos.arm_angle + (bb.delta_arm_angle or 0)
 
+        -- Deduct energy for completed action
+        local pkt_type = bb.current_packet_type
+        local cost = energy_costs[pkt_type] or 0
+        energy.remaining = math.max(0, energy.remaining - cost)
+
+        -- Recharge VN restores energy to max
+        if pkt_type == cmd_packets.TYPE_RECHARGE then
+            energy.remaining = energy.max
+        end
+
         send_heartbeat(bb, "final")
 
         if transport then
@@ -260,6 +294,8 @@ M.main.CTRL_COMPLETION_MAIN = function(handle, bool_fn, node, event_id)
                 delta_x = bb.delta_x, delta_y = bb.delta_y, delta_z = bb.delta_z,
                 delta_heading = bb.delta_heading, delta_arm_angle = bb.delta_arm_angle,
                 fault_reason = bb.fault_reason ~= "" and bb.fault_reason or nil,
+                energy_remaining = energy.remaining,
+                energy_max       = energy.max,
             }))
         end
 
@@ -270,6 +306,7 @@ M.main.CTRL_COMPLETION_MAIN = function(handle, bool_fn, node, event_id)
                 global_heading = global_pos.heading, global_arm_angle = global_pos.arm_angle,
                 last_success = bb.worker_success == true, last_test_id = bb.current_test_id,
                 last_fault = bb.fault_reason ~= "" and bb.fault_reason or nil,
+                energy_remaining = energy.remaining, energy_max = energy.max,
             })
         end
 

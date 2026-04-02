@@ -39,7 +39,7 @@ else
         "error_recovery",
         "init_check", "path_spline", "path_line", "path_wall",
         "path_rotate", "deliver_part", "paint_sample", "load_shipping",
-        "pass_gate", "inspection_scan", "idle",
+        "pass_gate", "inspection_scan", "recharge", "idle",
     }
     for _, name in ipairs(kb_files) do
         local ok, plugin = pcall(dofile, kb_dir .. name .. ".lua")

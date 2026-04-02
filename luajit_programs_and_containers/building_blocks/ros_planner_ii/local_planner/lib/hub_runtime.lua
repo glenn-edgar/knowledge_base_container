@@ -65,16 +65,18 @@ function M.new(opts)
     local robot_id    = opts.robot_id    or error("hub_runtime: robot_id required")
     local nats_server = opts.nats_server or "nats://127.0.0.1:4222"
     local hub_json    = opts.hub_json    or error("hub_runtime: hub_json required")
+    local site        = opts.site        or "moonbase.alpha.surface_ops"
     local initial_pose = opts.initial_pose or { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
     self.robot_id = robot_id
+    self.site = site
 
-    -- NATS transport (two job queues: rpc + stream)
-    self.tx = nats_transport.hub_side(robot_id, nats_server)
+    -- NATS transport (two job queues: rpc + stream_bus)
+    self.tx = nats_transport.hub_side(robot_id, nats_server, site)
     self.tx:flush()
 
     -- KeyStore-backed blackboard
-    self.bb = ks_blackboard.new(robot_id, nats_server)
+    self.bb = ks_blackboard.new(robot_id, nats_server, site)
 
     -- Load KB plugins
     local hub_dsl_mod = require("hub_dsl")
@@ -125,6 +127,32 @@ function M.new(opts)
 
     -- Per-instance pose tracking (not shared — safe for coroutines)
     self.hub_control = hub_control.new(initial_pose)
+
+    -- NATS KeyStore for robot status publishing (bitmask + energy)
+    local ks_lib = require("lib.nats_key_store")
+    local site_bucket = site:gsub("%.", "_")
+    self.status_ks = ks_lib.KeyStore.new({
+        server        = nats_server,
+        bucket        = site_bucket .. "_robot_status",
+        description   = "Robot live status: " .. site,
+        create_bucket = true,
+        history       = 1,
+        client_name   = "hub_status_" .. robot_id,
+    })
+    self.status_ks:connect()
+
+    -- Status key paths
+    self._bitmask_key = site .. ".robots." .. robot_id .. ".status.bitmask"
+    self._energy_key  = site .. ".robots." .. robot_id .. ".status.energy"
+
+    -- Energy tracking (initialized from KB or defaults)
+    self.energy_max       = opts.energy_max or 10000
+    self.energy_remaining = opts.energy_remaining or self.energy_max
+
+    -- Bitmask change tracking (only publish on change)
+    self._last_bitmask_raw = nil
+    self._last_active_kb   = nil
+    self._tick_count       = 0
 
     return self
 end
@@ -208,6 +236,81 @@ function M:tick()
 
     -- Persist dirty blackboard fields to KeyStore
     self.bb.flush()
+
+    -- Publish bitmask + energy to NATS status board (every 10 ticks or on change)
+    self._tick_count = self._tick_count + 1
+    if self._tick_count % 10 == 0 then
+        self:_publish_robot_status()
+    end
+end
+
+---------------------------------------------------------------------------
+-- Robot status publishing (bitmask + energy → NATS)
+---------------------------------------------------------------------------
+
+function M:_publish_robot_status()
+    local bb = self.bb
+    local active_kb = bb.active_kb or ""
+
+    -- Read current bitmask from blackboard
+    local raw = 0
+    local fields = {}
+    if active_kb ~= "" then
+        raw = bb[active_kb .. ".bitmask"] or 0
+        -- Decode bitmask fields using plugin schema
+        local plugin = self.kb_by_name[active_kb]
+        if plugin and plugin.bitmask then
+            for _, field in ipairs(plugin.bitmask) do
+                local bit_val = 2 ^ field.bit
+                fields[field.name] = (math.floor(raw / bit_val) % 2) == 1
+            end
+        end
+    end
+
+    -- Heartbeat: bit 0 is always the heartbeat flag (robot sets to 1)
+    if raw % 2 == 0 then raw = raw + 1 end
+    fields.heartbeat = true
+
+    -- Only publish if changed or periodic
+    if raw ~= self._last_bitmask_raw or active_kb ~= self._last_active_kb then
+        self._last_bitmask_raw = raw
+        self._last_active_kb   = active_kb
+
+        pcall(function()
+            self.status_ks:put(self._bitmask_key, json_util.encode({
+                kb_name = active_kb,
+                raw     = raw,
+                fields  = fields,
+                robot_id = self.robot_id,
+                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }))
+        end)
+    end
+
+    -- Publish energy status
+    pcall(function()
+        self.status_ks:put(self._energy_key, json_util.encode({
+            energy_max       = self.energy_max,
+            energy_remaining = self.energy_remaining,
+            robot_id         = self.robot_id,
+            timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        }))
+    end)
+end
+
+--- Deduct energy cost for an action.
+function M:deduct_energy(cost)
+    self.energy_remaining = math.max(0, self.energy_remaining - cost)
+end
+
+--- Get current energy remaining.
+function M:get_energy_remaining()
+    return self.energy_remaining
+end
+
+--- Recharge energy to max.
+function M:recharge_energy()
+    self.energy_remaining = self.energy_max
 end
 
 ---------------------------------------------------------------------------
@@ -247,6 +350,8 @@ end
 function M:close()
     self.tx:close()
     self.bb.close()
+    pcall(function() self.status_ks:disconnect() end)
+    pcall(function() self.status_ks:destroy() end)
 end
 
 return M
