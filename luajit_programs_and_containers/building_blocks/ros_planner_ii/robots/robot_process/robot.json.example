@@ -1,0 +1,7 @@
+{
+    "robot_id": "rover_1",
+    "site": "moonbase.alpha.surface_ops",
+    "nats_server": "nats://127.0.0.1:4222",
+    "robot_class": "lunar_rover",
+    "remote_json": "remote.json"
+}

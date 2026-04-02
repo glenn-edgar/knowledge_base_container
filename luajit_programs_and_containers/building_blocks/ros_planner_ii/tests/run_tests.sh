@@ -37,7 +37,8 @@ echo ""
 LOCAL_PLANNER_DIR="$ROOT_DIR/local_planner/lib"
 ACTION_SERVER_DIR="$ROOT_DIR/action_server/lib"
 GLOBAL_PLANNER_DIR="$ROOT_DIR/global_planner/lib"
-export LUA_PATH="$ACTION_SERVER_DIR/?.lua;$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+ROBOT_PROCESS_DIR="$ROOT_DIR/robots/robot_process"
+export LUA_PATH="$ACTION_SERVER_DIR/?.lua;$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$ROBOT_PROCESS_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;;"
 
 export ROBOT_ID="${ROBOT_ID:-rover_1}"
@@ -266,6 +267,82 @@ run_sequencer() {
     return $TEST_RC
 }
 
+run_robot() {
+    echo "=== Independent Robot Test ==="
+    build_all
+
+    # Export KB to NATS KV
+    cd "$SCRIPT_DIR"
+    luajit -e "
+        local kb_exporter = require('kb_exporter')
+        kb_exporter.export({ db_file='$KB_CONSTRUCT/surface_ops.db', nats_server='$NATS_SERVER', bucket='kb_export' })
+        print('KB exported to NATS.')
+    "
+
+    # Flush stale NATS queues and clear stale status
+    luajit -e "
+        local site = '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}'
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, site)
+        tx:flush()
+        tx:close()
+        -- Clear stale robot status so slot claim works
+        local ks_lib = require('lib.nats_key_store')
+        local ks = ks_lib.KeyStore.new({
+            server = '$NATS_SERVER',
+            bucket = site:gsub('%.', '_') .. '_robot_status',
+            create_bucket = true, history = 1,
+        })
+        ks:connect()
+        pcall(function() ks:delete(site .. '.robots.$ROBOT_ID.status.state') end)
+        pcall(function() ks:delete(site .. '.robots.$ROBOT_ID.status.energy') end)
+        pcall(function() ks:delete(site .. '.robots.$ROBOT_ID.status.bitmask') end)
+        ks:disconnect(); ks:destroy()
+        print('Queues flushed, stale status cleared.')
+    "
+
+    # Create robot config JSON
+    local ROBOT_CONFIG="/tmp/test_robot_$ROBOT_ID.json"
+    cat > "$ROBOT_CONFIG" <<REOF
+{
+    "robot_id": "$ROBOT_ID",
+    "site": "${VMRT_KB_SITE:-moonbase.alpha.surface_ops}",
+    "nats_server": "$NATS_SERVER",
+    "robot_class": "lunar_rover",
+    "remote_json": "$ROBOT_DIR/remote.json"
+}
+REOF
+
+    # Start independent robot process
+    export VMRT_KB_SITE="${VMRT_KB_SITE:-moonbase.alpha.surface_ops}"
+    luajit "$ROBOT_PROCESS_DIR/robot_main.lua" "$ROBOT_CONFIG" &
+    REMOTE_PID=$!
+    echo "Independent robot started (pid=$REMOTE_PID)"
+
+    sleep 2
+    luajit test_independent_robot.lua
+    local TEST_RC=$?
+
+    # Send shutdown via NATS (submit a shutdown command to rpc queue)
+    luajit -e "
+        local tx = require('nats_transport').hub_side('$ROBOT_ID', nil, '${VMRT_KB_SITE:-moonbase.alpha.surface_ops}')
+        local json = require('json_util')
+        tx:send_rpc(json.encode({packet_type=255, seq=99}))
+        tx:close()
+    " 2>/dev/null
+
+    sleep 1
+    if kill -0 $REMOTE_PID 2>/dev/null; then
+        kill $REMOTE_PID 2>/dev/null
+        wait $REMOTE_PID 2>/dev/null || true
+    else
+        wait $REMOTE_PID 2>/dev/null || true
+    fi
+
+    rm -f "$ROBOT_CONFIG"
+    echo ""
+    return $TEST_RC
+}
+
 case "${1:-nats}" in
     loopback)           run_loopback ;;
     chaintree_loopback) run_chaintree_loopback ;;
@@ -275,6 +352,7 @@ case "${1:-nats}" in
     planner)            run_planner ;;
     sequencer)          run_sequencer ;;
     action)             run_action ;;
-    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer; run_planner; run_action ;;
-    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|planner|action|all]"; exit 1 ;;
+    robot)              run_robot ;;
+    all)                run_loopback; run_chaintree_loopback; run_nats; run_nats_ct; run_hub_rt; run_sequencer; run_planner; run_action; run_robot ;;
+    *)                  echo "Usage: $0 [loopback|chaintree_loopback|nats|nats_ct|hub_rt|sequencer|planner|action|robot|all]"; exit 1 ;;
 esac
