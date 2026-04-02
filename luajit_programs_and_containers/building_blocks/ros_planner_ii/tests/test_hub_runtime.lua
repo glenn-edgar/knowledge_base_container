@@ -15,7 +15,6 @@ ffi.cdef[[
 
 local json_util   = require("json_util")
 local hub_runtime = require("hub_runtime")
-local hub_control = require("hub_control")
 local mission_mod = require("mission")
 
 local robot_id = os.getenv("ROBOT_ID") or "rover_1"
@@ -237,7 +236,7 @@ test_virtual_node(kb_by_name["idle"], {
 ---------------------------------------------------------------------------
 -- Finish mission + shutdown
 ---------------------------------------------------------------------------
-local final_pose = hub_control.get_global_pose()
+local final_pose = hub_rt:get_global_pose()
 
 m:finish({
     success    = (fail_count == 0),

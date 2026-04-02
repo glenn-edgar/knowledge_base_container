@@ -123,8 +123,8 @@ function M.new(opts)
         direction = "hub",
     })
 
-    -- Set initial global pose
-    hub_control.set_global_pose(initial_pose)
+    -- Per-instance pose tracking (not shared — safe for coroutines)
+    self.hub_control = hub_control.new(initial_pose)
 
     return self
 end
@@ -153,7 +153,7 @@ function M:activate_kb(kb_name)
 
     -- Track active KB
     local plugin = self.kb_by_name[kb_name]
-    hub_control.on_kb_start(self.bb, kb_name, plugin)
+    self.hub_control:on_kb_start(self.bb, kb_name, plugin)
 
     engine.init_test(self.handle, kb_name)
     self.handle.active_tests[kb_name] = true
@@ -172,7 +172,7 @@ function M:deactivate_kb(kb_name)
         self.handle.active_tests[kb_name] = nil
         self.handle.active_test_count = self.handle.active_test_count - 1
     end
-    hub_control.on_kb_done(self.bb, kb_name, nil)
+    self.hub_control:on_kb_done(self.bb, kb_name, nil)
 end
 
 ---------------------------------------------------------------------------
@@ -183,7 +183,7 @@ function M:tick()
     self.monitor:tick()
 
     -- Update elapsed time
-    hub_control.on_tick(self.bb)
+    self.hub_control:on_tick(self.bb)
 
     -- Inject TIMER_EVENT for each active KB
     for kb_name, _ in pairs(self.handle.active_tests) do
@@ -218,7 +218,11 @@ function M:get_blackboard()
 end
 
 function M:get_global_pose()
-    return hub_control.get_global_pose()
+    return self.hub_control:get_global_pose()
+end
+
+function M:get_hub_control()
+    return self.hub_control
 end
 
 function M:get_plugins()

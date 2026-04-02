@@ -12,7 +12,6 @@ ffi.cdef[[
 
 local json_util  = require("json_util")
 local sequencer  = require("sequencer")
-local hub_control = require("hub_control")
 
 local robot_id = os.getenv("ROBOT_ID") or "rover_1"
 local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
