@@ -76,7 +76,7 @@ local remote_data = ct_loader.load(cfg.remote_json)
 -- Register user functions with transport
 local remote_fns = require("remote_user_functions")
 remote_fns.set_transport(cfg.transport)
-remote_fns.set_energy(cfg.energy_max)
+remote_fns.set_energy(cfg.energy_max, cfg.energy_infinite)
 
 -- Set initial energy to recovered value (not max)
 local robot_energy = remote_fns.get_energy()

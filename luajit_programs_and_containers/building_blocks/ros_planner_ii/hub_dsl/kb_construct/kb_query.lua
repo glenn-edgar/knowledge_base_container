@@ -258,6 +258,14 @@ function M:get_energy_max(instance_name)
     return infra.energy_max
 end
 
+function M:get_energy_infinite(instance_name)
+    local class_name = self:find_class_for_instance(instance_name)
+    if not class_name then return false end
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return false end
+    return infra.energy_infinite == true
+end
+
 ---------------------------------------------------------------------------
 -- HARDWARE
 ---------------------------------------------------------------------------
@@ -310,8 +318,9 @@ function M:get_robot_config(instance_name)
         hardware     = self:get_hardware(instance_name),
         connection   = self:get_connection(instance_name),
         state        = self:get_robot_state(instance_name),
-        energy       = self:get_energy(instance_name),
-        energy_max   = self:get_energy_max(instance_name),
+        energy          = self:get_energy(instance_name),
+        energy_max      = self:get_energy_max(instance_name),
+        energy_infinite = self:get_energy_infinite(instance_name),
         nats         = self:get_nats_topics(instance_name),
     }
 end

@@ -51,6 +51,10 @@ local function load_config_file(path)
     if not config.robot_class then return nil, "config missing robot_class" end
     if not config.remote_json then return nil, "config missing remote_json" end
 
+    -- Optional: override energy_infinite from config JSON (plugged-in robot)
+    -- If not set, falls back to class config from NATS KV
+    config.energy_infinite_override = config.energy_infinite
+
     return config
 end
 
@@ -101,12 +105,14 @@ local function validate_inventory(config)
     local class_key = site .. ".robot_class." .. config.robot_class .. ".infra"
     local class_json = kb_ks:get(class_key)
     local energy_max = 10000  -- fallback default
+    local energy_infinite = false
     local class_capabilities = {}
 
     if class_json then
         local cls_ok, cls = pcall(json_util.decode, class_json)
         if cls_ok and cls then
             energy_max = cls.energy_max or energy_max
+            energy_infinite = cls.energy_infinite == true
             class_capabilities = cls.virtual_nodes or {}
         end
     end
@@ -125,9 +131,10 @@ local function validate_inventory(config)
     kb_ks:destroy()
 
     return {
-        connection   = conn,
-        energy_max   = energy_max,
-        capabilities = class_capabilities,
+        connection      = conn,
+        energy_max      = energy_max,
+        energy_infinite = energy_infinite,
+        capabilities    = class_capabilities,
     }
 end
 
@@ -221,6 +228,11 @@ function M.load(config_path)
     local inventory, inv_err = validate_inventory(config)
     if not inventory then return nil, inv_err end
 
+    -- Config JSON can override energy_infinite (plugged-in robot)
+    if config.energy_infinite_override ~= nil then
+        inventory.energy_infinite = config.energy_infinite_override == true
+    end
+
     -- Step 3: Connect NATS transport
     local nats_transport = require("nats_transport")
     local tx = nats_transport.remote_side(robot_id, config.nats_server, site)
@@ -256,6 +268,7 @@ function M.load(config_path)
         robot_class      = config.robot_class,
         remote_json      = config.remote_json,
         energy_max       = inventory.energy_max,
+        energy_infinite  = inventory.energy_infinite,
         energy_remaining = energy_remaining,
         capabilities     = inventory.capabilities,
         connection       = inventory.connection,

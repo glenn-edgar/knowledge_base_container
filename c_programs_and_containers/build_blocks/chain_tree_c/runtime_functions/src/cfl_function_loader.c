@@ -57,6 +57,22 @@
  extern unsigned cfl_se_tick_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
  extern unsigned cfl_se_engine_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
 
+ /* ---- JSON packet main functions ---- */
+ extern unsigned cfl_json_sink_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_json_transform_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_json_dispatch_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
+ /* ---- JSON controlled node main functions ---- */
+ extern unsigned cfl_json_controlled_node_main_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_json_client_controlled_node_main_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
+ /* ---- CBOR packet main functions ---- */
+ extern unsigned cfl_cbor_sink_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
+ /* ---- CBOR controlled node main functions ---- */
+ extern unsigned cfl_cbor_controlled_node_main_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+ extern unsigned cfl_cbor_client_controlled_node_main_main_fn(void*, unsigned, unsigned, unsigned, unsigned, void*);
+
  /* ---- One-shot functions ---- */
  extern void cfl_null_one_shot_fn(void*, unsigned);
  extern void cfl_column_init_one_shot_fn(void*, unsigned);
@@ -149,6 +165,34 @@
  extern void cfl_se_engine_init_one_shot_fn(void*, unsigned);
  extern void cfl_se_engine_term_one_shot_fn(void*, unsigned);
 
+ /* ---- JSON packet one-shot functions ---- */
+ extern void cfl_json_emit_one_shot_fn(void*, unsigned);
+ extern void cfl_json_emit_term_one_shot_fn(void*, unsigned);
+
+ /* ---- JSON controlled node one-shot functions ---- */
+ extern void cfl_json_controlled_node_init_one_shot_fn(void*, unsigned);
+ extern void cfl_json_controlled_node_term_one_shot_fn(void*, unsigned);
+ extern void cfl_json_client_controlled_node_init_one_shot_fn(void*, unsigned);
+ extern void cfl_json_client_controlled_node_term_one_shot_fn(void*, unsigned);
+ extern void cfl_json_sink_init_one_shot_fn(void*, unsigned);
+ extern void cfl_json_sink_term_one_shot_fn(void*, unsigned);
+ extern void cfl_json_transform_init_one_shot_fn(void*, unsigned);
+ extern void cfl_json_transform_term_one_shot_fn(void*, unsigned);
+ extern void cfl_json_dispatch_init_one_shot_fn(void*, unsigned);
+ extern void cfl_json_dispatch_term_one_shot_fn(void*, unsigned);
+
+ /* ---- CBOR packet one-shot functions ---- */
+ extern void cfl_cbor_emit_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_emit_term_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_sink_init_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_sink_term_one_shot_fn(void*, unsigned);
+
+ /* ---- CBOR controlled node one-shot functions ---- */
+ extern void cfl_cbor_controlled_node_init_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_controlled_node_term_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_client_controlled_node_init_one_shot_fn(void*, unsigned);
+ extern void cfl_cbor_client_controlled_node_term_one_shot_fn(void*, unsigned);
+
  /* ---- Boolean functions ---- */
  extern bool cfl_null_boolean_fn(void*, unsigned, unsigned, unsigned, void*);
  extern bool cfl_bool_false_boolean_fn(void*, unsigned, unsigned, unsigned, void*);
@@ -232,6 +276,22 @@
      REG_MAIN(img, "cfl_se_tree_load_main_main",                cfl_se_tree_load_main_fn);
      REG_MAIN(img, "cfl_se_tick_main_main",                     cfl_se_tick_main_fn);
      REG_MAIN(img, "cfl_se_engine_main_main",                   cfl_se_engine_main_fn);
+
+     /* JSON packet main functions */
+     REG_MAIN(img, "cfl_json_sink_main",                        cfl_json_sink_main_fn);
+     REG_MAIN(img, "cfl_json_transform_main",                   cfl_json_transform_main_fn);
+     REG_MAIN(img, "cfl_json_dispatch_main",                    cfl_json_dispatch_main_fn);
+
+     /* JSON controlled node main functions */
+     REG_MAIN(img, "cfl_json_controlled_node_main_main",        cfl_json_controlled_node_main_main_fn);
+     REG_MAIN(img, "cfl_json_client_controlled_node_main_main", cfl_json_client_controlled_node_main_main_fn);
+
+     /* CBOR packet main functions */
+     REG_MAIN(img, "cfl_cbor_sink_main",                        cfl_cbor_sink_main_fn);
+
+     /* CBOR controlled node main functions */
+     REG_MAIN(img, "cfl_cbor_controlled_node_main_main",        cfl_cbor_controlled_node_main_main_fn);
+     REG_MAIN(img, "cfl_cbor_client_controlled_node_main_main", cfl_cbor_client_controlled_node_main_main_fn);
 
  }
  
@@ -331,6 +391,34 @@
      REG_ONE_SHOT(img, "cfl_se_tick_term_one_shot",                         cfl_se_tick_term_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_se_engine_init_one_shot",                       cfl_se_engine_init_one_shot_fn);
      REG_ONE_SHOT(img, "cfl_se_engine_term_one_shot",                       cfl_se_engine_term_one_shot_fn);
+
+     /* JSON packet one-shot functions */
+     REG_ONE_SHOT(img, "cfl_json_emit_one_shot",                            cfl_json_emit_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_emit_term_one_shot",                       cfl_json_emit_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_sink_init_one_shot",                       cfl_json_sink_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_sink_term_one_shot",                       cfl_json_sink_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_transform_init_one_shot",                  cfl_json_transform_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_transform_term_one_shot",                  cfl_json_transform_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_dispatch_init_one_shot",                   cfl_json_dispatch_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_dispatch_term_one_shot",                   cfl_json_dispatch_term_one_shot_fn);
+
+     /* JSON controlled node one-shot functions */
+     REG_ONE_SHOT(img, "cfl_json_controlled_node_init_one_shot",            cfl_json_controlled_node_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_controlled_node_term_one_shot",            cfl_json_controlled_node_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_client_controlled_node_init_one_shot",     cfl_json_client_controlled_node_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_json_client_controlled_node_term_one_shot",     cfl_json_client_controlled_node_term_one_shot_fn);
+
+     /* CBOR packet one-shot functions */
+     REG_ONE_SHOT(img, "cfl_cbor_emit_one_shot",                            cfl_cbor_emit_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_emit_term_one_shot",                       cfl_cbor_emit_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_sink_init_one_shot",                       cfl_cbor_sink_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_sink_term_one_shot",                       cfl_cbor_sink_term_one_shot_fn);
+
+     /* CBOR controlled node one-shot functions */
+     REG_ONE_SHOT(img, "cfl_cbor_controlled_node_init_one_shot",            cfl_cbor_controlled_node_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_controlled_node_term_one_shot",            cfl_cbor_controlled_node_term_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_client_controlled_node_init_one_shot",     cfl_cbor_client_controlled_node_init_one_shot_fn);
+     REG_ONE_SHOT(img, "cfl_cbor_client_controlled_node_term_one_shot",     cfl_cbor_client_controlled_node_term_one_shot_fn);
  }
  
  /* =====================================================================

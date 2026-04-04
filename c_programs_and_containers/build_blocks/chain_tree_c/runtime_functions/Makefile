@@ -29,9 +29,12 @@ BUILD_DIR   = build
 LIB_DIR     = ../runtime_binary
 LIB_INC_DIR = $(LIB_DIR)/include
 SE_INC_DIR  = ../s_expression/include/s_engine
+JSON_INC_DIR = ../json_packets/include
+CBOR_INC_DIR = ../cbor_packets/include
+CJSON_DIR    = ../json_packets/src
 
-# --- Include paths: own headers + library headers + s_engine headers ---
-CFLAGS += -I$(INC_DIR) -I$(LIB_INC_DIR) -I$(SE_INC_DIR)
+# --- Include paths: own headers + library headers + s_engine headers + json/cbor packets ---
+CFLAGS += -I$(INC_DIR) -I$(LIB_INC_DIR) -I$(SE_INC_DIR) -I$(JSON_INC_DIR) -I$(CBOR_INC_DIR) -I$(CJSON_DIR)
 
 # --- Outputs ---
 STATIC_LIB = libcfl_core_functions.a

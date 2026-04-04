@@ -31,6 +31,8 @@ local Streaming           = require("lua_support.streaming")
 local ControlledNodes     = require("lua_support.controlled_nodes")
 local SExpressionNodes    = require("lua_support.s_expression_nodes")
 local SEngine             = require("lua_support.s_engine")
+local JsonStreaming       = require("lua_support.json_streaming")
+local CborStreaming       = require("lua_support.cbor_streaming")
 
 -- ---------------------------------------------------------------------------
 -- Mixin helper: copy all methods from a source table into dest,
@@ -66,6 +68,8 @@ mixin(ChainTreeMaster, Streaming)
 mixin(ChainTreeMaster, ControlledNodes)
 mixin(ChainTreeMaster, SExpressionNodes)
 mixin(ChainTreeMaster, SEngine)
+mixin(ChainTreeMaster, JsonStreaming)
+mixin(ChainTreeMaster, CborStreaming)
 mixin(ChainTreeMaster, ColumnFlow)
 
 -- ---------------------------------------------------------------------------

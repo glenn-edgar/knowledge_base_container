@@ -112,5 +112,7 @@ nav:
     - Packet Format: avro/README_c_avro_packtes.md
   - Integration Tests:
     - ChainTree Binary Tests: README_incremental_binary.md
+    - JSON Packet Tests: README_json_packet_tests.md
+    - CBOR Packet Tests: README_cbor_packet_tests.md
     - S-Engine Test 1 (se_tick): README_s_test_binary.md
     - S-Engine Test 2 (se_engine): README_s_engine_test_2.md

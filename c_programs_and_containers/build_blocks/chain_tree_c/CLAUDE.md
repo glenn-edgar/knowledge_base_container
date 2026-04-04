@@ -33,6 +33,10 @@ cd dsl_tests/incremental_build && make
 # Binary-image test (links runtime_binary + runtime_functions, auto-rebuilds libs)
 cd dsl_tests/incremental_binary && make
 cd dsl_tests/incremental_binary && make clean-all   # cleans app + both libraries
+
+# JSON packet test (links json_packets + runtime_binary + runtime_functions)
+cd dsl_tests/dsl_tests_c/json_packet_test && make
+cd dsl_tests/dsl_tests_c/json_packet_test && ./main 0  # through ./main 4
 ```
 
 ### Cross-compilation for 32-bit ARM
@@ -127,6 +131,17 @@ cd s_expression/dsl_tests/<test_name> && make rebuild  # clean everything includ
 - 32/64-bit controlled by `MODULE_IS_64BIT` define (default 0). Affects hash width (FNV-1a 32 vs 64-bit), parameter struct size, and numeric types (`ct_int_t`, `ct_float_t`).
 - Event queue (16 slots) with tick-based processing: regular `SE_EVENT_TICK` plus user events via save/set/execute/restore pattern on `tick_type`.
 
+### JSON Packets and JSON Controlled Nodes (`json_packets/`, `runtime_functions/`)
+
+Pure JSON packet streaming and controlled node support, replacing Avro for platforms that prefer self-describing text protocols.
+
+- **`json_packets/`**: cJSON-based library (`libcfl_json_packets.a`) with parse/build/extract/dispatch/serialize. Heap interface for custom allocators.
+- **JSON streaming CFL functions**: emit (one-shot), sink, transform, dispatch — all route by event_id, no schema matching.
+- **JSON controlled nodes**: Client-server pattern identical to Avro controlled nodes but using JSON text for request/response. `cfl_json_port_t` carries only `event_id`. Client serializes request data to JSON at DSL time. Server response set via `cfl_json_server_set_response_text()` helper.
+- **DSL**: `make_json_control_port()`, `json_controlled_node()`, `json_client_controlled_node()` in `lua_dsl/lua_support/json_streaming.lua`.
+- **Engine integration**: `CFL_FUNCTION_ID_JSON_CONTROLLED_NODE_MAIN (7)` in `cfl_engine.h`. Exception routing recognizes JSON controlled nodes as boundaries.
+- **Tests**: `dsl_tests/dsl_tests_c/json_packet_test/` — 5 tests (telemetry, multi-gen, verify, drone control, drone exception).
+
 ### Avro packet DSL (`c_avro_packets/`)
 
 Separate Lua DSL for generating fixed-layout C message structs for embedded wire protocols. Run schema files directly with `luajit <schema>.lua`. Produces `.h` headers, optional `.bin` blobs, and const packet initializers. Integrates with ChainTree streaming subsystem via `make_port` / `make_control_port`.
@@ -165,3 +180,23 @@ A single mutable blackboard shared across all knowledge bases, with support for 
 - Binary image format uses magic `CTB1`, CRC32 checksums, FNV-1a function hashing with collision detection at generation time.
 - JSON IR (see `lua_dsl/README_dsl_schema.md`) is the stable contract between frontends and backends. `schema_version: "1.0"`.
 - Link order matters when linking: functions library before core library (e.g., `$(FUNC_LIB) $(CORE_LIB) -lm`).
+
+### CFL function naming conventions
+
+All CFL built-in functions must follow a strict naming pipeline. The DSL name (UPPER_CASE) is transformed by the stage3 codegen into a lowercase registration name with a type suffix, which maps to a C symbol with an additional `_fn` suffix:
+
+```
+DSL name (UPPER)           → registration name (lower+suffix)      → C symbol (_fn)
+"CFL_JSON_SINK"            → "cfl_json_sink_main"                  → cfl_json_sink_main_fn
+"CFL_JSON_SINK_INIT"       → "cfl_json_sink_init_one_shot"         → cfl_json_sink_init_one_shot_fn
+```
+
+- **Built-in CFL functions**: Must be prefixed with `cfl_` and have Lua DSL support in `lua_dsl/lua_support/`. Register in `cfl_function_loader.c` with `REG_MAIN`, `REG_ONE_SHOT`, or `REG_BOOLEAN`.
+- **User functions**: Omit `cfl_` prefix. DSL name `"MY_FUNC"` → registration `"my_func_boolean"` → C symbol `my_func_boolean_fn`. User one-shot handlers: `"MY_HANDLER"` → `"my_handler_one_shot"` → `my_handler_one_shot_fn`. Register with `cfl_image_register_boolean` / `cfl_image_register_one_shot` in the test's `main.c`.
+
+### CFL function memory patterns
+
+- **Smart allocators**: Use `cfl_allocate_state()` + `cfl_smart_arena_alloc()` in init functions. Returns `false` on first call (allocate + decode from node_dict), `true` on subsequent (just retrieve pointer via `cfl_heap_arena_get_node_ptr`). This prevents re-allocation across `CFL_RESET` loops.
+- **Additional arena alloc**: Use `cfl_additional_arena_alloc()` for secondary buffers (text buffers, route tables) tied to the same node's arena lifetime. Freed automatically when arena is destroyed.
+- **Heap**: Use `cfl_heap_malloc_pointer` / `cfl_heap_free_pointer` for dynamic-size allocations that need explicit lifecycle management. Free in term one-shot.
+- **User booleans**: Must guard `if (!event_data) return false;` because the framework calls booleans with NULL event_data for init/term events.

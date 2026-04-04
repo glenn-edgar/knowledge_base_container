@@ -437,6 +437,8 @@
      ids[CFL_FUNCTION_ID_EXCEPTION_CATCH_ALL_MAIN]= ct_get_main_function_index(fh, "CFL_EXCEPTION_CATCH_ALL_MAIN");
      ids[CFL_FUNCTION_ID_EXCEPTION_CATCH_MAIN]    = ct_get_main_function_index(fh, "CFL_EXCEPTION_CATCH_MAIN");
      ids[CFL_FUNCTION_ID_CONTROLLED_NODE_MAIN]    = ct_get_main_function_index(fh, "CFL_CONTROLLED_NODE_MAIN");
+     ids[CFL_FUNCTION_ID_JSON_CONTROLLED_NODE_MAIN] = ct_get_main_function_index(fh, "CFL_JSON_CONTROLLED_NODE_MAIN");
+     ids[CFL_FUNCTION_ID_CBOR_CONTROLLED_NODE_MAIN] = ct_get_main_function_index(fh, "CFL_CBOR_CONTROLLED_NODE_MAIN");
  }
  
  static void process_stop_start_tests(cfl_runtime_handle_t *handle,

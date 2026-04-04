@@ -92,6 +92,7 @@ kb:add_header_node("robot_class", "lunar_rover", {}, {},
         { comm_type = "nats" },
         {
             energy_max = 10000,
+            energy_infinite = false,  -- true = plugged in, no energy budget
             virtual_nodes = {
                 "init_check", "path_spline", "path_line", "path_wall",
                 "path_rotate", "deliver_part", "paint_sample", "load_shipping",
@@ -203,6 +204,7 @@ kb:add_header_node("robot_class", "construction_arm", {}, {},
         { comm_type = "nats" },
         {
             energy_max = 5000,
+            energy_infinite = true,  -- stationary arm, plugged in
             virtual_nodes = {
                 "init_check", "deliver_part", "load_shipping",
                 "inspection_scan", "recharge", "idle",

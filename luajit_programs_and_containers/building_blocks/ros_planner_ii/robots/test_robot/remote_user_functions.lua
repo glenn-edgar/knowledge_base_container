@@ -23,11 +23,11 @@ local kb_rt = nil
 local global_pos = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
 -- Energy tracking (set from class config at startup)
-local energy = { max = 10000, remaining = 10000 }
+local energy = { max = 10000, remaining = 10000, infinite = false }
 
 function M.set_transport(tx) transport = tx end
 function M.set_kb_runtime(rt) kb_rt = rt end
-function M.set_energy(max_energy) energy.max = max_energy; energy.remaining = max_energy end
+function M.set_energy(max_energy, infinite) energy.max = max_energy; energy.remaining = max_energy; energy.infinite = infinite or false end
 function M.get_energy() return energy end
 
 -- Worker KB name by packet_type (one per virtual node)
@@ -275,14 +275,16 @@ M.main.CTRL_COMPLETION_MAIN = function(handle, bool_fn, node, event_id)
         global_pos.heading = global_pos.heading + (bb.delta_heading or 0)
         global_pos.arm_angle = global_pos.arm_angle + (bb.delta_arm_angle or 0)
 
-        -- Deduct energy for completed action
+        -- Deduct energy for completed action (skip when infinite)
         local pkt_type = bb.current_packet_type
-        local cost = energy_costs[pkt_type] or 0
-        energy.remaining = math.max(0, energy.remaining - cost)
+        if not energy.infinite then
+            local cost = energy_costs[pkt_type] or 0
+            energy.remaining = math.max(0, energy.remaining - cost)
 
-        -- Recharge VN restores energy to max
-        if pkt_type == cmd_packets.TYPE_RECHARGE then
-            energy.remaining = energy.max
+            -- Recharge VN restores energy to max
+            if pkt_type == cmd_packets.TYPE_RECHARGE then
+                energy.remaining = energy.max
+            end
         end
 
         send_heartbeat(bb, "final")

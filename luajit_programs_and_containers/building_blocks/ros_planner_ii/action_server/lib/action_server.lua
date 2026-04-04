@@ -178,10 +178,11 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Publish starting status
         srv:_publish_status(robot_id, { state = "planning" })
 
-        -- Query robot capabilities and energy_max from KB
+        -- Query robot capabilities and energy from KB
         local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
         local capabilities = kb_q:get_capabilities(robot_id)
         local energy_max = kb_q:get_energy_max(robot_id) or 0
+        local energy_infinite = kb_q:get_energy_infinite(robot_id)
         kb_q:close()
 
         -- Create planner
@@ -219,7 +220,7 @@ function M:_make_mission_coroutine(mission_cmd)
             energy_remaining = energy_data.energy_remaining or energy_max
         end
 
-        if plan_info.total_cost > energy_remaining then
+        if not energy_infinite and plan_info.total_cost > energy_remaining then
             local detail = string.format(
                 "insufficient energy: need %d, have %d",
                 plan_info.total_cost, energy_remaining)
@@ -601,10 +602,11 @@ function M:execute_mission(mission_cmd)
     local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
     local board    = mission_cmd.board    or error("action_server: board required")
 
-    -- Query robot capabilities and energy_max from KB
+    -- Query robot capabilities and energy from KB
     local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
     local capabilities = kb_q:get_capabilities(robot_id)
     local energy_max = kb_q:get_energy_max(robot_id) or 0
+    local energy_infinite = kb_q:get_energy_infinite(robot_id)
     kb_q:close()
 
     local planner = global_planner.new({
@@ -639,7 +641,7 @@ function M:execute_mission(mission_cmd)
         energy_remaining = energy_data.energy_remaining or energy_max
     end
 
-    if plan_info.total_cost > energy_remaining then
+    if not energy_infinite and plan_info.total_cost > energy_remaining then
         local detail = string.format(
             "insufficient energy: need %d, have %d",
             plan_info.total_cost, energy_remaining)

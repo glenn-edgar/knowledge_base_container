@@ -89,9 +89,11 @@ typedef struct {
 #define CFL_FUNCTION_ID_EXCEPTION_CATCH_ALL_MAIN 4
 #define CFL_FUNCTION_ID_EXCEPTION_CATCH_MAIN 5
 #define CFL_FUNCTION_ID_CONTROLLED_NODE_MAIN 6
+#define CFL_FUNCTION_ID_JSON_CONTROLLED_NODE_MAIN 7
+#define CFL_FUNCTION_ID_CBOR_CONTROLLED_NODE_MAIN 8
 
 typedef struct {
-    uint16_t main_function_ids[7];
+    uint16_t main_function_ids[9];
 } main_function_data_t;
 
 /* ========================================================================

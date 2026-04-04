@@ -148,6 +148,7 @@ function M.new(opts)
     -- Energy tracking (initialized from KB or defaults)
     self.energy_max       = opts.energy_max or 10000
     self.energy_remaining = opts.energy_remaining or self.energy_max
+    self.energy_infinite  = opts.energy_infinite or false
 
     -- Bitmask change tracking (only publish on change)
     self._last_bitmask_raw = nil
@@ -298,8 +299,9 @@ function M:_publish_robot_status()
     end)
 end
 
---- Deduct energy cost for an action.
+--- Deduct energy cost for an action (no-op when energy_infinite).
 function M:deduct_energy(cost)
+    if self.energy_infinite then return end
     self.energy_remaining = math.max(0, self.energy_remaining - cost)
 end
 
