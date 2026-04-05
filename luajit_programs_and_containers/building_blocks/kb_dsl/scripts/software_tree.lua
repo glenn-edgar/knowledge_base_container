@@ -21,8 +21,8 @@ function M.build(kb, config)
     if has_robots then
       kb:add_header_node("domain", domain.name,
         { type = "domain", description = domain.description },
-        { nats_prefix = domain.nats_prefix,
-          container   = container_path })
+        { site      = domain.site,
+          container = container_path })
 
       kb:add_header_node("robots", "registry",
         { type = "robot_registry" },
@@ -32,7 +32,8 @@ function M.build(kb, config)
         kb:add_info_node("robot", robot.name,
           { type = "robot",
             transport   = robot.transport,
-            wire_format = robot.wire_format },
+            wire_format = robot.wire_format,
+            robot_class = robot.robot_class },
           { capabilities = robot.capabilities })
       end
 
@@ -41,8 +42,8 @@ function M.build(kb, config)
     else
       kb:add_info_node("domain", domain.name,
         { type = "domain", description = domain.description },
-        { nats_prefix = domain.nats_prefix,
-          container   = container_path })
+        { site      = domain.site,
+          container = container_path })
     end
   end
 end

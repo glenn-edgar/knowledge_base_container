@@ -17,10 +17,13 @@
     luajit scripts/master_build.lua
 ]]
 
--- Adjust package path to find KB construction modules
-local kb_base = "../../knowledge_base/postgres/construct_kb/?.lua"
-local sqlite_base = "../../knowledge_base/sqlite3/construct_kb/?.lua"
-package.path = kb_base .. ";" .. sqlite_base .. ";" .. package.path
+-- Adjust package path to find KB construction modules (relative to kb_dsl/)
+local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)") or "./"
+local bb_dir = script_dir .. "../../"
+local kb_base = bb_dir .. "knowledge_base/postgres/construct_kb/?.lua"
+local sqlite_base = bb_dir .. "knowledge_base/sqlite3/construct_kb/?.lua"
+package.path = script_dir .. "?.lua;" .. kb_base .. ";" .. sqlite_base .. ";" .. package.path
+package.cpath = bb_dir .. "knowledge_base/postgres/?.so;" .. bb_dir .. "knowledge_base/sqlite3/construct_kb/?.so;" .. package.cpath
 
 local site_config    = require("site_config")
 local physical_tree  = require("physical_tree")
@@ -37,8 +40,9 @@ local pg_config = {
   user     = os.getenv("PG_USER") or "gedgar",
   password = os.getenv("POSTGRES_PASSWORD") or "",
 }
+--print(pg_config.host,pg_config.port,pg_config.dbname,pg_config.user,pg_config.password)
 
-local sqlite_output_dir = "../sqlite_dbs"
+local sqlite_output_dir = os.getenv("SQLITE_DATA") or "/home/gedgar/Sqlite_Data"
 
 -- Count containers across all CPUs
 local total_containers = 0
@@ -61,7 +65,7 @@ local kb = Construct_KB.new(
   pg_config.host, pg_config.port,
   pg_config.dbname, pg_config.user, pg_config.password
 )
-
+print("made it here")
 -- Step 2: Build trees (all driven by site_config)
 print("\n--- Physical Tree (CPUs → Containers → Services) ---")
 physical_tree.build(kb, site_config)

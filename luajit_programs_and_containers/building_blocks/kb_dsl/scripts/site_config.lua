@@ -9,6 +9,14 @@
     CPU → containers → services
     CPU has a master flag; master holds Postgres.
     CPU controllers read their own subtree to know what to instantiate.
+
+  Architecture (2026-04-05):
+    - MQTT for all robot communication (planner owns client directly)
+    - NATS for job queues, telemetry streams, KB export
+    - NATS KV for external consumers (dashboard, monitoring)
+    - kv_bridge container: MQTT → NATS KV async writes
+    - No NATS↔MQTT bridge (eliminated — planner talks MQTT directly)
+    - Robots support JSON or CBOR wire format
 ]]
 
 return {
@@ -27,7 +35,7 @@ return {
       containers = {
         { name        = "nats_server",
           type        = "infrastructure",
-          description = "NATS JetStream message bus",
+          description = "NATS JetStream message bus (RAM-backed)",
           image       = "nanodatacenter/nats-js-ram:latest",
           services = {
             { name = "nats", protocol = "nats",
@@ -39,7 +47,7 @@ return {
 
         { name        = "mqtt_broker",
           type        = "infrastructure",
-          description = "Mosquitto MQTT broker for edge robots",
+          description = "Mosquitto MQTT broker for robot communication",
           image       = "nanodatacenter/mosquitto-ram-ws:latest",
           services = {
             { name = "mqtt", protocol = "mqtt",
@@ -79,14 +87,14 @@ return {
           },
         },
 
-        { name        = "mqtt_bridge",
+        { name        = "kv_bridge",
           type        = "service",
-          description = "NATS-MQTT bridge for edge robots",
-          image       = "nanodatacenter/mqtt_bridge:latest",
+          description = "MQTT to NATS KV async writer (Go container)",
+          image       = "nanodatacenter/kv-bridge:latest",
           services = {
-            { name = "nats_client", protocol = "nats",
-              data = { role = "client" } },
             { name = "mqtt_client", protocol = "mqtt",
+              data = { role = "subscriber", topic = "kv_bridge/write" } },
+            { name = "nats_client", protocol = "nats",
               data = { role = "client" } },
           },
         },
@@ -118,12 +126,14 @@ return {
         { name        = "surface_ops_planner",
           type        = "action_server",
           description = "Surface operations mission planner",
-          image       = "nanodatacenter/surface_ops:latest",
+          image       = "nanodatacenter/ros-planner-surface-ops:latest",
           sqlite_db   = "/data/surface_ops.db",
           params      = { max_concurrent_missions = 4,
                           heartbeat_interval_s     = 10 },
           services = {
             { name = "nats_client", protocol = "nats",
+              data = { role = "client" } },
+            { name = "mqtt_client", protocol = "mqtt",
               data = { role = "client" } },
           },
         },
@@ -131,12 +141,14 @@ return {
         { name        = "warehouse_ops_planner",
           type        = "action_server",
           description = "Warehouse operations mission planner",
-          image       = "nanodatacenter/warehouse_ops:latest",
+          image       = "nanodatacenter/ros-planner-warehouse-ops:latest",
           sqlite_db   = "/data/warehouse_ops.db",
           params      = { max_concurrent_missions = 6,
                           heartbeat_interval_s     = 10 },
           services = {
             { name = "nats_client", protocol = "nats",
+              data = { role = "client" } },
+            { name = "mqtt_client", protocol = "mqtt",
               data = { role = "client" } },
           },
         },
@@ -147,24 +159,37 @@ return {
   ---------------------------------------------------------------------------
   -- Domains: mission planner / robot controller logical groupings
   -- References containers by cpu_name/container_name.
+  -- All robots use MQTT transport. Wire format per robot (json or cbor).
   ---------------------------------------------------------------------------
   domains = {
     { name        = "surface_ops",
       description = "Surface operations",
-      nats_prefix = "moonbase.alpha.services.robot_control.surface_ops",
+      site        = "moonbase.alpha.surface_ops",
       cpu         = "cpu_01",
       container   = "surface_ops_planner",
       robots = {
-        { name = "rover_01", transport = "nats",  wire_format = "json",
-          capabilities = { "navigate", "sample", "photograph" } },
-        { name = "rover_02", transport = "mqtt",  wire_format = "cbor",
-          capabilities = { "navigate", "drill" } },
+        { name = "rover_1", transport = "mqtt", wire_format = "json",
+          robot_class = "lunar_rover",
+          capabilities = {
+            "init_check", "path_spline", "path_line", "path_wall",
+            "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+            "pass_gate", "inspection_scan", "recharge", "idle",
+          },
+        },
+        { name = "rover_2", transport = "mqtt", wire_format = "cbor",
+          robot_class = "lunar_rover",
+          capabilities = {
+            "init_check", "path_spline", "path_line", "path_wall",
+            "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+            "pass_gate", "inspection_scan", "recharge", "idle",
+          },
+        },
       },
     },
 
     { name        = "fleet",
       description = "Fleet management and scheduling",
-      nats_prefix = "moonbase.alpha.services.robot_control.fleet",
+      site        = "moonbase.alpha.fleet",
       cpu         = "cpu_01",
       container   = "fleet_manager",
       robots = {},
@@ -172,7 +197,7 @@ return {
 
     { name        = "telemetry",
       description = "Telemetry collection and history",
-      nats_prefix = "moonbase.alpha.services.robot_control.telemetry",
+      site        = "moonbase.alpha.telemetry",
       cpu         = "cpu_01",
       container   = "telemetry_collector",
       robots = {},
@@ -180,16 +205,22 @@ return {
 
     { name        = "warehouse_ops",
       description = "Warehouse logistics operations",
-      nats_prefix = "moonbase.alpha.services.robot_control.warehouse_ops",
+      site        = "moonbase.alpha.warehouse_ops",
       cpu         = "cpu_01",
       container   = "warehouse_ops_planner",
       robots = {
-        { name = "forklift_01", transport = "nats",  wire_format = "json",
-          capabilities = { "navigate", "lift", "stack" } },
-        { name = "forklift_02", transport = "nats",  wire_format = "json",
-          capabilities = { "navigate", "lift", "stack" } },
-        { name = "sorter_01",   transport = "mqtt",  wire_format = "cbor",
-          capabilities = { "sort", "scan", "label" } },
+        { name = "forklift_1", transport = "mqtt", wire_format = "json",
+          robot_class = "forklift",
+          capabilities = { "navigate", "lift", "stack" },
+        },
+        { name = "forklift_2", transport = "mqtt", wire_format = "json",
+          robot_class = "forklift",
+          capabilities = { "navigate", "lift", "stack" },
+        },
+        { name = "sorter_1", transport = "mqtt", wire_format = "cbor",
+          robot_class = "sorter",
+          capabilities = { "sort", "scan", "label" },
+        },
       },
     },
   },
