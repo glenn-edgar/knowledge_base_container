@@ -276,6 +276,42 @@ bool cfl_json_has_field(cfl_json_packet_t *pkt, const char *path) {
 }
 
 /* ========================================================================
+ * TRY-EXTRACT — return false if missing or wrong type, no EXCEPTION
+ * ======================================================================== */
+
+bool cfl_json_try_get_int(cfl_json_packet_t *pkt, const char *path, int32_t *out) {
+    if (!pkt || !path || !out) return false;
+    cJSON *item = navigate_path(pkt->root, path);
+    if (!item || !cJSON_IsNumber(item)) return false;
+    *out = (int32_t)item->valueint;
+    return true;
+}
+
+bool cfl_json_try_get_string(cfl_json_packet_t *pkt, const char *path, const char **out) {
+    if (!pkt || !path || !out) return false;
+    cJSON *item = navigate_path(pkt->root, path);
+    if (!item || !cJSON_IsString(item)) return false;
+    *out = item->valuestring;
+    return true;
+}
+
+bool cfl_json_try_get_float(cfl_json_packet_t *pkt, const char *path, double *out) {
+    if (!pkt || !path || !out) return false;
+    cJSON *item = navigate_path(pkt->root, path);
+    if (!item || !cJSON_IsNumber(item)) return false;
+    *out = item->valuedouble;
+    return true;
+}
+
+bool cfl_json_try_get_bool(cfl_json_packet_t *pkt, const char *path, bool *out) {
+    if (!pkt || !path || !out) return false;
+    cJSON *item = navigate_path(pkt->root, path);
+    if (!item || !cJSON_IsBool(item)) return false;
+    *out = cJSON_IsTrue(item) ? true : false;
+    return true;
+}
+
+/* ========================================================================
  * BUILD
  * ======================================================================== */
 

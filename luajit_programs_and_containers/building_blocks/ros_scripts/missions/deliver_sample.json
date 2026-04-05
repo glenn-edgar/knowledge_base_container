@@ -1,0 +1,11 @@
+{
+    "robot_id": "rover_1",
+    "board": "landing_zone",
+    "start": "lander_pad",
+    "stops": [
+        {"node": "mining_zone_b", "action": "deliver_part",
+         "params": {"arm_target": -45, "arm_speed": 80, "arm_return": 0, "payload_type": 1}},
+        {"node": "lander_pad"}
+    ],
+    "bookend": true
+}

@@ -1,10 +1,10 @@
 # ChainTree Debug YAML Output
-# Generated: 2026-04-04T01:46:59Z
+# Generated: 2026-04-04T21:00:11Z
 ---
 kb.complete_functions_kb.complete_functions.complete_functions:
   label: complete_functions
   label_dict:
-    array_index: "178"
+    array_index: "203"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -20,7 +20,7 @@ kb.complete_functions_kb.complete_functions.complete_functions:
 kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.boolean_functions:
   label: complete_functions
   label_dict:
-    array_index: "180"
+    array_index: "205"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -37,7 +37,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
 kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.main_functions:
   label: complete_functions
   label_dict:
-    array_index: "181"
+    array_index: "206"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -58,7 +58,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
 kb.complete_functions_kb.complete_functions.complete_functions.complete_functions.one_shot_functions:
   label: complete_functions
   label_dict:
-    array_index: "179"
+    array_index: "204"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -77,6 +77,10 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
     CTRL_COMPLETION_INIT: true
+    ROB_PUBLISH_BITMASK: true
+    ROB_PUBLISH_ENERGY: true
+    ROB_PUBLISH_STATE: true
+    ROB_SEND_ACK: true
     WKR_DELIVER_PART_INIT: true
     WKR_IDLE_INIT: true
     WKR_INIT_CHECK_INIT: true
@@ -94,7 +98,7 @@ kb.complete_functions_kb.complete_functions.complete_functions.complete_function
 kb.controller.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "0"
+    array_index: "7"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -109,7 +113,7 @@ kb.controller.GATE_root._0:
 kb.controller.GATE_root._0.COL_cont._0:
   label: COL_cont
   label_dict:
-    array_index: "1"
+    array_index: "8"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -126,7 +130,7 @@ kb.controller.GATE_root._0.COL_cont._0:
 kb.controller.GATE_root._0.COL_cont._0.COMPLETION._1:
   label: COMPLETION
   label_dict:
-    array_index: "3"
+    array_index: "10"
     aux_function_name: CFL_NULL
     initialization_function_name: CTRL_COMPLETION_INIT
     links: []
@@ -139,7 +143,7 @@ kb.controller.GATE_root._0.COL_cont._0.COMPLETION._1:
 kb.controller.GATE_root._0.COL_cont._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "2"
+    array_index: "9"
     aux_function_name: CBOR_RPC_DISPATCH
     initialization_function_name: CFL_CBOR_SINK_INIT
     links: []
@@ -155,7 +159,7 @@ kb.controller.GATE_root._0.COL_cont._0.LEAF._0:
 kb.controller_functions.kb.controller:
   label: kb
   label_dict:
-    array_index: "148"
+    array_index: "197"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -169,7 +173,7 @@ kb.controller_functions.kb.controller:
 kb.controller_functions.kb.controller.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "149"
+    array_index: "198"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -186,7 +190,7 @@ kb.controller_functions.kb.controller.virtual_functions.virtual_functions:
 kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "152"
+    array_index: "201"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -203,7 +207,7 @@ kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtua
 kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "153"
+    array_index: "202"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -220,7 +224,7 @@ kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtua
 kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "151"
+    array_index: "200"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -241,7 +245,7 @@ kb.controller_functions.kb.controller.virtual_functions.virtual_functions.virtua
 kb.event_string_table_kb.event_strings.event_string_table:
   label: event_strings
   label_dict:
-    array_index: "182"
+    array_index: "207"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -272,10 +276,197 @@ kb.event_string_table_kb.event_strings.event_string_table:
     CFL_YEAR_EVENT: "11"
     MQTT_RPC_EVENT: "20"
   node_name: event_string_table
+kb.robot_init.GATE_root._0:
+  label: GATE_root
+  label_dict:
+    array_index: "0"
+    aux_function_name: CFL_GATE_NODE_NULL
+    initialization_function_name: CFL_GATE_NODE_INIT
+    links:
+      - kb.robot_init.GATE_root._0.COL_robo._0
+    ltree_name: kb.robot_init.GATE_root._0
+    main_function_name: CFL_GATE_NODE_MAIN
+    parent_ltree_name: kb.robot_init
+    termination_function_name: CFL_GATE_NODE_TERM
+  node_dict:
+    version: 1.0.0
+  node_name: _0
+kb.robot_init.GATE_root._0.COL_robo._0:
+  label: COL_robo
+  label_dict:
+    array_index: "1"
+    aux_function_name: CFL_COLUMN_NULL
+    initialization_function_name: CFL_COLUMN_INIT
+    links:
+      - kb.robot_init.GATE_root._0.COL_robo._0.LEAF._0
+      - kb.robot_init.GATE_root._0.COL_robo._0.LEAF._1
+      - kb.robot_init.GATE_root._0.COL_robo._0.LEAF._2
+      - kb.robot_init.GATE_root._0.COL_robo._0.LEAF._3
+      - kb.robot_init.GATE_root._0.COL_robo._0.LEAF._4
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    main_function_name: CFL_COLUMN_MAIN
+    parent_ltree_name: kb.robot_init.GATE_root._0
+    termination_function_name: CFL_COLUMN_TERM
+  node_dict:
+    auto_start: true
+    column_data: []
+  node_name: _0
+kb.robot_init.GATE_root._0.COL_robo._0.LEAF._0:
+  label: LEAF
+  label_dict:
+    array_index: "2"
+    aux_function_name: CFL_NULL
+    initialization_function_name: ROB_PUBLISH_STATE
+    links: []
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0.LEAF._0
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _0
+kb.robot_init.GATE_root._0.COL_robo._0.LEAF._1:
+  label: LEAF
+  label_dict:
+    array_index: "3"
+    aux_function_name: CFL_NULL
+    initialization_function_name: ROB_PUBLISH_ENERGY
+    links: []
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0.LEAF._1
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _1
+kb.robot_init.GATE_root._0.COL_robo._0.LEAF._2:
+  label: LEAF
+  label_dict:
+    array_index: "4"
+    aux_function_name: CFL_NULL
+    initialization_function_name: ROB_PUBLISH_BITMASK
+    links: []
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.robot_init.GATE_root._0.COL_robo._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "5"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_LOG_MESSAGE
+    links: []
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0.LEAF._3
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    termination_function_name: CFL_NULL
+  node_dict:
+    message: "robot_init: initial status published"
+  node_name: _3
+kb.robot_init.GATE_root._0.COL_robo._0.LEAF._4:
+  label: LEAF
+  label_dict:
+    array_index: "6"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.robot_init.GATE_root._0.COL_robo._0.LEAF._4
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.robot_init.GATE_root._0.COL_robo._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _4
+kb.robot_init_functions.kb.robot_init:
+  label: kb
+  label_dict:
+    array_index: "119"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links:
+      - kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions
+    ltree_name: kb.robot_init_functions.kb.robot_init
+    main_function_name: CFL_NULL
+    parent_ltree_name: kb.robot_init_functions
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: robot_init
+kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions:
+  label: virtual_functions
+  label_dict:
+    array_index: "120"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links:
+      - kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.main_functions
+      - kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+      - kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+      - kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.main_functions
+    ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions
+    main_function_name: CFL_NULL
+    parent_ltree_name: kb.robot_init_functions.kb.robot_init
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: virtual_functions
+kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
+  label: virtual_functions
+  label_dict:
+    array_index: "123"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.boolean_functions
+    main_function_name: CFL_NULL
+    parent_ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions
+    termination_function_name: CFL_NULL
+  node_dict:
+    CFL_COLUMN_NULL: true
+    CFL_GATE_NODE_NULL: true
+    CFL_NULL: true
+  node_name: boolean_functions
+kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.main_functions:
+  label: virtual_functions
+  label_dict:
+    array_index: "124"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.main_functions
+    main_function_name: CFL_NULL
+    parent_ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions
+    termination_function_name: CFL_NULL
+  node_dict:
+    CFL_COLUMN_MAIN: true
+    CFL_DISABLE: true
+    CFL_GATE_NODE_MAIN: true
+    CFL_TERMINATE: true
+  node_name: main_functions
+kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
+  label: virtual_functions
+  label_dict:
+    array_index: "122"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions.virtual_functions.one_shot_functions
+    main_function_name: CFL_NULL
+    parent_ltree_name: kb.robot_init_functions.kb.robot_init.virtual_functions.virtual_functions
+    termination_function_name: CFL_NULL
+  node_dict:
+    CFL_COLUMN_INIT: true
+    CFL_COLUMN_TERM: true
+    CFL_GATE_NODE_INIT: true
+    CFL_GATE_NODE_TERM: true
+    CFL_LOG_MESSAGE: true
+    CFL_NULL: true
+    ROB_PUBLISH_BITMASK: true
+    ROB_PUBLISH_ENERGY: true
+    ROB_PUBLISH_STATE: true
+  node_name: one_shot_functions
 kb.worker_deliver_part.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "44"
+    array_index: "56"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -290,7 +481,7 @@ kb.worker_deliver_part.GATE_root._0:
 kb.worker_deliver_part.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "45"
+    array_index: "57"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -300,6 +491,7 @@ kb.worker_deliver_part.GATE_root._0.COL_work._0:
       - kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0
@@ -311,88 +503,101 @@ kb.worker_deliver_part.GATE_root._0.COL_work._0:
 kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "46"
+    array_index: "58"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_deliver_part: started"
+  node_dict: []
   node_name: _0
 kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "47"
+    array_index: "59"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_DELIVER_PART_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_deliver_part: started"
   node_name: _1
 kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "48"
+    array_index: "60"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_DELIVER_PART_INIT
+    links: []
+    ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "61"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.2"
-  node_name: _2
-kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "49"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_deliver_part: completed"
   node_name: _3
 kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "50"
+    array_index: "62"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_deliver_part: completed"
   node_name: _4
 kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "51"
+    array_index: "63"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "64"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_deliver_part.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_deliver_part_functions.kb.worker_deliver_part:
   label: kb
   label_dict:
-    array_index: "106"
+    array_index: "173"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -406,7 +611,7 @@ kb.worker_deliver_part_functions.kb.worker_deliver_part:
 kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "107"
+    array_index: "174"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -423,7 +628,7 @@ kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtua
 kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "110"
+    array_index: "177"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -439,7 +644,7 @@ kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtua
 kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "111"
+    array_index: "178"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -457,7 +662,7 @@ kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtua
 kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "109"
+    array_index: "176"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -473,13 +678,14 @@ kb.worker_deliver_part_functions.kb.worker_deliver_part.virtual_functions.virtua
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_DELIVER_PART_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_idle.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "84"
+    array_index: "101"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -494,7 +700,7 @@ kb.worker_idle.GATE_root._0:
 kb.worker_idle.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "85"
+    array_index: "102"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -504,6 +710,7 @@ kb.worker_idle.GATE_root._0.COL_work._0:
       - kb.worker_idle.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_idle.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_idle.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_idle.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_idle.GATE_root._0
@@ -515,88 +722,101 @@ kb.worker_idle.GATE_root._0.COL_work._0:
 kb.worker_idle.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "86"
+    array_index: "103"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_idle: started"
+  node_dict: []
   node_name: _0
 kb.worker_idle.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "87"
+    array_index: "104"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_IDLE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_idle: started"
   node_name: _1
 kb.worker_idle.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "88"
+    array_index: "105"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_IDLE_INIT
+    links: []
+    ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_idle.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "106"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.05"
-  node_name: _2
-kb.worker_idle.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "89"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_idle: completed"
   node_name: _3
 kb.worker_idle.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "90"
+    array_index: "107"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_idle: completed"
   node_name: _4
 kb.worker_idle.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "91"
+    array_index: "108"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_idle.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "109"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_idle.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_idle.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_idle_functions.kb.worker_idle:
   label: kb
   label_dict:
-    array_index: "130"
+    array_index: "155"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -610,7 +830,7 @@ kb.worker_idle_functions.kb.worker_idle:
 kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "131"
+    array_index: "156"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -627,7 +847,7 @@ kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions:
 kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "134"
+    array_index: "159"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -643,7 +863,7 @@ kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virt
 kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "135"
+    array_index: "160"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -661,7 +881,7 @@ kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virt
 kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "133"
+    array_index: "158"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -677,13 +897,14 @@ kb.worker_idle_functions.kb.worker_idle.virtual_functions.virtual_functions.virt
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_IDLE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_init_check.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "4"
+    array_index: "11"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -698,7 +919,7 @@ kb.worker_init_check.GATE_root._0:
 kb.worker_init_check.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "5"
+    array_index: "12"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -708,6 +929,7 @@ kb.worker_init_check.GATE_root._0.COL_work._0:
       - kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_init_check.GATE_root._0
@@ -719,88 +941,101 @@ kb.worker_init_check.GATE_root._0.COL_work._0:
 kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "6"
+    array_index: "13"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_init_check: started"
+  node_dict: []
   node_name: _0
 kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "7"
+    array_index: "14"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_INIT_CHECK_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_init_check: started"
   node_name: _1
 kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "8"
+    array_index: "15"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_INIT_CHECK_INIT
+    links: []
+    ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "16"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.15"
-  node_name: _2
-kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "9"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_init_check: completed"
   node_name: _3
 kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "10"
+    array_index: "17"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_init_check: completed"
   node_name: _4
 kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "11"
+    array_index: "18"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "19"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_init_check.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_init_check_functions.kb.worker_init_check:
   label: kb
   label_dict:
-    array_index: "154"
+    array_index: "179"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -814,7 +1049,7 @@ kb.worker_init_check_functions.kb.worker_init_check:
 kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "155"
+    array_index: "180"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -831,7 +1066,7 @@ kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_fu
 kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "158"
+    array_index: "183"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -847,7 +1082,7 @@ kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_fu
 kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "159"
+    array_index: "184"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -865,7 +1100,7 @@ kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_fu
 kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "157"
+    array_index: "182"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -881,13 +1116,14 @@ kb.worker_init_check_functions.kb.worker_init_check.virtual_functions.virtual_fu
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_INIT_CHECK_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_inspection_scan.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "76"
+    array_index: "92"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -902,7 +1138,7 @@ kb.worker_inspection_scan.GATE_root._0:
 kb.worker_inspection_scan.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "77"
+    array_index: "93"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -912,6 +1148,7 @@ kb.worker_inspection_scan.GATE_root._0.COL_work._0:
       - kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0
@@ -923,88 +1160,101 @@ kb.worker_inspection_scan.GATE_root._0.COL_work._0:
 kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "78"
+    array_index: "94"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_inspection_scan: started"
+  node_dict: []
   node_name: _0
 kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "79"
+    array_index: "95"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_INSPECTION_SCAN_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_inspection_scan: started"
   node_name: _1
 kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "80"
+    array_index: "96"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_INSPECTION_SCAN_INIT
+    links: []
+    ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "97"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.12"
-  node_name: _2
-kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "81"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_inspection_scan: completed"
   node_name: _3
 kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "82"
+    array_index: "98"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_inspection_scan: completed"
   node_name: _4
 kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "83"
+    array_index: "99"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "100"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_inspection_scan.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_inspection_scan_functions.kb.worker_inspection_scan:
   label: kb
   label_dict:
-    array_index: "136"
+    array_index: "167"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1018,7 +1268,7 @@ kb.worker_inspection_scan_functions.kb.worker_inspection_scan:
 kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "137"
+    array_index: "168"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1035,7 +1285,7 @@ kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.
 kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "140"
+    array_index: "171"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1051,7 +1301,7 @@ kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.
 kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "141"
+    array_index: "172"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1069,7 +1319,7 @@ kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.
 kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "139"
+    array_index: "170"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1085,13 +1335,14 @@ kb.worker_inspection_scan_functions.kb.worker_inspection_scan.virtual_functions.
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_INSPECTION_SCAN_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_load_shipping.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "60"
+    array_index: "74"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -1106,7 +1357,7 @@ kb.worker_load_shipping.GATE_root._0:
 kb.worker_load_shipping.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "61"
+    array_index: "75"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -1116,6 +1367,7 @@ kb.worker_load_shipping.GATE_root._0.COL_work._0:
       - kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0
@@ -1127,88 +1379,101 @@ kb.worker_load_shipping.GATE_root._0.COL_work._0:
 kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "62"
+    array_index: "76"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_load_shipping: started"
+  node_dict: []
   node_name: _0
 kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "63"
+    array_index: "77"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_LOAD_SHIPPING_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_load_shipping: started"
   node_name: _1
 kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "64"
+    array_index: "78"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_LOAD_SHIPPING_INIT
+    links: []
+    ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "79"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.2"
-  node_name: _2
-kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "65"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_load_shipping: completed"
   node_name: _3
 kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "66"
+    array_index: "80"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_load_shipping: completed"
   node_name: _4
 kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "67"
+    array_index: "81"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "82"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_load_shipping.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_load_shipping_functions.kb.worker_load_shipping:
   label: kb
   label_dict:
-    array_index: "118"
+    array_index: "191"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1222,7 +1487,7 @@ kb.worker_load_shipping_functions.kb.worker_load_shipping:
 kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "119"
+    array_index: "192"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1239,7 +1504,7 @@ kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virt
 kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "122"
+    array_index: "195"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1255,7 +1520,7 @@ kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virt
 kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "123"
+    array_index: "196"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1273,7 +1538,7 @@ kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virt
 kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "121"
+    array_index: "194"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1289,13 +1554,14 @@ kb.worker_load_shipping_functions.kb.worker_load_shipping.virtual_functions.virt
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_LOAD_SHIPPING_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_paint_sample.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "52"
+    array_index: "65"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -1310,7 +1576,7 @@ kb.worker_paint_sample.GATE_root._0:
 kb.worker_paint_sample.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "53"
+    array_index: "66"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -1320,6 +1586,7 @@ kb.worker_paint_sample.GATE_root._0.COL_work._0:
       - kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0
@@ -1331,88 +1598,101 @@ kb.worker_paint_sample.GATE_root._0.COL_work._0:
 kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "54"
+    array_index: "67"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_paint_sample: started"
+  node_dict: []
   node_name: _0
 kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "55"
+    array_index: "68"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PAINT_SAMPLE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_paint_sample: started"
   node_name: _1
 kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "56"
+    array_index: "69"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PAINT_SAMPLE_INIT
+    links: []
+    ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "70"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.2"
-  node_name: _2
-kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "57"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_paint_sample: completed"
   node_name: _3
 kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "58"
+    array_index: "71"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_paint_sample: completed"
   node_name: _4
 kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "59"
+    array_index: "72"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "73"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_paint_sample.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_paint_sample_functions.kb.worker_paint_sample:
   label: kb
   label_dict:
-    array_index: "112"
+    array_index: "185"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1426,7 +1706,7 @@ kb.worker_paint_sample_functions.kb.worker_paint_sample:
 kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "113"
+    array_index: "186"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1443,7 +1723,7 @@ kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtua
 kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "116"
+    array_index: "189"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1459,7 +1739,7 @@ kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtua
 kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "117"
+    array_index: "190"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1477,7 +1757,7 @@ kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtua
 kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "115"
+    array_index: "188"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1493,13 +1773,14 @@ kb.worker_paint_sample_functions.kb.worker_paint_sample.virtual_functions.virtua
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PAINT_SAMPLE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_pass_gate.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "68"
+    array_index: "83"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -1514,7 +1795,7 @@ kb.worker_pass_gate.GATE_root._0:
 kb.worker_pass_gate.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "69"
+    array_index: "84"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -1524,6 +1805,7 @@ kb.worker_pass_gate.GATE_root._0.COL_work._0:
       - kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0
@@ -1535,88 +1817,101 @@ kb.worker_pass_gate.GATE_root._0.COL_work._0:
 kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "70"
+    array_index: "85"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_pass_gate: started"
+  node_dict: []
   node_name: _0
 kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "71"
+    array_index: "86"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PASS_GATE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_pass_gate: started"
   node_name: _1
 kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "72"
+    array_index: "87"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PASS_GATE_INIT
+    links: []
+    ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "88"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.15"
-  node_name: _2
-kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "73"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_pass_gate: completed"
   node_name: _3
 kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "74"
+    array_index: "89"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_pass_gate: completed"
   node_name: _4
 kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "75"
+    array_index: "90"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "91"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_pass_gate.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_pass_gate_functions.kb.worker_pass_gate:
   label: kb
   label_dict:
-    array_index: "142"
+    array_index: "125"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1630,7 +1925,7 @@ kb.worker_pass_gate_functions.kb.worker_pass_gate:
 kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "143"
+    array_index: "126"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1647,7 +1942,7 @@ kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_func
 kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "146"
+    array_index: "129"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1663,7 +1958,7 @@ kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_func
 kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "147"
+    array_index: "130"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1681,7 +1976,7 @@ kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_func
 kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "145"
+    array_index: "128"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1697,13 +1992,14 @@ kb.worker_pass_gate_functions.kb.worker_pass_gate.virtual_functions.virtual_func
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PASS_GATE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_path_line.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "20"
+    array_index: "29"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -1718,7 +2014,7 @@ kb.worker_path_line.GATE_root._0:
 kb.worker_path_line.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "21"
+    array_index: "30"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -1728,6 +2024,7 @@ kb.worker_path_line.GATE_root._0.COL_work._0:
       - kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_path_line.GATE_root._0
@@ -1739,88 +2036,101 @@ kb.worker_path_line.GATE_root._0.COL_work._0:
 kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "22"
+    array_index: "31"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_line: started"
+  node_dict: []
   node_name: _0
 kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "23"
+    array_index: "32"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PATH_LINE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_line: started"
   node_name: _1
 kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "24"
+    array_index: "33"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PATH_LINE_INIT
+    links: []
+    ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "34"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.25"
-  node_name: _2
-kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "25"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_line: completed"
   node_name: _3
 kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "26"
+    array_index: "35"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_line: completed"
   node_name: _4
 kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "27"
+    array_index: "36"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "37"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_path_line.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_path_line_functions.kb.worker_path_line:
   label: kb
   label_dict:
-    array_index: "166"
+    array_index: "137"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1834,7 +2144,7 @@ kb.worker_path_line_functions.kb.worker_path_line:
 kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "167"
+    array_index: "138"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -1851,7 +2161,7 @@ kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_func
 kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "170"
+    array_index: "141"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1867,7 +2177,7 @@ kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_func
 kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "171"
+    array_index: "142"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1885,7 +2195,7 @@ kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_func
 kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "169"
+    array_index: "140"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -1901,13 +2211,14 @@ kb.worker_path_line_functions.kb.worker_path_line.virtual_functions.virtual_func
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PATH_LINE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_path_rotate.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "36"
+    array_index: "47"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -1922,7 +2233,7 @@ kb.worker_path_rotate.GATE_root._0:
 kb.worker_path_rotate.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "37"
+    array_index: "48"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -1932,6 +2243,7 @@ kb.worker_path_rotate.GATE_root._0.COL_work._0:
       - kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0
@@ -1943,88 +2255,101 @@ kb.worker_path_rotate.GATE_root._0.COL_work._0:
 kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "38"
+    array_index: "49"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_rotate: started"
+  node_dict: []
   node_name: _0
 kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "39"
+    array_index: "50"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PATH_ROTATE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_rotate: started"
   node_name: _1
 kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "40"
+    array_index: "51"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PATH_ROTATE_INIT
+    links: []
+    ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "52"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.15"
-  node_name: _2
-kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "41"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_rotate: completed"
   node_name: _3
 kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "42"
+    array_index: "53"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_rotate: completed"
   node_name: _4
 kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "43"
+    array_index: "54"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "55"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_path_rotate.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_path_rotate_functions.kb.worker_path_rotate:
   label: kb
   label_dict:
-    array_index: "100"
+    array_index: "161"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2038,7 +2363,7 @@ kb.worker_path_rotate_functions.kb.worker_path_rotate:
 kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "101"
+    array_index: "162"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2055,7 +2380,7 @@ kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_
 kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "104"
+    array_index: "165"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2071,7 +2396,7 @@ kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_
 kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "105"
+    array_index: "166"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2089,7 +2414,7 @@ kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_
 kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "103"
+    array_index: "164"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2105,13 +2430,14 @@ kb.worker_path_rotate_functions.kb.worker_path_rotate.virtual_functions.virtual_
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PATH_ROTATE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_path_spline.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "12"
+    array_index: "20"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -2126,7 +2452,7 @@ kb.worker_path_spline.GATE_root._0:
 kb.worker_path_spline.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "13"
+    array_index: "21"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -2136,6 +2462,7 @@ kb.worker_path_spline.GATE_root._0.COL_work._0:
       - kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_path_spline.GATE_root._0
@@ -2147,88 +2474,101 @@ kb.worker_path_spline.GATE_root._0.COL_work._0:
 kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "14"
+    array_index: "22"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_spline: started"
+  node_dict: []
   node_name: _0
 kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "15"
+    array_index: "23"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PATH_SPLINE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_spline: started"
   node_name: _1
 kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "16"
+    array_index: "24"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PATH_SPLINE_INIT
+    links: []
+    ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "25"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.25"
-  node_name: _2
-kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "17"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_spline: completed"
   node_name: _3
 kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "18"
+    array_index: "26"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_spline: completed"
   node_name: _4
 kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "19"
+    array_index: "27"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "28"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_path_spline.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_path_spline_functions.kb.worker_path_spline:
   label: kb
   label_dict:
-    array_index: "160"
+    array_index: "131"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2242,7 +2582,7 @@ kb.worker_path_spline_functions.kb.worker_path_spline:
 kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "161"
+    array_index: "132"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2259,7 +2599,7 @@ kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_
 kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "164"
+    array_index: "135"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2275,7 +2615,7 @@ kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_
 kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "165"
+    array_index: "136"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2293,7 +2633,7 @@ kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_
 kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "163"
+    array_index: "134"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2309,13 +2649,14 @@ kb.worker_path_spline_functions.kb.worker_path_spline.virtual_functions.virtual_
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PATH_SPLINE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_path_wall.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "28"
+    array_index: "38"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -2330,7 +2671,7 @@ kb.worker_path_wall.GATE_root._0:
 kb.worker_path_wall.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "29"
+    array_index: "39"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -2340,6 +2681,7 @@ kb.worker_path_wall.GATE_root._0.COL_work._0:
       - kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_path_wall.GATE_root._0
@@ -2351,88 +2693,101 @@ kb.worker_path_wall.GATE_root._0.COL_work._0:
 kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "30"
+    array_index: "40"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_wall: started"
+  node_dict: []
   node_name: _0
 kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "31"
+    array_index: "41"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_PATH_WALL_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_wall: started"
   node_name: _1
 kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "32"
+    array_index: "42"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_PATH_WALL_INIT
+    links: []
+    ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "43"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.25"
-  node_name: _2
-kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "33"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_path_wall: completed"
   node_name: _3
 kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "34"
+    array_index: "44"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_path_wall: completed"
   node_name: _4
 kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "35"
+    array_index: "45"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "46"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_path_wall.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_path_wall_functions.kb.worker_path_wall:
   label: kb
   label_dict:
-    array_index: "172"
+    array_index: "149"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2446,7 +2801,7 @@ kb.worker_path_wall_functions.kb.worker_path_wall:
 kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "173"
+    array_index: "150"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2463,7 +2818,7 @@ kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_func
 kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "176"
+    array_index: "153"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2479,7 +2834,7 @@ kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_func
 kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "177"
+    array_index: "154"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2497,7 +2852,7 @@ kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_func
 kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "175"
+    array_index: "152"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2513,13 +2868,14 @@ kb.worker_path_wall_functions.kb.worker_path_wall.virtual_functions.virtual_func
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_PATH_WALL_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions
 kb.worker_recharge.GATE_root._0:
   label: GATE_root
   label_dict:
-    array_index: "92"
+    array_index: "110"
     aux_function_name: CFL_GATE_NODE_NULL
     initialization_function_name: CFL_GATE_NODE_INIT
     links:
@@ -2534,7 +2890,7 @@ kb.worker_recharge.GATE_root._0:
 kb.worker_recharge.GATE_root._0.COL_work._0:
   label: COL_work
   label_dict:
-    array_index: "93"
+    array_index: "111"
     aux_function_name: CFL_COLUMN_NULL
     initialization_function_name: CFL_COLUMN_INIT
     links:
@@ -2544,6 +2900,7 @@ kb.worker_recharge.GATE_root._0.COL_work._0:
       - kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._3
       - kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._4
       - kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._5
+      - kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._6
     ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     main_function_name: CFL_COLUMN_MAIN
     parent_ltree_name: kb.worker_recharge.GATE_root._0
@@ -2555,88 +2912,101 @@ kb.worker_recharge.GATE_root._0.COL_work._0:
 kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._0:
   label: LEAF
   label_dict:
-    array_index: "94"
+    array_index: "112"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
+    initialization_function_name: ROB_SEND_ACK
     links: []
     ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._0
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_recharge: started"
+  node_dict: []
   node_name: _0
 kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._1:
   label: LEAF
   label_dict:
-    array_index: "95"
+    array_index: "113"
     aux_function_name: CFL_NULL
-    initialization_function_name: WKR_RECHARGE_INIT
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._1
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_recharge: started"
   node_name: _1
 kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._2:
   label: LEAF
   label_dict:
-    array_index: "96"
+    array_index: "114"
+    aux_function_name: CFL_NULL
+    initialization_function_name: WKR_RECHARGE_INIT
+    links: []
+    ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._2
+    main_function_name: CFL_DISABLE
+    parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _2
+kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._3:
+  label: LEAF
+  label_dict:
+    array_index: "115"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_WAIT_TIME_INIT
     links: []
-    ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._2
+    ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._3
     main_function_name: CFL_WAIT_TIME
     parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict:
     time_delay: "0.3"
-  node_name: _2
-kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._3:
-  label: LEAF
-  label_dict:
-    array_index: "97"
-    aux_function_name: CFL_NULL
-    initialization_function_name: CFL_LOG_MESSAGE
-    links: []
-    ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._3
-    main_function_name: CFL_DISABLE
-    parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
-    termination_function_name: CFL_NULL
-  node_dict:
-    message: "worker_recharge: completed"
   node_name: _3
 kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._4:
   label: LEAF
   label_dict:
-    array_index: "98"
+    array_index: "116"
     aux_function_name: CFL_NULL
-    initialization_function_name: WORKER_TERM
+    initialization_function_name: CFL_LOG_MESSAGE
     links: []
     ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._4
     main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
-  node_dict: []
+  node_dict:
+    message: "worker_recharge: completed"
   node_name: _4
 kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._5:
   label: LEAF
   label_dict:
-    array_index: "99"
+    array_index: "117"
     aux_function_name: CFL_NULL
-    initialization_function_name: CFL_NULL
+    initialization_function_name: WORKER_TERM
     links: []
     ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._5
-    main_function_name: CFL_TERMINATE
+    main_function_name: CFL_DISABLE
     parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
     termination_function_name: CFL_NULL
   node_dict: []
   node_name: _5
+kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._6:
+  label: LEAF
+  label_dict:
+    array_index: "118"
+    aux_function_name: CFL_NULL
+    initialization_function_name: CFL_NULL
+    links: []
+    ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0.LEAF._6
+    main_function_name: CFL_TERMINATE
+    parent_ltree_name: kb.worker_recharge.GATE_root._0.COL_work._0
+    termination_function_name: CFL_NULL
+  node_dict: []
+  node_name: _6
 kb.worker_recharge_functions.kb.worker_recharge:
   label: kb
   label_dict:
-    array_index: "124"
+    array_index: "143"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2650,7 +3020,7 @@ kb.worker_recharge_functions.kb.worker_recharge:
 kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functions:
   label: virtual_functions
   label_dict:
-    array_index: "125"
+    array_index: "144"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links:
@@ -2667,7 +3037,7 @@ kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functi
 kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functions.virtual_functions.boolean_functions:
   label: virtual_functions
   label_dict:
-    array_index: "128"
+    array_index: "147"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2683,7 +3053,7 @@ kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functi
 kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functions.virtual_functions.main_functions:
   label: virtual_functions
   label_dict:
-    array_index: "129"
+    array_index: "148"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2701,7 +3071,7 @@ kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functi
 kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functions.virtual_functions.one_shot_functions:
   label: virtual_functions
   label_dict:
-    array_index: "127"
+    array_index: "146"
     aux_function_name: CFL_NULL
     initialization_function_name: CFL_NULL
     links: []
@@ -2717,6 +3087,7 @@ kb.worker_recharge_functions.kb.worker_recharge.virtual_functions.virtual_functi
     CFL_LOG_MESSAGE: true
     CFL_NULL: true
     CFL_WAIT_TIME_INIT: true
+    ROB_SEND_ACK: true
     WKR_RECHARGE_INIT: true
     WORKER_TERM: true
   node_name: one_shot_functions

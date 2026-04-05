@@ -16,6 +16,23 @@
 set -e
 
 WIRE_FORMAT="${1:-cbor}"
+PID_FILE="/tmp/c_robot_test.pids"
+
+# --- 0. Kill orphaned processes from previous runs ---
+if [ -f "$PID_FILE" ]; then
+    while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$PID_FILE"
+    rm -f "$PID_FILE"
+    sleep 1
+fi
+
+# --- Cleanup trap: kill child processes on any exit ---
+cleanup() {
+    if [ -f "$PID_FILE" ]; then
+        while read -r pid; do kill "$pid" 2>/dev/null || true; done < "$PID_FILE"
+        rm -f "$PID_FILE"
+    fi
+}
+trap cleanup EXIT
 
 # --- Paths ---
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -133,6 +150,7 @@ echo "--- Starting C robot ---"
 ROBOT_LOG="/tmp/c_robot_$$.log"
 "$C_ROBOT_BIN" "$ROBOT_CONFIG" > "$ROBOT_LOG" 2>&1 &
 C_ROBOT_PID=$!
+echo "$C_ROBOT_PID" >> "$PID_FILE"
 echo "C robot started (pid=$C_ROBOT_PID)"
 sleep 3
 
@@ -141,15 +159,17 @@ echo "--- Starting bridge ---"
 cd "$TESTS_DIR"
 luajit "$MQTT_BRIDGE_DIR/mqtt_bridge.lua" &
 BRIDGE_PID=$!
+echo "$BRIDGE_PID" >> "$PID_FILE"
 echo "Bridge started (pid=$BRIDGE_PID)"
 sleep 5
+
 
 # --- 9. Run test ---
 echo ""
 echo "--- Running test_mqtt_robot.lua ---"
 cd "$TESTS_DIR"
-luajit test_mqtt_robot.lua
-TEST_RC=$?
+TEST_RC=0
+luajit test_mqtt_robot.lua || TEST_RC=$?
 
 # --- 10. Send shutdown ---
 echo ""

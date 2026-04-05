@@ -1,15 +1,10 @@
 # Robots
 
-One directory per robot kind. Each declares capabilities and provides
-the remote-side implementation.
+Test robot used by the planner test suite. Independent robot processes
+(NATS robot, MQTT robot) live in their own top-level directories:
 
-## Boundary
-- **Accepts:** AVRC command packets from hub via transport
-- **Knows about:** Its own hardware, its own capabilities
-- **Does NOT know about:** Other robots, planning, board graph
+- `../ros_planner_ii_nats_robot/` — standalone NATS robot (Pi Zero 2 template)
+- `../ros_planner_ii_mqtt_robot/` — standalone MQTT robot (ESP32/Pico template)
+- `../ros_planner_ii_mqtt_bridge/` — NATS-MQTT bridge (multi-robot)
 
-## Per-robot directory contents
-- `capabilities.lua` — declares supported virtual node types
-- `remote_dsl.lua` — remote behavior tree (ChainTree DSL)
-- `common/` — Level 3: functions shared across all tests for this robot
-- `remote_user_functions.lua` — hardware-specific function implementations
+Managed by `../start_planner_system.sh`.

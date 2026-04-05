@@ -47,11 +47,10 @@ M.main.HUB_ACK_HANDLER = function(handle, bool_fn, node, event_id, event_data)
         return defs.CFL_CONTINUE
     end
 
-    -- Timer tick: check timeout
+    -- Timer tick: check wall-clock timeout
     if event_id == defs.CFL_TIMER_EVENT then
-        if not bb.ack_received and bb.ack_timeout_ticks then
-            bb.ack_timeout_ticks = bb.ack_timeout_ticks - 1
-            if bb.ack_timeout_ticks <= 0 then
+        if not bb.ack_received and bb.ack_deadline then
+            if os.time() >= bb.ack_deadline then
                 -- ACK timeout → trigger error recovery
                 bb.fault_reason = "ack_timeout"
                 bb.fault_kb = bb.active_kb
@@ -69,9 +68,9 @@ M.one_shot.HUB_ACK_INIT = function(handle, node)
     bb.ack_received = false
     bb.ack_seq = nil
     bb.ack_status = nil
-    -- Default timeout: 50 ticks (~5 seconds at 100ms tick)
-    local timeout = (node.node_dict and node.node_dict.timeout_ticks) or 50
-    bb.ack_timeout_ticks = timeout
+    -- Wall-clock timeout (seconds). Default 5s.
+    local timeout_s = (node.node_dict and node.node_dict.timeout_seconds) or 5
+    bb.ack_deadline = os.time() + timeout_s
 end
 
 ---------------------------------------------------------------------------
@@ -129,11 +128,10 @@ M.main.HUB_KB_DONE_HANDLER = function(handle, bool_fn, node, event_id, event_dat
         return defs.CFL_TERMINATE  -- terminate column → KB completes
     end
 
-    -- Timer tick: check timeout
+    -- Timer tick: check wall-clock timeout
     if event_id == defs.CFL_TIMER_EVENT then
-        if not bb.kb_done_received and bb.kb_done_timeout_ticks then
-            bb.kb_done_timeout_ticks = bb.kb_done_timeout_ticks - 1
-            if bb.kb_done_timeout_ticks <= 0 then
+        if not bb.kb_done_received and bb.kb_done_deadline then
+            if os.time() >= bb.kb_done_deadline then
                 -- KB_DONE timeout → trigger error recovery
                 bb.fault_reason = "kb_done_timeout"
                 bb.fault_kb = bb.active_kb
@@ -151,9 +149,9 @@ M.one_shot.HUB_KB_DONE_INIT = function(handle, node)
     local bb = handle.blackboard
     bb.kb_done_received = false
     bb.kb_done_success = nil
-    -- Default timeout: 100 ticks (~10 seconds at 100ms tick)
-    local timeout = (node.node_dict and node.node_dict.timeout_ticks) or 100
-    bb.kb_done_timeout_ticks = timeout
+    -- Wall-clock timeout (seconds). Default 10s.
+    local timeout_s = (node.node_dict and node.node_dict.timeout_seconds) or 10
+    bb.kb_done_deadline = os.time() + timeout_s
 end
 
 ---------------------------------------------------------------------------

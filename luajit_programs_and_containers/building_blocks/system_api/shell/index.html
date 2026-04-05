@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Embedded Data Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #e0e0e0; display: flex; flex-direction: column; }
+
+    nav {
+      display: flex; align-items: center;
+      background: #161b22; border-bottom: 2px solid #0f3460;
+      padding: 0; height: 42px; flex-shrink: 0;
+    }
+    .nav-brand {
+      color: #64ffda; font-size: 0.85rem; font-weight: bold;
+      padding: 0 1.25rem; border-right: 1px solid #333;
+      height: 100%; display: flex; align-items: center;
+    }
+    .nav-tabs { display: flex; height: 100%; align-items: center; }
+    .nav-tab {
+      background: none; border: none; color: #8b949e;
+      padding: 0 1.25rem; cursor: pointer;
+      font-family: inherit; font-size: 0.85rem;
+      height: 100%; display: flex; align-items: center; gap: 0.5rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .nav-tab:hover { color: #c9d1d9; background: #1c2129; }
+    .nav-tab.active { color: #64ffda; border-bottom-color: #64ffda; background: #1c2129; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot.green { background: #3fb950; }
+    .dot.blue { background: #58a6ff; }
+
+    #domain-select {
+      background: #0d1117; color: #64ffda; border: 1px solid #58a6ff;
+      font-family: inherit; font-size: 0.85rem;
+      padding: 0.3rem 0.5rem; border-radius: 3px;
+      cursor: pointer; outline: none;
+      min-width: 150px; margin-left: 0.5rem;
+    }
+    #domain-select option { background: #161b22; color: #c9d1d9; padding: 0.3rem; }
+
+    .nav-spacer { flex: 1; }
+    .nav-status {
+      font-size: 0.75rem; padding: 0 1.25rem;
+      height: 100%; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-status .indicator { width: 8px; height: 8px; border-radius: 50%; }
+    .indicator.ok { background: #3fb950; }
+    .indicator.err { background: #f85149; }
+    .indicator.off { background: #484f58; }
+
+    .content { flex: 1; }
+    .content iframe { width: 100%; height: 100%; border: none; background: #1a1a2e; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">EDC</div>
+    <div class="nav-tabs">
+      <div class="nav-tab active" id="tab-rc">
+        <span class="dot green"></span>
+        <span id="rc-label">Robot Controllers</span>
+        <select id="domain-select"><option value="">loading...</option></select>
+      </div>
+      <div class="nav-tab" id="tab-kb">
+        <span class="dot blue"></span>
+        KB Console
+      </div>
+    </div>
+    <div class="nav-spacer"></div>
+    <div class="nav-status">
+      <span class="indicator off" id="nats-dot"></span>
+      <span id="nats-label" style="color:#484f58">NATS</span>
+    </div>
+  </nav>
+
+  <div class="content">
+    <iframe id="tab-frame" src="tabs/surface_ops.html"></iframe>
+  </div>
+
+  <script type="module">
+    const frame     = document.getElementById("tab-frame");
+    const tabRC     = document.getElementById("tab-rc");
+    const tabKB     = document.getElementById("tab-kb");
+    const rcLabel   = document.getElementById("rc-label");
+    const domainSel = document.getElementById("domain-select");
+    const natsDot   = document.getElementById("nats-dot");
+    const natsLabel = document.getElementById("nats-label");
+
+    let currentDomain = "surface_ops";
+
+    // -- Tab switching --
+    function setActiveTab(which) {
+      tabRC.classList.toggle("active", which === "rc");
+      tabKB.classList.toggle("active", which === "kb");
+      if (which === "kb") {
+        frame.src = "tabs/kb_console.html";
+      } else {
+        frame.src = "tabs/" + currentDomain + ".html";
+      }
+    }
+
+    tabRC.addEventListener("click", function(e) {
+      if (e.target.tagName !== "SELECT" && e.target.tagName !== "OPTION") {
+        setActiveTab("rc");
+      }
+    });
+    tabKB.addEventListener("click", function() { setActiveTab("kb"); });
+
+    domainSel.addEventListener("change", function() {
+      currentDomain = domainSel.value;
+      setActiveTab("rc");
+    });
+
+    // -- Load domains from HTTP API (fast, no NATS needed) --
+    async function loadDomains() {
+      try {
+        const resp = await fetch("/api/domains");
+        const data = await resp.json();
+        if (data.domains) {
+          domainSel.innerHTML = "";
+          for (const d of data.domains) {
+            const opt = document.createElement("option");
+            opt.value = d.name;
+            opt.textContent = d.name;
+            if (d.name === currentDomain) opt.selected = true;
+            domainSel.appendChild(opt);
+          }
+        }
+      } catch(e) {
+        console.error("Failed to load domains:", e);
+        domainSel.innerHTML = '<option value="">error</option>';
+      }
+    }
+
+    // -- Connect NATS lazily (for live status later) --
+    async function connectNats() {
+      try {
+        const { connect } = await import("./vendor/nats.js");
+        const nc = await connect({ servers: "ws://localhost:9222" });
+        natsDot.className = "indicator ok";
+        natsLabel.style.color = "#3fb950";
+        // Store for later use by tabs
+        window._natsConnection = nc;
+      } catch(e) {
+        natsDot.className = "indicator err";
+        natsLabel.style.color = "#f85149";
+        console.error("NATS:", e.message);
+      }
+    }
+
+    // -- Init: domains first (HTTP), then NATS in background --
+    loadDomains();
+    connectNats();
+  </script>
+</body>
+</html>

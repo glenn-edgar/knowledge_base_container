@@ -55,6 +55,8 @@ function M.new(opts)
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 
+    -- MQTT transport (optional — for MQTT-first architecture)
+    self.mqtt_hub  = opts.mqtt_hub
     -- Active missions: { robot_id = { coroutine, result, state } }
     self.missions = {}
     self.mission_count = 0
@@ -249,6 +251,7 @@ function M:_make_mission_coroutine(mission_cmd)
             tick_usleep = 0,  -- no sleep — scheduler controls timing
             energy_max       = energy_max,
             energy_remaining = energy_remaining,
+            mqtt_hub         = srv.mqtt_hub,
         })
 
         srv:_publish_status(robot_id, {
@@ -463,7 +466,9 @@ function M:serve(opts)
 
     local cycles = 0
 
-    while self.mission_count > 0 do
+    -- When drain_nats is true, keep running even with 0 missions (persistent server).
+    -- Otherwise exit when all missions complete.
+    while self.mission_count > 0 or drain_nats do
         -- Drain NATS queue for new missions
         if drain_nats then
             self:_drain_nats_queue()
@@ -488,7 +493,12 @@ function M:serve(opts)
             end
         end
 
-        ffi.C.usleep(self.tick_usleep)
+        -- Idle sleep: longer when no missions, shorter when active
+        if self.mission_count > 0 then
+            ffi.C.usleep(self.tick_usleep)
+        else
+            ffi.C.usleep(50000)  -- 50ms idle poll
+        end
 
         if max_cycles then
             cycles = cycles + 1
@@ -667,6 +677,8 @@ function M:execute_mission(mission_cmd)
         site        = self.site,
         energy_max       = energy_max,
         energy_remaining = energy_remaining,
+        mqtt_hub         = self.mqtt_hub,
+        kv_writer        = self.kv_writer,
     })
 
     print(string.format("Mission: %s on %s, %d stops, %d actions (cost=%d, energy=%d/%d)",

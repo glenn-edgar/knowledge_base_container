@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "ct_user_functions.h"
+#include "rob_publish.h"
 #include "robot_context.h"
 #include "robot_protocol.h"
 #include "cfl_runtime.h"
@@ -86,8 +87,8 @@ bool cbor_rpc_dispatch_fn(void *handle, unsigned node_index,
 
     int32_t packet_type = 0, seq = 0, test_id = 0;
     cfl_json_get_int(pkt, "packet_type", &packet_type);
-    cfl_json_get_int(pkt, "seq", &seq);
-    cfl_json_get_int(pkt, "test_id", &test_id);
+    cfl_json_try_get_int(pkt, "seq", &seq);
+    cfl_json_try_get_int(pkt, "test_id", &test_id);
 
     printf("[ct:dispatch] packet_type=%d seq=%d test_id=%d\n",
            packet_type, seq, test_id);
@@ -112,9 +113,7 @@ bool cbor_rpc_dispatch_fn(void *handle, unsigned node_index,
         return true;
     }
 
-    /* Send ack */
-    if (g_robot_ctx)
-        robot_mqtt_send_ack(g_robot_ctx->mqtt, g_robot_ctx->state, seq, test_id);
+    /* Ack is now sent by rob_send_ack one-shot in each worker KB */
 
     /* Set blackboard for worker */
     BB_INT32(rt, BB_CURRENT_PACKET_TYPE_OFFSET) = packet_type;
@@ -236,6 +235,9 @@ void wkr_recharge_init_fn(void *handle, unsigned node_id)        { (void)handle;
 
 void register_robot_user_functions(cfl_image_loader_t *img) {
     int rc;
+
+    /* Generic robot publish one-shots (rob_ prefix) */
+    register_rob_publish_functions(img);
 
     /* Boolean */
     rc = cfl_image_register_boolean(img, "cbor_rpc_dispatch_boolean", cbor_rpc_dispatch_fn);

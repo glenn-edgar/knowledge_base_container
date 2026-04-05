@@ -3,6 +3,7 @@
 
     Uses sequencer.new() / load_route() / run() / shutdown() API.
     Verifies: result table, NATS JetStream stream, KeyStore status, SQLite bookends.
+    Transport: MQTT (via mqtt_hub_transport).
 ]]
 
 local ffi = require("ffi")
@@ -10,23 +11,33 @@ ffi.cdef[[
     int usleep(unsigned int usec);
 ]]
 
-local json_util  = require("json_util")
-local sequencer  = require("sequencer")
+local json_util   = require("json_util")
+local sequencer   = require("sequencer")
+local mqtt_hub_tx = require("mqtt_hub_transport")
 
-local robot_id = os.getenv("ROBOT_ID") or "rover_1"
-local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
-local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
+local robot_id  = os.getenv("ROBOT_ID") or "rover_1"
+local server    = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local mqtt_host = os.getenv("MQTT_HOST") or "localhost"
+local mqtt_port = tonumber(os.getenv("MQTT_PORT") or "1883")
+local site      = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir   = script_dir .. "../"
 local hub_json   = root_dir .. "hub_dsl/hub.json"
 local db_file    = root_dir .. "hub_dsl/kb_construct/surface_ops.db"
 
-print("=== Sequencer Test ===\n")
-print(string.format("Robot: %s, Server: %s\n", robot_id, server))
+print("=== Sequencer Test (MQTT) ===\n")
+print(string.format("Robot: %s, MQTT: %s:%d, NATS: %s\n",
+    robot_id, mqtt_host, mqtt_port, server))
 
 -- Give remote time to connect
-ffi.C.usleep(1000000)
+ffi.C.usleep(2000000)
+
+---------------------------------------------------------------------------
+-- Create MQTT hub transport
+---------------------------------------------------------------------------
+local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
+mqtt_hub:connect()
 
 ---------------------------------------------------------------------------
 -- Test runner
@@ -76,6 +87,7 @@ local seq = sequencer.new({
     hub_json    = hub_json,
     site        = site,
     nats_server = server,
+    mqtt_hub    = mqtt_hub,
 })
 
 seq:load_route(route)
@@ -169,6 +181,7 @@ rt:close()
 -- Shutdown
 ---------------------------------------------------------------------------
 seq:shutdown()
+mqtt_hub:close()
 
 ---------------------------------------------------------------------------
 -- Results

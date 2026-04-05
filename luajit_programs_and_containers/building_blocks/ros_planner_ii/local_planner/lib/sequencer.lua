@@ -95,6 +95,13 @@ function M.new(opts)
 
     kb_q:close()
 
+    -- MQTT transport (optional — for MQTT-first architecture)
+    self.mqtt_hub = opts.mqtt_hub
+    local transport = opts.transport
+    if not transport and self.mqtt_hub then
+        transport = self.mqtt_hub:robot_transport(self.robot_id)
+    end
+
     -- Initialize hub runtime
     self.hub_rt = hub_runtime.new({
         robot_id         = self.robot_id,
@@ -105,6 +112,8 @@ function M.new(opts)
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
         energy_max       = opts.energy_max,
         energy_remaining = opts.energy_remaining,
+        transport        = transport,
+        mqtt_hub         = self.mqtt_hub,
     })
 
     -- Initialize mission telemetry

@@ -13,8 +13,6 @@
  * Usage: ./robot_main <config.json>
  */
 
-#define _POSIX_C_SOURCE 199309L
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +50,7 @@
 #define BITMASK_TICKS     10
 #define ENERGY_TICKS      3000
 #define MAX_POLL_MSGS     8
+#define CBOR_SLOT_SIZE    128   /* sized for single Thread 6LoWPAN packet */
 
 /* Blackboard access macros */
 #define BB_UINT16(rt, off) (*(uint16_t *)((uint8_t *)(rt)->blackboard + (off)))
@@ -200,34 +199,42 @@ static void run_robot(robot_state_t *state, robot_mqtt_t *mqtt,
         controller_start = flash->kb_table[ctrl_idx].start_index;
     }
 
-    /* Publish initial status */
-    robot_mqtt_publish_state(mqtt, state, true);
-    robot_mqtt_publish_energy(mqtt, state);
-    robot_mqtt_publish_bitmask(mqtt, state);
+    /* Activate robot_init KB — publishes initial status via DSL */
+    int init_idx = find_kb_index(flash, "robot_init");
+    if (init_idx >= 0) {
+        cfl_add_test_by_index(handle, (uint16_t)init_idx);
+        printf("[ct] activated robot_init KB (index=%d)\n", init_idx);
+    }
 
-    /* Initialize timer */
-    cfl_timer_wait(handle->timer_handle, 0.001, &tick_result);
+    /* Initialize wall-clock timer */
+    struct timespec ts_now, ts_prev;
+    clock_gettime(CLOCK_MONOTONIC, &ts_prev);
     handle->future_time_stamp =
-        cfl_timer_get_timestamp(handle->timer_handle) + handle->delta_time;
+        (double)ts_prev.tv_sec + (double)ts_prev.tv_nsec * 1e-9;
 
     printf("[robot] entering ChainTree main loop (tick=%dms, event_id=0x%04x)\n",
            TICK_MS, rpc_event_id);
 
-    /* Persistent CBOR buffer ref for event injection */
-    static uint8_t cbor_inject_buf[MQPS_MAX_PAYLOAD];
+    /* Single CBOR buffer — we inject one message then drain events before the next */
+    static uint8_t cbor_inject_buf[CBOR_SLOT_SIZE];
     static cfl_cbor_buffer_t cbor_ref;
 
     uint64_t tick_count = 0;
 
     while (!g_shutdown) {
-        /* 1. Poll MQTT */
-        int count = mqps_poll(mqtt->ps, TICK_MS, msgs, MAX_POLL_MSGS);
+        /* 1. Pace + poll MQTT (non-blocking) */
+        {
+            struct timespec tick_sleep = { 0, TICK_MS * 1000000L };
+            nanosleep(&tick_sleep, NULL);
+        }
+        int count = mqps_poll(mqtt->ps, 0, msgs, MAX_POLL_MSGS);
 
-        /* 2. Inject payloads as streaming data events
+        /* 2. For each RPC message: inject as streaming data, then process
+         * all events immediately. This lets us reuse a single CBOR buffer
+         * since the event queue only stores a pointer (not a copy).
+         *
          * CBOR wire: payload is already CBOR from bridge — pass directly
          * JSON wire: encode JSON→CBOR using our codec (same RFC 8949 format)
-         * The ChainTree CBOR sink decodes with cfl_cbor_to_json_text
-         * which uses cJSON internally — both codecs produce standard CBOR.
          */
         for (int i = 0; i < count; i++) {
             if (strstr(msgs[i].topic, "/rpc") == NULL) continue;
@@ -235,14 +242,14 @@ static void run_robot(robot_state_t *state, robot_mqtt_t *mqtt,
             if (mqtt->use_cbor) {
                 /* CBOR wire: payload is already CBOR from bridge */
                 int len = (int)msgs[i].payload_len;
-                if (len > (int)sizeof(cbor_inject_buf)) len = (int)sizeof(cbor_inject_buf);
+                if (len > (int)CBOR_SLOT_SIZE) len = (int)CBOR_SLOT_SIZE;
                 memcpy(cbor_inject_buf, msgs[i].payload, len);
                 cbor_ref.data = cbor_inject_buf;
                 cbor_ref.len = (size_t)len;
             } else {
                 /* JSON wire: encode to CBOR using ChainTree codec */
                 size_t ct_len = cfl_json_text_to_cbor(msgs[i].payload,
-                                    cbor_inject_buf, sizeof(cbor_inject_buf));
+                                    cbor_inject_buf, CBOR_SLOT_SIZE);
                 if (ct_len == 0) continue;
                 cbor_ref.data = cbor_inject_buf;
                 cbor_ref.len = ct_len;
@@ -256,6 +263,28 @@ static void run_robot(robot_state_t *state, robot_mqtt_t *mqtt,
                 controller_start,
                 rpc_event_id,
                 &cbor_ref);
+
+            /* Drain events now — buffer must stay valid until consumed */
+            tick_result.changed_mask = 0;
+            for (uint16_t kb_idx = 0; kb_idx < flash->kb_count; kb_idx++) {
+                if (!TEST_IS_ACTIVE(handle, kb_idx)) continue;
+                handle->current_kb_idx = kb_idx;
+                handle->kb_start_index = flash->kb_table[kb_idx].start_index;
+                handle->kb_node_count = flash->kb_table[kb_idx].node_count;
+                handle->kb_max_level = flash->kb_table[kb_idx].max_depth + 1;
+                handle->bitmask = handle->shaddow_bitmask;
+                while (cfl_total_event_count(handle->event_queue) > 0) {
+                    cfl_pop_event(handle->event_queue, &event_data);
+                    if (event_data.event_id == CFL_TERMINATE_SYSTEM_EVENT) goto exit;
+                    handle->event_data_ptr = &event_data;
+                    if (cfl_execute_event(handle) == false) {
+                        cfl_delete_test_by_index(handle, handle->current_kb_idx);
+                    }
+                }
+                if (!cfl_engine_node_is_enabled(handle, handle->kb_start_index)) {
+                    cfl_delete_test_by_index(handle, kb_idx);
+                }
+            }
         }
 
         /* 3. Generate timer events + process */
@@ -298,7 +327,14 @@ static void run_robot(robot_state_t *state, robot_mqtt_t *mqtt,
             }
         }
 
-        handle->future_time_stamp += handle->delta_time;
+        /* Update delta_time from wall clock */
+        clock_gettime(CLOCK_MONOTONIC, &ts_now);
+        handle->delta_time =
+            (double)(ts_now.tv_sec - ts_prev.tv_sec) +
+            (double)(ts_now.tv_nsec - ts_prev.tv_nsec) * 1e-9;
+        handle->future_time_stamp =
+            (double)ts_now.tv_sec + (double)ts_now.tv_nsec * 1e-9;
+        ts_prev = ts_now;
 
         /* 5. Check shutdown from blackboard */
         if (BB_UINT16(handle, BB_SHUTDOWN_REQUESTED_OFFSET)) {

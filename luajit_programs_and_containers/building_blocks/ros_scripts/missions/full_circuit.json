@@ -1,0 +1,15 @@
+{
+    "robot_id": "rover_1",
+    "board": "landing_zone",
+    "start": "lander_pad",
+    "stops": [
+        {"node": "mining_zone_b", "action": "deliver_part",
+         "params": {"arm_target": -45, "arm_speed": 80, "arm_return": 0, "payload_type": 1}},
+        {"node": "charging_station", "action": "paint_sample",
+         "params": {"arm_target": -60, "arm_speed": 60, "arm_return": 0, "hold_time": 500}},
+        {"node": "construction_bay", "action": "load_shipping",
+         "params": {"arm_target": -30, "arm_speed": 80, "arm_return": 0, "payload_type": 2}},
+        {"node": "lander_pad"}
+    ],
+    "bookend": true
+}

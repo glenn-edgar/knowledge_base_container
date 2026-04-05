@@ -1,110 +1,129 @@
 # ChainTree C Robot — Continue From Here
 
-## Session Summary (2026-04-03)
+## Session Summary (2026-04-04, evening)
 
-### What's built and working
-- **Standalone C robot** (src/main_standalone.c): 12/12 tests pass through bridge, both JSON and CBOR wire
-- **ChainTree C robot** (src/main.c): compiles, runs, processes CBOR packets through full ChainTree pipeline
-- **DSL** (dsl/robot_mqtt_dsl.lua): 13 KBs (controller + 12 workers), each worker is a separate function
-- **Manual CBOR tests pass**: all 12 packet types dispatch → worker start/complete → energy deduct
+### Single CBOR buffer optimization
+Replaced `cbor_inject_buf[MAX_POLL_MSGS][CBOR_SLOT_SIZE]` (8×128 = 1KB) with a
+single 128-byte buffer. Instead of injecting all MQTT messages then processing,
+we now inject one message and drain all ChainTree events before reusing the
+buffer. Works because `cfl_send_streaming_data_event` stores a pointer (not a
+copy) — the buffer must stay valid until consumed.
 
-### Manual test proof (all working)
+### Wall-clock timer
+Replaced fixed-step `delta_time = 0.01` with real `clock_gettime(CLOCK_MONOTONIC)`.
+- `handle->delta_time` is actual elapsed seconds since last tick
+- `handle->future_time_stamp` is monotonic wall-clock time
+- Pacing: `nanosleep(10ms)` + non-blocking `mqps_poll(timeout=0)`
+- Makefile: `_POSIX_C_SOURCE` bumped to `200809L`, removed per-file defines
+
+### rob_publish one-shots (rob_ prefix pattern established)
+Created `src/rob_publish.c/.h` — generic robot publish functions as ChainTree
+one-shot nodes. Each reads blackboard state and publishes via `g_robot_ctx`.
+
+**Implemented:**
+- `rob_send_ack_fn` — reads `current_seq`/`current_test_id` from blackboard,
+  publishes ack on stream_bus. Used as first node in every worker KB.
+  Removed inline `robot_mqtt_send_ack` call from `cbor_rpc_dispatch_fn`.
+- `rob_publish_state_fn` — publishes status/state retained (connected=true)
+- `rob_publish_energy_fn` — publishes status/energy retained
+- `rob_publish_bitmask_fn` — publishes status/bitmask retained
+
+**New DSL KB: `robot_init`**
+Runs once at startup, activated by main.c alongside controller:
 ```
-[main:inject] CBOR 28 bytes → controller node 0, event_id=0x0014
-[ct:dispatch] pkt: {"packet_type":1,"seq":0,"test_id":1}
-[ct:dispatch] activated worker KB 1 for packet_type=1
-worker_init_check: started
-worker_init_check: completed
-[ct:completion] success pkt=1 energy=9950/10000
+ROB_PUBLISH_STATE → ROB_PUBLISH_ENERGY → ROB_PUBLISH_BITMASK → log → terminate
 ```
+Removed the three `robot_mqtt_publish_*` calls from main.c.
+Shutdown `publish_state(connected=false)` stays in main.c cleanup (ChainTree
+already torn down at that point).
 
-### Bridge test issue (NOT a codec problem)
-- Both CBOR codecs (lua_cbor.c and cfl_cbor_packets) produce identical RFC 8949 bytes
-- We captured the bridge output: valid CBOR, decodes correctly
-- The bridge test fails with cJSON hook conflict inside cfl_cbor_sink_main_fn
-- This happens ONLY when robot runs as background process in test script
-- Manual mosquitto_pub with identical CBOR bytes works every time
-- Root cause: likely cJSON global hook state corruption from test script environment, NOT our code
+### All tests pass
+- `./test_c_robot.sh json` — 12/12
+- `./test_c_robot.sh cbor` — 12/12
+- Zero warnings, zero new dependencies
 
-### Next session TODO
-
-1. **Debug bridge test**: the cJSON hook conflict needs investigation
-   - The CBOR sink calls reset_cjson_hooks() then cfl_json_parse calls set_heap()
-   - When robot runs as background process, something corrupts the hook state
-   - May need to bypass cfl_json_parse entirely and decode CBOR in user function
-
-2. **Make main.c lean**: move robot-specific logic (energy, recharge) into DSL
-   - Energy deduction → DSL push function (translates to MQTT or Thread)
-   - Recharge → DSL handles energy restore
-   - main.c becomes generic: poll MQTT, inject events, run tick, publish status
-
-3. **DSL push function**: new DSL primitive for outbound MQTT/CBOR packets
-   - `ct:asm_cbor_push(data, topic)` → translated to MQTT publish or Thread send
-   - Worker KBs use push for heartbeat, ack, kb_done
-   - Transport-agnostic: same DSL works for MQTT and Thread robots
-
-4. **Individual worker complexity**:
-   - worker_recharge: DSL push for energy restore notification
-   - worker_path_spline: actual spline computation from command params
-   - worker_pass_gate: RPC open/close gate sequence
-   - Each worker grows independently — no shared template
-
-### Key discoveries
-
-**Function name hashing**: binary image hash tables use transformed names:
-- Main: `lowercase(DSL_NAME) + "_main"` → e.g., "ctrl_completion_main_main"
-- One-shot: `lowercase(DSL_NAME) + "_one_shot"` → e.g., "worker_term_one_shot"
-- Boolean: `lowercase(DSL_NAME) + "_boolean"` → e.g., "cbor_rpc_dispatch_boolean"
-
-**Blackboard types**: C binary image supports uint16, int32, uint32, float, uint64. No bool or string.
-
-**CBOR codec compatibility**: lua_cbor.c and cfl_cbor_packets produce identical RFC 8949 CBOR. The decoder handles both correctly. The problem is cJSON hook conflict, not codec mismatch.
-
-**DSL worker pattern**: `asm_wait_time` + `asm_terminate` replaces custom C main functions. Workers are now pure DSL with only init one-shots in C.
-
-### File layout
+### Current DSL structure
 ```
-ros_planner_ii_robot/
-  libs/
-    mqtt_pubsub.c/.h        ← streaming ring buffer pub/sub
-    cbor_codec.c/.h          ← JSON↔CBOR codec
-  src/
-    main.c                   ← ChainTree main loop (current)
-    main_standalone.c        ← standalone main loop (12/12 tests pass)
-    robot_config.c/.h        ← JSON config loader
-    robot_state.c/.h         ← energy, pose, worker state
-    robot_mqtt.c/.h          ← MQTT transport, wire format, protocol messages
-    robot_protocol.h         ← packet types, energy costs, durations
-    robot_context.h          ← global context for user function MQTT access
-    ct_user_functions.c/.h   ← ChainTree user functions
-    json_extract.c/.h        ← lightweight JSON field extraction
-  dsl/
-    robot_mqtt_dsl.lua       ← DSL: controller + 12 individual worker KBs
-    robot_handle_image.h     ← compiled binary image (recompile after DSL change)
-    robot_handle_blackboard.h ← blackboard field offsets
-    continue.md              ← this file
-  config/
-    robot_config.json        ← sample config (CBOR wire format)
-  test_c_robot.sh            ← end-to-end test script
-  Makefile                   ← builds with ChainTree libraries
+robot_init  (7 nodes)   — startup status publish, runs once
+controller  (4 nodes)   — CBOR sink dispatch + completion monitor
+worker_*    (9 nodes ea) — ROB_SEND_ACK → log → wkr_init → wait → log → WORKER_TERM → terminate
 ```
+14 KBs total (robot_init + controller + 12 workers), 134 operational nodes.
 
-### Build commands
+---
+
+## Next Session: Continue rob_ refactoring
+
+### 1. rob_send_heartbeat one-shot
+Move heartbeat publishing from `cbor_rpc_dispatch_fn` (initial heartbeat) and
+`ctrl_completion_main_fn` (final heartbeat) into DSL one-shots.
+
+Needs a blackboard field for phase ("initial"/"final") or two separate one-shots:
+- `rob_send_heartbeat_initial_fn` — called in dispatch after worker activation
+- `rob_send_heartbeat_final_fn` — called in completion
+
+The initial heartbeat also sets `state->worker.*` fields (active, packet_type,
+test_id, seq, elapsed, start_pose). Consider whether that state setup belongs
+in the one-shot or stays in dispatch.
+
+### 2. rob_send_kb_done one-shot
+Move `robot_mqtt_send_kb_done` from `ctrl_completion_main_fn` into a DSL
+one-shot. Reads blackboard `worker_success`, `fault_code`. Also publishes
+energy after done.
+
+### 3. Periodic bitmask/energy from DSL
+Currently in main.c tick counter (`tick_count % BITMASK_TICKS`). Could move
+to a dedicated `robot_periodic` KB with a timer-driven main function that
+publishes on interval. Lower priority — the main.c approach works fine.
+
+### 4. user_energy_deduct
+Move `robot_state_deduct_energy` from `ctrl_completion_main_fn` into a
+`user_energy_deduct_fn` one-shot. This is class-specific (lunar_rover energy
+cost table) — uses `user_` prefix, not `rob_`.
+
+### 5. Simplify main.c
+After steps 1–4, `ctrl_completion_main_fn` becomes just: check `worker_done`
+blackboard flag, deactivate worker KB, reset blackboard. All protocol messages
+are DSL one-shots. `cbor_rpc_dispatch_fn` becomes: parse packet_type, set
+blackboard, activate worker KB. No direct MQTT calls remain in user functions.
+
+main.c becomes:
+- Load config, init MQTT, init ChainTree
+- Activate robot_init + controller KBs
+- Loop: nanosleep → poll → inject → tick → check shutdown
+- Cleanup (publish disconnected state)
+
+---
+
+## Build commands
 ```bash
-# Recompile DSL (from chain_tree_c directory)
-cd ../chain_tree_c
-./s_build_json.sh ../ros_planner_ii_robot/dsl/robot_mqtt_dsl.lua ../ros_planner_ii_robot/dsl
-./s_build_headers_binary.sh ../ros_planner_ii_robot/dsl/robot_mqtt_dsl.json ../ros_planner_ii_robot/dsl robot_handle
+# Recompile DSL (from ros_planner_ii_robot directory)
+make dsl
 
 # Build robot
-cd ../ros_planner_ii_robot
 make clean && make
 
-# Manual test (send CBOR packet)
-./robot_main config/robot_config.json &
-python3 -c "
-import sys
-buf = bytearray([0xa3, 0x6b]) + b'packet_type' + bytearray([0x01, 0x63]) + b'seq' + bytearray([0x00, 0x67]) + b'test_id' + bytearray([0x01])
-sys.stdout.buffer.write(buf)
-" | mosquitto_pub -t "moonbase/alpha/surface_ops/robots/rover_1/rpc" -s -q 1
+# Run tests
+./test_c_robot.sh json    # 12/12
+./test_c_robot.sh cbor    # 12/12
+```
+
+## File inventory
+```
+src/
+  main.c                ← generic loop, no protocol knowledge except shutdown publish
+  rob_publish.c/.h      ← rob_ one-shots (ack, state, energy, bitmask)
+  ct_user_functions.c/.h ← dispatch boolean, completion main, worker inits
+  robot_mqtt.c/.h       ← MQTT transport + protocol message builders
+  robot_state.c/.h      ← energy, pose, worker lifecycle
+  robot_config.c/.h     ← JSON config loader
+  robot_context.h       ← global context (mqtt + state)
+  robot_protocol.h      ← packet types, energy costs, durations
+  json_extract.c/.h     ← field extraction from payloads
+dsl/
+  robot_mqtt_dsl.lua    ← 14 KBs (robot_init + controller + 12 workers)
+  continue.md           ← this file
+libs/
+  mqtt_pubsub.c/.h      ← ring buffer pub/sub
+  cbor_codec.c/.h       ← JSON↔CBOR codec
 ```

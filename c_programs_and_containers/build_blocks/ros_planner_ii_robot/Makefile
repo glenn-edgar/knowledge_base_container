@@ -6,7 +6,7 @@
 # ===========================================================================
 
 CC      ?= gcc
-CFLAGS  ?= -Wall -Wextra -O2 -std=c11 -D_POSIX_C_SOURCE=199309L
+CFLAGS  ?= -Wall -Wextra -O2 -std=c11 -D_POSIX_C_SOURCE=200809L
 LDFLAGS ?=
 
 DEPFLAGS = -MMD -MP
@@ -51,6 +51,7 @@ SRC_SRCS = $(SRC_DIR)/main.c \
            $(SRC_DIR)/robot_state.c \
            $(SRC_DIR)/robot_mqtt.c \
            $(SRC_DIR)/json_extract.c \
+           $(SRC_DIR)/rob_publish.c \
            $(SRC_DIR)/ct_user_functions.c
 
 ALL_SRCS = $(LIB_SRCS) $(SRC_SRCS)

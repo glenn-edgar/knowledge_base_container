@@ -1,16 +1,25 @@
 --[[
     hub_runtime.lua -- Hub ChainTree lifecycle manager.
 
-    Wraps NATS transport, KeyStore blackboard, ChainTree runtime,
+    Wraps transport, KeyStore blackboard, ChainTree runtime,
     function registration, queue monitor, and tick loop into a
     single reusable object.
 
+    Transport is injected — MQTT (via mqtt_hub_transport:robot_transport())
+    or any object with send_rpc(json) / recv_stream() / close().
+
     Usage:
         local hub_runtime = require("hub_runtime")
+        local mqtt_hub = require("mqtt_hub_transport")
+        local hub = mqtt_hub.new("localhost", 1883, "moonbase.alpha.surface_ops")
+        hub:connect()
+
         local hub_rt = hub_runtime.new({
             robot_id     = "rover_1",
             nats_server  = "nats://127.0.0.1:4222",
             hub_json     = "hub_dsl/hub.json",
+            transport    = hub:robot_transport("rover_1"),
+            mqtt_hub     = hub,   -- optional: auto-poll in tick()
             initial_pose = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
         })
 
@@ -40,9 +49,7 @@ ffi.C.signal(13, ffi.cast("sighandler_t", 1))  -- ignore SIGPIPE
 local json_util      = require("json_util")
 local cmd_packets    = require("command_packets")
 local event_ids      = require("event_ids")
-local nats_transport = require("nats_transport")
 local queue_monitor  = require("queue_monitor")
-local ks_blackboard  = require("ks_blackboard")
 local hub_control    = require("hub_control")
 
 local ct_runtime    = require("ct_runtime")
@@ -71,12 +78,29 @@ function M.new(opts)
     self.robot_id = robot_id
     self.site = site
 
-    -- NATS transport (two job queues: rpc + stream_bus)
-    self.tx = nats_transport.hub_side(robot_id, nats_server, site)
-    self.tx:flush()
+    -- Transport: must be injected (MQTT robot_transport adapter or compatible)
+    self.tx = opts.transport or error("hub_runtime: transport required (use mqtt_hub:robot_transport())")
 
-    -- KeyStore-backed blackboard
-    self.bb = ks_blackboard.new(robot_id, nats_server, site)
+    -- Optional: shared MQTT hub for auto-polling in tick()
+    -- When set, tick() calls mqtt_hub:poll_and_route() to drain MQTT messages
+    -- into per-robot stream buffers before queue_monitor drains them.
+    self.mqtt_hub = opts.mqtt_hub
+
+    -- In-memory blackboard (no NATS on tick path)
+    local bb_cache = {}
+    self.bb = setmetatable({
+        flush = function() end,  -- no-op: nothing to persist
+        close = function() end,  -- no-op
+    }, {
+        __index = function(_, key)
+            if key == "flush" or key == "close" then return rawget(_, key) end
+            return bb_cache[key]
+        end,
+        __newindex = function(_, key, value)
+            if key == "flush" or key == "close" then rawset(_, key, value); return end
+            bb_cache[key] = value
+        end,
+    })
 
     -- Load KB plugins
     local hub_dsl_mod = require("hub_dsl")
@@ -118,7 +142,7 @@ function M.new(opts)
     -- Replace in-memory blackboard with KeyStore-backed one
     self.handle.blackboard = self.bb
 
-    -- Queue monitor: bridges NATS ↔ ChainTree events
+    -- Queue monitor: bridges transport ↔ ChainTree events
     self.monitor = queue_monitor.new({
         handle    = self.handle,
         transport = self.tx,
@@ -128,20 +152,9 @@ function M.new(opts)
     -- Per-instance pose tracking (not shared — safe for coroutines)
     self.hub_control = hub_control.new(initial_pose)
 
-    -- NATS KeyStore for robot status publishing (bitmask + energy)
-    local ks_lib = require("lib.nats_key_store")
+    -- Status publishing via kv-bridge (MQTT → NATS KV, non-blocking)
     local site_bucket = site:gsub("%.", "_")
-    self.status_ks = ks_lib.KeyStore.new({
-        server        = nats_server,
-        bucket        = site_bucket .. "_robot_status",
-        description   = "Robot live status: " .. site,
-        create_bucket = true,
-        history       = 1,
-        client_name   = "hub_status_" .. robot_id,
-    })
-    self.status_ks:connect()
-
-    -- Status key paths
+    self._status_bucket = site_bucket .. "_robot_status"
     self._bitmask_key = site .. ".robots." .. robot_id .. ".status.bitmask"
     self._energy_key  = site .. ".robots." .. robot_id .. ".status.energy"
 
@@ -208,7 +221,12 @@ end
 -- Tick
 ---------------------------------------------------------------------------
 function M:tick()
-    -- Drain inbound NATS → inject ChainTree events
+    -- If MQTT hub provided, poll and route stream messages to buffers
+    if self.mqtt_hub then
+        self.mqtt_hub:poll_and_route(1)
+    end
+
+    -- Drain inbound transport → inject ChainTree events
     self.monitor:tick()
 
     -- Update elapsed time
@@ -232,13 +250,10 @@ function M:tick()
             ev.event_id, ev.event_data, ev.event_type)
     end
 
-    -- Flush outbound commands to NATS
+    -- Flush outbound commands to transport
     self.monitor:flush_outbound()
 
-    -- Persist dirty blackboard fields to KeyStore
-    self.bb.flush()
-
-    -- Publish bitmask + energy to NATS status board (every 10 ticks or on change)
+    -- Publish bitmask + energy via kv-bridge (every 10 ticks or on change)
     self._tick_count = self._tick_count + 1
     if self._tick_count % 10 == 0 then
         self:_publish_robot_status()
@@ -246,10 +261,14 @@ function M:tick()
 end
 
 ---------------------------------------------------------------------------
--- Robot status publishing (bitmask + energy → NATS)
+-- Robot status publishing (bitmask + energy → kv-bridge via MQTT)
+-- Fire-and-forget: MQTT publish is microseconds, never blocks tick.
+-- kv-bridge container writes to NATS KV asynchronously.
 ---------------------------------------------------------------------------
 
 function M:_publish_robot_status()
+    if not self.mqtt_hub then return end
+
     local bb = self.bb
     local active_kb = bb.active_kb or ""
 
@@ -277,26 +296,24 @@ function M:_publish_robot_status()
         self._last_bitmask_raw = raw
         self._last_active_kb   = active_kb
 
-        pcall(function()
-            self.status_ks:put(self._bitmask_key, json_util.encode({
-                kb_name = active_kb,
-                raw     = raw,
-                fields  = fields,
-                robot_id = self.robot_id,
-                timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-            }))
-        end)
+        local bitmask_json = json_util.encode({
+            kb_name = active_kb,
+            raw     = raw,
+            fields  = fields,
+            robot_id = self.robot_id,
+            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+        })
+        self.mqtt_hub:publish_kv(self._status_bucket, self._bitmask_key, bitmask_json)
     end
 
     -- Publish energy status
-    pcall(function()
-        self.status_ks:put(self._energy_key, json_util.encode({
-            energy_max       = self.energy_max,
-            energy_remaining = self.energy_remaining,
-            robot_id         = self.robot_id,
-            timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        }))
-    end)
+    local energy_json = json_util.encode({
+        energy_max       = self.energy_max,
+        energy_remaining = self.energy_remaining,
+        robot_id         = self.robot_id,
+        timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    })
+    self.mqtt_hub:publish_kv(self._status_bucket, self._energy_key, energy_json)
 end
 
 --- Deduct energy cost for an action (no-op when energy_infinite).
@@ -352,8 +369,6 @@ end
 function M:close()
     self.tx:close()
     self.bb.close()
-    pcall(function() self.status_ks:disconnect() end)
-    pcall(function() self.status_ks:destroy() end)
 end
 
 return M

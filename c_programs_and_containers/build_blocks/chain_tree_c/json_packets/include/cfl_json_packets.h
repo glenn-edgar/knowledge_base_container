@@ -47,8 +47,14 @@ void        cfl_json_get_float(cfl_json_packet_t *pkt, const char *path, double 
 void        cfl_json_get_bool(cfl_json_packet_t *pkt, const char *path, bool *out);
 int         cfl_json_array_size(cfl_json_packet_t *pkt, const char *path);
 
-/* ── Probe — the ONE soft query, no EXCEPTION ── */
+/* ── Probe — soft queries, no EXCEPTION ── */
 bool        cfl_json_has_field(cfl_json_packet_t *pkt, const char *path);
+
+/* ── Try-extract — returns true if found + correct type, false otherwise ── */
+bool        cfl_json_try_get_int(cfl_json_packet_t *pkt, const char *path, int32_t *out);
+bool        cfl_json_try_get_string(cfl_json_packet_t *pkt, const char *path, const char **out);
+bool        cfl_json_try_get_float(cfl_json_packet_t *pkt, const char *path, double *out);
+bool        cfl_json_try_get_bool(cfl_json_packet_t *pkt, const char *path, bool *out);
 
 /* ── Build — EXCEPTION on NULL pkt, NULL path, allocation failure ── */
 cfl_json_packet_t *cfl_json_create(cfl_json_heap_interface_t *heap);

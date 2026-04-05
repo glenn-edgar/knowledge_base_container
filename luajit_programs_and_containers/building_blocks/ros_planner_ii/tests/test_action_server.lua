@@ -4,6 +4,7 @@
 
     Test order: coroutine test first (remote alive), direct execution last
     (sends shutdown to remote).
+    Transport: MQTT (via mqtt_hub_transport).
 ]]
 
 local ffi = require("ffi")
@@ -15,18 +16,22 @@ local json_util       = require("json_util")
 local action_server   = require("action_server")
 local global_planner  = require("global_planner")
 local mission_builder = require("mission_builder")
+local mqtt_hub_tx     = require("mqtt_hub_transport")
 
-local robot_id = os.getenv("ROBOT_ID") or "rover_1"
-local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
-local site     = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
+local robot_id  = os.getenv("ROBOT_ID") or "rover_1"
+local server    = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local mqtt_host = os.getenv("MQTT_HOST") or "localhost"
+local mqtt_port = tonumber(os.getenv("MQTT_PORT") or "1883")
+local site      = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir   = script_dir .. "../"
 local hub_json   = root_dir .. "hub_dsl/hub.json"
 local db_file    = root_dir .. "hub_dsl/kb_construct/surface_ops.db"
 
-print("=== Action Server Test ===\n")
-print(string.format("Robot: %s, Server: %s\n", robot_id, server))
+print("=== Action Server Test (MQTT) ===\n")
+print(string.format("Robot: %s, MQTT: %s:%d, NATS: %s\n",
+    robot_id, mqtt_host, mqtt_port, server))
 
 ---------------------------------------------------------------------------
 -- Test runner
@@ -130,13 +135,17 @@ planner:close()
 ---------------------------------------------------------------------------
 print("\n--- Coroutine Scheduler Test ---")
 
-ffi.C.usleep(1000000)  -- give remote time to connect
+ffi.C.usleep(2000000)  -- give remote time to connect
+
+local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
+mqtt_hub:connect()
 
 local srv = action_server.new({
     db_file     = db_file,
     hub_json    = hub_json,
     nats_server = server,
     site        = site,
+    mqtt_hub    = mqtt_hub,
 })
 
 -- Submit a mission via coroutine API
@@ -199,6 +208,7 @@ print(string.format("  Completed: %d/%d, elapsed: %dms",
     result.completed or 0, result.total or 0, result.elapsed_ms or 0))
 
 srv:close()
+mqtt_hub:close()
 
 ---------------------------------------------------------------------------
 -- Results

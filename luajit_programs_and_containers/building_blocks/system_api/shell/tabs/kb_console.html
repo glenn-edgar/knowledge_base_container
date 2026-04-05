@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KB Query Console</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #e0e0e0; padding: 1.5rem; }
+    #status { font-size: 0.8rem; padding: 0.25rem 0.75rem; border-radius: 4px; }
+    #status.ok { background: #1b5e20; color: #a5d6a7; }
+    #status.err { background: #b71c1c; color: #ef9a9a; }
+
+    .query-section { margin-bottom: 1.5rem; }
+    .query-section h2 { font-size: 0.9rem; color: #90caf9; margin-bottom: 0.5rem; }
+
+    .button-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .btn { padding: 0.5rem 1rem; background: #0f3460; color: #64ffda; border: 1px solid #1a4a8a; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .btn:hover { background: #1a4a8a; }
+
+    .params-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .params-row select, .params-row input { padding: 0.5rem; background: #16213e; color: #e0e0e0; border: 1px solid #444; border-radius: 4px; font-family: inherit; font-size: 0.85rem; }
+    .params-row input { flex: 1; }
+    .params-row button { padding: 0.5rem 1.5rem; background: #64ffda; color: #1a1a2e; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.85rem; font-weight: bold; }
+    .params-row button:hover { background: #4fc3a1; }
+
+    #log { background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 1rem; min-height: 120px; max-height: 200px; overflow-y: auto; font-size: 0.8rem; margin-bottom: 1.5rem; }
+    #log .entry { margin-bottom: 0.4rem; padding-bottom: 0.4rem; border-bottom: 1px solid #1a1a2e; }
+    #log .ts { color: #666; }
+    #log .method { color: #64ffda; }
+    #log .error { color: #ef9a9a; }
+    #log .ms { color: #888; }
+
+    #result { background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 1rem; min-height: 300px; max-height: 500px; overflow: auto; font-size: 0.8rem; white-space: pre-wrap; }
+    #result .key { color: #90caf9; }
+    #result .string { color: #a5d6a7; }
+    #result .number { color: #ffcc80; }
+    #result .bool { color: #ce93d8; }
+    #result .null { color: #666; }
+  </style>
+</head>
+<body>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+    <h2 style="font-size:1rem; color:#64ffda;">KB Query Console</h2>
+    <span id="status" class="ok">HTTP API</span>
+  </div>
+
+  <div id="log"></div>
+
+  <div class="query-section">
+    <h2>Quick Queries</h2>
+    <div class="button-row">
+      <button class="btn" onclick="query('/api/domains')">Domains</button>
+      <button class="btn" onclick="query('/api/containers?cpu=cpu_01')">Containers</button>
+      <button class="btn" onclick="query('/api/robots?domain=surface_ops')">Robots (surface_ops)</button>
+      <button class="btn" onclick="query('/api/robots?domain=warehouse_ops')">Robots (warehouse_ops)</button>
+      <button class="btn" onclick="query('/api/services?container_path=system.site.main.cpu.cpu_01.container.nats_server')">NATS Services</button>
+      <button class="btn" onclick="query('/api/subtree?kb=system&path=system.site.main')">System Tree</button>
+      <button class="btn" onclick="query('/api/subtree?kb=subsystems&path=subsystems.domain')">Subsystems Tree</button>
+      <button class="btn" onclick="query('/api/node?kb=system&path=system.site.main.cpu.cpu_01.role.master')">Master Node</button>
+    </div>
+  </div>
+
+  <div class="query-section">
+    <h2>Custom Query</h2>
+    <div class="params-row">
+      <select id="method">
+        <option value="/api/domains">/api/domains</option>
+        <option value="/api/containers">/api/containers</option>
+        <option value="/api/robots">/api/robots</option>
+        <option value="/api/services">/api/services</option>
+        <option value="/api/node">/api/node</option>
+        <option value="/api/subtree">/api/subtree</option>
+      </select>
+      <input id="params" type="text" placeholder="cpu=cpu_01 or domain=surface_ops" value="">
+      <button onclick="customQuery()">Send</button>
+    </div>
+  </div>
+
+  <h2 style="font-size:0.9rem; color:#90caf9; margin-bottom:0.5rem;">Result</h2>
+  <div id="result">Waiting for query...</div>
+
+  <script>
+    function log(msg, cls) {
+      var el = document.getElementById("log");
+      var ts = new Date().toLocaleTimeString();
+      el.innerHTML += '<div class="entry"><span class="ts">' + ts + '</span> <span class="' + (cls || '') + '">' + msg + '</span></div>';
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function highlight(obj, indent) {
+      indent = indent || 0;
+      var pad = "  ".repeat(indent);
+      if (obj === null) return '<span class="null">null</span>';
+      if (typeof obj === "boolean") return '<span class="bool">' + obj + '</span>';
+      if (typeof obj === "number") return '<span class="number">' + obj + '</span>';
+      if (typeof obj === "string") return '<span class="string">"' + obj + '"</span>';
+      if (Array.isArray(obj)) {
+        if (obj.length === 0) return "[]";
+        var items = obj.map(function(v) { return pad + "  " + highlight(v, indent + 1); });
+        return "[\n" + items.join(",\n") + "\n" + pad + "]";
+      }
+      if (typeof obj === "object") {
+        var keys = Object.keys(obj);
+        if (keys.length === 0) return "{}";
+        var items = keys.map(function(k) {
+          return pad + '  <span class="key">"' + k + '"</span>: ' + highlight(obj[k], indent + 1);
+        });
+        return "{\n" + items.join(",\n") + "\n" + pad + "}";
+      }
+      return String(obj);
+    }
+
+    async function query(url) {
+      var t0 = performance.now();
+      log('<span class="method">GET ' + url + '</span>');
+
+      try {
+        var resp = await fetch(url);
+        var data = await resp.json();
+        var ms = (performance.now() - t0).toFixed(1);
+
+        document.getElementById("result").innerHTML = highlight(data);
+        log('Got ' + JSON.stringify(data).length + ' bytes <span class="ms">(' + ms + 'ms)</span>');
+      } catch(e) {
+        document.getElementById("result").textContent = "Error: " + e.message;
+        log('Error: ' + e.message, 'error');
+      }
+    }
+
+    function customQuery() {
+      var method = document.getElementById("method").value;
+      var params = document.getElementById("params").value.trim();
+      var url = method;
+      if (params) url += "?" + params;
+      query(url);
+    }
+
+    // Auto-run domains on load
+    query("/api/domains");
+  </script>
+</body>
+</html>

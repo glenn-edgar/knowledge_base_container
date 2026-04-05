@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surface Operations</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #e0e0e0; padding: 1rem; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #333; }
+    .header h1 { font-size: 1.1rem; color: #64ffda; }
+    .header .prefix { color: #666; font-size: 0.75rem; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+    /* Robot Status Cards */
+    .robot-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+    .robot-card { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 0.75rem 1rem; }
+    .robot-card.selected { border-color: #64ffda; }
+    .robot-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .robot-card .robot-name { color: #64ffda; font-weight: bold; font-size: 0.95rem; }
+    .robot-card .status-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 3px; }
+    .status-badge.offline { background: #b71c1c; color: #ef9a9a; }
+    .status-badge.idle { background: #1b5e20; color: #a5d6a7; }
+    .status-badge.active { background: #e65100; color: #ffcc80; }
+    .robot-card .card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 1rem; font-size: 0.8rem; }
+    .card-body .label { color: #666; }
+    .card-body .value { color: #c9d1d9; }
+    .energy-bar { height: 4px; background: #333; border-radius: 2px; margin-top: 0.4rem; }
+    .energy-bar .fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+    .fill.high { background: #3fb950; }
+    .fill.mid { background: #d29922; }
+    .fill.low { background: #f85149; }
+    .badge { background: #0f3460; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; color: #90caf9; }
+    .caps { color: #888; font-size: 0.7rem; margin-top: 0.3rem; }
+
+    /* Section headers */
+    .section-title { font-size: 0.85rem; color: #90caf9; margin-bottom: 0.5rem; }
+
+    /* Board Viewer */
+    .board-container { background: #0d1117; border: 1px solid #333; border-radius: 6px; padding: 0.5rem; }
+    svg { width: 100%; height: auto; }
+    svg .edge { stroke: #333; stroke-width: 2; }
+    svg .edge.path-active { stroke: #64ffda; stroke-width: 3; stroke-dasharray: 8 4; animation: dash 1s linear infinite; }
+    @keyframes dash { to { stroke-dashoffset: -12; } }
+    svg .node-circle { fill: #16213e; stroke: #58a6ff; stroke-width: 2; cursor: pointer; }
+    svg .node-circle:hover { fill: #1c2129; stroke: #64ffda; }
+    svg .node-circle.selected { fill: #0f3460; stroke: #64ffda; stroke-width: 3; }
+    svg .node-circle.base { stroke: #3fb950; }
+    svg .node-circle.waypoint { stroke: #58a6ff; }
+    svg .node-circle.mission { stroke: #d29922; }
+    svg .node-label { fill: #c9d1d9; font-size: 9px; text-anchor: middle; pointer-events: none; }
+    svg .robot-marker { fill: #64ffda; stroke: #1a1a2e; stroke-width: 2; }
+    svg .edge-label { fill: #555; font-size: 7px; text-anchor: middle; }
+
+    /* Mission Launcher */
+    .mission-panel { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 1rem; margin-top: 1rem; }
+    .mission-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .mission-row label { color: #90caf9; font-size: 0.8rem; min-width: 60px; }
+    .mission-row select { background: #0d1117; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 0.3rem 0.5rem; font-family: inherit; font-size: 0.8rem; min-width: 140px; }
+    .mission-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .btn { padding: 0.4rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+    .btn-go { background: #3fb950; color: #0d1117; font-weight: bold; }
+    .btn-go:hover { background: #2ea043; }
+    .btn-go:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .btn-stop { background: #f85149; color: #fff; }
+    .btn-stop:hover { background: #da3633; }
+    .btn-idle { background: #0f3460; color: #64ffda; }
+    .btn-idle:hover { background: #1a4a8a; }
+    .mission-status { font-size: 0.8rem; color: #666; margin-top: 0.5rem; }
+
+    /* Planner status */
+    .planner-bar { display: flex; gap: 1rem; align-items: center; background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; }
+    .planner-bar .plabel { color: #666; }
+    .planner-bar .pvalue { color: #64ffda; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>Surface Operations</h1>
+      <div class="prefix" id="nats-prefix">loading...</div>
+    </div>
+  </div>
+
+  <!-- Planner status bar -->
+  <div class="planner-bar">
+    <span><span class="plabel">Planner:</span> <span class="pvalue" id="planner-state">idle</span></span>
+    <span><span class="plabel">Robot:</span> <span class="pvalue" id="planner-robot">-</span></span>
+    <span><span class="plabel">Mission:</span> <span class="pvalue" id="planner-mission">-</span></span>
+  </div>
+
+  <div class="grid">
+    <!-- Left: Robot Status Cards -->
+    <div>
+      <div class="section-title">Robots</div>
+      <div class="robot-cards" id="robot-cards"></div>
+    </div>
+
+    <!-- Right: Board Viewer -->
+    <div>
+      <div class="section-title">Landing Zone Board</div>
+      <div class="board-container">
+        <svg id="board-svg" viewBox="-80 -80 1760 1760"></svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mission Launcher -->
+  <div class="mission-panel">
+    <div class="section-title">Mission Launcher</div>
+    <div class="mission-row">
+      <label>Robot:</label>
+      <select id="sel-robot"></select>
+      <label>From:</label>
+      <select id="sel-from"></select>
+      <label>To:</label>
+      <select id="sel-to"></select>
+    </div>
+    <div class="mission-actions">
+      <button class="btn btn-go" id="btn-launch" onclick="launchMission()">Launch Mission</button>
+      <button class="btn btn-stop" onclick="stopMission()">Stop</button>
+      <button class="btn btn-idle" onclick="sendIdle()">Park / Idle</button>
+      <button class="btn btn-idle" onclick="sendRecharge()">Recharge</button>
+    </div>
+    <div class="mission-status" id="mission-status">Select a robot and destination.</div>
+  </div>
+
+  <script>
+    // ---------------------------------------------------------------
+    // Board data (from KB DSL — will move to API later)
+    // ---------------------------------------------------------------
+    var BOARD = {
+      nodes: [
+        { name: "lander_pad",       x: 0,    y: 0,    type: "base" },
+        { name: "habitat_site",     x: 800,  y: 0,    type: "waypoint" },
+        { name: "charging_station", x: 800,  y: 800,  type: "waypoint" },
+        { name: "mining_zone_a",    x: 1600, y: 0,    type: "mission" },
+        { name: "mining_zone_b",    x: 1600, y: 800,  type: "mission" },
+        { name: "survey_point_1",   x: 0,    y: 800,  type: "mission" },
+        { name: "survey_point_2",   x: 0,    y: 1600, type: "mission" },
+        { name: "construction_bay", x: 800,  y: 1600, type: "mission" },
+      ],
+      edges: [
+        { from: "lander_pad",       to: "habitat_site",     nav: "spline", speed: 150 },
+        { from: "lander_pad",       to: "survey_point_1",   nav: "spline", speed: 120 },
+        { from: "habitat_site",     to: "mining_zone_a",    nav: "spline", speed: 150 },
+        { from: "habitat_site",     to: "charging_station", nav: "spline", speed: 130 },
+        { from: "charging_station", to: "mining_zone_b",    nav: "spline", speed: 130 },
+        { from: "charging_station", to: "construction_bay", nav: "spline", speed: 130 },
+        { from: "survey_point_1",   to: "charging_station", nav: "spline", speed: 120 },
+        { from: "survey_point_1",   to: "survey_point_2",   nav: "line",   speed: 100 },
+        { from: "survey_point_2",   to: "construction_bay", nav: "spline", speed: 120 },
+      ]
+    };
+
+    var robots = [];
+    var selectedRobot = null;
+    var selectedFrom = null;
+    var selectedTo = null;
+
+    // Mock robot state (will come from NATS live status later)
+    var robotState = {};
+
+    // ---------------------------------------------------------------
+    // Robot Status Cards
+    // ---------------------------------------------------------------
+    function renderRobotCards() {
+      var el = document.getElementById("robot-cards");
+      el.innerHTML = "";
+      for (var i = 0; i < robots.length; i++) {
+        var r = robots[i];
+        var state = robotState[r.name] || { status: "offline", energy: 100, worker: "-", location: "lander_pad" };
+        var energyClass = state.energy > 60 ? "high" : state.energy > 25 ? "mid" : "low";
+        var isSelected = selectedRobot === r.name;
+
+        el.innerHTML +=
+          '<div class="robot-card' + (isSelected ? ' selected' : '') + '" onclick="selectRobot(\'' + r.name + '\')">' +
+            '<div class="card-header">' +
+              '<span class="robot-name">' + r.name + '</span>' +
+              '<span class="status-badge ' + state.status + '">' + state.status + '</span>' +
+            '</div>' +
+            '<div class="card-body">' +
+              '<span class="label">Transport</span><span class="value"><span class="badge">' + r.transport + '</span> <span class="badge">' + r.wire_format + '</span></span>' +
+              '<span class="label">Worker</span><span class="value">' + state.worker + '</span>' +
+              '<span class="label">Location</span><span class="value">' + state.location + '</span>' +
+              '<span class="label">Energy</span><span class="value">' + state.energy + '%</span>' +
+            '</div>' +
+            '<div class="energy-bar"><div class="fill ' + energyClass + '" style="width:' + state.energy + '%"></div></div>' +
+            '<div class="caps">' + (r.capabilities || []).join(", ") + '</div>' +
+          '</div>';
+      }
+    }
+
+    function selectRobot(name) {
+      selectedRobot = name;
+      var state = robotState[name] || { location: "lander_pad" };
+      selectedFrom = state.location;
+      renderRobotCards();
+      updateSelects();
+      renderBoard();
+      document.getElementById("mission-status").textContent = name + " selected. Pick a destination.";
+    }
+
+    // ---------------------------------------------------------------
+    // Board SVG Renderer
+    // ---------------------------------------------------------------
+    function nodeByName(name) {
+      for (var i = 0; i < BOARD.nodes.length; i++) {
+        if (BOARD.nodes[i].name === name) return BOARD.nodes[i];
+      }
+      return null;
+    }
+
+    function renderBoard() {
+      var svg = document.getElementById("board-svg");
+      svg.innerHTML = "";
+
+      // Edges
+      for (var i = 0; i < BOARD.edges.length; i++) {
+        var e = BOARD.edges[i];
+        var a = nodeByName(e.from);
+        var b = nodeByName(e.to);
+        if (!a || !b) continue;
+
+        var cls = "edge";
+        // Highlight if this is the selected path
+        if (selectedFrom && selectedTo &&
+            ((e.from === selectedFrom && e.to === selectedTo) ||
+             (e.from === selectedTo && e.to === selectedFrom))) {
+          cls += " path-active";
+        }
+
+        svg.innerHTML +=
+          '<line class="' + cls + '" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '"/>';
+
+        // Edge label (nav type)
+        var mx = (a.x + b.x) / 2;
+        var my = (a.y + b.y) / 2;
+        svg.innerHTML +=
+          '<text class="edge-label" x="' + mx + '" y="' + (my - 10) + '">' + e.nav + ' ' + e.speed + '</text>';
+      }
+
+      // Nodes
+      for (var i = 0; i < BOARD.nodes.length; i++) {
+        var n = BOARD.nodes[i];
+        var cls = "node-circle " + n.type;
+        if (n.name === selectedFrom || n.name === selectedTo) cls += " selected";
+
+        svg.innerHTML +=
+          '<circle class="' + cls + '" cx="' + n.x + '" cy="' + n.y + '" r="30" ' +
+            'onclick="clickNode(\'' + n.name + '\')"/>';
+
+        // Label (split long names)
+        var label = n.name.replace(/_/g, " ");
+        svg.innerHTML +=
+          '<text class="node-label" x="' + n.x + '" y="' + (n.y + 50) + '">' + label + '</text>';
+      }
+
+      // Robot markers
+      for (var i = 0; i < robots.length; i++) {
+        var r = robots[i];
+        var state = robotState[r.name] || { location: "lander_pad" };
+        var loc = nodeByName(state.location);
+        if (!loc) continue;
+
+        // Offset multiple robots at same node
+        var offset = i * 15 - 7;
+        svg.innerHTML +=
+          '<circle class="robot-marker" cx="' + (loc.x + offset) + '" cy="' + (loc.y - 20) + '" r="8"/>' +
+          '<text fill="#1a1a2e" font-size="8" text-anchor="middle" x="' + (loc.x + offset) + '" y="' + (loc.y - 17) + '">' +
+            r.name.charAt(0).toUpperCase() + (i + 1) + '</text>';
+      }
+    }
+
+    function clickNode(name) {
+      if (!selectedRobot) {
+        document.getElementById("mission-status").textContent = "Select a robot first.";
+        return;
+      }
+      if (!selectedFrom || selectedFrom === name) {
+        selectedFrom = name;
+        document.getElementById("mission-status").textContent = "From: " + name + ". Click destination node.";
+      } else {
+        selectedTo = name;
+        document.getElementById("mission-status").textContent =
+          selectedRobot + ": " + selectedFrom + " → " + selectedTo;
+      }
+      updateSelects();
+      renderBoard();
+    }
+
+    // ---------------------------------------------------------------
+    // Mission Launcher
+    // ---------------------------------------------------------------
+    function updateSelects() {
+      var selRobot = document.getElementById("sel-robot");
+      var selFrom = document.getElementById("sel-from");
+      var selTo = document.getElementById("sel-to");
+
+      // Robot select
+      selRobot.innerHTML = "";
+      for (var i = 0; i < robots.length; i++) {
+        var opt = document.createElement("option");
+        opt.value = robots[i].name;
+        opt.textContent = robots[i].name;
+        if (robots[i].name === selectedRobot) opt.selected = true;
+        selRobot.appendChild(opt);
+      }
+
+      // Node selects
+      selFrom.innerHTML = "";
+      selTo.innerHTML = "";
+      for (var i = 0; i < BOARD.nodes.length; i++) {
+        var n = BOARD.nodes[i];
+        var optF = document.createElement("option");
+        optF.value = n.name; optF.textContent = n.name;
+        if (n.name === selectedFrom) optF.selected = true;
+        selFrom.appendChild(optF);
+
+        var optT = document.createElement("option");
+        optT.value = n.name; optT.textContent = n.name;
+        if (n.name === selectedTo) optT.selected = true;
+        selTo.appendChild(optT);
+      }
+    }
+
+    // Select changes update state + board
+    document.getElementById("sel-robot").addEventListener("change", function() {
+      selectRobot(this.value);
+    });
+    document.getElementById("sel-from").addEventListener("change", function() {
+      selectedFrom = this.value;
+      renderBoard();
+    });
+    document.getElementById("sel-to").addEventListener("change", function() {
+      selectedTo = this.value;
+      renderBoard();
+      document.getElementById("mission-status").textContent =
+        (selectedRobot || "?") + ": " + (selectedFrom || "?") + " → " + selectedTo;
+    });
+
+    function launchMission() {
+      if (!selectedRobot || !selectedFrom || !selectedTo) {
+        document.getElementById("mission-status").textContent = "Select robot, origin, and destination.";
+        return;
+      }
+      if (selectedFrom === selectedTo) {
+        document.getElementById("mission-status").textContent = "Origin and destination must differ.";
+        return;
+      }
+
+      // Update mock state
+      robotState[selectedRobot].status = "active";
+      robotState[selectedRobot].worker = "path_spline";
+      var energy = robotState[selectedRobot].energy;
+      robotState[selectedRobot].energy = Math.max(0, energy - 15);
+
+      document.getElementById("planner-state").textContent = "executing";
+      document.getElementById("planner-robot").textContent = selectedRobot;
+      document.getElementById("planner-mission").textContent = selectedFrom + " → " + selectedTo;
+      document.getElementById("mission-status").textContent =
+        "Mission launched: " + selectedRobot + " from " + selectedFrom + " to " + selectedTo;
+
+      renderRobotCards();
+      renderBoard();
+
+      // Simulate mission completion
+      setTimeout(function() {
+        robotState[selectedRobot].status = "idle";
+        robotState[selectedRobot].worker = "-";
+        robotState[selectedRobot].location = selectedTo;
+        selectedFrom = selectedTo;
+        selectedTo = null;
+
+        document.getElementById("planner-state").textContent = "idle";
+        document.getElementById("planner-robot").textContent = "-";
+        document.getElementById("planner-mission").textContent = "-";
+        document.getElementById("mission-status").textContent =
+          selectedRobot + " arrived at " + robotState[selectedRobot].location;
+
+        renderRobotCards();
+        updateSelects();
+        renderBoard();
+      }, 3000);
+    }
+
+    function stopMission() {
+      if (!selectedRobot) return;
+      robotState[selectedRobot].status = "idle";
+      robotState[selectedRobot].worker = "-";
+      document.getElementById("planner-state").textContent = "idle";
+      document.getElementById("planner-robot").textContent = "-";
+      document.getElementById("planner-mission").textContent = "-";
+      document.getElementById("mission-status").textContent = selectedRobot + " stopped.";
+      renderRobotCards();
+      renderBoard();
+    }
+
+    function sendIdle() {
+      if (!selectedRobot) return;
+      robotState[selectedRobot].status = "idle";
+      robotState[selectedRobot].worker = "idle";
+      document.getElementById("mission-status").textContent = selectedRobot + " parked.";
+      renderRobotCards();
+    }
+
+    function sendRecharge() {
+      if (!selectedRobot) return;
+      robotState[selectedRobot].status = "active";
+      robotState[selectedRobot].worker = "recharge";
+      document.getElementById("mission-status").textContent = selectedRobot + " recharging...";
+      renderRobotCards();
+
+      setTimeout(function() {
+        robotState[selectedRobot].energy = 100;
+        robotState[selectedRobot].status = "idle";
+        robotState[selectedRobot].worker = "-";
+        document.getElementById("mission-status").textContent = selectedRobot + " fully charged.";
+        renderRobotCards();
+      }, 2000);
+    }
+
+    // ---------------------------------------------------------------
+    // Init
+    // ---------------------------------------------------------------
+    async function init() {
+      // Load domain info
+      try {
+        var domResp = await fetch("/api/domains");
+        var domData = await domResp.json();
+        var d = (domData.domains || []).find(function(x) { return x.name === "surface_ops"; });
+        if (d) {
+          document.getElementById("nats-prefix").textContent = d.nats_prefix;
+        }
+      } catch(e) { console.error(e); }
+
+      // Load robots
+      try {
+        var robResp = await fetch("/api/robots?domain=surface_ops");
+        var robData = await robResp.json();
+        robots = robData.robots || [];
+
+        // Init mock state
+        for (var i = 0; i < robots.length; i++) {
+          var startNodes = ["lander_pad", "habitat_site", "charging_station"];
+          robotState[robots[i].name] = {
+            status: "idle",
+            energy: 85 - (i * 20),
+            worker: "-",
+            location: startNodes[i % startNodes.length],
+          };
+        }
+
+        if (robots.length > 0) {
+          selectedRobot = robots[0].name;
+          selectedFrom = robotState[robots[0].name].location;
+        }
+      } catch(e) { console.error(e); }
+
+      renderRobotCards();
+      updateSelects();
+      renderBoard();
+    }
+
+    init();
+  </script>
+</body>
+</html>

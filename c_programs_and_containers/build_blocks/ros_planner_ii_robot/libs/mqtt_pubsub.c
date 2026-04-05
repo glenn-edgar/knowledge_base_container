@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 199309L
-
 /**
  * @file mqtt_pubsub.c
  * @brief Streaming MQTT pub/sub with thread-safe ring buffer.

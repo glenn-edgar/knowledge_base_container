@@ -63,6 +63,23 @@ end
 --   Completion node for worker done handling
 -- =========================================================================
 
+-- =========================================================================
+-- KB: robot_init (runs once at startup)
+--   Publishes initial status (state, energy, bitmask) then terminates.
+-- =========================================================================
+
+local function robot_init(ct, kb_name)
+    ct:start_test(kb_name, 50)
+    local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_PUBLISH_STATE", {})
+        ct:asm_one_shot_handler("ROB_PUBLISH_ENERGY", {})
+        ct:asm_one_shot_handler("ROB_PUBLISH_BITMASK", {})
+        ct:asm_log_message(kb_name .. ": initial status published")
+        ct:asm_terminate()
+    ct:end_column(col)
+    ct:end_test()
+end
+
 local function controller(ct, kb_name)
     ct:start_test(kb_name, 50)
 
@@ -90,9 +107,10 @@ end
 local function worker_init_check(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_INIT_CHECK_INIT", {})
-        ct:asm_wait_time(0.15)  -- 15 ticks at 10ms
+        ct:asm_wait_time(0.15)
         ct:asm_log_message(kb_name .. ": completed")
         ct:asm_one_shot_handler("WORKER_TERM", {})
         ct:asm_terminate()
@@ -103,6 +121,7 @@ end
 local function worker_path_spline(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PATH_SPLINE_INIT", {})
         ct:asm_wait_time(0.25)
@@ -116,6 +135,7 @@ end
 local function worker_path_line(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PATH_LINE_INIT", {})
         ct:asm_wait_time(0.25)
@@ -129,6 +149,7 @@ end
 local function worker_path_wall(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PATH_WALL_INIT", {})
         ct:asm_wait_time(0.25)
@@ -142,6 +163,7 @@ end
 local function worker_path_rotate(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PATH_ROTATE_INIT", {})
         ct:asm_wait_time(0.15)
@@ -155,6 +177,7 @@ end
 local function worker_deliver_part(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_DELIVER_PART_INIT", {})
         ct:asm_wait_time(0.20)
@@ -168,6 +191,7 @@ end
 local function worker_paint_sample(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PAINT_SAMPLE_INIT", {})
         ct:asm_wait_time(0.20)
@@ -181,6 +205,7 @@ end
 local function worker_load_shipping(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_LOAD_SHIPPING_INIT", {})
         ct:asm_wait_time(0.20)
@@ -194,6 +219,7 @@ end
 local function worker_pass_gate(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_PASS_GATE_INIT", {})
         ct:asm_wait_time(0.15)
@@ -207,6 +233,7 @@ end
 local function worker_inspection_scan(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_INSPECTION_SCAN_INIT", {})
         ct:asm_wait_time(0.12)
@@ -220,6 +247,7 @@ end
 local function worker_idle(ct, kb_name)
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_IDLE_INIT", {})
         ct:asm_wait_time(0.05)
@@ -231,9 +259,9 @@ local function worker_idle(ct, kb_name)
 end
 
 local function worker_recharge(ct, kb_name)
-    -- TODO: DSL push for energy restore via MQTT/Thread
     ct:start_test(kb_name, 50)
     local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("ROB_SEND_ACK", {})
         ct:asm_log_message(kb_name .. ": started")
         ct:asm_one_shot_handler("WKR_RECHARGE_INIT", {})
         ct:asm_wait_time(0.30)
@@ -249,6 +277,7 @@ end
 -- =========================================================================
 
 local test_list = {
+    "robot_init",
     "controller",
     "worker_init_check",
     "worker_path_spline",
@@ -265,6 +294,7 @@ local test_list = {
 }
 
 local test_dict = {
+    robot_init             = robot_init,
     controller             = controller,
     worker_init_check      = worker_init_check,
     worker_path_spline     = worker_path_spline,

@@ -1,9 +1,10 @@
 --[[
     test_hub_runtime.lua -- Validate hub_runtime + mission modules by running
-    the same 18-action route as test_nats_chaintree.lua.
+    the same 18-action route via MQTT transport.
 
     Tests:
       - hub_runtime API (activate/tick/complete/deactivate)
+      - MQTT transport injection (mqtt_hub_transport + robot_transport adapter)
       - mission telemetry (NATS PubSub + KeyStore live, SQLite bookends)
       - 72 action checks + mission telemetry verification
 ]]
@@ -13,12 +14,15 @@ ffi.cdef[[
     int usleep(unsigned int usec);
 ]]
 
-local json_util   = require("json_util")
-local hub_runtime = require("hub_runtime")
-local mission_mod = require("mission")
+local json_util    = require("json_util")
+local hub_runtime  = require("hub_runtime")
+local mission_mod  = require("mission")
+local mqtt_hub_tx  = require("mqtt_hub_transport")
 
-local robot_id = os.getenv("ROBOT_ID") or "rover_1"
-local server   = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local robot_id  = os.getenv("ROBOT_ID") or "rover_1"
+local server    = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
+local mqtt_host = os.getenv("MQTT_HOST") or "localhost"
+local mqtt_port = tonumber(os.getenv("MQTT_PORT") or "1883")
 
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir   = script_dir .. "../"
@@ -26,20 +30,29 @@ local hub_json   = root_dir .. "hub_dsl/hub.json"
 local db_file    = root_dir .. "hub_dsl/kb_construct/surface_ops.db"
 local site       = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
-print("=== Hub Runtime + Mission Test ===\n")
-print(string.format("Robot: %s, Server: %s\n", robot_id, server))
+print("=== Hub Runtime + Mission Test (MQTT) ===\n")
+print(string.format("Robot: %s, MQTT: %s:%d, NATS: %s\n",
+    robot_id, mqtt_host, mqtt_port, server))
 
 -- Give remote time to connect
-ffi.C.usleep(1000000)
+ffi.C.usleep(2000000)
 
 ---------------------------------------------------------------------------
--- Initialize hub_runtime
+-- Create MQTT hub transport
+---------------------------------------------------------------------------
+local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
+mqtt_hub:connect()
+
+---------------------------------------------------------------------------
+-- Initialize hub_runtime with MQTT transport
 ---------------------------------------------------------------------------
 local hub_rt = hub_runtime.new({
     robot_id     = robot_id,
     nats_server  = server,
     hub_json     = hub_json,
     site         = site,
+    transport    = mqtt_hub:robot_transport(robot_id),
+    mqtt_hub     = mqtt_hub,
     initial_pose = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
 })
 
@@ -101,7 +114,7 @@ local function test_virtual_node(plugin, action_json)
         hub_rt:tick()
 
         -- Mission: live heartbeat (NATS only, every 10 ticks)
-        if tick % 10 == 0 then
+        if tick % 5 == 0 then
             m:heartbeat(action_index, kb_name, hub_rt:get_global_pose())
         end
 
@@ -248,6 +261,7 @@ m:finish({
 
 hub_rt:send_shutdown()
 hub_rt:close()
+mqtt_hub:close()
 
 ---------------------------------------------------------------------------
 -- Verify NATS KeyStore status
