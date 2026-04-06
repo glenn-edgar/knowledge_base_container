@@ -30,17 +30,14 @@ COPY lua/action_server/    lua/action_server/
 COPY lua/global_planner/   lua/global_planner/
 COPY lua/local_planner/    lua/local_planner/
 COPY lua/protocol/         lua/protocol/
-COPY lua/hub_dsl.lua       lua/hub_dsl.lua
 COPY lua/hub_functions/    lua/hub_functions/
-COPY lua/kb/               lua/kb/
 COPY lua/kb_construct/     lua/kb_construct/
 COPY lua/runtime/          lua/runtime/
-COPY lua/test_robot/       lua/test_robot/
 
 # -- MQTT robot --
 COPY lua/mqtt_robot/       lua/mqtt_robot/
 
-# -- ChainTree runtime --
+# -- ChainTree runtime (robot side) --
 COPY lua/ct_runtime/       lua/ct_runtime/
 COPY lua/ct_json/          lua/ct_json/
 COPY lua/ct_dsl/           lua/ct_dsl/
@@ -64,11 +61,9 @@ ENV LUA_PATH="/opt/planner/lua/action_server/?.lua;\
 /opt/planner/lua/protocol/?.lua;\
 /opt/planner/lua/?.lua;\
 /opt/planner/lua/hub_functions/?.lua;\
-/opt/planner/lua/kb/?.lua;\
 /opt/planner/lua/kb_construct/?.lua;\
 /opt/planner/lua/sqlite_kb/?.lua;\
 /opt/planner/lua/runtime/?.lua;\
-/opt/planner/lua/test_robot/?.lua;\
 /opt/planner/lua/mqtt_robot/?.lua;\
 /opt/planner/lua/ct_runtime/?.lua;\
 /opt/planner/lua/ct_json/?.lua;\

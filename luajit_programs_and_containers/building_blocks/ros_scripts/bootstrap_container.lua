@@ -82,13 +82,8 @@ else
 end
 
 ---------------------------------------------------------------------------
--- Build hub.json + remote.json if missing
+-- Build remote.json if missing (hub.json no longer needed — state machine)
 ---------------------------------------------------------------------------
-if not file_exists(script_dir .. "hub.json") then
-    print("Building hub.json...")
-    os.execute(string.format("cd '%s' && luajit hub_dsl.lua hub.json", script_dir))
-end
-
 if not file_exists(script_dir .. "mqtt_robot/remote.json") then
     print("Building remote.json...")
     os.execute(string.format("cd '%smqtt_robot' && luajit remote_dsl.lua remote.json", script_dir))
