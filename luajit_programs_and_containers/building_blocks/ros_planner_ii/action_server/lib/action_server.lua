@@ -50,7 +50,7 @@ function M.new(opts)
     local self = setmetatable({}, M)
 
     self.db_file     = opts.db_file     or error("action_server: db_file required")
-    self.hub_json    = opts.hub_json    or error("action_server: hub_json required")
+    self.hub_json    = opts.hub_json  -- legacy, no longer required
     self.nats_server = opts.nats_server or "nats://127.0.0.1:4222"
     self.ltree_path  = opts.ltree_path  or "/usr/local/lib/ltree"
     self.site        = opts.site        or "moonbase.alpha.surface_ops"
@@ -273,7 +273,7 @@ function M:_make_mission_coroutine(mission_cmd)
         local seq = sequencer_mod.new({
             robot_id    = robot_id,
             db_file     = srv.db_file,
-            hub_json    = srv.hub_json,
+            -- hub_json no longer needed (state machine hub_runtime)
             nats_server = srv.nats_server,
             site        = srv.site,
             tick_usleep = 0,  -- no sleep — scheduler controls timing

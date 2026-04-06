@@ -83,7 +83,6 @@ local route = {
 local seq = sequencer.new({
     robot_id    = robot_id,
     db_file     = db_file,
-    hub_json    = hub_json,
     site        = site,
     nats_server = server,
     mqtt_hub    = mqtt_hub,

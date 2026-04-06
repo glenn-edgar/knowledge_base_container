@@ -48,13 +48,12 @@ export NATS_SERVER="${NATS_SERVER:-nats://127.0.0.1:4222}"
 export MQTT_HOST="${MQTT_HOST:-localhost}"
 export MQTT_PORT="${MQTT_PORT:-1883}"
 
-# Build KB, then trees (KB must exist before hub_dsl.lua merges VN data)
+# Build KB and robot DSL (hub.json no longer needed — state machine hub_runtime)
 build_all() {
     cd "$KB_CONSTRUCT"
     rm -f surface_ops.db
     luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')" 2>&1 | tail -3
 
-    (cd "$HUB_DSL_DIR" && rm -f hub.json hub_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
     (cd "$ROBOT_DIR" && rm -f remote.json remote_debug.yaml && chmod +x build.sh && ./build.sh 2>&1 | tail -1)
     echo ""
 }

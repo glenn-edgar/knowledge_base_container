@@ -11,7 +11,6 @@
         local seq = sequencer.new({
             robot_id  = "rover_1",
             db_file   = "surface_ops.db",
-            hub_json  = "hub_dsl/hub.json",
         })
 
         seq:load_route({
@@ -66,9 +65,7 @@ function M.new(opts)
 
     self.robot_id = opts.robot_id or error("sequencer: robot_id required")
     local db_file  = opts.db_file  or error("sequencer: db_file required")
-    local hub_json = opts.hub_json or error("sequencer: hub_json required")
     self.db_file   = db_file
-    self.hub_json  = hub_json
 
     self.tick_usleep         = opts.tick_usleep or 2000
     self.max_ticks_per_action = opts.max_ticks_per_action or 500
@@ -102,11 +99,10 @@ function M.new(opts)
         transport = self.mqtt_hub:robot_transport(self.robot_id)
     end
 
-    -- Initialize hub runtime
+    -- Initialize hub runtime (state machine, no ChainTree)
     self.hub_rt = hub_runtime.new({
         robot_id         = self.robot_id,
-        nats_server      = self.nats_server,
-        hub_json         = hub_json,
+        db_file          = db_file,
         site             = self.site,
         initial_pose     = opts.initial_pose or
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },

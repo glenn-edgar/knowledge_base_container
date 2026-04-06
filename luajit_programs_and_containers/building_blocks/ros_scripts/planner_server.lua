@@ -36,19 +36,6 @@ local planner  = bb_dir .. "ros_planner_ii/"
 local db_file  = os.getenv("SQLITE_DB")
     or planner .. "hub_dsl/kb_construct/surface_ops.db"
 
--- hub.json: look next to script first (container), then in planner tree (host)
-local function find_file(...)
-    for _, path in ipairs({...}) do
-        local f = io.open(path, "r")
-        if f then f:close(); return path end
-    end
-    return nil
-end
-local hub_json = find_file(
-    script_dir .. "hub.json",
-    planner .. "hub_dsl/hub.json"
-) or script_dir .. "hub.json"
-
 ---------------------------------------------------------------------------
 -- Query KB for infrastructure services (env vars override)
 ---------------------------------------------------------------------------
@@ -83,7 +70,6 @@ print(string.format("MQTT hub connected (%s:%d)", mqtt_host, mqtt_port))
 ---------------------------------------------------------------------------
 local srv = action_server.new({
     db_file     = db_file,
-    hub_json    = hub_json,
     nats_server = nats_server,
     site        = site,
     mqtt_hub    = mqtt_hub,

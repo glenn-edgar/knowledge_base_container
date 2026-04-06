@@ -1,39 +1,21 @@
 --[[
-    hub_runtime.lua -- Hub ChainTree lifecycle manager.
+    hub_runtime.lua -- State-machine hub runtime (no ChainTree).
 
-    Wraps transport, KeyStore blackboard, ChainTree runtime,
-    function registration, queue monitor, and tick loop into a
-    single reusable object.
+    Replaces the ChainTree-based hub with a simple state machine.
+    Every virtual node follows the same cycle:
+      send_command → wait_ack → active (bitmaps) → wait_kb_done → done
 
-    Transport is injected — MQTT (via mqtt_hub_transport:robot_transport())
-    or any object with send_rpc(json) / recv_stream() / close().
+    VN definitions (packet_type_id, json_schema, bitmask, pose_fields)
+    come from the SQLite KB at startup. Adding a new VN to the KB is
+    all that's needed — no hub_dsl, no hub.json, no plugin files.
 
-    Usage:
-        local hub_runtime = require("hub_runtime")
-        local mqtt_hub = require("mqtt_hub_transport")
-        local hub = mqtt_hub.new("localhost", 1883, "moonbase.alpha.surface_ops")
-        hub:connect()
-
-        local hub_rt = hub_runtime.new({
-            robot_id     = "rover_1",
-            nats_server  = "nats://127.0.0.1:4222",
-            hub_json     = "hub_dsl/hub.json",
-            transport    = hub:robot_transport("rover_1"),
-            mqtt_hub     = hub,   -- optional: auto-poll in tick()
-            initial_pose = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
-        })
-
-        -- Stage action and activate KB
-        hub_rt:get_blackboard().current_test_json = json_encode(action)
-        hub_rt:activate_kb("path_spline")
-
-        -- Tick until complete
-        while not hub_rt:kb_is_complete("path_spline") do
-            hub_rt:tick()
-        end
-        hub_rt:deactivate_kb("path_spline")
-
-        -- Cleanup
+    Same API as before:
+        hub_rt:activate_kb(kb_name)
+        hub_rt:tick()
+        hub_rt:kb_is_complete(kb_name)
+        hub_rt:deactivate_kb(kb_name)
+        hub_rt:get_blackboard()
+        hub_rt:get_global_pose()
         hub_rt:send_shutdown()
         hub_rt:close()
 ]]
@@ -41,27 +23,28 @@
 local ffi = require("ffi")
 ffi.cdef[[
     int usleep(unsigned int usec);
-    typedef void (*sighandler_t)(int);
-    sighandler_t signal(int signum, sighandler_t handler);
 ]]
-ffi.C.signal(13, ffi.cast("sighandler_t", 1))  -- ignore SIGPIPE
 
-local json_util      = require("json_util")
-local cmd_packets    = require("command_packets")
-local event_ids      = require("event_ids")
-local queue_monitor  = require("queue_monitor")
-local hub_control    = require("hub_control")
-
-local ct_runtime    = require("ct_runtime")
-local ct_loader     = require("ct_loader_pure")
-local builtins      = require("ct_builtins")
-local fn_registry   = require("fn_registry")
-local defs          = require("ct_definitions")
-local engine        = require("ct_engine")
-local packet_mapper = require("packet_mapper")
+local json_util   = require("json_util")
+local hub_control = require("hub_control")
+local event_ids   = require("event_ids")
 
 local M = {}
 M.__index = M
+
+-- Action state machine states
+local STATE_IDLE      = "idle"
+local STATE_WAIT_ACK  = "wait_ack"
+local STATE_ACTIVE    = "active"
+local STATE_DONE      = "done"
+local STATE_ERROR     = "error"
+
+-- Timeouts (wall-clock seconds)
+local ACK_TIMEOUT     = 5
+local KB_DONE_TIMEOUT = 10
+
+-- Sequence counter
+local seq_counter = 0
 
 ---------------------------------------------------------------------------
 -- Constructor
@@ -69,28 +52,24 @@ M.__index = M
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    local robot_id    = opts.robot_id    or error("hub_runtime: robot_id required")
-    local nats_server = opts.nats_server or "nats://127.0.0.1:4222"
-    local hub_json    = opts.hub_json    or error("hub_runtime: hub_json required")
-    local site        = opts.site        or "moonbase.alpha.surface_ops"
+    local robot_id = opts.robot_id or error("hub_runtime: robot_id required")
+    local site     = opts.site     or "moonbase.alpha.surface_ops"
     local initial_pose = opts.initial_pose or { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
     self.robot_id = robot_id
     self.site = site
 
-    -- Transport: must be injected (MQTT robot_transport adapter or compatible)
-    self.tx = opts.transport or error("hub_runtime: transport required (use mqtt_hub:robot_transport())")
+    -- Transport: must be injected
+    self.tx = opts.transport or error("hub_runtime: transport required")
 
     -- Optional: shared MQTT hub for auto-polling in tick()
-    -- When set, tick() calls mqtt_hub:poll_and_route() to drain MQTT messages
-    -- into per-robot stream buffers before queue_monitor drains them.
     self.mqtt_hub = opts.mqtt_hub
 
-    -- In-memory blackboard (no NATS on tick path)
+    -- In-memory blackboard (compatible with sequencer expectations)
     local bb_cache = {}
     self.bb = setmetatable({
-        flush = function() end,  -- no-op: nothing to persist
-        close = function() end,  -- no-op
+        flush = function() end,
+        close = function() end,
     }, {
         __index = function(_, key)
             if key == "flush" or key == "close" then return rawget(_, key) end
@@ -102,55 +81,46 @@ function M.new(opts)
         end,
     })
 
-    -- Load KB plugins
-    local hub_dsl_mod = require("hub_dsl")
-    self.plugins = hub_dsl_mod.plugins
+    -- Load VN definitions from KB
+    self.vn_defs = {}    -- kb_name → { packet_type_id, json_schema, bitmask, pose_fields }
+    self.kb_by_name = {} -- kb_name → { name, index, packet_type_id, bitmask, ... }
+    if opts.db_file then
+        local kb_query = require("kb_query")
+        local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
+        local q = kb_query.new(opts.db_file, "knowledge_base", ltree_path)
+        local all_vns = q:get_all_virtual_nodes()
+        q:close()
 
-    self.kb_by_name = {}
-    self.kb_by_index = {}
-    for _, p in ipairs(self.plugins) do
-        self.kb_by_name[p.name] = p
-        self.kb_by_index[p.index] = p
+        local idx = 0
+        for name, vn in pairs(all_vns) do
+            idx = idx + 1
+            self.vn_defs[name] = vn
+            self.kb_by_name[name] = {
+                name           = name,
+                index          = idx,
+                packet_type_id = vn.packet_type_id,
+                json_schema    = vn.json_schema or {},
+                bitmask        = vn.bitmask or {},
+                pose_fields    = vn.pose_fields or {},
+            }
+        end
     end
 
-    -- Load hub ChainTree
-    local hub_data = ct_loader.load(hub_json)
-
-    -- Register all functions
-    fn_registry.register_functions(hub_data, builtins)
-
-    local mapper_fns = { one_shot = {} }
-    for _, plugin in ipairs(self.plugins) do
-        local name, fn = packet_mapper.make_one_shot(plugin, json_util.decode)
-        mapper_fns.one_shot[name] = fn
+    -- Also accept plugins from opts (for backward compat with tests)
+    if opts.plugins then
+        for _, p in ipairs(opts.plugins) do
+            self.kb_by_name[p.name] = p
+        end
     end
-    fn_registry.register_functions(hub_data, mapper_fns)
 
-    local planner_chain = require("planner_start_next_test")
-    planner_chain.set_plugins(self.plugins)
-    fn_registry.register_functions(hub_data, planner_chain.registry)
-
-    local event_handler_fns = require("event_handlers")
-    fn_registry.register_functions(hub_data, event_handler_fns.registry)
-
-    local error_recovery_fns = require("error_recovery")
-    fn_registry.register_functions(hub_data, error_recovery_fns.registry)
-
-    -- Create ChainTree runtime handle
-    self.handle = ct_runtime.create({ delta_time = 0.1, max_ticks = 50000 }, hub_data)
-
-    -- Replace in-memory blackboard with KeyStore-backed one
-    self.handle.blackboard = self.bb
-
-    -- Queue monitor: bridges transport ↔ ChainTree events
-    self.monitor = queue_monitor.new({
-        handle    = self.handle,
-        transport = self.tx,
-        direction = "hub",
-    })
-
-    -- Per-instance pose tracking (not shared — safe for coroutines)
+    -- Per-instance pose tracking
     self.hub_control = hub_control.new(initial_pose)
+
+    -- Action state machine
+    self.action_state = STATE_IDLE
+    self.active_kb    = nil
+    self.ack_deadline = nil
+    self.kb_done_deadline = nil
 
     -- Status publishing via kv-bridge (MQTT → NATS KV, non-blocking)
     local site_bucket = site:gsub("%.", "_")
@@ -158,12 +128,12 @@ function M.new(opts)
     self._bitmask_key = site .. ".robots." .. robot_id .. ".status.bitmask"
     self._energy_key  = site .. ".robots." .. robot_id .. ".status.energy"
 
-    -- Energy tracking (initialized from KB or defaults)
+    -- Energy tracking
     self.energy_max       = opts.energy_max or 10000
     self.energy_remaining = opts.energy_remaining or self.energy_max
     self.energy_infinite  = opts.energy_infinite or false
 
-    -- Bitmask change tracking (only publish on change)
+    -- Bitmask change tracking
     self._last_bitmask_raw = nil
     self._last_active_kb   = nil
     self._tick_count       = 0
@@ -172,88 +142,77 @@ function M.new(opts)
 end
 
 ---------------------------------------------------------------------------
--- KB lifecycle
+-- KB lifecycle (same API as before)
 ---------------------------------------------------------------------------
+
 function M:activate_kb(kb_name)
-    local kb = self.handle.kb_table[kb_name]
-    if not kb then return false end
+    local plugin = self.kb_by_name[kb_name]
+    if not plugin then return false end
 
-    -- Reset all nodes in this KB
-    for _, nid in ipairs(kb.node_ids) do
-        local n = self.handle.nodes[nid]
-        if n then
-            n.ct_control.enabled = false
-            n.ct_control.initialized = false
-        end
-        self.handle.node_state[nid] = nil
-    end
-
-    -- Clear command buffers
-    self.bb.command_packet = nil
-    self.bb.command_packet_size = 0
-    self.bb.command_packet_json = nil
+    -- Reset blackboard for new action
+    self.bb.ack_received = false
+    self.bb.ack_seq = nil
+    self.bb.ack_status = nil
+    self.bb.kb_done_received = false
+    self.bb.kb_done_success = nil
+    self.bb.fault_reason = ""
+    self.bb.active_kb = kb_name
 
     -- Track active KB
-    local plugin = self.kb_by_name[kb_name]
     self.hub_control:on_kb_start(self.bb, kb_name, plugin)
 
-    engine.init_test(self.handle, kb_name)
-    self.handle.active_tests[kb_name] = true
-    self.handle.active_test_count = (self.handle.active_test_count or 0) + 1
+    -- Build and send command
+    local json_str = self.bb.current_test_json
+    if json_str then
+        local ok, action_json = pcall(json_util.decode, json_str)
+        if ok and action_json then
+            seq_counter = seq_counter + 1
+            action_json.packet_type = plugin.packet_type_id
+            action_json.seq = seq_counter
+            self.tx:send_rpc(json_util.encode(action_json))
+        end
+    end
+
+    -- Start ACK timeout
+    self.action_state = STATE_WAIT_ACK
+    self.active_kb = kb_name
+    self.ack_deadline = os.time() + ACK_TIMEOUT
+    self.kb_done_deadline = nil
+
     return true
 end
 
 function M:kb_is_complete(kb_name)
-    local kb = self.handle.kb_table[kb_name]
-    if not kb then return true end
-    return not engine.node_is_enabled(self.handle, kb.root_node)
+    if self.active_kb ~= kb_name then return true end
+    return self.action_state == STATE_DONE or self.action_state == STATE_ERROR
 end
 
 function M:deactivate_kb(kb_name)
-    if self.handle.active_tests[kb_name] then
-        self.handle.active_tests[kb_name] = nil
-        self.handle.active_test_count = self.handle.active_test_count - 1
+    if self.active_kb == kb_name then
+        self.hub_control:on_kb_done(self.bb, kb_name, nil)
+        self.action_state = STATE_IDLE
+        self.active_kb = nil
+        self.bb.active_kb = ""
     end
-    self.hub_control:on_kb_done(self.bb, kb_name, nil)
 end
 
 ---------------------------------------------------------------------------
 -- Tick
 ---------------------------------------------------------------------------
+
 function M:tick()
     -- If MQTT hub provided, poll and route stream messages to buffers
     if self.mqtt_hub then
         self.mqtt_hub:poll_and_route(1)
     end
 
-    -- Drain inbound transport → inject ChainTree events
-    self.monitor:tick()
+    -- Drain inbound transport → process stream messages
+    self:_process_stream()
 
-    -- Update elapsed time
-    self.hub_control:on_tick(self.bb)
+    -- Check timeouts
+    self:_check_timeouts()
 
-    -- Inject TIMER_EVENT for each active KB
-    for kb_name, _ in pairs(self.handle.active_tests) do
-        local kb = self.handle.kb_table[kb_name]
-        if kb then
-            table.insert(self.handle.event_queue, {
-                node_id  = kb.root_node,
-                event_id = defs.CFL_TIMER_EVENT,
-            })
-        end
-    end
-
-    -- Drain ChainTree event queue
-    while #self.handle.event_queue > 0 do
-        local ev = table.remove(self.handle.event_queue, 1)
-        engine.execute_event(self.handle, ev.node_id,
-            ev.event_id, ev.event_data, ev.event_type)
-    end
-
-    -- Flush outbound commands to transport
-    self.monitor:flush_outbound()
-
-    -- Publish bitmask + energy via kv-bridge (every 10 ticks or on change)
+    -- Publish robot status
     self._tick_count = self._tick_count + 1
     if self._tick_count % 10 == 0 then
         self:_publish_robot_status()
@@ -261,9 +220,111 @@ function M:tick()
 end
 
 ---------------------------------------------------------------------------
+-- Stream message processing
+---------------------------------------------------------------------------
+
+function M:_process_stream()
+    while true do
+        local raw = self.tx:recv_stream()
+        if not raw then break end
+
+        local ok, msg = pcall(json_util.decode, raw)
+        if not ok or not msg then goto continue end
+
+        local msg_type = msg.type
+
+        if msg_type == "ack" then
+            self:_on_ack(msg)
+        elseif msg_type == "heartbeat" then
+            self:_on_heartbeat(msg)
+        elseif msg_type == "kb_done" then
+            self:_on_kb_done(msg)
+        end
+
+        ::continue::
+    end
+end
+
+function M:_on_ack(msg)
+    if self.action_state ~= STATE_WAIT_ACK then return end
+
+    self.bb.ack_received = true
+    self.bb.ack_seq = msg.seq
+    self.bb.ack_status = msg.status
+
+    -- Transition to active, start KB_DONE timeout
+    self.action_state = STATE_ACTIVE
+    self.ack_deadline = nil
+    self.kb_done_deadline = os.time() + KB_DONE_TIMEOUT
+end
+
+function M:_on_heartbeat(msg)
+    if self.action_state ~= STATE_ACTIVE then return end
+
+    -- Update bitmask from heartbeat data
+    local kb_name = self.active_kb
+    if kb_name and msg.delta_x then
+        -- Progressive pose updates from heartbeat
+        self.bb[kb_name .. ".delta_x"] = msg.delta_x
+        self.bb[kb_name .. ".delta_y"] = msg.delta_y
+    end
+
+    -- Reset KB_DONE deadline on each heartbeat (robot is still alive)
+    self.kb_done_deadline = os.time() + KB_DONE_TIMEOUT
+end
+
+function M:_on_kb_done(msg)
+    if self.action_state ~= STATE_ACTIVE and
+       self.action_state ~= STATE_WAIT_ACK then return end
+
+    -- Apply delta pose
+    self.hub_control:apply_delta_pose(self.bb, msg)
+
+    -- Record result
+    self.bb.kb_done_received = true
+    self.bb.kb_done_success = msg.success
+    if msg.fault_reason then
+        self.bb.fault_reason = msg.fault_reason
+    end
+
+    -- Update energy from robot report
+    if msg.energy_remaining then
+        self.energy_remaining = msg.energy_remaining
+    end
+
+    self.action_state = STATE_DONE
+    self.ack_deadline = nil
+    self.kb_done_deadline = nil
+end
+
+---------------------------------------------------------------------------
+-- Timeout checks
+---------------------------------------------------------------------------
+
+function M:_check_timeouts()
+    local now = os.time()
+
+    if self.action_state == STATE_WAIT_ACK and self.ack_deadline then
+        if now >= self.ack_deadline then
+            self.bb.fault_reason = "ack_timeout"
+            self.bb.kb_done_success = false
+            self.action_state = STATE_ERROR
+            self.ack_deadline = nil
+        end
+    end
+
+    if self.action_state == STATE_ACTIVE and self.kb_done_deadline then
+        if now >= self.kb_done_deadline then
+            self.bb.fault_reason = "kb_done_timeout"
+            self.bb.kb_done_success = false
+            self.action_state = STATE_ERROR
+            self.kb_done_deadline = nil
+        end
+    end
+end
+
+---------------------------------------------------------------------------
 -- Robot status publishing (bitmask + energy → kv-bridge via MQTT)
--- Fire-and-forget: MQTT publish is microseconds, never blocks tick.
--- kv-bridge container writes to NATS KV asynchronously.
 ---------------------------------------------------------------------------
 
 function M:_publish_robot_status()
@@ -272,12 +333,10 @@ function M:_publish_robot_status()
     local bb = self.bb
     local active_kb = bb.active_kb or ""
 
-    -- Read current bitmask from blackboard
     local raw = 0
     local fields = {}
     if active_kb ~= "" then
         raw = bb[active_kb .. ".bitmask"] or 0
-        -- Decode bitmask fields using plugin schema
         local plugin = self.kb_by_name[active_kb]
         if plugin and plugin.bitmask then
             for _, field in ipairs(plugin.bitmask) do
@@ -287,11 +346,10 @@ function M:_publish_robot_status()
         end
     end
 
-    -- Heartbeat: bit 0 is always the heartbeat flag (robot sets to 1)
+    -- Heartbeat bit
     if raw % 2 == 0 then raw = raw + 1 end
     fields.heartbeat = true
 
-    -- Only publish if changed or periodic
     if raw ~= self._last_bitmask_raw or active_kb ~= self._last_active_kb then
         self._last_bitmask_raw = raw
         self._last_active_kb   = active_kb
@@ -306,7 +364,6 @@ function M:_publish_robot_status()
         self.mqtt_hub:publish_kv(self._status_bucket, self._bitmask_key, bitmask_json)
     end
 
-    -- Publish energy status
     local energy_json = json_util.encode({
         energy_max       = self.energy_max,
         energy_remaining = self.energy_remaining,
@@ -316,18 +373,19 @@ function M:_publish_robot_status()
     self.mqtt_hub:publish_kv(self._status_bucket, self._energy_key, energy_json)
 end
 
---- Deduct energy cost for an action (no-op when energy_infinite).
+---------------------------------------------------------------------------
+-- Energy
+---------------------------------------------------------------------------
+
 function M:deduct_energy(cost)
     if self.energy_infinite then return end
     self.energy_remaining = math.max(0, self.energy_remaining - cost)
 end
 
---- Get current energy remaining.
 function M:get_energy_remaining()
     return self.energy_remaining
 end
 
---- Recharge energy to max.
 function M:recharge_energy()
     self.energy_remaining = self.energy_max
 end
@@ -335,6 +393,7 @@ end
 ---------------------------------------------------------------------------
 -- Accessors
 ---------------------------------------------------------------------------
+
 function M:get_blackboard()
     return self.bb
 end
@@ -348,7 +407,11 @@ function M:get_hub_control()
 end
 
 function M:get_plugins()
-    return self.plugins
+    local plugins = {}
+    for _, p in pairs(self.kb_by_name) do
+        plugins[#plugins + 1] = p
+    end
+    return plugins
 end
 
 function M:get_kb_by_name()
@@ -358,17 +421,19 @@ end
 ---------------------------------------------------------------------------
 -- Shutdown and cleanup
 ---------------------------------------------------------------------------
+
 function M:send_shutdown()
-    self.tx:send_rpc(json_util.encode({
-        packet_type = cmd_packets.TYPE_SHUTDOWN,
-        seq = 99,
-    }))
-    ffi.C.usleep(500000)  -- give remote time to acknowledge
+    seq_counter = seq_counter + 1
+    pcall(function()
+        self.tx:send_rpc(json_util.encode({
+            packet_type = 255,
+            seq = seq_counter,
+        }))
+    end)
 end
 
 function M:close()
-    self.tx:close()
-    self.bb.close()
+    pcall(function() self.tx:close() end)
 end
 
 return M

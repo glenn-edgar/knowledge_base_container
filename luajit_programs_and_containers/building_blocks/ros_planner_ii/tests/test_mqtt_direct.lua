@@ -59,8 +59,7 @@ local lm = link_helper.setup(mqtt_hub, site, robot_id, 10)
 ---------------------------------------------------------------------------
 local hub_rt = hub_runtime.new({
     robot_id     = robot_id,
-    nats_server  = server,
-    hub_json     = hub_json,
+    db_file      = db_file,
     site         = site,
     transport    = mqtt_hub:robot_transport(robot_id),
     mqtt_hub     = mqtt_hub,

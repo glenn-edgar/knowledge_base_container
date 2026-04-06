@@ -145,7 +145,6 @@ local lm_test = link_helper.setup(mqtt_hub, site, robot_id, 10)
 
 local srv = action_server.new({
     db_file     = db_file,
-    hub_json    = hub_json,
     nats_server = server,
     site        = site,
     mqtt_hub    = mqtt_hub,
