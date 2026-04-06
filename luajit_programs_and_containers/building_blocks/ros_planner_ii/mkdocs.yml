@@ -1,0 +1,50 @@
+site_name: ROS Planner II
+site_description: LuaJIT robot mission planner — MQTT transport, KB-driven, coroutine scheduler
+repo_name: ros_planner_ii
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: indigo
+
+nav:
+  - Overview: index.md
+  - Architecture:
+    - System Architecture: architecture/system.md
+    - Knowledge Base: architecture/knowledge-base.md
+    - Virtual Nodes: architecture/virtual-nodes.md
+    - Board Graph: architecture/board-graph.md
+  - Protocols:
+    - Link Protocol (URLP v1): protocols/link-protocol.md
+    - Command Protocol: protocols/command-protocol.md
+    - Mission Lifecycle: protocols/mission-lifecycle.md
+  - Planner:
+    - Global Planner: planner/global-planner.md
+    - Route Builder: planner/route-builder.md
+    - Mission Builder: planner/mission-builder.md
+    - Action Server: planner/action-server.md
+  - Hub Runtime:
+    - State Machine: hub/state-machine.md
+    - Sequencer: hub/sequencer.md
+    - Telemetry: hub/telemetry.md
+  - Robot:
+    - MQTT Robot: robot/mqtt-robot.md
+    - ChainTree DSL: robot/chaintree-dsl.md
+    - User Functions: robot/user-functions.md
+  - Container:
+    - Planner Container: container/planner-container.md
+    - KV Bridge: container/kv-bridge.md
+  - API Reference:
+    - NATS API: api/nats-api.md
+    - MQTT Topics: api/mqtt-topics.md
+  - Testing: testing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
