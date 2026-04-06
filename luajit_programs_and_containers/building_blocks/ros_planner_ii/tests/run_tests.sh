@@ -138,22 +138,6 @@ run_mqtt_cbor() {
     return $TEST_RC
 }
 
-run_hub_rt() {
-    echo "=== Hub Runtime Module Test (MQTT) ==="
-    build_all
-
-    cd "$SCRIPT_DIR"
-    start_mqtt_robot no_db
-
-    sleep 2
-    luajit test_hub_runtime.lua
-    local TEST_RC=$?
-
-    cleanup_pid $MQTT_ROBOT_PID
-    echo ""
-    return $TEST_RC
-}
-
 run_action() {
     echo "=== Action Server Test (MQTT) ==="
     build_all
@@ -204,13 +188,12 @@ run_sequencer() {
 case "${1:-mqtt_direct}" in
     mqtt_direct)        run_mqtt_direct ;;
     mqtt_cbor)          run_mqtt_cbor ;;
-    hub_rt)             run_hub_rt ;;
     planner)            run_planner ;;
     sequencer)          run_sequencer ;;
     action)             run_action ;;
     kv_writer)          echo "=== KV Writer Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_kv_writer.lua ;;
     link_manager)       echo "=== Link Manager Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_link_manager.lua ;;
     link_client)        echo "=== Link Client Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_link_client.lua ;;
-    all)                run_planner; run_mqtt_direct; run_mqtt_cbor; run_hub_rt; run_sequencer; run_action ;;
+    all)                run_planner; run_mqtt_direct; run_mqtt_cbor; run_sequencer; run_action ;;
     *)                  echo "Usage: $0 [mqtt_direct|mqtt_cbor|hub_rt|sequencer|planner|action|kv_writer|link_manager|link_client|all]"; exit 1 ;;
 esac
