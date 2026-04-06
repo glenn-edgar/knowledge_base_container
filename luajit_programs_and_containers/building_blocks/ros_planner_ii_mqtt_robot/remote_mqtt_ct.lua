@@ -46,6 +46,7 @@ local fn_registry   = require("fn_registry")
 local defs          = require("ct_definitions")
 local engine        = require("ct_engine")
 local queue_monitor = require("queue_monitor")
+local link_client   = require("link_client")
 
 -- Load remote tree
 local remote_data = ct_loader.load(remote_json)
@@ -97,6 +98,32 @@ local monitor = queue_monitor.new({
     direction = "robot",
 })
 
+-- Link client: manages registration and planner liveness
+local lc = link_client.new({
+    robot_id     = robot_id,
+    transport    = tx,
+    wire_format  = wire_format,
+    capabilities = {"init_check", "path_spline", "path_line", "path_wall",
+                    "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+                    "pass_gate", "inspection_scan", "recharge", "idle"},
+    energy_max   = 10000,
+    on_planner_lost = function(reason)
+        io.stderr:write(string.format(
+            "MQTT_ROBOT [%s]: planner lost (%s) — aborting\n", robot_id, reason))
+        for kb_name, _ in pairs(remote_handle.active_tests) do
+            if kb_name ~= "controller" then
+                remote_handle.active_tests[kb_name] = nil
+            end
+        end
+        remote_handle.active_test_count = 1
+        local bb = remote_handle.blackboard
+        bb.exec_active = false
+        bb.exec_start = false
+        bb.worker_done = false
+        bb.worker_success = false
+    end,
+})
+
 io.stderr:write(string.format("MQTT_ROBOT [%s]: running (controller + workers)\n", robot_id))
 io.stderr:flush()
 
@@ -106,22 +133,26 @@ while true do
         break
     end
 
-    monitor:tick()
+    lc:tick()
 
-    for kb_name, _ in pairs(remote_handle.active_tests) do
-        local kb = remote_handle.kb_table[kb_name]
-        if kb then
-            table.insert(remote_handle.event_queue, {
-                node_id  = kb.root_node,
-                event_id = defs.CFL_TIMER_EVENT,
-            })
+    if lc:is_live() then
+        monitor:tick()
+
+        for kb_name, _ in pairs(remote_handle.active_tests) do
+            local kb = remote_handle.kb_table[kb_name]
+            if kb then
+                table.insert(remote_handle.event_queue, {
+                    node_id  = kb.root_node,
+                    event_id = defs.CFL_TIMER_EVENT,
+                })
+            end
         end
-    end
 
-    while #remote_handle.event_queue > 0 do
-        local ev = table.remove(remote_handle.event_queue, 1)
-        engine.execute_event(remote_handle, ev.node_id,
-            ev.event_id, ev.event_data, ev.event_type)
+        while #remote_handle.event_queue > 0 do
+            local ev = table.remove(remote_handle.event_queue, 1)
+            engine.execute_event(remote_handle, ev.node_id,
+                ev.event_id, ev.event_data, ev.event_type)
+        end
     end
 
     ffi.C.usleep(1000)  -- 1ms tick
@@ -129,4 +160,5 @@ end
 
 io.stderr:write(string.format("MQTT_ROBOT [%s]: shutdown\n", robot_id))
 io.stderr:flush()
+lc:shutdown()
 tx:close()

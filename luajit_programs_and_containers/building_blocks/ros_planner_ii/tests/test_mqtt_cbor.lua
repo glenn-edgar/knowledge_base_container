@@ -22,6 +22,7 @@ local json_util        = require("json_util")
 local hub_runtime      = require("hub_runtime")
 local mission_mod      = require("mission")
 local mqtt_hub_tx      = require("mqtt_hub_transport")
+local link_helper      = require("test_link_helper")
 
 local robot_id  = os.getenv("ROBOT_ID") or "rover_1"
 local server    = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
@@ -49,9 +50,9 @@ mqtt_hub:set_wire_format(robot_id, "cbor")
 print("MQTT hub connected (wire_format=cbor).")
 
 ---------------------------------------------------------------------------
--- Give MQTT robot time to connect
+-- Wait for robot to register via link protocol
 ---------------------------------------------------------------------------
-ffi.C.usleep(2000000)
+local lm = link_helper.setup(mqtt_hub, site, robot_id, 10)
 
 ---------------------------------------------------------------------------
 -- Create hub_runtime with injected MQTT transport

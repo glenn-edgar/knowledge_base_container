@@ -44,6 +44,8 @@ function M.new(host, port, site, opts)
         stream_buffers = {},
         -- Per-robot CBOR codec: robot_id → cbor_mod or nil
         wire_formats   = {},
+        -- Link handler: set via set_link_handler() to route link messages
+        link_handler   = nil,
     }, M)
 end
 
@@ -268,12 +270,21 @@ end
 -- (heartbeats, status) are returned for link_manager / caller handling.
 ---------------------------------------------------------------------------
 
+--- Set a link handler to receive link protocol messages.
+-- The handler receives (robot_id, payload) for each link message.
+-- Typically this is a function that dispatches to link_manager.
+function M:set_link_handler(handler)
+    self.link_handler = handler
+end
+
 function M:poll_and_route(timeout_ms)
     local msgs = self:poll(timeout_ms)
     local non_stream = {}
     for _, msg in ipairs(msgs) do
         if msg.msg_type == "stream" then
             self:buffer_stream(msg.robot_id, msg.payload)
+        elseif msg.msg_type == "link" and self.link_handler then
+            self.link_handler(msg.robot_id, msg.payload)
         else
             non_stream[#non_stream + 1] = msg
         end

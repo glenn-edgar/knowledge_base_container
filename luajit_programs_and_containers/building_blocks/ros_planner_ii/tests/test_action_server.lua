@@ -135,10 +135,13 @@ planner:close()
 ---------------------------------------------------------------------------
 print("\n--- Coroutine Scheduler Test ---")
 
-ffi.C.usleep(2000000)  -- give remote time to connect
+local link_helper = require("test_link_helper")
 
 local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
 mqtt_hub:connect()
+
+-- Wait for robot to register via link protocol
+local lm_test = link_helper.setup(mqtt_hub, site, robot_id, 10)
 
 local srv = action_server.new({
     db_file     = db_file,

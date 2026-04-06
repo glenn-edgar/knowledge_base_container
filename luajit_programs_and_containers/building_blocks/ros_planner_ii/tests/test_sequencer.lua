@@ -14,6 +14,7 @@ ffi.cdef[[
 local json_util   = require("json_util")
 local sequencer   = require("sequencer")
 local mqtt_hub_tx = require("mqtt_hub_transport")
+local link_helper = require("test_link_helper")
 
 local robot_id  = os.getenv("ROBOT_ID") or "rover_1"
 local server    = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
@@ -30,14 +31,12 @@ print("=== Sequencer Test (MQTT) ===\n")
 print(string.format("Robot: %s, MQTT: %s:%d, NATS: %s\n",
     robot_id, mqtt_host, mqtt_port, server))
 
--- Give remote time to connect
-ffi.C.usleep(2000000)
-
 ---------------------------------------------------------------------------
--- Create MQTT hub transport
+-- Create MQTT hub transport and wait for robot registration
 ---------------------------------------------------------------------------
 local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
 mqtt_hub:connect()
+local lm = link_helper.setup(mqtt_hub, site, robot_id, 10)
 
 ---------------------------------------------------------------------------
 -- Test runner

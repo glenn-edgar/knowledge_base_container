@@ -37,6 +37,8 @@ local global_planner  = require("global_planner")
 local sequencer_mod   = require("sequencer")
 local mission_builder = require("mission_builder")
 local kb_query_mod    = require("kb_query")
+local link_manager_mod = require("link_manager")
+local kv_writer_mod    = require("kv_writer")
 
 local M = {}
 M.__index = M
@@ -71,6 +73,32 @@ function M.new(opts)
     -- Yield function — replaced by scheduler during serve()
     -- In direct mode, this is a no-op (no coroutine)
     self._yield = function() end
+
+    -- Link manager: robot registration and liveness (MQTT-first only)
+    if self.mqtt_hub then
+        local kv_writer = opts.kv_writer or kv_writer_mod.new()
+        self.link_mgr = link_manager_mod.new(self.mqtt_hub, kv_writer, self.site, {
+            on_link_exception = function(robot_id, reason)
+                self:_cancel_mission(robot_id, reason)
+            end,
+        })
+
+        -- Route link messages from MQTT hub to link_manager
+        self.mqtt_hub:set_link_handler(function(robot_id, payload)
+            local ok, data = pcall(json_util.decode, payload)
+            if not ok or not data then return end
+            local msg_type = data.type
+            if msg_type == "link_announce" then
+                self.link_mgr:on_announce(robot_id, payload)
+            elseif msg_type == "link_heartbeat" then
+                self.link_mgr:on_heartbeat(robot_id, payload)
+            elseif msg_type == "link_confirm" then
+                self.link_mgr:on_confirm(robot_id, payload)
+            elseif msg_type == "link_disconnect" then
+                self.link_mgr:on_disconnect(robot_id, payload)
+            end
+        end)
+    end
 
     return self
 end
@@ -469,6 +497,11 @@ function M:serve(opts)
     -- When drain_nats is true, keep running even with 0 missions (persistent server).
     -- Otherwise exit when all missions complete.
     while self.mission_count > 0 or drain_nats do
+        -- Tick link manager (processes link messages via mqtt_hub poll_and_route)
+        if self.link_mgr then
+            self.link_mgr:tick()
+        end
+
         -- Drain NATS queue for new missions
         if drain_nats then
             self:_drain_nats_queue()
@@ -491,6 +524,11 @@ function M:serve(opts)
                     self.mission_count = self.mission_count - 1
                 end
             end
+        end
+
+        -- Idle: poll MQTT for link messages even when no missions active
+        if self.mission_count == 0 and self.mqtt_hub then
+            self.mqtt_hub:poll_and_route(1)
         end
 
         -- Idle sleep: longer when no missions, shorter when active
@@ -760,10 +798,37 @@ function M:_block_fault_edge(planner, result, plan_info)
 end
 
 ---------------------------------------------------------------------------
+-- Link exception: cancel active mission for a robot
+---------------------------------------------------------------------------
+
+function M:_cancel_mission(robot_id, reason)
+    local m = self.missions[robot_id]
+    if not m or m.state ~= "active" then return end
+
+    io.stderr:write(string.format(
+        "ACTION_SERVER: cancelling mission for %s (%s)\n", robot_id, reason))
+
+    m.state = "cancelled"
+    m.result = {
+        success = false,
+        fault   = { reason = "link_exception", detail = reason },
+    }
+    self.mission_count = self.mission_count - 1
+
+    -- Publish failure to NATS KV
+    self:_publish_status(robot_id, {
+        state = "cancelled",
+        error = "link_exception: " .. reason,
+    })
+    self:_publish_result(robot_id, m.result)
+end
+
+---------------------------------------------------------------------------
 -- Cleanup
 ---------------------------------------------------------------------------
 
 function M:close()
+    if self.link_mgr then self.link_mgr:shutdown() end
     if self._jq then self._jq:destroy(); self._jq = nil end
     if self._ks then self._ks:disconnect(); self._ks:destroy(); self._ks = nil end
 end
