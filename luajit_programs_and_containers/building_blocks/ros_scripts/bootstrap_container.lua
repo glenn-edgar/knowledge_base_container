@@ -35,16 +35,18 @@ local infra = q:get_infrastructure()
 local domain = q:get_domain()
 q:close()
 
-local site = os.getenv("VMRT_KB_SITE")
-    or (domain and domain.site) or "moonbase.alpha.surface_ops"
-local mqtt_host = os.getenv("MQTT_HOST")
-    or (infra.mqtt and infra.mqtt.host) or "localhost"
-local mqtt_port = os.getenv("MQTT_PORT")
-    or tostring(infra.mqtt and infra.mqtt.port or 1883)
-local nats_host = (infra.nats and infra.nats.host) or "127.0.0.1"
-local nats_port = (infra.nats and infra.nats.port) or 4222
+local site = os.getenv("VMRT_KB_SITE") or (domain and domain.site)
+local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host)
+local mqtt_port = os.getenv("MQTT_PORT") or (infra.mqtt and tostring(infra.mqtt.port))
+local nats_host = infra.nats and infra.nats.host
+local nats_port = infra.nats and infra.nats.port
 local nats_server = os.getenv("NATS_SERVER")
-    or string.format("nats://%s:%d", nats_host, nats_port)
+    or (nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port))
+
+if not site then io.stderr:write("ERROR: KB missing domain site\n"); os.exit(1) end
+if not mqtt_host then io.stderr:write("ERROR: KB missing MQTT host\n"); os.exit(1) end
+if not mqtt_port then io.stderr:write("ERROR: KB missing MQTT port\n"); os.exit(1) end
+if not nats_server then io.stderr:write("ERROR: KB missing NATS server\n"); os.exit(1) end
 
 io.stdout:setvbuf("line")
 print("=== ROS Planner Container ===")

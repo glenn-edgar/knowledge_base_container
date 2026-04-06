@@ -51,9 +51,9 @@ function M.new(opts)
 
     self.db_file     = opts.db_file     or error("action_server: db_file required")
     self.hub_json    = opts.hub_json  -- legacy, no longer required
-    self.nats_server = opts.nats_server or "nats://127.0.0.1:4222"
+    self.nats_server = opts.nats_server or error("action_server: nats_server required")
     self.ltree_path  = opts.ltree_path  or "/usr/local/lib/ltree"
-    self.site        = opts.site        or "moonbase.alpha.surface_ops"
+    self.site        = opts.site        or error("action_server: site required")
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 

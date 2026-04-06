@@ -32,8 +32,8 @@ function M.new(host, port, site, opts)
     local site_path = site:gsub("%.", "/")
 
     return setmetatable({
-        host      = host or "localhost",
-        port      = port or 1883,
+        host      = host or error("mqtt_hub_transport: host required"),
+        port      = port or error("mqtt_hub_transport: port required"),
         site      = site,
         site_path = site_path,
         ps        = nil,  -- PubSub handle, set on connect()

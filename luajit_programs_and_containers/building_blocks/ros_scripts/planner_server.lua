@@ -46,14 +46,18 @@ local site = domain and domain.site
 q:close()
 
 -- KB is single source of truth; env vars are optional overrides
-local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host) or "localhost"
-local mqtt_port = tonumber(os.getenv("MQTT_PORT"))
-    or (infra.mqtt and infra.mqtt.port) or 1883
-local nats_host = (infra.nats and infra.nats.host) or "127.0.0.1"
-local nats_port = (infra.nats and infra.nats.port) or 4222
+local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host)
+local mqtt_port = tonumber(os.getenv("MQTT_PORT")) or (infra.mqtt and infra.mqtt.port)
+local nats_host = infra.nats and infra.nats.host
+local nats_port = infra.nats and infra.nats.port
 local nats_server = os.getenv("NATS_SERVER")
-    or string.format("nats://%s:%d", nats_host, nats_port)
-site = os.getenv("VMRT_KB_SITE") or site or "moonbase.alpha.surface_ops"
+    or (nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port))
+site = os.getenv("VMRT_KB_SITE") or site
+
+if not mqtt_host then error("KB missing MQTT host (infrastructure.mqtt_broker.service.mqtt)") end
+if not mqtt_port then error("KB missing MQTT port") end
+if not nats_server then error("KB missing NATS server (infrastructure.nats_server.service.nats)") end
+if not site then error("KB missing domain site name") end
 
 print(string.format("KB infrastructure: NATS=%s, MQTT=%s:%d, site=%s",
     nats_server, mqtt_host, mqtt_port, site))

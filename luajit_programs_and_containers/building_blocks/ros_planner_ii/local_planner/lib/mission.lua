@@ -49,7 +49,7 @@ function M.new(opts)
     self.robot_id     = opts.robot_id     or error("mission: robot_id required")
     local db_file     = opts.db_file      or error("mission: db_file required")
     local site        = opts.site         or error("mission: site required")
-    local nats_server = opts.nats_server  or "nats://127.0.0.1:4222"
+    local nats_server = opts.nats_server  or error("mission: nats_server required")
     self.route_length = opts.route_length or 0
     self.site         = site
     self.nats_server  = nats_server

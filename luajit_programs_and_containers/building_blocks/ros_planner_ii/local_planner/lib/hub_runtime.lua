@@ -53,7 +53,7 @@ function M.new(opts)
     local self = setmetatable({}, M)
 
     local robot_id = opts.robot_id or error("hub_runtime: robot_id required")
-    local site     = opts.site     or "moonbase.alpha.surface_ops"
+    local site     = opts.site     or error("hub_runtime: site required")
     local initial_pose = opts.initial_pose or { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
     self.robot_id = robot_id

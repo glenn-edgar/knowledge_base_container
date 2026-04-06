@@ -77,10 +77,8 @@ function M.new(opts)
     self.site = kb_q:get_site()
     local robot_config = kb_q:get_robot_config(self.robot_id)
 
-    -- Extract NATS connection info from KB
-    local nats_info = robot_config.nats or {}
-    self.nats_server = nats_info.nats_server or
-        opts.nats_server or "nats://127.0.0.1:4222"
+    -- NATS server: from caller (action_server), not from KB
+    self.nats_server = opts.nats_server or error("sequencer: nats_server required")
 
     -- Robot capabilities (which virtual nodes it supports)
     self.capabilities = {}
