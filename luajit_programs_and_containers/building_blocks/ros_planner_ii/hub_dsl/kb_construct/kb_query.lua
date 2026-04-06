@@ -307,6 +307,53 @@ function M:get_nats_topics(instance_name)
 end
 
 ---------------------------------------------------------------------------
+-- INFRASTRUCTURE SERVICES (system KB)
+---------------------------------------------------------------------------
+
+--- Query infrastructure service connection details from the system KB.
+-- Searches the "system" knowledge_base for infrastructure containers
+-- and their service nodes (nats, mqtt, postgres, etc.).
+-- @return table: { nats={host,port,ws_port}, mqtt={host,port}, postgres={host,port,dbname} }
+function M:get_infrastructure()
+    local infra = {}
+    -- Infrastructure services live in "system" KB with paths like:
+    --   system.site.main.cpu.cpu_01.container.nats_server.service.nats
+    -- Find all service nodes under infrastructure containers
+    local rows = self.kb:find_by_pattern("system.site.*.cpu.*.container.*.service.*", "system")
+    for _, row in ipairs(rows) do
+        local r = parse_row(row)
+        if r.data and r.data.port then
+            infra[r.name] = r.data
+        end
+    end
+    return infra
+end
+
+--- Get this container's own configuration from the system KB.
+-- @param container_name string: e.g. "surface_ops_planner"
+-- @return table: { image, sqlite_db, params }
+function M:get_container_config(container_name)
+    local rows = self.kb:find_by_pattern(
+        "system.site.*.cpu.*.container." .. container_name, "system")
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+--- Get the domain config from the subsystems KB (extracted SQLite only).
+-- Returns { site, container } where site is the full namespace
+-- (e.g. "moonbase.alpha.surface_ops").
+-- @return table or nil
+function M:get_domain()
+    local rows = self.kb:find_by_pattern("subsystems.domain.*", "subsystems")
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+---------------------------------------------------------------------------
 -- FULL CONFIG
 ---------------------------------------------------------------------------
 

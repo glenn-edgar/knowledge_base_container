@@ -74,7 +74,7 @@ cd ros_planner_ii/tests
 
 ---
 
-## Next Session: Build the Planner Container
+## Planner Container (DONE — 2026-04-06)
 
 ### Design decision: Single generic image
 - ONE image: `nanodatacenter/ros-planner:latest`

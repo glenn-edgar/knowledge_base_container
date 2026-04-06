@@ -1,6 +1,14 @@
 --[[
     test_link_manager.lua -- Unit test for link_manager state machine.
     Uses mock mqtt_hub and kv_writer. No external dependencies.
+
+    Tests URLP v1 protocol:
+      - link_announce (separate from link_heartbeat)
+      - Three-way handshake: announce → ack → confirm → live
+      - Keepalive heartbeats (no state transitions)
+      - Re-announce from live robot → link exception
+      - Clean disconnect
+      - Planner shutdown
 ]]
 
 print("=== Link Manager Unit Test ===\n")
@@ -20,7 +28,7 @@ end
 
 -- Mock MQTT hub
 local mock_mqtt = {
-    published = {},  -- topic → last payload
+    published = {},
 }
 function mock_mqtt:send_planner_ack(robot_id, json_str)
     self.published["ack:" .. robot_id] = json_str
@@ -44,25 +52,32 @@ function mock_kv:push(key, value)
     self.pushes[key] = value
 end
 
+-- Exception tracker
+local exceptions = {}
+local function on_exception(robot_id, reason)
+    exceptions[#exceptions + 1] = { robot_id = robot_id, reason = reason }
+end
+
 ---------------------------------------------------------------------------
 
 local link_manager = require("link_manager")
 local site = "moonbase.alpha.surface_ops"
 
 print("--- Initial State ---")
-local lm = link_manager.new(mock_mqtt, mock_kv, site)
+local lm = link_manager.new(mock_mqtt, mock_kv, site, {
+    on_link_exception = on_exception,
+})
 
 check("unknown robot is not live", not lm:is_live("rover_1"))
 check("unknown robot state is offline", lm:get_state("rover_1") == "offline")
 check("no live robots", #lm:list_live() == 0)
 
-print("\n--- Heartbeat from Announcing Robot ---")
+print("\n--- Announce from New Robot ---")
 
-lm:on_heartbeat("rover_1", json_util.encode({
-    type = "link_heartbeat",
+lm:on_announce("rover_1", json_util.encode({
+    type = "link_announce",
     robot_id = "rover_1",
     seq = 1,
-    link_state = "announcing",
     energy_remaining = 9000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
@@ -70,6 +85,7 @@ lm:on_heartbeat("rover_1", json_util.encode({
 check("rover_1 is registering", lm:get_state("rover_1") == "registering")
 check("ack sent", mock_mqtt.published["ack:rover_1"] ~= nil)
 check("not yet live", not lm:is_live("rover_1"))
+check("no exception on first announce", #exceptions == 0)
 
 print("\n--- Robot Confirms ---")
 
@@ -80,6 +96,7 @@ lm:on_confirm("rover_1", json_util.encode({
     wire_format = "cbor",
     capabilities = {"init_check", "path_spline"},
     energy_max = 10000,
+    energy_remaining = 9000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
 
@@ -91,14 +108,12 @@ local kv_data = json_util.decode(mock_kv.pushes[site .. ".robots.rover_1.status.
 check("KV link_state is live", kv_data.link_state == "live")
 check("KV wire_format is cbor", kv_data.wire_format == "cbor")
 
-print("\n--- Live Heartbeat Update ---")
+print("\n--- Keepalive Heartbeat (no state change) ---")
 
 mock_kv.pushes = {}
 lm:on_heartbeat("rover_1", json_util.encode({
     type = "link_heartbeat",
     robot_id = "rover_1",
-    seq = 5,
-    link_state = "live",
     energy_remaining = 8500,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
@@ -106,19 +121,71 @@ lm:on_heartbeat("rover_1", json_util.encode({
 check("still live", lm:is_live("rover_1"))
 check("KV updated on heartbeat", mock_kv.pushes[site .. ".robots.rover_1.status.link"] ~= nil)
 
-print("\n--- Planner Heartbeat Sending ---")
+print("\n--- Heartbeat from non-live robot ignored ---")
+
+mock_kv.pushes = {}
+lm:on_heartbeat("rover_99", json_util.encode({
+    type = "link_heartbeat",
+    robot_id = "rover_99",
+    energy_remaining = 5000,
+    ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+}))
+
+check("rover_99 not live", not lm:is_live("rover_99"))
+check("no KV write for unregistered heartbeat",
+    mock_kv.pushes[site .. ".robots.rover_99.status.link"] == nil)
+
+print("\n--- Re-announce from Live Robot (link exception) ---")
 
 mock_mqtt.published = {}
--- Force planner heartbeat by setting last_planner_hb far in past
+mock_kv.pushes = {}
+exceptions = {}
+
+lm:on_announce("rover_1", json_util.encode({
+    type = "link_announce",
+    robot_id = "rover_1",
+    seq = 1,
+    energy_remaining = 8000,
+    ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+}))
+
+check("exception fired", #exceptions == 1)
+check("exception robot_id", exceptions[1].robot_id == "rover_1")
+check("exception reason is robot_reboot", exceptions[1].reason == "robot_reboot")
+check("rover_1 back to registering", lm:get_state("rover_1") == "registering")
+check("new ack sent", mock_mqtt.published["ack:rover_1"] ~= nil)
+
+print("\n--- Complete re-registration ---")
+
+lm:on_confirm("rover_1", json_util.encode({
+    type = "link_confirm",
+    robot_id = "rover_1",
+    wire_format = "json",
+    capabilities = {"init_check", "path_spline"},
+    energy_max = 10000,
+    energy_remaining = 8000,
+    ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+}))
+
+check("rover_1 live again", lm:is_live("rover_1"))
+check("wire format now json", mock_mqtt.published["wire:rover_1"] == "json")
+
+print("\n--- Planner Heartbeat Sending (with seq) ---")
+
+mock_mqtt.published = {}
 lm.last_planner_hb = os.time() - 100
 lm:tick()
 
 check("planner heartbeat sent to rover_1", mock_mqtt.published["hb:rover_1"] ~= nil)
+local hb_data = json_util.decode(mock_mqtt.published["hb:rover_1"])
+check("planner heartbeat has seq", hb_data.seq ~= nil and hb_data.seq > 0)
 
-print("\n--- Clean Disconnect ---")
+print("\n--- Clean Disconnect (with exception) ---")
 
 mock_mqtt.published = {}
 mock_kv.pushes = {}
+exceptions = {}
+
 lm:on_disconnect("rover_1", json_util.encode({
     type = "link_disconnect",
     robot_id = "rover_1",
@@ -131,21 +198,24 @@ check("rover_1 is offline after disconnect", lm:get_state("rover_1") == "offline
 check("not live", not lm:is_live("rover_1"))
 check("retained cleared", mock_mqtt.published["clear:rover_1"] == true)
 check("KV offline written", mock_kv.pushes[site .. ".robots.rover_1.status.link"] ~= nil)
+check("exception on disconnect from live", #exceptions == 1)
+check("disconnect exception reason", exceptions[1].reason == "robot_disconnect")
 
 local offline_data = json_util.decode(mock_kv.pushes[site .. ".robots.rover_1.status.link"])
 check("KV link_state is offline", offline_data.link_state == "offline")
 
 print("\n--- Second Robot ---")
 
-lm:on_heartbeat("rover_2", json_util.encode({
-    type = "link_heartbeat", robot_id = "rover_2", seq = 1,
-    link_state = "announcing", energy_remaining = 5000,
+lm:on_announce("rover_2", json_util.encode({
+    type = "link_announce", robot_id = "rover_2", seq = 1,
+    energy_remaining = 5000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
 lm:on_confirm("rover_2", json_util.encode({
-    type = "link_confirm", robot_id = "rover_2", ack_seq = 2,
+    type = "link_confirm", robot_id = "rover_2",
     wire_format = "json", capabilities = {"init_check"},
-    energy_max = 5000, ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    energy_max = 5000, energy_remaining = 5000,
+    ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
 
 check("rover_2 is live", lm:is_live("rover_2"))
@@ -157,6 +227,7 @@ check("live robot is rover_2", live[1] == "rover_2")
 print("\n--- Planner Shutdown ---")
 
 mock_mqtt.published = {}
+exceptions = {}
 lm:shutdown()
 
 check("rover_2 offline after shutdown", not lm:is_live("rover_2"))

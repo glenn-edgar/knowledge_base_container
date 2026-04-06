@@ -56,9 +56,10 @@ function M:connect()
     self.ps = pubsub.PubSub.new(self.host, self.port, "planner_hub")
     self.ps:connect(5000)
 
-    -- Subscribe to all robot streams and status
+    -- Subscribe to all robot streams, status, and link protocol
     self.ps:subscribe(self.site_path .. "/robots/+/stream_bus", 1)
     self.ps:subscribe(self.site_path .. "/robots/+/status/#", 1)
+    self.ps:subscribe(self.site_path .. "/robots/+/link", 1)
 
     -- Drain stale retained messages
     repeat
@@ -101,6 +102,8 @@ function M:poll(timeout_ms)
         local msg_type
         if suffix == "stream_bus" then
             msg_type = "stream"
+        elseif suffix == "link" then
+            msg_type = "link"
         elseif suffix == "status/heartbeat" then
             msg_type = "heartbeat"
         elseif suffix == "status/state" then

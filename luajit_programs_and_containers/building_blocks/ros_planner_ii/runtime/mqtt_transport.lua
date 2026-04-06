@@ -28,6 +28,8 @@ local function make_topics(site, robot_id)
     return {
         rpc    = site_path .. "/robots/" .. robot_id .. "/rpc",
         stream = site_path .. "/robots/" .. robot_id .. "/stream_bus",
+        link_out = site_path .. "/robots/" .. robot_id .. "/link",
+        link_in  = site_path .. "/robots/" .. robot_id .. "/planner/#",
     }
 end
 
@@ -107,34 +109,46 @@ function M.remote_side(robot_id, host, port, site, opts)
     local ps = pubsub.PubSub.new(host, port, "robot_" .. robot_id)
     ps:connect(5000)
     ps:subscribe(topics.rpc, 1)
+    ps:subscribe(topics.link_in, 1)
 
-    local buffer = {}
+    local rpc_buffer = {}
+    local link_buffer = {}
+    local planner_prefix = site:gsub("%.", "/") .. "/robots/" .. robot_id .. "/planner/"
 
     local tx = {}
+
+    -- Drain poll into rpc vs link buffers by topic
+    local function drain_poll(timeout_ms)
+        local msgs = ps:poll(timeout_ms or 1)
+        for _, m in ipairs(msgs) do
+            if m.topic:sub(1, #planner_prefix) == planner_prefix then
+                link_buffer[#link_buffer + 1] = m.payload
+            else
+                local payload = m.payload
+                if cbor_mod then payload = cbor_mod.decode(payload) end
+                rpc_buffer[#rpc_buffer + 1] = payload
+            end
+        end
+    end
 
     function tx:flush()
         repeat
             local msgs = ps:poll(10)
             if #msgs == 0 then break end
         until false
-        buffer = {}
+        rpc_buffer = {}
+        link_buffer = {}
     end
 
     function tx:recv_rpc()
-        if #buffer > 0 then
-            return table.remove(buffer, 1)
+        if #rpc_buffer > 0 then
+            return table.remove(rpc_buffer, 1)
         end
-        local msgs = ps:poll(1)
-        if #msgs == 0 then return nil end
-        -- Buffer remaining, decode first
-        for i = 2, #msgs do
-            local payload = msgs[i].payload
-            if cbor_mod then payload = cbor_mod.decode(payload) end
-            buffer[#buffer + 1] = payload
+        drain_poll(1)
+        if #rpc_buffer > 0 then
+            return table.remove(rpc_buffer, 1)
         end
-        local first = msgs[1].payload
-        if cbor_mod then first = cbor_mod.decode(first) end
-        return first
+        return nil
     end
 
     function tx:send_stream(json_str)
@@ -142,6 +156,20 @@ function M.remote_side(robot_id, host, port, site, opts)
         if cbor_mod then payload = cbor_mod.encode(json_str) end
         ps:publish(topics.stream, payload, 1, false)
         return "ok"
+    end
+
+    -- Link protocol: robot → planner
+    function tx:send_link(json_str)
+        ps:publish(topics.link_out, json_str, 1, false)
+    end
+
+    -- Link protocol: planner → robot (returns array of payloads or nil)
+    function tx:recv_link()
+        drain_poll(0)
+        if #link_buffer == 0 then return nil end
+        local result = link_buffer
+        link_buffer = {}
+        return result
     end
 
     function tx:close()
@@ -159,6 +187,8 @@ end
 function M.loopback()
     local rpc_queue = {}
     local stream_queue = {}
+    local link_to_hub = {}     -- robot → planner
+    local link_to_robot = {}   -- planner → robot
 
     local hub = {}
     function hub:send_rpc(json)
@@ -168,6 +198,17 @@ function M.loopback()
     function hub:recv_stream()
         if #stream_queue == 0 then return nil end
         return table.remove(stream_queue, 1)
+    end
+    -- Link: planner → robot
+    function hub:send_link(json)
+        link_to_robot[#link_to_robot + 1] = json
+    end
+    -- Link: robot → planner
+    function hub:recv_link()
+        if #link_to_hub == 0 then return nil end
+        local result = link_to_hub
+        link_to_hub = {}
+        return result
     end
     function hub:flush() end
     function hub:close() end
@@ -180,6 +221,17 @@ function M.loopback()
     function remote:send_stream(json)
         stream_queue[#stream_queue + 1] = json
         return "ok"
+    end
+    -- Link: robot → planner
+    function remote:send_link(json)
+        link_to_hub[#link_to_hub + 1] = json
+    end
+    -- Link: planner → robot
+    function remote:recv_link()
+        if #link_to_robot == 0 then return nil end
+        local result = link_to_robot
+        link_to_robot = {}
+        return result
     end
     function remote:flush() end
     function remote:close() end

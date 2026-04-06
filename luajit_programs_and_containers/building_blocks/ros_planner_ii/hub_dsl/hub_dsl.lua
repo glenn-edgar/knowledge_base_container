@@ -171,8 +171,9 @@ if is_cli then
     -- Print plugin index map
     print("KB index map:")
     for _, plugin in ipairs(kb_plugins) do
-        print(string.format("  %2d = %s (packet: %s, type_id: %d)",
-            plugin.index, plugin.name, plugin.packet_ctype, plugin.packet_type_id))
+        print(string.format("  %2d = %s (packet: %s, type_id: %s)",
+            plugin.index, plugin.name, plugin.packet_ctype or "none",
+            tostring(plugin.packet_type_id or "n/a")))
     end
 end
 

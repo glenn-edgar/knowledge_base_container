@@ -4,18 +4,37 @@
     Tracks heartbeat freshness, manages three-way handshake, detects
     stale/offline robots. Runs inside the planner process.
 
-    States: offline → announcing → registering → live → stale → offline
+    Protocol messages:
+      Robot → Planner:
+        link_announce   — robot boot/reboot, starts handshake
+        link_heartbeat  — keepalive only (no state transitions)
+        link_confirm    — completes handshake (wire_format, capabilities)
+        link_disconnect — clean shutdown
+
+      Planner → Robot:
+        link_bridge_ack       — acknowledges announce
+        link_bridge_heartbeat — planner keepalive (seq for restart detection)
+        link_bridge_disconnect — planner shutdown
+
+    States: offline → registering → live → stale → offline
+
+    Re-announce from a live robot is a link exception:
+      - Active mission cancelled via on_link_exception callback
+      - Robot deregistered, then fresh handshake starts
 
     Usage:
         local link_manager = require("link_manager")
-        local lm = link_manager.new(mqtt_hub, kv_writer)
+        local lm = link_manager.new(mqtt_hub, kv_writer, site, {
+            on_link_exception = function(robot_id, reason) ... end,
+        })
 
         -- In tick loop:
-        lm:on_heartbeat(robot_id, payload)    -- called when heartbeat arrives
+        lm:on_announce(robot_id, payload)     -- called when link_announce arrives
+        lm:on_heartbeat(robot_id, payload)    -- called when link_heartbeat arrives
         lm:on_confirm(robot_id, payload)      -- called when link_confirm arrives
         lm:on_disconnect(robot_id, payload)   -- called when link_disconnect arrives
-        lm:tick()                              -- check freshness, send planner heartbeats
-        lm:is_live(robot_id) → bool           -- planner gates on this
+        lm:tick()                             -- check freshness, send planner heartbeats
+        lm:is_live(robot_id) → bool
 
         -- Shutdown:
         lm:shutdown()
@@ -33,18 +52,21 @@ local STALE_TO_OFFLINE_TIMEOUT = 15     -- seconds
 local REGISTRATION_TIMEOUT     = 10     -- seconds
 local PLANNER_HB_INTERVAL     = 3      -- seconds (planner sends to each robot)
 
-function M.new(mqtt_hub, kv_writer, site)
+function M.new(mqtt_hub, kv_writer, site, opts)
+    opts = opts or {}
     return setmetatable({
         mqtt_hub  = mqtt_hub,
         kv_writer = kv_writer,
         site      = site,
-        -- Per-robot state: robot_id → { link_state, last_heartbeat, heartbeat_seq,
-        --   wire_format, capabilities, energy_max, registered_at, stale_since }
+        -- Per-robot state
         robots = {},
-        -- Planner heartbeat timer
+        -- Planner heartbeat timer and sequence
         last_planner_hb = os.time(),
+        planner_hb_seq  = 0,
         -- Ack sequence counter
         ack_seq = 0,
+        -- Callback for link exceptions (re-announce from live robot)
+        on_link_exception = opts.on_link_exception,
     }, M)
 end
 
@@ -91,52 +113,76 @@ function M:list_live()
 end
 
 ---------------------------------------------------------------------------
--- Event handlers (called by main loop when MQTT messages arrive)
+-- Event: link_announce (robot boot/reboot)
+---------------------------------------------------------------------------
+
+function M:on_announce(robot_id, payload)
+    local r = get_robot(self, robot_id)
+
+    local ok, data = pcall(json_util.decode, payload)
+    if not ok or not data then return end
+    if data.type ~= "link_announce" then return end
+
+    -- Re-announce from a live or registering robot → link exception
+    if r.link_state == "live" or r.link_state == "registering" then
+        io.stderr:write(string.format(
+            "LINK: %s re-announce while %s → link exception\n",
+            robot_id, r.link_state))
+
+        -- Notify action server to cancel active mission
+        if self.on_link_exception then
+            self.on_link_exception(robot_id, "robot_reboot")
+        end
+
+        -- Deregister (writes offline to KV)
+        self:_deregister(robot_id, "robot_reboot")
+    end
+
+    -- Start fresh handshake
+    r.link_state = "registering"
+    r.registered_at = os.time()
+    r.last_heartbeat = os.time()
+    r.energy_remaining = data.energy_remaining or 0
+    self.ack_seq = self.ack_seq + 1
+
+    -- Send planner ack
+    self.mqtt_hub:send_planner_ack(robot_id, json_util.encode({
+        type       = "link_bridge_ack",
+        robot_id   = robot_id,
+        bridge_id  = "planner",
+        ack_seq    = self.ack_seq,
+        seq        = self.planner_hb_seq,
+        ts         = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    }))
+
+    io.stderr:write(string.format("LINK: %s → registering (ack_seq=%d)\n",
+        robot_id, self.ack_seq))
+end
+
+---------------------------------------------------------------------------
+-- Event: link_heartbeat (keepalive only — no state transitions)
 ---------------------------------------------------------------------------
 
 function M:on_heartbeat(robot_id, payload)
     local r = get_robot(self, robot_id)
-    local now = os.time()
 
-    -- Parse heartbeat
     local ok, data = pcall(json_util.decode, payload)
     if not ok or not data then return end
     if data.type ~= "link_heartbeat" then return end
 
-    r.last_heartbeat = now
-    r.heartbeat_seq = data.seq or 0
-    r.energy_remaining = data.energy_remaining or 0
+    -- Heartbeat only accepted from live robots
+    if r.link_state ~= "live" then return end
 
-    if r.link_state == "offline" or data.link_state == "announcing" then
-        -- Robot is announcing — start handshake
-        r.link_state = "registering"
-        r.registered_at = now
-        self.ack_seq = self.ack_seq + 1
+    r.last_heartbeat = os.time()
+    r.energy_remaining = data.energy_remaining or r.energy_remaining
 
-        -- Send planner ack
-        self.mqtt_hub:send_planner_ack(robot_id, json_util.encode({
-            type       = "link_bridge_ack",
-            robot_id   = robot_id,
-            bridge_id  = "planner",
-            ack_seq    = self.ack_seq,
-            ts         = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        }))
-
-        io.stderr:write(string.format("LINK: %s → registering (ack_seq=%d)\n",
-            robot_id, self.ack_seq))
-
-    elseif r.link_state == "stale" then
-        -- Robot came back from stale
-        r.link_state = "live"
-        r.stale_since = nil
-        self:_write_link_kv(robot_id, r)
-        io.stderr:write(string.format("LINK: %s → live (recovered from stale)\n", robot_id))
-
-    elseif r.link_state == "live" then
-        -- Normal heartbeat — update KV
-        self:_write_link_kv(robot_id, r)
-    end
+    -- Update KV
+    self:_write_link_kv(robot_id, r)
 end
+
+---------------------------------------------------------------------------
+-- Event: link_confirm (completes handshake)
+---------------------------------------------------------------------------
 
 function M:on_confirm(robot_id, payload)
     local r = get_robot(self, robot_id)
@@ -152,6 +198,7 @@ function M:on_confirm(robot_id, payload)
     r.wire_format = data.wire_format or "json"
     r.capabilities = data.capabilities or {}
     r.energy_max = data.energy_max or 10000
+    r.energy_remaining = data.energy_remaining or r.energy_remaining
     r.stale_since = nil
 
     -- Tell MQTT hub about wire format
@@ -164,6 +211,10 @@ function M:on_confirm(robot_id, payload)
         robot_id, r.wire_format, #r.capabilities))
 end
 
+---------------------------------------------------------------------------
+-- Event: link_disconnect (clean shutdown)
+---------------------------------------------------------------------------
+
 function M:on_disconnect(robot_id, payload)
     local r = self.robots[robot_id]
     if not r then return end
@@ -171,6 +222,11 @@ function M:on_disconnect(robot_id, payload)
     local ok, data = pcall(json_util.decode, payload)
     if ok and data and data.energy_remaining then
         r.energy_remaining = data.energy_remaining
+    end
+
+    -- Cancel mission if active
+    if r.link_state == "live" and self.on_link_exception then
+        self.on_link_exception(robot_id, "robot_disconnect")
     end
 
     self:_deregister(robot_id, "clean_disconnect")
@@ -206,17 +262,23 @@ function M:tick()
         elseif r.link_state == "stale" then
             -- Check stale→offline timeout
             if r.stale_since and now - r.stale_since > STALE_TO_OFFLINE_TIMEOUT then
+                -- Cancel mission if any
+                if self.on_link_exception then
+                    self.on_link_exception(robot_id, "stale_timeout")
+                end
                 self:_deregister(robot_id, "stale_timeout")
             end
         end
     end
 
-    -- Send planner heartbeats to all live robots
+    -- Send planner heartbeats to all live/registering robots
     if now - self.last_planner_hb >= PLANNER_HB_INTERVAL then
         self.last_planner_hb = now
+        self.planner_hb_seq = self.planner_hb_seq + 1
         local hb_json = json_util.encode({
             type      = "link_bridge_heartbeat",
             bridge_id = "planner",
+            seq       = self.planner_hb_seq,
             ts        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
         })
         for robot_id, r in pairs(self.robots) do

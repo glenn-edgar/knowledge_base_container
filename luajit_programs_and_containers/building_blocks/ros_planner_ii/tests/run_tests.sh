@@ -211,6 +211,7 @@ case "${1:-mqtt_direct}" in
     action)             run_action ;;
     kv_writer)          echo "=== KV Writer Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_kv_writer.lua ;;
     link_manager)       echo "=== Link Manager Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_link_manager.lua ;;
+    link_client)        echo "=== Link Client Unit Test ==="; cd "$SCRIPT_DIR"; luajit test_link_client.lua ;;
     all)                run_planner; run_mqtt_direct; run_mqtt_cbor; run_hub_rt; run_sequencer; run_action ;;
-    *)                  echo "Usage: $0 [mqtt_direct|mqtt_cbor|hub_rt|sequencer|planner|action|kv_writer|link_manager|all]"; exit 1 ;;
+    *)                  echo "Usage: $0 [mqtt_direct|mqtt_cbor|hub_rt|sequencer|planner|action|kv_writer|link_manager|link_client|all]"; exit 1 ;;
 esac

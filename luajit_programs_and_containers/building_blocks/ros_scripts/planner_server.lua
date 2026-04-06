@@ -25,18 +25,51 @@ ffi.C.signal(13, ffi.cast("sighandler_t", 1))  -- ignore SIGPIPE
 
 local action_server = require("action_server")
 local mqtt_hub_tx   = require("mqtt_hub_transport")
+local kb_query_mod  = require("kb_query")
 
-local nats_server = os.getenv("NATS_SERVER") or "nats://127.0.0.1:4222"
-local mqtt_host   = os.getenv("MQTT_HOST") or "localhost"
-local mqtt_port   = tonumber(os.getenv("MQTT_PORT") or "1883")
-local site        = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
-
--- Resolve paths relative to ros_planner_ii
+-- Resolve paths: container uses script_dir, host uses relative to ros_planner_ii
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
-local bb_dir     = script_dir .. "../"
-local planner    = bb_dir .. "ros_planner_ii/"
-local hub_json   = planner .. "hub_dsl/hub.json"
-local db_file    = planner .. "hub_dsl/kb_construct/surface_ops.db"
+
+-- DB file: env var (container) or default (host dev)
+local bb_dir   = script_dir .. "../"
+local planner  = bb_dir .. "ros_planner_ii/"
+local db_file  = os.getenv("SQLITE_DB")
+    or planner .. "hub_dsl/kb_construct/surface_ops.db"
+
+-- hub.json: look next to script first (container), then in planner tree (host)
+local function find_file(...)
+    for _, path in ipairs({...}) do
+        local f = io.open(path, "r")
+        if f then f:close(); return path end
+    end
+    return nil
+end
+local hub_json = find_file(
+    script_dir .. "hub.json",
+    planner .. "hub_dsl/hub.json"
+) or script_dir .. "hub.json"
+
+---------------------------------------------------------------------------
+-- Query KB for infrastructure services (env vars override)
+---------------------------------------------------------------------------
+local q = kb_query_mod.new(db_file)
+local infra = q:get_infrastructure()
+local domain = q:get_domain()
+local site = domain and domain.site
+q:close()
+
+-- KB is single source of truth; env vars are optional overrides
+local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host) or "localhost"
+local mqtt_port = tonumber(os.getenv("MQTT_PORT"))
+    or (infra.mqtt and infra.mqtt.port) or 1883
+local nats_host = (infra.nats and infra.nats.host) or "127.0.0.1"
+local nats_port = (infra.nats and infra.nats.port) or 4222
+local nats_server = os.getenv("NATS_SERVER")
+    or string.format("nats://%s:%d", nats_host, nats_port)
+site = os.getenv("VMRT_KB_SITE") or site or "moonbase.alpha.surface_ops"
+
+print(string.format("KB infrastructure: NATS=%s, MQTT=%s:%d, site=%s",
+    nats_server, mqtt_host, mqtt_port, site))
 
 ---------------------------------------------------------------------------
 -- Connect MQTT hub transport
