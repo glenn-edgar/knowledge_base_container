@@ -1,5 +1,5 @@
 --[[
-    remote_user_functions.lua -- ChainTree user functions for test_robot.
+    remote_user_functions.lua -- ChainTree user functions for MQTT robot.
 
     Controller functions (CTRL_*) — always running, supervisory
     Worker functions (WKR_*) — one per virtual node, dormant until activated

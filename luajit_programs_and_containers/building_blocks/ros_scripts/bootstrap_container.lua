@@ -89,9 +89,9 @@ if not file_exists(script_dir .. "hub.json") then
     os.execute(string.format("cd '%s' && luajit hub_dsl.lua hub.json", script_dir))
 end
 
-if not file_exists(script_dir .. "test_robot/remote.json") then
+if not file_exists(script_dir .. "mqtt_robot/remote.json") then
     print("Building remote.json...")
-    os.execute(string.format("cd '%stest_robot' && luajit remote_dsl.lua remote.json", script_dir))
+    os.execute(string.format("cd '%smqtt_robot' && luajit remote_dsl.lua remote.json", script_dir))
 end
 
 ---------------------------------------------------------------------------

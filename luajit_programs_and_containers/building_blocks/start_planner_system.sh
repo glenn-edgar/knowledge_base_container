@@ -51,7 +51,7 @@ KB_CONSTRUCT="$HUB_DSL_DIR/kb_construct"
 LOCAL_PLANNER_DIR="$PLANNER_DIR/local_planner/lib"
 ACTION_SERVER_DIR="$PLANNER_DIR/action_server/lib"
 GLOBAL_PLANNER_DIR="$PLANNER_DIR/global_planner/lib"
-ROBOT_DIR="$PLANNER_DIR/robots/test_robot"
+ROBOT_DIR="$BB_DIR/ros_planner_ii_mqtt_robot"
 
 export LUA_PATH="$ACTION_SERVER_DIR/?.lua;$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$NATS_ROBOT_DIR/?.lua;$MQTT_ROBOT_DIR/?.lua;$MQTT_BRIDGE_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$MQTT_BASE/?.lua;$MQTT_LIB/?.lua;?.lua;;"
 export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;$MQTT_BASE/?.so;;"

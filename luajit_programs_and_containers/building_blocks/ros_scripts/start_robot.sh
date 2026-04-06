@@ -33,7 +33,7 @@ BB_DIR="$SCRIPT_DIR/.."
 # Module paths
 PLANNER="$BB_DIR/ros_planner_ii"
 RUNTIME="$PLANNER/runtime"
-ROBOT_DIR="$PLANNER/robots/test_robot"
+ROBOT_DIR="$BB_DIR/ros_planner_ii_mqtt_robot"
 HUB_DSL="$PLANNER/hub_dsl"
 KB_CONSTRUCT="$HUB_DSL/kb_construct"
 CT_BASE="$BB_DIR/chain_tree_luajit"

@@ -1,5 +1,5 @@
 --[[
-    remote_dsl.lua — ChainTree DSL for test_robot remote side.
+    remote_dsl.lua — ChainTree DSL for MQTT robot remote side.
 
     One worker KB per virtual node. Robot-independent command mapping.
 
