@@ -68,6 +68,7 @@ local fn_registry   = require("fn_registry")
 local defs          = require("ct_definitions")
 local engine        = require("ct_engine")
 local queue_monitor = require("queue_monitor")
+local link_client   = require("link_client")
 
 local remote_data = ct_loader.load(cfg.remote_json)
 
@@ -114,6 +115,35 @@ local monitor = queue_monitor.new({
     direction = "robot",
 })
 
+-- Link client: manages registration and planner liveness
+local lc = link_client.new({
+    robot_id         = cfg.robot_id,
+    transport        = cfg.transport,
+    wire_format      = cfg.wire_format,
+    capabilities     = cfg.capabilities,
+    energy_max       = cfg.energy_max,
+    energy_remaining = cfg.energy_remaining,
+    on_planner_lost  = function(reason)
+        io.stderr:write(string.format(
+            "MQTT_ROBOT [%s]: planner lost (%s) — aborting mission\n",
+            cfg.robot_id, reason))
+        -- Reset ChainTree: deactivate all workers, keep controller
+        for kb_name, _ in pairs(remote_handle.active_tests) do
+            if kb_name ~= "controller" then
+                remote_handle.active_tests[kb_name] = nil
+            end
+        end
+        remote_handle.active_test_count = 1
+        -- Reset blackboard mission state
+        local bb = remote_handle.blackboard
+        bb.exec_active = false
+        bb.exec_start = false
+        bb.worker_done = false
+        bb.worker_success = false
+        bb.active_worker = ""
+    end,
+})
+
 io.stderr:write(string.format("MQTT_ROBOT [%s]: running (%s, %d capabilities, wire=%s)\n",
     cfg.robot_id, cfg.robot_class, #cfg.capabilities, cfg.wire_format))
 io.stderr:flush()
@@ -132,22 +162,28 @@ while true do
         break
     end
 
-    monitor:tick()
+    -- Link protocol tick (announce, monitor planner heartbeats)
+    lc:tick()
 
-    for kb_name, _ in pairs(remote_handle.active_tests) do
-        local kb = remote_handle.kb_table[kb_name]
-        if kb then
-            table.insert(remote_handle.event_queue, {
-                node_id  = kb.root_node,
-                event_id = defs.CFL_TIMER_EVENT,
-            })
+    -- Only process missions when registered with planner
+    if lc:is_live() then
+        monitor:tick()
+
+        for kb_name, _ in pairs(remote_handle.active_tests) do
+            local kb = remote_handle.kb_table[kb_name]
+            if kb then
+                table.insert(remote_handle.event_queue, {
+                    node_id  = kb.root_node,
+                    event_id = defs.CFL_TIMER_EVENT,
+                })
+            end
         end
-    end
 
-    while #remote_handle.event_queue > 0 do
-        local ev = table.remove(remote_handle.event_queue, 1)
-        engine.execute_event(remote_handle, ev.node_id,
-            ev.event_id, ev.event_data, ev.event_type)
+        while #remote_handle.event_queue > 0 do
+            local ev = table.remove(remote_handle.event_queue, 1)
+            engine.execute_event(remote_handle, ev.node_id,
+                ev.event_id, ev.event_data, ev.event_type)
+        end
     end
 
     tick_count = tick_count + 1
@@ -168,11 +204,12 @@ while true do
             active_kb, raw, fields)
     end
 
-    -- Save energy every 30 seconds
+    -- Update link_client energy and save periodically
     local now = os.time()
     if now - last_energy_save >= ENERGY_SAVE_INTERVAL then
         last_energy_save = now
         local current_energy = remote_fns.get_energy()
+        lc:set_energy(current_energy.remaining)
         mqtt_robot_config.save_energy(
             cfg.status_pub, cfg.site, cfg.robot_id,
             current_energy.max, current_energy.remaining)
@@ -189,5 +226,6 @@ local final_energy = remote_fns.get_energy()
 io.stderr:write(string.format("MQTT_ROBOT [%s]: shutdown (energy=%d/%d)\n",
     cfg.robot_id, final_energy.remaining, final_energy.max))
 
+lc:shutdown()
 cfg.cleanup(final_energy.remaining)
 io.stderr:flush()
