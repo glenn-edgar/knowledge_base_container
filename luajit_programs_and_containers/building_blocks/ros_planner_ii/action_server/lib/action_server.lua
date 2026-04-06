@@ -116,12 +116,23 @@ function M:_ensure_nats()
     self._ks = ks_lib.KeyStore.new({
         server        = self.nats_server,
         bucket        = site_bucket .. "_action_server",
-        description   = "Action server mission queue and status: " .. self.site,
+        description   = "Action server: status, results, summary, mission log",
         create_bucket = true,
         history       = 1,
         client_name   = "action_server",
     })
     self._ks:connect()
+
+    -- Separate bucket for mission log (higher history for rolling log)
+    self._log_ks = ks_lib.KeyStore.new({
+        server        = self.nats_server,
+        bucket        = site_bucket .. "_mission_log",
+        description   = "Rolling mission log: last 50 missions",
+        create_bucket = true,
+        history       = 50,
+        client_name   = "action_server_log",
+    })
+    self._log_ks:connect()
 
     self._jq = jq_lib.JobQueue.new(self._ks:handle(), "action_server")
 end
@@ -496,8 +507,10 @@ function M:serve(opts)
             coroutine = co,
             result    = nil,
             state     = "active",
+            board     = cmd.board,
         }
         self.mission_count = self.mission_count + 1
+        self:_publish_summary()
     end
     self.pending = {}
 
@@ -528,11 +541,15 @@ function M:serve(opts)
                     m.state = "error"
                     m.result = { success = false, fault = { reason = "error", detail = tostring(result) } }
                     self.mission_count = self.mission_count - 1
+                    self:_publish_summary()
+                    self:_publish_mission_log(robot_id, m.result, m.board)
                 elseif coroutine.status(m.coroutine) == "dead" then
                     -- Coroutine finished
                     m.state = "done"
                     m.result = result
                     self.mission_count = self.mission_count - 1
+                    self:_publish_summary()
+                    self:_publish_mission_log(robot_id, m.result, m.board)
                 end
             end
         end
@@ -590,10 +607,12 @@ function M:_drain_nats_queue()
                 coroutine = co,
                 result    = nil,
                 state     = "active",
+                board     = cmd.board,
                 job_id    = job.id,
             }
             self.mission_count = self.mission_count + 1
             self._jq:complete_job(job.id, '{"status":"started"}')
+            self:_publish_summary()
         end
     end
 end
@@ -649,6 +668,51 @@ function M:_publish_result(robot_id, result)
                 replans    = result.replans,
                 fault      = result.fault,
                 final_pose = result.final_pose,
+            }))
+    end)
+end
+
+--- Publish active mission summary for fleet manager / dashboard.
+-- Called when missions start, complete, cancel, or error.
+function M:_publish_summary()
+    pcall(function()
+        self:_ensure_nats()
+        local robots = {}
+        for robot_id, m in pairs(self.missions) do
+            robots[robot_id] = {
+                state = m.state,
+                board = m.board,
+            }
+        end
+        local registered = {}
+        if self.link_mgr then
+            registered = self.link_mgr:list_live()
+        end
+        self._ks:put(self.site .. ".action_server.summary",
+            json_util.encode({
+                active_missions   = self.mission_count,
+                missions          = robots,
+                registered_robots = registered,
+                timestamp         = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+            }))
+    end)
+end
+
+--- Append completed mission to rolling log (NATS KV history).
+-- External consumers read history() on this key to get last N missions.
+function M:_publish_mission_log(robot_id, result, board)
+    pcall(function()
+        self:_ensure_nats()
+        self._log_ks:put(self.site .. ".action_server.mission_log",
+            json_util.encode({
+                robot_id   = robot_id,
+                board      = board or "",
+                success    = result.success,
+                completed  = result.completed,
+                total      = result.total,
+                elapsed_ms = result.elapsed_ms,
+                fault      = result.fault and result.fault.reason or nil,
+                timestamp  = os.date("!%Y-%m-%dT%H:%M:%SZ"),
             }))
     end)
 end
@@ -842,6 +906,8 @@ function M:_cancel_mission(robot_id, reason)
         error = "link_exception: " .. reason,
     })
     self:_publish_result(robot_id, m.result)
+    self:_publish_summary()
+    self:_publish_mission_log(robot_id, m.result, m.board)
 end
 
 ---------------------------------------------------------------------------
@@ -851,6 +917,7 @@ end
 function M:close()
     if self.link_mgr then self.link_mgr:shutdown() end
     if self._jq then self._jq:destroy(); self._jq = nil end
+    if self._log_ks then self._log_ks:disconnect(); self._log_ks:destroy(); self._log_ks = nil end
     if self._ks then self._ks:disconnect(); self._ks:destroy(); self._ks = nil end
 end
 
