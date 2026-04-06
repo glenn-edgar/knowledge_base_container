@@ -8,6 +8,19 @@ This document specifies the protocol a robot must implement to work with the ROS
 - **QoS:** 1 (at least once) for all messages
 - **Wire format:** JSON (default) or CBOR (declared during registration)
 
+### Wire Format Rules
+
+The robot declares its wire format in `link_confirm`. This affects command and stream topics only:
+
+| Topic | wire_format = "json" | wire_format = "cbor" |
+|-------|---------------------|---------------------|
+| `link` (robot → planner) | JSON always | JSON always |
+| `planner/#` (planner → robot) | JSON always | JSON always |
+| `rpc` (planner → robot) | JSON | CBOR |
+| `stream_bus` (robot → planner) | JSON | CBOR |
+
+CBOR payloads are the same structure as JSON — just encoded differently. Link protocol is always JSON so the planner can parse announce/confirm before knowing the robot's wire preference.
+
 ## MQTT Topics
 
 The robot uses four topics. `{site_path}` is the site name with dots replaced by slashes (e.g. `moonbase/alpha/surface_ops`).
