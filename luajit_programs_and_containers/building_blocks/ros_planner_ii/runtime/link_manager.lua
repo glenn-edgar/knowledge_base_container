@@ -112,6 +112,18 @@ function M:list_live()
     return result
 end
 
+function M:get_capabilities(robot_id)
+    local r = self.robots[robot_id]
+    if not r or r.link_state ~= "live" then return {} end
+    return r.capabilities or {}
+end
+
+function M:get_wire_format(robot_id)
+    local r = self.robots[robot_id]
+    if not r then return "json" end
+    return r.wire_format or "json"
+end
+
 ---------------------------------------------------------------------------
 -- Event: link_announce (robot boot/reboot)
 ---------------------------------------------------------------------------

@@ -208,9 +208,20 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Publish starting status
         srv:_publish_status(robot_id, { state = "planning" })
 
-        -- Query robot capabilities and energy from KB
+        -- Get robot capabilities from link_manager (robot's announced capabilities)
+        -- Fall back to KB if no link_manager (direct execution mode)
+        local capabilities
+        if srv.link_mgr then
+            capabilities = srv.link_mgr:get_capabilities(robot_id)
+        end
+        if not capabilities or #capabilities == 0 then
+            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
+            capabilities = kb_q:get_capabilities(robot_id)
+            kb_q:close()
+        end
+
+        -- Query energy from KB (robot reports energy via link, but max/infinite from class)
         local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
-        local capabilities = kb_q:get_capabilities(robot_id)
         local energy_max = kb_q:get_energy_max(robot_id) or 0
         local energy_infinite = kb_q:get_energy_infinite(robot_id)
         kb_q:close()
@@ -222,7 +233,7 @@ function M:_make_mission_coroutine(mission_cmd)
             ltree_path = srv.ltree_path,
         })
 
-        -- Build route with capability validation
+        -- Build route with capability validation (robot's actual capabilities)
         local route, plan_info = mission_builder.build(mission_cmd, planner, capabilities)
         if not route then
             local error_detail = plan_info.error
@@ -650,9 +661,19 @@ function M:execute_mission(mission_cmd)
     local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
     local board    = mission_cmd.board    or error("action_server: board required")
 
-    -- Query robot capabilities and energy from KB
+    -- Get robot capabilities from link_manager (robot's announced capabilities)
+    local capabilities
+    if self.link_mgr then
+        capabilities = self.link_mgr:get_capabilities(robot_id)
+    end
+    if not capabilities or #capabilities == 0 then
+        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
+        capabilities = kb_q:get_capabilities(robot_id)
+        kb_q:close()
+    end
+
+    -- Energy max/infinite from KB class definition
     local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
-    local capabilities = kb_q:get_capabilities(robot_id)
     local energy_max = kb_q:get_energy_max(robot_id) or 0
     local energy_infinite = kb_q:get_energy_infinite(robot_id)
     kb_q:close()
