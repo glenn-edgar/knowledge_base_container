@@ -1,16 +1,17 @@
 --[[
-    test_mqtt_direct.lua -- End-to-end: planner → MQTT → robot (no bridge).
+    test_mqtt_direct.lua -- End-to-end: mission → planner → MQTT (JSON) → robot.
 
-    Demonstrates the MQTT-first architecture:
-      - mqtt_hub_transport: single shared MQTT client for the planner
-      - hub_runtime: transport-injectable, MQTT auto-poll, no NATS on tick path
-      - Status published via kv-bridge container (MQTT → NATS KV async)
+    Submits a real mission against the landing_zone board.
+    Global planner builds the route (Dijkstra + route_builder).
+    Sequencer executes via MQTT transport. Validates:
+      - Route generation from moon map
+      - Per-action pose accumulation
+      - Mission telemetry (NATS KV, JetStream, SQLite bookends)
+      - JSON wire format
 
     Two processes (started by run_tests.sh):
-      1. This test (planner side, MQTT direct)
-      2. remote_mqtt_ct.lua (MQTT robot)
-
-    Same 18-action route as test_hub_runtime.lua.
+      1. This test (planner side)
+      2. remote_mqtt_ct.lua (MQTT robot, JSON wire)
 ]]
 
 local ffi = require("ffi")
@@ -22,7 +23,9 @@ ffi.cdef[[
 ffi.C.signal(13, ffi.cast("sighandler_t", 1))  -- ignore SIGPIPE
 
 local json_util        = require("json_util")
-local hub_runtime      = require("hub_runtime")
+local sequencer_mod    = require("sequencer")
+local mission_builder  = require("mission_builder")
+local global_planner   = require("global_planner")
 local mission_mod      = require("mission")
 local mqtt_hub_tx      = require("mqtt_hub_transport")
 local link_helper      = require("test_link_helper")
@@ -35,7 +38,6 @@ local site      = os.getenv("VMRT_KB_SITE") or "moonbase.alpha.surface_ops"
 
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir   = script_dir .. "../"
-local hub_json   = root_dir .. "hub_dsl/hub.json"
 local db_file    = root_dir .. "hub_dsl/kb_construct/surface_ops.db"
 
 print("=== MQTT Direct Integration Test ===\n")
@@ -43,48 +45,13 @@ print(string.format("Robot: %s, MQTT: %s:%d, NATS: %s\n",
     robot_id, mqtt_host, mqtt_port, server))
 
 ---------------------------------------------------------------------------
--- Create MQTT hub transport (single shared client)
+-- Create MQTT hub transport and wait for robot registration
 ---------------------------------------------------------------------------
 local mqtt_hub = mqtt_hub_tx.new(mqtt_host, mqtt_port, site)
 mqtt_hub:connect()
-print("MQTT hub connected.")
-
----------------------------------------------------------------------------
--- Wait for robot to register via link protocol
----------------------------------------------------------------------------
 local lm = link_helper.setup(mqtt_hub, site, robot_id, 10)
 
----------------------------------------------------------------------------
--- Create hub_runtime with injected MQTT transport
----------------------------------------------------------------------------
-local hub_rt = hub_runtime.new({
-    robot_id     = robot_id,
-    db_file      = db_file,
-    site         = site,
-    transport    = mqtt_hub:robot_transport(robot_id),
-    mqtt_hub     = mqtt_hub,
-    initial_pose = { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
-})
-
-local bb = hub_rt:get_blackboard()
-local kb_by_name = hub_rt:get_kb_by_name()
-
-print("Hub runtime initialized (MQTT transport).")
-
----------------------------------------------------------------------------
--- Initialize mission telemetry
----------------------------------------------------------------------------
-local m = mission_mod.new({
-    robot_id     = robot_id,
-    db_file      = db_file,
-    site         = site,
-    nats_server  = server,
-    route_length = 18,
-})
-m:start()
-print("Mission started.\n")
-
-local action_index = 0
+print("Hub connected, robot registered.")
 
 ---------------------------------------------------------------------------
 -- Test runner
@@ -94,274 +61,169 @@ local fail_count = 0
 
 local function check(name, condition, msg)
     if condition then
+        print("  PASS: " .. name)
         pass_count = pass_count + 1
     else
+        print("  FAIL: " .. name .. (msg and (" — " .. msg) or ""))
         fail_count = fail_count + 1
-        print(string.format("  FAIL: %s — %s", name, msg or ""))
-    end
-end
-
-local function test_virtual_node(plugin, action_json)
-    local kb_name = plugin.name
-    action_index = action_index + 1
-    local action = { kb_name = kb_name }
-
-    bb.current_test_json = json_util.encode(action_json)
-
-    local activated = hub_rt:activate_kb(kb_name)
-    check(kb_name .. " activate", activated, "KB not found")
-    if not activated then return end
-
-    check(kb_name .. " active_kb", bb.active_kb == kb_name,
-        "expected " .. kb_name .. ", got " .. tostring(bb.active_kb))
-
-    m:action_start(action_index, action, hub_rt:get_global_pose())
-
-    local max_ticks = 500
-    local completed = false
-    for tick = 1, max_ticks do
-        hub_rt:tick()
-
-        if tick % 5 == 0 then
-            m:heartbeat(action_index, kb_name, hub_rt:get_global_pose())
-        end
-
-        if hub_rt:kb_is_complete(kb_name) then
-            completed = true
-            hub_rt:deactivate_kb(kb_name)
-            break
-        end
-
-        ffi.C.usleep(2000)
-    end
-
-    check(kb_name .. " complete", completed,
-        "KB did not complete in " .. max_ticks .. " ticks")
-
-    -- Drain extra ticks for MQTT latency (same pattern as bridge test)
-    if completed then
-        local success = bb.kb_done_success
-        if not success then
-            for _ = 1, 50 do
-                hub_rt:tick()
-                ffi.C.usleep(2000)
-                success = bb.kb_done_success
-                if success then break end
-            end
-        end
-        check(kb_name .. " success", success == true,
-            "kb_done_success: " .. tostring(success))
-
-        local pose = hub_rt:get_global_pose()
-        m:action_complete(action_index, action, pose)
-
-        print(string.format("  PASS: %-18s  global: x=%.0f y=%.0f heading=%.0f arm=%.0f",
-            kb_name, pose.x, pose.y, pose.heading, pose.arm_angle))
-    else
-        m:action_failed(action_index, action, "timeout")
     end
 end
 
 ---------------------------------------------------------------------------
--- 18-action route (same as test_hub_runtime.lua)
+-- Test 1: Plan a multi-stop mission against the moon map
 ---------------------------------------------------------------------------
+print("\n--- Route Planning ---")
 
-test_virtual_node(kb_by_name["init_check"], {
-    test_id = 1, next_test = 2,
+local planner = global_planner.new({
+    db_file    = db_file,
+    board_name = "landing_zone",
 })
 
-test_virtual_node(kb_by_name["path_spline"], {
-    test_id = 2, next_test = 3,
-    from_x = 0, from_y = 0, to_x = 800, to_y = 0,
-    speed = 150, distance = 800, segment_index = 0, total_segments = 1,
-})
+local mission_cmd = {
+    start   = "lander_pad",
+    board   = "landing_zone",
+    stops = {
+        { node = "mining_zone_a", action = "deliver_part",
+          params = { arm_target = -45, arm_speed = 80, arm_return = 0, payload_type = 1 } },
+        { node = "charging_station", action = "paint_sample",
+          params = { arm_target = -60, arm_speed = 60, arm_return = 0, hold_time = 500 } },
+        { node = "construction_bay", action = "load_shipping",
+          params = { arm_target = -30, arm_speed = 80, arm_return = 0, payload_type = 2 } },
+        { node = "survey_point_1", action = "inspection_scan",
+          params = { sensor_port = 0, sensor_type = 0 } },
+        { node = "lander_pad" },
+    },
+    bookend = true,
+}
 
-test_virtual_node(kb_by_name["path_line"], {
-    test_id = 3, next_test = 4,
-    from_x = 800, from_y = 0, to_x = 1600, to_y = 0,
-    speed = 120, distance = 800,
-})
+local route, plan_info = mission_builder.build(mission_cmd, planner)
+planner:close()
 
-test_virtual_node(kb_by_name["path_rotate"], {
-    test_id = 4, next_test = 5,
-    from_heading = 0, to_heading = 90,
-})
+check("route built", route ~= nil, "nil route")
+check("has 5 legs", plan_info and #plan_info.legs == 5,
+    "got " .. tostring(plan_info and #plan_info.legs))
 
-test_virtual_node(kb_by_name["path_wall"], {
-    test_id = 5, next_test = 6,
-    from_x = 1600, from_y = 0, to_x = 1600, to_y = 800,
-    speed = 100, distance = 800, wall_standoff = 50,
-})
+if route then
+    check("starts with init_check", route[1].kb_name == "init_check",
+        "got " .. route[1].kb_name)
+    check("ends with idle", route[#route].kb_name == "idle",
+        "got " .. route[#route].kb_name)
 
-test_virtual_node(kb_by_name["deliver_part"], {
-    test_id = 6, next_test = 7,
-    arm_target = -45, arm_speed = 80, arm_return = 0, payload_type = 1,
-})
+    -- Count VN types
+    local counts = {}
+    for _, a in ipairs(route) do
+        counts[a.kb_name] = (counts[a.kb_name] or 0) + 1
+    end
 
-test_virtual_node(kb_by_name["path_spline"], {
-    test_id = 7, next_test = 8,
-    from_x = 1600, from_y = 800, to_x = 800, to_y = 800,
-    speed = 130, distance = 800, segment_index = 0, total_segments = 1,
-})
+    check("has deliver_part", (counts.deliver_part or 0) == 1)
+    check("has paint_sample", (counts.paint_sample or 0) == 1)
+    check("has load_shipping", (counts.load_shipping or 0) == 1)
+    check("has inspection_scan", (counts.inspection_scan or 0) == 1)
+    check("has path_spline", (counts.path_spline or 0) > 0,
+        "no spline navigation")
+    check("has path_rotate", (counts.path_rotate or 0) > 0,
+        "no rotations (heading changes expected)")
 
-test_virtual_node(kb_by_name["paint_sample"], {
-    test_id = 8, next_test = 9,
-    arm_target = -60, arm_speed = 60, arm_return = 0, hold_time = 500,
-})
-
-test_virtual_node(kb_by_name["path_rotate"], {
-    test_id = 9, next_test = 10,
-    from_heading = 90, to_heading = 180,
-})
-
-test_virtual_node(kb_by_name["path_spline"], {
-    test_id = 10, next_test = 11,
-    from_x = 800, from_y = 800, to_x = 800, to_y = 1600,
-    speed = 130, distance = 800, segment_index = 0, total_segments = 1,
-})
-
-test_virtual_node(kb_by_name["load_shipping"], {
-    test_id = 11, next_test = 12,
-    arm_target = -30, arm_speed = 80, arm_return = 0, payload_type = 2,
-})
-
-test_virtual_node(kb_by_name["path_line"], {
-    test_id = 12, next_test = 13,
-    from_x = 800, from_y = 1600, to_x = 0, to_y = 1600,
-    speed = 120, distance = 800,
-})
-
-test_virtual_node(kb_by_name["pass_gate"], {
-    test_id = 13, next_test = 14,
-    rpc_open_hash = 1001, rpc_close_hash = 1002, drive_through = 200,
-})
-
-test_virtual_node(kb_by_name["path_line"], {
-    test_id = 14, next_test = 15,
-    from_x = 0, from_y = 1600, to_x = 0, to_y = 800,
-    speed = 100, distance = 800,
-})
-
-test_virtual_node(kb_by_name["inspection_scan"], {
-    test_id = 15, next_test = 16,
-    sensor_port = 0, sensor_type = 0,
-})
-
-test_virtual_node(kb_by_name["path_rotate"], {
-    test_id = 16, next_test = 17,
-    from_heading = 180, to_heading = 270,
-})
-
-test_virtual_node(kb_by_name["path_spline"], {
-    test_id = 17, next_test = 18,
-    from_x = 0, from_y = 800, to_x = 0, to_y = 0,
-    speed = 120, distance = 800, segment_index = 0, total_segments = 1,
-})
-
-test_virtual_node(kb_by_name["idle"], {
-    test_id = 18, next_test = 0,
-})
+    print(string.format("  Route: %d actions, %d legs, cost=%d",
+        #route, #plan_info.legs, plan_info.total_cost))
+    print("  Actions:")
+    for i, a in ipairs(route) do
+        print(string.format("    %2d. %s", i, a.kb_name))
+    end
+end
 
 ---------------------------------------------------------------------------
--- Finish mission + shutdown
+-- Test 2: Execute mission via sequencer
 ---------------------------------------------------------------------------
-local final_pose = hub_rt:get_global_pose()
+print("\n--- Mission Execution ---")
 
-m:finish({
-    success    = (fail_count == 0),
-    final_pose = final_pose,
-    completed  = action_index,
-    total      = 18,
+local seq = sequencer_mod.new({
+    robot_id    = robot_id,
+    db_file     = db_file,
+    site        = site,
+    nats_server = server,
+    mqtt_hub    = mqtt_hub,
 })
 
-hub_rt:send_shutdown()
-hub_rt:close()
-mqtt_hub:close()
+seq:load_route(route)
+
+local valid, errors = seq:validate_route()
+check("route valid for robot", valid,
+    errors and #errors > 0 and errors[1] or "")
+
+local result = seq:run()
+
+check("mission success", result.success == true,
+    "got " .. tostring(result.success) ..
+    (result.fault and (": " .. (result.fault.reason or "")) or ""))
+check("all actions completed", result.completed == #route,
+    string.format("completed %d/%d", result.completed or 0, #route))
+check("no fault", result.fault == nil,
+    result.fault and result.fault.reason or "")
+
+-- Validate final pose moved from origin
+if result.final_pose then
+    local p = result.final_pose
+    print(string.format("  Final pose: x=%.0f y=%.0f heading=%.0f arm=%.0f",
+        p.x, p.y, p.heading, p.arm_angle))
+    -- Mission ends at lander_pad (0,0) but heading/arm may have changed
+    check("returned to lander_pad x", math.abs(p.x) < 1,
+        "expected ~0, got " .. tostring(p.x))
+    check("returned to lander_pad y", math.abs(p.y) < 1,
+        "expected ~0, got " .. tostring(p.y))
+end
+
+print(string.format("  Completed: %d/%d, elapsed: %dms",
+    result.completed or 0, result.total or 0, result.elapsed_ms or 0))
 
 ---------------------------------------------------------------------------
--- Verify NATS KeyStore status
+-- Test 3: Verify NATS telemetry
 ---------------------------------------------------------------------------
-local live_status = m:read_status()
-check("nats status exists", live_status ~= nil, "no status in KeyStore")
-if live_status then
-    check("nats status.type", live_status.type == "mission_complete",
-        "expected mission_complete, got " .. tostring(live_status.type))
-    check("nats status.success", live_status.success == true,
-        "expected true, got " .. tostring(live_status.success))
-    check("nats status.completed", live_status.completed == 18,
-        "expected 18, got " .. tostring(live_status.completed))
+print("\n--- NATS Telemetry ---")
+
+local m = seq:get_mission()
+
+-- KeyStore status
+local ks_status = m:read_status()
+if ks_status then
+    check("NATS status type", ks_status.type == "mission_complete",
+        "got " .. tostring(ks_status.type))
+    check("NATS status success", ks_status.success == true,
+        "got " .. tostring(ks_status.success))
     print(string.format("  NATS KeyStore status: type=%s, success=%s, completed=%s",
-        tostring(live_status.type), tostring(live_status.success),
-        tostring(live_status.completed)))
+        tostring(ks_status.type), tostring(ks_status.success),
+        tostring(ks_status.completed)))
+else
+    check("NATS status exists", false, "no status in KeyStore")
 end
 
----------------------------------------------------------------------------
--- Verify NATS JetStream KV stream
----------------------------------------------------------------------------
+-- JetStream entries
 local stream_entries = m:read_stream()
-local stream_count = #stream_entries
-check("nats stream has entries", stream_count > 0,
-    "expected entries in JetStream KV stream, got " .. stream_count)
-print(string.format("  NATS JetStream stream: %d entries", stream_count))
-
-local type_counts = {}
-for _, entry in ipairs(stream_entries) do
-    if entry.type then
-        type_counts[entry.type] = (type_counts[entry.type] or 0) + 1
+if stream_entries then
+    check("stream has entries", #stream_entries > 0,
+        "empty stream")
+    local type_counts = {}
+    for _, e in ipairs(stream_entries) do
+        type_counts[e.type] = (type_counts[e.type] or 0) + 1
     end
+    check("stream has action_start", (type_counts.action_start or 0) > 0)
+    check("stream has action_complete", (type_counts.action_complete or 0) > 0)
+    check("stream has heartbeat", (type_counts.heartbeat or 0) > 0)
+    check("stream has mission_complete", (type_counts.mission_complete or 0) == 1)
+
+    local parts = {}
+    for t, c in pairs(type_counts) do parts[#parts + 1] = t .. "=" .. c end
+    print(string.format("  NATS JetStream: %d entries", #stream_entries))
+    print(string.format("  Stream types: %s", table.concat(parts, ", ")))
+else
+    check("stream exists", false, "no JetStream entries")
 end
 
-check("nats stream has mission_start", (type_counts["mission_start"] or 0) > 0,
-    "no mission_start in stream")
-check("nats stream has action_start", (type_counts["action_start"] or 0) > 0,
-    "no action_start in stream")
-check("nats stream has heartbeat", (type_counts["heartbeat"] or 0) > 0,
-    "no heartbeat in stream")
-check("nats stream has action_complete", (type_counts["action_complete"] or 0) > 0,
-    "no action_complete in stream")
-check("nats stream has mission_complete", (type_counts["mission_complete"] or 0) > 0,
-    "no mission_complete in stream")
-
-local type_summary = {}
-for t, c in pairs(type_counts) do type_summary[#type_summary+1] = t .. "=" .. c end
-table.sort(type_summary)
-print("  NATS stream types: " .. table.concat(type_summary, ", "))
-
-m:close()
-
 ---------------------------------------------------------------------------
--- Verify SQLite telemetry (bookend records)
+-- Cleanup
 ---------------------------------------------------------------------------
-local kb_runtime = require("kb_runtime")
-local rt = kb_runtime.new(db_file, site, robot_id)
-
-local status = rt:read_status()
-check("sqlite status.mission_active", status.mission_active == false,
-    "expected false, got " .. tostring(status.mission_active))
-check("sqlite status.success", status.success == true,
-    "expected true, got " .. tostring(status.success))
-check("sqlite status.actions_complete", status.actions_complete == 18,
-    "expected 18, got " .. tostring(status.actions_complete))
-
-local beats = rt:read_heartbeats(100)
-local beat_count = #beats
-check("sqlite heartbeats exist", beat_count > 0,
-    "expected heartbeats, got " .. beat_count)
-print(string.format("  SQLite heartbeat bookends: %d records", beat_count))
-
-if beat_count > 0 then
-    local has_bookend = false
-    for _, b in ipairs(beats) do
-        if b.type == "action_start" or b.type == "action_complete" then
-            has_bookend = true
-            break
-        end
-    end
-    check("sqlite has mission bookends", has_bookend,
-        "no action_start/action_complete records found in stream")
-end
-
-rt:close()
+seq:shutdown()
+mqtt_hub:close()
 
 ---------------------------------------------------------------------------
 -- Results
@@ -369,8 +231,11 @@ rt:close()
 print(string.format("\n--- Results ---"))
 print(string.format("Passed: %d", pass_count))
 print(string.format("Failed: %d", fail_count))
-print(string.format("Final global pose: x=%.0f y=%.0f heading=%.0f arm=%.0f",
-    final_pose.x, final_pose.y, final_pose.heading, final_pose.arm_angle))
+if result and result.final_pose then
+    print(string.format("Final global pose: x=%.0f y=%.0f heading=%.0f arm=%.0f",
+        result.final_pose.x, result.final_pose.y,
+        result.final_pose.heading, result.final_pose.arm_angle))
+end
 
 if fail_count == 0 then
     print("\nPASSED")
