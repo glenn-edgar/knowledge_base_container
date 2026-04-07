@@ -14,6 +14,35 @@ if [ ! -d "$BB_DIR/ros_planner_ii" ]; then
     exit 1
 fi
 
+echo "=== Building runtime KB ==="
+
+KB_CONSTRUCT="$BB_DIR/ros_planner_ii/hub_dsl/kb_construct"
+RUNTIME_DB="$KB_CONSTRUCT/surface_ops.db"
+CT_DSL="$BB_DIR/chain_tree_luajit/lua_dsl"
+SQLITE_KB="$BB_DIR/knowledge_base/sqlite3/construct_kb"
+
+# Always rebuild to ensure the image gets a fresh KB
+rm -f "$RUNTIME_DB"
+(
+    cd "$KB_CONSTRUCT"
+    LUA_PATH="$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;?.lua;;" \
+    luajit -e "arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')"
+) 2>&1 | tail -3
+
+if [ ! -f "$RUNTIME_DB" ]; then
+    echo "ERROR: Runtime KB build failed: $RUNTIME_DB not created"
+    exit 1
+fi
+
+# Verify the KB has boards
+BOARD_COUNT=$(sqlite3 "$RUNTIME_DB" "SELECT COUNT(*) FROM knowledge_base WHERE path LIKE '%boards%'" 2>/dev/null || echo "0")
+if [ "$BOARD_COUNT" -eq 0 ]; then
+    echo "ERROR: Runtime KB has no boards"
+    exit 1
+fi
+echo "  Runtime KB: $RUNTIME_DB ($BOARD_COUNT board entries)"
+
+echo ""
 echo "=== Staging Lua modules ==="
 
 # Clean previous staging

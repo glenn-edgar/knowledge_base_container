@@ -28,6 +28,7 @@ package.cpath = bb_dir .. "knowledge_base/postgres/?.so;" .. bb_dir .. "knowledg
 local site_config    = require("site_config")
 local physical_tree  = require("physical_tree")
 local software_tree  = require("software_tree")
+local planner_tree   = require("planner_tree")
 local sqlite_extract = require("sqlite_extract")
 
 ---------------------------------------------------------------------------
@@ -65,13 +66,15 @@ local kb = Construct_KB.new(
   pg_config.host, pg_config.port,
   pg_config.dbname, pg_config.user, pg_config.password
 )
-print("made it here")
 -- Step 2: Build trees (all driven by site_config)
 print("\n--- Physical Tree (CPUs → Containers → Services) ---")
 physical_tree.build(kb, site_config)
 
 print("\n--- Software Tree (Domains → Robots) ---")
 software_tree.build(kb, site_config)
+
+print("\n--- Planner Tree (Boards, VNs, Robot Classes) ---")
+planner_tree.build(kb, site_config)
 
 -- Step 3: Verify
 kb:check_installation()

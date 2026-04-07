@@ -226,13 +226,13 @@ function M:_make_mission_coroutine(mission_cmd)
             capabilities = srv.link_mgr:get_capabilities(robot_id)
         end
         if not capabilities or #capabilities == 0 then
-            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
+            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
             capabilities = kb_q:get_capabilities(robot_id)
             kb_q:close()
         end
 
         -- Query energy from KB (robot reports energy via link, but max/infinite from class)
-        local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path)
+        local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
         local energy_max = kb_q:get_energy_max(robot_id) or 0
         local energy_infinite = kb_q:get_energy_infinite(robot_id)
         kb_q:close()
@@ -242,6 +242,7 @@ function M:_make_mission_coroutine(mission_cmd)
             db_file    = srv.db_file,
             board_name = board,
             ltree_path = srv.ltree_path,
+            site       = srv.site,
         })
 
         -- Build route with capability validation (robot's actual capabilities)
@@ -265,11 +266,19 @@ function M:_make_mission_coroutine(mission_cmd)
             return result
         end
 
-        -- Check energy budget: read current energy from NATS status board
-        local energy_remaining = energy_max  -- default to full if no status published yet
-        local energy_data = srv:_read_robot_energy(robot_id)
-        if energy_data then
-            energy_remaining = energy_data.energy_remaining or energy_max
+        -- Check energy budget: prefer link_manager (live robot state)
+        -- Fall back to NATS KV only in direct execution mode (no link_manager)
+        local energy_remaining = energy_max
+        if srv.link_mgr and srv.link_mgr:is_live(robot_id) then
+            local link_energy = srv.link_mgr:get_energy(robot_id)
+            if link_energy then
+                energy_remaining = link_energy
+            end
+        else
+            local energy_data = srv:_read_robot_energy(robot_id)
+            if energy_data then
+                energy_remaining = energy_data.energy_remaining or energy_max
+            end
         end
 
         if not energy_infinite and plan_info.total_cost > energy_remaining then
@@ -731,13 +740,13 @@ function M:execute_mission(mission_cmd)
         capabilities = self.link_mgr:get_capabilities(robot_id)
     end
     if not capabilities or #capabilities == 0 then
-        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
+        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
         capabilities = kb_q:get_capabilities(robot_id)
         kb_q:close()
     end
 
     -- Energy max/infinite from KB class definition
-    local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path)
+    local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
     local energy_max = kb_q:get_energy_max(robot_id) or 0
     local energy_infinite = kb_q:get_energy_infinite(robot_id)
     kb_q:close()

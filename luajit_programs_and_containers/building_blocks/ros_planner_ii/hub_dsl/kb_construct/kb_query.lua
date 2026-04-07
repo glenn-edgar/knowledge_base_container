@@ -30,13 +30,14 @@ local json = require("sqlite3_helpers").json
 local M = {}
 M.__index = M
 
-function M.new(db_file, database, ltree_path)
+function M.new(db_file, database, ltree_path, site)
     local self = setmetatable({}, M)
     database = database or "knowledge_base"
     -- KBM.new(table_name, db_path, ltree_extension_path, upload_flag)
     -- upload_flag=true skips table creation (read-only mode)
     self.kb = KBM.new(database, db_file, ltree_path, true)
     self.database = database
+    self._site = site  -- optional: skip auto-detection in get_site()
     return self
 end
 
@@ -74,6 +75,9 @@ end
 ---------------------------------------------------------------------------
 
 function M:get_site()
+    -- If site was passed to constructor, use it directly
+    if self._site then return self._site end
+
     -- The site is the KB name — find it via find_by_pattern at depth 0
     -- (e.g., moonbase.alpha.surface_ops)
     local rows = self.kb:find_by_depth(0)

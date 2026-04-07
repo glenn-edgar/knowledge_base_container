@@ -30,10 +30,10 @@ local kb_query_mod  = require("kb_query")
 -- Resolve paths: container uses script_dir, host uses relative to ros_planner_ii
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 
--- DB file: env var (container) or default (host dev)
-local bb_dir   = script_dir .. "../"
-local planner  = bb_dir .. "ros_planner_ii/"
-local db_file  = os.getenv("SQLITE_DB")
+-- Single DB: system KB + planner KB in one file (built by master_build.lua)
+local bb_dir      = script_dir .. "../"
+local planner     = bb_dir .. "ros_planner_ii/"
+local db_file     = os.getenv("SQLITE_DB")
     or planner .. "hub_dsl/kb_construct/surface_ops.db"
 
 ---------------------------------------------------------------------------

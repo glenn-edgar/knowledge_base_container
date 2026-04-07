@@ -59,33 +59,45 @@ local function insert_row(sqlite_kb, kb_name, row)
   sqlite_kb._kb:add_node(kb_name, row.label, row.name, props, data, row.path)
 end
 
---- Load the SQLite construct_kb module without conflicting with the
---- already-loaded Postgres construct_kb (same module name).
-local function load_sqlite_construct_kb()
+--- Modules that conflict between Postgres and SQLite (same name, different impl)
+local CONFLICTING_MODULES = {
+  "construct_kb", "knowledge_base_manager",
+  "construct_data_tables", "construct_status_table",
+  "construct_job_table", "construct_stream_table",
+  "construct_rpc_client_table", "construct_rpc_server_table",
+  "construct_bit_mask_store",
+}
+
+--- Switch package.loaded from Postgres to SQLite modules.
+--- Called once — after this, all require() calls for conflicting modules
+--- resolve to the SQLite versions. Cannot be reversed (FFI cdefs are global).
+local _switched = false
+local _pg_modules = {}
+
+local function switch_to_sqlite_modules()
+  if _switched then return end
+  _switched = true
+
   local sqlite_dir = "../../knowledge_base/sqlite3/construct_kb/"
+  package.path = sqlite_dir .. "?.lua;" .. package.path
 
-  -- Temporarily swap package.path and clear cached Postgres modules
-  local saved_path = package.path
-  package.path = sqlite_dir .. "?.lua"
-
-  -- Remove cached Postgres versions so require() finds the SQLite ones
-  local cached = {}
-  for name, _ in pairs(package.loaded) do
-    if name == "construct_kb" or name == "knowledge_base_manager" then
-      cached[name] = package.loaded[name]
+  -- Save and remove Postgres versions
+  for _, name in ipairs(CONFLICTING_MODULES) do
+    if package.loaded[name] then
+      _pg_modules[name] = package.loaded[name]
       package.loaded[name] = nil
     end
   end
+end
 
-  local SQLite_CKB = require("construct_kb")
+local function load_sqlite_construct_kb()
+  switch_to_sqlite_modules()
+  return require("construct_kb")
+end
 
-  -- Restore cached Postgres modules and path
-  for name, mod in pairs(cached) do
-    package.loaded[name] = mod
-  end
-  package.path = saved_path
-
-  return SQLite_CKB
+local function load_sqlite_cdt()
+  switch_to_sqlite_modules()
+  return require("construct_data_tables")
 end
 
 function M.build(pg_kb, output_dir, config)
@@ -101,46 +113,64 @@ function M.build(pg_kb, output_dir, config)
     -- Remove old DB file so we rebuild from scratch
     os.remove(db_file)
 
-    local sdb = SQLite_Construct_KB.new(db_file, "knowledge_base", ltree_path)
-
     -- Paths we need
     local cpu_path = "system.site." .. config.site_name .. ".cpu." .. domain.cpu
     local container_path = cpu_path .. ".container." .. domain.container
     local domain_path = "subsystems.domain." .. domain.name
 
     ---------------------------------------------------------------
-    -- system KB: site root + CPU + master role + container subtree
+    -- Step 1: If domain has planner data, build via CDT first.
+    -- CDT creates all tables (KB, status, stream, bitmask, etc.)
+    -- with upload_flag=false so schema is fully initialized.
     ---------------------------------------------------------------
+    if domain.planner_data and domain.site then
+      local SQLite_CDT = load_sqlite_cdt()
+      local cdt = SQLite_CDT.new(db_file, "knowledge_base", ltree_path)
+
+      cdt:add_kb(domain.site, "Planner data for " .. domain.name)
+      cdt:select_kb(domain.site)
+
+      local builder = require(domain.planner_data)
+      builder(cdt, domain.site, domain)
+
+      cdt:check_installation()
+      cdt:disconnect()
+      print("    + planner KB built via CDT")
+    end
+
+    ---------------------------------------------------------------
+    -- Step 2: Open DB (existing or new) and insert extracted rows.
+    -- For planner domains, the DB already exists with all tables.
+    -- For non-planner domains, this creates a fresh DB.
+    ---------------------------------------------------------------
+    local sdb = SQLite_Construct_KB.new(db_file, "knowledge_base", ltree_path,
+      domain.planner_data ~= nil)  -- upload_flag=true if DB already exists
+
+    -- system KB: site root + CPU + master role + container subtree
     sdb:add_kb("system", "Physical topology (extract)")
     sdb:select_kb("system")
 
-    -- Site root
     local site_row = query_node(pg_kb, "system",
       "system.site." .. config.site_name)
     if site_row then
       insert_row(sdb, "system", site_row)
     end
 
-    -- CPU node
     local cpu_row = query_node(pg_kb, "system", cpu_path)
     if cpu_row then
       insert_row(sdb, "system", cpu_row)
     end
 
-    -- Master role
     local role_row = query_node(pg_kb, "system", cpu_path .. ".role.master")
     if role_row then
       insert_row(sdb, "system", role_row)
     end
 
-    -- Infrastructure containers (nats, mqtt, postgres, web_gateway)
-    -- so the domain knows how to reach services
     local infra_containers = query_by_label(pg_kb, "system", cpu_path, "container")
     for _, crow in ipairs(infra_containers) do
       local props = require("dkjson").decode(crow.properties) or {}
       if props.type == "infrastructure" then
         insert_row(sdb, "system", crow)
-        -- Also grab services under this infrastructure container
         local svc_rows = query_subtree(pg_kb, "system", crow.path .. ".service.")
         for _, srow in ipairs(svc_rows) do
           insert_row(sdb, "system", srow)
@@ -148,15 +178,12 @@ function M.build(pg_kb, output_dir, config)
       end
     end
 
-    -- This domain's container + its services
     local ctr_rows = query_subtree(pg_kb, "system", container_path)
     for _, crow in ipairs(ctr_rows) do
       insert_row(sdb, "system", crow)
     end
 
-    ---------------------------------------------------------------
     -- subsystems KB: domain subtree (domain + robots)
-    ---------------------------------------------------------------
     sdb:add_kb("subsystems", "Subsystem definitions (extract)")
     sdb:select_kb("subsystems")
 

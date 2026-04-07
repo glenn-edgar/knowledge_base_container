@@ -39,9 +39,9 @@ return {
           image       = "nanodatacenter/nats-js-ram:latest",
           services = {
             { name = "nats", protocol = "nats",
-              data = { host = "0.0.0.0", port = 4222, ws_port = 9222 } },
+              data = { host = "127.0.0.1", port = 4222, ws_port = 9222 } },
             { name = "monitoring", protocol = "http",
-              data = { host = "0.0.0.0", port = 8222 } },
+              data = { host = "127.0.0.1", port = 8222 } },
           },
         },
 
@@ -51,7 +51,7 @@ return {
           image       = "nanodatacenter/mosquitto-ram-ws:latest",
           services = {
             { name = "mqtt", protocol = "mqtt",
-              data = { host = "0.0.0.0", port = 1883 } },
+              data = { host = "127.0.0.1", port = 1883 } },
           },
         },
 
@@ -61,7 +61,7 @@ return {
           image       = "pgvector/pgvector:pg17",
           services = {
             { name = "postgres", protocol = "postgres",
-              data = { host = "0.0.0.0", port = 5432, dbname = "knowledge_base" } },
+              data = { host = "127.0.0.1", port = 5432, dbname = "knowledge_base" } },
           },
         },
 
@@ -71,7 +71,7 @@ return {
           image       = "openresty/openresty:alpine",
           services = {
             { name = "http", protocol = "http",
-              data = { host = "0.0.0.0", port = 8080 } },
+              data = { host = "127.0.0.1", port = 8080 } },
           },
         },
 
@@ -167,6 +167,7 @@ return {
       site        = "moonbase.alpha.surface_ops",
       cpu         = "cpu_01",
       container   = "surface_ops_planner",
+      planner_data = "surface_ops_planner_data",
       robots = {
         { name = "rover_1", transport = "mqtt", wire_format = "json",
           robot_class = "lunar_rover",

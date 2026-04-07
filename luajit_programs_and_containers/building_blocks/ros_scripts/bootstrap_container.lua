@@ -57,30 +57,15 @@ print(string.format("  DB:   %s", extracted_db))
 io.stdout:flush()
 
 ---------------------------------------------------------------------------
--- Build runtime KB (construct_surface_ops.lua)
+-- Planner data is now in the extracted SQLite DB (merged by master_build.lua).
+-- No separate runtime KB build needed.
 ---------------------------------------------------------------------------
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
-local kb_dir = script_dir .. "kb_construct/"
-local runtime_db = kb_dir .. "surface_ops.db"
 
 local function file_exists(path)
     local fh = io.open(path, "r")
     if fh then fh:close(); return true end
     return false
-end
-
-if not file_exists(runtime_db) then
-    print("\nBuilding runtime KB...")
-    os.remove(runtime_db)
-    local ok = os.execute(string.format(
-        "cd '%s' && luajit -e \"arg={'surface_ops.db'}; dofile('construct_surface_ops.lua')\"",
-        kb_dir))
-    if not ok then
-        io.stderr:write("ERROR: Failed to build runtime KB\n")
-        os.exit(1)
-    end
-else
-    print("  Runtime KB: exists")
 end
 
 ---------------------------------------------------------------------------
@@ -92,19 +77,33 @@ if not file_exists(script_dir .. "mqtt_robot/remote.json") then
 end
 
 ---------------------------------------------------------------------------
--- Export KB to NATS KV
+-- Export KB to NATS KV (retry up to 3 times — NATS may still be starting)
 ---------------------------------------------------------------------------
 print("\nExporting KB to NATS...")
+local ffi = require("ffi")
+ffi.cdef[[
+    int setenv(const char *name, const char *value, int overwrite);
+    unsigned int sleep(unsigned int seconds);
+]]
+
 local kb_exporter = require("kb_exporter")
-local export_ok, stats = pcall(kb_exporter.export, {
-    db_file     = runtime_db,
-    nats_server = nats_server,
-    bucket      = "kb_export",
-})
-if export_ok and stats then
-    print(string.format("Exported: %d keys", stats.keys_written or 0))
-else
-    print("WARNING: KB export failed (NATS may not be ready yet)")
+local export_ok, stats
+for attempt = 1, 3 do
+    export_ok, stats = pcall(kb_exporter.export, {
+        db_file     = extracted_db,
+        nats_server = nats_server,
+        bucket      = "kb_export",
+    })
+    if export_ok and stats then
+        print(string.format("Exported: %d keys", stats.keys_written or 0))
+        break
+    end
+    if attempt < 3 then
+        print(string.format("  Export attempt %d failed, retrying in 2s...", attempt))
+        ffi.C.sleep(2)
+    else
+        print("WARNING: KB export failed after 3 attempts (NATS may not be available)")
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -114,8 +113,6 @@ print("\nStarting planner server...")
 io.stdout:flush()
 
 -- Set env vars so planner_server.lua sees the discovered infrastructure
-local ffi = require("ffi")
-ffi.cdef[[int setenv(const char *name, const char *value, int overwrite);]]
 ffi.C.setenv("NATS_SERVER", nats_server, 0)
 ffi.C.setenv("MQTT_HOST", mqtt_host, 0)
 ffi.C.setenv("MQTT_PORT", mqtt_port, 0)

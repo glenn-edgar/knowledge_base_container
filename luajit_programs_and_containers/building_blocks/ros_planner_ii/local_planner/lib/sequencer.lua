@@ -73,8 +73,8 @@ function M.new(opts)
 
     -- Query KB for robot config
     local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-    local kb_q = kb_query.new(db_file, "knowledge_base", ltree_path)
-    self.site = kb_q:get_site()
+    local kb_q = kb_query.new(db_file, "knowledge_base", ltree_path, opts.site)
+    self.site = opts.site or kb_q:get_site()
     local robot_config = kb_q:get_robot_config(self.robot_id)
 
     -- NATS server: from caller (action_server), not from KB

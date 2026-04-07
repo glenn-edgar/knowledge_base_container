@@ -75,8 +75,9 @@ function M.new(opts)
     local db_file    = opts.db_file    or error("global_planner: db_file required")
     local board_name = opts.board_name or error("global_planner: board_name required")
     local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
+    local site       = opts.site
 
-    local q = kb_query.new(db_file, "knowledge_base", ltree_path)
+    local q = kb_query.new(db_file, "knowledge_base", ltree_path, site)
     local board_data = q:get_board(board_name)
     q:close()
 

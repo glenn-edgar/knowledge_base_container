@@ -1,8 +1,8 @@
 --[[
     remote_mqtt_ct.lua -- ChainTree remote process over MQTT.
 
-    Identical to remote_nats_ct.lua but uses mqtt_transport (PubSub-backed).
-    Same ChainTree, same user functions, same queue_monitor.
+    Robot-independent controller (robot_controller.lua) runs directly.
+    Workers run through ChainTree engine.
 
     Usage: luajit remote_mqtt_ct.lua <robot_id>
 
@@ -38,29 +38,28 @@ local tx = mqtt_transport.remote_side(robot_id, mqtt_host, mqtt_port, site,
     { wire_format = wire_format })
 tx:flush()
 
--- ChainTree runtime
+-- ChainTree runtime (workers only — no controller KB)
 local ct_runtime    = require("ct_runtime")
 local ct_loader     = require("ct_loader_pure")
 local builtins      = require("ct_builtins")
 local fn_registry   = require("fn_registry")
 local defs          = require("ct_definitions")
 local engine        = require("ct_engine")
-local queue_monitor = require("queue_monitor")
 local link_client   = require("link_client")
+local robot_ctrl    = require("robot_controller")
 
 -- Load remote tree
 local remote_data = ct_loader.load(remote_json)
 
--- Register user functions with transport
+-- Register worker functions
 local remote_fns = require("remote_user_functions")
-remote_fns.set_transport(tx)
 
 -- Optional: KB runtime for status/stream tables
+local kb_rt = nil
 local kb_db_file = os.getenv("VMRT_KB_DB")
 if kb_db_file then
     local kb_runtime = require("kb_runtime")
-    local kb_rt = kb_runtime.new(kb_db_file, site, robot_id)
-    remote_fns.set_kb_runtime(kb_rt)
+    kb_rt = kb_runtime.new(kb_db_file, site, robot_id)
     io.stderr:write(string.format("MQTT_ROBOT [%s]: KB runtime connected (%s)\n",
         robot_id, kb_db_file))
 end
@@ -76,26 +75,26 @@ end
 
 local remote_handle = ct_runtime.create({delta_time = 0.1, max_ticks = 50000}, remote_data)
 
--- Ensure boolean fields are proper booleans
+-- Initialize blackboard booleans
 remote_handle.blackboard.shutdown_requested = false
-remote_handle.blackboard.watchdog_expired = false
 remote_handle.blackboard.worker_done = false
 remote_handle.blackboard.worker_success = false
+remote_handle.blackboard.worker_alive = false
 remote_handle.blackboard.exec_active = false
 remote_handle.blackboard.exec_start = false
-remote_handle.blackboard.controller_active = false
 remote_handle.blackboard.lookahead_pending = false
+remote_handle.blackboard.active_worker = ""
 
--- Activate ONLY the controller KB
-engine.init_test(remote_handle, "controller")
-remote_handle.active_tests["controller"] = true
-remote_handle.active_test_count = 1
+-- No controller KB — controller runs directly via robot_controller
+-- active_test_count starts at 0 (workers activated on demand)
+remote_handle.active_test_count = 0
 
--- Queue monitor: drains rpc queue, injects ROBOT_RPC_COMMAND events
-local monitor = queue_monitor.new({
-    handle    = remote_handle,
-    transport = tx,
-    direction = "robot",
+-- Robot controller: dispatch, watchdog, heartbeat, completion
+local ctrl = robot_ctrl.new({
+    handle     = remote_handle,
+    transport  = tx,
+    kb_rt      = kb_rt,
+    energy_max = 10000,
 })
 
 -- Link client: manages registration and planner liveness
@@ -111,16 +110,15 @@ local lc = link_client.new({
         io.stderr:write(string.format(
             "MQTT_ROBOT [%s]: planner lost (%s) — aborting\n", robot_id, reason))
         for kb_name, _ in pairs(remote_handle.active_tests) do
-            if kb_name ~= "controller" then
-                remote_handle.active_tests[kb_name] = nil
-            end
+            remote_handle.active_tests[kb_name] = nil
         end
-        remote_handle.active_test_count = 1
+        remote_handle.active_test_count = 0
         local bb = remote_handle.blackboard
         bb.exec_active = false
         bb.exec_start = false
         bb.worker_done = false
         bb.worker_success = false
+        bb.active_worker = ""
     end,
 })
 
@@ -136,8 +134,10 @@ while true do
     lc:tick()
 
     if lc:is_live() then
-        monitor:tick()
+        -- Controller: drain RPC commands, watchdog, heartbeat, completion
+        ctrl:tick()
 
+        -- Workers: inject timer events and execute via ChainTree
         for kb_name, _ in pairs(remote_handle.active_tests) do
             local kb = remote_handle.kb_table[kb_name]
             if kb then

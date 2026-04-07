@@ -124,6 +124,12 @@ function M:get_wire_format(robot_id)
     return r.wire_format or "json"
 end
 
+function M:get_energy(robot_id)
+    local r = self.robots[robot_id]
+    if not r then return nil end
+    return r.energy_remaining, r.energy_max
+end
+
 ---------------------------------------------------------------------------
 -- Event: link_announce (robot boot/reboot)
 ---------------------------------------------------------------------------

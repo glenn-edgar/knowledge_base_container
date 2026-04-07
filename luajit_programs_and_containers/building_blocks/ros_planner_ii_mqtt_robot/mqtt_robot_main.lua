@@ -1,9 +1,8 @@
 --[[
     mqtt_robot_main.lua -- Independent MQTT robot process.
 
-    Like robot_main.lua but connects via MQTT instead of NATS.
-    Publishes status (energy, bitmask, connection state) as MQTT
-    retained messages. The NATS↔MQTT bridge mirrors these to NATS KV.
+    Robot-independent controller (robot_controller.lua) runs directly.
+    Workers run through ChainTree engine.
 
     Template for ESP32 / Pico 2 W deployment.
 
@@ -57,7 +56,7 @@ io.stderr:write(string.format("MQTT_ROBOT [%s]: validated, slot claimed (energy=
     cfg.robot_id, cfg.energy_remaining, cfg.energy_max))
 
 ---------------------------------------------------------------------------
--- Load ChainTree remote
+-- Load ChainTree remote (workers only — no controller KB)
 ---------------------------------------------------------------------------
 
 local json_util     = require("json_util")
@@ -67,19 +66,13 @@ local builtins      = require("ct_builtins")
 local fn_registry   = require("fn_registry")
 local defs          = require("ct_definitions")
 local engine        = require("ct_engine")
-local queue_monitor = require("queue_monitor")
 local link_client   = require("link_client")
+local robot_ctrl    = require("robot_controller")
 
 local remote_data = ct_loader.load(cfg.remote_json)
 
--- Register user functions with transport
+-- Register worker functions
 local remote_fns = require("remote_user_functions")
-remote_fns.set_transport(cfg.transport)
-remote_fns.set_energy(cfg.energy_max, cfg.energy_infinite)
-
--- Start at full energy (MQTT robots don't recover from retained state)
-local robot_energy = remote_fns.get_energy()
-robot_energy.remaining = cfg.energy_remaining
 
 fn_registry.register_functions(remote_data, builtins, remote_fns.registry)
 
@@ -95,25 +88,25 @@ local remote_handle = ct_runtime.create({delta_time = 0.1, max_ticks = 50000}, r
 
 -- Initialize blackboard booleans
 remote_handle.blackboard.shutdown_requested = false
-remote_handle.blackboard.watchdog_expired = false
 remote_handle.blackboard.worker_done = false
 remote_handle.blackboard.worker_success = false
+remote_handle.blackboard.worker_alive = false
 remote_handle.blackboard.exec_active = false
 remote_handle.blackboard.exec_start = false
-remote_handle.blackboard.controller_active = false
 remote_handle.blackboard.lookahead_pending = false
+remote_handle.blackboard.active_worker = ""
 
--- Activate controller KB
-engine.init_test(remote_handle, "controller")
-remote_handle.active_tests["controller"] = true
-remote_handle.active_test_count = 1
+-- No controller KB — controller runs directly via robot_controller
+remote_handle.active_test_count = 0
 
--- Queue monitor
-local monitor = queue_monitor.new({
-    handle    = remote_handle,
-    transport = cfg.transport,
-    direction = "robot",
+-- Robot controller: dispatch, watchdog, heartbeat, completion
+local ctrl = robot_ctrl.new({
+    handle          = remote_handle,
+    transport       = cfg.transport,
+    energy_max      = cfg.energy_max,
+    energy_infinite = cfg.energy_infinite,
 })
+ctrl:set_energy_remaining(cfg.energy_remaining)
 
 -- Link client: manages registration and planner liveness
 local lc = link_client.new({
@@ -127,14 +120,10 @@ local lc = link_client.new({
         io.stderr:write(string.format(
             "MQTT_ROBOT [%s]: planner lost (%s) — aborting mission\n",
             cfg.robot_id, reason))
-        -- Reset ChainTree: deactivate all workers, keep controller
         for kb_name, _ in pairs(remote_handle.active_tests) do
-            if kb_name ~= "controller" then
-                remote_handle.active_tests[kb_name] = nil
-            end
+            remote_handle.active_tests[kb_name] = nil
         end
-        remote_handle.active_test_count = 1
-        -- Reset blackboard mission state
+        remote_handle.active_test_count = 0
         local bb = remote_handle.blackboard
         bb.exec_active = false
         bb.exec_start = false
@@ -167,8 +156,10 @@ while true do
 
     -- Only process missions when registered with planner
     if lc:is_live() then
-        monitor:tick()
+        -- Controller: drain RPC commands, watchdog, heartbeat, completion
+        ctrl:tick()
 
+        -- Workers: inject timer events and execute via ChainTree
         for kb_name, _ in pairs(remote_handle.active_tests) do
             local kb = remote_handle.kb_table[kb_name]
             if kb then
@@ -208,7 +199,7 @@ while true do
     local now = os.time()
     if now - last_energy_save >= ENERGY_SAVE_INTERVAL then
         last_energy_save = now
-        local current_energy = remote_fns.get_energy()
+        local current_energy = ctrl:get_energy()
         lc:set_energy(current_energy.remaining)
         mqtt_robot_config.save_energy(
             cfg.status_pub, cfg.site, cfg.robot_id,
@@ -222,7 +213,7 @@ end
 -- Shutdown
 ---------------------------------------------------------------------------
 
-local final_energy = remote_fns.get_energy()
+local final_energy = ctrl:get_energy()
 io.stderr:write(string.format("MQTT_ROBOT [%s]: shutdown (energy=%d/%d)\n",
     cfg.robot_id, final_energy.remaining, final_energy.max))
 

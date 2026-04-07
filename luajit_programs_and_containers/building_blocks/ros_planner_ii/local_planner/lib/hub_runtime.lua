@@ -87,7 +87,7 @@ function M.new(opts)
     if opts.db_file then
         local kb_query = require("kb_query")
         local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-        local q = kb_query.new(opts.db_file, "knowledge_base", ltree_path)
+        local q = kb_query.new(opts.db_file, "knowledge_base", ltree_path, opts.site)
         local all_vns = q:get_all_virtual_nodes()
         q:close()
 

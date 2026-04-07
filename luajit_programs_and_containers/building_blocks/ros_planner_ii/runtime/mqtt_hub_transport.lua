@@ -54,19 +54,32 @@ end
 ---------------------------------------------------------------------------
 
 function M:connect()
+    local ffi = require("ffi")
     local pubsub = require("lib.mqtt_pubsub")
     self.ps = pubsub.PubSub.new(self.host, self.port, "planner_hub")
-    self.ps:connect(5000)
+    -- Connect may return asynchronously on some platforms (WSL2 containers)
+    local ok, err = pcall(self.ps.connect, self.ps, 5000)
+    if not ok then
+        -- Async connect — wait for it to establish
+        for _ = 1, 50 do
+            if self.ps:is_connected() then break end
+            ffi.C.usleep(100000)  -- 100ms
+        end
+        if not self.ps:is_connected() then
+            error("mqtt_hub_transport: connect failed: " .. tostring(err))
+        end
+    end
 
     -- Subscribe to all robot streams, status, and link protocol
-    self.ps:subscribe(self.site_path .. "/robots/+/stream_bus", 1)
-    self.ps:subscribe(self.site_path .. "/robots/+/status/#", 1)
-    self.ps:subscribe(self.site_path .. "/robots/+/link", 1)
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/stream_bus", 1)
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/status/#", 1)
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/link", 1)
 
-    -- Drain stale retained messages
-    repeat
+    -- Drain stale retained messages (limited attempts to avoid infinite loop)
+    for _ = 1, 20 do
         local stale = self.ps:poll(50)
-    until #stale == 0
+        if #stale == 0 then break end
+    end
 end
 
 ---------------------------------------------------------------------------

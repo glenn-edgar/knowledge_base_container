@@ -1,11 +1,12 @@
 #!/bin/bash
 # docker_run.sh -- Run the ros-planner container.
 #
-# Reads infrastructure (NATS, MQTT host:port) from the KB SQLite.
-# Only SQLITE_DB env var is required. Everything else comes from KB.
+# Uses planner-net Docker network for container-to-container communication.
+# MQTT and NATS are reached by container name (Docker DNS).
 #
 # Prerequisites:
-#   - NATS, MQTT, kv-bridge containers running
+#   - docker network create planner-net
+#   - NATS, MQTT containers running and connected to planner-net
 #   - SQLite DBs built: cd kb_dsl/scripts && luajit master_build.lua
 #
 # Usage:
@@ -17,6 +18,7 @@ set -e
 
 DOMAIN="${1:-surface_ops}"
 SQLITE_DATA="${SQLITE_DATA:-/home/gedgar/Sqlite_Data}"
+NETWORK="${DOCKER_NETWORK:-planner-net}"
 
 if [ ! -f "$SQLITE_DATA/${DOMAIN}.db" ]; then
     echo "ERROR: SQLite DB not found: $SQLITE_DATA/${DOMAIN}.db"
@@ -24,26 +26,36 @@ if [ ! -f "$SQLITE_DATA/${DOMAIN}.db" ]; then
     exit 1
 fi
 
+# Ensure network exists
+docker network create "$NETWORK" 2>/dev/null || true
+
 CONTAINER_NAME="${DOMAIN}-planner"
 
 # Stop existing container if running
 docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
 
 echo "=== Starting $CONTAINER_NAME ==="
-echo "  DB:   $SQLITE_DATA/${DOMAIN}.db"
+echo "  DB:      $SQLITE_DATA/${DOMAIN}.db"
+echo "  Network: $NETWORK"
 echo ""
 
-# Build env var overrides (only pass if explicitly set)
+# Container names for MQTT/NATS on the shared network (Docker DNS)
+MQTT_HOST="${MQTT_HOST:-mosquitto-ram-ws_main}"
+NATS_SERVER="${NATS_SERVER:-nats://nats-js-ram:4222}"
+
 ENV_ARGS="-e SQLITE_DB=/data/${DOMAIN}.db"
-[ -n "$MQTT_HOST" ]    && ENV_ARGS="$ENV_ARGS -e MQTT_HOST=$MQTT_HOST"
+ENV_ARGS="$ENV_ARGS -e MQTT_HOST=$MQTT_HOST"
+ENV_ARGS="$ENV_ARGS -e NATS_SERVER=$NATS_SERVER"
 [ -n "$MQTT_PORT" ]    && ENV_ARGS="$ENV_ARGS -e MQTT_PORT=$MQTT_PORT"
-[ -n "$NATS_SERVER" ]  && ENV_ARGS="$ENV_ARGS -e NATS_SERVER=$NATS_SERVER"
 [ -n "$VMRT_KB_SITE" ] && ENV_ARGS="$ENV_ARGS -e VMRT_KB_SITE=$VMRT_KB_SITE"
 
-docker run \
+docker run -d \
     --name "$CONTAINER_NAME" \
     --restart unless-stopped \
-    --network host \
-    -v "$SQLITE_DATA:/data:ro" \
+    --network "$NETWORK" \
+    -v "$SQLITE_DATA:/data" \
     $ENV_ARGS \
     nanodatacenter/ros-planner:latest
+
+echo "Container $CONTAINER_NAME started (detached)."
+echo "  Logs: docker logs -f $CONTAINER_NAME"

@@ -1,201 +1,200 @@
 #!/bin/bash
-# start_planner_system.sh -- Start/stop the ROS Planner II system entities.
+# start_planner_system.sh -- Manage the ROS Planner II system.
 #
-# Each entity is an independent process. The planner does NOT start or stop
-# robots or bridges -- this script manages their lifecycle.
+# Creates the planner-net Docker network, ensures infra containers are
+# connected, builds the KB, and starts/stops the planner container.
 #
 # Usage:
-#   ./start_planner_system.sh start [entity...]   Start entities (default: all)
-#   ./start_planner_system.sh stop                 Stop all running entities
-#   ./start_planner_system.sh status               Show running entities
+#   ./start_planner_system.sh start     Build KB, start planner container
+#   ./start_planner_system.sh stop      Stop planner + kv-bridge containers
+#   ./start_planner_system.sh restart   Stop then start
+#   ./start_planner_system.sh status    Show container and network status
+#   ./start_planner_system.sh build     Build KB only (no container start)
 #
-# Entities:
-#   nats_robot    Independent NATS robot (LuaJIT, Pi Zero 2 template)
-#   mqtt_robot    Independent MQTT robot (LuaJIT, ESP32/Pico template)
-#   mqtt_bridge   NATS<->MQTT bridge (multi-robot, auto-discover)
+# Prerequisites:
+#   - Postgres, NATS, MQTT containers running
+#   - Postgres has KB data (or run master_build first)
 #
 # Environment:
-#   ROBOT_ID       Robot ID (default: rover_1)
-#   NATS_SERVER    NATS URL (default: nats://127.0.0.1:4222)
-#   MQTT_HOST      MQTT broker host (default: localhost)
-#   MQTT_PORT      MQTT broker port (default: 1883)
-#   VMRT_KB_SITE   KB site name (default: moonbase.alpha.surface_ops)
-#
-# Config files:
-#   NATS robot:  ros_planner_ii_nats_robot/robot.json
-#   MQTT robot:  ros_planner_ii_mqtt_robot/mqtt_robot.json
+#   DOCKER_NETWORK  Docker network name (default: planner-net)
+#   SQLITE_DATA     SQLite extract directory (default: /home/gedgar/Sqlite_Data)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PID_DIR="/tmp/ros_planner_ii"
+CONTAINERS_DIR="$SCRIPT_DIR/../../third_party_containers"
+KB_DSL_DIR="$SCRIPT_DIR/kb_dsl/scripts"
+NETWORK="${DOCKER_NETWORK:-planner-net}"
+SQLITE_DATA="${SQLITE_DATA:-/home/gedgar/Sqlite_Data}"
 
-NATS_ROBOT_DIR="$SCRIPT_DIR/ros_planner_ii_nats_robot"
-MQTT_ROBOT_DIR="$SCRIPT_DIR/ros_planner_ii_mqtt_robot"
-MQTT_BRIDGE_DIR="$SCRIPT_DIR/ros_planner_ii_mqtt_bridge"
-PLANNER_DIR="$SCRIPT_DIR/ros_planner_ii"
-
-# Shared library paths
-RUNTIME_DIR="$PLANNER_DIR/runtime"
-HUB_DSL_DIR="$PLANNER_DIR/hub_dsl"
-CT_BASE="$SCRIPT_DIR/chain_tree_luajit"
-CT_RUNTIME="$CT_BASE/runtime_dict"
-CT_JSON="$CT_BASE/lua_dsl/luajit_pipeline"
-CT_DSL="$CT_BASE/lua_dsl"
-NATS_BASE="$SCRIPT_DIR/knowledge_base/nats"
-NATS_LIB="$NATS_BASE/lib"
-MQTT_BASE="$SCRIPT_DIR/knowledge_base/mqtt"
-MQTT_LIB="$MQTT_BASE/lib"
-SQLITE_KB="$SCRIPT_DIR/knowledge_base/sqlite3/construct_kb"
-KB_CONSTRUCT="$HUB_DSL_DIR/kb_construct"
-LOCAL_PLANNER_DIR="$PLANNER_DIR/local_planner/lib"
-ACTION_SERVER_DIR="$PLANNER_DIR/action_server/lib"
-GLOBAL_PLANNER_DIR="$PLANNER_DIR/global_planner/lib"
-ROBOT_DIR="$BB_DIR/ros_planner_ii_mqtt_robot"
-
-export LUA_PATH="$ACTION_SERVER_DIR/?.lua;$GLOBAL_PLANNER_DIR/?.lua;$LOCAL_PLANNER_DIR/?.lua;$HUB_DSL_DIR/protocol/?.lua;$HUB_DSL_DIR/?.lua;$HUB_DSL_DIR/hub_functions/?.lua;$HUB_DSL_DIR/kb/?.lua;$KB_CONSTRUCT/?.lua;$SQLITE_KB/?.lua;$RUNTIME_DIR/?.lua;$ROBOT_DIR/?.lua;$NATS_ROBOT_DIR/?.lua;$MQTT_ROBOT_DIR/?.lua;$MQTT_BRIDGE_DIR/?.lua;$CT_RUNTIME/?.lua;$CT_JSON/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$NATS_BASE/?.lua;$NATS_LIB/?.lua;$MQTT_BASE/?.lua;$MQTT_LIB/?.lua;?.lua;;"
-export LUA_CPATH="$RUNTIME_DIR/?.so;$NATS_BASE/?.so;$MQTT_BASE/?.so;;"
-export LD_LIBRARY_PATH="$NATS_BASE:$MQTT_BASE:${LD_LIBRARY_PATH:-}"
-
-export ROBOT_ID="${ROBOT_ID:-rover_1}"
-export NATS_SERVER="${NATS_SERVER:-nats://127.0.0.1:4222}"
-export MQTT_HOST="${MQTT_HOST:-localhost}"
-export MQTT_PORT="${MQTT_PORT:-1883}"
-export VMRT_KB_SITE="${VMRT_KB_SITE:-moonbase.alpha.surface_ops}"
+# Infra containers that must be on planner-net
+INFRA_CONTAINERS="nats-js-ram mosquitto-ram-ws_main"
 
 # ---------------------------------------------------------------------------
-# PID management
+# Helpers
 # ---------------------------------------------------------------------------
 
-mkdir -p "$PID_DIR"
-
-save_pid() {
-    echo "$2" > "$PID_DIR/$1.pid"
+check_container_running() {
+    docker inspect -f '{{.State.Running}}' "$1" 2>/dev/null | grep -q true
 }
 
-read_pid() {
-    local pidfile="$PID_DIR/$1.pid"
-    if [ -f "$pidfile" ]; then
-        cat "$pidfile"
-    fi
+ensure_network() {
+    docker network create "$NETWORK" 2>/dev/null && echo "Created network: $NETWORK" || true
 }
 
-is_running() {
-    local pid
-    pid=$(read_pid "$1")
-    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
-}
-
-stop_entity() {
-    local name="$1"
-    local pid
-    pid=$(read_pid "$name")
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-        echo "Stopping $name (pid=$pid)"
-        kill "$pid" 2>/dev/null
-        wait "$pid" 2>/dev/null || true
-        rm -f "$PID_DIR/$name.pid"
-    else
-        rm -f "$PID_DIR/$name.pid"
-    fi
+connect_infra() {
+    for name in $INFRA_CONTAINERS; do
+        if check_container_running "$name"; then
+            docker network connect "$NETWORK" "$name" 2>/dev/null \
+                && echo "  Connected $name to $NETWORK" \
+                || echo "  $name already on $NETWORK"
+        else
+            echo "  WARNING: $name is not running"
+        fi
+    done
 }
 
 # ---------------------------------------------------------------------------
-# Start entities
+# Build KB
 # ---------------------------------------------------------------------------
 
-start_nats_robot() {
-    if is_running nats_robot; then
-        echo "nats_robot already running (pid=$(read_pid nats_robot))"
-        return
+do_build() {
+    echo "=== Building KB (Postgres → SQLite) ==="
+
+    if ! pg_isready -h localhost -q 2>/dev/null; then
+        echo "ERROR: Postgres is not running"
+        exit 1
     fi
 
-    local config="${NATS_ROBOT_CONFIG:-$NATS_ROBOT_DIR/robot.json}"
-    if [ ! -f "$config" ]; then
-        echo "ERROR: NATS robot config not found: $config"
-        echo "  Copy robot.json.example to robot.json and edit."
-        return 1
+    cd "$KB_DSL_DIR"
+    luajit master_build.lua 2>&1 | grep -E "^(===|  Planner|  Extracting|    ->|\[OK\]|---)" | head -20
+    cd "$SCRIPT_DIR"
+
+    if [ ! -f "$SQLITE_DATA/surface_ops.db" ]; then
+        echo "ERROR: SQLite extract failed — $SQLITE_DATA/surface_ops.db not found"
+        exit 1
     fi
 
-    luajit "$NATS_ROBOT_DIR/robot_main.lua" "$config" &
-    save_pid nats_robot $!
-    echo "nats_robot started (pid=$!, config=$config)"
-}
-
-start_mqtt_robot() {
-    if is_running mqtt_robot; then
-        echo "mqtt_robot already running (pid=$(read_pid mqtt_robot))"
-        return
-    fi
-
-    local config="${MQTT_ROBOT_CONFIG:-$MQTT_ROBOT_DIR/mqtt_robot.json}"
-    if [ ! -f "$config" ]; then
-        echo "ERROR: MQTT robot config not found: $config"
-        echo "  Create mqtt_robot.json with robot_id, site, mqtt_host, etc."
-        return 1
-    fi
-
-    luajit "$MQTT_ROBOT_DIR/mqtt_robot_main.lua" "$config" &
-    save_pid mqtt_robot $!
-    echo "mqtt_robot started (pid=$!, config=$config)"
-}
-
-start_mqtt_bridge() {
-    if is_running mqtt_bridge; then
-        echo "mqtt_bridge already running (pid=$(read_pid mqtt_bridge))"
-        return
-    fi
-
-    luajit "$MQTT_BRIDGE_DIR/mqtt_bridge.lua" "$MQTT_HOST" "$MQTT_PORT" &
-    save_pid mqtt_bridge $!
-    echo "mqtt_bridge started (pid=$!)"
+    echo ""
 }
 
 # ---------------------------------------------------------------------------
-# Commands
+# Start
 # ---------------------------------------------------------------------------
 
 do_start() {
-    local entities=("$@")
-    if [ ${#entities[@]} -eq 0 ]; then
-        entities=(mqtt_bridge mqtt_robot nats_robot)
-    fi
+    echo "=== Starting Planner System ==="
+    echo ""
 
-    for entity in "${entities[@]}"; do
-        case "$entity" in
-            nats_robot)   start_nats_robot ;;
-            mqtt_robot)   start_mqtt_robot ;;
-            mqtt_bridge)  start_mqtt_bridge ;;
-            *)            echo "Unknown entity: $entity" ;;
-        esac
+    # Step 1: Network
+    echo "--- Network ---"
+    ensure_network
+    connect_infra
+    echo ""
+
+    # Step 2: Build KB
+    do_build
+
+    # Step 3: kv-bridge
+    echo "--- KV Bridge ---"
+    if check_container_running kv-bridge; then
+        # Check if on the right network
+        local kvnet=$(docker inspect kv-bridge --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null)
+        if echo "$kvnet" | grep -q "$NETWORK"; then
+            echo "  kv-bridge already running on $NETWORK"
+        else
+            echo "  Restarting kv-bridge on $NETWORK..."
+            bash "$CONTAINERS_DIR/kv_bridge/docker_run.sh"
+        fi
+    else
+        echo "  Starting kv-bridge..."
+        bash "$CONTAINERS_DIR/kv_bridge/docker_run.sh"
+    fi
+    echo ""
+
+    # Step 4: Planner container
+    echo "--- Planner Container ---"
+    bash "$CONTAINERS_DIR/ros_planner/docker_build.sh" 2>&1 | grep -E "^(===|  Runtime|  Staged|  Image)" | head -5
+    echo ""
+    bash "$CONTAINERS_DIR/ros_planner/docker_run.sh"
+    echo ""
+
+    # Step 5: Wait for planner to be ready
+    echo "--- Waiting for planner startup ---"
+    for i in $(seq 1 30); do
+        if docker logs surface_ops-planner 2>&1 | grep -q "Action server ready"; then
+            echo "  Planner ready!"
+            break
+        fi
+        if [ "$i" -eq 30 ]; then
+            echo "  WARNING: Planner did not become ready in 30s"
+            echo "  Check: docker logs -f surface_ops-planner"
+        fi
+        sleep 1
     done
+
+    echo ""
+    echo "=== System Started ==="
+    echo "  Submit missions: bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json"
+    echo "  Start robot:     bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json"
+    echo "  Planner logs:    docker logs -f surface_ops-planner"
 }
+
+# ---------------------------------------------------------------------------
+# Stop
+# ---------------------------------------------------------------------------
 
 do_stop() {
-    stop_entity nats_robot
-    stop_entity mqtt_robot
-    stop_entity mqtt_bridge
+    echo "=== Stopping Planner System ==="
+    docker rm -f surface_ops-planner 2>/dev/null && echo "  Stopped surface_ops-planner" || echo "  surface_ops-planner not running"
+    docker rm -f kv-bridge 2>/dev/null && echo "  Stopped kv-bridge" || echo "  kv-bridge not running"
+    echo "=== Stopped ==="
 }
 
+# ---------------------------------------------------------------------------
+# Status
+# ---------------------------------------------------------------------------
+
 do_status() {
-    for name in nats_robot mqtt_robot mqtt_bridge; do
-        if is_running "$name"; then
-            echo "$name: running (pid=$(read_pid $name))"
+    echo "=== Planner System Status ==="
+    echo ""
+
+    echo "Network: $NETWORK"
+    local net_containers=$(docker network inspect "$NETWORK" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null)
+    if [ -n "$net_containers" ]; then
+        echo "  Containers: $net_containers"
+    else
+        echo "  Network not found or empty"
+    fi
+    echo ""
+
+    echo "Containers:"
+    for name in nats-js-ram mosquitto-ram-ws_main pg-vector kv-bridge surface_ops-planner; do
+        if check_container_running "$name"; then
+            local net=$(docker inspect "$name" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null)
+            printf "  %-25s running  [%s]\n" "$name" "$net"
         else
-            echo "$name: stopped"
+            printf "  %-25s stopped\n" "$name"
         fi
     done
+    echo ""
+
+    if check_container_running surface_ops-planner; then
+        echo "Planner log (last 5 lines):"
+        docker logs surface_ops-planner 2>&1 | tail -5 | sed 's/^/  /'
+    fi
 }
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
-case "${1:-}" in
-    start)   shift; do_start "$@" ;;
+case "${1:-status}" in
+    start)   do_start ;;
     stop)    do_stop ;;
+    restart) do_stop; echo ""; do_start ;;
     status)  do_status ;;
-    *)       echo "Usage: $0 {start [entity...]|stop|status}"
-             echo "Entities: nats_robot, mqtt_robot, mqtt_bridge"
+    build)   do_build ;;
+    *)       echo "Usage: $0 {start|stop|restart|status|build}"
              exit 1 ;;
 esac

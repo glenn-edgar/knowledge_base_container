@@ -1,7 +1,8 @@
 --[[
     remote_dsl.lua — ChainTree DSL for MQTT robot remote side.
 
-    One worker KB per virtual node. Robot-independent command mapping.
+    Individual worker KB per virtual node — matches KB definitions.
+    No controller KB (controller is robot_controller.lua).
 
     Build: luajit remote_dsl.lua remote.json
 ]]
@@ -20,12 +21,11 @@ local function add_header(yaml_file)
         ct:bb_field("current_packet_type",   "int32",  0)
         ct:bb_field("current_test_id",       "int32",  0)
         ct:bb_field("current_seq",           "int32",  0)
-        ct:bb_field("current_max_time",      "int32",  0)
         ct:bb_field("active_worker",         "string", "")
         ct:bb_field("watchdog_ticks",        "int32",  0)
-        ct:bb_field("watchdog_expired",      "bool",   false)
+        ct:bb_field("watchdog_silence",      "int32",  0)
+        ct:bb_field("worker_alive",          "bool",   false)
         ct:bb_field("heartbeat_counter",     "int32",  0)
-        ct:bb_field("heartbeat_interval",    "int32",  10)
         ct:bb_field("exec_active",           "bool",   false)
         ct:bb_field("exec_start",            "bool",   false)
         ct:bb_field("ticks_remaining",       "int32",  0)
@@ -42,7 +42,6 @@ local function add_header(yaml_file)
         ct:bb_field("lookahead_packet_type","int32",  0)
         ct:bb_field("lookahead_test_id",    "int32",  0)
         ct:bb_field("lookahead_seq",        "int32",  0)
-        ct:bb_field("lookahead_max_time",   "int32",  0)
         ct:bb_field("shutdown_requested",   "bool",   false)
         ct:bb_field("fault_reason",         "string", "")
     ct:end_blackboard()
@@ -51,74 +50,196 @@ local function add_header(yaml_file)
 end
 
 -- =========================================================================
--- KB: controller (always active)
+-- Individual worker KB definitions — one per virtual node
+-- Each matches the KB virtual node definition in construct_surface_ops.lua
 -- =========================================================================
 
-local function controller(ct, kb_name)
+-- init_check: preflight self-test
+-- packet_type=1, no params, bitmask: battery_ok|motors_ok|sensors_ok|comms_ok
+local function worker_init_check(ct, kb_name)
     ct:start_test(kb_name)
-    local main_col = ct:define_column("controller_main", nil, nil, nil, nil, {}, true)
-        ct:define_column_link("CTRL_DISPATCH_MAIN", "CTRL_DISPATCH_INIT",
-            "CFL_NULL", "CFL_NULL", {}, "CMD_DISPATCH")
-        ct:define_column_link("CTRL_WATCHDOG_MAIN", "CTRL_WATCHDOG_INIT",
-            "CFL_NULL", "CFL_NULL", {}, "WATCHDOG")
-        ct:define_column_link("CTRL_HEARTBEAT_MAIN", "CTRL_HEARTBEAT_INIT",
-            "CFL_NULL", "CFL_NULL", {}, "HEARTBEAT")
-        ct:define_column_link("CTRL_COMPLETION_MAIN", "CTRL_COMPLETION_INIT",
-            "CFL_NULL", "CFL_NULL", {}, "COMPLETION")
-    ct:end_column(main_col)
+    local col = ct:define_column("init_check_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_INIT_CHECK_INIT", {})
+        ct:define_column_link("WKR_INIT_CHECK_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- path_spline: follow spline path between nodes
+-- packet_type=2, params: from_x,from_y,to_x,to_y,speed,distance,segment_index,total_segments
+-- bitmask: seg_complete|obstacle|motor_fault, pose: delta_x,delta_y,delta_heading
+local function worker_path_spline(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("path_spline_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PATH_SPLINE_INIT", {})
+        ct:define_column_link("WKR_PATH_SPLINE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- path_line: line follow between nodes
+-- packet_type=3, params: from_x,from_y,to_x,to_y,speed,distance
+-- bitmask: seg_complete|obstacle|motor_fault, pose: delta_x,delta_y,delta_heading
+local function worker_path_line(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("path_line_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PATH_LINE_INIT", {})
+        ct:define_column_link("WKR_PATH_LINE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- path_wall: wall follow between nodes
+-- packet_type=4, params: from_x,from_y,to_x,to_y,speed,distance,wall_standoff
+-- bitmask: seg_complete|obstacle|motor_fault|wall_lost, pose: delta_x,delta_y,delta_heading
+local function worker_path_wall(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("path_wall_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PATH_WALL_INIT", {})
+        ct:define_column_link("WKR_PATH_WALL_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- path_rotate: rotate in place to heading
+-- packet_type=5, params: from_heading,to_heading
+-- bitmask: rotate_complete|motor_fault, pose: delta_heading
+local function worker_path_rotate(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("path_rotate_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PATH_ROTATE_INIT", {})
+        ct:define_column_link("WKR_PATH_ROTATE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- deliver_part: arm delivery at assembly station
+-- packet_type=6, params: arm_target,arm_speed,arm_return,payload_type
+-- bitmask: arm_at_target|payload_gripped|action_complete|arm_fault, pose: delta_arm_angle
+local function worker_deliver_part(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("deliver_part_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_DELIVER_PART_INIT", {})
+        ct:define_column_link("WKR_DELIVER_PART_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- paint_sample: paint operation at painting station
+-- packet_type=7, params: arm_target,arm_speed,arm_return,hold_time
+-- bitmask: arm_at_target|action_complete|arm_fault, pose: delta_arm_angle
+local function worker_paint_sample(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("paint_sample_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PAINT_SAMPLE_INIT", {})
+        ct:define_column_link("WKR_PAINT_SAMPLE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- load_shipping: load container at shipping station
+-- packet_type=8, params: arm_target,arm_speed,arm_return,payload_type
+-- bitmask: arm_at_target|payload_gripped|action_complete|arm_fault, pose: delta_arm_angle
+local function worker_load_shipping(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("load_shipping_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_LOAD_SHIPPING_INIT", {})
+        ct:define_column_link("WKR_LOAD_SHIPPING_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- pass_gate: open gate, drive through, close gate
+-- packet_type=9, params: rpc_open_hash,rpc_close_hash,drive_through
+-- bitmask: gate_opened|drive_complete|gate_closed|action_complete, pose: delta_x,delta_y,delta_heading
+local function worker_pass_gate(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("pass_gate_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_PASS_GATE_INIT", {})
+        ct:define_column_link("WKR_PASS_GATE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- inspection_scan: sensor read at inspection point
+-- packet_type=10, params: sensor_port,sensor_type
+-- bitmask: reading_ready|sensor_fault, pose: (none)
+local function worker_inspection_scan(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("inspection_scan_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_INSPECTION_SCAN_INIT", {})
+        ct:define_column_link("WKR_INSPECTION_SCAN_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- recharge: recharge energy at charging station
+-- packet_type=12, params: target_energy
+-- bitmask: charging|charge_complete|charger_fault, pose: (none)
+local function worker_recharge(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("recharge_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_RECHARGE_INIT", {})
+        ct:define_column_link("WKR_RECHARGE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
+-- idle: park robot
+-- packet_type=11, no params, bitmask: parked, pose: (none)
+local function worker_idle(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("idle_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_IDLE_INIT", {})
+        ct:define_column_link("WKR_IDLE_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
     ct:end_test()
 end
 
 -- =========================================================================
--- Worker KB builder: each virtual node gets its own worker
--- =========================================================================
-
-local function make_worker(worker_name, main_fn, init_fn)
-    return function(ct, kb_name)
-        ct:start_test(kb_name)
-        local col = ct:define_column(kb_name .. "_exec", nil, nil, nil, nil, {}, true)
-            ct:asm_one_shot_handler(init_fn, {})
-            ct:define_column_link(main_fn, "CFL_NULL",
-                "CFL_NULL", "WORKER_TERM", {}, "EXEC")
-        ct:end_column(col)
-        ct:end_test()
-    end
-end
-
--- =========================================================================
--- Test list: controller + one worker per virtual node
+-- Test list: one worker per virtual node (matches KB packet_type order)
 -- =========================================================================
 
 local test_list = {
-    "controller",
-    "worker_init_check",
-    "worker_path_spline",
-    "worker_path_line",
-    "worker_path_wall",
-    "worker_path_rotate",
-    "worker_deliver_part",
-    "worker_paint_sample",
-    "worker_load_shipping",
-    "worker_pass_gate",
-    "worker_inspection_scan",
-    "worker_recharge",
-    "worker_idle",
+    "worker_init_check",       -- packet_type=1
+    "worker_path_spline",      -- packet_type=2
+    "worker_path_line",        -- packet_type=3
+    "worker_path_wall",        -- packet_type=4
+    "worker_path_rotate",      -- packet_type=5
+    "worker_deliver_part",     -- packet_type=6
+    "worker_paint_sample",     -- packet_type=7
+    "worker_load_shipping",    -- packet_type=8
+    "worker_pass_gate",        -- packet_type=9
+    "worker_inspection_scan",  -- packet_type=10
+    "worker_idle",             -- packet_type=11
+    "worker_recharge",         -- packet_type=12
 }
 
 local test_dict = {
-    controller             = controller,
-    worker_init_check      = make_worker("worker_init_check",      "WKR_INIT_CHECK_MAIN",      "WKR_INIT_CHECK_INIT"),
-    worker_path_spline     = make_worker("worker_path_spline",     "WKR_PATH_SPLINE_MAIN",     "WKR_PATH_SPLINE_INIT"),
-    worker_path_line       = make_worker("worker_path_line",       "WKR_PATH_LINE_MAIN",        "WKR_PATH_LINE_INIT"),
-    worker_path_wall       = make_worker("worker_path_wall",       "WKR_PATH_WALL_MAIN",        "WKR_PATH_WALL_INIT"),
-    worker_path_rotate     = make_worker("worker_path_rotate",     "WKR_PATH_ROTATE_MAIN",     "WKR_PATH_ROTATE_INIT"),
-    worker_deliver_part    = make_worker("worker_deliver_part",    "WKR_DELIVER_PART_MAIN",    "WKR_DELIVER_PART_INIT"),
-    worker_paint_sample    = make_worker("worker_paint_sample",    "WKR_PAINT_SAMPLE_MAIN",    "WKR_PAINT_SAMPLE_INIT"),
-    worker_load_shipping   = make_worker("worker_load_shipping",   "WKR_LOAD_SHIPPING_MAIN",   "WKR_LOAD_SHIPPING_INIT"),
-    worker_pass_gate       = make_worker("worker_pass_gate",       "WKR_PASS_GATE_MAIN",       "WKR_PASS_GATE_INIT"),
-    worker_inspection_scan = make_worker("worker_inspection_scan", "WKR_INSPECTION_SCAN_MAIN", "WKR_INSPECTION_SCAN_INIT"),
-    worker_recharge        = make_worker("worker_recharge",        "WKR_RECHARGE_MAIN",         "WKR_RECHARGE_INIT"),
-    worker_idle            = make_worker("worker_idle",            "WKR_IDLE_MAIN",             "WKR_IDLE_INIT"),
+    worker_init_check      = worker_init_check,
+    worker_path_spline     = worker_path_spline,
+    worker_path_line       = worker_path_line,
+    worker_path_wall       = worker_path_wall,
+    worker_path_rotate     = worker_path_rotate,
+    worker_deliver_part    = worker_deliver_part,
+    worker_paint_sample    = worker_paint_sample,
+    worker_load_shipping   = worker_load_shipping,
+    worker_pass_gate       = worker_pass_gate,
+    worker_inspection_scan = worker_inspection_scan,
+    worker_idle            = worker_idle,
+    worker_recharge        = worker_recharge,
 }
 
 -- =========================================================================

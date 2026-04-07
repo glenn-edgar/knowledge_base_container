@@ -1,57 +1,38 @@
 # ROS Planner II — Continuation Plan
 
-## Session Summary (2026-04-06)
+## Session Summary (2026-04-06/07)
 
-Major cleanup and architecture session covering seven areas:
+### 1. Robot Controller Refactor (complete)
+- Collapsed 4 controller DSL columns (dispatch, watchdog, heartbeat, completion) into single `robot_controller.lua`
+- Controller runs directly from tick loop — no ChainTree dependency
+- Watchdog changed from tick-counting to liveness-based (workers set `bb.worker_alive = true`)
+- Controller KB removed from DSL entirely (137 → 125 nodes)
+- `queue_monitor` no longer used on robot side
+- `remote_user_functions.lua` is workers-only, each with individual DSL definition matching KB VN schema
+- Each worker prints incoming command JSON on init
 
-### 1. Planner Container (complete)
-- Image: `nanodatacenter/ros-planner:latest` (150MB, Ubuntu 24.04 aarch64)
-- Location: `third_party_containers/ros_planner/`
-- Prebuilt .so files from host (no in-container compilation, fast build ~5s)
-- `bootstrap_container.lua` queries extracted SQLite for NATS/MQTT/site from KB
-- `docker_build.sh` stages Lua modules, `docker_run.sh` runs with domain arg
-- Tested and running
+### 2. Unified KB Build (complete)
+- `master_build.lua` builds planner data (boards, VNs, robot classes) into Postgres via `planner_tree.lua`
+- `surface_ops_planner_data.lua` is single source of truth for all planner data
+- `sqlite_extract.lua` builds planner data into domain SQLite via CDT (creates status/stream/bitmask tables)
+- One DB per domain: system KB + subsystems KB + planner KB in one file
+- `site_config.lua` `planner_data` field drives which domains get planner data
 
-### 2. Link Protocol — URLP v1 (complete)
-- Split `link_announce` from `link_heartbeat` (keepalive only, no state transitions)
-- Robot side: `link_client.lua` in `runtime/` — announce → wait_ack → confirm → live
-- Planner side: `link_manager.lua` — re-announce from live robot fires `on_link_exception`
-- Planner heartbeat seq for restart detection (robot detects planner reboot)
-- Mission cancelled on link exception (robot reboot, disconnect, stale timeout)
-- Wired into `action_server.serve()` loop via `mqtt_hub_transport` link handler
-- Both `remote_mqtt_ct.lua` and `mqtt_robot_main.lua` updated with link_client
-- Unit tests: 38 (link_manager) + 41 (link_client)
+### 3. Container Networking (complete)
+- `planner-net` Docker network for container-to-container communication
+- MQTT/NATS reached by container name (Docker DNS): `mosquitto-ram-ws_main`, `nats-js-ram`
+- Fixes WSL2 `--network host` limitation
+- `site_config.lua` uses `127.0.0.1` instead of `0.0.0.0`
+- `mqtt_hub_transport.lua` handles async MQTT connect (pcall + is_connected poll)
+- SQLite DB mounted read-write (planner writes status updates)
 
-### 3. MQTT Robot Self-Sufficient (complete)
-- `ros_planner_ii_mqtt_robot/` now contains everything: remote_dsl.lua, remote_user_functions.lua, capabilities.lua, build.sh
-- All 12 VN workers including `recharge` (matches lunar_rover KB definition)
-- `robots/test_robot/` deleted — MQTT robot is the canonical robot
-- All scripts updated to point at `ros_planner_ii_mqtt_robot/`
-
-### 4. Hub DSL Eliminated (complete)
-- `hub_runtime.lua` rewritten as state machine: idle → wait_ack → active → done/error
-- VN definitions loaded from SQLite KB at startup via `kb_query:get_all_virtual_nodes()`
-- Same API: activate_kb, tick, kb_is_complete, deactivate_kb
-- No more hub.json, no more build step, no ChainTree dependency on hub side
-- Adding a new VN to the KB requires zero hub-side code changes
-- Removed from: run_tests.sh build step, Dockerfile, docker_build.sh, bootstrap
-
-### 5. Planner-Generated Test Routes (complete)
-- All integration tests now use global_planner + mission_builder against landing_zone board
-- No hardcoded 18-action routes — Dijkstra generates routes from moon map
-- test_hub_runtime.lua removed (redundant with sequencer test)
-- 5 test suites: planner, mqtt_direct, mqtt_cbor, sequencer, action
-
-### 6. Robot Capabilities from Link Protocol (complete)
-- Action server uses robot's announced capabilities from link_confirm
-- Falls back to KB only in direct execution mode (tests without link protocol)
-- Robot's actual capabilities are authoritative over KB's static definition
-
-### 7. No Hardcoded Defaults (complete)
-- Removed all fallback defaults for site, NATS, MQTT from runtime modules
-- Each module requires values from constructor opts (errors if missing)
-- Values originate from KB query → planner_server → action_server → sequencer → hub_runtime
-- Test harness (run_tests.sh) provides dev defaults via env vars
+### 4. Production Hardening (complete)
+- `start_planner_system.sh` orchestrator: start/stop/restart/status/build
+- kv-bridge on `planner-net` (was `--network host`, couldn't reach other containers)
+- NATS export retry (3 attempts, 2s delay)
+- Debug prints removed from mqtt_hub_transport connect flow
+- Energy: action server reads from link_manager (live robot state), not stale NATS KV
+- `docker_build.sh` rebuilds runtime KB during staging, verifies boards exist
 
 ---
 
@@ -59,60 +40,94 @@ Major cleanup and architecture session covering seven areas:
 
 ```bash
 cd ros_planner_ii/tests
-
-bash ./run_tests.sh all         # 123 assertions, 0 failures, 5 suites
-
-# Individual suites:
-bash ./run_tests.sh planner     # 60 — graph, routing, KB schema
-bash ./run_tests.sh mqtt_direct # 23 — JSON wire, 5-stop mission from moon map
-bash ./run_tests.sh mqtt_cbor   # 11 — CBOR wire, same mission
-bash ./run_tests.sh sequencer   # 15 — sequencer API, 3-stop mission with recharge
-bash ./run_tests.sh action      # 14 — action server, coroutine + direct execution
-
-# Unit tests (run separately):
-bash ./run_tests.sh link_manager  # 38 — planner-side link protocol
-bash ./run_tests.sh link_client   # 41 — robot-side link protocol
-bash ./run_tests.sh kv_writer     # 16 — coalescing queue
+bash ./run_tests.sh mqtt_direct    # 23 assertions, 0 failures
 ```
 
-Total: 202 assertions across 7 suites + kv_writer
+## How to Run
+
+### Full System (Container)
+```bash
+cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks
+
+# Start everything (network, KB build, kv-bridge, planner container)
+bash start_planner_system.sh start
+
+# Check status
+bash start_planner_system.sh status
+
+# Start robot (Terminal 2)
+bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json
+
+# Submit mission (Terminal 3, after robot shows "live")
+bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json
+
+# Stop everything
+bash start_planner_system.sh stop
+```
+
+### Non-Container (Dev Mode)
+```bash
+# Terminal 1: Planner server
+bash ros_scripts/start_server.sh
+
+# Terminal 2: Robot
+bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json
+
+# Terminal 3: Mission
+bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json
+```
 
 ---
 
-## Next Session: Turn MQTT Robot into Real Robot
+## Next Session: Two-Prong Approach
 
-The `ros_planner_ii_mqtt_robot/` is currently a simulation — workers count down ticks
-and report success. The robot needs to become a real robot that:
+### Prong 1: Web UI via OpenResty
 
-### What "real" means:
-1. **Workers execute actual hardware commands** — not tick countdowns
-   - `path_spline` → motor control, odometry, PID
-   - `deliver_part` → arm servos, gripper
-   - `inspection_scan` → sensor reads, data collection
-   - `recharge` → dock with charger, monitor battery
+Connect the existing OpenResty web gateway to the planner's NATS API.
+Display real-time data from the external interface (`docs/api/README.md`):
 
-2. **Sensor integration** — workers read actual sensors and report real bitmask/pose data
-   - Distance sensor → obstacle detection in path workers
-   - IMU → heading tracking in path_rotate
-   - Color sensor → line following in path_line
-   - Force sensor → gripper feedback in deliver_part
+1. **Fleet Summary** — watch `{site}.action_server.summary` in NATS KV
+   - Active missions, registered robots, per-robot state
+2. **Mission Status** — poll `{site}.action_server.{robot_id}.status`
+   - Planning → executing → completed/failed
+3. **Mission Result** — read `{site}.action_server.{robot_id}.result`
+   - Success, completed/total, elapsed, pose, fault
+4. **Robot Status** — watch `{site}.robots.{robot_id}.status.link`
+   - Link state, wire format, energy, heartbeat
+5. **Telemetry Stream** — subscribe `{site}.robots.{robot_id}.stream.telemetry`
+   - action_start, heartbeat, action_complete, mission_complete
+6. **Board Viewer** — read `{site}.boards.{name}` from `kb_export`
+   - Node positions, edges, current robot positions
+7. **Mission Launcher** — submit to `{site}.action_server.missions` job queue
 
-3. **Hardware abstraction** — separate hardware-specific code from protocol code
-   - `remote_user_functions.lua` contains both protocol (ACK, heartbeat, completion)
-     and hardware simulation (tick countdowns). Split these.
-   - Controller functions (dispatch, watchdog, heartbeat, completion) are robot-independent
-   - Worker functions are hardware-specific — different per robot class
+OpenResty connects to NATS via lua-resty-nats or a NATS WebSocket bridge.
+Frontend: minimal HTML/JS using Server-Sent Events or WebSocket for live updates.
 
-4. **Target platform** — Pi Zero 2 W or ESP32
-   - MQTT transport works on both
-   - ChainTree DSL compiles to JSON, runs on LuaJIT
-   - C robot alternative: `ros_planner_ii_c_cbor_robot/` (separate plan)
+### Prong 2: LuaJIT Robot Transform
 
-### Approach:
-- Create a hardware abstraction layer in the MQTT robot
-- Controller stays generic, workers become pluggable per robot class
-- Start with simulated hardware (current behavior) as the "sim" driver
-- Add real hardware drivers one VN at a time
+Turn the simulated MQTT robot into a real robot:
+
+1. **Worker driver interface** — each worker is a pluggable module
+   - `sim` driver: current tick-countdown behavior (test/dev)
+   - `hw` driver: real hardware (motor control, sensors, arm servos)
+   - Selected by robot config: `"driver": "sim"` or `"driver": "hw"`
+
+2. **Split remote_user_functions.lua**
+   - `workers/sim/` — simulated workers (current code)
+   - `workers/hw/` — real hardware workers (one per VN)
+   - Worker loader reads driver from config, requires the right module
+
+3. **Hardware abstraction per VN**
+   - `path_spline` → motor control, odometry, PID loop
+   - `path_rotate` → IMU heading tracking, turn-in-place
+   - `deliver_part` → arm servo, gripper, force sensor
+   - `inspection_scan` → sensor read, data collection
+   - `recharge` → dock detection, battery monitor
+
+4. **Target platform** — Pi Zero 2 W
+   - LuaJIT + MQTT transport (same as simulation)
+   - GPIO/I2C/SPI via LuaJIT FFI
+   - Worker drivers are the only platform-specific code
 
 ---
 
@@ -121,52 +136,54 @@ and report success. The robot needs to become a real robot that:
 ```
 ros_planner_ii/
   runtime/
-    hub_runtime.lua         — state machine (no ChainTree), VN defs from KB
-    link_manager.lua        — planner-side link protocol (URLP v1)
+    mqtt_hub_transport.lua  — async MQTT connect, planner-net compatible
+    link_manager.lua        — planner-side link protocol, get_energy()
     link_client.lua         — robot-side link protocol
-    mqtt_hub_transport.lua  — shared MQTT client, link message routing
-    mqtt_transport.lua      — per-robot MQTT (JSON or CBOR), link send/recv
     kv_writer.lua           — coalescing KV queue
-    queue_monitor.lua       — transport ↔ event bridge
   local_planner/lib/
-    hub_runtime.lua         — state machine hub
-    sequencer.lua           — route execution
-    mission.lua             — telemetry
+    hub_runtime.lua         — state machine hub (site param)
+    sequencer.lua           — route execution (site param)
   action_server/lib/
-    action_server.lua       — coroutine scheduler, link_manager, mission cancel
-    mission_builder.lua     — route builder with capability validation
+    action_server.lua       — energy from link_manager, site param
   global_planner/lib/
-    global_planner.lua      — Dijkstra path planner
-    route_builder.lua       — edge→VN translation, auto path_rotate
-  hub_dsl/
-    protocol/               — command_packets, event_ids, stream_packets, packet_mapper
-    hub_functions/          — hub_control, event_handlers, error_recovery
-    kb_construct/           — construct_surface_ops.lua, kb_query, kb_exporter, kb_runtime
-  tests/                    — 5 integration suites + 2 link unit tests
+    global_planner.lua      — Dijkstra (site param)
+  hub_dsl/kb_construct/
+    kb_query.lua            — optional site param to constructor
 
-ros_planner_ii_mqtt_robot/  — self-contained robot (base for containerization)
-  mqtt_robot_main.lua       — production entry point with link_client
-  remote_mqtt_ct.lua        — test harness with link_client
-  mqtt_robot_config.lua     — config loader, MQTT status publisher
-  remote_dsl.lua            — ChainTree DSL (controller + 12 workers)
-  remote_user_functions.lua — all VN workers (simulation)
-  capabilities.lua          — lunar_rover VN set (12 capabilities)
-  build.sh                  — compile remote.json
+ros_planner_ii_mqtt_robot/
+  robot_controller.lua      — robot-independent controller (no ChainTree)
+  remote_user_functions.lua — workers only, individual VN definitions
+  remote_dsl.lua            — workers only, no controller KB
+  rover_1_config.json       — robot config for start_robot.sh
 
 ros_scripts/
-  planner_server.lua        — persistent server, KB infra discovery
-  bootstrap_container.lua   — container entrypoint
-  start_server.sh           — host dev launcher
+  planner_server.lua        — single DB, site param
+  bootstrap_container.lua   — NATS export retry, no runtime KB build
+  start_server.sh           — non-container planner
   start_robot.sh            — robot launcher
   submit_mission.sh         — mission client
+  moonbase_mission.json     — 5-stop moon base mission
+
+kb_dsl/scripts/
+  master_build.lua          — Postgres + planner tree + SQLite extract
+  planner_tree.lua          — planner data in Postgres (wrapper)
+  surface_ops_planner_data.lua — planner data builder (CDT API)
+  sqlite_extract.lua        — system/subsystems extract + CDT planner build
+  site_config.lua           — 127.0.0.1 hosts, planner_data field
+
+start_planner_system.sh     — system orchestrator (start/stop/restart/status/build)
 
 third_party_containers/
-  ros_planner/              — planner container (built, tested)
-  kv_bridge/                — MQTT→NATS KV bridge (Go)
+  ros_planner/
+    docker_build.sh         — rebuilds runtime KB, verifies boards
+    docker_run.sh           — planner-net, container DNS, read-write mount
+  kv_bridge/
+    docker_run.sh           — planner-net, container DNS
 ```
 
 ## Required Infrastructure
-- NATS: `nats-js-ram` container, port from KB
-- MQTT: `mosquitto-ram-ws_main` container, port from KB
-- KV bridge: `kv-bridge` container
-- SQLite DBs: built by `kb_dsl/scripts/master_build.lua`
+- Postgres: `pg-vector` container (bridge network)
+- NATS: `nats-js-ram` container (bridge + planner-net)
+- MQTT: `mosquitto-ram-ws_main` container (bridge + planner-net)
+- KV bridge: `kv-bridge` container (planner-net)
+- Web gateway: `openresty-gateway` container (bridge, port 8080)
