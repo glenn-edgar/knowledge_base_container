@@ -67,6 +67,8 @@ function M.new(mqtt_hub, kv_writer, site, opts)
         ack_seq = 0,
         -- Callback for link exceptions (re-announce from live robot)
         on_link_exception = opts.on_link_exception,
+        -- Callback for any link state change (live, offline, stale)
+        on_link_change = opts.on_link_change,
     }, M)
 end
 
@@ -80,6 +82,7 @@ local function get_robot(self, robot_id)
             link_state      = "offline",
             last_heartbeat  = 0,
             heartbeat_seq   = 0,
+            class_name      = nil,
             wire_format     = "json",
             capabilities    = {},
             energy_max      = 10000,
@@ -130,6 +133,12 @@ function M:get_energy(robot_id)
     return r.energy_remaining, r.energy_max
 end
 
+function M:get_class(robot_id)
+    local r = self.robots[robot_id]
+    if not r then return nil end
+    return r.class_name
+end
+
 ---------------------------------------------------------------------------
 -- Event: link_announce (robot boot/reboot)
 ---------------------------------------------------------------------------
@@ -160,6 +169,7 @@ function M:on_announce(robot_id, payload)
     r.link_state = "registering"
     r.registered_at = os.time()
     r.last_heartbeat = os.time()
+    r.class_name = data.class_name
     r.energy_remaining = data.energy_remaining or 0
     self.ack_seq = self.ack_seq + 1
 
@@ -213,6 +223,7 @@ function M:on_confirm(robot_id, payload)
 
     -- Complete handshake
     r.link_state = "live"
+    r.class_name = data.class_name or r.class_name
     r.wire_format = data.wire_format or "json"
     r.capabilities = data.capabilities or {}
     r.energy_max = data.energy_max or 10000
@@ -227,6 +238,10 @@ function M:on_confirm(robot_id, payload)
 
     io.stderr:write(string.format("LINK: %s → live (wire=%s, caps=%d)\n",
         robot_id, r.wire_format, #r.capabilities))
+
+    if self.on_link_change then
+        self.on_link_change(robot_id, "live")
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -327,6 +342,24 @@ function M:_write_link_kv(robot_id, r)
     }))
 end
 
+--- Write robot position to KV (board node name).
+-- Called on initial registration and after each navigation leg.
+function M:write_position(robot_id, node_name)
+    local r = self.robots[robot_id]
+    if r then r.current_node = node_name end
+    local key = self.site .. ".robots." .. robot_id .. ".status.position"
+    self.kv_writer:push(key, json_util.encode({
+        robot_id     = robot_id,
+        current_node = node_name,
+        timestamp    = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+    }))
+end
+
+function M:get_position(robot_id)
+    local r = self.robots[robot_id]
+    return r and r.current_node
+end
+
 ---------------------------------------------------------------------------
 -- Internal: deregister a robot
 ---------------------------------------------------------------------------
@@ -352,6 +385,10 @@ function M:_deregister(robot_id, reason)
     self.mqtt_hub:clear_retained(robot_id)
 
     io.stderr:write(string.format("LINK: %s → offline (%s)\n", robot_id, reason))
+
+    if self.on_link_change then
+        self.on_link_change(robot_id, "offline")
+    end
 end
 
 ---------------------------------------------------------------------------

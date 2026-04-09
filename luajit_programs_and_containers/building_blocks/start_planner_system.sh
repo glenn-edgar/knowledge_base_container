@@ -1,19 +1,21 @@
 #!/bin/bash
-# start_planner_system.sh -- Manage the ROS Planner II system.
+# start_planner_system.sh -- Manage the embedded data center.
 #
-# Creates the planner-net Docker network, ensures infra containers are
-# connected, builds the KB, and starts/stops the planner container.
+# Uses the orchestrator container for lifecycle management.
+# The orchestrator reads the dependency graph from Postgres KB
+# and starts/stops containers in topological order.
 #
 # Usage:
-#   ./start_planner_system.sh start     Build KB, start planner container
-#   ./start_planner_system.sh stop      Stop planner + kv-bridge containers
-#   ./start_planner_system.sh restart   Stop then start
-#   ./start_planner_system.sh status    Show container and network status
-#   ./start_planner_system.sh build     Build KB only (no container start)
+#   ./start_planner_system.sh start      Start all containers
+#   ./start_planner_system.sh stop       Stop all (except Postgres)
+#   ./start_planner_system.sh restart    Stop then start
+#   ./start_planner_system.sh status     Show container and network status
+#   ./start_planner_system.sh build      Rebuild KB (stop → build → start)
+#   ./start_planner_system.sh rebuild    Build orchestrator image, then KB rebuild
 #
 # Prerequisites:
-#   - Postgres, NATS, MQTT containers running
-#   - Postgres has KB data (or run master_build first)
+#   - Postgres container running (pg-vector)
+#   - Orchestrator image built (nanodatacenter/orchestrator:latest)
 #
 # Environment:
 #   DOCKER_NETWORK  Docker network name (default: planner-net)
@@ -23,12 +25,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINERS_DIR="$SCRIPT_DIR/../../third_party_containers"
-KB_DSL_DIR="$SCRIPT_DIR/kb_dsl/scripts"
+ORCH_DIR="$CONTAINERS_DIR/orchestrator"
 NETWORK="${DOCKER_NETWORK:-planner-net}"
 SQLITE_DATA="${SQLITE_DATA:-/home/gedgar/Sqlite_Data}"
-
-# Infra containers that must be on planner-net
-INFRA_CONTAINERS="nats-js-ram mosquitto-ram-ws_main"
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -43,7 +42,8 @@ ensure_network() {
 }
 
 connect_infra() {
-    for name in $INFRA_CONTAINERS; do
+    # Connect infra containers to planner-net (idempotent)
+    for name in nats-js-ram mosquitto-ram-ws_main; do
         if check_container_running "$name"; then
             docker network connect "$NETWORK" "$name" 2>/dev/null \
                 && echo "  Connected $name to $NETWORK" \
@@ -54,28 +54,31 @@ connect_infra() {
     done
 }
 
-# ---------------------------------------------------------------------------
-# Build KB
-# ---------------------------------------------------------------------------
-
-do_build() {
-    echo "=== Building KB (Postgres → SQLite) ==="
-
-    if ! pg_isready -h localhost -q 2>/dev/null; then
-        echo "ERROR: Postgres is not running"
-        exit 1
+ensure_orchestrator_image() {
+    if ! docker image inspect nanodatacenter/orchestrator:latest >/dev/null 2>&1; then
+        echo "  Building orchestrator image..."
+        bash "$ORCH_DIR/docker_build.sh"
+        echo ""
     fi
+}
 
-    cd "$KB_DSL_DIR"
-    luajit master_build.lua 2>&1 | grep -E "^(===|  Planner|  Extracting|    ->|\[OK\]|---)" | head -20
-    cd "$SCRIPT_DIR"
-
-    if [ ! -f "$SQLITE_DATA/surface_ops.db" ]; then
-        echo "ERROR: SQLite extract failed — $SQLITE_DATA/surface_ops.db not found"
-        exit 1
-    fi
-
-    echo ""
+# Run orchestrator container (one-shot, auto-removed)
+run_orchestrator() {
+    local mode="$1"
+    shift
+    docker run --rm \
+        --name "orchestrator-${mode}" \
+        --network host \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$SQLITE_DATA:/data" \
+        -e PG_HOST="${PG_HOST:-127.0.0.1}" \
+        -e PG_PORT="${PG_PORT:-5432}" \
+        -e PG_DBNAME="${PG_DBNAME:-knowledge_base}" \
+        -e PG_USER="${PG_USER:-gedgar}" \
+        -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}" \
+        -e SQLITE_DATA="/data" \
+        nanodatacenter/orchestrator:latest \
+        luajit "$@"
 }
 
 # ---------------------------------------------------------------------------
@@ -83,7 +86,7 @@ do_build() {
 # ---------------------------------------------------------------------------
 
 do_start() {
-    echo "=== Starting Planner System ==="
+    echo "=== Starting System ==="
     echo ""
 
     # Step 1: Network
@@ -92,52 +95,18 @@ do_start() {
     connect_infra
     echo ""
 
-    # Step 2: Build KB
-    do_build
+    # Step 2: Ensure orchestrator image exists
+    ensure_orchestrator_image
 
-    # Step 3: kv-bridge
-    echo "--- KV Bridge ---"
-    if check_container_running kv-bridge; then
-        # Check if on the right network
-        local kvnet=$(docker inspect kv-bridge --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null)
-        if echo "$kvnet" | grep -q "$NETWORK"; then
-            echo "  kv-bridge already running on $NETWORK"
-        else
-            echo "  Restarting kv-bridge on $NETWORK..."
-            bash "$CONTAINERS_DIR/kv_bridge/docker_run.sh"
-        fi
-    else
-        echo "  Starting kv-bridge..."
-        bash "$CONTAINERS_DIR/kv_bridge/docker_run.sh"
-    fi
-    echo ""
-
-    # Step 4: Planner container
-    echo "--- Planner Container ---"
-    bash "$CONTAINERS_DIR/ros_planner/docker_build.sh" 2>&1 | grep -E "^(===|  Runtime|  Staged|  Image)" | head -5
-    echo ""
-    bash "$CONTAINERS_DIR/ros_planner/docker_run.sh"
-    echo ""
-
-    # Step 5: Wait for planner to be ready
-    echo "--- Waiting for planner startup ---"
-    for i in $(seq 1 30); do
-        if docker logs surface_ops-planner 2>&1 | grep -q "Action server ready"; then
-            echo "  Planner ready!"
-            break
-        fi
-        if [ "$i" -eq 30 ]; then
-            echo "  WARNING: Planner did not become ready in 30s"
-            echo "  Check: docker logs -f surface_ops-planner"
-        fi
-        sleep 1
-    done
+    # Step 3: Start all containers via orchestrator
+    run_orchestrator start startup.lua --exclude postgres \
+        --network "$NETWORK" --connect nats_server,mqtt_broker
 
     echo ""
     echo "=== System Started ==="
-    echo "  Submit missions: bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json"
+    echo "  Web UI:          http://localhost:8080/"
+    echo "  Submit mission:  bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json"
     echo "  Start robot:     bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json"
-    echo "  Planner logs:    docker logs -f surface_ops-planner"
 }
 
 # ---------------------------------------------------------------------------
@@ -145,10 +114,45 @@ do_start() {
 # ---------------------------------------------------------------------------
 
 do_stop() {
-    echo "=== Stopping Planner System ==="
-    docker rm -f surface_ops-planner 2>/dev/null && echo "  Stopped surface_ops-planner" || echo "  surface_ops-planner not running"
-    docker rm -f kv-bridge 2>/dev/null && echo "  Stopped kv-bridge" || echo "  kv-bridge not running"
-    echo "=== Stopped ==="
+    echo "=== Stopping System ==="
+
+    ensure_orchestrator_image
+
+    # Stop all except Postgres (keep KB source of truth alive)
+    run_orchestrator stop shutdown.lua --exclude postgres
+}
+
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
+
+do_build() {
+    echo "=== KB Rebuild ==="
+
+    ensure_orchestrator_image
+
+    # KB rebuild: stop → master_build → sqlite extract → start
+    run_orchestrator build kb_build.lua
+}
+
+# ---------------------------------------------------------------------------
+# Rebuild (build orchestrator image first, then KB rebuild)
+# ---------------------------------------------------------------------------
+
+do_rebuild() {
+    echo "=== Full Rebuild ==="
+    echo ""
+
+    echo "--- Building orchestrator image ---"
+    bash "$ORCH_DIR/docker_build.sh"
+    echo ""
+
+    # Also rebuild planner container image
+    echo "--- Building planner image ---"
+    bash "$CONTAINERS_DIR/ros_planner/docker_build.sh"
+    echo ""
+
+    do_build
 }
 
 # ---------------------------------------------------------------------------
@@ -156,11 +160,12 @@ do_stop() {
 # ---------------------------------------------------------------------------
 
 do_status() {
-    echo "=== Planner System Status ==="
+    echo "=== System Status ==="
     echo ""
 
     echo "Network: $NETWORK"
-    local net_containers=$(docker network inspect "$NETWORK" --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null)
+    local net_containers=$(docker network inspect "$NETWORK" \
+        --format '{{range .Containers}}{{.Name}} {{end}}' 2>/dev/null)
     if [ -n "$net_containers" ]; then
         echo "  Containers: $net_containers"
     else
@@ -169,9 +174,12 @@ do_status() {
     echo ""
 
     echo "Containers:"
-    for name in nats-js-ram mosquitto-ram-ws_main pg-vector kv-bridge surface_ops-planner; do
+    for name in nats-js-ram mosquitto-ram-ws_main pg-vector openresty-gateway \
+                kv-bridge fleet-manager telemetry-collector \
+                surface_ops-planner warehouse_ops-planner; do
         if check_container_running "$name"; then
-            local net=$(docker inspect "$name" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null)
+            local net=$(docker inspect "$name" \
+                --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null)
             printf "  %-25s running  [%s]\n" "$name" "$net"
         else
             printf "  %-25s stopped\n" "$name"
@@ -195,6 +203,7 @@ case "${1:-status}" in
     restart) do_stop; echo ""; do_start ;;
     status)  do_status ;;
     build)   do_build ;;
-    *)       echo "Usage: $0 {start|stop|restart|status|build}"
+    rebuild) do_rebuild ;;
+    *)       echo "Usage: $0 {start|stop|restart|status|build|rebuild}"
              exit 1 ;;
 esac

@@ -111,6 +111,7 @@ ctrl:set_energy_remaining(cfg.energy_remaining)
 -- Link client: manages registration and planner liveness
 local lc = link_client.new({
     robot_id         = cfg.robot_id,
+    class_name       = cfg.robot_class,
     transport        = cfg.transport,
     wire_format      = cfg.wire_format,
     capabilities     = cfg.capabilities,

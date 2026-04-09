@@ -40,11 +40,11 @@ local planner = global_planner.new({
 local graph = planner:get_graph()
 
 -- Verify graph loaded
-check("graph has 8 nodes",
+check("graph has 9 nodes",
     (function()
         local n = 0; for _ in pairs(graph.nodes) do n = n + 1 end; return n
-    end)() == 8,
-    "expected 8 nodes")
+    end)() == 9,
+    "expected 9 nodes (includes co-located inspection_scan)")
 
 check("lander_pad exists", graph.nodes["lander_pad"] ~= nil, "missing")
 check("lander_pad coords",
@@ -57,7 +57,7 @@ local lp_neighbors = #graph.adj["lander_pad"]
 check("lander_pad has neighbors", lp_neighbors >= 2,
     "expected >= 2, got " .. lp_neighbors)
 
-print("  Graph: 8 nodes, bidirectional edges loaded from KB\n")
+print("  Graph: 9 nodes, bidirectional edges loaded from KB\n")
 
 ---------------------------------------------------------------------------
 -- Test 1: Dijkstra — lander_pad → mining_zone_b
@@ -206,13 +206,15 @@ end
 ---------------------------------------------------------------------------
 -- Test 8: Block all paths to a node
 ---------------------------------------------------------------------------
--- mining_zone_a is only reachable via habitat_site → mining_zone_a
+-- mining_zone_a reachable via habitat_site and inspection_scan — block both
 planner:clear_blocked()
 planner:mark_blocked("habitat_site", "mining_zone_a")
+planner:mark_blocked("inspection_scan", "mining_zone_a")
+planner:mark_blocked("mining_zone_a", "mining_zone_b")
 
 local route7, info7 = planner:replan("lander_pad", "mining_zone_a")
 check("blocked node unreachable", route7 == nil,
-    "expected nil (mining_zone_a only connected via habitat_site)")
+    "expected nil (all edges to mining_zone_a blocked)")
 if info7.error then
     print("  Fully blocked: " .. info7.error)
 end
@@ -307,15 +309,15 @@ local stats = kb_exporter.export({
 
 check("exporter wrote keys", stats.keys_written > 0,
     "expected > 0, got " .. stats.keys_written)
-check("exporter found robots", stats.robots > 0,
-    "expected > 0, got " .. stats.robots)
+check("exporter found robot classes", stats.robot_classes > 0,
+    "expected > 0, got " .. stats.robot_classes)
 check("exporter found VN defs", stats.virtual_nodes == 12,
-    "expected 11, got " .. stats.virtual_nodes)
+    "expected 12, got " .. stats.virtual_nodes)
 check("exporter found boards", stats.boards > 0,
     "expected > 0, got " .. stats.boards)
 
-print(string.format("  Exported: %d keys (%d robots, %d boards, %d VN defs)",
-    stats.keys_written, stats.robots, stats.boards, stats.virtual_nodes))
+print(string.format("  Exported: %d keys (%d classes, %d boards, %d VN defs)",
+    stats.keys_written, stats.robot_classes, stats.boards, stats.virtual_nodes))
 
 -- Read back via reader
 local reader = kb_exporter.reader({
@@ -323,16 +325,12 @@ local reader = kb_exporter.reader({
     bucket      = "kb_export_test",
 })
 
-local conn = reader:get_robot_connection(stats.site, "rover_1")
-check("reader: rover_1 connection", conn ~= nil, "not found")
-if conn then
-    check("reader: comm_type = nats", conn.comm_type == "nats",
-        "got " .. tostring(conn.comm_type))
+local infra = reader:get_class_infra(stats.site, "lunar_rover")
+check("reader: lunar_rover class infra", infra ~= nil, "not found")
+if infra then
+    check("reader: lunar_rover has 12 VNs", #infra.virtual_nodes == 12,
+        "expected 12, got " .. tostring(infra.virtual_nodes and #infra.virtual_nodes))
 end
-
-local caps = reader:get_robot_capabilities(stats.site, "rover_1")
-check("reader: rover_1 capabilities", caps ~= nil and #caps == 12,
-    "expected 11 caps, got " .. tostring(caps and #caps))
 
 local vn_spline = reader:get_virtual_node(stats.site, "path_spline")
 check("reader: path_spline VN", vn_spline ~= nil, "not found")
@@ -344,8 +342,8 @@ end
 local board = reader:get_board(stats.site, "landing_zone")
 check("reader: landing_zone board", board ~= nil, "not found")
 if board then
-    check("reader: board has nodes", board.nodes ~= nil and #board.nodes == 8,
-        "expected 8 nodes")
+    check("reader: board has nodes", board.nodes ~= nil and #board.nodes == 9,
+        "expected 9 nodes")
 end
 
 reader:close()

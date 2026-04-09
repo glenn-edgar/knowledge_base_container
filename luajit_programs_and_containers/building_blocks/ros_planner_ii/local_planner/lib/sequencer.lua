@@ -71,24 +71,24 @@ function M.new(opts)
     self.max_ticks_per_action = opts.max_ticks_per_action or 500
     self.stream_size         = opts.stream_size or 200
 
-    -- Query KB for robot config
+    -- Site and NATS server from caller
     local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-    local kb_q = kb_query.new(db_file, "knowledge_base", ltree_path, opts.site)
-    self.site = opts.site or kb_q:get_site()
-    local robot_config = kb_q:get_robot_config(self.robot_id)
-
-    -- NATS server: from caller (action_server), not from KB
+    if not opts.site then
+        local kb_q = kb_query.new(db_file, "knowledge_base", ltree_path)
+        self.site = kb_q:get_site()
+        kb_q:close()
+    else
+        self.site = opts.site
+    end
     self.nats_server = opts.nats_server or error("sequencer: nats_server required")
 
-    -- Robot capabilities (which virtual nodes it supports)
+    -- Robot capabilities: passed from action_server (from link protocol or KB class)
     self.capabilities = {}
-    if robot_config.capabilities then
-        for _, cap in ipairs(robot_config.capabilities) do
+    if opts.capabilities then
+        for _, cap in ipairs(opts.capabilities) do
             self.capabilities[cap] = true
         end
     end
-
-    kb_q:close()
 
     -- MQTT transport (optional — for MQTT-first architecture)
     self.mqtt_hub = opts.mqtt_hub

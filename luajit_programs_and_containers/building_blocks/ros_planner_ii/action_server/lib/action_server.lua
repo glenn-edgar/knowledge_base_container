@@ -74,12 +74,34 @@ function M.new(opts)
     -- In direct mode, this is a no-op (no coroutine)
     self._yield = function() end
 
+    -- Discover initial board node (first node in first board — "node 0")
+    self._init_node = nil
+    pcall(function()
+        local q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+        local boards = q:list_boards()
+        if boards[1] then
+            local board_data = q:get_board(boards[1])
+            if board_data and board_data.nodes and board_data.nodes[1] then
+                self._init_node = board_data.nodes[1].name
+            end
+        end
+        q:close()
+    end)
+
     -- Link manager: robot registration and liveness (MQTT-first only)
     if self.mqtt_hub then
         local kv_writer = opts.kv_writer or kv_writer_mod.new()
+        self._link_kv_writer = kv_writer
         self.link_mgr = link_manager_mod.new(self.mqtt_hub, kv_writer, self.site, {
             on_link_exception = function(robot_id, reason)
                 self:_cancel_mission(robot_id, reason)
+            end,
+            on_link_change = function(robot_id, state)
+                self:_publish_summary()
+                -- Set initial position when robot goes live
+                if state == "live" and self._init_node then
+                    self.link_mgr:write_position(robot_id, self._init_node)
+                end
             end,
         })
 
@@ -219,23 +241,32 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Publish starting status
         srv:_publish_status(robot_id, { state = "planning" })
 
-        -- Get robot capabilities from link_manager (robot's announced capabilities)
-        -- Fall back to KB if no link_manager (direct execution mode)
+        -- Get robot capabilities and class config from link_manager + KB class
         local capabilities
+        local class_name = mission_cmd.class_name
         if srv.link_mgr then
             capabilities = srv.link_mgr:get_capabilities(robot_id)
+            class_name = class_name or srv.link_mgr:get_class(robot_id)
         end
         if not capabilities or #capabilities == 0 then
-            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
-            capabilities = kb_q:get_capabilities(robot_id)
-            kb_q:close()
+            if class_name then
+                local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
+                capabilities = kb_q:get_class_capabilities(class_name)
+                kb_q:close()
+            else
+                capabilities = {}
+            end
         end
 
-        -- Query energy from KB (robot reports energy via link, but max/infinite from class)
-        local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
-        local energy_max = kb_q:get_energy_max(robot_id) or 0
-        local energy_infinite = kb_q:get_energy_infinite(robot_id)
-        kb_q:close()
+        -- Query energy from KB class definition
+        local energy_max = 0
+        local energy_infinite = false
+        if class_name then
+            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
+            energy_max = kb_q:get_class_energy_max(class_name) or 0
+            energy_infinite = kb_q:get_class_energy_infinite(class_name)
+            kb_q:close()
+        end
 
         -- Create planner
         local planner = global_planner.new({
@@ -302,12 +333,12 @@ function M:_make_mission_coroutine(mission_cmd)
 
         -- Create sequencer with yield-aware tick
         local seq = sequencer_mod.new({
-            robot_id    = robot_id,
-            db_file     = srv.db_file,
-            -- hub_json no longer needed (state machine hub_runtime)
-            nats_server = srv.nats_server,
-            site        = srv.site,
-            tick_usleep = 0,  -- no sleep — scheduler controls timing
+            robot_id     = robot_id,
+            db_file      = srv.db_file,
+            nats_server  = srv.nats_server,
+            site         = srv.site,
+            capabilities = capabilities,
+            tick_usleep  = 0,  -- no sleep — scheduler controls timing
             energy_max       = energy_max,
             energy_remaining = energy_remaining,
             mqtt_hub         = srv.mqtt_hub,
@@ -322,7 +353,7 @@ function M:_make_mission_coroutine(mission_cmd)
 
         -- Execute with yield-aware run
         seq:load_route(route)
-        result = srv:_run_with_yield(seq, robot_id)
+        result = srv:_run_with_yield(seq, robot_id, plan_info)
         local replans = 0
 
         -- Replan loop
@@ -386,11 +417,21 @@ end
 
 --- Run sequencer with coroutine yields between ticks.
 -- Replaces the sequencer's internal usleep with coroutine.yield().
-function M:_run_with_yield(seq, robot_id)
+function M:_run_with_yield(seq, robot_id, plan_info)
     local bb = seq:get_hub_runtime():get_blackboard()
     local hub_rt = seq:get_hub_runtime()
     local route = seq.route
     local mission = seq:get_mission()
+
+    -- Build action_index → leg destination lookup for position tracking
+    local action_to_dest = {}
+    if plan_info and plan_info.legs then
+        for _, leg in ipairs(plan_info.legs) do
+            if leg.route_end then
+                action_to_dest[leg.route_end] = leg.to
+            end
+        end
+    end
 
     if not route then
         error("sequencer: no route loaded")
@@ -466,6 +507,12 @@ function M:_run_with_yield(seq, robot_id)
             if success == true then
                 mission:action_complete(action_index, action, pose)
                 completed = completed + 1
+
+                -- Update robot position if this action completed a navigation leg
+                local dest = action_to_dest[action_index]
+                if dest and self.link_mgr then
+                    self.link_mgr:write_position(robot_id, dest)
+                end
             else
                 fault = { reason = bb.fault_reason or "kb_done_failed",
                           action_index = action_index, kb_name = kb_name }
@@ -533,6 +580,11 @@ function M:serve(opts)
         -- Tick link manager (processes link messages via mqtt_hub poll_and_route)
         if self.link_mgr then
             self.link_mgr:tick()
+        end
+
+        -- Drain queued KV writes (link status, energy, bitmask)
+        if self._link_kv_writer then
+            self._link_kv_writer:tick()
         end
 
         -- Drain NATS queue for new missions
@@ -734,22 +786,32 @@ function M:execute_mission(mission_cmd)
     local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
     local board    = mission_cmd.board    or error("action_server: board required")
 
-    -- Get robot capabilities from link_manager (robot's announced capabilities)
+    -- Get robot capabilities and class config
+    local class_name = mission_cmd.class_name
     local capabilities
     if self.link_mgr then
         capabilities = self.link_mgr:get_capabilities(robot_id)
+        class_name = class_name or self.link_mgr:get_class(robot_id)
     end
     if not capabilities or #capabilities == 0 then
-        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
-        capabilities = kb_q:get_capabilities(robot_id)
-        kb_q:close()
+        if class_name then
+            local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+            capabilities = kb_q:get_class_capabilities(class_name)
+            kb_q:close()
+        else
+            capabilities = {}
+        end
     end
 
     -- Energy max/infinite from KB class definition
-    local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
-    local energy_max = kb_q:get_energy_max(robot_id) or 0
-    local energy_infinite = kb_q:get_energy_infinite(robot_id)
-    kb_q:close()
+    local energy_max = 0
+    local energy_infinite = false
+    if class_name then
+        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+        energy_max = kb_q:get_class_energy_max(class_name) or 0
+        energy_infinite = kb_q:get_class_energy_infinite(class_name)
+        kb_q:close()
+    end
 
     local planner = global_planner.new({
         db_file    = self.db_file,
@@ -802,11 +864,11 @@ function M:execute_mission(mission_cmd)
     end
 
     local seq = sequencer_mod.new({
-        robot_id    = robot_id,
-        db_file     = self.db_file,
-        hub_json    = self.hub_json,
-        nats_server = self.nats_server,
-        site        = self.site,
+        robot_id     = robot_id,
+        db_file      = self.db_file,
+        nats_server  = self.nats_server,
+        site         = self.site,
+        capabilities = capabilities,
         energy_max       = energy_max,
         energy_remaining = energy_remaining,
         mqtt_hub         = self.mqtt_hub,
@@ -897,7 +959,11 @@ end
 
 function M:_cancel_mission(robot_id, reason)
     local m = self.missions[robot_id]
-    if not m or m.state ~= "active" then return end
+    if not m or m.state ~= "active" then
+        -- No active mission, but still refresh summary (registered_robots changed)
+        self:_publish_summary()
+        return
+    end
 
     io.stderr:write(string.format(
         "ACTION_SERVER: cancelling mission for %s (%s)\n", robot_id, reason))

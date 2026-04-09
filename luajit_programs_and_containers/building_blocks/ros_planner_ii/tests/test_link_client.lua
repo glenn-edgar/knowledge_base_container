@@ -67,6 +67,7 @@ print("--- Initial State ---")
 local tx = make_mock_transport()
 local lc = link_client.new({
     robot_id     = "rover_1",
+    class_name   = "lunar_rover",
     transport    = tx,
     wire_format  = "cbor",
     capabilities = {"init_check", "path_spline"},
@@ -86,6 +87,7 @@ check("announce sent", #tx.sent_link == 1)
 local announce = tx:last_sent()
 check("announce type", announce.type == "link_announce")
 check("announce robot_id", announce.robot_id == "rover_1")
+check("announce class_name", announce.class_name == "lunar_rover")
 check("announce has seq", announce.seq == 1)
 
 print("\n--- Second Tick: No duplicate announce (interval not reached) ---")
@@ -113,6 +115,7 @@ check("is_live", lc:is_live())
 check("confirm sent", #tx.sent_link == 1)
 local confirm = tx:last_sent()
 check("confirm type", confirm.type == "link_confirm")
+check("confirm class_name", confirm.class_name == "lunar_rover")
 check("confirm wire_format", confirm.wire_format == "cbor")
 check("confirm capabilities", #confirm.capabilities == 2)
 check("confirm energy_max", confirm.energy_max == 10000)

@@ -152,9 +152,10 @@ local srv = action_server.new({
 
 -- Submit a mission via coroutine API
 srv:submit({
-    robot_id = robot_id,
-    board    = "landing_zone",
-    start    = "lander_pad",
+    robot_id   = robot_id,
+    class_name = "lunar_rover",
+    board      = "landing_zone",
+    start      = "lander_pad",
     stops = {
         { node = "habitat_site" },
     },
@@ -182,9 +183,10 @@ end
 print("\n--- Direct Execution Test ---")
 
 local result = srv:execute_mission({
-    robot_id = robot_id,
-    board    = "landing_zone",
-    start    = "lander_pad",
+    robot_id   = robot_id,
+    class_name = "lunar_rover",
+    board      = "landing_zone",
+    start      = "lander_pad",
     stops = {
         { node = "mining_zone_b", action = "deliver_part",
           params = { arm_target = -45, arm_speed = 80, arm_return = 0, payload_type = 1 } },

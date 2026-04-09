@@ -42,6 +42,12 @@ if [ "$BOARD_COUNT" -eq 0 ]; then
 fi
 echo "  Runtime KB: $RUNTIME_DB ($BOARD_COUNT board entries)"
 
+# Copy to Sqlite_Data so the mounted volume has the same DB
+SQLITE_DATA="${SQLITE_DATA:-/home/gedgar/Sqlite_Data}"
+mkdir -p "$SQLITE_DATA"
+cp "$RUNTIME_DB" "$SQLITE_DATA/surface_ops.db"
+echo "  Copied to: $SQLITE_DATA/surface_ops.db"
+
 echo ""
 echo "=== Staging Lua modules ==="
 

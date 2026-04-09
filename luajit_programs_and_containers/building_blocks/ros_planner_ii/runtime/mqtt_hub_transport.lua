@@ -56,7 +56,8 @@ end
 function M:connect()
     local ffi = require("ffi")
     local pubsub = require("lib.mqtt_pubsub")
-    self.ps = pubsub.PubSub.new(self.host, self.port, "planner_hub")
+    local client_id = "planner_" .. (self.site:gsub("%.", "_"))
+    self.ps = pubsub.PubSub.new(self.host, self.port, client_id)
     -- Connect may return asynchronously on some platforms (WSL2 containers)
     local ok, err = pcall(self.ps.connect, self.ps, 5000)
     if not ok then

@@ -20,9 +20,11 @@ function M.build(kb, config)
 
     if has_robots then
       kb:add_header_node("domain", domain.name,
-        { type = "domain", description = domain.description },
-        { site      = domain.site,
-          container = container_path })
+        { type = "domain" },
+        { site          = domain.site,
+          container     = container_path,
+          planner_data  = domain.planner_data or false },
+        domain.description or "")
 
       kb:add_header_node("robots", "registry",
         { type = "robot_registry" },
@@ -41,9 +43,11 @@ function M.build(kb, config)
       kb:leave_header_node("domain", domain.name)
     else
       kb:add_info_node("domain", domain.name,
-        { type = "domain", description = domain.description },
-        { site      = domain.site,
-          container = container_path })
+        { type = "domain" },
+        { site          = domain.site,
+          container     = container_path,
+          planner_data  = false },
+        domain.description or "")
     end
   end
 end

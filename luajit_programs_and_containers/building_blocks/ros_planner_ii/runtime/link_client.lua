@@ -15,6 +15,7 @@
         local link_client = require("link_client")
         local lc = link_client.new({
             robot_id     = "rover_1",
+            class_name   = "lunar_rover",
             transport    = mqtt_transport,   -- needs :send_link() and :recv_link()
             wire_format  = "json",
             capabilities = {"init_check", "path_spline", ...},
@@ -46,10 +47,12 @@ local HEARTBEAT_INTERVAL       = 2      -- seconds between robot keepalive sends
 
 function M.new(opts)
     assert(opts.robot_id, "link_client: robot_id required")
+    assert(opts.class_name, "link_client: class_name required")
     assert(opts.transport, "link_client: transport required")
 
     return setmetatable({
         robot_id        = opts.robot_id,
+        class_name      = opts.class_name,
         transport       = opts.transport,
         wire_format     = opts.wire_format or "json",
         capabilities    = opts.capabilities or {},
@@ -132,6 +135,7 @@ function M:_send_announce(now)
     self.transport:send_link(json_util.encode({
         type       = "link_announce",
         robot_id   = self.robot_id,
+        class_name = self.class_name,
         seq        = self.announce_seq,
         energy_remaining = self.energy_remaining,
         ts         = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -149,6 +153,7 @@ function M:_send_confirm()
     self.transport:send_link(json_util.encode({
         type         = "link_confirm",
         robot_id     = self.robot_id,
+        class_name   = self.class_name,
         wire_format  = self.wire_format,
         capabilities = self.capabilities,
         energy_max   = self.energy_max,

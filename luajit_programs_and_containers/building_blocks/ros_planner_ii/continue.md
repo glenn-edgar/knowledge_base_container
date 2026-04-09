@@ -1,38 +1,104 @@
 # ROS Planner II — Continuation Plan
 
-## Session Summary (2026-04-06/07)
+## Session Summary (2026-04-08, session 4)
 
-### 1. Robot Controller Refactor (complete)
-- Collapsed 4 controller DSL columns (dispatch, watchdog, heartbeat, completion) into single `robot_controller.lua`
-- Controller runs directly from tick loop — no ChainTree dependency
-- Watchdog changed from tick-counting to liveness-based (workers set `bb.worker_alive = true`)
-- Controller KB removed from DSL entirely (137 → 125 nodes)
-- `queue_monitor` no longer used on robot side
-- `remote_user_functions.lua` is workers-only, each with individual DSL definition matching KB VN schema
-- Each worker prints incoming command JSON on init
+### KB Sidecar Removed (complete)
 
-### 2. Unified KB Build (complete)
-- `master_build.lua` builds planner data (boards, VNs, robot classes) into Postgres via `planner_tree.lua`
-- `surface_ops_planner_data.lua` is single source of truth for all planner data
-- `sqlite_extract.lua` builds planner data into domain SQLite via CDT (creates status/stream/bitmask tables)
-- One DB per domain: system KB + subsystems KB + planner KB in one file
-- `site_config.lua` `planner_data` field drives which domains get planner data
+- Deleted `kb_sidecar` container + domain from `site_config.lua`
+- Deleted `system_api/kb_sidecar/` directory and `shell.js`
 
-### 3. Container Networking (complete)
-- `planner-net` Docker network for container-to-container communication
-- MQTT/NATS reached by container name (Docker DNS): `mosquitto-ram-ws_main`, `nats-js-ram`
-- Fixes WSL2 `--network host` limitation
-- `site_config.lua` uses `127.0.0.1` instead of `0.0.0.0`
-- `mqtt_hub_transport.lua` handles async MQTT connect (pcall + is_connected poll)
-- SQLite DB mounted read-write (planner writes status updates)
+### Container Lifecycle Orchestrator (complete)
 
-### 4. Production Hardening (complete)
-- `start_planner_system.sh` orchestrator: start/stop/restart/status/build
-- kv-bridge on `planner-net` (was `--network host`, couldn't reach other containers)
-- NATS export retry (3 attempts, 2s delay)
-- Debug prints removed from mqtt_hub_transport connect flow
-- Energy: action server reads from link_manager (live robot state), not stale NATS KV
-- `docker_build.sh` rebuilds runtime KB during staging, verifies boards exist
+**Full deployment manifest in site_config.lua:**
+- Every container has: `depends_on`, `docker_name`, `image`, `ports`, `volumes`, `tmpfs`, `env`, `network`, `restart`, `links`
+- `env` contains container-own config only — service endpoints resolved at runtime from KB
+- `env_names` overrides protocol→env var mapping per container (e.g. kv-bridge uses `NATS_URL` not `NATS_SERVER`)
+
+**Service discovery (Postgres KB is single source of truth):**
+- Orchestrator reads dependency containers' service nodes from Postgres
+- Only injects env for protocols the consumer declares with `role=client` in its services
+- Protocol → env var mapping: nats→NATS_SERVER, mqtt→MQTT_HOST/PORT, postgres→PG_HOST/PORT/DBNAME/USER
+- `env_names` allows per-container override (e.g. `{ nats = "NATS_URL" }`)
+- Container-own env wins on conflict
+- `$VAR` references expand from host environment
+
+**Stale container detection:**
+- `docker_inspect_config` reads existing container's image + env via `docker inspect`
+- `is_stale` compares against KB spec (image + resolved env)
+- `docker_ensure`: stale running → stop + rm + run. Stale stopped → rm + run. Fresh → start.
+- No more manual `docker rm` needed when KB spec changes
+
+**Orchestrator modules (`building_blocks/orchestrator/`):**
+- `graph.lua` — KB query, dependency graph, topo sort, level grouping, service discovery, env_names, stale detection, docker run builder, docker_ensure
+- `startup.lua` — One-shot: create-or-start (or recreate if stale) in topo order
+- `shutdown.lua` — One-shot: reverse topo sort, stops leaves first
+- `kb_build.lua` — One-shot: stop → master_build → SQLite extract → start
+
+**Bug fixes:**
+- `docker_exists` — LuaJIT `os.execute` returns 0/256, not true/false
+- `run_cmd` — LuaJIT `io.popen:close()` always returns true; detect errors via output
+- MQTT client ID collision — two planners shared `"planner_hub"`, now `planner_<site_name>`
+- `bootstrap_container.lua` + `planner_server.lua` — env vars override KB for MQTT/NATS (Docker DNS vs localhost)
+- Domain descriptions empty in KB — `construct_kb.add_header_node` 5th arg overwrites properties; fixed by passing description as 5th arg
+
+### KB-Driven Multi-Domain UI (complete)
+
+- `software_tree.lua` stores `planner_data` flag in domain data
+- `/api/domains` returns `site`, `has_planner_data` per domain
+- `index.html` builds sidebar tree dynamically from `/api/domains`
+- Domains with `planner_data` get full 5-panel set (Robots, Mission Planner, Mission Log, Telemetry, Board)
+- Domains without planner_data get legacy iframe
+- `registry.js` — `_ctxForPanel` merges domain-specific `site`/`siteBucket` per panel
+- `robots.js` — dynamic domain name in API call
+- Planner bar rewires KV watcher when switching domains
+- Board name discovered dynamically from `kb_export` KV (no hardcoded `landing_zone`)
+- All panels wrapped KV watch/loadAll in try/catch (uncaught exceptions killed init flow)
+- `kv-manager.js` `loadAll` collects keys first, then fetches values (iterator/get interleaving fix)
+
+### Robot Position Tracking (complete)
+
+- `link_manager.lua` — new `write_position(robot_id, node_name)` and `get_position(robot_id)` methods
+- `action_server.lua` — discovers initial board node at startup, writes `current_node` to KV when robot goes live
+- `action_server.lua` — updates `current_node` in KV after each navigation leg completes (action_index → leg destination lookup)
+- Position stored in `robot_status` KV bucket: `{site}.robots.{id}.status.position`
+- `mission-planner.js` — reads `current_node` from KV, auto-fills start node (no dropdown)
+- `board.js` — renders robot markers at their actual current node (not hardcoded lander_pad)
+- Position updates live via KV watch as robot moves
+
+### Cleanup (complete)
+
+- Removed `warehouse_ops_planner` container + domain (placeholder, no real image)
+- Removed `fleet_manager` container + domain (work in progress, will add when ready)
+- Removed bookend checkbox — `init_check` + `idle` always happen, no option
+- `mission_builder.lua` — `start` field optional (defaults to first stop's node)
+- Fixed HTTP monitoring env injection — only injects for protocols consumer needs
+- `env_names` for kv-bridge: `{ nats = "NATS_URL" }` instead of default `NATS_SERVER`
+
+### Tests: 248 assertions, 0 failures
+- Orchestrator graph: 91 pass (topo sort, levels, exclude, service discovery, env_names, env merge, env refs, build_run_cmd, is_stale)
+- Planner: 57 pass
+- Link manager: 39 pass
+- Link client: 43 pass
+- KV writer: 16 pass
+
+---
+
+## Previous Sessions
+
+### Session 3 (2026-04-08): Orchestrator + Sidecar Removal
+- Initial orchestrator implementation (before stale detection, env_names)
+- See session 4 for final state
+
+### Session 2 (2026-04-08): Robot Instances Removed from KB
+- Dynamic robot registration via link protocol
+- Class-based KB (capabilities, energy from robot class, not instance)
+- 155 assertions, 0 failures
+
+### Session 1 (2026-04-08): Web UI Panel Architecture
+- Single-page panel UI (6 panels), co-located VN support, mobile responsive
+
+### Previous (2026-04-06/07)
+- Robot controller refactor, unified KB build, container networking, production hardening
 
 ---
 
@@ -40,7 +106,13 @@
 
 ```bash
 cd ros_planner_ii/tests
-bash ./run_tests.sh mqtt_direct    # 23 assertions, 0 failures
+bash ./run_tests.sh planner        # 57 assertions
+bash ./run_tests.sh link_manager   # 39 assertions
+bash ./run_tests.sh link_client    # 43 assertions
+bash ./run_tests.sh kv_writer      # 16 assertions
+
+cd orchestrator
+luajit test_graph.lua              # 91 assertions
 ```
 
 ## How to Run
@@ -49,141 +121,136 @@ bash ./run_tests.sh mqtt_direct    # 23 assertions, 0 failures
 ```bash
 cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks
 
-# Start everything (network, KB build, kv-bridge, planner container)
+# First time: build orchestrator + planner images, rebuild KB, start all
+bash start_planner_system.sh rebuild
+
+# Normal start (orchestrator image already built)
 bash start_planner_system.sh start
 
-# Check status
-bash start_planner_system.sh status
+# KB rebuild only (stop → master_build → SQLite extract → start)
+bash start_planner_system.sh build
+
+# Web UI
+open http://localhost:8080/
 
 # Start robot (Terminal 2)
 bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json
 
-# Submit mission (Terminal 3, after robot shows "live")
-bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json
-
-# Stop everything
+# Stop everything (except Postgres)
 bash start_planner_system.sh stop
-```
 
-### Non-Container (Dev Mode)
-```bash
-# Terminal 1: Planner server
-bash ros_scripts/start_server.sh
-
-# Terminal 2: Robot
-bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json
-
-# Terminal 3: Mission
-bash ros_scripts/submit_mission.sh ros_scripts/moonbase_mission.json
+# Direct orchestrator usage
+cd orchestrator
+BB=.. LUA_PATH="./?.lua;$BB/knowledge_base/postgres/data_structures/?.lua;;" \
+  luajit shutdown.lua --exclude postgres
+  luajit startup.lua --exclude postgres
 ```
 
 ---
 
-## Next Session: Two-Prong Approach
+## Next Session: KB-Defined Path Segments
 
-### Prong 1: Web UI via OpenResty
+### Design
 
-Connect the existing OpenResty web gateway to the planner's NATS API.
-Display real-time data from the external interface (`docs/api/README.md`):
+The path between board nodes is **map data defined in the KB**, not computed by the planner.
 
-1. **Fleet Summary** — watch `{site}.action_server.summary` in NATS KV
-   - Active missions, registered robots, per-robot state
-2. **Mission Status** — poll `{site}.action_server.{robot_id}.status`
-   - Planning → executing → completed/failed
-3. **Mission Result** — read `{site}.action_server.{robot_id}.result`
-   - Success, completed/total, elapsed, pose, fault
-4. **Robot Status** — watch `{site}.robots.{robot_id}.status.link`
-   - Link state, wire format, energy, heartbeat
-5. **Telemetry Stream** — subscribe `{site}.robots.{robot_id}.stream.telemetry`
-   - action_start, heartbeat, action_complete, mission_complete
-6. **Board Viewer** — read `{site}.boards.{name}` from `kb_export`
-   - Node positions, edges, current robot positions
-7. **Mission Launcher** — submit to `{site}.action_server.missions` job queue
+**Current (broken model):**
+- Route builder computes coordinates from node positions
+- Inserts `path_rotate` VNs based on heading calculations
+- Every edge is a single straight-line segment
 
-OpenResty connects to NATS via lua-resty-nats or a NATS WebSocket bridge.
-Frontend: minimal HTML/JS using Server-Sent Events or WebSocket for live updates.
+**New model:**
+- Board edges have a required `path` field — array of navigation segments
+- Each segment specifies: VN type (path_spline, path_line, path_wall), waypoints, speed
+- The KB IS the map — no coordinate math in the planner
+- Dijkstra finds which edges to traverse (graph routing only)
+- Route builder reads each edge's `path` array and passes segments to the robot as-is
+- The robot handles all navigation including rotation — no `path_rotate` VN
+- The planner is a pass-through for path data
 
-### Prong 2: LuaJIT Robot Transform
+**Changes needed:**
+1. `surface_ops_planner_data.lua` — add `path` arrays to all board edges
+2. `route_builder.lua` — remove heading/rotate logic, emit path segments from KB edge data
+3. `mission_builder.lua` — same pass-through approach
+4. `global_planner.lua` — Dijkstra unchanged, just passes edge data through
+5. Remove `path_rotate` VN definition (robot handles rotation internally)
+6. Tests — update route expectations
 
-Turn the simulated MQTT robot into a real robot:
-
-1. **Worker driver interface** — each worker is a pluggable module
-   - `sim` driver: current tick-countdown behavior (test/dev)
-   - `hw` driver: real hardware (motor control, sensors, arm servos)
-   - Selected by robot config: `"driver": "sim"` or `"driver": "hw"`
-
-2. **Split remote_user_functions.lua**
-   - `workers/sim/` — simulated workers (current code)
-   - `workers/hw/` — real hardware workers (one per VN)
-   - Worker loader reads driver from config, requires the right module
-
-3. **Hardware abstraction per VN**
-   - `path_spline` → motor control, odometry, PID loop
-   - `path_rotate` → IMU heading tracking, turn-in-place
-   - `deliver_part` → arm servo, gripper, force sensor
-   - `inspection_scan` → sensor read, data collection
-   - `recharge` → dock detection, battery monitor
-
-4. **Target platform** — Pi Zero 2 W
-   - LuaJIT + MQTT transport (same as simulation)
-   - GPIO/I2C/SPI via LuaJIT FFI
-   - Worker drivers are the only platform-specific code
+**Example edge with path:**
+```lua
+{ from = "lander_pad", to = "habitat_site", weight = 800,
+  path = {
+    { vn = "path_spline", speed = 150, distance = 800,
+      waypoints = { {x=0,y=0}, {x=200,y=50}, {x=600,y=-30}, {x=800,y=0} } },
+  }
+}
+```
 
 ---
 
 ## File Locations
 
 ```
+orchestrator/
+  graph.lua                     — dependency graph, topo sort, service discovery, stale detection
+  startup.lua                   — one-shot: start containers in topo order
+  shutdown.lua                  — one-shot: stop containers in reverse topo order
+  kb_build.lua                  — one-shot: stop → master_build → start
+  test_graph.lua                — 91 assertions
+
+shell/
+  index.html                    — dynamic tree from /api/domains, per-domain panels
+  panels/
+    registry.js                 — panel lifecycle, per-domain ctx override
+    kv-manager.js               — shared KV bucket cache, collect-then-fetch loadAll
+    robots.js                   — live robot status cards, dynamic domain API
+    mission-planner.js          — route editor, auto-start from robot position KV
+    mission-log.js              — last 50 missions from KV history
+    live-telemetry.js           — JetStream event stream
+    board.js                    — popup SVG board viewer, robot markers at current_node
+  tabs/
+    kb_console.html             — HTTP query tool
+  vendor/
+    nats.js                     — NATS WebSocket client (ESM module)
+
 ros_planner_ii/
   runtime/
-    mqtt_hub_transport.lua  — async MQTT connect, planner-net compatible
-    link_manager.lua        — planner-side link protocol, get_energy()
-    link_client.lua         — robot-side link protocol
-    kv_writer.lua           — coalescing KV queue
-  local_planner/lib/
-    hub_runtime.lua         — state machine hub (site param)
-    sequencer.lua           — route execution (site param)
+    link_manager.lua            — link protocol, write_position, KV writes
+    kv_writer.lua               — coalescing KV queue
+    mqtt_hub_transport.lua      — domain-specific MQTT client ID
   action_server/lib/
-    action_server.lua       — energy from link_manager, site param
-  global_planner/lib/
-    global_planner.lua      — Dijkstra (site param)
+    action_server.lua           — position tracking, init_node discovery
+    mission_builder.lua         — always init_check + idle, optional start
   hub_dsl/kb_construct/
-    kb_query.lua            — optional site param to constructor
-
-ros_planner_ii_mqtt_robot/
-  robot_controller.lua      — robot-independent controller (no ChainTree)
-  remote_user_functions.lua — workers only, individual VN definitions
-  remote_dsl.lua            — workers only, no controller KB
-  rover_1_config.json       — robot config for start_robot.sh
-
-ros_scripts/
-  planner_server.lua        — single DB, site param
-  bootstrap_container.lua   — NATS export retry, no runtime KB build
-  start_server.sh           — non-container planner
-  start_robot.sh            — robot launcher
-  submit_mission.sh         — mission client
-  moonbase_mission.json     — 5-stop moon base mission
+    construct_surface_ops.lua   — board with co-located VNs
+    kb_exporter.lua             — exports to NATS KV (kb_export bucket)
+    kb_query.lua                — list_boards, get_board, class-based API
 
 kb_dsl/scripts/
-  master_build.lua          — Postgres + planner tree + SQLite extract
-  planner_tree.lua          — planner data in Postgres (wrapper)
-  surface_ops_planner_data.lua — planner data builder (CDT API)
-  sqlite_extract.lua        — system/subsystems extract + CDT planner build
-  site_config.lua           — 127.0.0.1 hosts, planner_data field
+  site_config.lua               — containers with full run spec, env_names, depends_on
+  physical_tree.lua             — stores run spec + env_names in KB
+  software_tree.lua             — stores planner_data flag, description as 5th arg
+  master_build.lua              — Postgres + SQLite extract
 
-start_planner_system.sh     — system orchestrator (start/stop/restart/status/build)
+ros_scripts/
+  planner_server.lua            — env var override for MQTT/NATS (Docker DNS)
+  bootstrap_container.lua       — env var override for MQTT/NATS (Docker DNS)
 
 third_party_containers/
-  ros_planner/
-    docker_build.sh         — rebuilds runtime KB, verifies boards
-    docker_run.sh           — planner-net, container DNS, read-write mount
-  kv_bridge/
-    docker_run.sh           — planner-net, container DNS
+  ros_planner/                  — planner container (docker_build.sh, docker_run.sh, Dockerfile)
+  orchestrator/                 — lifecycle orchestrator (docker_build.sh, docker_run.sh, Dockerfile)
+  openresty/                    — web gateway (nginx.conf with /api/domains site+has_planner_data)
 ```
 
 ## Required Infrastructure
-- Postgres: `pg-vector` container (bridge network)
-- NATS: `nats-js-ram` container (bridge + planner-net)
+- Postgres: `pg-vector` container (bridge network) — KB source of truth
+- NATS: `nats-js-ram` container (bridge + planner-net, port 9222 WebSocket)
 - MQTT: `mosquitto-ram-ws_main` container (bridge + planner-net)
-- KV bridge: `kv-bridge` container (planner-net)
-- Web gateway: `openresty-gateway` container (bridge, port 8080)
+- KV bridge: `kv-bridge` container (planner-net, env_names: nats→NATS_URL)
+- Web gateway: `openresty-gateway` container (bridge, port 8080, mounts shell/)
+- Planner: `surface_ops-planner` container (planner-net, mounts Sqlite_Data/)
+- Orchestrator: `nanodatacenter/orchestrator` image (one-shot, Docker socket mount, host network)
+
+## Minor Items
+- `telemetry_collector` placeholder in site_config — no real image, remove or build
+- Mission log KV bucket must have `history=50` — delete stale bucket if history=1, planner recreates on restart

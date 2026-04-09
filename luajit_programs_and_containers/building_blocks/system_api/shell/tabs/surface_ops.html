@@ -17,13 +17,17 @@
 
     /* Robot Status Cards */
     .robot-cards { display: flex; flex-direction: column; gap: 0.75rem; }
-    .robot-card { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 0.75rem 1rem; }
+    .robot-card { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 0.75rem 1rem; transition: border-color 0.2s; }
     .robot-card.selected { border-color: #64ffda; }
     .robot-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
     .robot-card .robot-name { color: #64ffda; font-weight: bold; font-size: 0.95rem; }
     .robot-card .status-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 3px; }
     .status-badge.offline { background: #b71c1c; color: #ef9a9a; }
+    .status-badge.live { background: #1b5e20; color: #a5d6a7; }
     .status-badge.idle { background: #1b5e20; color: #a5d6a7; }
+    .status-badge.stale { background: #e65100; color: #ffcc80; }
+    .status-badge.registering { background: #0f3460; color: #90caf9; }
+    .status-badge.executing { background: #e65100; color: #ffcc80; }
     .status-badge.active { background: #e65100; color: #ffcc80; }
     .robot-card .card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 1rem; font-size: 0.8rem; }
     .card-body .label { color: #666; }
@@ -72,9 +76,15 @@
     .mission-status { font-size: 0.8rem; color: #666; margin-top: 0.5rem; }
 
     /* Planner status */
-    .planner-bar { display: flex; gap: 1rem; align-items: center; background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; }
+    .planner-bar { display: flex; gap: 1rem; align-items: center; background: #0d1117; border: 1px solid #333; border-radius: 4px; padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.8rem; flex-wrap: wrap; }
     .planner-bar .plabel { color: #666; }
     .planner-bar .pvalue { color: #64ffda; }
+
+    /* Connection indicator */
+    .conn-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 3px; }
+    .conn-badge.ok { background: #1b5e20; color: #a5d6a7; }
+    .conn-badge.err { background: #b71c1c; color: #ef9a9a; }
+    .conn-badge.wait { background: #0f3460; color: #90caf9; }
   </style>
 </head>
 <body>
@@ -82,27 +92,30 @@
   <div class="header">
     <div>
       <h1>Surface Operations</h1>
-      <div class="prefix" id="nats-prefix">loading...</div>
+      <div class="prefix">moonbase.alpha.surface_ops</div>
     </div>
+    <span class="conn-badge wait" id="kv-badge">connecting...</span>
   </div>
 
   <!-- Planner status bar -->
-  <div class="planner-bar">
-    <span><span class="plabel">Planner:</span> <span class="pvalue" id="planner-state">idle</span></span>
-    <span><span class="plabel">Robot:</span> <span class="pvalue" id="planner-robot">-</span></span>
-    <span><span class="plabel">Mission:</span> <span class="pvalue" id="planner-mission">-</span></span>
+  <div class="planner-bar" id="section-status">
+    <span><span class="plabel">Planner:</span> <span class="pvalue" id="planner-state">-</span></span>
+    <span><span class="plabel">Active:</span> <span class="pvalue" id="planner-active">0</span></span>
+    <span><span class="plabel">Registered:</span> <span class="pvalue" id="planner-registered">-</span></span>
   </div>
 
   <div class="grid">
     <!-- Left: Robot Status Cards -->
     <div>
       <div class="section-title">Robots</div>
-      <div class="robot-cards" id="robot-cards"></div>
+      <div class="robot-cards" id="robot-cards">
+        <div style="color:#484f58;font-size:0.8rem">Waiting for NATS KV data...</div>
+      </div>
     </div>
 
     <!-- Right: Board Viewer -->
-    <div>
-      <div class="section-title">Landing Zone Board</div>
+    <div id="section-board">
+      <div class="section-title">Board: <span id="board-name">loading...</span></div>
       <div class="board-container">
         <svg id="board-svg" viewBox="-80 -80 1760 1760"></svg>
       </div>
@@ -110,7 +123,7 @@
   </div>
 
   <!-- Mission Launcher -->
-  <div class="mission-panel">
+  <div class="mission-panel" id="section-mission">
     <div class="section-title">Mission Launcher</div>
     <div class="mission-row">
       <label>Robot:</label>
@@ -129,41 +142,187 @@
     <div class="mission-status" id="mission-status">Select a robot and destination.</div>
   </div>
 
-  <script>
+  <script type="module">
     // ---------------------------------------------------------------
-    // Board data (from KB DSL — will move to API later)
+    // Config
     // ---------------------------------------------------------------
-    var BOARD = {
-      nodes: [
-        { name: "lander_pad",       x: 0,    y: 0,    type: "base" },
-        { name: "habitat_site",     x: 800,  y: 0,    type: "waypoint" },
-        { name: "charging_station", x: 800,  y: 800,  type: "waypoint" },
-        { name: "mining_zone_a",    x: 1600, y: 0,    type: "mission" },
-        { name: "mining_zone_b",    x: 1600, y: 800,  type: "mission" },
-        { name: "survey_point_1",   x: 0,    y: 800,  type: "mission" },
-        { name: "survey_point_2",   x: 0,    y: 1600, type: "mission" },
-        { name: "construction_bay", x: 800,  y: 1600, type: "mission" },
-      ],
-      edges: [
-        { from: "lander_pad",       to: "habitat_site",     nav: "spline", speed: 150 },
-        { from: "lander_pad",       to: "survey_point_1",   nav: "spline", speed: 120 },
-        { from: "habitat_site",     to: "mining_zone_a",    nav: "spline", speed: 150 },
-        { from: "habitat_site",     to: "charging_station", nav: "spline", speed: 130 },
-        { from: "charging_station", to: "mining_zone_b",    nav: "spline", speed: 130 },
-        { from: "charging_station", to: "construction_bay", nav: "spline", speed: 130 },
-        { from: "survey_point_1",   to: "charging_station", nav: "spline", speed: 120 },
-        { from: "survey_point_1",   to: "survey_point_2",   nav: "line",   speed: 100 },
-        { from: "survey_point_2",   to: "construction_bay", nav: "spline", speed: 120 },
-      ]
-    };
+    var SITE = "moonbase.alpha.surface_ops";
+    var SITE_BUCKET = "moonbase_alpha_surface_ops";
 
-    var robots = [];
+    var BUCKET_ROBOT   = SITE_BUCKET + "_robot_status";
+    var BUCKET_ACTION  = SITE_BUCKET + "_action_server";
+    var BUCKET_EXPORT  = "kb_export";
+
+    var KEY_PREFIX     = SITE + ".robots.";
+    var KEY_SUMMARY    = SITE + ".action_server.summary";
+    var KEY_BOARD      = SITE + ".boards.landing_zone";
+
+    // ---------------------------------------------------------------
+    // State
+    // ---------------------------------------------------------------
+    var robotState = {};   // robot_id -> { link_state, energy, energy_max, worker, bitmask_fields, transport, wire_format, connected, mission_state }
+    var robotList = [];    // known robot IDs (discovered from KV keys)
+    var robotConfigs = {}; // robot_id -> { capabilities, transport, wire_format } from HTTP API
     var selectedRobot = null;
     var selectedFrom = null;
     var selectedTo = null;
+    var BOARD = { nodes: [], edges: [] };
+    var nc = null;  // NATS connection
+    var js = null;  // JetStream context
 
-    // Mock robot state (will come from NATS live status later)
-    var robotState = {};
+    // ---------------------------------------------------------------
+    // Wait for parent NATS connection
+    // ---------------------------------------------------------------
+    async function waitForNats(maxWait) {
+      var start = Date.now();
+      while (Date.now() - start < maxWait) {
+        if (window.parent && window.parent._natsConnection) {
+          return window.parent._natsConnection;
+        }
+        await new Promise(function(r) { setTimeout(r, 200); });
+      }
+      return null;
+    }
+
+    // ---------------------------------------------------------------
+    // Discover robot from a KV key
+    // ---------------------------------------------------------------
+    function robotIdFromKey(key) {
+      // key: moonbase.alpha.surface_ops.robots.{robot_id}.status.{type}
+      var prefix = KEY_PREFIX;
+      if (!key.startsWith(prefix)) return null;
+      var rest = key.substring(prefix.length);
+      var dot = rest.indexOf(".");
+      return dot > 0 ? rest.substring(0, dot) : rest;
+    }
+
+    function ensureRobot(id) {
+      if (!robotState[id]) {
+        robotState[id] = {
+          link_state: "offline", energy: 0, energy_max: 10000,
+          worker: "-", bitmask_fields: {}, transport: "mqtt",
+          wire_format: "json", connected: false, mission_state: "-"
+        };
+      }
+      if (robotList.indexOf(id) < 0) {
+        robotList.push(id);
+        robotList.sort();
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Apply a KV update to robot state
+    // ---------------------------------------------------------------
+    function removeRobot(id) {
+      var idx = robotList.indexOf(id);
+      if (idx >= 0) robotList.splice(idx, 1);
+      delete robotState[id];
+      if (selectedRobot === id) selectedRobot = robotList.length > 0 ? robotList[0] : null;
+    }
+
+    function applyKvUpdate(key, value) {
+      var id = robotIdFromKey(key);
+      if (!id) return false;
+
+      if (key.endsWith(".status.link")) {
+        if (value.link_state === "offline") {
+          removeRobot(id);
+          return true;
+        }
+        ensureRobot(id);
+        var st = robotState[id];
+        st.link_state = value.link_state || "offline";
+        st.transport = value.transport || st.transport;
+        st.wire_format = value.wire_format || st.wire_format;
+        if (value.energy_remaining !== undefined) st.energy = value.energy_remaining;
+        return true;
+      }
+
+      ensureRobot(id);
+      var st = robotState[id];
+
+      if (key.endsWith(".status.energy")) {
+        st.energy = value.energy_remaining || 0;
+        st.energy_max = value.energy_max || 10000;
+      } else if (key.endsWith(".status.bitmask")) {
+        st.worker = value.kb_name || "-";
+        st.bitmask_fields = value.fields || {};
+      } else if (key.endsWith(".status.state")) {
+        st.connected = !!value.connected;
+        if (value.active_worker) st.worker = value.active_worker;
+      }
+      return true;
+    }
+
+    function applySummary(value) {
+      document.getElementById("planner-active").textContent = value.active_missions || 0;
+      var reg = value.registered_robots || [];
+      document.getElementById("planner-registered").textContent = reg.join(", ") || "-";
+
+      // Update per-robot mission state
+      var missions = value.missions || {};
+      for (var rid in missions) {
+        ensureRobot(rid);
+        robotState[rid].mission_state = missions[rid].state || "-";
+      }
+
+      // Mark robots as idle if not in missions
+      for (var i = 0; i < robotList.length; i++) {
+        if (!missions[robotList[i]]) {
+          robotState[robotList[i]].mission_state = "-";
+        }
+      }
+
+      // Prune robots not in registered list
+      if (reg.length > 0 || Object.keys(missions).length === 0) {
+        for (var i = robotList.length - 1; i >= 0; i--) {
+          if (reg.indexOf(robotList[i]) < 0) {
+            removeRobot(robotList[i]);
+          }
+        }
+      }
+
+      var active = value.active_missions || 0;
+      document.getElementById("planner-state").textContent = active > 0 ? "executing" : "idle";
+    }
+
+    // ---------------------------------------------------------------
+    // KV watchers
+    // ---------------------------------------------------------------
+    async function watchBucket(kv, handler) {
+      try {
+        var watch = await kv.watch({ include: "updates" });
+        (async function() {
+          for await (var entry of watch) {
+            if (entry.value && entry.value.length > 0) {
+              try {
+                var val = JSON.parse(new TextDecoder().decode(entry.value));
+                handler(entry.key, val);
+              } catch(e) { /* skip non-JSON */ }
+            }
+          }
+        })();
+      } catch(e) {
+        console.error("Watch error:", e);
+      }
+    }
+
+    async function loadInitialKv(kv, handler) {
+      try {
+        var keys = await kv.keys();
+        for await (var key of keys) {
+          var entry = await kv.get(key);
+          if (entry && entry.value && entry.value.length > 0) {
+            try {
+              var val = JSON.parse(new TextDecoder().decode(entry.value));
+              handler(key, val);
+            } catch(e) { /* skip */ }
+          }
+        }
+      } catch(e) {
+        console.error("Initial KV load error:", e);
+      }
+    }
 
     // ---------------------------------------------------------------
     // Robot Status Cards
@@ -171,34 +330,48 @@
     function renderRobotCards() {
       var el = document.getElementById("robot-cards");
       el.innerHTML = "";
-      for (var i = 0; i < robots.length; i++) {
-        var r = robots[i];
-        var state = robotState[r.name] || { status: "offline", energy: 100, worker: "-", location: "lander_pad" };
-        var energyClass = state.energy > 60 ? "high" : state.energy > 25 ? "mid" : "low";
-        var isSelected = selectedRobot === r.name;
 
-        el.innerHTML +=
-          '<div class="robot-card' + (isSelected ? ' selected' : '') + '" onclick="selectRobot(\'' + r.name + '\')">' +
-            '<div class="card-header">' +
-              '<span class="robot-name">' + r.name + '</span>' +
-              '<span class="status-badge ' + state.status + '">' + state.status + '</span>' +
-            '</div>' +
-            '<div class="card-body">' +
-              '<span class="label">Transport</span><span class="value"><span class="badge">' + r.transport + '</span> <span class="badge">' + r.wire_format + '</span></span>' +
-              '<span class="label">Worker</span><span class="value">' + state.worker + '</span>' +
-              '<span class="label">Location</span><span class="value">' + state.location + '</span>' +
-              '<span class="label">Energy</span><span class="value">' + state.energy + '%</span>' +
-            '</div>' +
-            '<div class="energy-bar"><div class="fill ' + energyClass + '" style="width:' + state.energy + '%"></div></div>' +
-            '<div class="caps">' + (r.capabilities || []).join(", ") + '</div>' +
-          '</div>';
+      if (robotList.length === 0) {
+        el.innerHTML = '<div style="color:#484f58;font-size:0.8rem">No robots discovered yet</div>';
+        return;
+      }
+
+      for (var i = 0; i < robotList.length; i++) {
+        var id = robotList[i];
+        var st = robotState[id];
+        var cfg = robotConfigs[id] || {};
+
+        var energyPct = st.energy_max > 0 ? Math.round(st.energy / st.energy_max * 100) : 0;
+        var energyClass = energyPct > 60 ? "high" : energyPct > 25 ? "mid" : "low";
+        var isSelected = selectedRobot === id;
+
+        var statusLabel = st.link_state;
+        if (st.mission_state === "active" || st.mission_state === "executing") statusLabel = "executing";
+
+        var card = document.createElement("div");
+        card.className = "robot-card" + (isSelected ? " selected" : "");
+        card.onclick = (function(rid) { return function() { selectRobot(rid); }; })(id);
+
+        card.innerHTML =
+          '<div class="card-header">' +
+            '<span class="robot-name">' + id + '</span>' +
+            '<span class="status-badge ' + statusLabel + '">' + statusLabel + '</span>' +
+          '</div>' +
+          '<div class="card-body">' +
+            '<span class="label">Transport</span><span class="value"><span class="badge">' + st.transport + '</span> <span class="badge">' + st.wire_format + '</span></span>' +
+            '<span class="label">Worker</span><span class="value">' + st.worker + '</span>' +
+            '<span class="label">Mission</span><span class="value">' + st.mission_state + '</span>' +
+            '<span class="label">Energy</span><span class="value">' + st.energy + ' / ' + st.energy_max + ' (' + energyPct + '%)</span>' +
+          '</div>' +
+          '<div class="energy-bar"><div class="fill ' + energyClass + '" style="width:' + energyPct + '%"></div></div>' +
+          (cfg.capabilities ? '<div class="caps">' + cfg.capabilities.join(", ") + '</div>' : '');
+
+        el.appendChild(card);
       }
     }
 
     function selectRobot(name) {
       selectedRobot = name;
-      var state = robotState[name] || { location: "lander_pad" };
-      selectedFrom = state.location;
       renderRobotCards();
       updateSelects();
       renderBoard();
@@ -219,6 +392,8 @@
       var svg = document.getElementById("board-svg");
       svg.innerHTML = "";
 
+      if (BOARD.nodes.length === 0) return;
+
       // Edges
       for (var i = 0; i < BOARD.edges.length; i++) {
         var e = BOARD.edges[i];
@@ -227,7 +402,6 @@
         if (!a || !b) continue;
 
         var cls = "edge";
-        // Highlight if this is the selected path
         if (selectedFrom && selectedTo &&
             ((e.from === selectedFrom && e.to === selectedTo) ||
              (e.from === selectedTo && e.to === selectedFrom))) {
@@ -237,7 +411,6 @@
         svg.innerHTML +=
           '<line class="' + cls + '" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '"/>';
 
-        // Edge label (nav type)
         var mx = (a.x + b.x) / 2;
         var my = (a.y + b.y) / 2;
         svg.innerHTML +=
@@ -254,29 +427,31 @@
           '<circle class="' + cls + '" cx="' + n.x + '" cy="' + n.y + '" r="30" ' +
             'onclick="clickNode(\'' + n.name + '\')"/>';
 
-        // Label (split long names)
         var label = n.name.replace(/_/g, " ");
         svg.innerHTML +=
           '<text class="node-label" x="' + n.x + '" y="' + (n.y + 50) + '">' + label + '</text>';
       }
 
-      // Robot markers
-      for (var i = 0; i < robots.length; i++) {
-        var r = robots[i];
-        var state = robotState[r.name] || { location: "lander_pad" };
-        var loc = nodeByName(state.location);
+      // Robot markers — place at first board node (position tracking is future work)
+      var markerIdx = 0;
+      for (var i = 0; i < robotList.length; i++) {
+        var st = robotState[robotList[i]];
+        if (st.link_state === "offline" && !st.connected) continue;
+        // Default to lander_pad for now
+        var loc = nodeByName("lander_pad");
         if (!loc) continue;
 
-        // Offset multiple robots at same node
-        var offset = i * 15 - 7;
+        var offset = markerIdx * 18 - 9;
         svg.innerHTML +=
-          '<circle class="robot-marker" cx="' + (loc.x + offset) + '" cy="' + (loc.y - 20) + '" r="8"/>' +
-          '<text fill="#1a1a2e" font-size="8" text-anchor="middle" x="' + (loc.x + offset) + '" y="' + (loc.y - 17) + '">' +
-            r.name.charAt(0).toUpperCase() + (i + 1) + '</text>';
+          '<circle class="robot-marker" cx="' + (loc.x + offset) + '" cy="' + (loc.y - 25) + '" r="10"/>' +
+          '<text fill="#1a1a2e" font-size="8" font-weight="bold" text-anchor="middle" x="' + (loc.x + offset) + '" y="' + (loc.y - 22) + '">' +
+            robotList[i].charAt(0).toUpperCase() + (i + 1) + '</text>';
+        markerIdx++;
       }
     }
 
-    function clickNode(name) {
+    // Make clickNode available globally for SVG onclick
+    window.clickNode = function(name) {
       if (!selectedRobot) {
         document.getElementById("mission-status").textContent = "Select a robot first.";
         return;
@@ -287,11 +462,11 @@
       } else {
         selectedTo = name;
         document.getElementById("mission-status").textContent =
-          selectedRobot + ": " + selectedFrom + " → " + selectedTo;
+          selectedRobot + ": " + selectedFrom + " \u2192 " + selectedTo;
       }
       updateSelects();
       renderBoard();
-    }
+    };
 
     // ---------------------------------------------------------------
     // Mission Launcher
@@ -301,17 +476,15 @@
       var selFrom = document.getElementById("sel-from");
       var selTo = document.getElementById("sel-to");
 
-      // Robot select
       selRobot.innerHTML = "";
-      for (var i = 0; i < robots.length; i++) {
+      for (var i = 0; i < robotList.length; i++) {
         var opt = document.createElement("option");
-        opt.value = robots[i].name;
-        opt.textContent = robots[i].name;
-        if (robots[i].name === selectedRobot) opt.selected = true;
+        opt.value = robotList[i];
+        opt.textContent = robotList[i];
+        if (robotList[i] === selectedRobot) opt.selected = true;
         selRobot.appendChild(opt);
       }
 
-      // Node selects
       selFrom.innerHTML = "";
       selTo.innerHTML = "";
       for (var i = 0; i < BOARD.nodes.length; i++) {
@@ -328,7 +501,6 @@
       }
     }
 
-    // Select changes update state + board
     document.getElementById("sel-robot").addEventListener("change", function() {
       selectRobot(this.value);
     });
@@ -340,10 +512,11 @@
       selectedTo = this.value;
       renderBoard();
       document.getElementById("mission-status").textContent =
-        (selectedRobot || "?") + ": " + (selectedFrom || "?") + " → " + selectedTo;
+        (selectedRobot || "?") + ": " + (selectedFrom || "?") + " \u2192 " + selectedTo;
     });
 
-    function launchMission() {
+    // Mission actions — publish to NATS
+    window.launchMission = async function() {
       if (!selectedRobot || !selectedFrom || !selectedTo) {
         document.getElementById("mission-status").textContent = "Select robot, origin, and destination.";
         return;
@@ -352,121 +525,186 @@
         document.getElementById("mission-status").textContent = "Origin and destination must differ.";
         return;
       }
+      if (!nc) {
+        document.getElementById("mission-status").textContent = "NATS not connected.";
+        return;
+      }
 
-      // Update mock state
-      robotState[selectedRobot].status = "active";
-      robotState[selectedRobot].worker = "path_spline";
-      var energy = robotState[selectedRobot].energy;
-      robotState[selectedRobot].energy = Math.max(0, energy - 15);
+      var mission = {
+        robot_id: selectedRobot,
+        board: "landing_zone",
+        start: selectedFrom,
+        stops: [
+          { node: selectedTo }
+        ],
+        bookend: true
+      };
 
-      document.getElementById("planner-state").textContent = "executing";
-      document.getElementById("planner-robot").textContent = selectedRobot;
-      document.getElementById("planner-mission").textContent = selectedFrom + " → " + selectedTo;
-      document.getElementById("mission-status").textContent =
-        "Mission launched: " + selectedRobot + " from " + selectedFrom + " to " + selectedTo;
-
-      renderRobotCards();
-      renderBoard();
-
-      // Simulate mission completion
-      setTimeout(function() {
-        robotState[selectedRobot].status = "idle";
-        robotState[selectedRobot].worker = "-";
-        robotState[selectedRobot].location = selectedTo;
-        selectedFrom = selectedTo;
-        selectedTo = null;
-
-        document.getElementById("planner-state").textContent = "idle";
-        document.getElementById("planner-robot").textContent = "-";
-        document.getElementById("planner-mission").textContent = "-";
+      try {
+        var subject = SITE + ".action_server.missions";
+        nc.publish(subject, new TextEncoder().encode(JSON.stringify(mission)));
         document.getElementById("mission-status").textContent =
-          selectedRobot + " arrived at " + robotState[selectedRobot].location;
+          "Mission submitted: " + selectedRobot + " " + selectedFrom + " \u2192 " + selectedTo;
+      } catch(e) {
+        document.getElementById("mission-status").textContent = "Publish failed: " + e.message;
+      }
+    };
 
-        renderRobotCards();
-        updateSelects();
-        renderBoard();
-      }, 3000);
-    }
+    window.stopMission = function() {
+      document.getElementById("mission-status").textContent = "Stop not yet wired to NATS.";
+    };
 
-    function stopMission() {
-      if (!selectedRobot) return;
-      robotState[selectedRobot].status = "idle";
-      robotState[selectedRobot].worker = "-";
-      document.getElementById("planner-state").textContent = "idle";
-      document.getElementById("planner-robot").textContent = "-";
-      document.getElementById("planner-mission").textContent = "-";
-      document.getElementById("mission-status").textContent = selectedRobot + " stopped.";
-      renderRobotCards();
-      renderBoard();
-    }
+    window.sendIdle = function() {
+      document.getElementById("mission-status").textContent = "Park not yet wired to NATS.";
+    };
 
-    function sendIdle() {
-      if (!selectedRobot) return;
-      robotState[selectedRobot].status = "idle";
-      robotState[selectedRobot].worker = "idle";
-      document.getElementById("mission-status").textContent = selectedRobot + " parked.";
-      renderRobotCards();
-    }
+    window.sendRecharge = function() {
+      if (!selectedRobot || !nc) return;
+      var mission = {
+        robot_id: selectedRobot,
+        board: "landing_zone",
+        start: "charging_station",
+        stops: [
+          { node: "charging_station", action: "recharge", params: { target_energy: 0 } }
+        ],
+        bookend: true
+      };
+      try {
+        nc.publish(SITE + ".action_server.missions", new TextEncoder().encode(JSON.stringify(mission)));
+        document.getElementById("mission-status").textContent = selectedRobot + " recharge mission submitted.";
+      } catch(e) {
+        document.getElementById("mission-status").textContent = "Publish failed: " + e.message;
+      }
+    };
 
-    function sendRecharge() {
-      if (!selectedRobot) return;
-      robotState[selectedRobot].status = "active";
-      robotState[selectedRobot].worker = "recharge";
-      document.getElementById("mission-status").textContent = selectedRobot + " recharging...";
-      renderRobotCards();
-
-      setTimeout(function() {
-        robotState[selectedRobot].energy = 100;
-        robotState[selectedRobot].status = "idle";
-        robotState[selectedRobot].worker = "-";
-        document.getElementById("mission-status").textContent = selectedRobot + " fully charged.";
-        renderRobotCards();
-      }, 2000);
+    // ---------------------------------------------------------------
+    // Periodic re-render (catches accumulated KV updates)
+    // ---------------------------------------------------------------
+    var renderTimer = null;
+    function scheduleRender() {
+      if (!renderTimer) {
+        renderTimer = setTimeout(function() {
+          renderTimer = null;
+          renderRobotCards();
+          renderBoard();
+        }, 250);
+      }
     }
 
     // ---------------------------------------------------------------
     // Init
     // ---------------------------------------------------------------
     async function init() {
-      // Load domain info
+      // Load robot configs from HTTP API (capabilities, transport, wire_format)
       try {
-        var domResp = await fetch("/api/domains");
-        var domData = await domResp.json();
-        var d = (domData.domains || []).find(function(x) { return x.name === "surface_ops"; });
-        if (d) {
-          document.getElementById("nats-prefix").textContent = d.nats_prefix;
+        var resp = await fetch("/api/robots?domain=surface_ops");
+        var data = await resp.json();
+        var list = Array.isArray(data.robots) ? data.robots : Object.values(data.robots || {});
+        for (var i = 0; i < list.length; i++) {
+          robotConfigs[list[i].name] = list[i];
         }
-      } catch(e) { console.error(e); }
+      } catch(e) { console.warn("HTTP API unavailable:", e.message); }
 
-      // Load robots
+      // Wait for NATS from parent frame
+      nc = await waitForNats(8000);
+      if (!nc) {
+        document.getElementById("kv-badge").textContent = "no NATS";
+        document.getElementById("kv-badge").className = "conn-badge err";
+        document.getElementById("robot-cards").innerHTML =
+          '<div style="color:#f85149;font-size:0.8rem">NATS not connected — no live robot data</div>';
+        return;
+      }
+
+      document.getElementById("kv-badge").textContent = "NATS KV";
+      document.getElementById("kv-badge").className = "conn-badge ok";
+      js = nc.jetstream();
+
+      // Load board from kb_export
       try {
-        var robResp = await fetch("/api/robots?domain=surface_ops");
-        var robData = await robResp.json();
-        robots = robData.robots || [];
-
-        // Init mock state
-        for (var i = 0; i < robots.length; i++) {
-          var startNodes = ["lander_pad", "habitat_site", "charging_station"];
-          robotState[robots[i].name] = {
-            status: "idle",
-            energy: 85 - (i * 20),
-            worker: "-",
-            location: startNodes[i % startNodes.length],
-          };
+        var kvExport = await js.views.kv(BUCKET_EXPORT);
+        var boardEntry = await kvExport.get(KEY_BOARD);
+        if (boardEntry && boardEntry.value) {
+          BOARD = JSON.parse(new TextDecoder().decode(boardEntry.value));
+          document.getElementById("board-name").textContent = "landing_zone (" + BOARD.nodes.length + " nodes, " + BOARD.edges.length + " edges)";
         }
+      } catch(e) { console.warn("Board load:", e.message); }
 
-        if (robots.length > 0) {
-          selectedRobot = robots[0].name;
-          selectedFrom = robotState[robots[0].name].location;
+      // Load + watch robot_status bucket
+      try {
+        var kvRobot = await js.views.kv(BUCKET_ROBOT);
+        await loadInitialKv(kvRobot, function(key, val) {
+          applyKvUpdate(key, val);
+        });
+        watchBucket(kvRobot, function(key, val) {
+          applyKvUpdate(key, val);
+          scheduleRender();
+        });
+      } catch(e) { console.warn("Robot status KV:", e.message); }
+
+      // Load + watch action_server bucket (for summary)
+      try {
+        var kvAction = await js.views.kv(BUCKET_ACTION);
+        var summaryEntry = await kvAction.get(KEY_SUMMARY);
+        if (summaryEntry && summaryEntry.value) {
+          applySummary(JSON.parse(new TextDecoder().decode(summaryEntry.value)));
         }
-      } catch(e) { console.error(e); }
+        watchBucket(kvAction, function(key, val) {
+          if (key === KEY_SUMMARY) {
+            applySummary(val);
+            scheduleRender();
+          }
+          // Per-robot mission status
+          var match = key.match(/\.action_server\.(\w+)\.status$/);
+          if (match) {
+            var rid = match[1];
+            ensureRobot(rid);
+            robotState[rid].mission_state = val.state || "-";
+            scheduleRender();
+          }
+        });
+      } catch(e) { console.warn("Action server KV:", e.message); }
 
+      // Merge HTTP config into robots already discovered from NATS KV
+      for (var i = 0; i < robotList.length; i++) {
+        var cfg = robotConfigs[robotList[i]];
+        if (cfg) {
+          if (cfg.transport) robotState[robotList[i]].transport = cfg.transport;
+          if (cfg.wire_format) robotState[robotList[i]].wire_format = cfg.wire_format;
+        }
+      }
+
+      // Initial render
+      if (robotList.length > 0) {
+        selectedRobot = robotList[0];
+      }
       renderRobotCards();
       updateSelects();
       renderBoard();
     }
 
     init();
+
+    // ---------------------------------------------------------------
+    // Hash navigation
+    // ---------------------------------------------------------------
+    function scrollToHash(hash) {
+      var map = { board: "section-board", mission: "section-mission", status: "section-status" };
+      var targetId = map[hash];
+      if (targetId) {
+        var el = document.getElementById(targetId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    if (window.location.hash) {
+      setTimeout(function() { scrollToHash(window.location.hash.substring(1)); }, 500);
+    }
+
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "navigate" && e.data.hash) {
+        scrollToHash(e.data.hash);
+      }
+    });
   </script>
 </body>
 </html>

@@ -4,6 +4,10 @@
     Used by the controller (remote) and hub to update robot state
     during execution. Separate from kb_query (which is read-only for config).
 
+    NOTE: Robot instances are no longer pre-created in the KB. All writes
+    are best-effort — if the path doesn't exist in SQLite, writes are
+    silently skipped. Live telemetry flows via NATS KV instead.
+
     Status table: single row per robot, current snapshot
     Stream table: circular buffer of heartbeat records
 
@@ -19,17 +23,8 @@
             connected = true,
         })
 
-        -- Write heartbeat to stream (circular buffer)
-        rt:write_heartbeat({
-            delta_x = 50, delta_y = 0, delta_heading = 0,
-            watchdog_ticks = 12, worker = "worker_path_segment",
-        })
-
         -- Read current status
         local status = rt:read_status()
-
-        -- Read last N heartbeats
-        local beats = rt:read_heartbeats(10)
 
         rt:close()
 ]]

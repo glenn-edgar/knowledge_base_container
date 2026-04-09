@@ -26,6 +26,8 @@ ffi.C.signal(13, ffi.cast("sighandler_t", 1))  -- ignore SIGPIPE
 local action_server = require("action_server")
 local mqtt_hub_tx   = require("mqtt_hub_transport")
 local kb_query_mod  = require("kb_query")
+local kv_writer_mod = require("kv_writer")
+local ks_lib        = require("lib.nats_key_store")
 
 -- Resolve paths: container uses script_dir, host uses relative to ros_planner_ii
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
@@ -42,17 +44,19 @@ local db_file     = os.getenv("SQLITE_DB")
 local q = kb_query_mod.new(db_file)
 local infra = q:get_infrastructure()
 local domain = q:get_domain()
-local site = domain and domain.site
+local site = (domain and domain.site) or q:get_site()
 q:close()
 
--- KB is single source of truth; env vars are optional overrides
+-- Env vars (injected by orchestrator) override KB values.
+-- Inside a Docker network, docker_name DNS is the correct address.
 local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host)
 local mqtt_port = tonumber(os.getenv("MQTT_PORT")) or (infra.mqtt and infra.mqtt.port)
-local nats_host = infra.nats and infra.nats.host
-local nats_port = infra.nats and infra.nats.port
 local nats_server = os.getenv("NATS_SERVER")
-    or (nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port))
-site = os.getenv("VMRT_KB_SITE") or site
+if not nats_server then
+    local nats_host = infra.nats and infra.nats.host
+    local nats_port = infra.nats and infra.nats.port
+    nats_server = nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port)
+end
 
 if not mqtt_host then error("KB missing MQTT host (infrastructure.mqtt_broker.service.mqtt)") end
 if not mqtt_port then error("KB missing MQTT port") end
@@ -70,6 +74,20 @@ mqtt_hub:connect()
 print(string.format("MQTT hub connected (%s:%d)", mqtt_host, mqtt_port))
 
 ---------------------------------------------------------------------------
+-- Create robot status KeyStore + kv_writer for link manager
+---------------------------------------------------------------------------
+local site_bucket = site:gsub("%.", "_")
+local robot_status_ks = ks_lib.KeyStore.new({
+    server      = nats_server,
+    bucket      = site_bucket .. "_robot_status",
+    history     = 1,
+    client_name = "planner_link_kv_writer",
+})
+robot_status_ks:connect()
+local kv_writer = kv_writer_mod.new(robot_status_ks)
+print("Robot status KV writer connected")
+
+---------------------------------------------------------------------------
 -- Create action server with MQTT transport
 ---------------------------------------------------------------------------
 local srv = action_server.new({
@@ -77,6 +95,7 @@ local srv = action_server.new({
     nats_server = nats_server,
     site        = site,
     mqtt_hub    = mqtt_hub,
+    kv_writer   = kv_writer,
 })
 
 print(string.format("Action server ready (site=%s)", site))

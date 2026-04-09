@@ -87,11 +87,16 @@ end
 print("\n--- Sequencer Execution ---")
 
 local seq = sequencer.new({
-    robot_id    = robot_id,
-    db_file     = db_file,
-    site        = site,
-    nats_server = server,
-    mqtt_hub    = mqtt_hub,
+    robot_id     = robot_id,
+    db_file      = db_file,
+    site         = site,
+    nats_server  = server,
+    mqtt_hub     = mqtt_hub,
+    capabilities = {
+        "init_check", "path_spline", "path_line", "path_wall",
+        "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+        "pass_gate", "inspection_scan", "recharge", "idle",
+    },
 })
 
 seq:load_route(route)

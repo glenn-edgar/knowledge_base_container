@@ -9,16 +9,8 @@
       +-- boards.landing_zone
       +-- robot_class.lunar_rover
       |   +-- infra.shared
-      |   +-- hw.rover_1
       +-- robot_class.construction_arm
       |   +-- infra.shared
-      |   +-- hw.arm_1
-      +-- robots.rover_1
-      |   +-- status.state
-      |   +-- status.connection
-      |   +-- stream.telemetry
-      +-- robots.rover_2
-      +-- robots.arm_1
       +-- planner.route_planner
       |   +-- status.planner_state
       +-- virtual_nodes.init_check
@@ -62,6 +54,7 @@ kb:add_info_node("boards", "landing_zone",
             { name = "habitat_site",     x = 800,  y = 0,    type = "waypoint" },
             { name = "charging_station", x = 800,  y = 800,  type = "waypoint" },
             { name = "mining_zone_a",    x = 1600, y = 0,    type = "mission" },
+            { name = "inspection_scan",  x = 1600, y = 0,    type = "mission" },  -- co-located with mining_zone_a
             { name = "mining_zone_b",    x = 1600, y = 800,  type = "mission" },
             { name = "survey_point_1",   x = 0,    y = 800,  type = "mission" },
             { name = "survey_point_2",   x = 0,    y = 1600, type = "mission" },
@@ -71,7 +64,11 @@ kb:add_info_node("boards", "landing_zone",
             { from = "lander_pad",       to = "habitat_site",     nav = "spline_follow", speed = 150, weight = 800 },
             { from = "lander_pad",       to = "survey_point_1",   nav = "spline_follow", speed = 120, weight = 800 },
             { from = "habitat_site",     to = "mining_zone_a",    nav = "spline_follow", speed = 150, weight = 800 },
+            { from = "habitat_site",     to = "inspection_scan",  nav = "spline_follow", speed = 150, weight = 800 },
             { from = "habitat_site",     to = "charging_station", nav = "spline_follow", speed = 130, weight = 800 },
+            { from = "mining_zone_a",    to = "inspection_scan",  nav = "spline_follow", speed = 100, weight = 0 },  -- zero-length (co-located)
+            { from = "mining_zone_a",    to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
+            { from = "inspection_scan",  to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
             { from = "charging_station", to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
             { from = "charging_station", to = "construction_bay", nav = "spline_follow", speed = 130, weight = 800 },
             { from = "survey_point_1",   to = "charging_station", nav = "spline_follow", speed = 120, weight = 1131 },
@@ -114,84 +111,6 @@ kb:add_header_node("robot_class", "lunar_rover", {}, {},
         },
         "Lunar rover infrastructure configuration")
 
-    -- Hardware config: rover_1
-    kb:add_info_node("hw", "rover_1",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                path_spline = {
-                    { name = "seg_complete", bit = 0 },
-                    { name = "obstacle",     bit = 1 },
-                    { name = "motor_fault",  bit = 2 },
-                },
-                path_rotate = {
-                    { name = "rotate_complete", bit = 0 },
-                    { name = "motor_fault",     bit = 1 },
-                },
-                sensor_read = {
-                    { name = "reading_ready", bit = 0 },
-                    { name = "sensor_fault",  bit = 1 },
-                },
-            },
-            port_map = {
-                motors  = { left = "A", right = "B" },
-                sensors = { front_distance = 1, ground_color = 2, imu = "internal" },
-            },
-            calibration = {
-                wheel_diameter_mm = 56,
-                track_width_mm    = 120,
-                gear_ratio        = 3.0,
-                imu_heading_offset = 0,
-            },
-            pose_dofs = { "x", "y", "heading" },
-        },
-        "Rover unit 1 hardware configuration")
-
-    -- Hardware config: rover_2
-    kb:add_info_node("hw", "rover_2",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                path_spline = {
-                    { name = "seg_complete", bit = 0 },
-                    { name = "obstacle",     bit = 1 },
-                    { name = "motor_fault",  bit = 2 },
-                },
-                path_rotate = {
-                    { name = "rotate_complete", bit = 0 },
-                    { name = "motor_fault",     bit = 1 },
-                },
-                sensor_read = {
-                    { name = "reading_ready", bit = 0 },
-                    { name = "sensor_fault",  bit = 1 },
-                },
-            },
-            port_map = {
-                motors  = { left = "A", right = "B" },
-                sensors = { front_distance = 1, ground_color = 3, imu = "internal" },
-            },
-            calibration = {
-                wheel_diameter_mm = 56,
-                track_width_mm    = 120,
-                gear_ratio        = 3.0,
-                imu_heading_offset = 1.5,  -- different calibration per unit
-            },
-            pose_dofs = { "x", "y", "heading" },
-        },
-        "Rover unit 2 hardware configuration")
-
 kb:leave_header_node("robot_class", "lunar_rover")
 
 -- =====================================================================
@@ -223,163 +142,7 @@ kb:add_header_node("robot_class", "construction_arm", {}, {},
         },
         "Construction arm infrastructure configuration")
 
-    kb:add_info_node("hw", "arm_1",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                arm = {
-                    { name = "arm_at_target",   bit = 0 },
-                    { name = "payload_gripped",  bit = 1 },
-                    { name = "action_complete",  bit = 2 },
-                    { name = "arm_fault",        bit = 3 },
-                },
-            },
-            port_map = {
-                motors  = { arm = "C", gripper = "D" },
-                sensors = { force = 1, alignment = 2 },
-            },
-            calibration = {
-                arm_zero_angle = -5,
-                arm_max_angle  = 180,
-                gear_ratio     = 5.0,
-                gripper_force_limit = 50,
-            },
-            pose_dofs = { "arm_angle", "gripper" },
-        },
-        "Construction arm unit 1 hardware configuration")
-
 kb:leave_header_node("robot_class", "construction_arm")
-
--- =====================================================================
--- robots.rover_1
--- =====================================================================
-kb:add_header_node("robots", "rover_1", {}, {},
-    "Lunar rover unit 1")
-
-    kb:add_link_mount("rover_1_class_link", "Link to rover class definition")
-    -- Note: add_link_node would reference robot_class.lunar_rover.hw.rover_1
-
-    kb:add_status_field("state", {},
-        "Runtime state",
-        {
-            active_kb      = "",
-            active_worker  = "",
-            global_x       = 0,
-            global_y       = 0,
-            global_heading = 0,
-            connected      = false,
-            robot_id       = "rover_1",
-        })
-
-    kb:add_status_field("connection", {},
-        "Connection info",
-        {
-            comm_type       = "nats",
-            robot_id        = "rover_1",
-            nats_server     = "nats://127.0.0.1:4222",
-            rpc_topic       = "moonbase.alpha.surface_ops.robots.rover_1.rpc",
-            stream_bus_topic = "moonbase.alpha.surface_ops.robots.rover_1.stream_bus",
-        })
-
-    kb:add_status_field("energy", {},
-        "Energy budget",
-        {
-            energy_max       = 10000,
-            energy_remaining = 10000,
-        })
-
-    kb:add_stream_field("telemetry", 100,
-        "Heartbeat and telemetry stream")
-
-kb:leave_header_node("robots", "rover_1")
-
--- =====================================================================
--- robots.rover_2
--- =====================================================================
-kb:add_header_node("robots", "rover_2", {}, {},
-    "Lunar rover unit 2")
-
-    kb:add_link_mount("rover_2_class_link", "Link to rover class definition")
-
-    kb:add_status_field("state", {},
-        "Runtime state",
-        {
-            active_kb      = "",
-            active_worker  = "",
-            global_x       = 0,
-            global_y       = 0,
-            global_heading = 0,
-            connected      = false,
-            robot_id       = "rover_2",
-        })
-
-    kb:add_status_field("connection", {},
-        "Connection info",
-        {
-            comm_type       = "nats",
-            robot_id        = "rover_2",
-            nats_server     = "nats://127.0.0.1:4222",
-            rpc_topic       = "moonbase.alpha.surface_ops.robots.rover_2.rpc",
-            stream_bus_topic = "moonbase.alpha.surface_ops.robots.rover_2.stream_bus",
-        })
-
-    kb:add_status_field("energy", {},
-        "Energy budget",
-        {
-            energy_max       = 10000,
-            energy_remaining = 10000,
-        })
-
-    kb:add_stream_field("telemetry", 100,
-        "Heartbeat and telemetry stream")
-
-kb:leave_header_node("robots", "rover_2")
-
--- =====================================================================
--- robots.arm_1
--- =====================================================================
-kb:add_header_node("robots", "arm_1", {}, {},
-    "Construction arm unit 1")
-
-    kb:add_link_mount("arm_1_class_link", "Link to arm class definition")
-
-    kb:add_status_field("state", {},
-        "Runtime state",
-        {
-            active_kb      = "",
-            active_worker  = "",
-            global_arm_angle = 0,
-            connected      = false,
-            robot_id       = "arm_1",
-        })
-
-    kb:add_status_field("connection", {},
-        "Connection info",
-        {
-            comm_type       = "nats",
-            robot_id        = "arm_1",
-            nats_server     = "nats://127.0.0.1:4222",
-            rpc_topic       = "moonbase.alpha.surface_ops.robots.arm_1.rpc",
-            stream_bus_topic = "moonbase.alpha.surface_ops.robots.arm_1.stream_bus",
-        })
-
-    kb:add_status_field("energy", {},
-        "Energy budget",
-        {
-            energy_max       = 5000,
-            energy_remaining = 5000,
-        })
-
-    kb:add_stream_field("telemetry", 50,
-        "Heartbeat and telemetry stream")
-
-kb:leave_header_node("robots", "arm_1")
 
 -- =====================================================================
 -- planner.route_planner
@@ -680,6 +443,44 @@ for _, row in ipairs(status_rows) do
             DATABASE, row.data:gsub("'", "''"), row.path))
     end
 end
+
+-- =====================================================================
+-- System infrastructure (NATS, MQTT endpoints — from site_config.lua)
+-- These are queried by get_infrastructure() and get_domain() at startup.
+-- Container hostnames use Docker DNS names for planner-net.
+-- =====================================================================
+local h = require("sqlite3_helpers")
+local json = h.json
+local db_handle = kb.kb:get_db_objects()
+
+-- Insert infrastructure service rows into "system" KB namespace
+local infra_services = {
+    { path = "system.site.main.cpu.cpu_01.container.nats_server.service.nats",
+      name = "nats", label = "service",
+      properties = { type = "infrastructure" },
+      data = { host = "nats-js-ram", port = 4222, ws_port = 9222 } },
+    { path = "system.site.main.cpu.cpu_01.container.mqtt_broker.service.mqtt",
+      name = "mqtt", label = "service",
+      properties = { type = "infrastructure" },
+      data = { host = "mosquitto-ram-ws_main", port = 1883 } },
+}
+
+for _, svc in ipairs(infra_services) do
+    h.sql_exec(db_handle, string.format(
+        "INSERT INTO %s (knowledge_base, path, label, name, properties, data) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
+        DATABASE, "system",
+        svc.path, svc.label, svc.name,
+        json.encode(svc.properties):gsub("'", "''"),
+        json.encode(svc.data):gsub("'", "''")))
+end
+
+-- Insert domain entry into "subsystems" KB namespace
+h.sql_exec(db_handle, string.format(
+    "INSERT INTO %s (knowledge_base, path, label, name, properties, data) VALUES ('%s', '%s', '%s', '%s', '%s', '%s')",
+    DATABASE, "subsystems",
+    "subsystems.domain.surface_ops", "domain", "surface_ops",
+    json.encode({}):gsub("'", "''"),
+    json.encode({ site = SITE, container = "surface_ops_planner" }):gsub("'", "''")))
 
 print("\n=== Surface Ops KB Built ===")
 print(string.format("Site: %s", SITE))

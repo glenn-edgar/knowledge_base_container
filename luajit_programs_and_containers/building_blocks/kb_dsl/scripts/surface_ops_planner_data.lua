@@ -1,9 +1,12 @@
 --[[
   surface_ops_planner_data.lua — Planner data for Moon Base Surface Ops.
 
-  Called by planner_tree.lua. Writes boards, robot classes, robots,
+  Called by planner_tree.lua. Writes boards, robot classes,
   virtual nodes, and bitmasks into the Postgres KB under the domain's
   site namespace (moonbase.alpha.surface_ops).
+
+  Robot instances are NOT in the KB — they register dynamically via
+  the link protocol and announce their class_name at connect time.
 
   This is the single source of truth for all planner data.
   The same data flows: Postgres → SQLite extract → container → planner.
@@ -25,6 +28,7 @@ kb:add_info_node("boards", "landing_zone",
             { name = "habitat_site",     x = 800,  y = 0,    type = "waypoint" },
             { name = "charging_station", x = 800,  y = 800,  type = "waypoint" },
             { name = "mining_zone_a",    x = 1600, y = 0,    type = "mission" },
+            { name = "inspection_scan",  x = 1600, y = 0,    type = "mission" },  -- co-located with mining_zone_a
             { name = "mining_zone_b",    x = 1600, y = 800,  type = "mission" },
             { name = "survey_point_1",   x = 0,    y = 800,  type = "mission" },
             { name = "survey_point_2",   x = 0,    y = 1600, type = "mission" },
@@ -34,7 +38,11 @@ kb:add_info_node("boards", "landing_zone",
             { from = "lander_pad",       to = "habitat_site",     nav = "spline_follow", speed = 150, weight = 800 },
             { from = "lander_pad",       to = "survey_point_1",   nav = "spline_follow", speed = 120, weight = 800 },
             { from = "habitat_site",     to = "mining_zone_a",    nav = "spline_follow", speed = 150, weight = 800 },
+            { from = "habitat_site",     to = "inspection_scan",  nav = "spline_follow", speed = 150, weight = 800 },
             { from = "habitat_site",     to = "charging_station", nav = "spline_follow", speed = 130, weight = 800 },
+            { from = "mining_zone_a",    to = "inspection_scan",  nav = "spline_follow", speed = 100, weight = 0 },  -- zero-length (co-located)
+            { from = "mining_zone_a",    to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
+            { from = "inspection_scan",  to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
             { from = "charging_station", to = "mining_zone_b",    nav = "spline_follow", speed = 130, weight = 800 },
             { from = "charging_station", to = "construction_bay", nav = "spline_follow", speed = 130, weight = 800 },
             { from = "survey_point_1",   to = "charging_station", nav = "spline_follow", speed = 120, weight = 1131 },
@@ -75,82 +83,6 @@ kb:add_header_node("robot_class", "lunar_rover", {}, {},
         },
         "Lunar rover infrastructure configuration")
 
-    kb:add_info_node("hw", "rover_1",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                path_spline = {
-                    { name = "seg_complete", bit = 0 },
-                    { name = "obstacle",     bit = 1 },
-                    { name = "motor_fault",  bit = 2 },
-                },
-                path_rotate = {
-                    { name = "rotate_complete", bit = 0 },
-                    { name = "motor_fault",     bit = 1 },
-                },
-                sensor_read = {
-                    { name = "reading_ready", bit = 0 },
-                    { name = "sensor_fault",  bit = 1 },
-                },
-            },
-            port_map = {
-                motors  = { left = "A", right = "B" },
-                sensors = { front_distance = 1, ground_color = 2, imu = "internal" },
-            },
-            calibration = {
-                wheel_diameter_mm = 56,
-                track_width_mm    = 120,
-                gear_ratio        = 3.0,
-                imu_heading_offset = 0,
-            },
-            pose_dofs = { "x", "y", "heading" },
-        },
-        "Rover unit 1 hardware configuration")
-
-    kb:add_info_node("hw", "rover_2",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                path_spline = {
-                    { name = "seg_complete", bit = 0 },
-                    { name = "obstacle",     bit = 1 },
-                    { name = "motor_fault",  bit = 2 },
-                },
-                path_rotate = {
-                    { name = "rotate_complete", bit = 0 },
-                    { name = "motor_fault",     bit = 1 },
-                },
-                sensor_read = {
-                    { name = "reading_ready", bit = 0 },
-                    { name = "sensor_fault",  bit = 1 },
-                },
-            },
-            port_map = {
-                motors  = { left = "A", right = "B" },
-                sensors = { front_distance = 1, ground_color = 3, imu = "internal" },
-            },
-            calibration = {
-                wheel_diameter_mm = 56,
-                track_width_mm    = 120,
-                gear_ratio        = 3.0,
-                imu_heading_offset = 1.5,
-            },
-            pose_dofs = { "x", "y", "heading" },
-        },
-        "Rover unit 2 hardware configuration")
-
 kb:leave_header_node("robot_class", "lunar_rover")
 
 -- =====================================================================
@@ -181,86 +113,7 @@ kb:add_header_node("robot_class", "construction_arm", {}, {},
         },
         "Construction arm infrastructure configuration")
 
-    kb:add_info_node("hw", "arm_1",
-        {},
-        {
-            bitmask_defs = {
-                init_check = {
-                    { name = "battery_ok",  bit = 0 },
-                    { name = "motors_ok",   bit = 1 },
-                    { name = "sensors_ok",  bit = 2 },
-                    { name = "comms_ok",    bit = 3 },
-                },
-                arm = {
-                    { name = "arm_at_target",   bit = 0 },
-                    { name = "payload_gripped",  bit = 1 },
-                    { name = "action_complete",  bit = 2 },
-                    { name = "arm_fault",        bit = 3 },
-                },
-            },
-            port_map = {
-                motors  = { arm = "C", gripper = "D" },
-                sensors = { force = 1, alignment = 2 },
-            },
-            calibration = {
-                arm_zero_angle = -5,
-                arm_max_angle  = 180,
-                gear_ratio     = 5.0,
-                gripper_force_limit = 50,
-            },
-            pose_dofs = { "arm_angle", "gripper" },
-        },
-        "Construction arm unit 1 hardware configuration")
-
 kb:leave_header_node("robot_class", "construction_arm")
-
--- =====================================================================
--- robots (per-instance status, connection, energy, telemetry)
--- =====================================================================
-local robot_instances = {
-    { name = "rover_1", class = "lunar_rover", energy_max = 10000,
-      pose_dofs = { "x", "y", "heading" } },
-    { name = "rover_2", class = "lunar_rover", energy_max = 10000,
-      pose_dofs = { "x", "y", "heading" } },
-    { name = "arm_1",   class = "construction_arm", energy_max = 5000,
-      pose_dofs = { "arm_angle" } },
-}
-
-for _, robot in ipairs(robot_instances) do
-    kb:add_header_node("robots", robot.name, {}, {},
-        robot.class .. " unit " .. robot.name)
-
-        kb:add_status_field("state", {},
-            "Runtime state",
-            {
-                active_kb      = "",
-                active_worker  = "",
-                connected      = false,
-                robot_id       = robot.name,
-            })
-
-        kb:add_status_field("connection", {},
-            "Connection info",
-            {
-                comm_type        = "nats",
-                robot_id         = robot.name,
-                nats_server      = "nats://127.0.0.1:4222",
-                rpc_topic        = site .. ".robots." .. robot.name .. ".rpc",
-                stream_bus_topic = site .. ".robots." .. robot.name .. ".stream_bus",
-            })
-
-        kb:add_status_field("energy", {},
-            "Energy budget",
-            {
-                energy_max       = robot.energy_max,
-                energy_remaining = robot.energy_max,
-            })
-
-        kb:add_stream_field("telemetry", 100,
-            "Heartbeat and telemetry stream")
-
-    kb:leave_header_node("robots", robot.name)
-end
 
 -- =====================================================================
 -- planner.route_planner

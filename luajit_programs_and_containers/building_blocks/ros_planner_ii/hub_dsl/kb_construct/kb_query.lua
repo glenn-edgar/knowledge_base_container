@@ -4,8 +4,11 @@
     Reads the surface ops KB using KnowledgeBaseManager's ltree queries.
     Provides structured data for planner startup and runtime.
 
+    Robot instances are NOT in the KB. Robots register dynamically via
+    the link protocol and announce their class_name. The KB only stores
+    robot classes (capabilities, energy config, topic templates).
+
     All paths use lowercase namespace convention:
-      {site}.robots.{name}.status.connection
       {site}.boards.{name}
       {site}.robot_class.{name}.infra.shared
       {site}.virtual_nodes.definitions.vn_type.{name}
@@ -15,11 +18,9 @@
         local kb_query = require("kb_query")
         local q = kb_query.new("surface_ops.db")
 
-        local board  = q:get_board("landing_zone")
-        local caps   = q:get_capabilities("rover_1")
-        local conn   = q:get_connection("rover_1")
-        local hw     = q:get_hardware("rover_1")
-        local robots = q:list_robots()
+        local board   = q:get_board("landing_zone")
+        local caps    = q:get_class_capabilities("lunar_rover")
+        local classes = q:list_robot_classes()
 
         q:close()
 ]]
@@ -78,17 +79,15 @@ function M:get_site()
     -- If site was passed to constructor, use it directly
     if self._site then return self._site end
 
-    -- The site is the KB name — find it via find_by_pattern at depth 0
-    -- (e.g., moonbase.alpha.surface_ops)
+    -- Prefer domain entry (subsystems KB) — authoritative site name
+    local domain = self:get_domain()
+    if domain and domain.site then return domain.site end
+
+    -- Fallback: find the domain KB root (filter out system/subsystems)
     local rows = self.kb:find_by_depth(0)
-    if #rows > 0 then
-        return rows[1].path
-    end
-    -- Fallback: try depth 3 for system.site.subsystem
-    for depth = 1, 5 do
-        rows = self.kb:find_by_depth(depth)
-        if #rows > 0 then
-            return rows[1].knowledge_base
+    for _, row in ipairs(rows) do
+        if row.knowledge_base ~= "system" and row.knowledge_base ~= "subsystems" then
+            return row.path
         end
     end
     return nil
@@ -137,17 +136,6 @@ function M:get_robot_infra(class_name)
     return nil
 end
 
-function M:get_robot_hw(class_name, hw_name)
-    local site = self:get_site()
-    if not site then return nil end
-    local pattern = site .. ".robot_class." .. class_name .. ".hw." .. hw_name
-    local rows = self.kb:find_by_pattern(pattern)
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
-    return nil
-end
-
 function M:list_robot_classes()
     local site = self:get_site()
     if not site then return {} end
@@ -164,120 +152,25 @@ function M:list_robot_classes()
 end
 
 ---------------------------------------------------------------------------
--- ROBOTS (instances)
+-- CLASS-BASED CAPABILITIES (robots register dynamically via link protocol)
 ---------------------------------------------------------------------------
 
-function M:list_robots()
-    local site = self:get_site()
-    if not site then return {} end
-    local rows = self.kb:find_by_pattern(site .. ".robots.*")
-    local robots = {}
-    local seen = {}
-    for _, row in ipairs(rows) do
-        if row.label == "robots" and not seen[row.name] then
-            robots[#robots + 1] = row.name
-            seen[row.name] = true
-        end
-    end
-    return robots
-end
-
-function M:get_connection(instance_name)
-    local site = self:get_site()
-    if not site then return nil end
-    local pattern = site .. ".robots." .. instance_name ..
-        ".status.connection"
-    local rows = self.kb:find_by_pattern(pattern)
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
-    return nil
-end
-
-function M:get_robot_state(instance_name)
-    local site = self:get_site()
-    if not site then return nil end
-    local pattern = site .. ".robots." .. instance_name ..
-        ".status.state"
-    local rows = self.kb:find_by_pattern(pattern)
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
-    return nil
-end
-
----------------------------------------------------------------------------
--- CAPABILITIES: instance → class → infra → virtual_nodes
----------------------------------------------------------------------------
-
-function M:find_class_for_instance(instance_name)
-    local site = self:get_site()
-    if not site then return nil end
-    -- Find hw.<instance_name> to determine class
-    local rows = self.kb:find_by_pattern(site .. ".robot_class.*.hw." .. instance_name)
-    if #rows > 0 then
-        -- Extract class name from path
-        local path = rows[1].path
-        local parts = {}
-        for part in path:gmatch("[^.]+") do
-            parts[#parts + 1] = part
-        end
-        for i, p in ipairs(parts) do
-            if p == "robot_class" and parts[i + 1] then
-                return parts[i + 1]
-            end
-        end
-    end
-    return nil
-end
-
-function M:get_capabilities(instance_name)
-    local class_name = self:find_class_for_instance(instance_name)
-    if not class_name then return {} end
+function M:get_class_capabilities(class_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return {} end
     return infra.virtual_nodes or {}
 end
 
----------------------------------------------------------------------------
--- ENERGY
----------------------------------------------------------------------------
-
-function M:get_energy(instance_name)
-    local site = self:get_site()
-    if not site then return nil end
-    local pattern = site .. ".robots." .. instance_name .. ".status.energy"
-    local rows = self.kb:find_by_pattern(pattern)
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
-    return nil
-end
-
-function M:get_energy_max(instance_name)
-    local class_name = self:find_class_for_instance(instance_name)
-    if not class_name then return nil end
+function M:get_class_energy_max(class_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return nil end
     return infra.energy_max
 end
 
-function M:get_energy_infinite(instance_name)
-    local class_name = self:find_class_for_instance(instance_name)
-    if not class_name then return false end
+function M:get_class_energy_infinite(class_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return false end
     return infra.energy_infinite == true
-end
-
----------------------------------------------------------------------------
--- HARDWARE
----------------------------------------------------------------------------
-
-function M:get_hardware(instance_name)
-    local class_name = self:find_class_for_instance(instance_name)
-    if not class_name then return nil end
-    return self:get_robot_hw(class_name, instance_name)
 end
 
 ---------------------------------------------------------------------------
@@ -295,20 +188,6 @@ function M:get_planner_state()
     return nil
 end
 
----------------------------------------------------------------------------
--- NATS TOPICS
----------------------------------------------------------------------------
-
-function M:get_nats_topics(instance_name)
-    local conn = self:get_connection(instance_name)
-    if not conn then return nil end
-    return {
-        rpc_topic        = conn.rpc_topic,
-        stream_bus_topic = conn.stream_bus_topic,
-        nats_server      = conn.nats_server,
-        robot_id         = conn.robot_id,
-    }
-end
 
 ---------------------------------------------------------------------------
 -- INFRASTRUCTURE SERVICES (system KB)
@@ -358,21 +237,20 @@ function M:get_domain()
 end
 
 ---------------------------------------------------------------------------
--- FULL CONFIG
+-- FULL CLASS CONFIG
 ---------------------------------------------------------------------------
 
-function M:get_robot_config(instance_name)
+function M:get_class_config(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
     return {
-        instance     = instance_name,
-        class        = self:find_class_for_instance(instance_name),
-        capabilities = self:get_capabilities(instance_name),
-        hardware     = self:get_hardware(instance_name),
-        connection   = self:get_connection(instance_name),
-        state        = self:get_robot_state(instance_name),
-        energy          = self:get_energy(instance_name),
-        energy_max      = self:get_energy_max(instance_name),
-        energy_infinite = self:get_energy_infinite(instance_name),
-        nats         = self:get_nats_topics(instance_name),
+        class_name      = class_name,
+        capabilities    = infra.virtual_nodes or {},
+        energy_max      = infra.energy_max,
+        energy_infinite = infra.energy_infinite == true,
+        topics          = infra.topics,
+        tick_rate_ms    = infra.tick_rate_ms,
+        worker_kbs      = infra.worker_kbs,
     }
 end
 
@@ -429,19 +307,19 @@ end
 function M:get_site_config()
     local site = self:get_site()
     local boards = self:list_boards()
-    local robots = self:list_robots()
+    local classes = self:list_robot_classes()
 
-    local robot_configs = {}
-    for _, name in ipairs(robots) do
-        robot_configs[name] = self:get_robot_config(name)
+    local class_configs = {}
+    for _, name in ipairs(classes) do
+        class_configs[name] = self:get_class_config(name)
     end
 
     return {
-        site          = site,
-        boards        = boards,
-        robots        = robot_configs,
-        planner       = self:get_planner_state(),
-        virtual_nodes = self:get_all_virtual_nodes(),
+        site           = site,
+        boards         = boards,
+        robot_classes  = class_configs,
+        planner        = self:get_planner_state(),
+        virtual_nodes  = self:get_all_virtual_nodes(),
     }
 end
 

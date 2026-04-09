@@ -33,15 +33,21 @@ f:close()
 local q = kb_query.new(extracted_db)
 local infra = q:get_infrastructure()
 local domain = q:get_domain()
+local kb_site = (domain and domain.site) or q:get_site()
 q:close()
 
-local site = os.getenv("VMRT_KB_SITE") or (domain and domain.site)
+-- Env vars (injected by orchestrator) override KB values.
+-- Inside a Docker network, docker_name DNS is the correct address.
+-- KB stores host-side addresses (127.0.0.1) which don't work in containers.
+local site = kb_site
 local mqtt_host = os.getenv("MQTT_HOST") or (infra.mqtt and infra.mqtt.host)
 local mqtt_port = os.getenv("MQTT_PORT") or (infra.mqtt and tostring(infra.mqtt.port))
-local nats_host = infra.nats and infra.nats.host
-local nats_port = infra.nats and infra.nats.port
 local nats_server = os.getenv("NATS_SERVER")
-    or (nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port))
+if not nats_server then
+    local nats_host = infra.nats and infra.nats.host
+    local nats_port = infra.nats and infra.nats.port
+    nats_server = nats_host and nats_port and string.format("nats://%s:%d", nats_host, nats_port)
+end
 
 if not site then io.stderr:write("ERROR: KB missing domain site\n"); os.exit(1) end
 if not mqtt_host then io.stderr:write("ERROR: KB missing MQTT host\n"); os.exit(1) end
@@ -111,11 +117,5 @@ end
 ---------------------------------------------------------------------------
 print("\nStarting planner server...")
 io.stdout:flush()
-
--- Set env vars so planner_server.lua sees the discovered infrastructure
-ffi.C.setenv("NATS_SERVER", nats_server, 0)
-ffi.C.setenv("MQTT_HOST", mqtt_host, 0)
-ffi.C.setenv("MQTT_PORT", mqtt_port, 0)
-ffi.C.setenv("VMRT_KB_SITE", site, 0)
 
 dofile(script_dir .. "planner_server.lua")

@@ -100,6 +100,7 @@ local ctrl = robot_ctrl.new({
 -- Link client: manages registration and planner liveness
 local lc = link_client.new({
     robot_id     = robot_id,
+    class_name   = "lunar_rover",
     transport    = tx,
     wire_format  = wire_format,
     capabilities = {"init_check", "path_spline", "path_line", "path_wall",

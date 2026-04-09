@@ -38,8 +38,8 @@ local M = {}
 -- @return route       array of {kb_name, params} or nil
 -- @return plan_info   leg details for replan, or {error=string}
 function M.build(mission_cmd, planner, capabilities)
-    local start = mission_cmd.start or error("mission_builder: start required")
     local stops = mission_cmd.stops or error("mission_builder: stops required")
+    local start = mission_cmd.start
 
     if #stops == 0 then
         return nil, { error = "no stops in mission" }
@@ -76,12 +76,12 @@ function M.build(mission_cmd, planner, capabilities)
     local total_cost = 0
     local heading = mission_cmd.initial_heading or 0
 
-    -- Optional init_check bookend
-    if mission_cmd.bookend then
-        route[#route + 1] = { kb_name = "init_check", params = {} }
-    end
+    -- Always start with init_check (robot self-test)
+    route[#route + 1] = { kb_name = "init_check", params = {} }
 
-    local current_node = start
+    -- Start node: where the robot is now. Required for route planning.
+    -- If not provided, assume robot is at the first stop (no navigation to it).
+    local current_node = start or stops[1].node
 
     for i, stop in ipairs(stops) do
         local goal_node = stop.node or error(
@@ -150,10 +150,8 @@ function M.build(mission_cmd, planner, capabilities)
         current_node = goal_node
     end
 
-    -- Optional idle bookend
-    if mission_cmd.bookend then
-        route[#route + 1] = { kb_name = "idle", params = {} }
-    end
+    -- Always end with idle (robot parks)
+    route[#route + 1] = { kb_name = "idle", params = {} }
 
     -- Validate all route actions against capabilities (includes nav VNs)
     if cap_set then

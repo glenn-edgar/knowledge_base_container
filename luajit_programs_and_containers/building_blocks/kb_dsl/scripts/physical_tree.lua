@@ -4,6 +4,10 @@
   Hierarchy: site → CPU → container → service
   Each CPU has a master leaf. Master holds Postgres.
   CPU controllers read their subtree to know what to instantiate.
+
+  Container data includes the full run spec (deployment manifest):
+    image, docker_name, depends_on, ports, volumes, tmpfs, env,
+    network, restart, links, cmd, params, sqlite_db
 ]]
 
 local M = {}
@@ -29,9 +33,24 @@ function M.build(kb, config)
     -- Containers under this CPU
     for _, ctr in ipairs(cpu.containers) do
       local ctr_data = {
-        image     = ctr.image,
-        params    = ctr.params,
-        sqlite_db = ctr.sqlite_db,  -- nil if not applicable
+        -- Identity
+        image       = ctr.image,
+        docker_name = ctr.docker_name,
+        -- Lifecycle
+        depends_on  = ctr.depends_on,
+        restart     = ctr.restart,
+        -- Run spec
+        ports       = ctr.ports,
+        volumes     = ctr.volumes,
+        tmpfs       = ctr.tmpfs,
+        env         = ctr.env,
+        env_names   = ctr.env_names,
+        network     = ctr.network,
+        links       = ctr.links,
+        cmd         = ctr.cmd,
+        -- Application
+        params      = ctr.params,
+        sqlite_db   = ctr.sqlite_db,
       }
 
       if #ctr.services > 0 then

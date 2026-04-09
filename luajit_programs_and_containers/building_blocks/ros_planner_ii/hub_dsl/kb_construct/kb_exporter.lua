@@ -1,13 +1,15 @@
 --[[
     kb_exporter.lua -- Export SQLite KB to NATS KeyStore at startup.
 
-    Reads robot instances, virtual nodes, board data from SQLite and
+    Reads robot classes, virtual nodes, board data from SQLite and
     publishes to NATS KeyStore. Any process (bridge, dashboard, etc.)
     can read from NATS KV without SQLite access.
 
+    Robot instances are NOT exported — they register dynamically via
+    the link protocol.
+
     NATS KV keys mirror SQLite KB paths (lowercase namespace):
-      {site}.robots.{name}.connection     → connection JSON
-      {site}.robots.{name}.capabilities   → virtual_nodes array
+      {site}.robot_class.{name}.infra     → class config JSON
       {site}.virtual_nodes.{name}         → VN definition JSON
       {site}.boards.{name}                → board data JSON
 
@@ -57,48 +59,7 @@ function M.export(opts)
 
     local keys_written = 0
 
-    -- Export robot instances
-    local robots = q:list_robots()
-    for _, robot_name in ipairs(robots) do
-        local config = q:get_robot_config(robot_name)
-
-        -- Connection info (includes comm_type)
-        if config.connection then
-            local key = site .. ".robots." .. robot_name .. ".connection"
-            ks:put(key, json_util.encode(config.connection))
-            keys_written = keys_written + 1
-        end
-
-        -- Capabilities
-        if config.capabilities then
-            local key = site .. ".robots." .. robot_name .. ".capabilities"
-            ks:put(key, json_util.encode(config.capabilities))
-            keys_written = keys_written + 1
-        end
-
-        -- NATS topics
-        if config.nats then
-            local key = site .. ".robots." .. robot_name .. ".nats"
-            ks:put(key, json_util.encode(config.nats))
-            keys_written = keys_written + 1
-        end
-
-        -- Hardware
-        if config.hardware then
-            local key = site .. ".robots." .. robot_name .. ".hardware"
-            ks:put(key, json_util.encode(config.hardware))
-            keys_written = keys_written + 1
-        end
-
-        -- Energy budget
-        if config.energy then
-            local key = site .. ".robots." .. robot_name .. ".energy"
-            ks:put(key, json_util.encode(config.energy))
-            keys_written = keys_written + 1
-        end
-    end
-
-    -- Export robot classes (infra + hardware)
+    -- Export robot classes (infra only — no instances or hw profiles in KB)
     local classes = q:list_robot_classes()
     local class_count = 0
     for _, class_name in ipairs(classes) do
@@ -108,19 +69,6 @@ function M.export(opts)
             ks:put(key, json_util.encode(infra))
             keys_written = keys_written + 1
             class_count = class_count + 1
-        end
-
-        -- Export per-instance hardware configs
-        for _, robot_name in ipairs(robots) do
-            local cls = q:find_class_for_instance(robot_name)
-            if cls == class_name then
-                local hw = q:get_robot_hw(class_name, robot_name)
-                if hw then
-                    local key = site .. ".robot_class." .. class_name .. ".hw." .. robot_name
-                    ks:put(key, json_util.encode(hw))
-                    keys_written = keys_written + 1
-                end
-            end
         end
     end
 
@@ -161,7 +109,6 @@ function M.export(opts)
     return {
         keys_written   = keys_written,
         site           = site,
-        robots         = #robots,
         boards         = #boards,
         virtual_nodes  = vn_count,
         robot_classes  = class_count,
@@ -194,12 +141,8 @@ function M.reader(opts)
         return nil
     end
 
-    function R:get_robot_connection(site, robot_name)
-        return self:get(site .. ".robots." .. robot_name .. ".connection")
-    end
-
-    function R:get_robot_capabilities(site, robot_name)
-        return self:get(site .. ".robots." .. robot_name .. ".capabilities")
+    function R:get_class_infra(site, class_name)
+        return self:get(site .. ".robot_class." .. class_name .. ".infra")
     end
 
     function R:get_virtual_node(site, vn_name)

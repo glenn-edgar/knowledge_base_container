@@ -77,6 +77,7 @@ print("\n--- Announce from New Robot ---")
 lm:on_announce("rover_1", json_util.encode({
     type = "link_announce",
     robot_id = "rover_1",
+    class_name = "lunar_rover",
     seq = 1,
     energy_remaining = 9000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -86,12 +87,14 @@ check("rover_1 is registering", lm:get_state("rover_1") == "registering")
 check("ack sent", mock_mqtt.published["ack:rover_1"] ~= nil)
 check("not yet live", not lm:is_live("rover_1"))
 check("no exception on first announce", #exceptions == 0)
+check("class_name stored from announce", lm:get_class("rover_1") == "lunar_rover")
 
 print("\n--- Robot Confirms ---")
 
 lm:on_confirm("rover_1", json_util.encode({
     type = "link_confirm",
     robot_id = "rover_1",
+    class_name = "lunar_rover",
     ack_seq = 1,
     wire_format = "cbor",
     capabilities = {"init_check", "path_spline"},
@@ -144,6 +147,7 @@ exceptions = {}
 lm:on_announce("rover_1", json_util.encode({
     type = "link_announce",
     robot_id = "rover_1",
+    class_name = "lunar_rover",
     seq = 1,
     energy_remaining = 8000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
@@ -160,6 +164,7 @@ print("\n--- Complete re-registration ---")
 lm:on_confirm("rover_1", json_util.encode({
     type = "link_confirm",
     robot_id = "rover_1",
+    class_name = "lunar_rover",
     wire_format = "json",
     capabilities = {"init_check", "path_spline"},
     energy_max = 10000,
@@ -207,12 +212,12 @@ check("KV link_state is offline", offline_data.link_state == "offline")
 print("\n--- Second Robot ---")
 
 lm:on_announce("rover_2", json_util.encode({
-    type = "link_announce", robot_id = "rover_2", seq = 1,
-    energy_remaining = 5000,
+    type = "link_announce", robot_id = "rover_2", class_name = "lunar_rover",
+    seq = 1, energy_remaining = 5000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
 }))
 lm:on_confirm("rover_2", json_util.encode({
-    type = "link_confirm", robot_id = "rover_2",
+    type = "link_confirm", robot_id = "rover_2", class_name = "lunar_rover",
     wire_format = "json", capabilities = {"init_check"},
     energy_max = 5000, energy_remaining = 5000,
     ts = os.date("!%Y-%m-%dT%H:%M:%SZ"),
