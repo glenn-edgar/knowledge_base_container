@@ -138,8 +138,39 @@ function KnowledgeBaseManager:_delete_table(tbl_name, schema)
     quote_ident(schema), quote_ident(tbl_name)))
 end
 
+--- Terminate any other connections to this database that are idle in
+--- transaction. They hold locks from a previously crashed/aborted build
+--- and would block our DROP TABLE indefinitely otherwise.
+function KnowledgeBaseManager:_terminate_stale_locks()
+  -- Don't error if this fails — best-effort cleanup. Wrapped in pcall
+  -- so a missing privilege doesn't kill the whole build.
+  pcall(function()
+    local rows = self:_query([[
+      SELECT pg_terminate_backend(pid) AS killed, pid
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND pid <> pg_backend_pid()
+        AND state IN ('idle in transaction', 'idle in transaction (aborted)');
+    ]])
+    if rows and #rows > 0 then
+      io.stderr:write(string.format(
+        "knowledge_base_manager: terminated %d stale idle-in-transaction connection(s)\n",
+        #rows))
+    end
+  end)
+end
+
 function KnowledgeBaseManager:_create_tables()
   local tn = self.table_name
+
+  -- Clean up any stale connections that might be holding locks on the
+  -- tables we're about to drop. Without this, a previously crashed build
+  -- can leave an idle-in-transaction connection that blocks the DROP
+  -- forever. Then set a lock_timeout so even if something we couldn't
+  -- terminate is holding the lock, we fail fast with a clear error
+  -- instead of hanging.
+  self:_terminate_stale_locks()
+  pcall(function() self:_exec("SET lock_timeout = '10s';") end)
 
   self:_delete_table(tn)
   self:_delete_table(tn .. "_info")
@@ -234,6 +265,9 @@ function KnowledgeBaseManager:_create_tables()
   for _, idx_sql in ipairs(indexes) do
     self:_exec(idx_sql)
   end
+
+  -- Restore default lock_timeout for the rest of this session
+  pcall(function() self:_exec("SET lock_timeout = 0;") end)
 end
 
 ---------------------------------------------------------------------------
