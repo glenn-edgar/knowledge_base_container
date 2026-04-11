@@ -1,0 +1,14 @@
+{
+    "robot_id": "rover_1",
+    "site": "moonbase.alpha.surface_ops",
+    "mqtt_host": "localhost",
+    "mqtt_port": 1883,
+    "robot_class": "lunar_rover",
+    "remote_json": "/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/ros_planner_ii_mqtt_robot/remote.json",
+    "energy_max": 10000,
+    "energy_infinite": false,
+    "wire_format": "cbor",
+    "capabilities": [
+        "init_check", "path_spline", "path_line", "operation", "idle"
+    ]
+}

@@ -132,13 +132,13 @@ function M:poll(timeout_ms)
             msg_type = "unknown"
         end
 
-        -- Decode CBOR → JSON for robots with wire_format=cbor
+        -- Decode CBOR → JSON string for robots with wire_format=cbor
         local payload = msg.payload
         if self.wire_formats[robot_id] == "cbor" then
             local cbor = require("lib.lua_cbor")
             local ok, decoded = pcall(cbor.decode, payload)
             if ok then
-                payload = decoded
+                payload = decoded  -- cbor.decode returns a JSON string
             end
         end
 
@@ -183,7 +183,14 @@ function M:send_rpc(robot_id, json_str)
     local fmt = self.wire_formats[robot_id]
     if fmt == "cbor" then
         local cbor = require("lib.lua_cbor")
-        wire = cbor.encode(json_str)
+        local ok, result = pcall(cbor.encode, json_str)
+        if ok then
+            wire = result
+        else
+            io.stderr:write("CBOR encode error: " .. tostring(result) ..
+                "\n  JSON (" .. #json_str .. " bytes): " .. json_str:sub(1, 200) .. "\n")
+            -- Fallback to JSON
+        end
     end
     local topic = self.site_path .. "/robots/" .. robot_id .. "/rpc"
     self.ps:publish(topic, wire, 1, false)
