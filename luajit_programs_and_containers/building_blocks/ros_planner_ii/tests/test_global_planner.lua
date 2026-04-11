@@ -7,6 +7,7 @@
 
 local global_planner = require("global_planner")
 local route_builder  = require("route_builder")
+local json_util      = require("json_util")
 
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)")  or "./"
 local root_dir   = script_dir .. "../"
@@ -40,11 +41,11 @@ local planner = global_planner.new({
 local graph = planner:get_graph()
 
 -- Verify graph loaded
-check("graph has 9 nodes",
+check("graph has 20 nodes",
     (function()
         local n = 0; for _ in pairs(graph.nodes) do n = n + 1 end; return n
-    end)() == 9,
-    "expected 9 nodes (includes co-located inspection_scan)")
+    end)() == 20,
+    "expected 20 nodes")
 
 check("lander_pad exists", graph.nodes["lander_pad"] ~= nil, "missing")
 check("lander_pad coords",
@@ -66,8 +67,8 @@ print("--- Dijkstra Tests ---")
 
 local route, info = planner:plan("lander_pad", "mining_zone_b")
 check("plan lander→mining_b found", route ~= nil, "no route")
-check("plan cost = 2400", info.cost == 2400,
-    "expected 2400, got " .. tostring(info.cost))
+check("plan cost = 2094", info.cost == 2094,
+    "expected 2094 (via junction_central), got " .. tostring(info.cost))
 check("plan path length = 4", #info.path == 4,
     "expected 4 nodes, got " .. #info.path)
 check("plan path[1] = lander_pad", info.path[1] == "lander_pad", info.path[1])
@@ -133,51 +134,60 @@ for _, action in ipairs(route5) do
 end
 check("first path action exists", first_path ~= nil, "no path action")
 if first_path then
-    check("has from_x", first_path.params.from_x ~= nil, "missing from_x")
-    check("has to_x", first_path.params.to_x ~= nil, "missing to_x")
     check("has speed", first_path.params.speed ~= nil, "missing speed")
-    check("has distance", first_path.params.distance ~= nil, "missing distance")
-    check("from = lander_pad",
-        first_path.params.from_x == 0 and first_path.params.from_y == 0,
-        "expected (0,0)")
-    check("to = habitat_site",
-        first_path.params.to_x == 800 and first_path.params.to_y == 0,
-        "expected (800,0)")
+    check("has path", first_path.params.path ~= nil, "missing path")
+    check("path is flat array", type(first_path.params.path) == "table",
+        "expected table")
+    check("path has 8 elements (4 points: endpoints + 2 interpolated)",
+        #first_path.params.path == 8,
+        "got " .. #first_path.params.path)
+    -- First path: lander_pad(0,0) → habitat_site(800,0)
+    local p = first_path.params.path
+    check("path starts at lander_pad",
+        p[1] == 0 and p[2] == 0,
+        "expected (0,0), got (" .. p[1] .. "," .. p[2] .. ")")
+    check("path ends at habitat_site",
+        p[#p - 1] == 800 and p[#p] == 0,
+        "expected (800,0), got (" .. p[#p-1] .. "," .. p[#p] .. ")")
+    check("no from_x (removed)", first_path.params.from_x == nil, "should be nil")
+    check("no distance (removed)", first_path.params.distance == nil, "should be nil")
 end
 
 -- Print route summary
 print("  Route (" .. #route5 .. " actions):")
 for i, a in ipairs(route5) do
-    if a.params.to_x then
-        print(string.format("    %2d. %-14s → (%d,%d)",
-            i, a.kb_name, a.params.to_x, a.params.to_y))
-    elseif a.params.to_heading then
-        print(string.format("    %2d. %-14s → heading %.0f°",
-            i, a.kb_name, a.params.to_heading))
+    if a.params.path then
+        local p = a.params.path
+        print(string.format("    %2d. %-14s path[%d] (%d,%d)→(%d,%d) speed=%s",
+            i, a.kb_name, #p/2, p[1], p[2], p[#p-1], p[#p],
+            tostring(a.params.speed)))
     else
         print(string.format("    %2d. %s", i, a.kb_name))
     end
 end
 
 ---------------------------------------------------------------------------
--- Test 6: Heading rotations
+-- Test 6: No rotations (path_rotate removed)
 ---------------------------------------------------------------------------
-print("\n--- Heading Tests ---")
+print("\n--- No Rotation Tests ---")
 
--- lander_pad(0,0) → habitat_site(800,0) heading=0 (east)
--- habitat_site(800,0) → charging_station(800,800) heading=90 (north)
--- Should insert a rotation between these two
 local has_rotate = false
 for _, a in ipairs(route5) do
-    if a.kb_name == "path_rotate" then
-        has_rotate = true
-        check("rotation from_heading", a.params.from_heading ~= nil, "missing")
-        check("rotation to_heading", a.params.to_heading ~= nil, "missing")
-        print(string.format("  Rotation: %.0f° → %.0f°",
-            a.params.from_heading, a.params.to_heading))
+    if a.kb_name == "path_rotate" then has_rotate = true end
+end
+check("route has no rotations", not has_rotate, "unexpected path_rotate found")
+
+-- All nav actions should be path_spline or path_line (direct kb_name)
+local all_nav_direct = true
+for _, a in ipairs(route5) do
+    if a.kb_name ~= "init_check" and a.kb_name ~= "idle" then
+        if a.kb_name ~= "path_spline" and a.kb_name ~= "path_line" then
+            all_nav_direct = false
+        end
     end
 end
-check("route has rotations", has_rotate, "no path_rotate found")
+check("all nav actions are path_spline or path_line", all_nav_direct,
+    "found unexpected nav kb_name")
 
 ---------------------------------------------------------------------------
 -- Test 7: Blocked edge — replan
@@ -206,11 +216,9 @@ end
 ---------------------------------------------------------------------------
 -- Test 8: Block all paths to a node
 ---------------------------------------------------------------------------
--- mining_zone_a reachable via habitat_site and inspection_scan — block both
+-- mining_zone_a reachable only via transit_mine_w (single spur) — block it
 planner:clear_blocked()
-planner:mark_blocked("habitat_site", "mining_zone_a")
-planner:mark_blocked("inspection_scan", "mining_zone_a")
-planner:mark_blocked("mining_zone_a", "mining_zone_b")
+planner:mark_blocked("transit_mine_w", "mining_zone_a")
 
 local route7, info7 = planner:replan("lander_pad", "mining_zone_a")
 check("blocked node unreachable", route7 == nil,
@@ -226,8 +234,8 @@ planner:clear_blocked()
 
 local route8, info8 = planner:plan("lander_pad", "mining_zone_b")
 check("cleared blocked restores path", route8 ~= nil, "no route after clear")
-check("restored cost = 2400", info8.cost == 2400,
-    "expected 2400, got " .. tostring(info8.cost))
+check("restored cost = 2094", info8.cost == 2094,
+    "expected 2094, got " .. tostring(info8.cost))
 
 print("  Cleared: original path restored (cost=" .. info8.cost .. ")")
 
@@ -247,23 +255,102 @@ check("nearest to (800,800) is charging_station", nearest2 == "charging_station"
     "got " .. tostring(nearest2))
 
 ---------------------------------------------------------------------------
--- Test 11: Heading computation
+-- Test 11: Transit node type (renumbered from 12)
 ---------------------------------------------------------------------------
-print("\n--- Heading Computation ---")
+print("\n--- Transit Node Tests ---")
 
-check("heading east",  math.abs(route_builder.compute_heading(0,0, 100,0) - 0) < 0.1,
-    "expected 0")
-check("heading north", math.abs(route_builder.compute_heading(0,0, 0,100) - 90) < 0.1,
-    "expected 90")
-check("heading west",  math.abs(route_builder.compute_heading(0,0, -100,0) - 180) < 0.1,
-    "expected 180")
-check("heading south", math.abs(route_builder.compute_heading(0,0, 0,-100) - 270) < 0.1,
-    "expected 270")
+-- Verify transit nodes stored in graph
+check("junction_north is transit", planner:is_transit("junction_north"),
+    "expected transit")
+check("junction_central is transit", planner:is_transit("junction_central"),
+    "expected transit")
+check("lander_pad is NOT transit (type=base)", not planner:is_transit("lander_pad"),
+    "should not be transit")
+check("mining_zone_a is NOT transit (type=deliver_part)", not planner:is_transit("mining_zone_a"),
+    "should not be transit")
+check("nonexistent is NOT transit", not planner:is_transit("nonexistent"),
+    "should not be transit")
+
+-- Dijkstra routes through transit nodes silently
+local route_via_transit, info_via = planner:plan("habitat_site", "mining_zone_a")
+check("route through transit found", route_via_transit ~= nil, "no route")
+if info_via.path then
+    local found_transit = false
+    for _, name in ipairs(info_via.path) do
+        if name == "transit_mine_w" then found_transit = true; break end
+    end
+    check("route passes through transit_mine_w", found_transit,
+        "path: " .. table.concat(info_via.path, " → "))
+    print("  Transit route: " .. table.concat(info_via.path, " → ") ..
+        " (cost=" .. info_via.cost .. ")")
+end
+
+-- Mission builder rejects transit stops
+local mb = require("mission_builder")
+local transit_route, transit_info = mb.build({
+    start = "lander_pad",
+    stops = { { node = "junction_north" } },
+}, planner)
+check("mission builder rejects transit stop", transit_route == nil,
+    "expected nil (transit node)")
+check("rejection error is transit_node_stops",
+    transit_info and transit_info.error == "transit_node_stops",
+    "got: " .. tostring(transit_info and transit_info.error))
+if transit_info and transit_info.transit_stops then
+    print("  Rejected: " .. transit_info.transit_stops[1])
+end
+
+-- Mission builder accepts operation stops
+local ok_route, ok_info = mb.build({
+    start = "lander_pad",
+    stops = { { node = "mining_zone_a" } },
+}, planner)
+check("mission builder accepts operation stop", ok_route ~= nil,
+    "expected route for operation node")
+
+-- Mission builder emits operation VN for stop actions
+local op_route, op_info = mb.build({
+    start = "lander_pad",
+    stops = { { node = "mining_zone_a", action = "deliver_part",
+                params = { arm_target = -45 } } },
+}, planner)
+check("operation route exists", op_route ~= nil, "expected route")
+if op_route then
+    local found_op = false
+    for _, a in ipairs(op_route) do
+        if a.kb_name == "operation" then
+            found_op = true
+            check("operation_type is deliver_part",
+                a.params.operation_type == "deliver_part",
+                "got: " .. tostring(a.params.operation_type))
+            check("operation data has arm_target",
+                a.params.data and a.params.data.arm_target == -45,
+                "missing arm_target")
+            print("  Operation VN: " .. a.params.operation_type ..
+                " data=" .. json_util.encode(a.params.data))
+        end
+    end
+    check("route contains operation VN", found_op, "no operation VN in route")
+end
+
+-- Mission builder validates operation_types
+local bad_route, bad_info = mb.build({
+    start = "lander_pad",
+    stops = { { node = "mining_zone_a", action = "fly_to_mars" } },
+}, planner, { "deliver_part", "inspection_scan" })
+check("unsupported operation rejected", bad_route == nil,
+    "expected nil for unsupported operation")
+check("rejection error is unsupported_operation",
+    bad_info and bad_info.error == "unsupported_operation",
+    "got: " .. tostring(bad_info and bad_info.error))
+if bad_info and bad_info.unsupported then
+    print("  Unsupported: " .. bad_info.unsupported[1])
+end
 
 planner:close()
 
 ---------------------------------------------------------------------------
--- Test 12: Virtual node definitions in KB
+-- Test 13: Virtual node definitions in KB (renumbered from 12)
 ---------------------------------------------------------------------------
 print("\n--- Virtual Node KB Tests ---")
 
@@ -271,8 +358,8 @@ local kb_query = require("kb_query")
 local q = kb_query.new(db_file, "knowledge_base", "/usr/local/lib/ltree")
 
 local vn_names = q:list_virtual_nodes()
-check("KB has 12 virtual nodes", #vn_names == 12,
-    "expected 11, got " .. #vn_names)
+check("KB has 5 virtual nodes", #vn_names == 5,
+    "expected 5 (init_check, path_spline, path_line, operation, idle), got " .. #vn_names)
 print("  VN types: " .. table.concat(vn_names, ", "))
 
 local vn = q:get_virtual_node("path_spline")
@@ -280,23 +367,26 @@ check("path_spline exists", vn ~= nil, "not found")
 if vn then
     check("path_spline packet_type_id = 2", vn.packet_type_id == 2,
         "got " .. tostring(vn.packet_type_id))
-    check("path_spline has 8 schema fields", #vn.json_schema == 8,
-        "got " .. #vn.json_schema)
-    check("path_spline has 3 bitmask fields", #vn.bitmask == 3,
-        "got " .. #vn.bitmask)
-    check("path_spline has 3 pose fields", #vn.pose_fields == 3,
-        "got " .. #vn.pose_fields)
+end
+
+local vn_op = q:get_virtual_node("operation")
+check("operation VN exists", vn_op ~= nil, "not found")
+if vn_op then
+    check("operation packet_type_id = 20", vn_op.packet_type_id == 20,
+        "got " .. tostring(vn_op.packet_type_id))
+    check("operation has 2 schema fields", #vn_op.json_schema == 2,
+        "got " .. #vn_op.json_schema)
 end
 
 local all_vn = q:get_all_virtual_nodes()
-check("get_all has 11 entries",
-    (function() local n=0; for _ in pairs(all_vn) do n=n+1 end; return n end)() == 12,
+check("get_all has 5 entries",
+    (function() local n=0; for _ in pairs(all_vn) do n=n+1 end; return n end)() == 5,
     "wrong count")
 
 q:close()
 
 ---------------------------------------------------------------------------
--- Test 13: KB exporter to NATS KeyStore
+-- Test 14: KB exporter to NATS KeyStore
 ---------------------------------------------------------------------------
 print("\n--- KB Exporter Tests ---")
 
@@ -311,8 +401,8 @@ check("exporter wrote keys", stats.keys_written > 0,
     "expected > 0, got " .. stats.keys_written)
 check("exporter found robot classes", stats.robot_classes > 0,
     "expected > 0, got " .. stats.robot_classes)
-check("exporter found VN defs", stats.virtual_nodes == 12,
-    "expected 12, got " .. stats.virtual_nodes)
+check("exporter found VN defs", stats.virtual_nodes == 5,
+    "expected 5, got " .. stats.virtual_nodes)
 check("exporter found boards", stats.boards > 0,
     "expected > 0, got " .. stats.boards)
 
@@ -328,8 +418,8 @@ local reader = kb_exporter.reader({
 local infra = reader:get_class_infra(stats.site, "lunar_rover")
 check("reader: lunar_rover class infra", infra ~= nil, "not found")
 if infra then
-    check("reader: lunar_rover has 12 VNs", #infra.virtual_nodes == 12,
-        "expected 12, got " .. tostring(infra.virtual_nodes and #infra.virtual_nodes))
+    check("reader: lunar_rover has 5 VNs", #infra.virtual_nodes == 5,
+        "expected 5, got " .. tostring(infra.virtual_nodes and #infra.virtual_nodes))
 end
 
 local vn_spline = reader:get_virtual_node(stats.site, "path_spline")
@@ -342,8 +432,8 @@ end
 local board = reader:get_board(stats.site, "landing_zone")
 check("reader: landing_zone board", board ~= nil, "not found")
 if board then
-    check("reader: board has nodes", board.nodes ~= nil and #board.nodes == 9,
-        "expected 9 nodes")
+    check("reader: board has nodes", board.nodes ~= nil and #board.nodes == 20,
+        "expected 20 nodes")
 end
 
 reader:close()

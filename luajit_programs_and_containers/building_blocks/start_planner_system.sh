@@ -77,6 +77,7 @@ run_orchestrator() {
         -e PG_USER="${PG_USER:-gedgar}" \
         -e POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}" \
         -e SQLITE_DATA="/data" \
+        -e SQLITE_HOST_PATH="$SQLITE_DATA" \
         nanodatacenter/orchestrator:latest \
         luajit "$@"
 }

@@ -1,5 +1,161 @@
 # ROS Planner II — Continuation Plan
 
+## Session Summary (2026-04-11, session 6)
+
+### Transit Nodes + Operation Points (complete)
+
+**Transit vs operation node types:**
+- Nodes with `type = "transit"` render as small dashed squares on the board map. Not clickable in mission planner. Dijkstra routes through them silently.
+- All other node types are operation points — render as circles, clickable, each click adds a mission step with the node's type as the operation.
+- `global_planner:is_transit(node_name)` checks node type. `mission_builder` rejects transit stops.
+- CSS color-codes operation circles by type (green=base/pass_gate, yellow=recharge, red=deliver_part, purple=inspection_scan, orange=load_shipping).
+- `board-graph.js` inset: transit nodes shown as dimmed squares with "(transit)" label, not clickable in planner mode.
+
+**Mining station transit ring:**
+- 4 transit nodes (`transit_mine_w/n/e/s`) form a bypass loop around mining_zone_a and inspection_scan.
+- Operation points offset from the main road with single spur edges in.
+- Through-traffic (e.g., junction_north → mining_zone_b) routes around via the ring without entering operation points.
+
+### Simplified Route Format (complete)
+
+**Nav types simplified:**
+- Edge `nav` field IS the `kb_name` directly (`path_spline`, `path_line`). Removed the old `spline_follow`/`line_follow`/`wall_follow` → kb_name mapping (`NAV_TO_KB`).
+- Removed `path_rotate` insertion from route_builder. Removed heading tracking from mission_builder and mission-planner.js.
+- Removed `compute_heading`, `heading_diff` from route_builder. Removed `computeHeading`, `headingDiff` from JS.
+
+**Path array on edges:**
+- `build_board()` DSL helper processes edges: author provides `path = {}` (straight line) or `path = {{x=,y=}, ...}` (intermediate waypoints). DSL auto-prepends from-node coords and appends to-node coords. Produces flat `[x1,y1, x2,y2, ...]` array.
+- Empty path auto-interpolates 2 intermediate points at 1/3 and 2/3 (every edge gets 4-point paths).
+- `global_planner.build_graph` carries `path` through adjacency list. Reverse edges get reversed path.
+- Route params are just `{speed, path}` — removed `from_x/from_y/to_x/to_y/distance/segment_index/total_segments`.
+
+**Wire format to robot:**
+```json
+{"packet_type": 2, "speed": 150, "path": [0, 0, 267, 0, 533, 0, 800, 0]}
+{"packet_type": 20, "operation_type": "deliver_part", "data": {"arm_target": -45}}
+{"packet_type": 11}
+```
+
+### Generic Operation VN (complete)
+
+**Single operation VN (packet_type=20) replaces 8 individual operation VNs:**
+- KB VN definition: `operation` with `packet_type_id = 20`, schema: `operation_type` (string) + `data` (object).
+- Robot class: `virtual_nodes` now lists only path + lifecycle VNs (`init_check`, `path_spline`, `path_line`, `operation`, `idle`). New `operation_types` list declares supported operations (`base`, `deliver_part`, `paint_sample`, `load_shipping`, `pass_gate`, `inspection_scan`, `recharge`).
+- `kb_query:get_class_operation_types(class_name)` returns the list.
+- `mission_builder.build()` validates stop actions against `operation_types`. Emits `{kb_name="operation", params={operation_type=X, data={...}}}`.
+- `action_server.lua` fetches `operation_types` from KB class, passes to mission_builder for validation.
+- Mission planner UI: preflight checks `operation_types` from robot config.
+
+**Node type IS the operation:**
+- Board node `type` field is the operation name (`deliver_part`, `inspection_scan`, `recharge`, `base`, `pass_gate`, `load_shipping`) or `transit`.
+- Clicking a circle auto-attaches the operation. Step display shows `mining zone a [deliver part]`.
+- Mission submission includes `action` field on each stop.
+
+**MQTT robot:**
+- `command_packets.lua`: `TYPE_OPERATION = 20`.
+- `robot_controller.lua`: `worker_by_packet_type[20] = "worker_operation"` + energy cost.
+- `remote_dsl.lua`: sparse test_list with `worker_operation` at index 20.
+- `remote_user_functions.lua`: `WKR_OPERATION_INIT/MAIN` — prints operation_type, simulates 20-tick execution.
+- `capabilities.lua`: updated with `operation` VN + `operation_types` list.
+
+### Container Build Fixes (complete)
+
+**Three pre-existing container build issues fixed:**
+1. `kb_build.lua` — `master_build.lua` path didn't resolve in flat container layout (added fallback to `script_dir`).
+2. `sqlite_extract.lua` — SQLite module path and `ltree.so` path didn't resolve in container (added fallback detection for both).
+3. `Dockerfile` — missing `libsqlite3.so` symlink (only `.so.0` present, added `ln -sf`).
+
+**Volume mount fix:**
+- `site_config.lua` used `SQLITE_DATA` env which resolved to container-internal `/data` path instead of host path for `docker -v` mounts.
+- Added `SQLITE_HOST_PATH` env var; `site_config.lua` prefers it over `SQLITE_DATA`.
+- `start_planner_system.sh` passes `SQLITE_HOST_PATH` to orchestrator container.
+
+**Planner image build fix:**
+- `docker_build.sh` `cp` to root-owned `Sqlite_Data/` made non-fatal (orchestrator handles the authoritative copy).
+
+### Board Builder Module (complete)
+
+- Shared `board_builder.lua` extracted from both construct files.
+- Validation: required fields (name, x, y, type on nodes; from, to, nav, speed, weight, path on edges), duplicate edges, unknown node references, waypoint structure.
+- `board_builder.build(nodes, edges, opts)` — resolves paths, returns `{nodes, edges}`.
+- Both `construct_surface_ops.lua` and `surface_ops_planner_data.lua` import from it.
+- Staged in orchestrator image via `docker_build.sh`.
+
+### Complex Operation Center (complete)
+
+- Construction zone: 4 transit nodes (`transit_build_n/w/e/s`) forming approach lattice around `construction_bay` and `paint_station`.
+- Hand-authored curved docking paths: 3-waypoint arcs from transit nodes into operation points (north arc, west sweep, south-east curve).
+- `paint_station` (type=`paint_sample`, params: `arm_target=15, hold_time=500`).
+- 20 nodes total, ~27 edges. Multiple approach angles to construction_bay.
+
+### Wire Payload Cleanup (complete)
+
+- `hub_runtime.lua` strips `next_test` from JSON sent to robot.
+- Robot receives: `packet_type` + `seq` + `test_id` + action-specific params only.
+- `seq` and `test_id` kept for ack/kb_done matching between planner and robot.
+
+### Operation Params from Board Nodes (complete)
+
+- Nodes carry optional `params` table (e.g., `mining_zone_a` has `{arm_target=-45, payload_type=1}`).
+- `board_builder` passes params through. `global_planner.build_graph` stores `node.params`.
+- `global_planner:get_node_params(node_name)` accessor.
+- `mission_builder` merges: node default params ← stop-level overrides → operation VN data.
+- Verified end-to-end: robot receives `{"data":{"arm_target":-45,"payload_type":1}}` for `mining_zone_a`.
+
+### Tests: 70 assertions, 0 failures
+- Planner: path array format, no rotations, direct nav types, transit validation, operation VN emission, operation_types validation, unsupported operation rejection, node params merge
+- Plus all prior session totals (orchestrator graph 91, link manager 39, link client 43, kv writer 16)
+
+---
+
+## Session Summary (2026-04-09, session 5)
+
+### Mission Log Expansion + Mission Planner Preflight (complete)
+
+**Mission planner preflight (client-side, `mission-planner.js`)**
+- New shared module `system_api/shell/panels/board-graph.js` exporting `computeClusters` (union-find on nodes within `2*radius`), `bucketEdges`, `externalForCluster`, `clusterLabel`, `buildInsetSvg`.
+- Mission planner board uses cluster-based rendering: singletons → circles, multi → diamonds at the centroid, external edges aggregated with `×N` count labels.
+- Each mission step now expandable (`▶`/`▼`) showing the underlying actions: client-side Dijkstra over board edges + capability check against robot's `/api/robots` config + energy budget check against KV `_robot_status`.
+- Failed actions render red; mission-level failure (insufficient energy / unsupported VN) shown in expanded display + a top-of-table preflight summary banner (ok/warn/fail).
+
+**Mission log expansion (`mission-log.js` + `action_server.lua`)**
+- Server: `_publish_mission_log` now stores rich payload — `route` (compact action summary), `legs`, `fault {reason, detail, action_index, kb_name}`, `unsupported`, `energy_required`, `energy_remaining`. Result fields attached at planning failure / energy failure / successful run paths.
+- Client: each row gets a chevron toggle. Expanded view shows fault banner + per-action list with the failed action red and subsequent actions dimmed/`(not run)`. Backwards-compat with pre-upgrade entries (graceful "no route data" fallback).
+- Mission log `.log-scroll` got `min-height: 0` to fix the flexbox scrollbar trap.
+
+### Board Subgraph Inset (complete)
+
+- Replaced the old text picker with a richer inset built by `buildInsetSvg`.
+- Click a diamond → small popup shows internal edges + member node circles + dashed amber stub edges pointing toward each external neighbour cluster (labeled with neighbour name).
+- A clickable member-name list under the SVG handles the picker job (the SVG circles overlap when nodes are co-located, so the list is the reliable picker).
+- Same inset in both panels: planner (interactive — click member adds it as a step) and viewer (informational only).
+- Robot markers retarget to clusters with a count badge when multiple robots share a cluster.
+- Close mechanisms: click diamond again, click outside, Escape key, X button.
+
+### Board DSL Builder + Path Field (complete)
+
+**New module `ros_planner_ii/hub_dsl/kb_construct/board_builder.lua`** (≈190 lines)
+- API: `BoardBuilder.new(label, name, properties)`, `add_node(name, x, y, type)`, `add_edge {table}`, `has_node`, `get_node`, `finalize(kb, description)`.
+- Authors write maps incrementally with helper calls instead of one giant inline `kb:add_info_node` literal. User-written LuaJIT functions act as macros (no DSL vocabulary needed for paths).
+- Single-table arg form for `add_edge` with named fields: `{from, to, nav, speed, weight, path}` — all required.
+- Path is a flat list of `{x=,y=}` waypoint tables in node-local coordinates (from-node is `(0,0)`).
+- Validation at `finalize()`: required fields present, endpoints in node table, first waypoint `(0,0)`, last waypoint = to-node local offset, no duplicate undirected edges, ≥2 waypoints.
+- Dual storage produced from the named-key DSL form:
+  - `path.waypoints` — `[{x,y}, ...]` for tools / human inspection
+  - `path.flat`      — `[x1, y1, x2, y2, ...]` packed int array, optimized for embedded CBOR decode on the robot
+- Unit tests (`test_board_builder.lua`) — 36 assertions, all pass.
+
+**Migrated `construct_surface_ops.lua`** to use the builder. Every existing edge now carries a `path` field with the new dual form. For now all paths are 2-point endpoints-only — behaviour is byte-identical to the previous inline-table form because route_builder still computes its own geometry from node coords. The `line_follow` edge gets the same shape; the robot ignores it until line/wall paths are designed.
+
+**Wire payload to robot (planned, not yet implemented)**: only `vn` name + `flat` array + speed cross to the robot. The `waypoints` named form stays in the KB for tooling.
+
+### Tests: 341 assertions, 0 failures
+- Board builder: 36 pass (NEW)
+- Planner: 57 pass
+- Plus all prior session totals (orchestrator graph 91, link manager 39, link client 43, kv writer 16, etc.)
+
+---
+
 ## Session Summary (2026-04-08, session 4)
 
 ### KB Sidecar Removed (complete)
@@ -106,7 +262,7 @@
 
 ```bash
 cd ros_planner_ii/tests
-bash ./run_tests.sh planner        # 57 assertions
+bash ./run_tests.sh planner        # 70 assertions
 bash ./run_tests.sh link_manager   # 39 assertions
 bash ./run_tests.sh link_client    # 43 assertions
 bash ./run_tests.sh kv_writer      # 16 assertions
@@ -148,43 +304,14 @@ BB=.. LUA_PATH="./?.lua;$BB/knowledge_base/postgres/data_structures/?.lua;;" \
 
 ---
 
-## Next Session: KB-Defined Path Segments
+## Next Session
 
-### Design
+### Followup (queued)
 
-The path between board nodes is **map data defined in the KB**, not computed by the planner.
-
-**Current (broken model):**
-- Route builder computes coordinates from node positions
-- Inserts `path_rotate` VNs based on heading calculations
-- Every edge is a single straight-line segment
-
-**New model:**
-- Board edges have a required `path` field — array of navigation segments
-- Each segment specifies: VN type (path_spline, path_line, path_wall), waypoints, speed
-- The KB IS the map — no coordinate math in the planner
-- Dijkstra finds which edges to traverse (graph routing only)
-- Route builder reads each edge's `path` array and passes segments to the robot as-is
-- The robot handles all navigation including rotation — no `path_rotate` VN
-- The planner is a pass-through for path data
-
-**Changes needed:**
-1. `surface_ops_planner_data.lua` — add `path` arrays to all board edges
-2. `route_builder.lua` — remove heading/rotate logic, emit path segments from KB edge data
-3. `mission_builder.lua` — same pass-through approach
-4. `global_planner.lua` — Dijkstra unchanged, just passes edge data through
-5. Remove `path_rotate` VN definition (robot handles rotation internally)
-6. Tests — update route expectations
-
-**Example edge with path:**
-```lua
-{ from = "lander_pad", to = "habitat_site", weight = 800,
-  path = {
-    { vn = "path_spline", speed = 150, distance = 800,
-      waypoints = { {x=0,y=0}, {x=200,y=50}, {x=600,y=-30}, {x=800,y=0} } },
-  }
-}
-```
+- **CBOR wire format** — path arrays are ideal for CBOR packed int encoding. The flat `[x1,y1,x2,y2,...]` format was designed for this.
+- **Energy budget from path** — compute energy cost from path length instead of edge weight. Path array gives exact distance.
+- **Real robot driver** — replace sim workers with hardware drivers. Pi Zero 2 W target. `robot_controller.lua` is already robot-independent.
+- **Fleet manager** — multi-domain robot coordination. Removed in session 4, add when ready.
 
 ---
 
@@ -219,12 +346,18 @@ ros_planner_ii/
     kv_writer.lua               — coalescing KV queue
     mqtt_hub_transport.lua      — domain-specific MQTT client ID
   action_server/lib/
-    action_server.lua           — position tracking, init_node discovery
-    mission_builder.lua         — always init_check + idle, optional start
+    action_server.lua           — position tracking, init_node discovery, operation_types validation
+    mission_builder.lua         — init_check + path VNs + operation VNs + idle
+  global_planner/lib/
+    global_planner.lua          — board graph, Dijkstra, is_transit(), path on edges
+    route_builder.lua           — node path → {kb_name, params:{speed, path}} actions
   hub_dsl/kb_construct/
-    construct_surface_ops.lua   — board with co-located VNs
+    board_builder.lua           — shared board DSL: build(), interpolate(), validation
+    construct_surface_ops.lua   — board with transit ring, operation types, node params
     kb_exporter.lua             — exports to NATS KV (kb_export bucket)
-    kb_query.lua                — list_boards, get_board, class-based API
+    kb_query.lua                — list_boards, get_board, get_class_operation_types
+  hub_dsl/protocol/
+    command_packets.lua         — TYPE_OPERATION=20 added
 
 kb_dsl/scripts/
   site_config.lua               — containers with full run spec, env_names, depends_on
@@ -254,3 +387,4 @@ third_party_containers/
 ## Minor Items
 - `telemetry_collector` placeholder in site_config — no real image, remove or build
 - Mission log KV bucket must have `history=50` — delete stale bucket if history=1, planner recreates on restart
+- Robot link protocol still announces old 12-capability count — cosmetic, doesn't affect dispatch

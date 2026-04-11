@@ -78,7 +78,11 @@ local function switch_to_sqlite_modules()
   if _switched then return end
   _switched = true
 
+  -- Host path: ../../knowledge_base/sqlite3/construct_kb/
+  -- Container path: sqlite_kb/ (flat layout under /opt/orchestrator/lua/)
   local sqlite_dir = "../../knowledge_base/sqlite3/construct_kb/"
+  local f = io.open(sqlite_dir .. "construct_kb.lua", "r")
+  if f then f:close() else sqlite_dir = "sqlite_kb/" end
   package.path = sqlite_dir .. "?.lua;" .. package.path
 
   -- Save and remove Postgres versions
@@ -103,8 +107,10 @@ end
 function M.build(pg_kb, output_dir, config)
   local SQLite_Construct_KB = load_sqlite_construct_kb()
 
-  -- ltree.so is in the sqlite construct_kb directory
+  -- ltree.so: host path or container path (/usr/local/lib/ltree)
   local ltree_path = "../../knowledge_base/sqlite3/construct_kb/ltree"
+  local f = io.open(ltree_path .. ".so", "r")
+  if f then f:close() else ltree_path = "/usr/local/lib/ltree" end
 
   for _, domain in ipairs(config.domains) do
     local db_file = output_dir .. "/" .. domain.name .. ".db"

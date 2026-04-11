@@ -161,6 +161,12 @@ function M:get_class_capabilities(class_name)
     return infra.virtual_nodes or {}
 end
 
+function M:get_class_operation_types(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return {} end
+    return infra.operation_types or {}
+end
+
 function M:get_class_energy_max(class_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return nil end

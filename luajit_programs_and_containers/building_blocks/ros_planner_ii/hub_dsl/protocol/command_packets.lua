@@ -127,6 +127,7 @@ M.TYPE_PASS_GATE        = 9
 M.TYPE_INSPECTION_SCAN  = 10
 M.TYPE_IDLE             = 11
 M.TYPE_RECHARGE         = 12
+M.TYPE_OPERATION        = 20
 M.TYPE_SHUTDOWN         = 255
 
 -- Type name lookup
@@ -143,6 +144,7 @@ M.type_names = {
     [M.TYPE_INSPECTION_SCAN] = "inspection_scan",
     [M.TYPE_IDLE]            = "idle",
     [M.TYPE_RECHARGE]        = "recharge",
+    [M.TYPE_OPERATION]       = "operation",
     [M.TYPE_SHUTDOWN]        = "shutdown",
 }
 

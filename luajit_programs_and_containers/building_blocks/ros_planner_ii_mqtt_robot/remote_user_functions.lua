@@ -30,6 +30,7 @@ local action_durations = {
     [cmd_packets.TYPE_PASS_GATE]       = 15,
     [cmd_packets.TYPE_INSPECTION_SCAN] = 12,
     [cmd_packets.TYPE_RECHARGE]        = 30,
+    [cmd_packets.TYPE_OPERATION]       = 20,
     [cmd_packets.TYPE_IDLE]            = 5,
 }
 
@@ -454,6 +455,39 @@ M.main.WKR_RECHARGE_MAIN = function(h, bf, n, eid)
     if bb.exec_start then
         bb.exec_start = false; bb.exec_active = true
         bb.ticks_remaining = action_durations[cmd_packets.TYPE_RECHARGE]
+    end
+    if bb.exec_active then
+        bb.ticks_remaining = bb.ticks_remaining - 1
+        if bb.ticks_remaining <= 0 then
+            bb.exec_active = false
+            return defs.CFL_DISABLE
+        end
+    end
+    return defs.CFL_CONTINUE
+end
+
+-- =========================================================================
+-- operation: generic operation at a stop
+-- packet_type=20, params: operation_type, data
+-- bitmask: action_complete(0)|action_fault(1)
+-- pose: (none)
+-- =========================================================================
+
+M.one_shot.WKR_OPERATION_INIT = function(h)
+    local bb = h.blackboard
+    bb.exec_start = true; bb.exec_active = false
+    local cmd = parse_cmd(bb)
+    io.stderr:write(string.format("  VN[operation] type=%s cmd: %s\n",
+        tostring(cmd.operation_type), bb.command_json))
+end
+
+M.main.WKR_OPERATION_MAIN = function(h, bf, n, eid)
+    if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
+    local bb = h.blackboard
+    bb.worker_alive = true
+    if bb.exec_start then
+        bb.exec_start = false; bb.exec_active = true
+        bb.ticks_remaining = action_durations[cmd_packets.TYPE_OPERATION]
     end
     if bb.exec_active then
         bb.ticks_remaining = bb.ticks_remaining - 1

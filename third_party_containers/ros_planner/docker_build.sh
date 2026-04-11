@@ -42,11 +42,13 @@ if [ "$BOARD_COUNT" -eq 0 ]; then
 fi
 echo "  Runtime KB: $RUNTIME_DB ($BOARD_COUNT board entries)"
 
-# Copy to Sqlite_Data so the mounted volume has the same DB
+# Copy to Sqlite_Data so the mounted volume has the same DB (best-effort;
+# the orchestrator's KB build handles this authoritatively)
 SQLITE_DATA="${SQLITE_DATA:-/home/gedgar/Sqlite_Data}"
-mkdir -p "$SQLITE_DATA"
-cp "$RUNTIME_DB" "$SQLITE_DATA/surface_ops.db"
-echo "  Copied to: $SQLITE_DATA/surface_ops.db"
+mkdir -p "$SQLITE_DATA" 2>/dev/null || true
+cp "$RUNTIME_DB" "$SQLITE_DATA/surface_ops.db" 2>/dev/null \
+    && echo "  Copied to: $SQLITE_DATA/surface_ops.db" \
+    || echo "  (skipped Sqlite_Data copy — file owned by root, orchestrator handles this)"
 
 echo ""
 echo "=== Staging Lua modules ==="

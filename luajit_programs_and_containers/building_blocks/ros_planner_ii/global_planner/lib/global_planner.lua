@@ -40,7 +40,10 @@ local function build_graph(board_data)
     local graph = { nodes = {}, adj = {} }
 
     for _, node in ipairs(board_data.nodes) do
-        graph.nodes[node.name] = { x = node.x, y = node.y, type = node.type }
+        graph.nodes[node.name] = {
+            x = node.x, y = node.y, type = node.type,
+            params = node.params,
+        }
         graph.adj[node.name] = {}
     end
 
@@ -52,14 +55,24 @@ local function build_graph(board_data)
             nav    = edge.nav,
             speed  = edge.speed,
             weight = edge.weight,
+            path   = edge.path,
         }
-        -- Reverse (same nav, speed, weight)
+        -- Reverse: same nav, speed, weight; path is reversed
+        local rev_path = nil
+        if edge.path then
+            rev_path = {}
+            for i = #edge.path - 1, 1, -2 do
+                rev_path[#rev_path + 1] = edge.path[i]
+                rev_path[#rev_path + 1] = edge.path[i + 1]
+            end
+        end
         local rev = graph.adj[edge.to]
         rev[#rev + 1] = {
             to     = edge.from,
             nav    = edge.nav,
             speed  = edge.speed,
             weight = edge.weight,
+            path   = rev_path,
         }
     end
 
@@ -163,6 +176,31 @@ end
 
 function M:get_blocked()
     return self.blocked
+end
+
+--- Check if a node is a transit-only node (not a valid mission stop).
+-- @param node_name  string
+-- @return bool
+function M:is_transit(node_name)
+    local node = self.graph.nodes[node_name]
+    return node ~= nil and node.type == "transit"
+end
+
+--- Get the operation type for a node (its type field, nil for transit).
+-- @param node_name  string
+-- @return string or nil
+function M:get_node_type(node_name)
+    local node = self.graph.nodes[node_name]
+    if not node or node.type == "transit" then return nil end
+    return node.type
+end
+
+--- Get default operation params for a node (nil if none).
+-- @param node_name  string
+-- @return table or nil
+function M:get_node_params(node_name)
+    local node = self.graph.nodes[node_name]
+    return node and node.params
 end
 
 --- Find the nearest graph node to a coordinate.

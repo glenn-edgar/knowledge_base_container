@@ -58,6 +58,9 @@ for f in "$BB_DIR/kb_dsl/scripts/"*_planner_data.lua; do
     [ -f "$f" ] && cp "$f" "$SCRIPT_DIR/lua/"
 done
 
+# Board builder (used by planner data files during KB build)
+cp "$BB_DIR/ros_planner_ii/hub_dsl/kb_construct/board_builder.lua" "$SCRIPT_DIR/lua/"
+
 # Prebuilt shared libraries
 # DBI PostgreSQL driver
 cp /usr/local/lib/lua/5.1/dbd/postgresql.so "$SCRIPT_DIR/prebuilt_lua_libs/dbd/"

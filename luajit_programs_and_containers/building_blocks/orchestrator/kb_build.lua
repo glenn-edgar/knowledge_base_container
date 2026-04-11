@@ -31,8 +31,13 @@ local pg_opts = {
 }
 
 -- Locate master_build.lua relative to this script
+-- In the container, all Lua files are flat under /opt/orchestrator/lua/
+-- On the host, master_build.lua lives at ../kb_dsl/scripts/ relative to this file
 local script_dir = debug.getinfo(1, "S").source:match("^@(.*/)") or "./"
 local kb_dsl_dir = script_dir .. "../kb_dsl/scripts/"
+-- Fallback: if kb_dsl_dir doesn't exist (container), use script_dir itself
+local f = io.open(kb_dsl_dir .. "master_build.lua", "r")
+if f then f:close() else kb_dsl_dir = script_dir end
 local master_build = os.getenv("MASTER_BUILD") or (kb_dsl_dir .. "master_build.lua")
 
 local sqlite_data = os.getenv("SQLITE_DATA") or "/home/gedgar/Sqlite_Data"

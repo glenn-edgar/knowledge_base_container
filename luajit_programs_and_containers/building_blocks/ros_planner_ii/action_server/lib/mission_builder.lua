@@ -32,12 +32,12 @@
 local M = {}
 
 --- Build a flat route from a multi-stop mission.
--- @param mission_cmd  table: mission command with start, stops, bookend
--- @param planner      global_planner instance (already loaded with board)
--- @param capabilities optional array of VN names the robot supports
--- @return route       array of {kb_name, params} or nil
--- @return plan_info   leg details for replan, or {error=string}
-function M.build(mission_cmd, planner, capabilities)
+-- @param mission_cmd      table: mission command with start, stops, bookend
+-- @param planner          global_planner instance (already loaded with board)
+-- @param operation_types  optional array of operation type strings the robot supports
+-- @return route           array of {kb_name, params} or nil
+-- @return plan_info       leg details for replan, or {error=string}
+function M.build(mission_cmd, planner, operation_types)
     local stops = mission_cmd.stops or error("mission_builder: stops required")
     local start = mission_cmd.start
 
@@ -45,27 +45,49 @@ function M.build(mission_cmd, planner, capabilities)
         return nil, { error = "no stops in mission" }
     end
 
-    -- Build capabilities lookup if provided
-    local cap_set = nil
-    if capabilities and #capabilities > 0 then
-        cap_set = {}
-        for _, name in ipairs(capabilities) do
-            cap_set[name] = true
+    -- Validate no stops target transit-only nodes
+    if planner.is_transit then
+        local transit_errors = {}
+        for i, stop in ipairs(stops) do
+            if planner:is_transit(stop.node) then
+                transit_errors[#transit_errors + 1] = string.format(
+                    "stop %d: '%s' is a transit node (not a valid mission stop)", i, stop.node)
+            end
+        end
+        if #transit_errors > 0 then
+            return nil, {
+                error = "transit_node_stops",
+                transit_stops = transit_errors,
+            }
         end
     end
 
-    -- Validate stop actions against capabilities before planning
-    if cap_set then
+    -- Build operation_types lookup if provided
+    local op_set = nil
+    if operation_types and #operation_types > 0 then
+        op_set = {}
+        for _, name in ipairs(operation_types) do
+            op_set[name] = true
+        end
+    end
+
+    -- Validate stop actions against robot's operation_types.
+    -- Action can be explicit (stop.action) or inferred from node type.
+    if op_set then
         local unsupported = {}
         for i, stop in ipairs(stops) do
-            if stop.action and not cap_set[stop.action] then
+            local action = stop.action
+            if not action and planner.get_node_type then
+                action = planner:get_node_type(stop.node)
+            end
+            if action and not op_set[action] then
                 unsupported[#unsupported + 1] = string.format(
-                    "stop %d: '%s' not supported by robot", i, stop.action)
+                    "stop %d: '%s' not supported by robot", i, action)
             end
         end
         if #unsupported > 0 then
             return nil, {
-                error = "unsupported_capabilities",
+                error = "unsupported_operation",
                 unsupported = unsupported,
             }
         end
@@ -74,7 +96,6 @@ function M.build(mission_cmd, planner, capabilities)
     local route = {}
     local legs = {}
     local total_cost = 0
-    local heading = mission_cmd.initial_heading or 0
 
     -- Always start with init_check (robot self-test)
     route[#route + 1] = { kb_name = "init_check", params = {} }
@@ -92,9 +113,7 @@ function M.build(mission_cmd, planner, capabilities)
         local leg_path, leg_cost
 
         if current_node ~= goal_node then
-            local nav_route, nav_info = planner:plan(current_node, goal_node, {
-                initial_heading = heading,
-            })
+            local nav_route, nav_info = planner:plan(current_node, goal_node)
 
             if not nav_route then
                 return nil, {
@@ -109,14 +128,6 @@ function M.build(mission_cmd, planner, capabilities)
                 route[#route + 1] = action
             end
 
-            -- Track heading from last rotation in nav route
-            for j = #nav_route, 1, -1 do
-                if nav_route[j].kb_name == "path_rotate" then
-                    heading = nav_route[j].params.to_heading
-                    break
-                end
-            end
-
             leg_path = nav_info.path
             leg_cost = nav_info.cost
             total_cost = total_cost + leg_cost
@@ -127,11 +138,32 @@ function M.build(mission_cmd, planner, capabilities)
 
         local leg_route_end = #route
 
-        -- Insert mission action at this stop (if any)
-        if stop.action then
+        -- Determine operation: explicit stop.action, or inferred from node type
+        local action = stop.action
+        if not action and planner.get_node_type then
+            action = planner:get_node_type(goal_node)
+        end
+
+        -- Insert operation VN at this stop (if action exists)
+        if action then
+            -- Merge: node default params < stop.params (stop overrides)
+            local data = {}
+            if planner.get_node_params then
+                local node_params = planner:get_node_params(goal_node)
+                if node_params then
+                    for k, v in pairs(node_params) do data[k] = v end
+                end
+            end
+            if stop.params then
+                for k, v in pairs(stop.params) do data[k] = v end
+            end
+
             route[#route + 1] = {
-                kb_name = stop.action,
-                params  = stop.params or {},
+                kb_name = "operation",
+                params  = {
+                    operation_type = action,
+                    data = data,
+                },
             }
         end
 
@@ -153,24 +185,6 @@ function M.build(mission_cmd, planner, capabilities)
     -- Always end with idle (robot parks)
     route[#route + 1] = { kb_name = "idle", params = {} }
 
-    -- Validate all route actions against capabilities (includes nav VNs)
-    if cap_set then
-        local unsupported = {}
-        for i, action in ipairs(route) do
-            if not cap_set[action.kb_name] then
-                unsupported[#unsupported + 1] = string.format(
-                    "action %d: '%s' not supported by robot", i, action.kb_name)
-            end
-        end
-        if #unsupported > 0 then
-            return nil, {
-                error = "unsupported_capabilities",
-                unsupported = unsupported,
-                route = route,  -- include partial route for diagnostics
-            }
-        end
-    end
-
     return route, {
         legs          = legs,
         total_cost    = total_cost,
@@ -185,12 +199,11 @@ end
 -- @param current_node     string: nearest node to fault position
 -- @param current_heading  number: robot's current heading
 -- @return route, plan_info (same as build)
-function M.rebuild(remaining_stops, planner, current_node, current_heading)
+function M.rebuild(remaining_stops, planner, current_node)
     return M.build({
-        start           = current_node,
-        stops           = remaining_stops,
-        initial_heading = current_heading,
-        bookend         = false,  -- no bookend on replan (mission already started)
+        start   = current_node,
+        stops   = remaining_stops,
+        bookend = false,  -- no bookend on replan (mission already started)
     }, planner)
 end
 

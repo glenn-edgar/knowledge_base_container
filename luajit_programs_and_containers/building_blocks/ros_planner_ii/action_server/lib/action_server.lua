@@ -241,28 +241,21 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Publish starting status
         srv:_publish_status(robot_id, { state = "planning" })
 
-        -- Get robot capabilities and class config from link_manager + KB class
-        local capabilities
+        -- Get robot class config from link_manager + KB class
         local class_name = mission_cmd.class_name
         if srv.link_mgr then
-            capabilities = srv.link_mgr:get_capabilities(robot_id)
             class_name = class_name or srv.link_mgr:get_class(robot_id)
         end
-        if not capabilities or #capabilities == 0 then
-            if class_name then
-                local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
-                capabilities = kb_q:get_class_capabilities(class_name)
-                kb_q:close()
-            else
-                capabilities = {}
-            end
-        end
 
-        -- Query energy from KB class definition
+        -- Query capabilities, operation_types, and energy from KB class definition
+        local capabilities = {}
+        local operation_types = {}
         local energy_max = 0
         local energy_infinite = false
         if class_name then
             local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
+            capabilities = kb_q:get_class_capabilities(class_name)
+            operation_types = kb_q:get_class_operation_types(class_name)
             energy_max = kb_q:get_class_energy_max(class_name) or 0
             energy_infinite = kb_q:get_class_energy_infinite(class_name)
             kb_q:close()
@@ -276,17 +269,18 @@ function M:_make_mission_coroutine(mission_cmd)
             site       = srv.site,
         })
 
-        -- Build route with capability validation (robot's actual capabilities)
-        local route, plan_info = mission_builder.build(mission_cmd, planner, capabilities)
+        -- Build route with operation_types validation
+        local route, plan_info = mission_builder.build(mission_cmd, planner, operation_types)
         if not route then
             local error_detail = plan_info.error
             if plan_info.unsupported then
                 error_detail = error_detail .. ": " .. table.concat(plan_info.unsupported, "; ")
             end
             result = {
-                success = false,
-                fault   = { reason = "planning_failed", detail = error_detail },
-                replans = 0,
+                success     = false,
+                fault       = { reason = "planning_failed", detail = error_detail },
+                replans     = 0,
+                unsupported = plan_info.unsupported,
             }
             srv:_publish_status(robot_id, {
                 state = "failed",
@@ -317,9 +311,13 @@ function M:_make_mission_coroutine(mission_cmd)
                 "insufficient energy: need %d, have %d",
                 plan_info.total_cost, energy_remaining)
             result = {
-                success = false,
-                fault   = { reason = "insufficient_energy", detail = detail },
-                replans = 0,
+                success          = false,
+                fault            = { reason = "insufficient_energy", detail = detail },
+                replans          = 0,
+                route            = route,
+                legs             = plan_info.legs,
+                energy_required  = plan_info.total_cost,
+                energy_remaining = energy_remaining,
             }
             srv:_publish_status(robot_id, {
                 state = "failed",
@@ -399,6 +397,9 @@ function M:_make_mission_coroutine(mission_cmd)
 
         result.replans = replans
         result.legs = plan_info.legs
+        result.route = route
+        result.energy_required  = plan_info.total_cost
+        result.energy_remaining = energy_remaining
 
         -- Publish final result
         local state = result.success and "completed" or "failed"
@@ -759,21 +760,93 @@ function M:_publish_summary()
     end)
 end
 
+--- Compact a single route action into a {kb_name, detail} pair for the log.
+-- Detail is a short human-readable summary so the UI can show it without
+-- needing to know every action's param schema.
+local function _summarize_action(action)
+    local kb = action.kb_name or "?"
+    local p  = action.params or {}
+    local detail
+    if kb == "path_rotate" then
+        detail = string.format("%d° → %d°",
+            math.floor((p.from_heading or 0) + 0.5),
+            math.floor((p.to_heading or 0) + 0.5))
+    elseif kb == "path_spline" or kb == "path_line" or kb == "path_wall" then
+        detail = string.format("d=%d @ %d",
+            p.distance or 0, p.speed or 0)
+    elseif kb == "init_check" then
+        detail = "robot self-test"
+    elseif kb == "idle" then
+        detail = "park"
+    else
+        -- Generic: pick a few common params if present
+        local parts = {}
+        for _, k in ipairs({ "target", "duration", "speed", "distance" }) do
+            if p[k] ~= nil then parts[#parts + 1] = k .. "=" .. tostring(p[k]) end
+        end
+        detail = #parts > 0 and table.concat(parts, " ") or ""
+    end
+    return { kb_name = kb, detail = detail }
+end
+
+local function _summarize_route(route)
+    if not route then return nil end
+    local out = {}
+    for i, action in ipairs(route) do
+        out[i] = _summarize_action(action)
+    end
+    return out
+end
+
+local function _summarize_legs(legs)
+    if not legs then return nil end
+    local out = {}
+    for i, leg in ipairs(legs) do
+        out[i] = {
+            from        = leg.from,
+            to          = leg.to,
+            cost        = leg.cost,
+            action      = leg.action,
+            route_start = leg.route_start,
+            route_end   = leg.route_end,
+        }
+    end
+    return out
+end
+
 --- Append completed mission to rolling log (NATS KV history).
 -- External consumers read history() on this key to get last N missions.
+-- Stores rich data: route, legs, fault details so the UI can render
+-- per-action breakdown with the failed action highlighted.
 function M:_publish_mission_log(robot_id, result, board)
     pcall(function()
         self:_ensure_nats()
+        local fault_obj = nil
+        if result.fault then
+            fault_obj = {
+                reason       = result.fault.reason,
+                detail       = result.fault.detail,
+                action_index = result.fault.action_index,
+                kb_name      = result.fault.kb_name,
+            }
+        end
         self._log_ks:put(self.site .. ".action_server.mission_log",
             json_util.encode({
-                robot_id   = robot_id,
-                board      = board or "",
-                success    = result.success,
-                completed  = result.completed,
-                total      = result.total,
-                elapsed_ms = result.elapsed_ms,
-                fault      = result.fault and result.fault.reason or nil,
-                timestamp  = os.date("!%Y-%m-%dT%H:%M:%SZ"),
+                robot_id         = robot_id,
+                board            = board or "",
+                success          = result.success,
+                completed        = result.completed,
+                total            = result.total,
+                elapsed_ms       = result.elapsed_ms,
+                fault            = fault_obj,
+                -- Backwards-compat: short reason string for older UI
+                fault_reason     = result.fault and result.fault.reason or nil,
+                route            = _summarize_route(result.route),
+                legs             = _summarize_legs(result.legs),
+                unsupported      = result.unsupported,
+                energy_required  = result.energy_required,
+                energy_remaining = result.energy_remaining,
+                timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
             }))
     end)
 end
@@ -786,28 +859,21 @@ function M:execute_mission(mission_cmd)
     local robot_id = mission_cmd.robot_id or error("action_server: robot_id required")
     local board    = mission_cmd.board    or error("action_server: board required")
 
-    -- Get robot capabilities and class config
+    -- Get robot class config
     local class_name = mission_cmd.class_name
-    local capabilities
     if self.link_mgr then
-        capabilities = self.link_mgr:get_capabilities(robot_id)
         class_name = class_name or self.link_mgr:get_class(robot_id)
     end
-    if not capabilities or #capabilities == 0 then
-        if class_name then
-            local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
-            capabilities = kb_q:get_class_capabilities(class_name)
-            kb_q:close()
-        else
-            capabilities = {}
-        end
-    end
 
-    -- Energy max/infinite from KB class definition
+    -- Query capabilities, operation_types, and energy from KB class definition
+    local capabilities = {}
+    local operation_types = {}
     local energy_max = 0
     local energy_infinite = false
     if class_name then
         local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+        capabilities = kb_q:get_class_capabilities(class_name)
+        operation_types = kb_q:get_class_operation_types(class_name)
         energy_max = kb_q:get_class_energy_max(class_name) or 0
         energy_infinite = kb_q:get_class_energy_infinite(class_name)
         kb_q:close()
@@ -819,7 +885,7 @@ function M:execute_mission(mission_cmd)
         ltree_path = self.ltree_path,
     })
 
-    local route, plan_info = mission_builder.build(mission_cmd, planner, capabilities)
+    local route, plan_info = mission_builder.build(mission_cmd, planner, operation_types)
     if not route then
         local error_detail = plan_info.error
         if plan_info.unsupported then

@@ -43,8 +43,11 @@
     - One-shot orchestrator containers for startup/shutdown/KB rebuild
 ]]
 
--- Host paths (resolved at build time, stored in KB for orchestrator)
-local SQLITE_DATA   = os.getenv("SQLITE_DATA")   or "/home/gedgar/Sqlite_Data"
+-- Host paths (resolved at build time, stored in KB for orchestrator).
+-- SQLITE_HOST_PATH is the host-side volume source for docker -v mounts.
+-- SQLITE_DATA may point to the container-internal path when running inside
+-- the orchestrator container, so we use a separate var for host paths.
+local SQLITE_DATA   = os.getenv("SQLITE_HOST_PATH") or os.getenv("SQLITE_DATA") or "/home/gedgar/Sqlite_Data"
 local POSTGRES_DATA = os.getenv("POSTGRES_DATA")  or "/home/gedgar/Postgres_Data/vector"
 local SHELL_DIR     = os.getenv("SHELL_DIR")      or "/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/system_api/shell"
 

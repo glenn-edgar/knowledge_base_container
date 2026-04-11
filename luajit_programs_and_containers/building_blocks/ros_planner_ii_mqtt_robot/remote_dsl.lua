@@ -196,6 +196,19 @@ local function worker_recharge(ct, kb_name)
     ct:end_test()
 end
 
+-- operation: generic operation at a stop
+-- packet_type=20, params: operation_type, data
+-- bitmask: action_complete|action_fault, pose: (none)
+local function worker_operation(ct, kb_name)
+    ct:start_test(kb_name)
+    local col = ct:define_column("operation_exec", nil, nil, nil, nil, {}, true)
+        ct:asm_one_shot_handler("WKR_OPERATION_INIT", {})
+        ct:define_column_link("WKR_OPERATION_MAIN", "CFL_NULL",
+            "CFL_NULL", "WORKER_TERM", {}, "EXEC")
+    ct:end_column(col)
+    ct:end_test()
+end
+
 -- idle: park robot
 -- packet_type=11, no params, bitmask: parked, pose: (none)
 local function worker_idle(ct, kb_name)
@@ -212,20 +225,22 @@ end
 -- Test list: one worker per virtual node (matches KB packet_type order)
 -- =========================================================================
 
-local test_list = {
-    "worker_init_check",       -- packet_type=1
-    "worker_path_spline",      -- packet_type=2
-    "worker_path_line",        -- packet_type=3
-    "worker_path_wall",        -- packet_type=4
-    "worker_path_rotate",      -- packet_type=5
-    "worker_deliver_part",     -- packet_type=6
-    "worker_paint_sample",     -- packet_type=7
-    "worker_load_shipping",    -- packet_type=8
-    "worker_pass_gate",        -- packet_type=9
-    "worker_inspection_scan",  -- packet_type=10
-    "worker_idle",             -- packet_type=11
-    "worker_recharge",         -- packet_type=12
-}
+-- Test list: index = packet_type. Gaps are nil (unused packet_type IDs).
+local test_list = {}
+test_list[1]  = "worker_init_check"       -- packet_type=1
+test_list[2]  = "worker_path_spline"      -- packet_type=2
+test_list[3]  = "worker_path_line"        -- packet_type=3
+test_list[4]  = "worker_path_wall"        -- packet_type=4
+test_list[5]  = "worker_path_rotate"      -- packet_type=5
+test_list[6]  = "worker_deliver_part"     -- packet_type=6
+test_list[7]  = "worker_paint_sample"     -- packet_type=7
+test_list[8]  = "worker_load_shipping"    -- packet_type=8
+test_list[9]  = "worker_pass_gate"        -- packet_type=9
+test_list[10] = "worker_inspection_scan"  -- packet_type=10
+test_list[11] = "worker_idle"             -- packet_type=11
+test_list[12] = "worker_recharge"         -- packet_type=12
+-- 13-19 reserved
+test_list[20] = "worker_operation"        -- packet_type=20
 
 local test_dict = {
     worker_init_check      = worker_init_check,
@@ -240,6 +255,7 @@ local test_dict = {
     worker_inspection_scan = worker_inspection_scan,
     worker_idle            = worker_idle,
     worker_recharge        = worker_recharge,
+    worker_operation       = worker_operation,
 }
 
 -- =========================================================================
@@ -256,8 +272,14 @@ if is_cli then
 
     local json_file = arg[1]
     local ct = add_header(json_file)
-    for _, test_name in ipairs(test_list) do
-        test_dict[test_name](ct, test_name)
+    -- Sparse list — find max index, skip nil gaps
+    local max_idx = 0
+    for k in pairs(test_list) do if k > max_idx then max_idx = k end end
+    for i = 1, max_idx do
+        local test_name = test_list[i]
+        if test_name then
+            test_dict[test_name](ct, test_name)
+        end
     end
 
     ct:check_and_generate_yaml()

@@ -161,7 +161,9 @@ function M:activate_kb(kb_name)
     -- Track active KB
     self.hub_control:on_kb_start(self.bb, kb_name, plugin)
 
-    -- Build and send command
+    -- Build and send command to robot.
+    -- Strip next_test (ChainTree bookkeeping) from the wire payload.
+    -- Keep packet_type, seq, test_id (needed for ack/kb_done matching).
     local json_str = self.bb.current_test_json
     if json_str then
         local ok, action_json = pcall(json_util.decode, json_str)
@@ -169,7 +171,12 @@ function M:activate_kb(kb_name)
             seq_counter = seq_counter + 1
             action_json.packet_type = plugin.packet_type_id
             action_json.seq = seq_counter
-            self.tx:send_rpc(json_util.encode(action_json))
+            -- Build wire payload without next_test
+            local wire = {}
+            for k, v in pairs(action_json) do
+                if k ~= "next_test" then wire[k] = v end
+            end
+            self.tx:send_rpc(json_util.encode(wire))
         end
     end
 

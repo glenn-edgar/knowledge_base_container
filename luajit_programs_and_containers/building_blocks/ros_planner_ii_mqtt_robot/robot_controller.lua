@@ -48,6 +48,7 @@ local worker_by_packet_type = {
     [cmd_packets.TYPE_INSPECTION_SCAN] = "worker_inspection_scan",
     [cmd_packets.TYPE_IDLE]            = "worker_idle",
     [cmd_packets.TYPE_RECHARGE]        = "worker_recharge",
+    [cmd_packets.TYPE_OPERATION]       = "worker_operation",
 }
 
 -- Simulated energy cost per action type (real robot would measure actual consumption)
@@ -63,6 +64,7 @@ local energy_costs = {
     [cmd_packets.TYPE_PASS_GATE]       = 80,
     [cmd_packets.TYPE_INSPECTION_SCAN] = 30,
     [cmd_packets.TYPE_RECHARGE]        = 0,
+    [cmd_packets.TYPE_OPERATION]       = 100,
     [cmd_packets.TYPE_IDLE]            = 10,
 }
 
