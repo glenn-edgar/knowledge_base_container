@@ -102,6 +102,15 @@
 - `mission_builder` merges: node default params ← stop-level overrides → operation VN data.
 - Verified end-to-end: robot receives `{"data":{"arm_target":-45,"payload_type":1}}` for `mining_zone_a`.
 
+### CBOR Wire Format (complete)
+
+- `lua_cbor.c` upgraded: recursive `enc_json_value()` and `dec_cbor_value()` handle JSON arrays and nested maps. Original was flat maps only.
+- `mqtt_hub_transport.lua`: CBOR encode/decode per robot via `wire_formats[robot_id]`, graceful fallback with debug logging.
+- `rover_1_cbor_config.json`: CBOR robot config (`wire_format: "cbor"`). Just change config to switch.
+- Path arrays encode to ~29 bytes CBOR vs 80+ bytes JSON.
+- Full pipeline: link handshake announces `wire_format=cbor`, planner auto-switches, commands + responses both CBOR.
+- Both JSON and CBOR robots can run simultaneously (per-robot wire format).
+
 ### Tests: 70 assertions, 0 failures
 - Planner: path array format, no rotations, direct nav types, transit validation, operation VN emission, operation_types validation, unsupported operation rejection, node params merge
 - Plus all prior session totals (orchestrator graph 91, link manager 39, link client 43, kv writer 16)
@@ -308,7 +317,6 @@ BB=.. LUA_PATH="./?.lua;$BB/knowledge_base/postgres/data_structures/?.lua;;" \
 
 ### Followup (queued)
 
-- **CBOR wire format** — path arrays are ideal for CBOR packed int encoding. The flat `[x1,y1,x2,y2,...]` format was designed for this.
 - **Energy budget from path** — compute energy cost from path length instead of edge weight. Path array gives exact distance.
 - **Real robot driver** — replace sim workers with hardware drivers. Pi Zero 2 W target. `robot_controller.lua` is already robot-independent.
 - **Fleet manager** — multi-domain robot coordination. Removed in session 4, add when ready.
