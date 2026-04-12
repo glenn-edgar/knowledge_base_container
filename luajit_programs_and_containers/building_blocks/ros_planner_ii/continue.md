@@ -111,7 +111,17 @@
 - Full pipeline: link handshake announces `wire_format=cbor`, planner auto-switches, commands + responses both CBOR.
 - Both JSON and CBOR robots can run simultaneously (per-robot wire format).
 
-### Tests: 70 assertions, 0 failures
+### Energy Budget from Path (complete)
+
+- VN definitions: `energy_factor` for path VNs (path_spline=1.0, path_line=1.2), `energy_cost` for fixed VNs (init_check=50, operation=100, idle=10).
+- Robot class: `energy_rate` — energy per unit distance (lunar_rover=0.5, construction_arm=0.3).
+- `route_builder.path_distance(flat)` — computes total distance from flat path array by summing segment lengths.
+- Each route action gets `energy` field: `distance * factor * rate` (path VNs) or fixed cost (other VNs).
+- `mission_builder` sums `total_energy` across all actions. Returns in `plan_info`.
+- Example: lander_pad → mining_zone_b = 2154 energy (800+400+894 path + 50 init + 10 idle) at rate 1.0.
+- VN `json_schema` cleaned up: path VNs now list `speed` + `path` only (old from_x/to_x/distance/segment fields removed).
+
+### Tests: 72 assertions, 0 failures
 - Planner: path array format, no rotations, direct nav types, transit validation, operation VN emission, operation_types validation, unsupported operation rejection, node params merge
 - Plus all prior session totals (orchestrator graph 91, link manager 39, link client 43, kv writer 16)
 
@@ -317,7 +327,6 @@ BB=.. LUA_PATH="./?.lua;$BB/knowledge_base/postgres/data_structures/?.lua;;" \
 
 ### Followup (queued)
 
-- **Energy budget from path** — compute energy cost from path length instead of edge weight. Path array gives exact distance.
 - **Real robot driver** — replace sim workers with hardware drivers. Pi Zero 2 W target. `robot_controller.lua` is already robot-independent.
 - **Fleet manager** — multi-domain robot coordination. Removed in session 4, add when ready.
 
