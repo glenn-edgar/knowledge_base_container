@@ -92,6 +92,19 @@ function M.new(opts)
 
     local q = kb_query.new(db_file, "knowledge_base", ltree_path, site)
     local board_data = q:get_board(board_name)
+
+    -- Load VN definitions for energy computation
+    self.vn_defs = {}
+    local all_vns = q:get_all_virtual_nodes()
+    if all_vns then
+        for name, vn in pairs(all_vns) do
+            self.vn_defs[name] = {
+                energy_factor = vn.energy_factor,
+                energy_cost   = vn.energy_cost,
+            }
+        end
+    end
+
     q:close()
 
     if not board_data then
@@ -131,12 +144,25 @@ function M:plan(start_node, goal_node, opts)
                       error = "no path found" }
     end
 
-    local route = route_builder.build(path, self.graph, opts)
+    -- Merge energy config into route_builder opts
+    local rb_opts = {}
+    if opts then for k, v in pairs(opts) do rb_opts[k] = v end end
+    rb_opts.vn_defs = self.vn_defs
+    if not rb_opts.energy_rate then rb_opts.energy_rate = 1.0 end
+
+    local route = route_builder.build(path, self.graph, rb_opts)
+
+    -- Sum route energy
+    local total_energy = 0
+    for _, action in ipairs(route) do
+        total_energy = total_energy + (action.energy or 0)
+    end
 
     return route, {
         path     = path,
         cost     = cost,
         segments = #route,
+        energy   = total_energy,
     }
 end
 

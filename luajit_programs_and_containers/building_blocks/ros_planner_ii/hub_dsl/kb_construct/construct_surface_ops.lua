@@ -135,6 +135,7 @@ kb:add_header_node("robot_class", "lunar_rover", {}, {},
         { comm_type = "nats" },
         {
             energy_max = 10000,
+            energy_rate = 0.5,
             energy_infinite = false,  -- true = plugged in, no energy budget
             virtual_nodes = {
                 "init_check", "path_spline", "path_line", "operation", "idle",
@@ -165,6 +166,7 @@ kb:add_header_node("robot_class", "construction_arm", {}, {},
         { comm_type = "nats" },
         {
             energy_max = 5000,
+            energy_rate = 0.3,
             energy_infinite = true,  -- stationary arm, plugged in
             virtual_nodes = {
                 "init_check", "operation", "idle",
@@ -215,6 +217,7 @@ kb:add_header_node("virtual_nodes", "definitions", {}, {},
         { packet_type_id = 1 },
         {
             description = "Preflight self-test",
+            energy_cost = 50,
             json_schema = {},
             bitmask = {
                 { name = "battery_ok",  bit = 0 },
@@ -230,15 +233,10 @@ kb:add_header_node("virtual_nodes", "definitions", {}, {},
         { packet_type_id = 2 },
         {
             description = "Follow spline path",
+            energy_factor = 1.0,
             json_schema = {
-                { name = "from_x",          type = "float", default = 0 },
-                { name = "from_y",          type = "float", default = 0 },
-                { name = "to_x",            type = "float", default = 0 },
-                { name = "to_y",            type = "float", default = 0 },
-                { name = "speed",           type = "float", default = 100 },
-                { name = "distance",        type = "float", default = 0 },
-                { name = "segment_index",   type = "uint32", default = 0 },
-                { name = "total_segments",  type = "uint32", default = 1 },
+                { name = "speed", type = "float", default = 100 },
+                { name = "path",  type = "array", default = {} },
             },
             bitmask = {
                 { name = "seg_complete", bit = 0 },
@@ -253,13 +251,10 @@ kb:add_header_node("virtual_nodes", "definitions", {}, {},
         { packet_type_id = 3 },
         {
             description = "Follow line",
+            energy_factor = 1.2,
             json_schema = {
-                { name = "from_x",   type = "float", default = 0 },
-                { name = "from_y",   type = "float", default = 0 },
-                { name = "to_x",     type = "float", default = 0 },
-                { name = "to_y",     type = "float", default = 0 },
-                { name = "speed",    type = "float", default = 100 },
-                { name = "distance", type = "float", default = 0 },
+                { name = "speed", type = "float", default = 100 },
+                { name = "path",  type = "array", default = {} },
             },
             bitmask = {
                 { name = "seg_complete", bit = 0 },
@@ -274,6 +269,7 @@ kb:add_header_node("virtual_nodes", "definitions", {}, {},
         { packet_type_id = 20 },
         {
             description = "Generic operation at a stop (deliver, inspect, recharge, etc.)",
+            energy_cost = 100,
             json_schema = {
                 { name = "operation_type", type = "string", required = true },
                 { name = "data",           type = "object", default = {} },
@@ -290,6 +286,7 @@ kb:add_header_node("virtual_nodes", "definitions", {}, {},
         { packet_type_id = 11 },
         {
             description = "Park robot",
+            energy_cost = 10,
             json_schema = {},
             bitmask = {
                 { name = "parked", bit = 0 },

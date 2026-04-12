@@ -167,6 +167,12 @@ function M:get_class_operation_types(class_name)
     return infra.operation_types or {}
 end
 
+function M:get_class_energy_rate(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
+    return infra.energy_rate or 1.0
+end
+
 function M:get_class_energy_max(class_name)
     local infra = self:get_robot_infra(class_name)
     if not infra then return nil end

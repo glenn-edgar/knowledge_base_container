@@ -251,12 +251,14 @@ function M:_make_mission_coroutine(mission_cmd)
         local capabilities = {}
         local operation_types = {}
         local energy_max = 0
+        local energy_rate = 1.0
         local energy_infinite = false
         if class_name then
             local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
             capabilities = kb_q:get_class_capabilities(class_name)
             operation_types = kb_q:get_class_operation_types(class_name)
             energy_max = kb_q:get_class_energy_max(class_name) or 0
+            energy_rate = kb_q:get_class_energy_rate(class_name) or 1.0
             energy_infinite = kb_q:get_class_energy_infinite(class_name)
             kb_q:close()
         end
@@ -269,8 +271,9 @@ function M:_make_mission_coroutine(mission_cmd)
             site       = srv.site,
         })
 
-        -- Build route with operation_types validation
-        local route, plan_info = mission_builder.build(mission_cmd, planner, operation_types)
+        -- Build route with operation_types validation and energy budget
+        local route, plan_info = mission_builder.build(
+            mission_cmd, planner, operation_types, energy_rate)
         if not route then
             local error_detail = plan_info.error
             if plan_info.unsupported then
@@ -869,12 +872,14 @@ function M:execute_mission(mission_cmd)
     local capabilities = {}
     local operation_types = {}
     local energy_max = 0
+    local energy_rate = 1.0
     local energy_infinite = false
     if class_name then
         local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
         capabilities = kb_q:get_class_capabilities(class_name)
         operation_types = kb_q:get_class_operation_types(class_name)
         energy_max = kb_q:get_class_energy_max(class_name) or 0
+        energy_rate = kb_q:get_class_energy_rate(class_name) or 1.0
         energy_infinite = kb_q:get_class_energy_infinite(class_name)
         kb_q:close()
     end
@@ -885,7 +890,8 @@ function M:execute_mission(mission_cmd)
         ltree_path = self.ltree_path,
     })
 
-    local route, plan_info = mission_builder.build(mission_cmd, planner, operation_types)
+    local route, plan_info = mission_builder.build(
+        mission_cmd, planner, operation_types, energy_rate)
     if not route then
         local error_detail = plan_info.error
         if plan_info.unsupported then

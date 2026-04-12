@@ -151,18 +151,26 @@ if first_path then
         "expected (800,0), got (" .. p[#p-1] .. "," .. p[#p] .. ")")
     check("no from_x (removed)", first_path.params.from_x == nil, "should be nil")
     check("no distance (removed)", first_path.params.distance == nil, "should be nil")
+    check("has energy", first_path.energy ~= nil and first_path.energy > 0,
+        "expected energy > 0, got " .. tostring(first_path.energy))
 end
 
+-- Verify total energy in plan_info
+check("plan_info has energy", info5.energy ~= nil and info5.energy > 0,
+    "expected total energy > 0, got " .. tostring(info5.energy))
+
 -- Print route summary
-print("  Route (" .. #route5 .. " actions):")
+local route_energy = 0
+print("  Route (" .. #route5 .. " actions, energy=" .. tostring(info5.energy) .. "):")
 for i, a in ipairs(route5) do
+    route_energy = route_energy + (a.energy or 0)
     if a.params.path then
         local p = a.params.path
-        print(string.format("    %2d. %-14s path[%d] (%d,%d)→(%d,%d) speed=%s",
+        print(string.format("    %2d. %-14s path[%d] (%d,%d)→(%d,%d) speed=%s energy=%d",
             i, a.kb_name, #p/2, p[1], p[2], p[#p-1], p[#p],
-            tostring(a.params.speed)))
+            tostring(a.params.speed), a.energy or 0))
     else
-        print(string.format("    %2d. %s", i, a.kb_name))
+        print(string.format("    %2d. %-14s energy=%d", i, a.kb_name, a.energy or 0))
     end
 end
 

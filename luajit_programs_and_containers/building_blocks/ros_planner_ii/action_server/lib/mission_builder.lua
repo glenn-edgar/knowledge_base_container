@@ -35,9 +35,10 @@ local M = {}
 -- @param mission_cmd      table: mission command with start, stops, bookend
 -- @param planner          global_planner instance (already loaded with board)
 -- @param operation_types  optional array of operation type strings the robot supports
--- @return route           array of {kb_name, params} or nil
+-- @param energy_rate      optional number: robot's energy per unit distance (default 1.0)
+-- @return route           array of {kb_name, params, energy} or nil
 -- @return plan_info       leg details for replan, or {error=string}
-function M.build(mission_cmd, planner, operation_types)
+function M.build(mission_cmd, planner, operation_types, energy_rate)
     local stops = mission_cmd.stops or error("mission_builder: stops required")
     local start = mission_cmd.start
 
@@ -96,9 +97,28 @@ function M.build(mission_cmd, planner, operation_types)
     local route = {}
     local legs = {}
     local total_cost = 0
+    local total_energy = 0
+    energy_rate = energy_rate or 1.0
+
+    -- Get operation energy cost from VN defs
+    local op_energy_cost = 0
+    local init_energy_cost = 0
+    local idle_energy_cost = 0
+    if planner.vn_defs then
+        if planner.vn_defs["operation"] then
+            op_energy_cost = planner.vn_defs["operation"].energy_cost or 0
+        end
+        if planner.vn_defs["init_check"] then
+            init_energy_cost = planner.vn_defs["init_check"].energy_cost or 0
+        end
+        if planner.vn_defs["idle"] then
+            idle_energy_cost = planner.vn_defs["idle"].energy_cost or 0
+        end
+    end
 
     -- Always start with init_check (robot self-test)
-    route[#route + 1] = { kb_name = "init_check", params = {} }
+    route[#route + 1] = { kb_name = "init_check", params = {}, energy = init_energy_cost }
+    total_energy = total_energy + init_energy_cost
 
     -- Start node: where the robot is now. Required for route planning.
     -- If not provided, assume robot is at the first stop (no navigation to it).
@@ -113,7 +133,8 @@ function M.build(mission_cmd, planner, operation_types)
         local leg_path, leg_cost
 
         if current_node ~= goal_node then
-            local nav_route, nav_info = planner:plan(current_node, goal_node)
+            local nav_route, nav_info = planner:plan(current_node, goal_node,
+                { energy_rate = energy_rate })
 
             if not nav_route then
                 return nil, {
@@ -126,6 +147,7 @@ function M.build(mission_cmd, planner, operation_types)
             -- Append nav actions to flat route
             for _, action in ipairs(nav_route) do
                 route[#route + 1] = action
+                total_energy = total_energy + (action.energy or 0)
             end
 
             leg_path = nav_info.path
@@ -164,7 +186,9 @@ function M.build(mission_cmd, planner, operation_types)
                     operation_type = action,
                     data = data,
                 },
+                energy = op_energy_cost,
             }
+            total_energy = total_energy + op_energy_cost
         end
 
         -- Record leg info for replan
@@ -183,11 +207,13 @@ function M.build(mission_cmd, planner, operation_types)
     end
 
     -- Always end with idle (robot parks)
-    route[#route + 1] = { kb_name = "idle", params = {} }
+    route[#route + 1] = { kb_name = "idle", params = {}, energy = idle_energy_cost }
+    total_energy = total_energy + idle_energy_cost
 
     return route, {
         legs          = legs,
         total_cost    = total_cost,
+        total_energy  = total_energy,
         total_actions = #route,
     }
 end
