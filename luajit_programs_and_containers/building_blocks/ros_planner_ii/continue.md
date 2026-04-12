@@ -281,7 +281,7 @@
 
 ```bash
 cd ros_planner_ii/tests
-bash ./run_tests.sh planner        # 70 assertions
+bash ./run_tests.sh planner        # 72 assertions
 bash ./run_tests.sh link_manager   # 39 assertions
 bash ./run_tests.sh link_client    # 43 assertions
 bash ./run_tests.sh kv_writer      # 16 assertions
@@ -308,8 +308,11 @@ bash start_planner_system.sh build
 # Web UI
 open http://localhost:8080/
 
-# Start robot (Terminal 2)
+# Start robot (Terminal 2) — JSON wire format
 bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_config.json
+
+# Start robot (Terminal 2) — CBOR wire format
+bash ros_scripts/start_robot.sh ros_planner_ii_mqtt_robot/rover_1_cbor_config.json
 
 # Stop everything (except Postgres)
 bash start_planner_system.sh stop
@@ -323,12 +326,29 @@ BB=.. LUA_PATH="./?.lua;$BB/knowledge_base/postgres/data_structures/?.lua;;" \
 
 ---
 
-## Next Session
+## Next Session (2026-04-12): Distributed KB + Fleet Management
+
+### Task 1 — Distributed Knowledge Base Generation
+
+Extend `site_config.lua` and `master_build.lua` to support multiple CPUs with per-CPU KB extracts. Currently all containers live on `cpu_01` with a single SQLite extract. The distributed model:
+
+- Each CPU gets its own SQLite extract containing only the containers/services/domains assigned to it.
+- `master_build.lua` generates per-CPU extracts alongside the current per-domain extracts.
+- Container management becomes per-CPU: each CPU's orchestrator manages only its own containers.
+
+### Task 2 — Fleet Manager Architecture
+
+Two-tier fleet management:
+
+- **Centralized fleet manager** — runs on the main CPU. Owns the mission queue, assigns missions to robot controllers, monitors fleet-wide status, handles multi-robot coordination (collision avoidance, priority).
+- **Robot controllers** — run on per-robot CPUs (Pi Zero 2 W Linux platforms). Each controller manages one physical robot: hardware drivers, local navigation, sensor fusion, heartbeat. Connects to fleet manager via NATS.
+
+The split: fleet manager decides WHERE the robot goes (mission planning, Dijkstra routing). Robot controller decides HOW to get there (motor control, path following, obstacle avoidance).
 
 ### Followup (queued)
 
 - **Real robot driver** — replace sim workers with hardware drivers. Pi Zero 2 W target. `robot_controller.lua` is already robot-independent.
-- **Fleet manager** — multi-domain robot coordination. Removed in session 4, add when ready.
+- **Telemetry collector** — placeholder in site_config, no real image.
 
 ---
 
