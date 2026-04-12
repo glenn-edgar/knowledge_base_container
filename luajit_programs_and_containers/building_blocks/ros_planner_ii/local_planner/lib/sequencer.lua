@@ -195,6 +195,9 @@ function M:run()
                 action_json[k] = v
             end
         end
+        if action.energy then
+            action_json.energy = action.energy
+        end
         action_json.test_id   = action_index
         action_json.next_test = (i < #self.route) and (action_index + 1) or 0
 

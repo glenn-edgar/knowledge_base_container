@@ -265,10 +265,15 @@ function M:timer_tick()
         gp.heading = gp.heading + (bb.delta_heading or 0)
         gp.arm_angle = gp.arm_angle + (bb.delta_arm_angle or 0)
 
-        -- Deduct energy
+        -- Deduct energy: use planner-computed energy from command if present,
+        -- otherwise fall back to hardcoded costs
         local pkt_type = bb.current_packet_type
         if not self.energy.infinite then
             local cost = energy_costs[pkt_type] or 0
+            if bb.command_json and bb.command_json ~= "" then
+                local ok, cmd = pcall(json_util.decode, bb.command_json)
+                if ok and cmd and cmd.energy then cost = cmd.energy end
+            end
             self.energy.remaining = math.max(0, self.energy.remaining - cost)
             if pkt_type == cmd_packets.TYPE_RECHARGE then
                 self.energy.remaining = self.energy.max
