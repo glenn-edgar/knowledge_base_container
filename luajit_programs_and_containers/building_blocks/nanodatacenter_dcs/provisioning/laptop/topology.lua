@@ -30,6 +30,50 @@ return {
     user    = "gedgar",
   },
 
+  -- Agent exception catalog. Construct script iterates per CPU and creates
+  -- SYS_EXCEPTION rows (label=SYS_EXCEPTION, properties={type, instance,
+  -- description}, status row default {status=true, ts=0, last_error="",
+  -- trace_b64="", acknowledged=false}).
+  --
+  -- system_control exceptions are master-only (only the master CPU gets
+  -- the rows). local_system_monitor and node_control exceptions apply to
+  -- every CPU (each CPU gets its own copy of each exception path).
+  --
+  -- `instance` is per-occurrence context (broker name, container name, etc.);
+  -- for agent-level faults we use the agent name itself.
+  agent_exceptions = {
+    system_control = {
+      { name = "aggregator_timeout",
+        type = "aggregator", instance = "system_control",
+        description = "Timeout aggregating slave heartbeats / ready_bits" },
+      { name = "slave_unreachable",
+        type = "slave",      instance = "system_control",
+        description = "A slave CPU has stopped heartbeating" },
+    },
+    local_system_monitor = {
+      { name = "host_cpu_saturated",
+        type = "host_resource", instance = "local_system_monitor",
+        description = "Host CPU usage above threshold" },
+      { name = "host_mem_saturated",
+        type = "host_resource", instance = "local_system_monitor",
+        description = "Host memory usage above threshold" },
+      { name = "heartbeat_stuck",
+        type = "self_check",    instance = "local_system_monitor",
+        description = "local_system_monitor failed to advance its own heartbeat" },
+    },
+    node_control = {
+      { name = "docker_socket_gone",
+        type = "docker", instance = "node_control",
+        description = "docker socket unreachable" },
+      { name = "container_start_failed",
+        type = "docker", instance = "node_control",
+        description = "Failed to start an assigned container" },
+      { name = "container_died",
+        type = "docker", instance = "node_control",
+        description = "An assigned container exited unexpectedly" },
+    },
+  },
+
   cpus = {
 
     cpu_01 = {

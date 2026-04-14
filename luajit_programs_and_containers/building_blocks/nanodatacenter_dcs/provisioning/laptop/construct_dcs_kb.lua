@@ -245,6 +245,28 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
     kb:create_bit_mask_entry("system", "heartbeat", 1, 0,
                              "CPU " .. cpu_id .. " heartbeat (64-bit ns timestamp)")
 
+    -- Build 2c: agent exception schema rows. label = SYS_EXCEPTION (custom);
+    -- properties = {type, instance, description}; data column null. The
+    -- runtime status row is created lazily by kb_exception.log_exception
+    -- on first raise.
+    --
+    -- system_control exceptions: master CPU only.
+    -- local_system_monitor + node_control exceptions: every CPU.
+    local AE = TOPOLOGY.agent_exceptions or {}
+    local function _emit(catalog)
+      for _, exc in ipairs(catalog or {}) do
+        kb:add_info_node("SYS_EXCEPTION", exc.name,
+                         { type = exc.type,
+                           instance = exc.instance,
+                           description = exc.description },
+                         {},
+                         exc.description)
+      end
+    end
+    if cpu_id == MASTER_CPU then _emit(AE.system_control) end
+    _emit(AE.local_system_monitor)
+    _emit(AE.node_control)
+
   for _, inst in ipairs(cpu.instances or {}) do
     local def       = DEFINITIONS[inst.def]
     local managed   = (def.kind == "infrastructure") and "manual"

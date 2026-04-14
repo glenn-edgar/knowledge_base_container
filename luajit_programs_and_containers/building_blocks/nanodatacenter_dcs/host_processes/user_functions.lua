@@ -43,10 +43,21 @@ function M.build(ctx)
   local pg_conn  = ctx.pg_connector
   local bm       = ctx.bit_mask_helpers
   local kb_stat  = ctx.kb_status
+  local kb_exc   = ctx.kb_exception
   local ct       = ctx.chain_tree
   local pg       = ctx.process_globals
 
   local R = {}
+
+  ----------------------------------------------------------------------
+  -- Per-agent SYS_EXCEPTION path resolver. Construct script writes:
+  --   system.site.<S>.cpu.<id>.SYS_EXCEPTION.<exc_name>
+  -- We inline the prefix from cfg so callers just pass the short name.
+  ----------------------------------------------------------------------
+  local function exc_path(name)
+    return string.format("system.site.%s.cpu.%s.SYS_EXCEPTION.%s",
+                         ctx.cfg.site, ctx.cfg.cpu_id, name)
+  end
 
   -- Boolean helper: always returns true. Used as the loop-condition aux
   -- for define_while_column so the while-loop iterates forever.
@@ -250,6 +261,20 @@ function M.build(ctx)
           string.format("VERIFY_PG -> connected (%s@%s:%s/%s)",
                         ctx.cfg.pg_user, ctx.cfg.pg_host,
                         ctx.cfg.pg_port, ctx.cfg.pg_db))
+      -- One-time mute of existing faults on master boot. Each restart of
+      -- the master process re-runs this so previously-acked faults stay
+      -- acked but un-acks come back via fresh log_exception calls.
+      if ctx.cfg.is_master == 1 and not pg.exception_mute_done then
+        local n, merr = kb_exc.mute_existing_on_boot(conn)
+        if n then
+          log("system_control",
+              string.format("mute_existing_on_boot: auto-acked %d faults", n))
+          pg.exception_mute_done = true
+        else
+          log("system_control",
+              "mute_existing_on_boot FAILED: " .. tostring(merr))
+        end
+      end
       return true
     else
       log("system_control", "VERIFY_PG -> false: " .. tostring(err))
@@ -277,9 +302,17 @@ function M.build(ctx)
   -- monitor iteration; if stale, sys_sm trips ERR_MONITOR_TRIP.
   local heartbeat_fresh_s = (ctx.settings and ctx.settings.heartbeat_fresh_s) or 5
   R.VERIFY_NODE_CTRL_HEARTBEAT_FRESH = function(_h, _n)
-    local ts  = pg.node_control_heartbeat_ts or 0
+    local ts = pg.node_control_heartbeat_ts or 0
+    if ts == 0 then
+      -- Grace: node_control hasn't written its first heartbeat yet
+      -- (still in its own sync/setup or first monitor tick). VERIFY_NODE_
+      -- CTRL_OPERATIONAL already gated on its setup completion; once
+      -- monitor runs once, ts > 0 and the staleness check below applies.
+      log("system_control", "VERIFY_NODE_CTRL_HEARTBEAT_FRESH -> true (grace; ts=0)")
+      return true
+    end
     local age = os.time() - ts
-    local ok  = (ts > 0) and (age <= heartbeat_fresh_s)
+    local ok  = age <= heartbeat_fresh_s
     log("system_control", string.format(
         "VERIFY_NODE_CTRL_HEARTBEAT_FRESH -> %s (age=%ds, max=%ds)",
         tostring(ok), age, heartbeat_fresh_s))
@@ -319,28 +352,55 @@ function M.build(ctx)
     eq_mod.send_null(handle.event_queue, 0, 0, defs.CFL_TERMINATE_SYSTEM_EVENT)
   end
 
-  -- error handlers.
-  -- Hard-terminate errors (infra + setup failures): clean up, pump terminate,
-  -- let watchdog restart us from scratch.
-  R.ERR_INFRA_FAIL = function(handle, _n)
-    request_terminate(handle, "system_control", "ERR_INFRA_FAIL")
-  end
-  R.ERR_NODE_CTRL_START_FAIL = function(handle, _n)
-    request_terminate(handle, "system_control", "ERR_NODE_CTRL_START_FAIL")
-  end
-  R.ERR_CONTAINERS_START_FAIL = function(handle, _n)
-    request_terminate(handle, "node_control", "ERR_CONTAINERS_START_FAIL")
+  -- error handlers. Each:
+  --   1. log_exception(path, msg) -> persists fault in pg as a SYS_EXCEPTION
+  --      status row (UPSERT). Master's mute_existing_on_boot will auto-ack
+  --      these on next boot.
+  --   2. request_terminate(...) -> stop containers, close connectors, pump
+  --      CFL_TERMINATE_SYSTEM_EVENT. Watchdog restarts us.
+  --
+  -- Mapping ERR_* (chain-tree generic) to SYS_EXCEPTION (data-model semantic):
+  --   ERR_INFRA_FAIL              -> nc:container_start_failed
+  --   ERR_NODE_CTRL_START_FAIL    -> sys:aggregator_timeout
+  --   ERR_CONTAINERS_START_FAIL   -> nc:container_start_failed
+  --   ERR_MONITOR_TRIP            -> sys:slave_unreachable
+  --   ERR_CONTAINER_DIED          -> nc:container_died
+  --   ERR_TEARDOWN_REQUESTED      -> not an exception (normal flow)
+
+  local function log_then_terminate(handle, half, reason, exc_name)
+    if ctx.connectors.pg and exc_name then
+      local ok, err = kb_exc.log_exception(
+        ctx.connectors.pg, exc_path(exc_name), reason)
+      if not ok then
+        log(half, "log_exception FAILED: " .. tostring(err))
+      end
+    end
+    request_terminate(handle, half, reason)
   end
 
-  -- Monitor-phase trips: currently also hard-terminate. Build 2c / Build 3
-  -- may promote some of these to change_state(teardown) for graceful recycle.
+  R.ERR_INFRA_FAIL = function(handle, _n)
+    log_then_terminate(handle, "system_control",
+                       "ERR_INFRA_FAIL", "container_start_failed")
+  end
+  R.ERR_NODE_CTRL_START_FAIL = function(handle, _n)
+    log_then_terminate(handle, "system_control",
+                       "ERR_NODE_CTRL_START_FAIL", "aggregator_timeout")
+  end
+  R.ERR_CONTAINERS_START_FAIL = function(handle, _n)
+    log_then_terminate(handle, "node_control",
+                       "ERR_CONTAINERS_START_FAIL", "container_start_failed")
+  end
+
   R.ERR_MONITOR_TRIP = function(handle, _n)
-    request_terminate(handle, "system_control", "ERR_MONITOR_TRIP")
+    log_then_terminate(handle, "system_control",
+                       "ERR_MONITOR_TRIP", "slave_unreachable")
   end
   R.ERR_CONTAINER_DIED = function(handle, _n)
-    request_terminate(handle, "node_control", "ERR_CONTAINER_DIED")
+    log_then_terminate(handle, "node_control",
+                       "ERR_CONTAINER_DIED", "container_died")
   end
   R.ERR_TEARDOWN_REQUESTED = function(handle, _n)
+    -- normal teardown signal; not a fault to log
     request_terminate(handle, "node_control", "ERR_TEARDOWN_REQUESTED")
   end
 

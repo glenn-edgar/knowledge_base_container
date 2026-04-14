@@ -301,6 +301,29 @@ decisions:
   verifies) but doesn't consume it. Consumed by ros_planner_ii and
   its UI container.
 
+## Build 2c remaining items — done (this session)
+
+- **install_infra.sh**: idempotent operator setup wrapping the four
+  third_party_containers scripts. Creates planner-net, then for each
+  of pg-vector / nats-js-ram / mosquitto-ram-ws_main / kv-bridge: skip
+  if exists, else create from the proven script. `--recreate` flag for
+  forced reset.
+- **kb_exception.lua**: log_exception / log_exception_status /
+  ack_exception / clear_exception / mute_existing_on_boot. UPSERT
+  semantics for status rows; clear DELETEs the row entirely.
+- **Agent exception declarations** in topology.lua (agent_exceptions
+  table) + construct_dcs_kb.lua (iterate per CPU, master-only for
+  system_control). 8 SYS_EXCEPTION schema rows verified in pg.
+- **Error handlers wired**: each ERR_* calls log_exception with a
+  mapped exception before request_terminate. Master's first VERIFY_PG
+  success triggers mute_existing_on_boot (idempotent via
+  process_globals flag).
+- **State-cycling partial fix**: VERIFY_NODE_CTRL_HEARTBEAT_FRESH
+  treats heartbeat_ts==0 as "grace, not fault" — eliminates spurious
+  ERR_MONITOR_TRIP at burst 1. Cycle period went from ~5s to ~12-15s;
+  sys_ready=true is the steady state. Deeper chain-tree state-machine
+  quirk remains.
+
 ## Build 2c implementation note (clarification)
 
 After staging the plan, identified that **slicer step (was #2) collapses

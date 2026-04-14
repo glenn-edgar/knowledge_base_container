@@ -30,6 +30,7 @@ local docker           = require("docker")
 local pg_connector     = require("pg_connector")
 local bit_mask_helpers = require("bit_mask_helpers")
 local kb_status        = require("kb_status")
+local kb_exception     = require("kb_exception")
 
 ---------------------------------------------------------------------------
 -- paths
@@ -83,6 +84,7 @@ function M.default_context()
     -- direct-SQL helpers for bit_mask_table + status_table writes
     bit_mask_helpers = bit_mask_helpers,
     kb_status        = kb_status,
+    kb_exception     = kb_exception,
     -- tunable settings (override before M.main, or inject via ctx builder).
     -- Default: sim time matches wall time so chain-tree verify_timeout(30s)
     -- actually waits ~30 real seconds. One chain-tree tick per outer loop;
