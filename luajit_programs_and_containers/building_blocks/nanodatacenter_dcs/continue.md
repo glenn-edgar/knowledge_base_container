@@ -37,7 +37,9 @@ version:
   Provisioning scripts `source` it, or fail loudly if env missing.
 - `provisioning.json` (non-secret config, site-wide) mounted at
   `/etc/nanodatacenter/provisioning.json` on each CPU.
-- Env vars: `MASTER_FLAG`, `CPU_ID`, `PG_PASSWORD`, `NATS_PASSWORD`, `MQTT_PASSWORD`.
+- Env vars: `MASTER_FLAG`, `CPU_ID`, `PG_PASSWORD`. NATS and MQTT brokers
+  currently run unauthenticated; `NATS_PASSWORD` / `MQTT_PASSWORD` will be
+  added when those brokers gain auth.
 
 **KB structure (dcs.lua)**
 - Single DSL file; test order = KB index. KB 0 = system_control, KB 1 = node_control.
@@ -88,9 +90,455 @@ version:
 - Controller ↔ child signaling: stdin line protocol (`"READY\n"` / `"IDLE\n"`).
 - App languages: primarily LuaJIT, occasional Python, rare C.
 
+### Provisioning ground rules (air-gapped)
+
+- Site is air-gapped; provisioning runs from operator laptop on closed network.
+- **Infra containers (postgres, nats, mosquitto, kv_bridge):** pre-built and
+  pre-placed on each CPU. Provisioning **never** rebuilds them. Updates are
+  manual / out-of-band.
+- **kv_bridge:** lifecycle owned by `system_control` on the master node only.
+- **Application containers:** rebuilt every provisioning run. Each app's sqlite
+  KB is baked into its image at build time.
+- **system_control / node_control sqlite KBs:** built during provisioning
+  (per-CPU, not baked into any infra image).
+- `KILL_ALL_CONTAINERS` must whitelist infra containers.
+
+### Provisioning layout (laptop / runtime split)
+
+Same-machine dev for v1; transport between sides is "the runtime side reads
+files the laptop side just wrote." No /etc, no ssh — paths off `~`.
+
+```
+provisioning/
+  laptop/                        # everything that needs scarce deps
+    setup_secrets.sh             # one-time PG_PASSWORD prompt -> ~/.config/...
+    definitions.lua              # container_definition catalog (code-versioned)
+    topology.lua                 # site, master, cpus[*].instances (operator-edited)
+    construct_dcs_kb.lua         # reads both, builds master Postgres KB
+    build_kb.sh                  # wraps construct_dcs_kb.lua with LUA_PATH
+  runtime/                       # TBD; thin executor (file copy + restart)
+
+build_output/<cpu_id>/           # gitignored; produced by laptop, read by runtime
+  containers/<inst>/
+    controller.db                # always present; supervisor's slice
+    app/<cli>.db                 # per-app-CLI slices (v1: implicit broad slice)
+  provisioning.json              # rendered placement + endpoints (this CPU)
+  env/cpu.env                    # CPU_ID, MASTER_FLAG (no secrets)
+  manifest.txt                   # versions; hashing deferred
+```
+
+Inside containers, bind-mount lands at `/root/nanodatacenter/kb/`; apps
+discover via env `KB_DIR`. (Non-root users later → `$HOME/nanodatacenter/kb/`.)
+
+Idempotency v1: laptop rebuilds everything every run; runtime always restarts.
+Manifest hashing comes later if iteration speed bites.
+
 ### Where to resume tomorrow
 
-**In order:**
+**Status checkpoint (2026-04-13):**
+- `provisioning/laptop/setup_secrets.sh` — done.
+- `provisioning/laptop/definitions.lua` — done (4 infra + 2 control defs).
+- `provisioning/laptop/topology.lua` — done (single CPU `cpu_01`, master).
+- `provisioning/laptop/construct_dcs_kb.lua` — done; sanity passes verified.
+- `provisioning/laptop/build_kb.sh` — done.
+- **End-to-end build run verified**: 3 KBs registered, 52 system paths,
+  11 status fields, 920 stream slots, 24 rpc_server slots. Surfaced critical
+  finding (`check_installation()` is destructive across whole DB).
+- **Decision: DCS construct is the sole declarer of `knowledge_base` DB.**
+  Old orchestrator/surface_ops content was a test patch; truncated.
+- **Bit_mask `infra_status_bits` removed** from construct (speculative,
+  unused by chain-tree); reintroduce when an s-expression consumer needs it.
+
+**Architecture pivot (mid-session, 2026-04-13):** system_control + node_control
+are HOST PROCESSES, not containers. They need docker-socket access + host
+metrics. They run under a `start.sh` watchdog that restarts on death (debug
+mode: foreground, operator-launched). After they're running, system_control
+manages everything — including starting pg.
+
+**Heavy slicer scrapped.** The 676-row controller.db slice was wildly
+over-scoped. Replaced with `slice_bootstrap.lua` producing two minimal
+read-only sqlite files:
+```
+build_output/<cpu_id>/system_control/{bootstrap.db, start.sh}    (master only)
+build_output/<cpu_id>/node_control/{bootstrap.db, start.sh}      (every CPU)
+```
+
+**bootstrap.db schema:** standard `knowledge_base` + `knowledge_base_info`
+tables ONLY (no satellite tables, since no runtime state lives in bootstrap).
+Same query API as the master pg KB — runtime code reads sqlite at start,
+switches to pg-backed reader once pg is verified.
+
+**bootstrap.db content (system_control on master):** 27 rows.
+- `system.site.<S>` + `cpu.<cpu>` (tree integrity, exact match)
+- `system.site.<S>.cpu.<cpu>.bootstrap.config` (identity + pg connect)
+- `system.container_definition.{postgres,nats,mosquitto,kv_bridge}.*`
+  (definition + build.spec for each — image, ports, env, entrypoint)
+- `system.site.<S>.cpu.<cpu>.container.{postgres,nats,mosquitto,kv_bridge}.*`
+  (placement + status/stream schema declarations + service endpoints)
+
+**bootstrap.db content (node_control):** 3 rows in v1 (no apps yet).
+- `system.site.<S>` + `cpu.<cpu>` + `bootstrap.config`
+- When apps land in topology: gains
+  `system.container_definition.<app_def>.*` and
+  `system.site.<S>.cpu.<cpu>.container.<app_inst>.*` per app.
+
+After write, `chmod 0444` enforces read-only at the FS level. system_control
+opens with `SQLITE_OPEN_READONLY`. All runtime state goes to pg.
+
+**bootstrap.config record** (jsonb at
+`system.site.<S>.cpu.<cpu>.bootstrap.config`):
+```json
+{ "site":..., "cpu_id":..., "is_master":..., "kb_root":...,
+  "pg_host":..., "pg_port":..., "pg_db":..., "pg_user":... }
+```
+PG_PASSWORD comes from `~/.config/nanodatacenter/secrets.env` via env vars,
+NOT in any sliced file.
+
+**start.sh** (per role, generated from `start.sh.template`): foreground
+watchdog. Sources secrets.env, exports PG_PASSWORD/POSTGRES_PASSWORD, loops
+launching `./<role>` with `bootstrap.db` as argv[1]; logs restart events
+to `error.log`. Trap on INT/TERM exits cleanly.
+
+**Build 1 done (collapsed single-process model):**
+- `host_processes/dcs.lua` — ONE LuaJIT process with both system_control +
+  node_control halves dispatched in same VM. Shared `connectors` table
+  (pg/nats/mqtt, all nil in Build 1) and `process_globals` dict for
+  cross-half coordination. system_control half runs only on master;
+  node_control half always runs. Unified heartbeat loop.
+- `provisioning/laptop/slice_bootstrap.lua` — produces ONE `bootstrap.db`
+  per CPU (combined: infra defs + placements if master, app defs + apps
+  always). Output: `build_output/<cpu>/bootstrap.db` (chmod 0444).
+- `provisioning/laptop/start.sh.template` — single watchdog per CPU,
+  invokes `host_processes/dcs.lua` directly (no symlink in build_output).
+- `provisioning/laptop/slice_bootstrap.sh` — drops one `start.sh` per CPU
+  alongside its `bootstrap.db`.
+- Verified: 27 rows in cpu_01/bootstrap.db; both halves log identity,
+  enumerate planned work, heartbeat. Watchdog handles SIGTERM cleanly.
+
+**Build 2a done (chain-tree wired + stubs):**
+- `chain_tree/dcs_dsl.lua` — single-CPU chain-tree DSL (moved multi-CPU draft
+  to `chain_tree/dcs_dsl_multicpu_reference.lua`). 101 nodes, 2 KBs.
+- `chain_tree/build_dsl.sh` — compiles to `dcs.json` + debug YAML.
+- `host_processes/dcs.lua` rewritten: loads JSON IR, registers ~40 stub
+  user functions, runs `cfl_rt.run()` in burst loop.
+- `start.sh.template` LUA_PATH includes chain-tree runtime + dsl dirs.
+- Verified end-to-end: launch oneshots fire, sys_sm enters sync, all
+  START_* + VERIFY_* execute, transitions to setup, CREATE_SHARED_KV_KEYS,
+  `ENABLE_NODE_CONTROL_KB` → `cfl_rt.add_test(1)` — node_control KB
+  activates at runtime, runs its own sync/setup, writes
+  `node_control_operational=true`. Shared `process_globals` dict verified
+  working cross-half.
+
+**Quirks to resolve in Build 2b:**
+- Stubs always return true/success but ERR_* are never bodies —
+  VERIFY_NODE_CTRL_OPERATIONAL fails first time (node_control hasn't set
+  the flag yet), error handler fires but stub only logs, sys_sm cycles.
+  Build 2b: verify functions get polling semantics; error handlers
+  actually terminate / change_state.
+- `sys_ready` never flips to true because of the above cycle.
+
+**Build 2b progress (partial):**
+- New `host_processes/posix_time.lua` — FFI-bound `clock_gettime(CLOCK_MONOTONIC)`
+  + `nanosleep` helpers (`now_sec`, `sleep_for`, `sleep_until`). Replaces
+  `os.execute("sleep 1")` (forked sh per tick) with drift-free pacing.
+- `ctx.settings` table exposes `tick_interval_s`, `cfl_delta_time`, `cfl_max_ticks`.
+  Override in a caller before `M.main` or by injecting a custom ctx.
+- `M.run_loop` now uses an absolute deadline advanced by `tick_interval_s`
+  each burst; logs per-burst chain-tree runtime (`run=X.Xms`) for diagnostics.
+  Overruns skip ahead instead of stacking backlog.
+- Refactored `host_processes/dcs.lua` → reusable module (M.main, M.default_context,
+  M.open_bootstrap, M.init_chain_tree, M.activate_initial_kb, M.run_loop).
+- New `host_processes/user_functions.lua` — separate module, M.build(ctx)
+  returns registry. Closures over ctx for shared state.
+- New `host_processes/docker.lua` — CLI primitives: stop_labelled,
+  run_from_spec, is_running, stop. Handles env_required resolution from
+  host env (secrets never baked into image), ~ expansion in volume paths,
+  `nanodatacenter=true` label on every run.
+- `definitions.lua` extended: env_defaults/env_required/volumes/labels/
+  restart_policy/runtime fields. pg gets real image tag
+  (`pgvector/pgvector:pg17`), POSTGRES_USER/DB env, POSTGRES_PASSWORD as
+  env_required, data volume mount `~/Postgres_Data/vector`, restart=always.
+- construct_dcs_kb.lua's build.spec info-node serializes all new fields.
+- Verified: rebuild → bootstrap.db carries enriched postgres spec; refactored
+  dcs.lua works end-to-end identical to Build 2a (stubs still driving).
+
+**Data-model resolution session (chat-mode, no code):**
+
+Full data-model revised and locked in through sustained back-and-forth.
+See memory `project_dcs_data_model.md` for the complete resolution. Headline
+decisions:
+
+- **Three-KB architecture**: `system_control` (master CPU only),
+  `local_system_monitor` (every CPU), `node_control` (every CPU).
+  system_control is no longer a slave/master-branching KB — it just
+  doesn't activate on slaves.
+- **`system.ready`**: pg-only status field at site level, derived by
+  master from a site-level `bit_mask_table` row (`ready_bits`); each CPU
+  owns one bit indexed by `bit_index` in topology.lua.
+- **Heartbeats**: one `bit_mask_table` row per CPU, 64-bit timestamp in
+  `bit_mask` column (repurposed from flag-register).
+- **Exceptions**: dedicated `SYS_EXCEPTION` label on the main KB row;
+  properties hold `{type, instance, description}` for query filtering;
+  status satellite holds runtime `{status, ts, last_error, trace_b64,
+  acknowledged}`. Library: `log_exception / ack / clear / mute_on_boot`.
+  Master runs `mute_on_boot` over the whole site at its startup.
+- **Unmonitor lease**: per-container status field `monitored_until_ts`;
+  0/past = monitored; future ts = unmonitored until deadline.
+  UI toggles via RPC; site-wide default lease length in site policy.
+- **RPC queues**: CPU-scoped (no container wrapper). Two pairs per CPU:
+  `ctrl_rpc`/`ctrl_reply` (master↔local) and `ui_rpc`/`ui_reply`
+  (UI↔node_control). UI commands path-addressed.
+- **Agent exceptions** declared in `topology.lua` (they inherit the
+  namespace). **Container exceptions** declared in `definitions.lua`
+  (per container_definition; all instances of a def share them).
+- **Env vars** passed to app containers at `docker run`: PG_PASSWORD,
+  PG_HOST/PORT/DB/USER, NATS/MQTT endpoints, CPU_ID, SITE, CONTAINER_NAME,
+  CONTAINER_NAMESPACE (pre-computed path prefix).
+- **Baked sqlite slice** in each app container image holds only
+  construct-time static info; deployment-specific (endpoints,
+  identity) comes from env.
+- **kv-bridge stays as infrastructure**: DCS supervises it (starts,
+  verifies) but doesn't consume it. Consumed by ros_planner_ii and
+  its UI container.
+
+## Build 2c implementation note (clarification)
+
+After staging the plan, identified that **slicer step (was #2) collapses
+into the schema step (#1)**: bootstrap.db carries only construct-time
+config, not runtime data. The new bit_mask + status fields live in pg only
+(host writes them at runtime). What needs to flow through the slicer is
+just two extra fields in the bootstrap.config info-node payload:
+`bit_index` (per CPU) and `expected_cpu_count` (master uses to compute
+target ready mask). Slicer code itself doesn't change — it copies whatever
+bootstrap.config holds. Adjusted ordering for today's session below.
+
+## Build 2c plan — code changes to implement the resolved model
+
+Targeted changes to go from current state to matching the resolved model:
+
+### Provisioning side
+
+**topology.lua**:
+- Add `bit_index = N` per CPU entry (contiguous 0..N-1).
+- Add `agent_exceptions = { system_control = {...}, local_system_monitor = {...}, node_control = {...} }` section.
+
+**definitions.lua**:
+- Add `exceptions = { {name, description}, ... }` per container_definition.
+  (v1 single-CPU still has no app containers, so this affects only future defs.)
+
+**construct_dcs_kb.lua**:
+- Per-CPU heartbeat `bit_mask_table` row.
+- Site-level `ready_bits` bit_mask_table row (size = N CPUs).
+- Site-level `system_ready` status field.
+- Site-level `unmonitor_lease_default_s` status field.
+- Iterate `agent_exceptions` per CPU (master-only gets system_control's).
+  Create `SYS_EXCEPTION` label rows with properties `{type, instance, description}`.
+- Iterate `definitions[<def>].exceptions` per instance; create `SYS_EXCEPTION`
+  rows at container scope.
+- Per-CPU two RPC queue pairs (`ctrl_rpc`, `ui_rpc` + replies).
+- Sanity passes: bit_index uniqueness + contiguity.
+
+**slicer (slice_bootstrap.lua)**:
+- Update include rules to pull `SYS_EXCEPTION` rows + `bit_mask_table`
+  rows relevant to each scope (local_system_monitor: its own CPU;
+  node_control: its own CPU + its supervised containers).
+- Site-level policy fields included in every slice.
+
+### Host process side
+
+**Chain-tree DSL `chain_tree/dcs_dsl.lua`**:
+- Split existing content: `sys_sm` stays in `system_control` KB; introduce
+  new `local_system_monitor` KB with its own state machine (RPC consumer,
+  heartbeat writer, bit-setter, host sampler); `node_control` KB keeps
+  its current container-supervision shape plus UI RPC consumption.
+- `system_control`'s state machine drops slave-branch content (no longer needed).
+
+**host_processes/dcs.lua**:
+- Activate `system_control` only if `cfg.is_master == 1`.
+- Always activate `local_system_monitor` + `node_control`.
+- Default KB activations reflect the new three-KB model.
+
+**New library host_processes/kb_exception.lua**:
+- `log_exception(conn, path, msg, trace_b64)`
+- `log_exception_status(conn, path, status, msg, trace_b64)`
+- `ack_exception(conn, path)`
+- `clear_exception(conn, path)`
+- `mute_existing_on_boot(conn, scope_ltree)` — iterate all SYS_EXCEPTION
+  rows under scope; set `acknowledged=true` where `status=false`.
+
+**host_processes/bit_mask_helpers.lua**:
+- `write_heartbeat_ts(conn, cpu_id, site, ts)` — flattens path, writes 64-bit bit_mask_table row.
+- `set_ready_bit(conn, site, bit_index)`, `clear_ready_bit(conn, site, bit_index)`.
+- `read_ready_bits(conn, site)` — returns 64-bit integer.
+
+**User functions** (`user_functions.lua`):
+- `PUBLISH_SYSTEM_HEARTBEAT` writes bit_mask_table (replaces log stub).
+- New: `SET_OWN_READY_BIT`, `CLEAR_OWN_READY_BIT`.
+- New: `AGGREGATE_READY_BITS` (master: reads mask, compares to expected,
+  updates `system.ready` status field).
+- Error handlers call `log_exception(...)` before pumping TERMINATE.
+- `mute_existing_on_boot()` called once at startup (master only).
+
+### App container side (deferred until first app appears)
+
+- Base container image provides:
+  - `kb_exception.*` library (language TBD — probably LuaJIT first).
+  - Heartbeat writer (periodic bit_mask_table update).
+  - env-var-driven path derivation.
+
+## Build 3 plan (unchanged in scope; now has concrete data-model to target)
+
+OpenResty RPC exercise:
+- Add OpenResty app definition to `definitions.lua` with its exception vocabulary.
+- Place it in topology.lua.
+- node_control starts it via real docker run; OpenResty HTTP endpoints
+  serve UI queries (pg reads) + push UI commands (pg RPC queue writes).
+- Exercises the `SYS_EXCEPTION` query patterns + `ui_rpc` queue flow
+  end-to-end.
+
+## Session credits
+
+Data model resolved in a single chat-mode session; design discipline
+insisted on data-stores-first-architecture-emerges, which made it
+tractable. Full decision log in memory at
+`project_dcs_data_model.md`.
+
+---
+
+**Build 2b steps 4-8 done (prior session) — HAPPY PATH ACHIEVED:**
+
+- **Step 4-5**: `VERIFY_NATS` / `VERIFY_MQTT` / `VERIFY_KV_BRIDGE` /
+  `VERIFY_KV_BRIDGE_HEALTHY` now call `docker.is_running(name)` via a
+  shared `is_running_verify` closure. v1 health proxy — container up
+  means broker accepting connections (restart=always keeps them). Build 3+
+  replaces with real NATS/MQTT client probes.
+- **Step 6**: `VERIFY_NODE_CTRL_HEARTBEAT_FRESH` now checks
+  `process_globals.node_control_heartbeat_ts` is within
+  `ctx.settings.heartbeat_fresh_s` (default 5s) of `os.time()`. Returns
+  false if heartbeat is stale — sys_sm's monitor trips ERR_MONITOR_TRIP
+  if node_control stops writing heartbeats.
+- **DSL tweak**: inserted `asm_wait_time(2.0)` between ENABLE_NODE_
+  CONTROL_KB and the VERIFY_NODE_CTRL_OPERATIONAL timeout in setup state.
+  Necessary because `cfl_rt.add_test` activates the KB mid-drain but the
+  KB doesn't get its first tick until the next outer burst. The
+  wait_time halts setup for ~2 ticks so node_control can sync + setup +
+  write operational=true before the verify fires.
+- **End-to-end verified**: burst 4 logs `sys_ready=true node_op=true`.
+  All 4 infra containers running, labelled `nanodatacenter=true`. Monitor
+  loop ticks at 1Hz with run=~400ms per burst (mostly docker inspect
+  calls for `is_running` checks). Heartbeat freshness check gates
+  monitor; node_control writes heartbeat every iteration.
+
+Residual (not blocking): node_control_operational re-writes TRUE
+periodically (every ~12-14s), suggesting node_sm cycles through teardown
+and back. sys_sm stays at monitor with sys_ready=true throughout. Can be
+investigated in Build 3 when we add app containers and need stable
+node_control.
+
+**Build 2b COMPLETE.** Ready for Build 3 (OpenResty RPC queue exercise).
+
+**Tech debt cleanup (earlier session):**
+
+- **State-cycling mystery understood (partial fix):** root cause is that
+  `define_while_column` defaults aux boolean to `CFL_NULL` → returns false →
+  while exits after one iteration → state/SM/KB cascade-terminate. Added
+  `DCS_ALWAYS_TRUE` boolean helper in `user_functions.lua` and passed it
+  as the while-aux for both sys_monitor_loop + node_monitor_loop in
+  `chain_tree/dcs_dsl.lua`. KB now stays alive. Residual cycling (multiple
+  states running in one tick's event drain) is a chain-tree event-queue
+  semantics property; will be paced out naturally once real verifies are
+  in place in Build 2b steps 4-6. Not a blocker.
+- **host_process entries removed from KB:** `system_control` + `node_control`
+  no longer appear in `topology.lua` or `definitions.lua`. Sanity pass in
+  `construct_dcs_kb.lua` now rejects any `kind=host_process` instance
+  placement as a configuration error. KB now contains only the 4 real
+  infra containers. Build + slice + run end-to-end still works.
+- **Stale memory notes updated:** `project_nanodatacenter_dcs_decisions.md`
+  marked SUPERSEDED (kept as history). `project_dcs_single_cpu_chaintree.md`
+  description refreshed as current-architecture companion to the
+  provisioning doc. `MEMORY.md` index entry updated.
+
+**Build 2b step 7 done (earlier session):**
+
+- Error handlers pump `CFL_TERMINATE_SYSTEM_EVENT` via `eq_mod.send_null` on
+  `handle.event_queue`. Before pumping: stop labelled containers, close
+  connectors, set `ctx.terminate_reason` for the exit log. Applies to
+  `ERR_INFRA_FAIL`, `ERR_NODE_CTRL_START_FAIL`, `ERR_CONTAINERS_START_FAIL`,
+  `ERR_MONITOR_TRIP`, `ERR_CONTAINER_DIED`, `ERR_TEARDOWN_REQUESTED`.
+  `ERR_TEARDOWN_FORCE` logs + proceeds (graceful teardown timed out → chain
+  continues to force-kill oneshots; no terminate).
+- `M.run_loop` detects `any_active(handle) == false` after `cfl_rt.run`,
+  logs "exiting cleanly: <reason>", `os.exit(1)` so watchdog restarts.
+- Verified mechanism by forcing `VERIFY_KV_BRIDGE` false (temporary hack,
+  reverted): watchdog saw multiple `exiting cleanly: no active tests` →
+  `restart in 2s` cycles, confirming the detect-exit-restart path works.
+- Note: in the current stub-heavy state, chain-tree naturally exits after
+  a few seconds (state machine completes its cycle); Build 2b step 4-6
+  work (real NATS/MQTT/KV_BRIDGE verifies + NODE_CTRL_OPERATIONAL polling)
+  will keep the SM in `monitor` instead of cycling.
+
+**Build 2b steps 1-3 done (earlier session):**
+
+- **Step 1**: `KILL_NON_INFRA_CONTAINERS` wired to `docker.stop_labelled()`.
+  Verified: dummy container labelled `nanodatacenter=true` removed; unlabelled
+  containers untouched.
+- **Step 2**: `dcs.lua` gained `M.load_build_specs(bdb)` loading all
+  `system.container_definition.<def>.build.spec` rows into
+  `ctx.system_control_globals.build_specs`. `START_*_CONTAINER` oneshots
+  call `docker.run_from_spec(inst_name, spec)`. `STOP_*` calls
+  `docker.stop(inst_name)`. Idempotent — skip if already running.
+  Fixed image names in `definitions.lua` to match local repo
+  (`nanodatacenter/{nats-js-ram,mosquitto-ram-ws,kv-bridge}:latest` +
+  `pgvector/pgvector:pg17`).
+- **Step 3**: new `host_processes/pg_connector.lua` exposing `try_connect`.
+  `VERIFY_PG` calls it each chain-tree tick; on success populates
+  `ctx.connectors.pg` and returns true. Verified: pg container starts,
+  1 second later VERIFY_PG connects + SELECT 1 passes.
+- **Timing fix**: `ctx.settings` now defaults to `cfl_delta_time=1.0`,
+  `cfl_max_ticks=1`, `tick_interval_s=1.0` — so chain-tree sim time
+  matches wall time. Previously 50 ticks × 0.1s sim ran in ~3ms wall,
+  making `asm_verify_timeout(30s)` fire in a fraction of a real second
+  before pg had a chance to boot.
+- **Connector reset on clean-slate**: `KILL_NON_INFRA_CONTAINERS` now also
+  closes `ctx.connectors.pg` and nils nats/mqtt so next sync cycle
+  reopens against the freshly-started containers.
+
+**Build 2b remaining:**
+1. Wire user functions to docker.lua primitives:
+   - `KILL_NON_INFRA_CONTAINERS` → `docker.stop_labelled()`
+   - `START_PG_CONTAINER` → `docker.run_from_spec("postgres", spec_from_bootstrap)`
+     Use build.spec read from bootstrap.db at startup; cache in
+     system_control_globals keyed by instance name.
+   - `STOP_*_CONTAINER` → `docker.stop(name)`
+   - `START_NATS_CONTAINER` / `MQTT` / `KV_BRIDGE` same pattern.
+2. `VERIFY_PG` body: try-connect-with-backoff (DBI.Connect) against
+   cfg.pg_host:cfg.pg_port. On success set connectors.pg. Return true only
+   when connection works.
+3. Similar real verifies for nats/mqtt/kv_bridge (tcp-connect stub OK if
+   clients aren't wired yet).
+4. Error handlers that actually mutate state: ERR_INFRA_FAIL →
+   `terminate_system()` (process exits; watchdog restarts); ERR_MONITOR_TRIP
+   → change_state to teardown.
+5. VERIFY_NODE_CTRL_OPERATIONAL body: polls process_globals with backoff
+   inside the verify_timeout window so sys_sm settles instead of cycling.
+
+**Old Build 2b plan (kept for reference):**
+1. **Extend infra def schema** in `definitions.lua`:
+   - `env_required` (POSTGRES_USER/PASSWORD/DB for pg, etc.)
+   - `volumes` (pg data persistence: ~/Postgres_Data/vector → /var/lib/postgresql/data)
+   - `labels` (every spawn gets `nanodatacenter=true`)
+2. **Docker primitives** in dcs.lua:
+   - `docker_stop_labelled("nanodatacenter")` for clean slate
+   - `docker_run_from_spec(spec)` honoring image/ports/env/volumes/labels
+3. **PG verifier**: try-connect-with-backoff against `cfg.pg_host:cfg.pg_port`.
+   On success, populate `connectors.pg`. On hard fail, exit (watchdog restarts).
+4. **Pg-backed KB reader**: same query API as the sqlite reader; system_control
+   transparently switches once `connectors.pg` is set.
+5. **Mark transition logged**: heartbeat shows when reader source flipped.
+6. **Chain-tree wiring** (after Build 2): load `dcs.lua` chain-tree DSL,
+   wire user functions (verify, oneshot) to the docker + pg primitives.
+
+### Older "next steps" plan (kept for reference)
 
 1. **Secrets-env setup `.sh`.** Write a small shell script that:
    - Creates `~/.config/nanodatacenter/` (mode 700).

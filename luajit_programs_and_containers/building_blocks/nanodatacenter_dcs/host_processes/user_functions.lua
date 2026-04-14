@@ -1,0 +1,310 @@
+-- =============================================================================
+-- user_functions.lua -- DCS chain-tree user-function registry.
+--
+-- Exposes M.build(ctx) -> { NAME = fn, ... } registry consumed by
+-- dcs.lua's chain-tree loader. ctx provides shared state (connectors,
+-- process_globals, chain_tree handle, logger) so functions stay closures
+-- over real process state rather than globals.
+--
+-- Build 2a: all bodies are logging stubs that return success. Build 2b
+-- replaces them incrementally with real docker/pg primitives.
+-- =============================================================================
+
+local eq_mod = require("cfl_event_queue")
+local defs   = require("cfl_definitions")
+
+local M = {}
+
+---------------------------------------------------------------------------
+-- helpers
+---------------------------------------------------------------------------
+
+local function oneshot_stub(log, name, half)
+  return function(_handle, _node_idx)
+    log(half or "stub", "would " .. name)
+  end
+end
+
+local function verify_stub(log, name, half)
+  return function(_handle, _node_idx, _event_type, _event_id, _event_data)
+    log(half or "stub", "verify " .. name .. " -> true (stub)")
+    return true
+  end
+end
+
+---------------------------------------------------------------------------
+-- build(ctx) returns the registered-name -> function map
+---------------------------------------------------------------------------
+
+function M.build(ctx)
+  local log     = ctx.log
+  local cfl_rt  = ctx.cfl_rt
+  local docker  = ctx.docker
+  local pg_conn = ctx.pg_connector
+  local ct      = ctx.chain_tree
+  local pg      = ctx.process_globals
+
+  local R = {}
+
+  -- Boolean helper: always returns true. Used as the loop-condition aux
+  -- for define_while_column so the while-loop iterates forever.
+  -- The chain-tree default aux (CFL_NULL) returns false, causing the
+  -- loop to exit after one iteration and the enclosing state to
+  -- terminate. Any state with an intended infinite monitor loop must
+  -- pass DCS_ALWAYS_TRUE as its while-aux.
+  R.DCS_ALWAYS_TRUE = function(_h, _n, _et, _eid, _ed) return true end
+
+  ----------------------------------------------------------------------
+  -- system_control half
+  ----------------------------------------------------------------------
+
+  -- launch oneshots
+  R.READ_ENVIRONS             = oneshot_stub(log, "READ_ENVIRONS",             "system_control")
+  R.READ_BOOTSTRAP_CONFIG     = oneshot_stub(log, "READ_BOOTSTRAP_CONFIG",     "system_control")
+  R.KILL_NON_INFRA_CONTAINERS = function(_h, _n)
+    -- Clean slate: remove every container labelled nanodatacenter=true.
+    -- Containers not carrying our label (e.g., operator-managed or third-party
+    -- workloads on the same host) are untouched.
+    local n = docker.stop_labelled()
+    -- Any connections we were holding are now to destroyed containers; drop
+    -- them so the next VERIFY_* reopens against the freshly-started infra.
+    if ctx.connectors.pg   then pcall(function() ctx.connectors.pg:close() end) end
+    ctx.connectors.pg   = nil
+    ctx.connectors.nats = nil
+    ctx.connectors.mqtt = nil
+    log("system_control",
+        string.format("KILL_NON_INFRA_CONTAINERS -> removed %d labelled containers; reset connectors", n))
+  end
+  R.SET_SYSTEM_STATE          = oneshot_stub(log, "SET_SYSTEM_STATE",          "system_control")
+
+  -- Helper: start a container by instance-name, looking up its spec by
+  -- definition name in ctx.system_control_globals.build_specs. Idempotent:
+  -- if a container of that name is already running, skip.
+  local function start_container(inst_name, def_name)
+    local specs = ctx.system_control_globals.build_specs or {}
+    local spec  = specs[def_name]
+    if not spec then
+      log("system_control",
+          string.format("START %s: no spec for def %q", inst_name, def_name))
+      return
+    end
+    if docker.is_running(inst_name) then
+      log("system_control",
+          string.format("START %s: already running, skip", inst_name))
+      return
+    end
+    local ok, result = docker.run_from_spec(inst_name, spec)
+    if ok then
+      log("system_control",
+          string.format("START %s -> %s", inst_name, tostring(result):sub(1, 12)))
+    else
+      log("system_control",
+          string.format("START %s FAILED: %s", inst_name, tostring(result)))
+    end
+  end
+
+  local function stop_container(inst_name)
+    docker.stop(inst_name)
+    log("system_control", string.format("STOP %s", inst_name))
+  end
+
+  -- infra start (instance name == def name for our single-instance-per-def infra)
+  R.START_PG_CONTAINER        = function(_h, _n) start_container("postgres",  "postgres")  end
+  R.START_NATS_CONTAINER      = function(_h, _n) start_container("nats",      "nats")      end
+  R.START_MQTT_CONTAINER      = function(_h, _n) start_container("mosquitto", "mosquitto") end
+  R.START_KV_BRIDGE_CONTAINER = function(_h, _n) start_container("kv_bridge", "kv_bridge") end
+
+  -- infra stop
+  R.STOP_PG_CONTAINER         = function(_h, _n) stop_container("postgres")  end
+  R.STOP_NATS_CONTAINER       = function(_h, _n) stop_container("nats")      end
+  R.STOP_MQTT_CONTAINER       = function(_h, _n) stop_container("mosquitto") end
+  R.STOP_KV_BRIDGE_CONTAINER  = function(_h, _n) stop_container("kv_bridge") end
+
+  -- shared kv + heartbeat
+  R.CREATE_SHARED_KV_KEYS   = oneshot_stub(log, "CREATE_SHARED_KV_KEYS", "system_control")
+  R.PUBLISH_SYSTEM_HEARTBEAT = oneshot_stub(log, "PUBLISH_SYSTEM_HEARTBEAT", "system_control")
+
+  R.WRITE_SYSTEM_READY_TRUE  = function(_h, _n)
+    pg.system_ready_current = true
+    log("system_control", "system_ready = TRUE")
+  end
+  R.WRITE_SYSTEM_READY_FALSE = function(_h, _n)
+    pg.system_ready_current = false
+    log("system_control", "system_ready = FALSE")
+  end
+
+  R.COMMAND_NODE_CONTROL_TEARDOWN = function(_h, _n)
+    pg.node_control_teardown_request = true
+    log("system_control", "teardown_request = true")
+  end
+
+  -- KB activation / deactivation (wraps cfl_rt primitives)
+  R.ENABLE_NODE_CONTROL_KB = function(_h, _n)
+    log("system_control", string.format(
+      "ENABLE_NODE_CONTROL_KB -> cfl_rt.add_test(%d)",
+      ct.kb_indexes.node_control or -1))
+    cfl_rt.add_test(ct.handle, ct.kb_indexes.node_control)
+  end
+  R.DISABLE_NODE_CONTROL_KB = function(_h, _n)
+    log("system_control", "DISABLE_NODE_CONTROL_KB -> cfl_rt.delete_test")
+    cfl_rt.delete_test(ct.handle, ct.kb_indexes.node_control)
+  end
+
+  -- verifies
+  -- VERIFY_PG: single-attempt DBI connect. Chain-tree's asm_verify_timeout
+  -- drives retries across ticks; the 30s verify window is long enough for
+  -- pg to come up from cold start. On success populate ctx.connectors.pg
+  -- so later code can reuse the connection without reconnecting.
+  R.VERIFY_PG = function(_h, _n)
+    if ctx.connectors.pg then
+      -- already connected; consider healthy
+      return true
+    end
+    local password = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
+    local conn, err = pg_conn.try_connect(ctx.cfg, password)
+    if conn then
+      ctx.connectors.pg = conn
+      log("system_control",
+          string.format("VERIFY_PG -> connected (%s@%s:%s/%s)",
+                        ctx.cfg.pg_user, ctx.cfg.pg_host,
+                        ctx.cfg.pg_port, ctx.cfg.pg_db))
+      return true
+    else
+      log("system_control", "VERIFY_PG -> false: " .. tostring(err))
+      return false
+    end
+  end
+  -- Broker verifies: docker.is_running as a v1 health proxy. Sufficient
+  -- until Build 3+ wires real Lua clients (NATS/MQTT subscribers, HTTP
+  -- probe for kv_bridge) that exercise each broker's API. Container
+  -- up => broker accepting connections (--restart=always keeps them alive).
+  local function is_running_verify(name, half)
+    return function(_h, _n)
+      local ok = docker.is_running(name)
+      log(half, string.format("VERIFY %s running -> %s", name, tostring(ok)))
+      return ok
+    end
+  end
+  R.VERIFY_NATS              = is_running_verify("nats",      "system_control")
+  R.VERIFY_MQTT              = is_running_verify("mosquitto", "system_control")
+  R.VERIFY_KV_BRIDGE         = is_running_verify("kv_bridge", "system_control")
+  R.VERIFY_KV_BRIDGE_HEALTHY = is_running_verify("kv_bridge", "system_control")
+
+  -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH: heartbeat_ts must be within
+  -- heartbeat_fresh_s of now. node_control writes heartbeat_ts every
+  -- monitor iteration; if stale, sys_sm trips ERR_MONITOR_TRIP.
+  local heartbeat_fresh_s = (ctx.settings and ctx.settings.heartbeat_fresh_s) or 5
+  R.VERIFY_NODE_CTRL_HEARTBEAT_FRESH = function(_h, _n)
+    local ts  = pg.node_control_heartbeat_ts or 0
+    local age = os.time() - ts
+    local ok  = (ts > 0) and (age <= heartbeat_fresh_s)
+    log("system_control", string.format(
+        "VERIFY_NODE_CTRL_HEARTBEAT_FRESH -> %s (age=%ds, max=%ds)",
+        tostring(ok), age, heartbeat_fresh_s))
+    return ok
+  end
+
+  R.VERIFY_NODE_CTRL_OPERATIONAL = function(_h, _n)
+    local ok = pg.node_control_operational == true
+    log("system_control", "VERIFY_NODE_CTRL_OPERATIONAL -> " .. tostring(ok))
+    return ok
+  end
+  R.VERIFY_NODE_CTRL_STOPPED = function(_h, _n)
+    local ok = pg.node_control_stopped == true
+    log("system_control", "VERIFY_NODE_CTRL_STOPPED -> " .. tostring(ok))
+    return ok
+  end
+
+  -- Terminate the chain-tree VM cleanly. asm_verify registers error
+  -- handlers as one-shots (can't return codes), so we pump a
+  -- CFL_TERMINATE_SYSTEM_EVENT onto the event queue. cfl_runtime.run()
+  -- pops it and returns; M.run_loop sees no active tests and exits
+  -- with a non-zero code so the watchdog restarts us.
+  local function request_terminate(handle, half, reason)
+    log(half, "TERMINATE: " .. reason .. " -- stopping containers + closing connectors")
+    -- cleanup: stop every labelled container (infra + any apps)
+    pcall(function() docker.stop_labelled() end)
+    -- drop connector handles (pointing at containers we just killed)
+    if ctx.connectors.pg then
+      pcall(function() ctx.connectors.pg:close() end)
+      ctx.connectors.pg = nil
+    end
+    ctx.connectors.nats = nil
+    ctx.connectors.mqtt = nil
+    -- record why we're terminating so run_loop can log a final reason
+    ctx.terminate_reason = reason
+    -- pump the event (high priority=0, node_id=0, type=NULL, id=TERMINATE_SYSTEM)
+    eq_mod.send_null(handle.event_queue, 0, 0, defs.CFL_TERMINATE_SYSTEM_EVENT)
+  end
+
+  -- error handlers.
+  -- Hard-terminate errors (infra + setup failures): clean up, pump terminate,
+  -- let watchdog restart us from scratch.
+  R.ERR_INFRA_FAIL = function(handle, _n)
+    request_terminate(handle, "system_control", "ERR_INFRA_FAIL")
+  end
+  R.ERR_NODE_CTRL_START_FAIL = function(handle, _n)
+    request_terminate(handle, "system_control", "ERR_NODE_CTRL_START_FAIL")
+  end
+  R.ERR_CONTAINERS_START_FAIL = function(handle, _n)
+    request_terminate(handle, "node_control", "ERR_CONTAINERS_START_FAIL")
+  end
+
+  -- Monitor-phase trips: currently also hard-terminate. Build 2c / Build 3
+  -- may promote some of these to change_state(teardown) for graceful recycle.
+  R.ERR_MONITOR_TRIP = function(handle, _n)
+    request_terminate(handle, "system_control", "ERR_MONITOR_TRIP")
+  end
+  R.ERR_CONTAINER_DIED = function(handle, _n)
+    request_terminate(handle, "node_control", "ERR_CONTAINER_DIED")
+  end
+  R.ERR_TEARDOWN_REQUESTED = function(handle, _n)
+    request_terminate(handle, "node_control", "ERR_TEARDOWN_REQUESTED")
+  end
+
+  -- ERR_TEARDOWN_FORCE fires when a graceful teardown verify timed out;
+  -- the chain-tree continues past it to force-kill oneshots. Log, don't terminate.
+  R.ERR_TEARDOWN_FORCE = oneshot_stub(log,
+    "ERR_TEARDOWN_FORCE (graceful teardown timed out; proceeding to force kill)",
+    "system_control")
+
+  ----------------------------------------------------------------------
+  -- node_control half
+  ----------------------------------------------------------------------
+
+  R.NODE_READ_OWN_CONFIG           = oneshot_stub(log, "NODE_READ_OWN_CONFIG",           "node_control")
+  R.START_ASSIGNED_CONTAINERS      = oneshot_stub(log, "START_ASSIGNED_CONTAINERS (v1: none)", "node_control")
+  R.STOP_ASSIGNED_CONTAINERS       = oneshot_stub(log, "STOP_ASSIGNED_CONTAINERS (v1: none)",  "node_control")
+  R.LOG_SYSTEM_READY_TRANSITIONS   = oneshot_stub(log, "LOG_SYSTEM_READY_TRANSITIONS",         "node_control")
+
+  R.WRITE_PROCESS_GLOBALS_NODE_OPERATIONAL_TRUE = function(_h, _n)
+    pg.node_control_operational = true
+    log("node_control", "node_control_operational = TRUE")
+  end
+  R.WRITE_PROCESS_GLOBALS_NODE_HEARTBEAT = function(_h, _n)
+    pg.node_control_heartbeat_ts = os.time()
+    log("node_control", "heartbeat_ts = " .. tostring(pg.node_control_heartbeat_ts))
+  end
+  R.WRITE_PROCESS_GLOBALS_NODE_STOPPED_TRUE = function(_h, _n)
+    pg.node_control_stopped = true
+    log("node_control", "node_control_stopped = TRUE")
+  end
+
+  R.NODE_VERIFY_BROKERS_REACHABLE          = verify_stub(log, "NODE_VERIFY_BROKERS_REACHABLE",          "node_control")
+  R.VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY = verify_stub(log, "VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY", "node_control")
+  R.VERIFY_ALL_ASSIGNED_CONTAINERS_STOPPED = verify_stub(log, "VERIFY_ALL_ASSIGNED_CONTAINERS_STOPPED", "node_control")
+
+  R.VERIFY_NO_TEARDOWN_REQUEST = function(_h, _n)
+    local ok = not pg.node_control_teardown_request
+    log("node_control", "VERIFY_NO_TEARDOWN_REQUEST -> " .. tostring(ok))
+    return ok
+  end
+
+  R.ERR_CONTAINERS_START_FAIL = oneshot_stub(log, "ERR_CONTAINERS_START_FAIL (would terminate_system)",   "node_control")
+  R.ERR_CONTAINER_DIED        = oneshot_stub(log, "ERR_CONTAINER_DIED (would change_state teardown)",     "node_control")
+  R.ERR_TEARDOWN_REQUESTED    = oneshot_stub(log, "ERR_TEARDOWN_REQUESTED (would change_state teardown)", "node_control")
+
+  return R
+end
+
+return M
