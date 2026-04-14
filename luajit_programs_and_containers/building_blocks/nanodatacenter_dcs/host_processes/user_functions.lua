@@ -64,38 +64,28 @@ function M.build(ctx)
   R.READ_ENVIRONS             = oneshot_stub(log, "READ_ENVIRONS",             "system_control")
   R.READ_BOOTSTRAP_CONFIG     = oneshot_stub(log, "READ_BOOTSTRAP_CONFIG",     "system_control")
   R.KILL_NON_INFRA_CONTAINERS = function(_h, _n)
-    -- Clean slate: remove every container labelled nanodatacenter=true.
-    -- Containers not carrying our label (e.g., operator-managed or third-party
-    -- workloads on the same host) are untouched.
-    local n = docker.stop_labelled()
-    -- Any connections we were holding are now to destroyed containers; drop
-    -- them so the next VERIFY_* reopens against the freshly-started infra.
-    if ctx.connectors.pg   then pcall(function() ctx.connectors.pg:close() end) end
+    -- v2c: infra is pre-placed by laptop scripts (not labelled by DCS);
+    -- apps don't exist yet. So this is currently a no-op except for
+    -- closing any stale connection handles before re-verify reopens them.
+    if ctx.connectors.pg then pcall(function() ctx.connectors.pg:close() end) end
     ctx.connectors.pg   = nil
     ctx.connectors.nats = nil
     ctx.connectors.mqtt = nil
-    log("system_control",
-        string.format("KILL_NON_INFRA_CONTAINERS -> removed %d labelled containers; reset connectors", n))
+    log("system_control", "KILL_NON_INFRA_CONTAINERS -> reset connectors (no-op for infra; apps not yet present)")
   end
   R.SET_SYSTEM_STATE          = oneshot_stub(log, "SET_SYSTEM_STATE",          "system_control")
 
-  -- Helper: start a container by instance-name, looking up its spec by
-  -- definition name in ctx.system_control_globals.build_specs. Idempotent:
-  -- if a container of that name is already running, skip.
-  local function start_container(inst_name, def_name)
-    local specs = ctx.system_control_globals.build_specs or {}
-    local spec  = specs[def_name]
-    if not spec then
-      log("system_control",
-          string.format("START %s: no spec for def %q", inst_name, def_name))
-      return
-    end
+  -- Helper: start a pre-existing container by name. DCS does NOT create
+  -- infra containers; the laptop install scripts created them. We just
+  -- toggle their state via docker start / docker stop. Idempotent: if
+  -- already running, docker start is a no-op.
+  local function start_container(inst_name, _def_name)
     if docker.is_running(inst_name) then
       log("system_control",
-          string.format("START %s: already running, skip", inst_name))
+          string.format("START %s: already running", inst_name))
       return
     end
-    local ok, result = docker.run_from_spec(inst_name, spec)
+    local ok, result = docker.start_existing(inst_name)
     if ok then
       log("system_control",
           string.format("START %s -> %s", inst_name, tostring(result):sub(1, 12)))
@@ -106,21 +96,27 @@ function M.build(ctx)
   end
 
   local function stop_container(inst_name)
-    docker.stop(inst_name)
-    log("system_control", string.format("STOP %s", inst_name))
+    local ok, err = docker.stop_only(inst_name)
+    if ok then
+      log("system_control", string.format("STOP %s", inst_name))
+    else
+      log("system_control",
+          string.format("STOP %s FAILED: %s", inst_name, tostring(err)))
+    end
   end
 
-  -- infra start (instance name == def name for our single-instance-per-def infra)
-  R.START_PG_CONTAINER        = function(_h, _n) start_container("postgres",  "postgres")  end
-  R.START_NATS_CONTAINER      = function(_h, _n) start_container("nats",      "nats")      end
-  R.START_MQTT_CONTAINER      = function(_h, _n) start_container("mosquitto", "mosquitto") end
-  R.START_KV_BRIDGE_CONTAINER = function(_h, _n) start_container("kv_bridge", "kv_bridge") end
+  -- infra start (proven container names per third_party_containers/ scripts).
+  -- DCS calls docker start; never docker run/create.
+  R.START_PG_CONTAINER        = function(_h, _n) start_container("pg-vector",             "postgres")  end
+  R.START_NATS_CONTAINER      = function(_h, _n) start_container("nats-js-ram",           "nats")      end
+  R.START_MQTT_CONTAINER      = function(_h, _n) start_container("mosquitto-ram-ws_main", "mosquitto") end
+  R.START_KV_BRIDGE_CONTAINER = function(_h, _n) start_container("kv-bridge",             "kv_bridge") end
 
-  -- infra stop
-  R.STOP_PG_CONTAINER         = function(_h, _n) stop_container("postgres")  end
-  R.STOP_NATS_CONTAINER       = function(_h, _n) stop_container("nats")      end
-  R.STOP_MQTT_CONTAINER       = function(_h, _n) stop_container("mosquitto") end
-  R.STOP_KV_BRIDGE_CONTAINER  = function(_h, _n) stop_container("kv_bridge") end
+  -- infra stop (docker stop only; container persists for next start).
+  R.STOP_PG_CONTAINER         = function(_h, _n) stop_container("pg-vector")             end
+  R.STOP_NATS_CONTAINER       = function(_h, _n) stop_container("nats-js-ram")           end
+  R.STOP_MQTT_CONTAINER       = function(_h, _n) stop_container("mosquitto-ram-ws_main") end
+  R.STOP_KV_BRIDGE_CONTAINER  = function(_h, _n) stop_container("kv-bridge")             end
 
   -- shared kv + heartbeat
   R.CREATE_SHARED_KV_KEYS   = oneshot_stub(log, "CREATE_SHARED_KV_KEYS", "system_control")
@@ -271,10 +267,10 @@ function M.build(ctx)
       return ok
     end
   end
-  R.VERIFY_NATS              = is_running_verify("nats",      "system_control")
-  R.VERIFY_MQTT              = is_running_verify("mosquitto", "system_control")
-  R.VERIFY_KV_BRIDGE         = is_running_verify("kv_bridge", "system_control")
-  R.VERIFY_KV_BRIDGE_HEALTHY = is_running_verify("kv_bridge", "system_control")
+  R.VERIFY_NATS              = is_running_verify("nats-js-ram",           "system_control")
+  R.VERIFY_MQTT              = is_running_verify("mosquitto-ram-ws_main", "system_control")
+  R.VERIFY_KV_BRIDGE         = is_running_verify("kv-bridge",             "system_control")
+  R.VERIFY_KV_BRIDGE_HEALTHY = is_running_verify("kv-bridge",             "system_control")
 
   -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH: heartbeat_ts must be within
   -- heartbeat_fresh_s of now. node_control writes heartbeat_ts every

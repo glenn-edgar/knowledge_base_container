@@ -36,11 +36,13 @@ return {
       bit_index  = 0,    -- which bit in site-level ready_bits this CPU owns
       properties = { hostname = "localhost", role = "master" },
       instances = {
-        -- infrastructure (pre-built, not rebuilt by provisioning)
-        { name = "postgres",  def = "postgres" },
-        { name = "nats",      def = "nats" },
-        { name = "mosquitto", def = "mosquitto" },
-        { name = "kv_bridge", def = "kv_bridge" },
+        -- infrastructure (pre-placed by laptop install scripts; DCS only
+        -- starts/stops, never creates or removes). Names match the
+        -- proven scripts under ~/knowledge_base_assembly/third_party_containers/.
+        { name = "pg-vector",             def = "postgres" },
+        { name = "nats-js-ram",           def = "nats" },
+        { name = "mosquitto-ram-ws_main", def = "mosquitto" },
+        { name = "kv-bridge",             def = "kv_bridge" },
 
         -- NOTE: system_control + node_control are NOT containers. They run
         -- as a single DCS host process (host_processes/dcs.lua) managed by

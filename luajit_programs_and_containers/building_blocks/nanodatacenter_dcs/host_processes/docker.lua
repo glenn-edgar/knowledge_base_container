@@ -164,12 +164,41 @@ function M.run_from_spec(name, spec, extra_env)
 end
 
 ---------------------------------------------------------------------------
--- docker stop <name> (SIGTERM + grace; rm -f after)
+-- docker stop <name> (SIGTERM + grace; rm -f after).
+-- Used for app containers DCS itself created via run_from_spec.
 ---------------------------------------------------------------------------
 
 function M.stop(name)
   capture("docker stop " .. shell_escape(name))
   capture("docker rm -f " .. shell_escape(name))
+end
+
+---------------------------------------------------------------------------
+-- docker start <name> for pre-existing (laptop-placed) containers.
+-- DCS does NOT create infra containers; it only starts/stops them.
+-- Returns (true, "") on success, (false, err) on failure (e.g. no
+-- container with that name exists).
+---------------------------------------------------------------------------
+
+function M.start_existing(name)
+  local out, ok = capture("docker start " .. shell_escape(name))
+  if not ok then
+    return false, "docker start failed: " .. tostring(out)
+  end
+  return true, out:gsub("%s+$", "")
+end
+
+---------------------------------------------------------------------------
+-- docker stop <name> WITHOUT rm. For pre-placed containers DCS supervises
+-- but doesn't own. The container stays around to be started again.
+---------------------------------------------------------------------------
+
+function M.stop_only(name)
+  local out, ok = capture("docker stop " .. shell_escape(name))
+  if not ok then
+    return false, "docker stop failed: " .. tostring(out)
+  end
+  return true, out:gsub("%s+$", "")
 end
 
 return M
