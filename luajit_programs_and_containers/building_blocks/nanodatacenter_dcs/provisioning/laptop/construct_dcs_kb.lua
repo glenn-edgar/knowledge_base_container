@@ -73,8 +73,25 @@ local function sanity_check()
   end
 
   local instance_owner = {}   -- inst_name -> cpu_id (for uniqueness check)
+  local bit_owner      = {}   -- bit_index -> cpu_id (for bit uniqueness)
+  local max_bit        = -1
 
   for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
+    -- bit_index required + range-checked + unique + tracked for contiguity
+    if type(cpu.bit_index) ~= "number" then
+      error(string.format("cpu %q missing bit_index (integer 0..63)", cpu_id))
+    end
+    if cpu.bit_index < 0 or cpu.bit_index > 63 then
+      error(string.format("cpu %q bit_index=%d out of range 0..63",
+                          cpu_id, cpu.bit_index))
+    end
+    if bit_owner[cpu.bit_index] then
+      error(string.format("bit_index=%d claimed by both %q and %q",
+                          cpu.bit_index, bit_owner[cpu.bit_index], cpu_id))
+    end
+    bit_owner[cpu.bit_index] = cpu_id
+    if cpu.bit_index > max_bit then max_bit = cpu.bit_index end
+
     for _, inst in ipairs(cpu.instances or {}) do
       -- 1. definition must resolve
       if not DEFINITIONS[inst.def] then
@@ -102,7 +119,16 @@ local function sanity_check()
     end
   end
 
-  print("sanity passes: ok")
+  -- bit indices contiguous 0..max_bit (no gaps)
+  for i = 0, max_bit do
+    if not bit_owner[i] then
+      error(string.format(
+        "bit_index gap: %d unused, but bit_indices go up to %d (%q)",
+        i, max_bit, bit_owner[max_bit]))
+    end
+  end
+
+  print(string.format("sanity passes: ok (cpu count = %d)", max_bit + 1))
 end
 
 sanity_check()
@@ -151,9 +177,39 @@ end
 kb:add_header_node("site", SITE, { site_type = "dcs" }, {},
                    "DCS site root")
 
+  -- Site-level state (Build 2c data model):
+  --   system_ready: pg-only flag derived by master from ready_bits;
+  --                 apps poll this status field.
+  --   unmonitor_lease_default_s: site-wide default lease length when
+  --                              UI toggles a container offline.
+  kb:add_status_field("system_ready", {},
+                      "site-wide ready gate (1 = all CPUs synced+operational)",
+                      { value = 0 })
+  kb:add_status_field("unmonitor_lease_default_s", {},
+                      "default unmonitor lease length in seconds (operator policy)",
+                      { value = 900 })
+
+  -- Compute total CPU count once — used for ready_bits size +
+  -- bootstrap.config.expected_cpu_count.
+  local CPU_COUNT = 0
+  for _, _ in pairs(TOPOLOGY.cpus) do CPU_COUNT = CPU_COUNT + 1 end
+
+  -- Site-level ready_bits bit_mask: each CPU sets its bit_index when
+  -- synced+operational; master compares whole mask to (1 << N) - 1.
+  kb:clear_bit_mask_flags()
+  for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
+    kb:add_bit_mask_flag("CPU_" .. cpu_id .. "_READY",
+                         cpu.bit_index,
+                         "CPU " .. cpu_id .. " synced+operational")
+  end
+  kb:create_bit_mask_entry("system", "ready_bits",
+                           CPU_COUNT, 0,
+                           "site-wide CPU readiness mask")
+
 for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
   local cpu_props = cpu.properties or {}
   cpu_props.is_master = (cpu_id == MASTER_CPU) and 1 or 0
+  cpu_props.bit_index = cpu.bit_index
 
   kb:add_header_node("cpu", cpu_id, cpu_props, {},
                      "CPU " .. cpu_id)
@@ -164,18 +220,30 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
     kb:add_info_node("bootstrap", "config",
                      { kind = "bootstrap" },
                      {
-                       site      = SITE,
-                       cpu_id    = cpu_id,
-                       is_master = (cpu_id == MASTER_CPU) and 1 or 0,
-                       kb_root   = string.format("system.site.%s.cpu.%s",
-                                                 SITE, cpu_id),
-                       pg_host   = PG.host,
-                       pg_port   = PG.port,
-                       pg_db     = PG.dbname,
-                       pg_user   = PG.user,
+                       site               = SITE,
+                       cpu_id             = cpu_id,
+                       is_master          = (cpu_id == MASTER_CPU) and 1 or 0,
+                       kb_root            = string.format("system.site.%s.cpu.%s",
+                                                          SITE, cpu_id),
+                       pg_host            = PG.host,
+                       pg_port            = PG.port,
+                       pg_db              = PG.dbname,
+                       pg_user            = PG.user,
+                       -- Build 2c additions:
+                       bit_index          = cpu.bit_index,
+                       expected_cpu_count = CPU_COUNT,
                        -- pg_password from ~/.config/nanodatacenter/secrets.env
                      },
                      "Bootstrap config for host processes")
+
+    -- Per-CPU heartbeat: bit_mask_table row where the 64-bit bit_mask
+    -- column holds a Unix nanosecond timestamp (repurposed). Each CPU's
+    -- local agent writes its own; master reads to detect dead CPUs.
+    -- size=1 because we use the full 64-bit value as a timestamp, not bits.
+    kb:clear_bit_mask_flags()
+    kb:add_bit_mask_flag("LSB", 0, "raw timestamp byte (unused as flag)")
+    kb:create_bit_mask_entry("system", "heartbeat", 1, 0,
+                             "CPU " .. cpu_id .. " heartbeat (64-bit ns timestamp)")
 
   for _, inst in ipairs(cpu.instances or {}) do
     local def       = DEFINITIONS[inst.def]

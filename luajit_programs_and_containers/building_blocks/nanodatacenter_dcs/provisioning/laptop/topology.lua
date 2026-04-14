@@ -33,6 +33,7 @@ return {
   cpus = {
 
     cpu_01 = {
+      bit_index  = 0,    -- which bit in site-level ready_bits this CPU owns
       properties = { hostname = "localhost", role = "master" },
       instances = {
         -- infrastructure (pre-built, not rebuilt by provisioning)

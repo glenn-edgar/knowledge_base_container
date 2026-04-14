@@ -75,6 +75,14 @@ local function system_control(ct, kb_name)
                 ct:asm_verify("VERIFY_NODE_CTRL_OPERATIONAL", {}, false,
                               "ERR_NODE_CTRL_START_FAIL", {})
 
+                -- Build 2c: write our own ready_bit; then master aggregates
+                -- across all CPUs' bits before flipping system_ready.
+                ct:asm_one_shot_handler("SET_OWN_READY_BIT", {})
+                ct:asm_verify_timeout(30.0, true,
+                                      "ERR_NODE_CTRL_START_FAIL", {})
+                ct:asm_verify("VERIFY_ALL_CPUS_READY", {}, false,
+                              "ERR_NODE_CTRL_START_FAIL", {})
+
                 ct:asm_one_shot_handler("WRITE_SYSTEM_READY_TRUE", {})
 
                 ct:change_state(sys_sm, "monitor")
@@ -100,6 +108,7 @@ local function system_control(ct, kb_name)
 
             local teardown_st = ct:define_state("teardown", nil)
                 ct:asm_one_shot_handler("WRITE_SYSTEM_READY_FALSE", {})
+                ct:asm_one_shot_handler("CLEAR_OWN_READY_BIT", {})
                 ct:asm_wait_time(5.0)
 
                 ct:asm_one_shot_handler("COMMAND_NODE_CONTROL_TEARDOWN", {})

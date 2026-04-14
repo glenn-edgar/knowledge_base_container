@@ -37,12 +37,14 @@ end
 ---------------------------------------------------------------------------
 
 function M.build(ctx)
-  local log     = ctx.log
-  local cfl_rt  = ctx.cfl_rt
-  local docker  = ctx.docker
-  local pg_conn = ctx.pg_connector
-  local ct      = ctx.chain_tree
-  local pg      = ctx.process_globals
+  local log      = ctx.log
+  local cfl_rt   = ctx.cfl_rt
+  local docker   = ctx.docker
+  local pg_conn  = ctx.pg_connector
+  local bm       = ctx.bit_mask_helpers
+  local kb_stat  = ctx.kb_status
+  local ct       = ctx.chain_tree
+  local pg       = ctx.process_globals
 
   local R = {}
 
@@ -122,14 +124,98 @@ function M.build(ctx)
 
   -- shared kv + heartbeat
   R.CREATE_SHARED_KV_KEYS   = oneshot_stub(log, "CREATE_SHARED_KV_KEYS", "system_control")
-  R.PUBLISH_SYSTEM_HEARTBEAT = oneshot_stub(log, "PUBLISH_SYSTEM_HEARTBEAT", "system_control")
+
+  -- PUBLISH_SYSTEM_HEARTBEAT: write 64-bit ns timestamp to this CPU's
+  -- bit_mask_table heartbeat row. Master reads all CPUs' heartbeats to
+  -- detect dead CPUs (stale ts).
+  R.PUBLISH_SYSTEM_HEARTBEAT = function(_h, _n)
+    if not ctx.connectors.pg then
+      log("system_control", "PUBLISH_SYSTEM_HEARTBEAT skipped (no pg conn)")
+      return
+    end
+    local ts = bm.now_ns()
+    local ok, err = bm.write_heartbeat_ts(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id, ts)
+    if ok then
+      log("system_control",
+          string.format("heartbeat_ts -> %d", ts))
+    else
+      log("system_control", "heartbeat write FAILED: " .. tostring(err))
+    end
+  end
+
+  -- SET/CLEAR own ready bit. Each CPU owns one bit_index in the
+  -- site-level ready_bits mask. Set on entering monitor, clear on
+  -- teardown. Atomic OR / AND-NOT in pg avoids RMW races across CPUs.
+  R.SET_OWN_READY_BIT = function(_h, _n)
+    if not ctx.connectors.pg then
+      log("system_control", "SET_OWN_READY_BIT skipped (no pg conn)")
+      return
+    end
+    local ok, err = bm.set_ready_bit(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.bit_index)
+    log("system_control",
+        ok and string.format("ready_bit %d SET", ctx.cfg.bit_index)
+           or  "ready_bit set FAILED: " .. tostring(err))
+  end
+  R.CLEAR_OWN_READY_BIT = function(_h, _n)
+    if not ctx.connectors.pg then return end
+    local ok, err = bm.clear_ready_bit(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.bit_index)
+    log("system_control",
+        ok and string.format("ready_bit %d CLEARED", ctx.cfg.bit_index)
+           or  "ready_bit clear FAILED: " .. tostring(err))
+  end
+
+  -- VERIFY_ALL_CPUS_READY: master-side aggregator. Reads ready_bits;
+  -- compares to expected (1 << N) - 1. Returns true when all CPUs have
+  -- their bit set. Until then, master's setup state holds.
+  R.VERIFY_ALL_CPUS_READY = function(_h, _n)
+    if not ctx.connectors.pg then return false end
+    local actual, err = bm.read_ready_bits(ctx.connectors.pg, ctx.cfg.site)
+    if not actual then
+      log("system_control", "VERIFY_ALL_CPUS_READY -> false (read err: " .. tostring(err) .. ")")
+      return false
+    end
+    local expected = bm.expected_full_mask(ctx.cfg.expected_cpu_count)
+    local ok = (actual == expected)
+    log("system_control",
+        string.format("VERIFY_ALL_CPUS_READY -> %s (actual=0x%x expected=0x%x)",
+                      tostring(ok), actual, expected))
+    return ok
+  end
+
+  -- system_ready status field (pg). Apps poll this; UI consumes.
+  -- Also caches in process_globals for in-VM consumers.
+  local SYSTEM_READY_PATH = nil   -- lazy-computed below
+  local function _system_ready_path()
+    if not SYSTEM_READY_PATH then
+      SYSTEM_READY_PATH =
+        "system.site." .. ctx.cfg.site .. ".KB_STATUS_FIELD.system_ready"
+    end
+    return SYSTEM_READY_PATH
+  end
 
   R.WRITE_SYSTEM_READY_TRUE  = function(_h, _n)
     pg.system_ready_current = true
+    if ctx.connectors.pg then
+      local ok, err = kb_stat.set_status_data(
+        ctx.connectors.pg, _system_ready_path(), { value = 1 })
+      if not ok then
+        log("system_control", "system_ready pg write FAILED: " .. tostring(err))
+      end
+    end
     log("system_control", "system_ready = TRUE")
   end
   R.WRITE_SYSTEM_READY_FALSE = function(_h, _n)
     pg.system_ready_current = false
+    if ctx.connectors.pg then
+      local ok, err = kb_stat.set_status_data(
+        ctx.connectors.pg, _system_ready_path(), { value = 0 })
+      if not ok then
+        log("system_control", "system_ready pg write FAILED: " .. tostring(err))
+      end
+    end
     log("system_control", "system_ready = FALSE")
   end
 
