@@ -267,6 +267,33 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
     _emit(AE.local_system_monitor)
     _emit(AE.node_control)
 
+    -- ---- node_monitor sampler namespace -----------------------------
+    -- Owned by the node_monitor KB; the chain-tree pushes one stream
+    -- row per sample (kind = host/process/container/trend_snapshot)
+    -- as JSONB. trend_state holds the last-computed slopes; sampler
+    -- updates it from COMPUTE_TRENDS.
+    --
+    -- 1440 samples = 24h at 60s cadence × N sample kinds. Sized for
+    -- ~1 day of raw history; a downsampler can roll older data later.
+    kb:add_header_node("monitor", "samples",
+                       { kind = "monitor" }, {},
+                       "Resource monitor namespace for CPU " .. cpu_id)
+      kb:add_stream_field("samples", 1440,
+                          "resource sample ring (host/process/container/trend)")
+      kb:add_jsonb_field("trend_state", "trend",
+                         "last-computed slopes per metric",
+                         {})
+      kb:add_status_field("sampler_pid", {},
+                          "host process pid running the sampler",
+                          { value = 0 })
+      kb:add_status_field("last_sample_ts", {},
+                          "wall-clock seconds of last successful sample",
+                          { value = 0 })
+      kb:add_status_field("samples_dropped", {},
+                          "count of failed sample-write attempts",
+                          { value = 0 })
+    kb:leave_header_node("monitor", "samples")
+
   for _, inst in ipairs(cpu.instances or {}) do
     local def       = DEFINITIONS[inst.def]
     local managed   = (def.kind == "infrastructure") and "manual"

@@ -1,5 +1,402 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## Session 8 (2026-04-14) — resource monitor (node_monitor KB)
+
+Third KB added: `node_monitor`. Runs in the same LuaJIT process, owned
+by node_control (activated in its setup_st after apps healthy,
+deactivated last in its teardown_st so the sampler covers teardown).
+Samples host + dcs.lua process + containers + disk + network at 60s;
+computes windowed regression slopes every 5 min for leak detection;
+writes one JSONB row per sample into a 1440-slot stream ring on
+master pg, addressable by ltree path.
+
+### What got built
+
+**Host-side readers (`host_processes/host_sampler.lua`, new):**
+- pure-Lua `/proc` / `/sys` readers — loadavg, meminfo, /proc/stat
+  aggregate with delta helper, /proc/<pid>/status+stat+io for the
+  DCS process itself.
+- /proc/diskstats (real-device filtered) and `df --output=` for free
+  space per mount.
+- /proc/net/dev rx/tx with lo/docker/veth/br filtered.
+- /sys/class/thermal max reading.
+- cgroup path discovery via `docker inspect --format State.Pid` +
+  /proc/<pid>/cgroup (handles v1 and v2 layouts).
+- cgroup sample: memory.current / cpu.stat / io.stat with v1 fallback
+  (memory.usage_in_bytes, cpuacct.usage).
+- Welford update + variance, `linreg_slope(points)` for trend.
+
+**Stream write helper (`host_processes/kb_stream.lua`, new):**
+- `push(conn, path, data)` — UPDATE oldest row by recorded_at with
+  jsonb + NOW() + valid=TRUE. Standard circular buffer.
+- `read_recent(conn, path, limit)` — newest-first reads for trend
+  computation.
+- Direct DBI; no KB_Search dependency.
+
+**Schema (`provisioning/laptop/construct_dcs_kb.lua`):**
+- New per-CPU `monitor.samples` header_node under
+  `system.site.<S>.cpu.<id>`.
+- `samples` stream field (1440 rows = 24h at 60s).
+- `trend_state` jsonb.
+- `sampler_pid`, `last_sample_ts`, `samples_dropped` status fields.
+
+**DSL (`chain_tree/dcs_dsl.lua`):**
+- Third KB `node_monitor`. State machine mon_sm with
+  `{sync, monitor}`.
+- sync runs MONITOR_DISCOVER_CGROUPS + MONITOR_INIT_STATE, transitions
+  to monitor.
+- monitor has four parallel reset-loop columns (oneshot → wait_time →
+  asm_reset): host_col 60s, proc_col 60s, cont_col 60s, trend_col
+  300s.
+- Activation wired in node_control's setup_st
+  (ENABLE_NODE_MONITOR_KB after apps healthy); deactivation as last
+  step of node_control's teardown_st.
+
+**User functions (`host_processes/user_functions.lua`):**
+- `ctx.monitor_state` holds boot_epoch, pid, cgroup cache, previous
+  snapshots (cpu_stat, proc_stat, diskstats, net_dev, per-container
+  cgroup), welford, sample_seq, samples_dropped.
+- MONITOR_DISCOVER_CGROUPS, MONITOR_INIT_STATE.
+- SAMPLE_HOST (cpu/mem/load/temp + disk_free + disk_io_delta +
+  net_delta), SAMPLE_SYSTEM_CONTROL_PROCESS, SAMPLE_CONTAINERS.
+- COMPUTE_TRENDS pulls the last 360 host samples, segments by current
+  pid, fits least-squares slope for mem_available_kb, mem_dirty_kb,
+  swap_used_kb, cpu_pct.
+- `_emit_sample(kind, payload)` writes through kb_stream.push; on pg
+  disconnect bumps samples_dropped silently.
+- ENABLE/DISABLE_NODE_MONITOR_KB (cfl_rt.add_test / delete_test).
+
+### Two gotchas worth remembering
+
+**KB_STREAM_FIELD in the ltree path.** The construct_kb library
+inserts the satellite label between parent and field name:
+`parent.KB_STREAM_FIELD.<name>`, not `parent.<name>`. Path to push
+to is `system.site.<S>.cpu.<id>.monitor.samples.KB_STREAM_FIELD.samples`.
+Same pattern for KB_STATUS_FIELD, KB_JSONB_FIELD, KB_BIT_MASK. This
+bit cost a debugging round on this session.
+
+**Container sampling on Docker Desktop + WSL2 doesn't work.** Container
+pids live in Docker Desktop's own kernel VM; /proc/<pid>/cgroup on
+the WSL distro returns ENOENT. Sampler detects zero resolutions,
+sets `mon.container_sampling_disabled`, logs once, SAMPLE_CONTAINERS
+early-returns. Code is correct for real Linux (Pi, bare metal,
+native docker); no change needed when deploying there. If container
+metrics are ever needed in Docker Desktop dev, fall back to the
+docker HTTP API (`/containers/<name>/stats?stream=false`), split
+across ticks because it's ~200–500ms each — not implemented.
+
+### Verified end-to-end
+
+1. Built IR (`chain_tree/build_dsl.sh`).
+2. Ran `provisioning/laptop/build_kb.sh` to add schema rows.
+3. Started DCS. Saw state transitions: sync → setup → monitor, then
+   mon_sm: sync → monitor, and sample rows appearing in pg under
+   the new path. 20 rows filled after ~10 minutes, all 1440 slots
+   pre-allocated, sample_seq monotonic per pid.
+
+### Open items
+
+- **Container metrics via docker API** (option 2 from the gotcha
+  discussion) for dev-environment feature parity — not scheduled.
+- **Sampler self-metrics writes** — `sampler_pid`, `last_sample_ts`,
+  `samples_dropped` status rows are in the schema but the sampler
+  doesn't write them yet. Add once per N samples.
+- **NATS publish alongside each pg push** — live-graph channel for
+  the future OpenResty UI. Needs a thin NATS client in host_processes.
+- **Threshold/alarm path** — sample → check ctx.settings.thresholds →
+  write SYS_EXCEPTION row. Nothing trips on memory pressure or
+  temperature spike today.
+- **Master-side downsampler** — roll samples > 7d into hourly
+  aggregates, trim the raw stream. Not needed yet; revisit when
+  history is actually 7+ days deep.
+
+### Next session — application container development
+
+Move on from infrastructure. node_control's sync/setup currently
+runs stub one-shots (`START_ASSIGNED_CONTAINERS`,
+`VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY`, etc.). The real work:
+
+1. **Assignments data model.** Where does the "list of app containers
+   this CPU should run" live? Schema already has per-node_control
+   `assignments` jsonb (`node_assignments` label). Define the row
+   shape: list of { name, definition, params, restart_policy }.
+2. **START_ASSIGNED_CONTAINERS.** Iterate assignments; for each, run
+   `docker.run_from_spec(name, spec, extra_env)` (already exists;
+   used by sys_sm for infra). Build spec from
+   `container_definition.<def>.build.spec` pulled from master pg at
+   node_control boot (the DEFINITIONS table is already loaded by
+   dcs.lua from bootstrap.db — need to read spec rows too).
+3. **VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY.** Real check:
+   docker.is_running per assignment. Optional: per-app health probe
+   (HTTP GET / RPC) if definition declares one.
+4. **Per-app state writes.** Each container has `health`,
+   `started_ts`, `restart_count`, `events` satellite fields declared
+   in the schema — wire writes during START / STOP transitions.
+5. **Failure policy.** If an app dies, ERR_CONTAINER_DIED fires
+   (already advances node_sm to teardown via change_state). Decide
+   whether to restart the app in-place or always teardown; the
+   latter is simpler and matches the no-retry principle from
+   session 1.
+6. **Sample app.** Needs a trivial "app container" definition to
+   test against — probably an echo container or a small nats
+   subscriber. topology.lua will grow an app instance. The
+   node_monitor will start sampling its cgroup once deployed to
+   real Linux.
+
+### Carry-forward context
+
+- The tick-structure discipline matters more once apps + sampler
+  + monitor all fire: keep individual user functions short
+  (microseconds of /proc reads, not seconds of docker CLI calls).
+  The expensive operation in the app path is `docker run` at
+  container start; that's one-shot in sync/setup, not per-tick.
+- Application container names need to be globally unique across
+  CPUs per the existing topology sanity pass. Same rule.
+- Every app is docker-run by DCS — DCS owns lifecycle. Infra
+  containers remain operator-owned (the distinction that caused the
+  `docker.stop_labelled` bug earlier).
+- The architecture now has 3 KBs:
+  - system_control (master, infra lifecycle).
+  - node_control (per-CPU, apps lifecycle + supervision).
+  - node_monitor (per-CPU, resource telemetry).
+
+---
+
+## Session 7 (2026-04-14) — chain-tree state machine actually works
+
+End-of-Build-2c session. Started with the symptom "stop kv-bridge → DCS
+cycles all infra containers". Ended with a clean teardown sequence,
+single-shot exit on fault, and the watchdog restart loop working as
+designed. Four silent runtime bugs found and fixed along the way; saved
+to memory as `project_chaintree_runtime_fixes.md`.
+
+### What was actually broken (in order of discovery)
+
+1. **State machine `auto_start=true`** in `define_state_machine` set
+   `CFL_AUTO_START_BIT` on the SM node, which made `execute_node`
+   enable EVERY state child (sync + setup + monitor + teardown) on tick
+   1 — overriding `CFL_STATE_MACHINE_INIT`'s selective enable. The
+   `[chain_tree] tick=1 node=N: ... entering` log markers I added made
+   it visible: all four state entry-logs fired in burst 1. Fix at call
+   site: `auto_start=false` for state machines (SM_INIT handles
+   selective enable).
+
+2. **Periodic one-shot illusion.** Monitor's `WRITE_PROCESS_GLOBALS_NODE_HEARTBEAT`
+   sat in a column with verifies + wait_time. A one-shot's init runs
+   exactly once per initialization — the heartbeat fired at burst 1 and
+   never again. Sys's `VERIFY_NODE_CTRL_HEARTBEAT_FRESH` correctly
+   tripped after `heartbeat_fresh_s` seconds. Restructured monitor as
+   parallel columns: a separate `hb_col` runs `oneshot → wait_time →
+   asm_reset` (CFL_RESET tears down + re-enables, so the oneshot
+   re-inits and re-fires every cycle).
+
+3. **Error handlers silently no-op.** The DSL writes verify
+   `error_function = "ERR_MONITOR_TRIP"` (string) into the leaf's
+   `node_dict`. The runtime loader was building its function index ONLY
+   from `label_dict.initialization_function_name` /
+   `termination_function_name`, never scanning the `complete_functions_kb`
+   registry the DSL also emits. `resolve_oneshot_idx` returned 0 (CFL_NULL)
+   for every error name. Verifies tripped, fired no-op, and the chain-tree
+   limped on with verify_col dead. Fixed in two places: DSL emits a
+   top-level `function_registry = {main, one_shot, boolean}` in the JSON
+   envelope; runtime loader merges it into the name sets after the
+   per-node label scan.
+
+4. **`CFL_TERMINATE_SYSTEM_EVENT` didn't terminate.** `cfl_runtime.M.run`
+   popped the event and returned, but didn't clear `active_tests`. Host's
+   `any_active()` stayed true → infinite loop, never exited, watchdog
+   never restarted. Patched the runtime to drain all active tests on
+   that event. (Combined with also dropping `docker.stop_labelled` from
+   `request_terminate` — that was `docker rm -f` on operator-owned infra,
+   which is the original "stops everything" bug.)
+
+5. **Bonus.** `CFL_CHANGE_STATE` one-shot dispatcher in the runtime was
+   reading `nd.sm_node_name` / `nd.parent_node_name` (legacy ltree
+   strings); the DSL has been writing `nd.node_id` (numeric) for a
+   while. Plus `new_state` could be a string state name needing
+   resolution to integer index. Rewrote to read both, resolve names via
+   the SM node's `column_data.state_names`. Without this, no DSL
+   `change_state(...)` ever fired and state machines stayed in their
+   initial state forever (which we didn't notice because of bug 1
+   masking it).
+
+### Architecture changes that came out of this
+
+**SM state list now `{sync, setup, monitor, request_shutdown, teardown}`** —
+new `request_shutdown` state between monitor and teardown. Cooperative
+pause: posts shutdown request, waits for node_control to ack via
+`pg.node_control_stopped`, both pass and timeout converge on teardown.
+Implemented via `asm_wait("VERIFY_ALL_NODES_SHUTDOWN", timeout=30,
+error_fn=ERR_FORCE_TEARDOWN)`. Both branches end in
+`change_state(sys_sm, "teardown")`. Relies on chain-tree's salient
+property: all events generated within a tick drain before next
+TIMER_EVENT, so the change_state event from ERR_FORCE_TEARDOWN always
+wins over SM_MAIN seeing an orphaned active_child.
+
+**Monitor states are parallel-column patterns now.** Both sys and node
+monitor split into:
+- `hb_col` — periodic publisher (oneshot → wait_time → asm_reset).
+- `verify_col` — wait_time settle, then verifies, then asm_halt to pin
+  walker.
+This is the correct pattern for any "do X periodically while polling Y"
+shape in chain tree.
+
+**ERR_MONITOR_TRIP / ERR_CONTAINER_DIED / ERR_TEARDOWN_REQUESTED** now
+fire `change_state` to advance the SM, instead of process-terminating.
+Added `log_then_change_state` helper in user_functions that consults
+`handle.flash_handle.sm_by_name[sm_name]` (loader-built map populated
+in this session) and pumps `CFL_CHANGE_STATE_EVENT`. Sync/setup-state
+errors still process-terminate (system not yet operational).
+
+**Teardown ends in `asm_terminate_system`** for both sys_sm and
+node_sm. Used to be `change_state(sm, "sync")` which looped instead of
+exiting. The watchdog restart is the correct way to get back to a
+clean sync; the in-VM loop just stops infra repeatedly.
+
+**`docker.stop_labelled` removed from `request_terminate`.** Per the
+operator-owns-infra policy, DCS only does `docker stop` (and only on
+named containers). Never `docker rm -f` on the labelled set.
+
+### Files touched
+
+DSL (chain_tree project):
+- `chain_tree_luajit/lua_dsl/lua_support/chain_tree_yaml.lua` —
+  emits `function_registry` in envelope.
+
+Runtime (chain_tree project):
+- `chain_tree_luajit/runtime/cfl_json_loader.lua` — merges
+  `function_registry`; populates `flash.sm_by_name`.
+- `chain_tree_luajit/runtime/cfl_runtime.lua` — clears active_tests
+  on `CFL_TERMINATE_SYSTEM_EVENT`.
+- `chain_tree_luajit/runtime/cfl_builtins.lua` — `CFL_CHANGE_STATE`
+  rewritten to read `node_id` + resolve string state names; `CFL_VERIFY`
+  guards `error_function ~= 0`; `CFL_LOG_MESSAGE` writes stderr.
+- `chain_tree_luajit/runtime/cfl_state_machine.lua` — diagnostic traces
+  added then removed.
+
+DCS:
+- `chain_tree/dcs_dsl.lua` — split monitors, request_shutdown state,
+  asm_terminate_system in teardowns, log markers at state entries,
+  removed cooperative dance from teardown_st (redundant now).
+- `host_processes/dcs.lua` — `heartbeat_fresh_s = 10` (matches new 5s
+  publish cadence).
+- `host_processes/user_functions.lua` —
+  - new helpers: `log_then_change_state`, `POST_SHUTDOWN_REQUEST`,
+    `VERIFY_ALL_NODES_SHUTDOWN`, `VERIFY_SYSTEM_CONTAINERS_HEALTHY`,
+    `ERR_FORCE_TEARDOWN`.
+  - removed end-of-file stubs that were silently overwriting real
+    error handlers (oneshot_stub for ERR_CONTAINER_DIED etc.).
+  - `request_terminate` no longer calls `docker.stop_labelled`.
+  - log volume reduced: verifies log only on failure; happy-path writes
+    silent; state-entry chain-tree logs kept.
+
+### Where we are at end of session
+
+- Happy path runs forever: monitor publishes heartbeats every 5s,
+  verifies pass silently.
+- Fault injection works as expected: `docker stop kv-bridge` →
+  ERR_MONITOR_TRIP → request_shutdown → POST_SHUTDOWN_REQUEST →
+  node_control teardown → ack → sys teardown → STOPs → terminate_system
+  → exit 1 → watchdog restart → sync.
+- Logs are quiet under healthy operation. State transitions and
+  failures are visible.
+
+### Open items
+
+- ERR_TEARDOWN_FORCE in node teardown is still a stub. With the new
+  design (sys kills node KB outright in teardown_st), it may be
+  unreachable; review and either remove or wire to something useful.
+- LOG_SYSTEM_READY_TRANSITIONS: stub today, not in monitor anymore.
+  Implement when there's a real consumer for ready-flip history.
+- node_control's "stopped" ack still goes through `pg.node_control_stopped`
+  in-process global. For real multi-CPU, that needs to be a pg row /
+  bit_mask aggregated by sys.
+
+### Resource monitor design (decided this session, implementing next)
+
+User wants resource history for leak detection + drift. Decisions:
+
+**What to monitor:**
+- Whole-host: cpu (loadavg + per-cpu deltas from /proc/stat), memory
+  (MemAvailable, Slab, Dirty), disk free + IOPS (/proc/diskstats), net
+  rx/tx per iface (/proc/net/dev), CPU temperature (/sys/class/thermal).
+- system_control process specifically: /proc/<pid>/status (RSS, VmSize),
+  /proc/<pid>/stat (cpu jiffies), /proc/<pid>/io. (No cgroup — it's a
+  host process, not a container.)
+- Each app container: cgroup memory.current, cpu.stat (usage_usec),
+  io.stat (per-device bytes/iops). Map name→docker id once per setup.
+
+**Sample shape:** 60s tick, 24h ring (1440 samples). Two stats per metric:
+rolling mean (Welford "is this normal") + windowed slope (linear
+regression "is this drifting"). Slope window ~6h (360 samples) to cut
+through the limit-cycle noise (page cache reclaim, allocator return-to-OS,
+journald rotation). Variance growth is often an earlier leak signal than
+mean climb.
+
+**Why a separate KB.** Resource monitor lives in its own KB
+(`node_monitor`), activated by node_control's setup_st AFTER brokers,
+deactivated *last* in teardown so the sampler keeps producing data
+through the teardown sequence (postmortem coverage). Failure isolation:
+sampler verifies that trip should log + continue, never advance to a
+teardown. Ground rule: **monitor KBs are best-effort; supervision KBs
+are cooperative.**
+
+**KB structure:** `{sync, monitor}` only. sync discovers cgroup paths
+and allocates Welford state. monitor is parallel reset-loop columns,
+each with its own cadence:
+- `host_sample_col` — /proc reads → pg, 60s.
+- `process_sample_col` — system_control's pid stats → pg, 60s.
+- `container_sample_col` — cgroup reads per app container → pg, 60s.
+- `trend_compute_col` — recompute slopes from history → pg, 5 min
+  (cheaper than every sample).
+
+**Tick-budget discipline.** User flagged this: chain-tree functions
+mustn't pend too much or tick structure breaks. /proc and cgroup file
+reads are microseconds; that's fine. The expensive bit is the pg write
+(network + parse). Strategies if it gets too slow:
+- Group writes per column into a single transaction.
+- Use prepared statements on connect.
+- Split work across ticks (one container per tick if container count
+  ever grows).
+
+**Storage & namespace.** Sampler writes under
+`system.site.<S>.cpu.<id>.monitor.samples` (new sub-namespace owned by
+node_monitor — explicit ownership, doesn't pollute node_control's
+surface). Single stream field per CPU; each row is JSONB containing the
+whole sample (host metrics + process metrics + per-container metrics
+nested). Schema-light, OpenResty drills into JSON. Trend/Welford state
+goes in adjacent status/jsonb fields.
+
+**OpenResty access.** One Resty queries master pg directly. Per-CPU
+graphs: select from satellite stream rows where path matches.
+Site-wide: same, with LIKE pattern. Live updates: each sampler also
+publishes latest sample to NATS subject = ltree path; Resty proxies a
+WebSocket to kv-bridge, browser appends in real time. pg is for
+history only, never polled live.
+
+**Future:** master-side downsampler rolls samples > 7 days into hourly
+aggregates and trims raw stream. Don't write yet; leave room.
+
+### Next session — implement node_monitor
+
+1. construct_dcs_kb additions: per-CPU `monitor` header_node + stream
+   field `samples` + status fields (`sampler_pid`, `last_sample_ts`,
+   etc.) + jsonb (`welford_state`, `trend_state`).
+2. dcs_dsl.lua: third KB `node_monitor` with the structure above.
+3. user_functions.lua sampler primitives:
+   - `MONITOR_DISCOVER_CGROUPS` (one-shot, fires in sync).
+   - `SAMPLE_HOST` (one-shot, fires in host_sample_col).
+   - `SAMPLE_SYSTEM_CONTROL_PROCESS` (one-shot).
+   - `SAMPLE_CONTAINERS` (one-shot).
+   - `COMPUTE_TRENDS` (one-shot, periodic).
+4. Activation: node_control setup_st gains `ENABLE_NODE_MONITOR_KB`;
+   teardown_st gains `DISABLE_NODE_MONITOR_KB` last.
+5. Restart discontinuity: stamp every sample with pid + boot epoch
+   (chain-tree restart → new pid; samples segmented by pid for slope
+   continuity).
+
+---
+
 ## Session 2 (2026-04-12) — first DSL draft
 
 Second planning + first-draft-code session. Produced `dcs.lua` (single ChainTree DSL

@@ -93,7 +93,9 @@ function M.default_context()
       tick_interval_s     = 1.0,   -- outer-loop pacing
       cfl_delta_time      = 1.0,   -- chain-tree seconds per tick
       cfl_max_ticks       = 1,     -- chain-tree ticks per outer burst
-      heartbeat_fresh_s   = 5,     -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH window
+      heartbeat_fresh_s   = 10,    -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH window
+                                   -- (must exceed publish cadence; monitor
+                                   --  hb_col publishes every 5s)
     },
   }
 end

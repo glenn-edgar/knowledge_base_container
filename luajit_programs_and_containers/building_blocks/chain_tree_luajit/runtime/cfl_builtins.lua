@@ -123,7 +123,7 @@ M.CFL_VERIFY = function(handle, bool_fn_idx, node_idx, event_type, event_id, eve
     end
 
     local ns = common.get_node_state(handle, node_idx)
-    if ns and ns.error_function then
+    if ns and ns.error_function and ns.error_function ~= 0 then
         local err_fn = handle.flash_handle.one_shot_functions[ns.error_function]
         if err_fn then err_fn(handle, node_idx) end
         if ns.reset_flag then return CFL_RESET end
@@ -1571,16 +1571,40 @@ M.CFL_CHANGE_STATE = function(handle, node_idx)
     if not nd then return end
     local sm = require("cfl_state_machine")
 
-    local sm_ltree = nd.sm_node_name or nd.parent_node_name
-    local sm_node_id
-    if sm_ltree then
-        sm_node_id = handle.flash_handle.ltree_to_index[sm_ltree]
+    -- DSL writes numeric sm node id in nd.node_id; legacy paths used
+    -- nd.sm_node_name / nd.parent_node_name (ltree string) and we
+    -- resolve via ltree_to_index as a fallback.
+    local sm_node_id = nd.node_id
+    if not sm_node_id then
+        local sm_ltree = nd.sm_node_name or nd.parent_node_name
+        if sm_ltree then
+            sm_node_id = handle.flash_handle.ltree_to_index[sm_ltree]
+        end
     end
     if not sm_node_id then return end
 
-    local new_state = nd.new_state or 0
-    local sync_event_id = nd.sync_event_id
-    sm.change_state(handle, node_idx, sm_node_id, new_state, sync_event_id)
+    -- new_state may be a string (DSL) or integer index; state machine
+    -- main expects integer index into child link table.
+    local new_state = nd.new_state
+    if type(new_state) == "string" then
+        local sm_node = handle.flash_handle.nodes[sm_node_id]
+        local sm_data = sm_node and common.get_node_data(handle, sm_node_id)
+        local state_names = sm_data and
+            (sm_data.column_data and sm_data.column_data.state_names
+             or sm_data.state_names)
+        if state_names then
+            for i, name in ipairs(state_names) do
+                if name == new_state then
+                    new_state = i - 1   -- 0-based
+                    break
+                end
+            end
+        end
+        if type(new_state) == "string" then return end
+    end
+    new_state = new_state or 0
+
+    sm.change_state(handle, node_idx, sm_node_id, new_state, nd.sync_event_id)
 end
 
 -- Reset state machine
@@ -1630,11 +1654,13 @@ M.CFL_CLEAR_BITMASK = function(handle, node_idx)
     handle.shaddow_bitmask = band(handle.bitmask or 0, bit.bnot(mask))
 end
 
--- Log message
+-- Log message (stderr so it lands in host process log)
 M.CFL_LOG_MESSAGE = function(handle, node_idx)
     local msg = common.get_node_data_field(handle, node_idx, "message")
     local tick = handle.tick_count or 0
-    print(string.format("[%d] node %d: %s", tick, node_idx, tostring(msg)))
+    io.stderr:write(string.format(
+        "[chain_tree] tick=%d node=%d: %s\n", tick, node_idx, tostring(msg)))
+    io.stderr:flush()
 end
 
 -- Send named event

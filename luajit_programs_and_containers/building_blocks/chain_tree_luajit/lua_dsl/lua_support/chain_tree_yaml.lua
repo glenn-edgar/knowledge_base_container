@@ -859,6 +859,29 @@ function ChainTreeYaml:_build_envelope()
         end
     end
 
+    -- Function registry: union of every function name the DSL has been
+    -- told about (per-KB sets in self.{main,one_shot,boolean}_functions).
+    -- This is the canonical list the runtime loader builds its
+    -- name -> index tables from. Without it, functions referenced from
+    -- node_dict fields (verify error_function, watchdog wd_fn, ...) get
+    -- index 0 (CFL_NULL) and silently no-op.
+    local function _union_set(per_kb_map)
+        local seen = {}
+        for _, names in pairs(per_kb_map or {}) do
+            for name, _ in pairs(names) do seen[name] = true end
+        end
+        local arr = {}
+        for name, _ in pairs(seen) do arr[#arr + 1] = name end
+        table.sort(arr)
+        return arr
+    end
+
+    local function_registry = {
+        main      = _union_set(self.main_functions),
+        one_shot  = _union_set(self.one_shot_functions),
+        boolean   = _union_set(self.boolean_functions),
+    }
+
     local envelope = {
         schema_version     = self.SCHEMA_VERSION,
         total_nodes        = self.node_count,
@@ -868,6 +891,7 @@ function ChainTreeYaml:_build_envelope()
         event_string_table = self.event_string_table,
         bitmask_table      = self.bitmask_table,
         blackboard         = bb_section,
+        function_registry  = function_registry,
         nodes              = nodes,
     }
 

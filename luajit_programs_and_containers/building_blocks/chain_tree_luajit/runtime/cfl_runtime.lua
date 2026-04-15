@@ -215,6 +215,20 @@ function M.run(handle)
                 local event = eq_mod.pop(handle.event_queue)
 
                 if event.event_id == defs.CFL_TERMINATE_SYSTEM_EVENT then
+                    -- Clear active tests so the host's outer
+                    -- run_loop sees no work and exits cleanly.
+                    -- (Without this, M.run returns but
+                    -- handle.active_tests is still populated, and the
+                    -- caller's any_active() check loops forever.)
+                    for kb_idx, _ in pairs(handle.active_tests) do
+                        local kb2 = handle.flash_handle.kb_table[kb_idx + 1]
+                        if kb2 then
+                            engine.terminate_all_nodes_in_kb(handle,
+                                kb2.start_index, kb2.node_count)
+                        end
+                    end
+                    handle.active_tests = {}
+                    handle.active_test_count = 0
                     return true
                 end
 

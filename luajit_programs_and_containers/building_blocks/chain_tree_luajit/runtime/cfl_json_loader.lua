@@ -187,6 +187,19 @@ function M.load(json_path)
         end
     end
 
+    -- Merge the DSL-emitted function_registry. Functions referenced from
+    -- node_dict fields (verify error_function, watchdog wd_fn, ...) are
+    -- not visible from per-node label scans above, so without this merge
+    -- resolve_oneshot_idx returns 0 (CFL_NULL) and handlers silently
+    -- no-op. The DSL's _build_envelope unions all per-KB function sets
+    -- into ir.function_registry = {main=[], one_shot=[], boolean=[]}.
+    local reg = ir.function_registry
+    if reg then
+        for _, name in ipairs(reg.main or {})     do main_names_set[name]    = true end
+        for _, name in ipairs(reg.one_shot or {}) do oneshot_names_set[name] = true end
+        for _, name in ipairs(reg.boolean or {})  do bool_names_set[name]    = true end
+    end
+
     -- Build sorted arrays (CFL_NULL always at index 0)
     local function build_fn_index(names_set)
         local arr = {}
@@ -393,6 +406,11 @@ function M.load(json_path)
         _oneshot_fn_idx = oneshot_fn_idx,
         _bool_fn_idx    = bool_fn_idx,
 
+        -- State machine name -> { node_id, state_index_by_name }
+        -- Populated below; lets user-function error handlers fire
+        -- change_state without hardcoding ltree paths.
+        sm_by_name = {},
+
         kb_table = kb_table,
         kb_count = #kb_table,
 
@@ -409,6 +427,26 @@ function M.load(json_path)
         -- Usage count (for arena calculation, not critical in LuaJIT)
         main_function_usage_count = nil,
     }
+
+    -- Populate sm_by_name[sm_name] = { node_id, states = { name -> idx } }
+    for _, entry in ipairs(final_ordered) do
+        local nd = ir.nodes[entry.ltree]
+        local ld = nd and nd.label_dict
+        if ld and ld.main_function_name == "CFL_STATE_MACHINE_MAIN" then
+            local sm_name = ld.sm_name
+            if sm_name then
+                local node_id = ltree_to_final[entry.ltree]
+                local cd = nd.node_dict and nd.node_dict.column_data
+                local names = cd and cd.state_names or {}
+                local states = {}
+                for i, n in ipairs(names) do states[n] = i - 1 end
+                flash.sm_by_name[sm_name] = {
+                    node_id = node_id,
+                    states  = states,
+                }
+            end
+        end
+    end
 
     return flash
 end
