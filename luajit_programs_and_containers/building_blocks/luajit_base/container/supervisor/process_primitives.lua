@@ -40,9 +40,20 @@ pcall(ffi.cdef, [[
     int   setenv(const char *name, const char *value, int overwrite);
     int   unsetenv(const char *name);
 
-    // sigaction -- use the simplest portable shape.
-    typedef void (*sighandler_t)(int);
-    sighandler_t signal(int signum, sighandler_t handler);
+    // Signal handling via block+poll (sigtimedwait). NO async callbacks
+    // into Lua -- luajit ffi.cast("...", fn) is NOT signal-safe.
+    //
+    // glibc sigset_t on linux = __val[16] of unsigned long (8-byte aligned).
+    // We match exactly, then fill bits ourselves to avoid calling the
+    // sigemptyset/sigaddset helpers (which on some libcs are macros and
+    // on others require strict alignment we can't easily guarantee via
+    // ffi.new over a struct of bytes).
+    typedef struct { unsigned long val[16]; } dcs_sigset_t;
+
+    int sigprocmask(int how, const dcs_sigset_t *set, dcs_sigset_t *oldset);
+    // Returns signo on success, -1 (errno=EAGAIN) if no pending signal.
+    int sigtimedwait(const dcs_sigset_t *set, void *info,
+                     const void *timeout);
 ]])
 
 -- errno differs by arch; read via ffi.errno() (luajit intrinsic).
@@ -150,37 +161,84 @@ function M.kill(pid, signo)
 end
 
 ---------------------------------------------------------------------------
--- signal flag: install a handler for signo that flips a module-private
--- counter. The returned getter returns true once per raised signal and
--- decrements (so a single SIGTERM delivered is consumed by the first
--- getter call). Thread-safe enough for single-threaded luajit.
+-- signal flag: block the specified signals process-wide and expose a
+-- getter that drains pending deliveries via sigtimedwait(2) with a
+-- zero timeout (non-blocking poll). Safe under luajit: no async callback
+-- into Lua, all signal inspection happens on the main thread's tick.
 --
--- Using signal(2) rather than sigaction(2) because the interface is
--- stable across libc and the default restart semantics on linux are
--- fine for our use (we're not blocking in any interruptible syscall
--- at signal time; the tick loop is in userland nanosleep).
+-- Usage: install once at startup with a list of signals; call the
+-- returned getter each tick. Returns true if any of the registered
+-- signals was pending at call time and drains ALL of them (so one
+-- SIGTERM + one SIGINT queued shows up as a single "true" and both
+-- are consumed).
 ---------------------------------------------------------------------------
 
-local _flags = {}        -- signo -> { count = integer, handler = cdata }
+local SIG_BLOCK = 0
 
-function M.sigaction_flag(signo)
-    if _flags[signo] then return _flags[signo].getter end
-
-    local entry = { count = 0 }
-    entry.handler = ffi.cast("sighandler_t", function(_s)
-        entry.count = entry.count + 1
-    end)
-    C.signal(signo, entry.handler)
-
-    entry.getter = function()
-        if entry.count > 0 then
-            entry.count = entry.count - 1
-            return true
+-- Fill a dcs_sigset_t with the given signal numbers. Linux layout:
+-- bit (signo-1) of val[(signo-1)/64] is set. We zero first, then OR in.
+local function fill_sigset(set, signos)
+    ffi.fill(set, ffi.sizeof("dcs_sigset_t"), 0)
+    for _, s in ipairs(signos) do
+        local bit_index = s - 1
+        local word  = math.floor(bit_index / 64)
+        local shift = bit_index % 64
+        -- uint64 (1ULL << shift) via 2^shift; cast into cdata and add.
+        local mask
+        if shift < 63 then
+            mask = ffi.new("unsigned long", 2 ^ shift)
+        else
+            mask = ffi.new("unsigned long", 0x8000000000000000ULL)
         end
-        return false
+        set.val[word] = set.val[word] + mask
     end
-    _flags[signo] = entry
-    return entry.getter
+end
+
+local _installed_list = nil
+
+local function install_block(signos)
+    if _installed_list then return end
+    local set = ffi.new("dcs_sigset_t")
+    fill_sigset(set, signos)
+    if C.sigprocmask(SIG_BLOCK, set, nil) ~= 0 then
+        error(errstr("sigprocmask(BLOCK)"))
+    end
+    io.stderr:write(string.format(
+        "process_primitives: blocked signals { %s } via sigprocmask\n",
+        table.concat(signos, ", ")))
+    _installed_list = signos
+end
+
+-- Module-level cdata — survives as long as the module is loaded so the
+-- GC can't collect them out from under a long-running poll loop.
+-- (zero_ts is only a single dcs_sigset_t's worth of bytes; tiny.)
+local _any_set    = ffi.new("dcs_sigset_t")
+local _any_zerots = ffi.new("struct { long tv_sec; long tv_nsec; }")
+_any_zerots.tv_sec  = 0
+_any_zerots.tv_nsec = 0
+
+-- Block all `signos` process-wide in one shot; return a getter that
+-- reports true if ANY was pending at call time and drains them all.
+function M.sigaction_any_flag(signos)
+    install_block(signos)
+    fill_sigset(_any_set, signos)
+    local debug = os.getenv("DCS_SIG_DEBUG") == "1"
+    return function()
+        local fired = false
+        while true do
+            local r = C.sigtimedwait(_any_set, nil, _any_zerots)
+            if r > 0 then
+                fired = true
+                if debug then
+                    io.stderr:write(string.format(
+                        "sigaction_any_flag: dequeued signo=%d\n", r))
+                end
+            else
+                break   -- -1 with errno=EAGAIN means "no pending signal"
+            end
+        end
+        return fired
+    end
 end
 
 return M

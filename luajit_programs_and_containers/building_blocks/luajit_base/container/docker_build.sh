@@ -56,16 +56,11 @@ done
 cp "$BB_DIR/knowledge_base/sqlite3/construct_kb/sqlite3_helpers.lua" \
    "$SCRIPT_DIR/prebuilt_lua_share/"
 
-# Compile the controller chain-tree DSL to JSON IR. Runs on host using the
-# same luajit we expect to run in-container. Output is staged alongside
-# the supervisor source (COPY'd by the Dockerfile).
-(
-    export LUA_PATH="$CT/lua_dsl/?.lua;$CT/lua_dsl/lua_support/?.lua;$CT/lua_dsl/luajit_pipeline/?.lua;$SCRIPT_DIR/supervisor/?.lua;?.lua;;"
-    cd "$SCRIPT_DIR/supervisor"
-    rm -f controller.json controller_debug.yaml
-    luajit dsl.lua controller.json
-    ls -l controller.json 2>/dev/null || { echo "ERROR: controller.json not built" >&2; exit 1; }
-)
+# DSL -> JSON IR compile now happens INSIDE the image (see Dockerfile
+# RUN step). No host-side luajit/chain_tree dependency required to build.
+# Stale artifacts from previous runs are removed here for hygiene.
+rm -f "$SCRIPT_DIR/supervisor/controller.json" \
+      "$SCRIPT_DIR/supervisor/controller_debug.yaml"
 
 # DBI + dkjson + cjson + ltree extension (built on host; reused).
 cp /usr/local/lib/lua/5.1/dbd/postgresql.so  "$SCRIPT_DIR/prebuilt_lua_libs/dbd/"

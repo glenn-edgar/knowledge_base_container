@@ -35,6 +35,25 @@ local M = {}
 
 local function now_ns() return math.floor(ptime.now_sec() * 1e9) end
 
+-- safe_pg wraps every pg-backed write. A missing schema row or a
+-- transient pg error must never kill the supervisor mid-tick. Logs
+-- once on failure; supervisor keeps ticking.
+local function safe_pg(log, conn, op_name, fn, ...)
+    if not conn then return false end
+    local ok, result = pcall(fn, conn, ...)
+    if not ok then
+        log("ctrl", string.format("%s FAILED (pg write swallowed): %s",
+                                  op_name, tostring(result)))
+        return false
+    end
+    if result == nil then
+        -- kb_* helpers return (nil, err) on failure.
+        log("ctrl", op_name .. " returned nil (likely no schema row)")
+        return false
+    end
+    return true
+end
+
 local function container_path(ctx)
     return string.format("system.site.%s.cpu.%s.container.%s",
                          ctx.env.APP_SITE, ctx.env.APP_CPU_ID,
@@ -235,40 +254,32 @@ function M.build(ctx)
 
     R.ERR_APPS_START_FAIL = function(_h, _n)
         log("ctrl", "ERR_APPS_START_FAIL -- one or more apps failed to start")
-        if ctx.connectors.pg then
-            kb_exc.log_exception(ctx.connectors.pg,
-                                 exc_path(ctx, "apps_start_fail"),
-                                 "one or more apps failed to start")
-        end
+        safe_pg(log, ctx.connectors.pg, "log_exception(apps_start_fail)",
+                kb_exc.log_exception,
+                exc_path(ctx, "apps_start_fail"),
+                "one or more apps failed to start")
         terminate_system(ctx, "apps start fail")
     end
 
     R.WRITE_CONTAINER_HEALTH_TRUE = function(_h, _n)
-        if not ctx.connectors.pg then return end
-        local ok = pcall(kb_stat.set_status_data, ctx.connectors.pg,
-            container_path(ctx) .. ".health",
-            { status = true, ts = now_ns() })
-        if not ok then log("ctrl", "WRITE_CONTAINER_HEALTH_TRUE: no status row (schema not declared)") end
+        safe_pg(log, ctx.connectors.pg, "WRITE_CONTAINER_HEALTH_TRUE",
+                kb_stat.set_status_data,
+                container_path(ctx) .. ".health",
+                { status = true, ts = now_ns() })
     end
 
     R.WRITE_CONTAINER_HEALTH_FALSE = function(_h, _n)
-        if not ctx.connectors.pg then return end
-        pcall(kb_stat.set_status_data, ctx.connectors.pg,
-            container_path(ctx) .. ".health",
-            { status = false, ts = now_ns() })
+        safe_pg(log, ctx.connectors.pg, "WRITE_CONTAINER_HEALTH_FALSE",
+                kb_stat.set_status_data,
+                container_path(ctx) .. ".health",
+                { status = false, ts = now_ns() })
     end
 
     ------------------------------------------------------------------
-    -- monitor: strobe heartbeat + reap/respawn + shutdown watch
+    -- monitor: reap/respawn + shutdown watch
+    -- (STROBE_HEARTBEAT pruned; re-add when the KB grows a per-container
+    --  heartbeat bit for cross-VM monitoring.)
     ------------------------------------------------------------------
-
-    R.STROBE_HEARTBEAT = function(_h, _n)
-        ctx.last_heartbeat_ts = now_ns()
-        -- v1 heartbeat writes to process_globals-equivalent (in-mem) only.
-        -- Wiring into bit_mask_table lands when topology grows a per-container
-        -- heartbeat bit (deferred; DCS's sys_sm polls heartbeat_fresh_s via
-        -- an in-mem path in the same VM, but across VMs we need the bit mask).
-    end
 
     -- Reap any exited children, then apply restart_policy.
     R.REAP_AND_RESPAWN = function(_h, _n)
@@ -283,12 +294,12 @@ function M.build(ctx)
                     log("ctrl", string.format(
                         "app %s exited: pid=%d code=%s",
                         app.name, app.pid, tostring(r.exit_code)))
-                    if ctx.connectors.pg then
-                        kb_exc.log_exception(ctx.connectors.pg,
-                            exc_path(ctx, "app_died_" .. app.name),
-                            string.format("%s exited with %s",
-                                          app.name, tostring(r.exit_code)))
-                    end
+                    safe_pg(log, ctx.connectors.pg,
+                        "log_exception(app_died_" .. app.name .. ")",
+                        kb_exc.log_exception,
+                        exc_path(ctx, "app_died_" .. app.name),
+                        string.format("%s exited with %s",
+                                      app.name, tostring(r.exit_code)))
                     app.pid = nil
 
                     local policy = app.restart_policy or "always"

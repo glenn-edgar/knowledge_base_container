@@ -165,12 +165,11 @@ function M.main(args)
     ctx.log("ctrl", string.format("identity: container=%s site=%s cpu=%s",
         ctx.env.CONTAINER_NAME, ctx.env.APP_SITE, ctx.env.APP_CPU_ID))
 
-    -- Shared getter for both SIGTERM and SIGINT (either triggers teardown).
-    local term_getter = pp.sigaction_flag(pp.signals.SIGTERM)
-    local int_getter  = pp.sigaction_flag(pp.signals.SIGINT)
-    ctx.shutdown_requested_getter = function()
-        return term_getter() or int_getter()
-    end
+    -- Block SIGTERM+SIGINT and poll for pending deliveries each tick.
+    -- No async callback into Lua (luajit ffi.cast as signal handler is
+    -- unsafe). sigtimedwait with a zero-timespec drains any pending.
+    ctx.shutdown_requested_getter =
+        pp.sigaction_any_flag({ pp.signals.SIGTERM, pp.signals.SIGINT })
 
     -- Resolve chain-tree JSON: prefer explicit arg, then controller dir,
     -- then baked-in supervisor dir.

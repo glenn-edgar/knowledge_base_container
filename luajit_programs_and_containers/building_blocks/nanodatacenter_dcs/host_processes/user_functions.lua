@@ -33,6 +33,17 @@ local function verify_stub(log, name, half)
   end
 end
 
+-- Wrap a verify bool function so it only runs on CFL_TIMER_EVENT. INIT
+-- and TERMINATE pass through as `true` (don't trip the error handler on
+-- lifecycle events). Without this, CFL_VERIFY calls the bool on every
+-- event and a transient false on INIT fires the error immediately.
+local function timer_only(fn)
+  return function(h, n, et, event_id, ed)
+    if event_id ~= defs.CFL_TIMER_EVENT then return true end
+    return fn(h, n, et, event_id, ed)
+  end
+end
+
 ---------------------------------------------------------------------------
 -- build(ctx) returns the registered-name -> function map
 ---------------------------------------------------------------------------
@@ -175,7 +186,7 @@ function M.build(ctx)
   -- VERIFY_ALL_CPUS_READY: master-side aggregator. Reads ready_bits;
   -- compares to expected (1 << N) - 1. Returns true when all CPUs have
   -- their bit set. Until then, master's setup state holds.
-  R.VERIFY_ALL_CPUS_READY = function(_h, _n)
+  R.VERIFY_ALL_CPUS_READY = timer_only(function(_h, _n)
     if not ctx.connectors.pg then return false end
     local actual, err = bm.read_ready_bits(ctx.connectors.pg, ctx.cfg.site)
     if not actual then
@@ -188,7 +199,7 @@ function M.build(ctx)
         string.format("VERIFY_ALL_CPUS_READY -> %s (actual=0x%x expected=0x%x)",
                       tostring(ok), actual, expected))
     return ok
-  end
+  end)
 
   -- system_ready status field (pg). Apps poll this; UI consumes.
   -- Also caches in process_globals for in-VM consumers.
@@ -262,7 +273,7 @@ function M.build(ctx)
   -- drives retries across ticks; the 30s verify window is long enough for
   -- pg to come up from cold start. On success populate ctx.connectors.pg
   -- so later code can reuse the connection without reconnecting.
-  R.VERIFY_PG = function(_h, _n)
+  R.VERIFY_PG = timer_only(function(_h, _n)
     if ctx.connectors.pg then
       -- already connected; consider healthy
       return true
@@ -294,19 +305,19 @@ function M.build(ctx)
       log("system_control", "VERIFY_PG -> false: " .. tostring(err))
       return false
     end
-  end
+  end)
   -- Broker verifies: docker.is_running as a v1 health proxy. Sufficient
   -- until Build 3+ wires real Lua clients (NATS/MQTT subscribers, HTTP
   -- probe for kv_bridge) that exercise each broker's API. Container
   -- up => broker accepting connections (--restart=always keeps them alive).
   local function is_running_verify(name, half)
-    return function(_h, _n)
+    return timer_only(function(_h, _n)
       local ok = docker.is_running(name)
       if not ok then
         log(half, string.format("VERIFY %s running -> false", name))
       end
       return ok
-    end
+    end)
   end
   R.VERIFY_NATS              = is_running_verify("nats-js-ram",           "system_control")
   R.VERIFY_MQTT              = is_running_verify("mosquitto-ram-ws_main", "system_control")
@@ -320,7 +331,7 @@ function M.build(ctx)
   local SYSTEM_CONTAINERS = {
     "pg-vector", "nats-js-ram", "mosquitto-ram-ws_main", "kv-bridge",
   }
-  R.VERIFY_SYSTEM_CONTAINERS_HEALTHY = function(_h, _n)
+  R.VERIFY_SYSTEM_CONTAINERS_HEALTHY = timer_only(function(_h, _n)
     local failed = {}
     for _, name in ipairs(SYSTEM_CONTAINERS) do
       if not docker.is_running(name) then failed[#failed + 1] = name end
@@ -330,13 +341,13 @@ function M.build(ctx)
       "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (down: %s)",
       table.concat(failed, ", ")))
     return false
-  end
+  end)
 
   -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH: heartbeat_ts must be within
   -- heartbeat_fresh_s of now. node_control writes heartbeat_ts every
   -- monitor iteration; if stale, sys_sm trips ERR_MONITOR_TRIP.
   local heartbeat_fresh_s = (ctx.settings and ctx.settings.heartbeat_fresh_s) or 5
-  R.VERIFY_NODE_CTRL_HEARTBEAT_FRESH = function(_h, _n)
+  R.VERIFY_NODE_CTRL_HEARTBEAT_FRESH = timer_only(function(_h, _n)
     local ts = pg.node_control_heartbeat_ts or 0
     if ts == 0 then return true end   -- grace before first heartbeat
     local age = os.time() - ts
@@ -347,14 +358,14 @@ function M.build(ctx)
           age, heartbeat_fresh_s))
     end
     return ok
-  end
+  end)
 
-  R.VERIFY_NODE_CTRL_OPERATIONAL = function(_h, _n)
+  R.VERIFY_NODE_CTRL_OPERATIONAL = timer_only(function(_h, _n)
     return pg.node_control_operational == true
-  end
-  R.VERIFY_NODE_CTRL_STOPPED = function(_h, _n)
+  end)
+  R.VERIFY_NODE_CTRL_STOPPED = timer_only(function(_h, _n)
     return pg.node_control_stopped == true
-  end
+  end)
 
   -- Terminate the chain-tree VM cleanly so the watchdog restarts us.
   --
@@ -483,9 +494,9 @@ function M.build(ctx)
   -- finished its teardown_st. Single-CPU: just the local one. Multi-CPU
   -- later: aggregate across CPUs (likely via a pg bit_mask row similar
   -- to ready_bits).
-  R.VERIFY_ALL_NODES_SHUTDOWN = function(_h, _n)
+  R.VERIFY_ALL_NODES_SHUTDOWN = timer_only(function(_h, _n)
     return pg.node_control_stopped == true
-  end
+  end)
   R.ERR_CONTAINER_DIED = function(handle, _n)
     log_then_change_state(handle, "node_control",
                           "ERR_CONTAINER_DIED", "container_died",
@@ -529,9 +540,9 @@ function M.build(ctx)
   R.VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY = verify_stub(log, "VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY", "node_control")
   R.VERIFY_ALL_ASSIGNED_CONTAINERS_STOPPED = verify_stub(log, "VERIFY_ALL_ASSIGNED_CONTAINERS_STOPPED", "node_control")
 
-  R.VERIFY_NO_TEARDOWN_REQUEST = function(_h, _n)
+  R.VERIFY_NO_TEARDOWN_REQUEST = timer_only(function(_h, _n)
     return not pg.node_control_teardown_request
-  end
+  end)
 
   -- (ERR_CONTAINER_DIED, ERR_TEARDOWN_REQUESTED, ERR_CONTAINERS_START_FAIL,
   -- ERR_TEARDOWN_FORCE all defined above with real bodies — do not stub

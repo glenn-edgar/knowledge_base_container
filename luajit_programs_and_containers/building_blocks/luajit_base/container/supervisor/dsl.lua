@@ -53,15 +53,12 @@ local function controller(ct, kb_name)
                 ct:asm_halt()
             ct:end_column(setup_st)
 
-            -- monitor: three parallel reset-loop columns.
+            -- monitor: two parallel reset-loop columns.
+            -- (A heartbeat column will reappear once bit_mask_table grows
+            --  a per-container heartbeat bit; pruned for now since the
+            --  previous STROBE_HEARTBEAT only updated an in-process var.)
             local monitor_st = ct:define_state("monitor", nil)
                 ct:asm_log_message("ctrl state: monitor (entering)")
-
-                local hb_col = ct:define_column("ctrl_hb_col")
-                    ct:asm_one_shot_handler("STROBE_HEARTBEAT", {})
-                    ct:asm_wait_time(5.0)
-                    ct:asm_reset()
-                ct:end_column(hb_col)
 
                 local liveness_col = ct:define_column("ctrl_liveness_col")
                     ct:asm_one_shot_handler("REAP_AND_RESPAWN", {})

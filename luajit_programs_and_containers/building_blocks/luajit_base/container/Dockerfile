@@ -33,6 +33,17 @@ WORKDIR /opt/luajit_base
 COPY supervisor/  supervisor/
 COPY bundler/     bundler/
 
+# Compile the controller chain-tree DSL to JSON IR inside the image.
+# Keeps the build self-contained -- no host-side luajit/chain_tree deps.
+RUN cd /opt/luajit_base/supervisor && \
+    LUA_PATH="/usr/local/share/lua/5.1/chain_tree/lua_dsl/?.lua;\
+/usr/local/share/lua/5.1/chain_tree/lua_dsl/lua_support/?.lua;\
+/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua;\
+/usr/local/share/lua/5.1/chain_tree/?.lua;\
+/usr/local/share/lua/5.1/?.lua;;" \
+    luajit dsl.lua controller.json && \
+    test -s controller.json
+
 # /opt/apps is where app artifacts land. Apps self-contained per dir.
 # /opt/luajit_base/controller.db is the bundler output consumed at boot.
 RUN mkdir -p /opt/apps /opt/luajit_base/state

@@ -1,6 +1,82 @@
 # LuaJIT Base Container — Continuation Plan
 
-## Session 2 (2026-04-15) — stage 1 code written, built, smoke-tested green
+## Session 2 (2026-04-15) — stage 1 COMPLETE + hardening pass
+
+Stage 1 smoke test passed initially; then we did a hardening round
+(in-container DSL compile, pcall-guarded KB writes, prune dead
+STROBE_HEARTBEAT, block+poll signal handling, event-filter fix ported
+back to DCS). Respawn + signal-after-respawn verified end-to-end.
+
+### Hardening round (what and why)
+
+1. **DSL compile moved into the Dockerfile.** `docker_build.sh` used
+   to compile the chain-tree DSL on the host (needed luajit +
+   chain_tree_luajit in host LUA_PATH). Now a `RUN luajit
+   supervisor/dsl.lua controller.json` step inside the image does it.
+   Zero host prerequisites for building.
+2. **pcall-guarded KB writes.** New `safe_pg(log, conn, op, fn, ...)`
+   helper wraps every pg-backed call in user_functions.lua. A missing
+   schema row, degraded connection, or any pcall-level error logs
+   once and returns false; supervisor keeps ticking. Supervisor no
+   longer depends on the KB schema being complete.
+3. **Pruned STROBE_HEARTBEAT + hb_col.** Was dead code — only wrote
+   to an in-process variable nobody read. Re-add when the KB grows a
+   per-container heartbeat bit for cross-VM monitoring.
+4. **Block+poll signal handling (this was a LuaJIT trap).** My first
+   signal-flag implementation used
+   `ffi.cast("sighandler_t", function...)` which installs a Lua
+   callback as an async signal handler. LuaJIT docs say this is
+   UNSAFE: callbacks can only be invoked during protected Lua API
+   calls, and a signal delivery is async-anywhere. Triggered
+   `PANIC: unprotected error in call to Lua API (bad callback)` on
+   Ctrl-C teardown. Rewrote using `sigprocmask` + `sigtimedwait`:
+   block the signals process-wide at startup, poll with zero
+   timeout each tick to drain any pending. All signal observation
+   happens synchronously on the main thread; no callbacks.
+   Plus: the sigset_t cdef has to match glibc's layout exactly
+   (`unsigned long val[16]` — 8-byte aligned 128-byte struct).
+   Plus: the cdata backing `set` and `zero_ts` for the poll must
+   be module-level to survive GC across long-running tick loops
+   (closure-captured local cdata got collected otherwise).
+5. **Ported event-filter fix back to DCS.** Added `timer_only(fn)`
+   wrapper in DCS's `host_processes/user_functions.lua`, applied to
+   all 12 real verifies (`VERIFY_PG`, `VERIFY_NATS`, `VERIFY_MQTT`,
+   `VERIFY_KV_BRIDGE`, `VERIFY_KV_BRIDGE_HEALTHY`,
+   `VERIFY_SYSTEM_CONTAINERS_HEALTHY`,
+   `VERIFY_NODE_CTRL_HEARTBEAT_FRESH`,
+   `VERIFY_NODE_CTRL_OPERATIONAL`, `VERIFY_NODE_CTRL_STOPPED`,
+   `VERIFY_ALL_NODES_SHUTDOWN`, `VERIFY_NO_TEARDOWN_REQUEST`,
+   `VERIFY_ALL_CPUS_READY`, `VERIFY_PG`). DCS is now resilient
+   to the same CFL_VERIFY-on-INIT trap that bit us in luajit_base.
+
+### Verified end-to-end after hardening
+
+```
+[ctrl] spawn dummy pid=7 ... (normal ticks for 20s)
+[... docker exec dummy_test kill -9 dummy_pid ...]
+[ctrl] app dummy exited: pid=7 code=-9
+[ctrl] respawn dummy pid=15 (restart_count=1)
+dummy_app[dummy]: tick 1            (new child)
+[... normal ticks for 20s ...]
+[... docker stop dummy_test ...]
+[ctrl] SIGTERM/SIGINT caught -- requesting teardown
+[ctrl] ERR_TEARDOWN_REQUESTED -> change_state(request_shutdown)
+[ctrl] SIGTERM dummy pid=15
+[ctrl] SIGKILL dummy pid=15
+[ctrl] connections closed
+[ctrl] exiting: no active tests
+```
+
+### Operator note
+
+**Use `docker stop <name>` for teardown testing, not Ctrl-C.** When
+attached to `docker run`, Ctrl-C goes to the docker CLI first and
+doesn't always forward cleanly to PID 1 — saw one case where 3
+consecutive Ctrl-Cs were swallowed by the CLI and never reached the
+supervisor. `docker stop` sends SIGTERM directly to PID 1 and the
+supervisor always sees it.
+
+### Original session 2 notes
 
 End-of-session state: `nanodatacenter/luajit-base:latest` builds,
 `nanodatacenter/luajit-dummy:latest` builds on top, runs end-to-end:
