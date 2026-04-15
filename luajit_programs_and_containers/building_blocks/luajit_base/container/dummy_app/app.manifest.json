@@ -1,0 +1,7 @@
+{
+    "name": "dummy",
+    "argv": ["luajit", "/opt/apps/dummy/main.lua"],
+    "start_order": 10,
+    "restart_policy": "always",
+    "kb_path": ""
+}
