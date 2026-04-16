@@ -1,5 +1,148 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## Session 9 (2026-04-15) — gateway + ops_ui design (no DCS code yet)
+
+Long design session that locked in the architecture for a site-wide
+openresty gateway + a DCS microservice UI. Full design in
+`../nanodatacenter_gateway/continue.md` — read that for context.
+This section only captures the DCS-side schema + runtime changes
+that fall out of the design.
+
+### New KB subtree: `container_registry`
+
+`construct_dcs_kb.lua` grows one anchor per CPU:
+
+```
+system.site.<S>.cpu.<cpu_id>.container_registry
+```
+
+Dynamic registration rows live under this anchor in
+`knowledge_base_status`, one per container node_control is managing:
+
+```
+system.site.<S>.cpu.<cpu_id>.container_registry.<container_name>
+```
+
+Row JSON:
+```json
+{
+  "cpu_id":         "cpu_01",
+  "host":           "cpu_01",
+  "container_name": "dcs_ops",
+  "definition":     "dcs_ops_ui",
+  "ports": [
+    { "port": 8080, "protocol": "http", "purpose": "ui",
+      "description": "operator dashboard" }
+  ],
+  "description":    "DCS system/node observability and control",
+  "category":       "observability",
+  "registered_at":  <epoch_ns>
+}
+```
+
+Registry is **supervisor-authoritative, not UI-specific**. All
+attached containers register here. Gateway is one consumer; filters
+rows with `purpose = "ui"` in their ports. Future consumers (metrics
+scrapers, RPC discovery) filter by their own purpose keys.
+
+### Port handling split
+
+- **Port metadata (per image)**: `definitions.lua` grows
+  `port_spec = { <slot> = { protocol, purpose, description,
+  internal } }` per def. Serialized to
+  `system.container_definition.<def>.build.spec.port_spec`.
+- **Port numbers (per placement)**: `topology.lua` grows
+  `ports = { <slot> = <external_port> }` per instance.
+- **Construct-time join**: `construct_dcs_kb.lua` merges the two
+  into each placement's
+  `system.site.<S>.cpu.<id>.container.<name>.build.spec`.
+- **Runtime**: node_control reads merged spec from bootstrap.db,
+  does `docker run -p <ext>:<int>` per port, writes the `ports[]`
+  array in the registration row.
+
+### Construct-time sanity pass
+
+After the join, iterate all placements per CPU, union their port
+lists, assert external ports are unique per CPU. Raise error at
+`build_kb.sh` time on collision.
+
+### New node_control user functions
+
+- `RECONCILE_CONTAINER_REGISTRY` (oneshot at sync, before
+  START_ASSIGNED_CONTAINERS): `DELETE FROM knowledge_base_status
+  WHERE path <@ 'system.site.<S>.cpu.<self>.container_registry'::ltree`.
+  Self-healing after supervisor crash.
+- `CHECK_PORT_CONFLICT(spec)` (pre-flight per container before
+  docker run): SELECT registry rows on this CPU, union ports; if
+  any intended port is already claimed, raise SYS_EXCEPTION and
+  skip this container.
+- `REGISTER_CONTAINER(spec)` (post-spawn per container): INSERT
+  row into knowledge_base_status with full metadata.
+- `DEREGISTER_CONTAINER(name)` (pre-teardown per container):
+  path-targeted DELETE.
+
+START_ASSIGNED_CONTAINERS (currently a stub) becomes a loop:
+for each assignment → CHECK_PORT_CONFLICT → docker.run_from_spec →
+REGISTER_CONTAINER.
+
+STOP_ASSIGNED_CONTAINERS similarly: DEREGISTER_CONTAINER →
+docker.stop.
+
+### Owner split for infrastructure vs apps
+
+- **system_control** (master-only, infra-tier): owns the gateway,
+  dcs_ops_ui, and site-scoped / operator-owned infra. For
+  site-scoped containers it manages, it writes to
+  `container_registry` the same way node_control does, but
+  scoped to the master CPU's container_registry subtree.
+- **node_control** (every CPU, app-tier): owns app containers
+  placed on its CPU.
+
+Both follow the same registry protocol. The distinction is which
+SM owns which instances per topology.
+
+### New definitions + topology entries
+
+When ops_ui + gateway are added to the fleet:
+- `definitions.lua`: `dcs_ops_ui` def (image, port_spec with one
+  `ui` slot at internal 8080), `nanodatacenter_gateway` def
+  (image, port_spec with one `ui` slot at internal 8080 and one
+  `proxy` slot at internal 8080 — same port for both roles here).
+- `topology.lua` master CPU instances: `{ name="dcs_ops",
+  definition="dcs_ops_ui", ports={ ui=8080 } }`,
+  `{ name="gateway", definition="nanodatacenter_gateway",
+  ports={ ui=80 } }` (or 8080; operator pick).
+
+### Ordering vs. luajit_base
+
+The DCS ops UI and gateway are openresty-based containers, NOT
+luajit_base-based. They run openresty as their primary process,
+not under a chain-tree supervisor. luajit_base remains the model
+for LuaJIT-app containers (openresty-as-one-of-N-apps in a pod is
+a future possibility but not planned).
+
+### Next DCS session work (when this lands)
+
+1. Add `port_spec` fields to `definitions.lua` (for when infra
+   defs grow needed metadata — mostly empty until app defs start
+   showing up).
+2. Grow `construct_dcs_kb.lua`:
+   - Add `container_registry` anchor per CPU.
+   - Serialize `port_spec` under container_definition builds.
+   - Accept `ports` in topology instance entries, join with
+     port_spec, serialize merged into placement spec.
+   - Port uniqueness sanity pass.
+3. Grow `host_processes/user_functions.lua` with the four new
+   functions above, wire into `dcs_dsl.lua`'s node_control
+   sync/setup/teardown states.
+
+Don't do this before the gateway + ops_ui images are close to
+existing — schema-first without a consumer is speculative.
+Recommended order: openresty_base → dcs_ops_ui (tested direct) →
+DCS schema + user functions → gateway + end-to-end.
+
+---
+
 ## Session 8 (2026-04-14) — resource monitor (node_monitor KB)
 
 Third KB added: `node_monitor`. Runs in the same LuaJIT process, owned
