@@ -136,10 +136,24 @@ a future possibility but not planned).
    functions above, wire into `dcs_dsl.lua`'s node_control
    sync/setup/teardown states.
 
-Don't do this before the gateway + ops_ui images are close to
-existing — schema-first without a consumer is speculative.
-Recommended order: openresty_base → dcs_ops_ui (tested direct) →
-DCS schema + user functions → gateway + end-to-end.
+Don't do this before dcs_ops_ui exists — schema-first without a
+consumer is speculative.
+
+### Build order (revised 2026-04-15 evening)
+
+Detailed plan in `../nanodatacenter_gateway/continue.md`.
+Summary:
+
+1. dcs_ops_ui v0 standalone (FROM alpine-fat directly, no DCS
+   plumbing). Tested direct.
+2. DCS schema extension (this section's work).
+3. DCS node_control user functions (this section's work).
+4. openresty_base + resty_kb_client (retrofit from dcs_ops_ui).
+5. nanodatacenter_gateway + end-to-end.
+
+DCS-side work (steps 2 + 3) happens AFTER dcs_ops_ui standalone
+is verified working. That way we know the pg-query path is sound
+before teaching DCS to run the container.
 
 ---
 

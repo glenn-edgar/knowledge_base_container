@@ -2,9 +2,14 @@
 
 ## Status
 
-Design-only. No code. Full architecture in
-`../nanodatacenter_gateway/continue.md` (single design doc for
-gateway + ops_ui + openresty_base + DCS schema changes).
+Design-only, no code yet. **Build order was revised
+2026-04-15 evening**: openresty_base is now step 4 of 5 (retrofit
+from dcs_ops_ui), not step 1. See
+`../nanodatacenter_gateway/continue.md` for the full rationale —
+short version: let dcs_ops_ui be written first with inlined
+pgmoon calls (step 1), extract `resty_kb_client` once the
+duplication is visible (step 4), refactor dcs_ops_ui onto the
+base.
 
 ## What this is
 

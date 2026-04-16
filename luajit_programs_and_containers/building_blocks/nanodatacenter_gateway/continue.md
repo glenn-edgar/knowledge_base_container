@@ -269,25 +269,99 @@ Static content convention:
 - ops_ui: same layout, different content. Gateway proxies requests
   through, so ops_ui's HTML can use relative paths and it just works.
 
-## Build order for the first implementation session
+## Build order (REVISED 2026-04-15 evening)
 
-1. **openresty_base** — single base image, stages luarocks + resty_kb_client
-   skeleton + htmx. Testable by building and inspecting contents.
-2. **dcs_ops_ui** — FROM openresty-base, implements read-only
-   endpoints against pg (exceptions, heartbeats), tiny static HTML.
-   Testable standalone via a run_ops_ui.sh harness (direct `http://cpu:8080`
-   without going through the gateway).
-3. **DCS schema extension** — `container_registry` anchor, port_spec
-   in definitions, ports in topology, construct-time sanity pass.
-4. **node_control registration user functions** — the four above.
-5. **nanodatacenter_gateway** — FROM openresty-base, polls pg,
-   reverse-proxies /ui/<name>. Tree portal page.
-6. **End-to-end**: start DCS with gateway + ops_ui both placed;
-   operator visits gateway URL; clicks DCS Ops; ops_ui loads and
-   renders. Ack button writes to pg. Container teardown removes
-   entry from portal.
+**Chicken-and-egg insight**: to test the reverse-proxy gateway we
+need a known-good upstream web server. To test DCS node_control's
+container-instantiation + port-mapping path we need a real
+(non-infra) container to run. **dcs_ops_ui serves both needs** —
+so it goes first, and everything else slots in behind it.
+
+1. **dcs_ops_ui v0 — standalone openresty container, no DCS
+   plumbing yet.**
+   - `FROM openresty/openresty:alpine-fat` directly (skip
+     openresty_base for this session; inline pgmoon usage).
+   - Frontend template: `building_blocks/system_api/shell/` — the
+     federated shell built 2026-04-04 for ros_planner_ii's UI has
+     nav strip + tree sidebar (already solves the tree-control
+     problem) + iframe tabs + dark-mode monospace styling. Clone
+     its shape into a new `dcs_ops_ui` dir; replace tabs and
+     endpoints.
+   - DCS endpoints: `/api/dcs/exceptions`, `/api/dcs/heartbeats`,
+     `/api/dcs/system_ready`, `/api/dcs/samples?path=`, and POST
+     `/api/dcs/ack`. Same inline-pgmoon pattern as
+     `third_party_containers/openresty/nginx.conf`.
+   - `run_ops_ui.sh` harness: mirrors
+     `luajit_base/container/run_dummy.sh`. Sources secrets.env,
+     `--network=host`, `docker run` directly.
+   - Test: visit `http://127.0.0.1:8080/` in browser; see live
+     DCS state rendered from pg. No DCS managing this yet.
+2. **DCS schema extension.**
+   - `construct_dcs_kb.lua`: add `container_registry` anchor per
+     CPU; `port_spec` serialization under container_definition;
+     topology-instance `ports` field; construct-time
+     port-uniqueness sanity pass.
+   - `definitions.lua`: grow `dcs_ops_ui` def with
+     `port_spec = { ui = {protocol="http", purpose="ui", internal=8080} }`.
+   - `topology.lua`: add instance
+     `{ name="dcs_ops", definition="dcs_ops_ui", ports={ui=8080} }`
+     on the master CPU.
+   - Test: `build_kb.sh` produces bootstrap.db with new fields;
+     inspect via sqlite3 CLI.
+3. **DCS node_control user functions + wiring.**
+   - `RECONCILE_CONTAINER_REGISTRY` (sync-state oneshot, before
+     START_ASSIGNED_CONTAINERS).
+   - `CHECK_PORT_CONFLICT(spec)` (pre-flight per container).
+   - `REGISTER_CONTAINER(spec)` (post-spawn per container).
+   - `DEREGISTER_CONTAINER(name)` (pre-teardown).
+   - Replace `START_ASSIGNED_CONTAINERS` stub with real loop:
+     per assignment → CHECK_PORT_CONFLICT → docker.run_from_spec →
+     REGISTER_CONTAINER. Parallel for STOP.
+   - Test: start DCS with dcs_ops_ui in topology. Watch
+     node_control start it, write registry row; browser still
+     reaches it directly. `docker stop` DCS → teardown removes
+     row. First real test of app-container management.
+4. **openresty_base (retrofit).**
+   - By now dcs_ops_ui has shown us what's duplicated. Extract:
+     `resty_kb_client/pg.lua` (pgmoon + keepalive), `ltree.lua`
+     (path helpers), `registry.lua` (registry reader — gateway
+     consumer). Vendor htmx here too.
+   - Build `nanodatacenter/openresty-base:latest`.
+   - Refactor dcs_ops_ui's Dockerfile to `FROM openresty-base`,
+     delete inlined pgmoon calls. Rebuild, retest end-to-end.
+   - Layer sharing now kicks in for the next openresty image.
+5. **nanodatacenter_gateway.**
+   - `FROM openresty-base`. Polls pg registry every 2s, caches
+     in `lua_shared_dict`. Reverse-proxies `/ui/<name>/` with
+     prefix stripped. Portal index with htmx-driven tree
+     grouped by cpu_id.
+   - Test: DCS topology grows gateway instance alongside
+     dcs_ops_ui. Operator visits gateway URL. Portal shows
+     dcs_ops in tree. Click → proxied → UI renders.
+     Full end-to-end: registry → proxy → upstream → operator.
 
 Each step is independently testable; partial progress is deployable.
+
+### Why this ordering is strictly better
+
+- **Concrete feedback in session 1.** dcs_ops_ui v0 renders real
+  data. Visible proof the stack works. Compare to starting with
+  openresty_base where test is "can we import the library".
+- **DCS learns to run app containers** (step 3). First time
+  node_control is exercised for anything beyond infra start/stop.
+  Big milestone tested against a real target.
+- **openresty_base emerges from real usage.** By step 4 we know
+  what to extract because we've written it twice (in dcs_ops_ui
+  inline). Abstraction is mechanical, not speculative.
+- **Gateway built last, with a known-good upstream.** If the
+  proxy is broken we know it's the proxy, not the backend.
+
+### What gets thrown away
+
+Step 1's inlined pgmoon boilerplate (~20 lines in the nginx.conf)
+gets replaced in step 4 by `resty_kb_client.pg`. That's the
+explicit cost of this ordering. Accepted — temporary dup is
+cheaper than premature abstraction.
 
 ## Deferred / future
 
