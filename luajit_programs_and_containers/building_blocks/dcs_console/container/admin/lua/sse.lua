@@ -7,7 +7,8 @@
 local path = ngx.var[1] or ""
 
 local STATIC_ROUTES = {
-  ["system/overview"] = "sse_views.system_overview",
+  ["system/overview"]  = "sse_views.system_overview",
+  ["exception/active"] = "sse_views.exception_active",
 }
 
 local mod_name = STATIC_ROUTES[path]

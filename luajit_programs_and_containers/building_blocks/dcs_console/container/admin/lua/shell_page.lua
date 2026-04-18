@@ -91,8 +91,9 @@ end
 
 local function exceptions_branch()
   return branch("Exceptions",
-    leaf("fragment/exception/active",  "Active") ..
-    leaf("fragment/exception/history", "History"),
+    leaf("fragment/exception/active",       "Active") ..
+    leaf("fragment/exception/acknowledged", "Acknowledged") ..
+    leaf("fragment/exception/history",      "History"),
     false)
 end
 

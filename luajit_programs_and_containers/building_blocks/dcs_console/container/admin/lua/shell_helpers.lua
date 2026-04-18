@@ -355,6 +355,147 @@ function M.now_utc_iso()
   return os.date("!%Y-%m-%dT%H:%M:%SZ")
 end
 
+------------------------------------------------------------------------
+-- Exception listing + mutations (Phase 5)
+------------------------------------------------------------------------
+
+-- Full list of SYS_EXCEPTION rows in the requested state.
+-- filter ∈ { "active", "acknowledged", "history" }.
+--   active      : status=true  AND acknowledged≠true
+--   acknowledged: status=true  AND acknowledged=true
+--   history     : status=false  (i.e. cleared)
+--
+-- Returns array of:
+--   { path, name, cpu_id, agent_instance, type, description,
+--     ts, last_error, trace_b64,
+--     acknowledged, ack_by, ack_at,
+--     cleared_by, cleared_at, note }
+function M.list_exceptions(pg, filter)
+  local where
+  if filter == "active" then
+    where = "(s.data->>'status')::bool = true AND COALESCE((s.data->>'acknowledged')::bool, false) = false"
+  elseif filter == "acknowledged" then
+    where = "(s.data->>'status')::bool = true AND COALESCE((s.data->>'acknowledged')::bool, false) = true"
+  else
+    where = "COALESCE((s.data->>'status')::bool, false) = false"
+  end
+  local rs, err = pg:query(string.format([[
+    SELECT k.path AS path, k.name AS name,
+           k.properties AS props, s.data AS data
+    FROM knowledge_base k
+    JOIN knowledge_base_status s ON s.path = k.path
+    WHERE k.label = 'SYS_EXCEPTION' AND %s
+    ORDER BY COALESCE((s.data->>'ts')::bigint, 0) DESC
+    LIMIT 200
+  ]], where))
+  if not rs then return nil, err end
+  local out = {}
+  for _, r in ipairs(rs) do
+    local props = r.props;  if type(props) == "string" then props = cjson.decode(props) or {} end
+    local data  = r.data;   if type(data)  == "string" then data  = cjson.decode(data)  or {} end
+    local path_s = tostring(r.path or "")
+    local cpu_id = path_s:match("%.cpu%.([^%.]+)%.SYS_EXCEPTION")
+    out[#out + 1] = {
+      path            = path_s,
+      name            = r.name,
+      cpu_id          = cpu_id,
+      agent_instance  = props.instance,
+      type            = props.type,
+      description     = props.description,
+      ts              = tonumber(data.ts),
+      last_error      = data.last_error,
+      trace_b64       = data.trace_b64,
+      acknowledged    = (data.acknowledged == true or data.acknowledged == "true"),
+      ack_by          = data.ack_by,
+      ack_at          = tonumber(data.ack_at),
+      cleared_by      = data.cleared_by,
+      cleared_at      = tonumber(data.cleared_at),
+      note            = data.note,
+    }
+  end
+  return out
+end
+
+-- Lazy CREATE TABLE IF NOT EXISTS for the ops audit log. Memoised per
+-- worker process so we only pay the round-trip once.
+local _audit_log_ready
+
+function M.ensure_audit_log_table(pg)
+  if _audit_log_ready then return true end
+  local ok, err = pg:query([[
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id        SERIAL PRIMARY KEY,
+      ts        TIMESTAMPTZ DEFAULT now(),
+      operator  TEXT NOT NULL,
+      action    TEXT NOT NULL,
+      target    TEXT,
+      note      TEXT,
+      result    TEXT
+    )
+  ]])
+  if not ok then return nil, err end
+  _audit_log_ready = true
+  return true
+end
+
+-- Append one audit row. Never throws; any pg error is logged but the
+-- caller's mutation result is what matters to the operator.
+function M.audit_log_append(pg, operator, action, target, note, result)
+  if not _audit_log_ready then
+    local ok = M.ensure_audit_log_table(pg)
+    if not ok then return end
+  end
+  local function esc(s) return (tostring(s or "")):gsub("'", "''") end
+  pg:query(string.format(
+    "INSERT INTO audit_log (operator, action, target, note, result) " ..
+    "VALUES ('%s', '%s', '%s', '%s', '%s')",
+    esc(operator), esc(action), esc(target), esc(note), esc(result)))
+end
+
+-- Ack: mark status row acknowledged=true + ack_by + ack_at. Does NOT
+-- touch the status field; the exception is still "live" (count stays
+-- in ready_bits etc.), operator has just silenced the alarm.
+--
+-- knowledge_base_status.data is `json` (not `jsonb`), so we cast the
+-- column to jsonb for jsonb_set then back to json for the UPDATE.
+function M.ack_exception(pg, path, operator, note)
+  local function esc(s) return (tostring(s or "")):gsub("'", "''") end
+  local sql = string.format([[
+    UPDATE knowledge_base_status
+    SET data = (jsonb_set(
+                  jsonb_set(
+                    jsonb_set(
+                      jsonb_set(data::jsonb, '{acknowledged}', 'true'::jsonb),
+                      '{ack_by}', to_jsonb('%s'::text)),
+                    '{ack_at}', to_jsonb(extract(epoch FROM now())::int)),
+                  '{note}', to_jsonb('%s'::text)))::json
+    WHERE path = '%s'::ltree
+  ]], esc(operator), esc(note or ""), esc(path))
+  local ok, err = pg:query(sql)
+  return ok and true or nil, err
+end
+
+-- Clear: mark status=false + cleared_by + cleared_at. Also keeps
+-- acknowledged=true for the history record (cleared implies acked).
+function M.clear_exception(pg, path, operator, note)
+  local function esc(s) return (tostring(s or "")):gsub("'", "''") end
+  local sql = string.format([[
+    UPDATE knowledge_base_status
+    SET data = (jsonb_set(
+                  jsonb_set(
+                    jsonb_set(
+                      jsonb_set(
+                        jsonb_set(data::jsonb, '{status}', 'false'::jsonb),
+                        '{acknowledged}', 'true'::jsonb),
+                      '{cleared_by}', to_jsonb('%s'::text)),
+                    '{cleared_at}', to_jsonb(extract(epoch FROM now())::int)),
+                  '{note}', to_jsonb('%s'::text)))::json
+    WHERE path = '%s'::ltree
+  ]], esc(operator), esc(note or ""), esc(path))
+  local ok, err = pg:query(sql)
+  return ok and true or nil, err
+end
+
 -- Build an ltree path under the current site prefix. Variadic args
 -- become trailing labels. Empty/nil args are skipped so callers can
 -- always pass in optional segments without branching.
