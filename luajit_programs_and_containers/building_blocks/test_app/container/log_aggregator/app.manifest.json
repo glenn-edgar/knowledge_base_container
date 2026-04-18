@@ -1,0 +1,7 @@
+{
+    "name": "log_aggregator",
+    "argv": ["luajit", "/opt/apps/log_aggregator/main.lua"],
+    "start_order": 20,
+    "restart_policy": "always",
+    "kb_path": ""
+}

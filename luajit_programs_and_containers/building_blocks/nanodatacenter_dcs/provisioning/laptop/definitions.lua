@@ -15,7 +15,30 @@
 --   env_required  : { "POSTGRES_PASSWORD", ... } names resolved from operator
 --                   secrets.env at docker run time (NEVER baked into image)
 --   default_cfg   : opaque table written into the instance's service info_node
---   ports         : { { host = X, cont = Y }, ... } or { Y, ... } (same)
+--   ports         : LEGACY host/cont list used by infrastructure defs.
+--                   { { host = X, cont = Y }, ... } or { Y, ... } (same).
+--                   Mutually exclusive with port_spec.
+--   port_spec     : NEW -- per-image named-slot declaration for applications.
+--                   Each slot describes an INTERNAL port the image binds on;
+--                   topology.lua's instance-level `ports = { <slot> = <ext> }`
+--                   supplies the external port numbers author-managed (no
+--                   auto-assignment). Slot names are the stable identifier
+--                   used by the gateway for routing and by the registry.
+--                   Shape:
+--                     port_spec = {
+--                       <slot_name> = {
+--                         internal    = 8080,          -- required, int
+--                         protocol    = "tcp",         -- default "tcp"
+--                         purpose     = "ui",          -- "ui" | "service" | ...
+--                         description = "human text",  -- optional
+--                       },
+--                       ...
+--                     }
+--                   Construct-time: def-level uniqueness of `internal` across
+--                   slots within a port_spec is enforced; per-CPU uniqueness of
+--                   EXTERNAL ports across all instances (port_spec + legacy) is
+--                   enforced; every slot must have a matching entry in the
+--                   instance's topology-level `ports` table.
 --   volumes       : { { host = "~/Postgres_Data", cont = "/var/lib/..." }, ... }
 --                   host-side paths resolved against $HOME at run time
 --   labels        : { key = value, ... } -- "nanodatacenter=true" added
@@ -64,7 +87,11 @@ return {
     kind    = "infrastructure",
     runtime = "docker",
     image   = "nanodatacenter/mosquitto-ram-ws:latest",
-    ports   = { { host = 1883, cont = 1883 } },
+    -- 1883 = MQTT, 9001 = MQTT-over-WebSocket (install script binds both).
+    -- Declared here so construct-time per-CPU conflict detection catches
+    -- collisions with application ports.
+    ports   = { { host = 1883, cont = 1883 },
+                { host = 9001, cont = 9001 } },
     restart_policy = "always",
   },
 
@@ -81,8 +108,59 @@ return {
   -- build_output/<cpu>/start.sh. They don't appear in this catalog.
 
   ----------------------------------------------------------------------
-  -- Application (none in v1; example shape preserved)
+  -- Applications
   ----------------------------------------------------------------------
+
+  -- test_app: 4-process shell container used to exercise the full
+  -- registration/deregistration path through node_control + gateway.
+  -- Image is built out-of-tree in building_blocks/test_app/. Two
+  -- supervised web processes bind internal ports 8080 + 8081; two
+  -- supervised lua worker processes have no ports.
+  test_app = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/test-app:latest",
+    restart_policy = "unless-stopped",
+    port_spec = {
+      exceptions_ui = {
+        internal    = 8080,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Exception aggregation viewer (shell)",
+      },
+      logs_ui = {
+        internal    = 8081,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Log aggregation viewer (shell)",
+      },
+    },
+  },
+
+  -- dcs_console: two-web-server pod. gateway slot will become the
+  -- site-wide reverse proxy; admin slot will become the real operator
+  -- UI (pg reads + htmx). Both start as shells; slot names are final so
+  -- filling them in doesn't churn CONTAINER_REGISTRY rows.
+  dcs_console = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/dcs-console:latest",
+    restart_policy = "unless-stopped",
+    port_spec = {
+      gateway = {
+        internal    = 8080,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Site-wide reverse proxy (shell)",
+      },
+      admin = {
+        internal    = 8081,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "DCS operator admin UI (shell)",
+      },
+    },
+  },
 
   -- robot_planner = {
   --   kind          = "application",

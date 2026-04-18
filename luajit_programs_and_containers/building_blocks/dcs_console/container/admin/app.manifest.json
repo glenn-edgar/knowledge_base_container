@@ -1,0 +1,10 @@
+{
+    "name": "admin",
+    "argv": ["/usr/local/openresty/bin/openresty",
+             "-p", "/opt/apps/admin/",
+             "-c", "conf/nginx.conf",
+             "-g", "daemon off;"],
+    "start_order": 20,
+    "restart_policy": "always",
+    "kb_path": ""
+}

@@ -12,6 +12,8 @@
 
 local eq_mod = require("cfl_event_queue")
 local defs   = require("cfl_definitions")
+local kbcr   = require("kb_container_registry")
+local kb_asg = require("kb_assignments")
 
 local M = {}
 
@@ -519,9 +521,225 @@ function M.build(ctx)
   -- node_control half
   ----------------------------------------------------------------------
 
-  R.NODE_READ_OWN_CONFIG           = oneshot_stub(log, "NODE_READ_OWN_CONFIG",           "node_control")
-  R.START_ASSIGNED_CONTAINERS      = oneshot_stub(log, "START_ASSIGNED_CONTAINERS (v1: none)", "node_control")
-  R.STOP_ASSIGNED_CONTAINERS       = oneshot_stub(log, "STOP_ASSIGNED_CONTAINERS (v1: none)",  "node_control")
+  -- Runtime pre-flight: list host TCP listeners via `ss -tln`. Caller
+  -- calls once per batch and reuses the result across assignments to avoid
+  -- spawning a shell per container.
+  local function listening_ports()
+    local p = io.popen("ss -tln 2>/dev/null")
+    if not p then return {} end
+    local out = p:read("*a") or ""
+    p:close()
+    local ports = {}
+    for line in out:gmatch("[^\r\n]+") do
+      local port = line:match(":(%d+)%s")
+      if port then ports[tonumber(port)] = true end
+    end
+    return ports
+  end
+
+  local function external_ports_of(asg)
+    local out = {}
+    for _, p in ipairs(asg.service and asg.service.ports or {}) do
+      local ext = p.external or p.host
+      if ext then out[#out + 1] = ext end
+    end
+    return out
+  end
+
+  -- CHECK_PORT_CONFLICT: any external port already bound on the host is
+  -- a hard skip for that assignment (docker run would fail the bind with
+  -- the same result, but this path lets us log the specific port).
+  local function check_port_conflict(asg, listening)
+    for _, port in ipairs(external_ports_of(asg)) do
+      if listening[port] then return false, port end
+    end
+    return true
+  end
+
+  -- Log a per-container start failure: SYS_EXCEPTION + stderr. Doesn't
+  -- propagate; node_control keeps iterating over the remaining assignments.
+  local function log_container_failure(asg_name, reason)
+    local msg = string.format("%s: %s", asg_name, reason)
+    log("node_control", "container_start_failed -- " .. msg)
+    if ctx.connectors.pg then
+      local ok, err = kb_exc.log_exception(
+        ctx.connectors.pg, exc_path("container_start_failed"), msg)
+      if not ok then
+        log("node_control", "log_exception FAILED: " .. tostring(err))
+      end
+    end
+  end
+
+  -- REGISTER: write both CONTAINER_REGISTRY rows (schema + status). Idempotent.
+  local function register_assignment(asg)
+    if not ctx.connectors.pg then
+      log("node_control", "REGISTER " .. asg.name .. " skipped (no pg conn)")
+      return false, "no pg conn"
+    end
+    local props = { definition = asg.definition, category = "application" }
+    local data  = {
+      host        = (asg.service and asg.service.host) or asg.name,
+      ports       = (asg.service and asg.service.ports) or {},
+    }
+    local spec = (ctx.system_control_globals.build_specs or {})[asg.definition]
+    if spec then
+      data.image       = spec.image
+      data.description = spec.description
+                         or (asg.definition .. " :: " .. asg.name)
+    end
+    local ok, err = kbcr.register(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id,
+      asg.name, props, data)
+    if ok then
+      log("node_control", "REGISTER " .. asg.name)
+    else
+      log("node_control", "REGISTER " .. asg.name .. " FAILED: " .. tostring(err))
+    end
+    return ok, err
+  end
+
+  -- DEREGISTER: delete both rows. No-op if absent.
+  local function deregister_assignment(asg_name)
+    if not ctx.connectors.pg then return false, "no pg conn" end
+    local ok, err = kbcr.deregister(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id, asg_name)
+    if ok then
+      log("node_control", "DEREGISTER " .. asg_name)
+    else
+      log("node_control", "DEREGISTER " .. asg_name .. " FAILED: " .. tostring(err))
+    end
+    return ok, err
+  end
+
+  -- RECONCILE: at boot, drop any CONTAINER_REGISTRY rows on this CPU that
+  -- aren't in our current assignment list. Keeps the gateway from routing
+  -- to containers that no longer exist after a topology change.
+  local function reconcile_registry(assignments)
+    if not ctx.connectors.pg then return end
+    local expected = {}
+    for _, a in ipairs(assignments or {}) do expected[a.name] = true end
+    local deleted, err = kbcr.reconcile(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id, expected)
+    if not deleted then
+      log("node_control", "RECONCILE FAILED: " .. tostring(err))
+      return
+    end
+    if deleted > 0 then
+      log("node_control", string.format(
+        "RECONCILE removed %d stale CONTAINER_REGISTRY row(s)", deleted))
+    end
+  end
+
+  -- NODE_READ_OWN_CONFIG: load assignment list from pg, stash for later,
+  -- reconcile registry. Runs once when node_control's setup state enters.
+  R.NODE_READ_OWN_CONFIG = function(_h, _n)
+    if not ctx.connectors.pg then
+      log("node_control", "NODE_READ_OWN_CONFIG skipped (no pg conn)")
+      ctx.node_control_globals.assignments = {}
+      return
+    end
+    local assignments, err = kb_asg.list_node_managed(
+      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id)
+    if not assignments then
+      log("node_control",
+          "NODE_READ_OWN_CONFIG list_node_managed FAILED: " .. tostring(err))
+      ctx.node_control_globals.assignments = {}
+      return
+    end
+    ctx.node_control_globals.assignments = assignments
+    local names = {}
+    for _, a in ipairs(assignments) do names[#names + 1] = a.name end
+    log("node_control", string.format(
+      "NODE_READ_OWN_CONFIG: %d assignment(s)%s", #assignments,
+      (#names > 0) and (" [" .. table.concat(names, ", ") .. "]") or ""))
+    reconcile_registry(assignments)
+  end
+
+  -- START_ASSIGNED_CONTAINERS: for each assignment, pre-flight port
+  -- conflict, docker run from merged spec, register on success. Per-
+  -- assignment failures are logged + SYS_EXCEPTION'd but do NOT halt the
+  -- batch; other assignments still get a chance to start.
+  R.START_ASSIGNED_CONTAINERS = function(_h, _n)
+    local assignments = ctx.node_control_globals.assignments or {}
+    if #assignments == 0 then
+      log("node_control", "START_ASSIGNED_CONTAINERS: 0 assignments")
+      return
+    end
+    local listening = listening_ports()
+    local build_specs = ctx.system_control_globals.build_specs or {}
+
+    for _, asg in ipairs(assignments) do
+      if docker.is_running(asg.name) then
+        log("node_control", "START " .. asg.name .. ": already running, re-register")
+        register_assignment(asg)
+      else
+        local spec = build_specs[asg.definition]
+        if not spec then
+          log_container_failure(asg.name,
+            "build.spec not loaded for definition " .. tostring(asg.definition))
+        else
+          local ok, bad_port = check_port_conflict(asg, listening)
+          if not ok then
+            log_container_failure(asg.name,
+              "external port " .. tostring(bad_port) .. " already in use on host")
+          else
+            -- Merge: keep def.spec but override ports with per-instance
+            -- resolved records (slot/internal/external from service.main).
+            local merged = {}
+            for k, v in pairs(spec) do merged[k] = v end
+            merged.ports = (asg.service and asg.service.ports) or {}
+            -- PG_HOST normalization: the DCS process reads pg at the
+            -- host's localhost, but a bridge-network container's localhost
+            -- is itself. Swap to host.docker.internal so the app's
+            -- luajit-base supervisor can VERIFY_PG successfully. (The
+            -- --add-host flag in docker.run_from_spec creates the alias
+            -- on both Docker Desktop and Linux-native.)
+            local host_pg = ctx.cfg.pg_host
+            if host_pg == "localhost" or host_pg == "127.0.0.1" then
+              host_pg = "host.docker.internal"
+            end
+            local extra_env = {
+              CONTAINER_NAME = asg.name,
+              APP_SITE       = ctx.cfg.site,
+              APP_CPU_ID     = ctx.cfg.cpu_id,
+              PG_HOST        = host_pg,
+              PG_PORT        = tostring(ctx.cfg.pg_port),
+              PG_DB          = ctx.cfg.pg_db,
+              PG_USER        = ctx.cfg.pg_user,
+              PG_PASSWORD    = os.getenv("PG_PASSWORD")
+                               or os.getenv("POSTGRES_PASSWORD") or "",
+            }
+            local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
+            if rok then
+              log("node_control", string.format(
+                "START %s -> %s", asg.name, tostring(rres):sub(1, 12)))
+              register_assignment(asg)
+              -- Optimistic: our ports are ours now; update the listening
+              -- set so a second assignment with the same port would be
+              -- flagged (should be caught at construct, but belt-and-braces).
+              for _, port in ipairs(external_ports_of(asg)) do
+                listening[port] = true
+              end
+            else
+              log_container_failure(asg.name, tostring(rres))
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- STOP_ASSIGNED_CONTAINERS: for each assignment, docker stop + rm +
+  -- deregister. docker.stop is "soft": SIGTERM + grace + rm -f fallback.
+  R.STOP_ASSIGNED_CONTAINERS = function(_h, _n)
+    local assignments = ctx.node_control_globals.assignments or {}
+    for _, asg in ipairs(assignments) do
+      docker.stop(asg.name)
+      log("node_control", "STOP " .. asg.name)
+      deregister_assignment(asg.name)
+    end
+  end
+
   R.LOG_SYSTEM_READY_TRANSITIONS   = oneshot_stub(log, "LOG_SYSTEM_READY_TRANSITIONS",         "node_control")
 
   R.WRITE_PROCESS_GLOBALS_NODE_OPERATIONAL_TRUE = function(_h, _n)

@@ -90,11 +90,23 @@ function M.run_from_spec(name, spec, extra_env)
   assert(name and name ~= "", "run_from_spec: name required")
   assert(spec and spec.image, "run_from_spec: spec.image required")
 
+  -- Belt-and-braces: a stopped container under the same name from a
+  -- prior run would make `docker run --name` fail with "name in use".
+  -- DCS owns application containers, so removing any stale instance
+  -- before starting is the right default.
+  capture("docker rm -f " .. shell_escape(name))
+
   local parts = { "docker", "run", "-d", "--name", shell_escape(name) }
 
   -- our global clean-slate label
   parts[#parts + 1] = "--label"
   parts[#parts + 1] = shell_escape(DEFAULT_LABEL)
+
+  -- host.docker.internal resolution: required on Docker Desktop, harmless
+  -- on Linux-native (where the gateway alias just points at the host).
+  -- Containers that connect back to pg/NATS on the host use this name.
+  parts[#parts + 1] = "--add-host"
+  parts[#parts + 1] = shell_escape("host.docker.internal:host-gateway")
 
   -- per-spec labels
   for k, v in pairs(spec.labels or {}) do
@@ -108,11 +120,23 @@ function M.run_from_spec(name, spec, extra_env)
     parts[#parts + 1] = shell_escape(spec.restart_policy)
   end
 
-  -- port mappings: accept { {host=H, cont=C}, ... } or { C, ... }
+  -- port mappings. Accepted record shapes:
+  --   { external = H, internal = C, slot, protocol, purpose, ... }  -- new
+  --   { host = H, cont = C }                                         -- legacy
+  --   { C }  |  C                                                    -- short legacy
+  -- New-style records come from port_spec-driven definitions (per
+  -- construct_dcs_kb.lua's resolve_instance_ports); legacy records still
+  -- carry the old host/cont shape for infrastructure defs.
   for _, p in ipairs(spec.ports or {}) do
     local hp, cp
     if type(p) == "table" then
-      hp, cp = p.host or p.cont, p.cont or p.host
+      if p.external or p.internal then
+        hp = p.external or p.internal
+        cp = p.internal or p.external
+      else
+        hp = p.host or p.cont
+        cp = p.cont or p.host
+      end
     else
       hp, cp = p, p
     end

@@ -92,7 +92,14 @@ return {
         -- as a single DCS host process (host_processes/dcs.lua) managed by
         -- build_output/<cpu>/start.sh. Not placed here.
 
-        -- applications (none in v1)
+        -- applications. Instance-level `ports` maps each slot declared in
+        -- the def's port_spec to an external port the DSL author picks
+        -- explicitly. Per-CPU external-port collisions are a hard fail
+        -- at construct time.
+        { name = "test_app_01", def = "test_app",
+          ports = { exceptions_ui = 19001, logs_ui = 19002 } },
+        { name = "dcs_console_01", def = "dcs_console",
+          ports = { gateway = 19003, admin = 19004 } },
       },
     },
 

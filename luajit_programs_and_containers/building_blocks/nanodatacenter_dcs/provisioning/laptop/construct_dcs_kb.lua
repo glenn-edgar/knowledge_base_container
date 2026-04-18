@@ -66,10 +66,51 @@ end
 -- Sanity passes
 ---------------------------------------------------------------------------
 
+-- Helper: extract the external port number from a legacy `ports` entry.
+-- Legacy shapes: { host = X, cont = Y } | { X, Y } | X.
+local function legacy_external(p)
+  if type(p) == "table" then return p.host or p[1] end
+  if type(p) == "number" then return p end
+  return nil
+end
+
 local function sanity_check()
   -- master CPU exists in topology
   if not TOPOLOGY.cpus[MASTER_CPU] then
     error(string.format("master CPU %q not found in topology.cpus", MASTER_CPU))
+  end
+
+  -- Def-level: (a) port_spec and legacy `ports` are mutually exclusive;
+  -- (b) each port_spec slot must declare a numeric `internal`; (c) within
+  -- a single port_spec, `internal` is unique across slots (else the image
+  -- can't bind all of them).
+  for def_name, def in pairs(DEFINITIONS) do
+    if def.port_spec then
+      if def.ports then
+        error(string.format(
+          "definition %q has both legacy `ports` and new `port_spec` -- pick one",
+          def_name))
+      end
+      local seen_internal = {}
+      for slot, spec in pairs(def.port_spec) do
+        if type(slot) ~= "string" or slot == "" then
+          error(string.format(
+            "definition %q port_spec key must be a non-empty string slot name",
+            def_name))
+        end
+        if type(spec) ~= "table" or type(spec.internal) ~= "number" then
+          error(string.format(
+            "definition %q port_spec.%s.internal must be a number",
+            def_name, slot))
+        end
+        if seen_internal[spec.internal] then
+          error(string.format(
+            "definition %q port_spec: slots %q and %q both claim internal port %d",
+            def_name, seen_internal[spec.internal], slot, spec.internal))
+        end
+        seen_internal[spec.internal] = slot
+      end
+    end
   end
 
   local instance_owner = {}   -- inst_name -> cpu_id (for uniqueness check)
@@ -91,6 +132,10 @@ local function sanity_check()
     end
     bit_owner[cpu.bit_index] = cpu_id
     if cpu.bit_index > max_bit then max_bit = cpu.bit_index end
+
+    -- Per-CPU external-port ownership tracker. Catches collisions across
+    -- both port_spec placements and legacy-ports definitions on the same CPU.
+    local cpu_ext_port = {}  -- ext -> { inst = name, slot = slot_or_legacy_idx }
 
     for _, inst in ipairs(cpu.instances or {}) do
       -- 1. definition must resolve
@@ -116,6 +161,68 @@ local function sanity_check()
           "runs from build_output/<cpu>/start.sh, not docker)",
           cpu_id, inst.name))
       end
+
+      -- 4. port_spec path: every slot must have an instance.ports entry,
+      --    and instance.ports must not declare unknown slots. Register
+      --    each external into cpu_ext_port; collisions are hard errors.
+      if def.port_spec then
+        local inst_ports = inst.ports
+        if inst_ports ~= nil and type(inst_ports) ~= "table" then
+          error(string.format(
+            "cpu %q instance %q ports must be a table (got %s)",
+            cpu_id, inst.name, type(inst_ports)))
+        end
+        inst_ports = inst_ports or {}
+        for slot, _ in pairs(def.port_spec) do
+          local ext = inst_ports[slot]
+          if type(ext) ~= "number" then
+            error(string.format(
+              "cpu %q instance %q (def=%s) missing ports.%s " ..
+              "(external port for slot %q)",
+              cpu_id, inst.name, inst.def, slot, slot))
+          end
+          local prior = cpu_ext_port[ext]
+          if prior then
+            error(string.format(
+              "cpu %q external port %d collision: %s.%s and %s.%s",
+              cpu_id, ext, prior.inst, prior.slot, inst.name, slot))
+          end
+          cpu_ext_port[ext] = { inst = inst.name, slot = slot }
+        end
+        for slot, _ in pairs(inst_ports) do
+          if not def.port_spec[slot] then
+            error(string.format(
+              "cpu %q instance %q ports.%s has no matching slot in def %q port_spec",
+              cpu_id, inst.name, slot, inst.def))
+          end
+        end
+
+      -- 5. legacy ports path: externals come from def.ports. Instance must
+      --    NOT declare a ports field (it's only meaningful for port_spec).
+      elseif def.ports then
+        if inst.ports ~= nil then
+          error(string.format(
+            "cpu %q instance %q declares `ports` but def %q uses legacy " ..
+            "port mapping (def.ports). Upgrade def to port_spec or drop " ..
+            "instance.ports.",
+            cpu_id, inst.name, inst.def))
+        end
+        for i, p in ipairs(def.ports) do
+          local ext = legacy_external(p)
+          if type(ext) ~= "number" then
+            error(string.format(
+              "cpu %q instance %q def %q legacy ports[%d] has no external number",
+              cpu_id, inst.name, inst.def, i))
+          end
+          local prior = cpu_ext_port[ext]
+          if prior then
+            error(string.format(
+              "cpu %q external port %d collision: %s.%s and %s[legacy:%d]",
+              cpu_id, ext, prior.inst, prior.slot, inst.name, i))
+          end
+          cpu_ext_port[ext] = { inst = inst.name, slot = "legacy:" .. i }
+        end
+      end
     end
   end
 
@@ -129,6 +236,29 @@ local function sanity_check()
   end
 
   print(string.format("sanity passes: ok (cpu count = %d)", max_bit + 1))
+end
+
+-- Resolve a placement's final port list. For port_spec defs, returns
+-- an ordered list of records with both internal AND external, plus the
+-- slot/protocol/purpose/description metadata needed by the registry and
+-- the gateway. For legacy defs, returns def.ports unchanged (old format)
+-- so infrastructure keeps working without topology edits.
+local function resolve_instance_ports(def, inst)
+  if def.port_spec then
+    local out = {}
+    for slot, spec in pairs(def.port_spec) do
+      table.insert(out, {
+        slot        = slot,
+        internal    = spec.internal,
+        external    = inst.ports[slot],
+        protocol    = spec.protocol    or "tcp",
+        purpose     = spec.purpose     or "service",
+        description = spec.description or "",
+      })
+    end
+    return out
+  end
+  return def.ports or {}
 end
 
 sanity_check()
@@ -164,6 +294,7 @@ for def_name, def in pairs(DEFINITIONS) do
                        env_required   = def.env_required   or {},
                        default_cfg    = def.default_cfg    or {},
                        ports          = def.ports          or {},
+                       port_spec      = def.port_spec      or {},
                        volumes        = def.volumes        or {},
                        labels         = def.labels         or {},
                        restart_policy = def.restart_policy or "no",
@@ -188,6 +319,14 @@ kb:add_header_node("site", SITE, { site_type = "dcs" }, {},
   kb:add_status_field("unmonitor_lease_default_s", {},
                       "default unmonitor lease length in seconds (operator policy)",
                       { value = 900 })
+
+  -- Gateway poll cadence. Baked-in default = 15s; operator can override by
+  -- writing a new {"value":N} to knowledge_base_status at this path. The
+  -- dcs_console gateway reads this on every poll tick and uses COALESCE so
+  -- an empty runtime row falls back to the schema default below.
+  kb:add_status_field("gateway_poll_interval_sec", {},
+                      "dcs_console gateway poll cadence in seconds (operator-tunable)",
+                      { value = 15 })
 
   -- Compute total CPU count once — used for ready_bits size +
   -- bootstrap.config.expected_cpu_count.
@@ -306,14 +445,19 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
                        { instance_params = inst.params or {} },
                        "Container instance " .. inst.name)
 
-      -- service info_node holds the dial-info for this instance
+      -- service info_node holds the dial-info for this instance.
+      -- `ports` is the resolved join of def.port_spec + inst.ports
+      -- (records with slot/internal/external/protocol/purpose/description)
+      -- for port_spec defs, or the legacy list for infrastructure.
+      -- node_control reads this to issue `docker run -p ext:int` and
+      -- (later) to write the container_registry row the gateway consumes.
       kb:add_info_node("service",
                        (def.kind == "infrastructure") and inst.name
                                                        or "main",
                        { type = def.kind },
                        {
                          host  = def.image and inst.name,  -- docker DNS = inst name
-                         ports = def.ports or {},
+                         ports = resolve_instance_ports(def, inst),
                          cfg   = def.default_cfg or {},
                        },
                        "Service endpoint")
