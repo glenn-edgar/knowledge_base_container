@@ -99,27 +99,19 @@ local TAB_UI_CSS = [[
 *, *::before, *::after { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif;
              background: #111; color: #ddd; }
-body { display: flex; }
+body { display: flex; flex-direction: column; }
 
-#sidebar { width: 18em; background: #1a1a1a; border-right: 1px solid #333;
-           display: flex; flex-direction: column; overflow: hidden; }
-#sidebar header { padding: 0.9em 1em; border-bottom: 1px solid #333;
-                  color: #fff; font-weight: 600; letter-spacing: 0.02em; }
-#sidebar header small { color: #666; font-weight: 400; }
-.catalog { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
-.catalog .empty { padding: 1em; color: #666; font-size: 0.9em; }
-.catalog li { padding: 0.55em 1em; border-bottom: 1px solid #222;
-              cursor: pointer; line-height: 1.3; }
-.catalog li:hover { background: #222; }
-.catalog li.open { background: #1f2a33; }
-.catalog li .c { color: #fff; font-weight: 500; }
-.catalog li .s { color: #7fbfff; font-size: 0.9em; }
-.catalog li .e { color: #666; font-size: 0.78em; margin-left: 0.4em; }
-.catalog li .d { color: #888; font-size: 0.8em; margin-top: 0.15em; }
-
+/* ---- workspace (full width now; sidebar is an overlay drawer) ---- */
 #workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ---- tab strip with hamburger at the start --------------------- */
 #tabs { display: flex; background: #181818; border-bottom: 1px solid #333;
-        min-height: 2.2em; overflow-x: auto; }
+        min-height: 2.4em; overflow-x: auto; align-items: stretch; }
+#menu-btn { background: none; border: 0; color: #ddd; font-size: 1.3em;
+            padding: 0 0.7em; cursor: pointer; line-height: 1;
+            border-right: 1px solid #333; flex-shrink: 0; }
+#menu-btn:hover { background: #222; }
+
 .tab { display: inline-flex; align-items: center; padding: 0 0.35em 0 0.9em;
        border-right: 1px solid #333; background: #1a1a1a; color: #aaa;
        cursor: pointer; gap: 0.3em; user-select: none; white-space: nowrap;
@@ -131,6 +123,39 @@ body { display: flex; }
               color: #777; }
 .tab .close:hover { background: #444; color: #fff; }
 
+/* ---- sidebar drawer (mobile: full-width; desktop: 20em) -------- */
+#sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 100%;
+           max-width: 22em; background: #1a1a1a;
+           border-right: 1px solid #333;
+           display: flex; flex-direction: column; overflow: hidden;
+           transform: translateX(-100%); transition: transform 0.18s ease-out;
+           z-index: 30; }
+#sidebar.open { transform: translateX(0); }
+#sidebar header { display: flex; align-items: center; justify-content: space-between;
+                  padding: 0.9em 1em; border-bottom: 1px solid #333;
+                  color: #fff; font-weight: 600; letter-spacing: 0.02em; }
+#sidebar header small { color: #666; font-weight: 400; }
+#sidebar-close { background: none; border: 0; color: #aaa; font-size: 1.3em;
+                 cursor: pointer; padding: 0 0.4em; }
+#sidebar-close:hover { color: #fff; }
+
+.catalog { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.catalog .empty { padding: 1em; color: #666; font-size: 0.9em; }
+.catalog li { padding: 0.6em 1em; border-bottom: 1px solid #222;
+              cursor: pointer; line-height: 1.3; }
+.catalog li:hover { background: #222; }
+.catalog li.open { background: #1f2a33; }
+.catalog li .c { color: #fff; font-weight: 500; }
+.catalog li .s { color: #7fbfff; font-size: 0.9em; }
+.catalog li .e { color: #666; font-size: 0.78em; margin-left: 0.4em; }
+.catalog li .d { color: #888; font-size: 0.8em; margin-top: 0.15em; }
+
+#scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+         z-index: 25; opacity: 0; pointer-events: none;
+         transition: opacity 0.18s; }
+#scrim.open { opacity: 1; pointer-events: auto; }
+
+/* ---- frames + placeholder ------------------------------------- */
 #frames { flex: 1; position: relative; overflow: hidden; }
 iframe.frame { position: absolute; inset: 0; width: 100%; height: 100%;
                border: 0; display: none; background: #fff; }
@@ -138,10 +163,15 @@ iframe.frame.active { display: block; }
 
 #placeholder { position: absolute; inset: 0; display: flex;
                flex-direction: column; align-items: center;
-               justify-content: center; color: #666; text-align: center; }
+               justify-content: center; color: #666; text-align: center;
+               padding: 1em; }
 #placeholder.hidden { display: none; }
 #placeholder h2 { font-weight: normal; color: #aaa; margin: 0 0 0.4em; }
 #placeholder p { margin: 0; font-size: 0.9em; }
+
+@media (min-width: 700px) {
+  #sidebar { width: 20em; }
+}
 ]]
 
 local TAB_UI_JS = [[
@@ -172,10 +202,25 @@ local TAB_UI_JS = [[
   const framesEl   = document.getElementById('frames');
   const placeEl    = document.getElementById('placeholder');
   const catalogEl  = document.getElementById('catalog');
+  const sidebarEl  = document.getElementById('sidebar');
+  const scrimEl    = document.getElementById('scrim');
+  const menuBtn    = document.getElementById('menu-btn');
+  const closeBtn   = document.getElementById('sidebar-close');
+
+  function openDrawer()  { sidebarEl.classList.add('open');  scrimEl.classList.add('open'); }
+  function closeDrawer() { sidebarEl.classList.remove('open'); scrimEl.classList.remove('open'); }
+
+  menuBtn.addEventListener('click', openDrawer);
+  closeBtn.addEventListener('click', closeDrawer);
+  scrimEl.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sidebarEl.classList.contains('open')) closeDrawer();
+  });
 
   function render() {
-    // Tab strip.
-    tabsEl.innerHTML = '';
+    // Clear just the .tab children; keep the hamburger button element
+    // (and any other non-tab siblings) intact.
+    Array.prototype.forEach.call(tabsEl.querySelectorAll('.tab'), function (t) { t.remove(); });
     state.tabs.forEach(function (t) {
       const btn = document.createElement('span');
       btn.className = 'tab' + (t.id === state.activeId ? ' active' : '');
@@ -254,10 +299,13 @@ local TAB_UI_JS = [[
     save(); render();
   }
 
-  // Bind sidebar clicks.
+  // Bind sidebar clicks. Closing the drawer after a selection is the
+  // usual mobile pattern -- on desktop the drawer overlays content and
+  // staying open is noisy.
   Array.prototype.forEach.call(catalogEl.querySelectorAll('li'), function (li) {
     li.addEventListener('click', function () {
       openOrFocus(li.dataset.route, li.dataset.title || li.dataset.route);
+      closeDrawer();
     });
   });
 
@@ -283,10 +331,13 @@ function M.render_tabs()
   ngx.say("<style>", TAB_UI_CSS, "</style>")
   ngx.say("</head><body>")
 
-  -- Sidebar.
+  -- Sidebar drawer (hidden off-screen until hamburger clicked).
   ngx.say('<aside id="sidebar">')
-  ngx.say('<header>DCS gateway <small>&middot; ', tostring(#menu),
-          ' UI', (#menu == 1) and "" or "s", '</small></header>')
+  ngx.say('<header>')
+  ngx.say('<span>DCS gateway <small>&middot; ', tostring(#menu),
+          ' UI', (#menu == 1) and "" or "s", '</small></span>')
+  ngx.say('<button id="sidebar-close" type="button" aria-label="Close menu">&times;</button>')
+  ngx.say('</header>')
   ngx.say('<ul class="catalog" id="catalog">')
   if #menu == 0 then
     ngx.say('<li class="empty">No UIs registered yet.</li>')
@@ -308,13 +359,18 @@ function M.render_tabs()
   end
   ngx.say("</ul></aside>")
 
-  -- Workspace.
+  -- Scrim behind the drawer.
+  ngx.say('<div id="scrim"></div>')
+
+  -- Workspace: tab strip (with hamburger button) + frames.
   ngx.say('<section id="workspace">')
-  ngx.say('<nav id="tabs"></nav>')
+  ngx.say('<nav id="tabs">')
+  ngx.say('<button id="menu-btn" type="button" aria-label="Menu">&#9776;</button>')
+  ngx.say('</nav>')
   ngx.say('<div id="frames">')
   ngx.say('<div id="placeholder">')
   ngx.say('<h2>No tab open.</h2>')
-  ngx.say('<p>Click a UI in the sidebar to open it as a tab.</p>')
+  ngx.say('<p>Tap the menu (&#9776;) and pick a UI.</p>')
   ngx.say('</div></div></section>')
 
   ngx.say("<script>", TAB_UI_JS, "</script>")
