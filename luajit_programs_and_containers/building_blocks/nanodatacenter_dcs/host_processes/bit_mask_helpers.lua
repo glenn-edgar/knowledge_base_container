@@ -72,6 +72,15 @@ function M.ready_bits_node_id(site)
     "system.site.%s.KB_BIT_MASK.ready_bits", site))
 end
 
+function M.cluster_sync_bits_node_id(site)
+  -- matches construct: "system.site.<S>.KB_BIT_MASK.cluster_sync_bits"
+  -- Used by sync_control KB: each CPU sets its own bit once it has
+  -- verified all 4 infra services are reachable. Master waits for
+  -- the full mask before flipping cluster_go.
+  return flatten_path(string.format(
+    "system.site.%s.KB_BIT_MASK.cluster_sync_bits", site))
+end
+
 ---------------------------------------------------------------------------
 -- heartbeat: 64-bit timestamp in bit_mask column
 ---------------------------------------------------------------------------
@@ -127,6 +136,47 @@ function M.expected_full_mask(cpu_count)
   -- (1 << N) - 1 in 64-bit; safe for N up to 63
   if cpu_count >= 64 then error("cpu_count >= 64 unsupported") end
   return (2 ^ cpu_count) - 1
+end
+
+---------------------------------------------------------------------------
+-- cluster_sync_bits: parallel to ready_bits but written DURING sync_control
+-- (before operational phase). Master flips cluster_go once this mask is
+-- full. Cleared explicitly at teardown so a subsequent restart re-enters
+-- sync cleanly.
+---------------------------------------------------------------------------
+
+function M.read_cluster_sync_bits(conn, site)
+  local node_id = M.cluster_sync_bits_node_id(site)
+  local row, err = query_one(conn, string.format(
+    "SELECT bit_mask FROM bit_mask_table WHERE node_id = '%s'",
+    escape(node_id)))
+  if not row then return nil, err or "row not found" end
+  return tonumber(row.bit_mask)
+end
+
+function M.set_cluster_sync_bit(conn, site, bit_index)
+  local node_id = M.cluster_sync_bits_node_id(site)
+  return exec(conn, string.format(
+    "UPDATE bit_mask_table SET bit_mask = bit_mask | (1::bigint << %d) " ..
+    "WHERE node_id = '%s'",
+    bit_index, escape(node_id)))
+end
+
+function M.clear_cluster_sync_bit(conn, site, bit_index)
+  local node_id = M.cluster_sync_bits_node_id(site)
+  return exec(conn, string.format(
+    "UPDATE bit_mask_table SET bit_mask = bit_mask & ~((1::bigint << %d)) " ..
+    "WHERE node_id = '%s'",
+    bit_index, escape(node_id)))
+end
+
+-- Master only: zero the full mask at teardown so a restart re-enters sync
+-- cleanly. Safe to call from any CPU; only master does.
+function M.clear_all_cluster_sync_bits(conn, site)
+  local node_id = M.cluster_sync_bits_node_id(site)
+  return exec(conn, string.format(
+    "UPDATE bit_mask_table SET bit_mask = 0 WHERE node_id = '%s'",
+    escape(node_id)))
 end
 
 return M

@@ -1,0 +1,10 @@
+{
+    "name": "planner_ui",
+    "argv": ["/usr/local/openresty/bin/openresty",
+             "-p", "/opt/apps/planner_ui/",
+             "-c", "conf/nginx.conf",
+             "-g", "daemon off;"],
+    "start_order": 30,
+    "restart_policy": "always",
+    "kb_path": ""
+}

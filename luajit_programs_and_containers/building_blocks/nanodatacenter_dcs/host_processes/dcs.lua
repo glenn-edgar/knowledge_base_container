@@ -186,12 +186,18 @@ end
 function M.activate_initial_kb(ctx)
   local kb_idx = ctx.chain_tree.kb_indexes
   local h_     = ctx.chain_tree.handle
+  -- Both master and slave boot into the sync_control KB for their role.
+  -- That KB brings up / verifies infra, waits for the whole cluster to
+  -- hit its cluster_sync bit, then hands off to system_control +
+  -- node_control and disables itself. From that moment on the
+  -- operational KBs run with strict fail-fast semantics; any failure
+  -- crashes out to the watchdog, which re-enters sync_control.
   if ctx.cfg.is_master == 1 then
-    ctx.log("dcs", "activating system_control KB (master)")
-    cfl_rt.add_test(h_, kb_idx.system_control)
+    ctx.log("dcs", "activating sync_control_master KB")
+    cfl_rt.add_test(h_, kb_idx.sync_control_master)
   else
-    ctx.log("dcs", "activating node_control KB (non-master)")
-    cfl_rt.add_test(h_, kb_idx.node_control)
+    ctx.log("dcs", "activating sync_control_slave KB")
+    cfl_rt.add_test(h_, kb_idx.sync_control_slave)
   end
 end
 

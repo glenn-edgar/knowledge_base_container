@@ -345,6 +345,29 @@ kb:add_header_node("site", SITE, { site_type = "dcs" }, {},
                            CPU_COUNT, 0,
                            "site-wide CPU readiness mask")
 
+  -- Site-level cluster_sync_bits: written during the sync_control KB
+  -- (pre-operational phase). Each CPU sets its bit once it has verified
+  -- all 4 infra services (pg/nats/mqtt/kv_bridge) are reachable. Master
+  -- flips cluster_go once this mask hits (1 << N) - 1, with a hard
+  -- timeout that fires a slave_never_joined SYS_EXCEPTION.
+  kb:clear_bit_mask_flags()
+  for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
+    kb:add_bit_mask_flag("CPU_" .. cpu_id .. "_SYNCED",
+                         cpu.bit_index,
+                         "CPU " .. cpu_id .. " verified all 4 infra services reachable")
+  end
+  kb:create_bit_mask_entry("system", "cluster_sync_bits",
+                           CPU_COUNT, 0,
+                           "sync-phase mask: per-CPU infra-verified bits")
+
+  -- Site-level cluster_go status field: master flips to 1 once every CPU
+  -- has set its cluster_sync bit; slaves poll this before transitioning
+  -- from sync_control to node_control. Cleared to 0 on teardown so a
+  -- restart re-enters sync cleanly.
+  kb:add_status_field("cluster_go", {},
+                      "sync-phase gate: 1 = all CPUs synced, handoff to operational",
+                      { value = 0 })
+
 for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
   local cpu_props = cpu.properties or {}
   cpu_props.is_master = (cpu_id == MASTER_CPU) and 1 or 0

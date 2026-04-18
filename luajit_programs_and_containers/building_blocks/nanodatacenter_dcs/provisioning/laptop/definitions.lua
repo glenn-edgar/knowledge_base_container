@@ -162,15 +162,38 @@ return {
     },
   },
 
-  -- robot_planner = {
-  --   kind          = "application",
-  --   runtime       = "docker",
-  --   build_ctx     = "containers/robot_planner",
-  --   entrypoint    = { "luajit", "planner.lua" },
-  --   env_defaults  = { LOG_LEVEL = "info" },
-  --   default_cfg   = { tick_rate_ms = 100 },
-  --   cli_databases = { "planner" },
-  --   restart_policy = "unless-stopped",
-  -- },
+  -- ros_mission_planner_ii: two-process pod (worker + UI). Shell for
+  -- now; real planner logic gets ported in a later session.
+  ros_mission_planner_ii = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/ros-mission-planner-ii:latest",
+    restart_policy = "unless-stopped",
+    port_spec = {
+      planner_ui = {
+        internal    = 8080,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Mission planner operator UI (shell)",
+      },
+    },
+  },
+
+  -- robot_manager: two-process pod (worker + UI). Shell for now; real
+  -- fleet-manager logic fills this in alongside ros_fleet_manager later.
+  robot_manager = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/robot-manager:latest",
+    restart_policy = "unless-stopped",
+    port_spec = {
+      manager_ui = {
+        internal    = 8080,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Robot fleet manager operator UI (shell)",
+      },
+    },
+  },
 
 }

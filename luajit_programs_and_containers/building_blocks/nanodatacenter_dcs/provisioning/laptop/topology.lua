@@ -49,6 +49,9 @@ return {
       { name = "slave_unreachable",
         type = "slave",      instance = "system_control",
         description = "A slave CPU has stopped heartbeating" },
+      { name = "slave_never_joined",
+        type = "sync",       instance = "system_control",
+        description = "A slave CPU did not set its cluster_sync bit within the sync-phase timeout" },
     },
     local_system_monitor = {
       { name = "host_cpu_saturated",
@@ -100,6 +103,21 @@ return {
           ports = { exceptions_ui = 19001, logs_ui = 19002 } },
         { name = "dcs_console_01", def = "dcs_console",
           ports = { gateway = 19003, admin = 19004 } },
+      },
+    },
+
+    -- cpu_02: virtual slave on the same laptop. Runs node_control only
+    -- (no system_control), hosts the two application shells that exercise
+    -- master-slave coordination. Connects to the shared pg/nats/mosquitto
+    -- that cpu_01 (master) brings up first.
+    cpu_02 = {
+      bit_index  = 1,
+      properties = { hostname = "localhost", role = "slave" },
+      instances = {
+        { name = "ros_mission_planner_ii_01", def = "ros_mission_planner_ii",
+          ports = { planner_ui = 19005 } },
+        { name = "robot_manager_01", def = "robot_manager",
+          ports = { manager_ui = 19006 } },
       },
     },
 

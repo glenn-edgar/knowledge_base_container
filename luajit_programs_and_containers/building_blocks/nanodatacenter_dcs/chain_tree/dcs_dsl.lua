@@ -16,7 +16,164 @@
 local ChainTreeMaster = require("chain_tree_master")
 
 -- =============================================================================
--- KB 0: system_control
+-- KB 0: sync_control_master
+--
+-- Runs ONLY on the master CPU at boot (dcs.lua activate_initial_kb picks
+-- this or sync_control_slave based on cfg.is_master). Brings up the 4
+-- infra containers, waits for every slave to set its cluster_sync bit,
+-- then hands off to system_control + node_control and disables itself.
+--
+-- Patient-forever semantics: no exception can fire while waiting on a
+-- slave -- VERIFY_SYNC_QUORUM_OR_TIMEOUT absorbs the 300s timeout and
+-- returns true after logging slave_never_joined, so the master always
+-- proceeds. Strict semantics kick back in once the operational KBs are
+-- active (any failure there -> watchdog restart -> sync re-entered).
+-- =============================================================================
+
+local function sync_control_master(ct, kb_name)
+    ct:start_test(kb_name)
+
+    local launch = ct:define_column("launch", nil, nil, nil, nil, nil, true)
+
+        ct:asm_one_shot_handler("READ_ENVIRONS",             {})
+        ct:asm_one_shot_handler("READ_BOOTSTRAP_CONFIG",     {})
+        ct:asm_one_shot_handler("KILL_NON_INFRA_CONTAINERS", {})
+
+        local sync_sm = ct:define_state_machine(
+            "sync_master_sm_col", "sync_master_sm",
+            { "bring_up_infra", "await_quorum", "handoff" },
+            "bring_up_infra", false)
+
+            local bring_up_st = ct:define_state("bring_up_infra", nil)
+                ct:asm_log_message("sync_master: bring_up_infra (entering)")
+                ct:asm_one_shot_handler("START_PG_CONTAINER", {})
+                ct:asm_verify_timeout(30.0, true, "ERR_INFRA_FAIL", {})
+                ct:asm_verify("VERIFY_PG", {}, false, "ERR_INFRA_FAIL", {})
+
+                ct:asm_one_shot_handler("START_NATS_CONTAINER", {})
+                ct:asm_verify_timeout(15.0, true, "ERR_INFRA_FAIL", {})
+                ct:asm_verify("VERIFY_NATS", {}, false, "ERR_INFRA_FAIL", {})
+
+                ct:asm_one_shot_handler("START_MQTT_CONTAINER", {})
+                ct:asm_verify_timeout(15.0, true, "ERR_INFRA_FAIL", {})
+                ct:asm_verify("VERIFY_MQTT", {}, false, "ERR_INFRA_FAIL", {})
+
+                ct:asm_one_shot_handler("START_KV_BRIDGE_CONTAINER", {})
+                ct:asm_verify_timeout(15.0, true, "ERR_INFRA_FAIL", {})
+                ct:asm_verify("VERIFY_KV_BRIDGE", {}, false,
+                              "ERR_INFRA_FAIL", {})
+
+                -- Reset coordinator state before advertising our own sync
+                -- bit, so a previous crash's stale {cluster_sync_bits,
+                -- cluster_go} can't make us (or a slave) skip the wait.
+                ct:asm_one_shot_handler("CLEAR_ALL_CLUSTER_SYNC_BITS", {})
+                ct:asm_one_shot_handler("CLEAR_CLUSTER_GO",            {})
+
+                ct:asm_one_shot_handler("SET_OWN_SYNC_BIT", {})
+                ct:change_state(sync_sm, "await_quorum")
+                ct:asm_halt()
+            ct:end_column(bring_up_st)
+
+            local quorum_st = ct:define_state("await_quorum", nil)
+                ct:asm_log_message("sync_master: await_quorum (entering)")
+                -- asm_wait halts until the verify returns true; count=0
+                -- disables chain-tree's own event-count timeout, since
+                -- VERIFY_SYNC_QUORUM_OR_TIMEOUT owns the 300s timeout
+                -- internally (logs slave_never_joined then returns true).
+                -- asm_verify wouldn't work here -- timer_only-wrapped
+                -- verifies return true on non-TIMER events like
+                -- CFL_CHANGE_STATE_EVENT (the event that lands us in
+                -- this state), which would race past the wait.
+                ct:asm_wait("VERIFY_SYNC_QUORUM_OR_TIMEOUT", {}, false,
+                            0, "CFL_TIMER_EVENT",
+                            "CFL_NULL", {})
+                ct:asm_one_shot_handler("WRITE_CLUSTER_GO_TRUE", {})
+                ct:change_state(sync_sm, "handoff")
+                ct:asm_halt()
+            ct:end_column(quorum_st)
+
+            local handoff_st = ct:define_state("handoff", nil)
+                ct:asm_log_message("sync_master: handoff (entering)")
+                ct:asm_one_shot_handler("ENABLE_SYSTEM_CONTROL_KB", {})
+                ct:asm_one_shot_handler("ENABLE_NODE_CONTROL_KB",   {})
+                ct:asm_one_shot_handler("DISABLE_SYNC_CONTROL_MASTER_KB", {})
+                ct:asm_halt()
+            ct:end_column(handoff_st)
+
+        ct:end_state_machine(sync_sm, "sync_master_sm")
+
+    ct:end_column(launch)
+    ct:end_test()
+end
+
+-- =============================================================================
+-- KB 1: sync_control_slave
+--
+-- Runs on every non-master CPU. Patient loop waiting for infra to become
+-- reachable (master brings it up); sets own cluster_sync bit; waits for
+-- master's cluster_go flag; hands off to node_control and disables self.
+-- No retry-crash on infra-not-yet-up -- the while-column just loops.
+-- =============================================================================
+
+local function sync_control_slave(ct, kb_name)
+    ct:start_test(kb_name)
+
+    local launch = ct:define_column("launch", nil, nil, nil, nil, nil, true)
+
+        ct:asm_one_shot_handler("READ_ENVIRONS",         {})
+        ct:asm_one_shot_handler("READ_BOOTSTRAP_CONFIG", {})
+
+        local sync_sm = ct:define_state_machine(
+            "sync_slave_sm_col", "sync_slave_sm",
+            { "wait_infra", "wait_go", "handoff" },
+            "wait_infra", false)
+
+            local wait_infra_st = ct:define_state("wait_infra", nil)
+                ct:asm_log_message("sync_slave: wait_infra (entering)")
+                -- Patient polling: asm_wait re-checks VERIFY_ALL_INFRA_
+                -- REACHABLE every TIMER tick (~1s). The count cap is 24h
+                -- worth of ticks -- master takes seconds to bring up
+                -- infra in practice, so we never hit the cap. If we
+                -- somehow do, the ERR fires and watchdog restarts us
+                -- back into this state, effectively extending the wait.
+                ct:asm_wait("VERIFY_ALL_INFRA_REACHABLE", {}, false,
+                            86400, "CFL_TIMER_EVENT",
+                            "ERR_INFRA_FAIL", {})
+
+                ct:asm_one_shot_handler("SET_OWN_SYNC_BIT", {})
+                ct:change_state(sync_sm, "wait_go")
+                ct:asm_halt()
+            ct:end_column(wait_infra_st)
+
+            local wait_go_st = ct:define_state("wait_go", nil)
+                ct:asm_log_message("sync_slave: wait_go (entering)")
+                -- Slave-side timeout: master should flip cluster_go
+                -- within seconds of the last sync bit being set. 60s
+                -- is extremely generous. If it doesn't, something is
+                -- wrong with master -- ERR fires, watchdog restarts us
+                -- into wait_infra, and we start over.
+                ct:asm_wait("VERIFY_CLUSTER_GO", {}, false,
+                            60, "CFL_TIMER_EVENT",
+                            "ERR_INFRA_FAIL", {})
+                ct:change_state(sync_sm, "handoff")
+                ct:asm_halt()
+            ct:end_column(wait_go_st)
+
+            local handoff_st = ct:define_state("handoff", nil)
+                ct:asm_log_message("sync_slave: handoff (entering)")
+                ct:asm_one_shot_handler("ENABLE_NODE_CONTROL_KB",       {})
+                ct:asm_one_shot_handler("DISABLE_SYNC_CONTROL_SLAVE_KB", {})
+                ct:asm_halt()
+            ct:end_column(handoff_st)
+
+        ct:end_state_machine(sync_sm, "sync_slave_sm")
+
+    ct:end_column(launch)
+    ct:end_test()
+end
+
+-- =============================================================================
+-- KB 2: system_control
 -- =============================================================================
 
 local function system_control(ct, kb_name)
@@ -208,6 +365,12 @@ local function node_control(ct, kb_name)
                 ct:asm_one_shot_handler(
                     "WRITE_PROCESS_GLOBALS_NODE_OPERATIONAL_TRUE", {})
 
+                -- Every CPU sets its own operational ready_bit here (not
+                -- in system_control, which runs master-only). Master's
+                -- system_control VERIFY_ALL_CPUS_READY then gates on the
+                -- full mask before flipping system_ready.
+                ct:asm_one_shot_handler("SET_OWN_READY_BIT", {})
+
                 -- Activate node_monitor KB AFTER apps are healthy. This
                 -- way the resource sampler captures the operational
                 -- baseline. Deactivation is the LAST step in teardown_st
@@ -251,6 +414,10 @@ local function node_control(ct, kb_name)
                               {}, false, "ERR_TEARDOWN_FORCE", {})
                 ct:asm_one_shot_handler(
                     "WRITE_PROCESS_GLOBALS_NODE_STOPPED_TRUE", {})
+                -- Symmetric cleanup of the bits this CPU owns so a
+                -- watchdog-restart re-enters sync cleanly.
+                ct:asm_one_shot_handler("CLEAR_OWN_READY_BIT", {})
+                ct:asm_one_shot_handler("CLEAR_OWN_SYNC_BIT",  {})
                 -- Stop the sampler LAST so it covers the teardown.
                 ct:asm_one_shot_handler("DISABLE_NODE_MONITOR_KB", {})
                 -- Exit cleanly; watchdog restarts from sync.
@@ -357,11 +524,21 @@ end
 -- Main
 -- =============================================================================
 
-local test_list = { "system_control", "node_control", "node_monitor" }
+-- KB order matters for indexing; the runtime looks up by name though, so
+-- reshuffling is safe as long as the bundled controller.db is rebuilt.
+local test_list = {
+    "sync_control_master",
+    "sync_control_slave",
+    "system_control",
+    "node_control",
+    "node_monitor",
+}
 local test_dict = {
-    system_control = system_control,
-    node_control   = node_control,
-    node_monitor   = node_monitor,
+    sync_control_master = sync_control_master,
+    sync_control_slave  = sync_control_slave,
+    system_control      = system_control,
+    node_control        = node_control,
+    node_monitor        = node_monitor,
 }
 
 if arg then
