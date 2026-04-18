@@ -356,6 +356,73 @@ function M.now_utc_iso()
 end
 
 ------------------------------------------------------------------------
+-- TCP reachability probe for the Infra menu (Phase 6)
+------------------------------------------------------------------------
+
+-- Cached host IP for infra probes. Infra containers are published on
+-- host.docker.internal, which openresty cosockets can't resolve via
+-- /etc/hosts -- so we reuse the pre-cached IP already discovered in
+-- host_ip() above (private to pg_connect but identical target).
+local function infra_host_ip()
+  return host_ip()
+end
+
+-- Open a TCP connection to (host, port), close immediately, report
+-- outcome + latency in milliseconds. Uses openresty cosockets so the
+-- probe is fully non-blocking. Returns:
+--   true,  nil,       latency_ms  on success
+--   false, "msg...",  latency_ms  on failure (timeout / refused / etc)
+function M.tcp_probe(host, port, timeout_ms)
+  timeout_ms = timeout_ms or 2000
+  local sock = ngx.socket.tcp()
+  sock:settimeout(timeout_ms)
+  local t0 = ngx.now()
+  local ok, err = sock:connect(host, port)
+  local elapsed = math.floor((ngx.now() - t0) * 1000 + 0.5)
+  if not ok then
+    pcall(function() sock:close() end)
+    return false, err or "connect failed", elapsed
+  end
+  sock:close()
+  return true, nil, elapsed
+end
+
+-- Probe helper exposed for views -- same signature as tcp_probe but
+-- internally uses the cached host.docker.internal IP.
+function M.probe_infra(port, timeout_ms)
+  return M.tcp_probe(infra_host_ip(), port, timeout_ms)
+end
+
+-- Read the `container` header row for an infra container (different
+-- schema from CONTAINER_REGISTRY; infra containers are pre-placed by
+-- laptop scripts and DCS only start/stops them).
+-- Returns { path, name, cpu_id, image, hostname (via join with cpu row) }
+-- or nil if not found.
+function M.get_infra_container(pg, name)
+  if not name or name == "" then return nil end
+  local rs, err = pg:query(string.format([[
+    SELECT path, name, properties
+    FROM knowledge_base
+    WHERE label = 'container' AND name = '%s'
+    LIMIT 1
+  ]], name:gsub("'", "''")))
+  if not rs or not rs[1] then return nil end
+  local r = rs[1]
+  local props = r.properties
+  if type(props) == "string" then props = cjson.decode(props) or {} end
+  local path_s = tostring(r.path or "")
+  local cpu_id = path_s:match("%.cpu%.([^%.]+)%.container%.")
+  return {
+    path       = path_s,
+    name       = r.name,
+    cpu_id     = cpu_id,
+    definition = props.definition,
+    kind       = props.kind,
+    managed_by = props.managed_by,
+  }
+end
+
+------------------------------------------------------------------------
 -- Exception listing + mutations (Phase 5)
 ------------------------------------------------------------------------
 

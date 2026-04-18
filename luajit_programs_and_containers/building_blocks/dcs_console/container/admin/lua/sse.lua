@@ -42,6 +42,18 @@ if not (ok and stream_mod) then
   end
 end
 
+-- Dynamic: infra/<service>.
+if not (ok and stream_mod) then
+  local service = path:match("^infra/([^/]+)$")
+  if service then
+    local sok, smod = pcall(require, "sse_views.infra_service")
+    if sok and smod and smod.stream then
+      smod.stream(service)
+      return
+    end
+  end
+end
+
 if ok and stream_mod and stream_mod.stream then
   stream_mod.stream()
   return

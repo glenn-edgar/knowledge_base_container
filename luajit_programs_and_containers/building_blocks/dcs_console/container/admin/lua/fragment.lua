@@ -49,6 +49,19 @@ if not (ok and view) then
   end
 end
 
+-- 4. Dynamic: infra/<service> (two-segment). One shared view module
+-- keyed by service name; probe + metadata vary per service internally.
+if not (ok and view) then
+  local service = path:match("^infra/([^/]+)$")
+  if service then
+    local iok, iview = pcall(require, "views.infra_service")
+    if iok and iview and iview.render then
+      iview.render(service)
+      return
+    end
+  end
+end
+
 -- 3. Matched static view: invoke its render().
 if ok and view and view.render then
   view.render()
