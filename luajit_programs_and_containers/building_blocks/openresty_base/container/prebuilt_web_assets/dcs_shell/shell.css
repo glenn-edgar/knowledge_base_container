@@ -210,6 +210,20 @@ time.stale::after {
   font-size: 0.85em;
 }
 
+/* ---------- KB ltree path ---------- */
+/* Every view that corresponds to a KB node shows its canonical path
+   (system.site.X.cpu.Y.Z...) so operators can query pg directly or
+   understand where in the tree they are. */
+.kb-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: #8bc;
+  word-break: break-all;
+  background: #1a1a1a;
+  padding: 0.15em 0.45em;
+  border-radius: 3px;
+}
+
 /* ---------- status popup ---------- */
 
 #status-popup {

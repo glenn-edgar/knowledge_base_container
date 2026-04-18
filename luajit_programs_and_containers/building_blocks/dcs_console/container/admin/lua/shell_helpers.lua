@@ -152,6 +152,172 @@ function M.expected_cpu_count(pg)
   return nil
 end
 
+-- List every CPU in the topology, ordered by bit_index. Each row:
+--   { cpu_id="cpu_01", hostname="localhost", role="master",
+--     is_master=true, bit_index=0 }
+-- Pulled from the cpu header rows construct_dcs_kb plants with
+-- `kb:add_header_node("cpu", cpu_id, cpu_props, ...)`; properties
+-- carries hostname + role + bit_index + is_master.
+function M.list_cpus(pg)
+  local rs, err = pg:query([[
+    SELECT name AS cpu_id,
+           properties->>'hostname' AS hostname,
+           properties->>'role'     AS role,
+           (properties->>'is_master')::int AS is_master,
+           (properties->>'bit_index')::int AS bit_index
+    FROM knowledge_base
+    WHERE label = 'cpu'
+    ORDER BY (properties->>'bit_index')::int
+  ]])
+  if not rs then return nil, err end
+  local out = {}
+  for _, r in ipairs(rs) do
+    out[#out + 1] = {
+      cpu_id    = r.cpu_id,
+      hostname  = r.hostname,
+      role      = r.role,
+      is_master = (tonumber(r.is_master) == 1),
+      bit_index = tonumber(r.bit_index) or 0,
+    }
+  end
+  return out
+end
+
+-- List every registered container with its assigned CPU + image +
+-- description. Null-safe on the status-row side (freshly-constructed
+-- KB has the schema row but an empty status.data until REGISTER writes).
+function M.list_containers(pg)
+  local rs, err = pg:query([[
+    SELECT k.name,
+           k.properties->>'cpu_id'      AS cpu_id,
+           k.properties->>'definition'  AS definition,
+           s.data->>'image'             AS image,
+           s.data->>'description'       AS description,
+           s.data->>'registered_at'     AS registered_at
+    FROM knowledge_base k
+    LEFT JOIN knowledge_base_status s ON s.path = k.path
+    WHERE k.label = 'CONTAINER_REGISTRY'
+    ORDER BY k.properties->>'cpu_id', k.name
+  ]])
+  if not rs then return nil, err end
+  local out = {}
+  for _, r in ipairs(rs) do
+    out[#out + 1] = {
+      name          = r.name,
+      cpu_id        = r.cpu_id,
+      definition    = r.definition,
+      image         = r.image,
+      description   = r.description,
+      registered_at = tonumber(r.registered_at),
+    }
+  end
+  return out
+end
+
+-- One CPU's full record (as returned by list_cpus) or nil if unknown.
+-- Convenience for views that only need a single CPU's metadata.
+function M.get_cpu(pg, cpu_id)
+  local rs, err = pg:query(string.format([[
+    SELECT name AS cpu_id,
+           properties->>'hostname' AS hostname,
+           properties->>'role'     AS role,
+           (properties->>'is_master')::int AS is_master,
+           (properties->>'bit_index')::int AS bit_index
+    FROM knowledge_base
+    WHERE label = 'cpu' AND name = '%s'
+    LIMIT 1
+  ]], (cpu_id or ""):gsub("'", "''")))
+  if not rs or not rs[1] then return nil end
+  local r = rs[1]
+  return {
+    cpu_id    = r.cpu_id,
+    hostname  = r.hostname,
+    role      = r.role,
+    is_master = (tonumber(r.is_master) == 1),
+    bit_index = tonumber(r.bit_index) or 0,
+  }
+end
+
+-- Read a CPU's heartbeat timestamp (epoch seconds) from the
+-- bit_mask_table. Returns nil if the CPU hasn't written yet (bit_mask=0).
+function M.read_cpu_heartbeat_epoch(pg, cpu_id)
+  local node_id = (string.format(
+    "system.site.%s.cpu.%s.KB_BIT_MASK.heartbeat", site(), cpu_id))
+    :gsub("%.", "_"):lower()
+  local rs, err = pg:query(string.format(
+    "SELECT bit_mask FROM bit_mask_table WHERE node_id = '%s'",
+    node_id:gsub("'", "''")))
+  if not rs or not rs[1] then return nil end
+  local ns = tonumber(rs[1].bit_mask)
+  if not ns or ns == 0 then return nil end
+  return math.floor(ns / 1000000000)
+end
+
+-- Containers assigned to a specific CPU, drawn from CONTAINER_REGISTRY.
+-- Used by the Assignments leaf and the Summary count.
+function M.containers_on(pg, cpu_id)
+  local list, err = M.list_containers(pg)
+  if not list then return nil, err end
+  local out = {}
+  for _, c in ipairs(list) do
+    if c.cpu_id == cpu_id then out[#out + 1] = c end
+  end
+  return out
+end
+
+-- Full details of one CONTAINER_REGISTRY row -- schema-row properties
+-- (cpu_id, definition, category) + status-row data (host, image,
+-- ports[], description, registered_at). Ports come back as a Lua
+-- table of records, each with slot/external/internal/protocol/
+-- purpose/description. Returns nil if no such container.
+function M.get_container(pg, name)
+  if not name or name == "" then return nil end
+  local rs, err = pg:query(string.format([[
+    SELECT k.name,
+           k.properties AS properties,
+           s.data       AS data
+    FROM knowledge_base k
+    LEFT JOIN knowledge_base_status s ON s.path = k.path
+    WHERE k.label = 'CONTAINER_REGISTRY' AND k.name = '%s'
+    LIMIT 1
+  ]], name:gsub("'", "''")))
+  if not rs or not rs[1] then return nil end
+  local r = rs[1]
+  local props = r.properties
+  if type(props) == "string" then props = cjson.decode(props) or {} end
+  local data = r.data
+  if type(data) == "string" then data = cjson.decode(data) or {} end
+  return {
+    name          = r.name,
+    cpu_id        = props and props.cpu_id,
+    definition    = props and props.definition,
+    category      = props and props.category,
+    host          = data  and data.host,
+    image         = data  and data.image,
+    description   = data  and data.description,
+    registered_at = data  and tonumber(data.registered_at),
+    ports         = data  and data.ports or {},
+  }
+end
+
+-- Read a CPU's operational flag (written by node_control once its
+-- assigned containers are healthy). Path:
+--   system.site.<S>.cpu.<id>.container.node_control...  -- NO, we use
+-- the process_globals-derived KB_STATUS_FIELD under cpu.<id> if
+-- planted. For v1 we just infer operational from:
+--   heartbeat fresh AND ready_bit set.
+-- Returned value lets the Summary view render a "Operational" pill.
+function M.cpu_is_operational(ready_bits, bit_index, hb_epoch, hb_stale_s)
+  if not ready_bits or not bit_index then return nil end
+  local mask_bit = math.floor(ready_bits / (2 ^ bit_index)) % 2
+  if mask_bit ~= 1 then return false end
+  if hb_epoch and hb_stale_s then
+    local age = os.time() - hb_epoch
+    if age > hb_stale_s then return false end
+  end
+  return true
+end
+
 ------------------------------------------------------------------------
 -- HTML helpers
 ------------------------------------------------------------------------
@@ -187,6 +353,28 @@ end
 
 function M.now_utc_iso()
   return os.date("!%Y-%m-%dT%H:%M:%SZ")
+end
+
+-- Build an ltree path under the current site prefix. Variadic args
+-- become trailing labels. Empty/nil args are skipped so callers can
+-- always pass in optional segments without branching.
+--   kb_path()                           -> "system.site.<SITE>"
+--   kb_path("cpu", "cpu_01")            -> "system.site.<SITE>.cpu.cpu_01"
+--   kb_path("cpu", cpu_id, "CONTAINER_REGISTRY", name)
+function M.kb_path(...)
+  local parts = { "system", "site", site() }
+  for _, seg in ipairs({ ... }) do
+    if seg ~= nil and seg ~= "" then
+      parts[#parts + 1] = tostring(seg)
+    end
+  end
+  return table.concat(parts, ".")
+end
+
+-- Render a `<span class="kb-path">` wrapper. Convenience for view authors.
+function M.kb_path_span(...)
+  return string.format('<span class="kb-path">%s</span>',
+                       M.escape(M.kb_path(...)))
 end
 
 return M

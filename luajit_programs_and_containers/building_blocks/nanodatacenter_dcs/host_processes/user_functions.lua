@@ -947,6 +947,20 @@ function M.build(ctx)
   end
   R.WRITE_PROCESS_GLOBALS_NODE_HEARTBEAT = function(_h, _n)
     pg.node_control_heartbeat_ts = os.time()
+    -- Also publish to the per-CPU bit_mask_table heartbeat row so
+    -- cross-process readers (admin UI, master-side aggregators) can
+    -- see this CPU's liveness. Master's system_control already does
+    -- this via PUBLISH_SYSTEM_HEARTBEAT, but slaves never run
+    -- system_control, so without this publish slaves would show
+    -- bit_mask_table.heartbeat = 0 forever.
+    if ctx.connectors.pg then
+      local ok, err = bm.write_heartbeat_ts(
+        ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id)
+      if not ok then
+        log("node_control",
+            "heartbeat write FAILED: " .. tostring(err))
+      end
+    end
   end
   R.WRITE_PROCESS_GLOBALS_NODE_STOPPED_TRUE = function(_h, _n)
     pg.node_control_stopped = true

@@ -100,6 +100,7 @@ function M.build_body()
   local parts = {
     '<h2>System Overview</h2>',
     '<dl class="status-list">',
+    '<dt>KB path</dt><dd>',        sh.kb_path_span(), '</dd>',
     '<dt>System ready</dt><dd>',   bool_pill(system_ready, "GREEN", "RED"), '</dd>',
     '<dt>Cluster go</dt><dd>',     bool_pill(cluster_go,   "GO",    "WAIT"), '</dd>',
     '<dt>CPUs ready</dt><dd>',     cpu_pill, '</dd>',

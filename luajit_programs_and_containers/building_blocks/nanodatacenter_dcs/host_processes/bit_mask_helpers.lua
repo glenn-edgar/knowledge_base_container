@@ -47,13 +47,17 @@ end
 local function escape(s) return tostring(s):gsub("'", "''") end
 
 ---------------------------------------------------------------------------
--- now() in nanoseconds. Reuse posix_time's monotonic clock helper to
--- avoid FFI struct collisions across modules; multiply seconds to ns.
--- Caller can override with explicit ts_ns where wall-clock is needed.
+-- now() in nanoseconds, WALL-CLOCK Unix epoch (not monotonic). Heartbeat
+-- timestamps stored in bit_mask_table are read by other processes
+-- (admin UI, master-side aggregators), which have their own monotonic
+-- clocks starting at their process start -- so a monotonic value is
+-- meaningless cross-process. Wall-clock is the only value that round-
+-- trips cleanly through pg. Seconds precision is sufficient for the
+-- 5-to-15s heartbeat cadence.
 ---------------------------------------------------------------------------
 
 function M.now_ns()
-  return math.floor(ptime.now_sec() * 1e9)
+  return os.time() * 1000000000
 end
 
 ---------------------------------------------------------------------------
