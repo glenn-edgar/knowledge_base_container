@@ -12,6 +12,9 @@ LUALIB_DIR="$SCRIPT_DIR/prebuilt_openresty_lualib"
 
 HTMX_VERSION="1.9.12"
 HTMX_URL="https://unpkg.com/htmx.org@${HTMX_VERSION}/dist/htmx.min.js"
+# SSE extension ships inside the htmx package under dist/ext/. Paired
+# version with HTMX_VERSION so the two are always compatible.
+HTMX_SSE_URL="https://unpkg.com/htmx.org@${HTMX_VERSION}/dist/ext/sse.js"
 
 PGMOON_VERSION="1.16.0"
 PGMOON_URL="https://github.com/leafo/pgmoon/archive/refs/tags/v${PGMOON_VERSION}.tar.gz"
@@ -38,6 +41,12 @@ if [[ ! -f "$ASSETS_DIR/htmx/htmx.min.js" ]]; then
 fi
 
 echo "  Staged htmx: $(ls -lh "$ASSETS_DIR/htmx/htmx.min.js" | awk '{print $5}')"
+
+if [[ ! -f "$ASSETS_DIR/htmx/sse.js" ]]; then
+    echo "=== Fetching htmx-ext-sse (paired with htmx ${HTMX_VERSION}) ==="
+    curl -fSL "$HTMX_SSE_URL" -o "$ASSETS_DIR/htmx/sse.js"
+fi
+echo "  Staged htmx-ext-sse: $(ls -lh "$ASSETS_DIR/htmx/sse.js" | awk '{print $5}')"
 
 # ---- 3. Stage vendored openresty lualib (pgmoon) -------------------------
 mkdir -p "$LUALIB_DIR"

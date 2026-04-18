@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="dcs-default-view" content="fragment/system/overview">
+<title>DCS admin</title>
+<link rel="stylesheet" href="assets/dcs_shell/shell.css">
+<script src="assets/htmx/htmx.min.js" defer></script>
+<script src="assets/htmx/sse.js" defer></script>
+</head>
+<body>
+<header id="shell-header">
+  <button id="menu-btn" type="button" aria-label="Menu">&#9776;</button>
+  <h1 id="shell-title">DCS admin</h1>
+  <span id="operator-name" title="Operator identity (click Settings to change)"></span>
+  <button id="alarm-btn" type="button" aria-label="Toggle audio alarm">&#128277;</button>
+  <button id="status-btn" type="button" aria-label="Status" disabled style="opacity:0.4">
+    &#9432;<span id="status-badge" hidden></span>
+  </button>
+</header>
+<div id="shell-scrim"></div>
+<nav id="shell-drawer" aria-label="Navigation">
+  <ul class="tree">
+    <li><details open>
+      <summary>System</summary>
+      <ul>
+        <li><a href="#" data-fragment="fragment/system/overview">Overview</a></li>
+        <li><a href="#" data-fragment="fragment/system/ready_bits">Ready bits</a></li>
+      </ul>
+    </details></li>
+    <li><details>
+      <summary>CPUs</summary>
+      <ul>
+        <li><details>
+          <summary>cpu_01</summary>
+          <ul>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_01/summary">Summary</a></li>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_01/heartbeat">Heartbeat</a></li>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_01/assignments">Assignments</a></li>
+          </ul>
+        </details></li>
+        <li><details>
+          <summary>cpu_02</summary>
+          <ul>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_02/summary">Summary</a></li>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_02/heartbeat">Heartbeat</a></li>
+            <li><a href="#" data-fragment="fragment/cpu/cpu_02/assignments">Assignments</a></li>
+          </ul>
+        </details></li>
+      </ul>
+    </details></li>
+    <li><details>
+      <summary>Containers</summary>
+      <ul>
+        <li><a href="#" data-fragment="fragment/container/test_app_01/status">test_app_01</a></li>
+        <li><a href="#" data-fragment="fragment/container/dcs_console_01/status">dcs_console_01</a></li>
+        <li><a href="#" data-fragment="fragment/container/ros_mission_planner_ii_01/status">ros_mission_planner_ii_01</a></li>
+        <li><a href="#" data-fragment="fragment/container/robot_manager_01/status">robot_manager_01</a></li>
+      </ul>
+    </details></li>
+    <li><details>
+      <summary>Exceptions</summary>
+      <ul>
+        <li><a href="#" data-fragment="fragment/exception/active">Active</a></li>
+        <li><a href="#" data-fragment="fragment/exception/history">History</a></li>
+      </ul>
+    </details></li>
+    <li><details>
+      <summary>Infra</summary>
+      <ul>
+        <li><a href="#" data-fragment="fragment/infra/postgres">postgres</a></li>
+        <li><a href="#" data-fragment="fragment/infra/nats">nats</a></li>
+        <li><a href="#" data-fragment="fragment/infra/mosquitto">mosquitto</a></li>
+        <li><a href="#" data-fragment="fragment/infra/kv_bridge">kv_bridge</a></li>
+      </ul>
+    </details></li>
+  </ul>
+</nav>
+<main id="shell-content">
+  <p class="placeholder">Open the menu (&#9776;) and pick a view.</p>
+</main>
+<dialog id="status-popup">
+  <div id="status-popup-header">
+    <span id="status-popup-title">Status</span>
+    <button id="status-popup-close" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div id="status-body"></div>
+</dialog>
+<script src="assets/dcs_shell/shell.js" defer></script>
+</body>
+</html>
