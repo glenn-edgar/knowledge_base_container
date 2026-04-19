@@ -94,95 +94,509 @@ nanodatacenter_dcs/
 
 ---
 
-## Next session (planned, 2026-04-20) — Task 2: DSL ergonomics
+## Next session (planned, 2026-04-20) — Task 2: KB construction streamlining (subsystem-first)
 
 ### Goal
 
-Make the chain-tree DSL legible to someone who doesn't already know the
-chain-tree runtime. Today's `dcs_dsl.lua` is a thin imperative shell over
-the raw primitives; a novice looking at it has to learn a dozen vocab
-items (`asm_verify` vs `asm_wait` vs `asm_verify_timeout`, `timer_only`
-vs `wait_bool`, columns vs state-machines, `asm_reset` loops vs
-`asm_wait_time` one-shots, change_state + halt ceremony) before they can
-confidently write "start pg, wait, fail loudly if it stalls."
+Make `construct_dcs_kb.lua` legible + modular enough that a novice can
+add a whole new subsystem (lighting control, robot manager fleet,
+whatever) by **dropping one file** into `construction/subsystems/`
+rather than editing the master construct script. Today the construct
+script is a 570-line monolith that mixes the DCS data model with the
+low-level `construct_kb` primitive dance; every new subsystem bolts
+more branches onto it.
 
-### Approach: pattern helpers (additive, non-breaking)
+### Three layered steps (each worthwhile alone)
 
-Add a small helper library -- call it
-`chain_tree_luajit/lua_dsl/dcs_dsl_patterns.lua` or
-`nanodatacenter_dcs/construction/dsl_patterns.lua` -- that wraps the
-repeated sequences under readable names. The existing low-level DSL
-stays usable for edge cases; idiomatic code shifts to helpers.
+1. **Scoped header helpers** to kill the `add_header_node` /
+   `leave_header_node` pairing hazard.
+2. **Per-subsystem module pattern** so each subsystem installs its
+   own KB schema without editing the master script.
+3. **Schema templates by container kind** so the `if def.kind == …`
+   branches fold into table lookups.
 
-Pattern catalogue to seed:
+#### Step 1. Scoped header helpers
 
-| Helper | Wraps | Example call |
-|---|---|---|
-| `ct:bring_up(svc, timeout, err)` | `asm_one_shot_handler("START_<SVC>_CONTAINER")` + `asm_verify_timeout` + `asm_verify("VERIFY_<SVC>")`, all with the same `err` | `ct:bring_up("pg", 30, "ERR_INFRA_FAIL")` |
-| `ct:require(verify, timeout, err)` | `asm_verify_timeout` + `asm_verify` pair (no START) | `ct:require("VERIFY_NATS", 15, "ERR_INFRA_FAIL")` |
-| `ct:wait_until(verify, count, err)` | `asm_wait(verify, {}, false, count, "CFL_TIMER_EVENT", err, {})` | `ct:wait_until("VERIFY_CLUSTER_GO", 60, "ERR_MASTER_NEVER_GO")` |
-| `ct:wait_patiently(verify, err)` | `asm_wait` with a huge count (effectively no timeout) | `ct:wait_patiently("VERIFY_INFRA_REACHABLE", "ERR_INFRA_FAIL")` |
-| `ct:monitor_loop(name, handler, cadence)` | `define_column` + `asm_one_shot_handler` + `asm_wait_time` + `asm_reset` | `ct:monitor_loop("hb", "PUBLISH_HEARTBEAT", 5)` |
-| `ct:monitor_verify_col(name, settle, {verifies...})` | define_column + wait_time + N verifies + asm_halt | single-call replacement for the 5-line verify column blocks |
-| `ct:advance(sm, next_state)` | `change_state(sm, next_state)` + `asm_halt()` | removes the always-paired pattern |
+Add to the `construct_kb` library:
 
-Naming discipline: follow the pattern `ct:verb_noun(args)` with positional
-args in "what / constraint / error" order. `timeout` always in seconds.
-
-### What the DSL reads like after
+```lua
+function M:with_header(node_type, name, properties, data, description, body_fn)
+  self:add_header_node(node_type, name, properties, data, description)
+  body_fn(self)
+  self:leave_header_node(node_type, name)
+end
+```
 
 Before:
 ```lua
-ct:asm_one_shot_handler("START_PG_CONTAINER", {})
-ct:asm_verify_timeout(30.0, true, "ERR_INFRA_FAIL", {})
-ct:asm_verify("VERIFY_PG", {}, false, "ERR_INFRA_FAIL", {})
-ct:asm_one_shot_handler("START_NATS_CONTAINER", {})
-ct:asm_verify_timeout(15.0, true, "ERR_INFRA_FAIL", {})
-ct:asm_verify("VERIFY_NATS", {}, false, "ERR_INFRA_FAIL", {})
--- ...etc 4 services...
-ct:change_state(sys_sm, "setup")
-ct:asm_halt()
+kb:add_header_node("container", inst.name, props, {}, desc)
+  kb:add_info_node("service", ...)
+  kb:add_status_field("health", ...)
+kb:leave_header_node("container", inst.name)
 ```
 
 After:
 ```lua
-ct:bring_up("pg",        30, "ERR_INFRA_FAIL")
-ct:bring_up("nats",      15, "ERR_INFRA_FAIL")
-ct:bring_up("mqtt",      15, "ERR_INFRA_FAIL")
-ct:bring_up("kv_bridge", 15, "ERR_INFRA_FAIL")
-ct:advance(sys_sm, "setup")
+kb:with_header("container", inst.name, props, {}, desc, function(k)
+  k:add_info_node("service", ...)
+  k:add_status_field("health", ...)
+end)
 ```
 
-Half the lines, zero ceremony, reads like English.
+Can't mis-pair. Block scope mirrors the tree shape, which is the
+whole point of the DSL.
 
-### Naming convention contract
+Similar `with_kb(name, desc, body_fn)` wraps `add_kb` +
+`select_kb` + (optionally) a closing ceremony.
 
-`bring_up(svc, ...)` assumes handlers named:
-- `START_<SVC:upper>_CONTAINER` (one-shot)
-- `VERIFY_<SVC:upper>` (boolean)
+#### Step 2. Per-subsystem module pattern
 
-If your handler names don't follow the convention, use the primitive
-directly. The helper is a style nudge, not a straitjacket.
+Directory layout (under the new `construction/` root from Task 1):
+
+```
+construction/
+  subsystems/
+    dcs.lua                # the nanodatacenter_dcs subsystem
+    lighting.lua           # future
+    fleet.lua              # future
+  construct_kb_site.lua    # new master: ~30 lines, loops over subsystems
+```
+
+Each subsystem module exports:
+
+```lua
+-- construction/subsystems/dcs.lua
+local M = {
+  name        = "dcs",
+  description = "DCS control-plane subsystem",
+}
+
+-- Called after the site + cpu headers are in place; kb is
+-- positioned at the 'system' KB, under the current site. Gets a
+-- `site_ctx` with site name, master_cpu, cpus list, etc.
+function M.install_site(kb, site_ctx)
+  -- Plant site-level status fields owned by this subsystem:
+  kb:add_status_field("system_ready", ...)
+  kb:add_status_field("cluster_go", ...)
+  -- etc.
+end
+
+-- Called inside each cpu's header; installs per-cpu schema.
+function M.install_cpu(kb, cpu_ctx)
+  -- bit_mask_table heartbeat, per-cpu exceptions, node_monitor
+  -- stream, cpu_maintenance_until, etc.
+end
+
+-- Called for each application-kind container; installs app
+-- container schema (health, started_ts, maintenance_until, events).
+-- Schema templates by kind (step 3) live here.
+function M.install_container(kb, container_ctx) ... end
+
+-- Any subsystem-level state in its own KB namespace. Optional.
+function M.install_own_kb(kb)
+  -- e.g., subsystems/dcs -> infer schedules, stored procedures, etc.
+end
+
+return M
+```
+
+New master `construct_kb_site.lua` becomes ~30 lines:
+
+```lua
+local SUBSYSTEMS = {
+  require("subsystems.dcs"),
+  -- require("subsystems.lighting"),
+  -- require("subsystems.fleet"),
+}
+
+kb:with_kb("system", "enterprise topology", function(k)
+  k:with_header("site", SITE, {...}, {}, "", function(k)
+    for _, sub in ipairs(SUBSYSTEMS) do sub.install_site(k, site_ctx) end
+    for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
+      k:with_header("cpu", cpu_id, props, {}, "", function(k)
+        for _, sub in ipairs(SUBSYSTEMS) do sub.install_cpu(k, cpu_ctx) end
+        for _, inst in ipairs(cpu.instances) do
+          k:with_header("container", inst.name, ..., function(k)
+            for _, sub in ipairs(SUBSYSTEMS) do
+              sub.install_container(k, container_ctx)
+            end
+          end)
+        end
+      end)
+    end
+  end)
+end)
+
+for _, sub in ipairs(SUBSYSTEMS) do
+  if sub.install_own_kb then sub.install_own_kb(kb) end
+end
+```
+
+Adding a new subsystem: write `construction/subsystems/X.lua`
+with the four install functions (most returning no-op) and add one
+line to the SUBSYSTEMS table. Zero edits to the master.
+
+#### Step 3. Schema templates by container kind
+
+Replace:
+
+```lua
+if def.kind == "application" then
+  kb:add_status_field("health",     {}, ..., {value=0})
+  kb:add_status_field("started_ts", {}, ..., {value=0})
+  kb:add_status_field("restart_count", {}, ..., {value=0})
+  kb:add_status_field("maintenance_until", {}, ..., {value=0})
+  kb:add_stream_field("events", 32, ...)
+elseif def.kind == "infrastructure" then ...
+```
+
+with:
+
+```lua
+local SCHEMAS = {
+  application = {
+    status_fields = {
+      { "health",            0, "app health"                      },
+      { "started_ts",        0, "last start (ms)"                 },
+      { "restart_count",     0, "restart count"                   },
+      { "maintenance_until", 0, "maintenance lease (epoch)"       },
+    },
+    stream_fields = { { "events", 32, "app lifecycle events" } },
+  },
+  infrastructure = { ... },
+  control        = { ... },
+}
+
+function M.install_container(kb, ctx)
+  local schema = SCHEMAS[ctx.kind]
+  if not schema then return end
+  for _, f in ipairs(schema.status_fields or {}) do
+    kb:add_status_field(f[1], {}, f[3], { value = f[2] })
+  end
+  for _, f in ipairs(schema.stream_fields or {}) do
+    kb:add_stream_field(f[1], f[2], f[3])
+  end
+end
+```
+
+Adding a new kind or a new field = one table entry. No if-chain to
+thread through.
 
 ### Scope and staging
 
-- **Step 1**: write `dsl_patterns.lua` with the table above. No DSL changes yet.
-- **Step 2**: convert ONE KB in `dcs_dsl.lua` (pick `sync_control_master` -- the simplest) to use helpers. Verify build_dsl + runtime still match.
-- **Step 3**: convert the remaining KBs. Each conversion is mechanical; diff should show only line-count reduction and identical generated `dcs.json`.
-- **Step 4**: add a short "DSL patterns" doc in `construction/docs/` with before/after examples so future authors learn by copying.
+1. **Step 1 first.** Add `with_header` + `with_kb` to the
+   `construct_kb` library. Convert `construct_dcs_kb.lua` to use
+   them (pure refactor; diff of generated schema should be empty).
+   Ship this alone, smoke-test that `build_kb.sh + slice_bootstrap.sh
+   + DCS restart` produces identical bootstrap.db contents.
+2. **Step 2 next.** Carve `construct_dcs_kb.lua` into
+   `construction/construct_kb_site.lua` (master loop) +
+   `construction/subsystems/dcs.lua` (everything we currently have).
+   No new subsystems yet; goal is just to prove the seam works.
+3. **Step 3 last.** Lift the per-kind schema into `SCHEMAS` tables
+   inside each subsystem module.
 
-Keep the helper library in the `chain_tree_luajit` repo if the helpers
-are project-agnostic (probably yes for `bring_up`, `monitor_loop`,
-`advance`); keep DCS-specific helpers (if any -- e.g., ones that assume
-SYS_EXCEPTION semantics) in `nanodatacenter_dcs/construction/`.
+### What novices get after this lands
+
+- **Adding a new subsystem**: write one file, add one line to
+  SUBSYSTEMS list, rerun `build_kb.sh`. Never touch the master.
+- **Adding a new status field to a kind**: one line in
+  `SCHEMAS[kind]` of the relevant subsystem.
+- **Understanding the schema**: the subsystem module *is* the
+  schema documentation. Each subsystem can be read in isolation.
 
 ### Non-goals for Task 2
 
-- Don't port to a declarative table DSL (Option B in the discussion). It's a
-  bigger rewrite, and we don't know yet whether Option A closes the gap.
-- Don't try to re-generalise the pattern helpers for use by any consumer
-  of chain_tree_luajit in the repo. Solve the DCS case first; generalise
-  later if a second consumer has the same pattern.
+- Don't redesign the `construct_kb` library primitives themselves
+  (that's a deeper refactor). Helpers are additive on top of them.
+- Don't push the `subsystems` KB (the thin domain registry) into
+  something richer yet. That can come as a follow-up once we've
+  exercised the subsystem module pattern.
+- Don't move the existing schema to a declarative table-only
+  description with no Lua glue. Keep the `install_*` hooks as Lua
+  functions so subsystem authors have escape hatches for
+  unusual shapes.
+
+---
+
+## Next session (planned, later) — Task 3: chain-tree DSL ergonomics
+
+Lower priority than Tasks 1 + 2. Make `chain_tree/dcs_dsl.lua`
+readable to someone who hasn't memorised chain-tree primitives:
+add `ct:bring_up(svc, timeout, err)` / `ct:wait_until(verify,
+count, err)` / `ct:monitor_loop(name, handler, cadence)` /
+`ct:advance(sm, state)` helpers that wrap the recurring 3-5 call
+sequences.
+
+Convention contract: `bring_up("pg")` assumes handlers
+`START_PG_CONTAINER` + `VERIFY_PG`. Helper is a style nudge, not a
+straitjacket; low-level DSL stays for edge cases.
+
+Staging: write helpers -> convert `sync_control_master` as
+proving ground -> convert the rest mechanically. Diff of
+generated `dcs.json` should be empty after each conversion.
+
+Not scheduled for tomorrow; captured here so it's not lost.
+
+---
+
+## Next session (planned, later) — Task 4: observability containers (exception_handler + log_analyzer + log_manager + dashboard)
+
+Design captured 2026-04-18 during a rolling discussion on how the
+DCS should handle long-horizon operational telemetry. Not
+scheduled yet; builds on Task 1 (dir reorg) + Task 2 (subsystem
+module pattern for construct_dcs_kb).
+
+### Goal
+
+Runaway-resilient, operator-visible telemetry that can run for
+years on a single pg instance without special babysitting. Must
+answer three operator questions:
+1. "What's misbehaving right now?" (anomaly detection -> existing SYS_EXCEPTION surface)
+2. "What is normal for this metric?" (persistent rolling baselines)
+3. "Show me the trend over the last hour / week / year." (tiered charts)
+
+### Core principle: bounded FIFO per client at EVERY tier
+
+Reuse the existing KB_STREAM_FIELD pattern
+(`knowledge_base/postgres/construct_kb/construct_stream_table.lua`
++ `host_processes/kb_stream.lua`):
+- Each `(stream_path, tier)` has a pre-allocated, fixed number of
+  rows. Writers overwrite the oldest row (smallest `recorded_at`)
+  rather than INSERTing a new one.
+- Storage per client is bounded at construction time. A runaway
+  writer can only churn its own FIFO slot, never explode the
+  table or crowd out neighbours.
+- Same mechanics apply to raw streams AND to every rollup tier.
+  No tier has unbounded growth, ever.
+
+This is the architectural decision that makes the rest cheap: we
+never need a "pg is full" emergency response, because pg can't
+get full from writer misbehaviour.
+
+### Five-container picture (plus existing admin UI)
+
+| Container | Role | Placement |
+| --- | --- | --- |
+| `exception_handler` | text log analysis: pattern-match on log streams, raise SYS_EXCEPTION on match / rate threshold | any CPU |
+| `log_analyzer` | numeric anomaly detection: rolling Welford stats vs. recent window, raise SYS_EXCEPTION on z-score exceedance | any CPU |
+| `log_manager` | lifecycle curator: writes rollup buckets from raw -> 1-min -> 1-hour -> 1-day tiers, keeps `last_processed_ts` watermark per (path,tier) | singleton on master |
+| `dashboard` | Chart.js UI, own gateway tab, polls pg for stream windows + SYS_EXCEPTION overlays | any CPU |
+| (existing) `dcs_console` admin UI | already renders exceptions via ack/clear/audit; receives log_manager as a protected container | unchanged |
+
+### Writer contract: direct-to-pg, shared helper
+
+Decided 2026-04-18: **everyone writes directly to pg, no
+intermediaries.** Apps, node_control, analyzers all use the same
+`pg_log` / `kb_stream_write` helper (to be added to `luajit_base`),
+which:
+- Holds one long-lived pg connection per process.
+- Constructs stream_path from `(cpu_id, container_name, field)`
+  via a single convention -- locked contract, see below.
+- Calls the existing `kb_stream.push` circular-buffer UPDATE.
+- Self-throttles if its internal queue grows (sheds oldest, logs
+  once at warn level) so a local runaway can't block app work.
+
+No intermediary container. No central rate-limiting gate. Defence
+against runaway is structural (bounded FIFO) + detective
+(log_analyzer sees the write-rate anomaly) + corrective (operator
+uses admin UI stop-for-maintenance on the offender).
+
+Scaling escape hatch: when container count outgrows direct pg
+connections, drop pgbouncer in front of pg. Writers unchanged.
+
+### Stream path convention (base-image contract)
+
+Lock once, everyone honours it:
+
+```
+site.<cpu_id>.<container>.<category>.<field>
+  where <category> in { metric, log, event }
+```
+
+Examples:
+```
+site.cpu_01.ros_mission_planner_ii.metric.cpu_pct
+site.cpu_01.test_app_01.log.stdout
+site.cpu_02.robot_manager.event.task_started
+```
+
+- Analyzer DSL `source` fields name paths under this prefix.
+- log_manager rolls up anything matching `site.*.metric.*`
+  (numeric) and `site.*.log.*` (text) under its retention policy.
+- Dashboard queries this prefix; admin UI displays it in
+  per-container views.
+
+A mid-flight rename is painful once many apps emit, so this is
+the first thing to land.
+
+### Tiered retention + rollup schema
+
+Rollup row shape (same table OR per-tier tables -- decide during
+implementation):
+
+```
+(stream_path, tier, bucket_ts, count, sum, sumsq, min, max)
+```
+
+**Why (count, sum, sumsq):** these are Welford's sufficient
+statistics. Mean is sum/count; variance is sumsq/count - (sum/count)^2.
+Two 1-min buckets re-aggregate to one 2-min bucket by adding
+counts + sums + sumsqs. **Decimation compresses resolution, not
+information.**
+
+Default tiers (per-spec override possible if needed later):
+
+| Tier | Bucket size | Retention | Typical use |
+| --- | --- | --- | --- |
+| raw | per-sample | 30 days | live charts, last-hour detail |
+| 1-min | 1 minute | 6 months | week-scale trends |
+| 1-hour | 1 hour | 2 years | month/quarter trends |
+| 1-day | 1 day | forever | year-over-year, Welford seed |
+
+All tiers use bounded-FIFO allocation, sized by retention /
+bucket-size (e.g. 1-hour tier at 2y retention = 17520 slots per
+stream_path). log_manager rotates them like any other stream.
+
+### Welford state: persistent + rebuildable
+
+`metric_welford` table, one row per (stream_path, spec_name):
+
+```
+(stream_path, spec_name, count, mean, M2, last_processed_ts)
+```
+
+- log_analyzer updates incrementally on each poll, writes back
+  the checkpoint.
+- On container restart: load checkpoint, resume polling from
+  `last_processed_ts`, no double-counting, no re-warm.
+- **If checkpoint is ever lost or corrupted: rebuild from the
+  longest-surviving rollup tier** -- (count,sum,sumsq) across
+  1-day buckets gives you lifetime mean/variance exactly. This
+  is the insurance policy against schema-reset incidents.
+
+**Coordinator-startup-wipe discipline** (see
+`memory/feedback_coordinator_startup_wipe.md`): log_manager on
+restart clears only its OWN watermarks if re-deriving them from
+pg max(recorded_at). Never clears raw stream rows (apps wrote
+those) and never clears Welford checkpoints (log_analyzer owns
+those). Each container owns its own state; restart only touches
+what the restarter itself will re-provide.
+
+### Anomaly detection: two-level stat
+
+For each spec:
+- **Baseline:** Welford over lifetime (or EWMA-decayed -- see DSL
+  below). Answers "what is normal for this metric over the long
+  run?"
+- **Recent window:** re-queried each poll tick (last 5-10 min).
+  Answers "what is this metric doing right now?"
+- **Alert rule:** z-score = |recent_mean - lifetime_mean| /
+  lifetime_stddev. Exceeds threshold -> log_analyzer raises
+  SYS_EXCEPTION via the existing KB label mechanism.
+
+This plugs straight into the admin UI exception workflow (ack /
+clear / audit / reason). No parallel alert channel.
+
+Offer both `stat_model = "welford"` (unbounded memory) and
+`stat_model = "ewma"` (exponentially-weighted, forgets old
+regime) in the DSL. CPU% typically wants EWMA; cumulative-error
+rate typically wants Welford. Per-spec choice.
+
+### Analyzer DSL (shared between both analyzer containers)
+
+Specs live in the KB under `analysis.text.<name>` and
+`analysis.metric.<name>`, installed by construct_dcs_kb via the
+Task-2 subsystem pattern (`construction/subsystems/analysis.lua`).
+Each analyzer container scans its own category at startup,
+installs handlers, polls pg.
+
+```lua
+-- Numeric: goes to log_analyzer container
+analyzer:metric_check {
+  name        = "ros_planner_cpu_runaway",
+  source      = "site.cpu_01.ros_mission_planner_ii.metric.cpu_pct",
+  window      = "10min",
+  stat_model  = "ewma",   -- or "welford"
+  baseline    = "1day",   -- tier to pull baseline samples from
+  threshold_z = 3.0,
+  severity    = "warn",
+  message     = "cpu above 3 sigma baseline",
+}
+
+-- Textual: goes to exception_handler container
+analyzer:log_pattern {
+  name            = "test_app_error_flood",
+  source          = "site.cpu_01.test_app_01.log.stdout",
+  pattern         = [[ERROR|FATAL]],
+  window          = "1min",
+  threshold_count = 10,
+  severity        = "error",
+  message         = "error rate > 10/min",
+}
+```
+
+Dispatch by data type of `source` -- metric streams route to
+log_analyzer, log streams route to exception_handler. One
+operator vocabulary, two execution paths. Novice adds a new
+anomaly check by adding one block to `subsystems/analysis.lua`.
+
+### Dashboard container
+
+- Own gateway tab (registered via same pattern as admin UI).
+- Per-metric chart pages: time-series from rollup tiers, y-axis
+  picks appropriate tier by x-axis range, SYS_EXCEPTION markers
+  overlaid on the timeline.
+- Per-log pages: rolling count of pattern matches + raw tail for
+  last N lines.
+- Polls pg on ~5-15s cadence (same rhythm as admin UI SSE).
+  Chart.js on the client, htmx-compatible.
+- No back-end plotting library; server returns JSON, client
+  renders. Keeps the container small.
+
+### Protected containers
+
+Add to `shell_helpers.is_protected_container` alongside
+`dcs_console`:
+- `log_manager` -- pausing it mid-rollup is survivable
+  (watermarks catch up), but silent rollup halt is an invisible
+  failure; guard it from accidental operator action.
+- `exception_handler` -- pausing it means runaway detection goes
+  silent; same argument.
+- `log_analyzer` -- same.
+- `dashboard` -- pausing it leaves the operator blind; same.
+
+Admin UI intervention buttons (stop-for-maintenance / restart)
+should refuse for all four with the same error banner that
+dcs_console uses.
+
+### Implementation staging (not yet scheduled)
+
+1. `pg_log` helper in luajit_base + lock stream_path convention.
+2. log_manager container + rollup table schema + 1-min tier rollup
+   only (validates the bounded-FIFO-at-every-tier mechanism).
+3. Add 1-hour + 1-day tiers.
+4. log_analyzer with Welford + persistent checkpoint + one
+   hard-coded spec (prove the end-to-end loop raises
+   SYS_EXCEPTION).
+5. analyzer_dsl module + subsystem install hook.
+6. exception_handler mirroring log_analyzer shape, text predicate.
+7. dashboard container + Chart.js + tier-auto-select.
+8. Protected-container guards + admin UI integration.
+
+Each step is green-on-its-own-merits; no big-bang integration.
+
+### Non-goals for Task 4
+
+- TimescaleDB. Mentioned as future (swap log_manager's query
+  layer), not in scope now. Bounded-FIFO + sufficient-stat
+  rollups cover the need.
+- Prometheus / Grafana / ELK. Same reasoning.
+- Central rate-limiting gate. Structural defence via bounded
+  FIFO + detective defence via log_analyzer is sufficient.
+- Real-time pub/sub (NATS). Pg-polling is consistent with how
+  admin UI already works; SSE layer in dashboard can stream
+  pg-poll results if we want sub-second refresh later.
 
 ---
 
