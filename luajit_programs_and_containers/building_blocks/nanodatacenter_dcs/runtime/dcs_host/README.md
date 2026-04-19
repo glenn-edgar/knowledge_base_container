@@ -24,6 +24,8 @@ luajit dcs.lua <absolute-path-to-bootstrap.db>
 | `kb_exception.lua`        | SYS_EXCEPTION writer                           |
 | `kb_status.lua`           | KB_STATUS_FIELD read/write                     |
 | `kb_stream.lua`           | Legacy static-path KB_STREAM_FIELD writer      |
+| `kb_log.lua`              | KB_LOG reader/writer (Task 4: push_sample, live_stats) |
+| `kb_rule.lua`             | KB_RULE reader/writer (Task 4: config, state, cooldown) |
 | `bit_mask_helpers.lua`    | bit_mask_table helpers (heartbeat, ready bits) |
 | `user_functions.lua`      | Chain-tree user-function registry              |
 
