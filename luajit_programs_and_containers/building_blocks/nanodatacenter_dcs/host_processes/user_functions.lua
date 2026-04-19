@@ -939,6 +939,99 @@ function M.build(ctx)
     end
   end
 
+  -- APPLY_MAINTENANCE_TRANSITIONS (Phase 7b / X7): poll every
+  -- assignment's maintenance_until status field and act only on
+  -- transitions:
+  --   false -> true : operator just put it in maintenance.
+  --                   docker.stop + deregister.
+  --   true  -> false: lease expired or operator hit Start Now.
+  --                   docker run from spec + register.
+  --
+  -- Transition-based (not state-based) so the handler never fights
+  -- with crashes/manual docker actions. The process-local prev map
+  -- resets on DCS restart -- after restart every container looks
+  -- "just entered" its current pg-declared state, which is safe
+  -- (re-stop is idempotent; non-maintenance containers show no
+  -- transition).
+  R.APPLY_MAINTENANCE_TRANSITIONS = function(_h, _n)
+    if not ctx.connectors.pg then return end
+    local assignments = ctx.node_control_globals.assignments or {}
+    if #assignments == 0 then return end
+    ctx.node_control_globals.maintenance_state =
+      ctx.node_control_globals.maintenance_state or {}
+    local prev = ctx.node_control_globals.maintenance_state
+    local now = os.time()
+    local build_specs = ctx.system_control_globals.build_specs or {}
+
+    -- Read maintenance_until per assignment. Handfuls of containers
+    -- per CPU, so per-row is fine; batches can come later if the
+    -- container count ever explodes.
+    local function read_m_until(container_name)
+      local path = string.format(
+        "system.site.%s.cpu.%s.container.%s.KB_STATUS_FIELD.maintenance_until",
+        ctx.cfg.site, ctx.cfg.cpu_id, container_name)
+      local sth, perr = ctx.connectors.pg:prepare(string.format(
+        "SELECT COALESCE((data->>'value')::bigint, 0) AS m_until " ..
+        "FROM knowledge_base_status WHERE path = '%s'::ltree",
+        path:gsub("'", "''")))
+      if not sth then return 0 end
+      local ok, eerr = sth:execute()
+      if not ok then sth:close(); return 0 end
+      local row = sth:fetch(true)
+      sth:close()
+      return row and tonumber(row.m_until) or 0
+    end
+
+    for _, asg in ipairs(assignments) do
+      local m_until         = read_m_until(asg.name)
+      local in_maintenance  = m_until > now
+      local was_in          = prev[asg.name] == true
+      if in_maintenance and not was_in then
+        log("node_control", string.format(
+          "MAINTENANCE enter %s until epoch=%d", asg.name, m_until))
+        docker.stop(asg.name)
+        deregister_assignment(asg.name)
+      elseif was_in and not in_maintenance then
+        local spec = build_specs[asg.definition]
+        if not spec then
+          log_container_failure(asg.name,
+            "maintenance end: build.spec missing for " ..
+            tostring(asg.definition))
+        else
+          local merged = {}
+          for k, v in pairs(spec) do merged[k] = v end
+          merged.ports = (asg.service and asg.service.ports) or {}
+          local host_pg = ctx.cfg.pg_host
+          if host_pg == "localhost" or host_pg == "127.0.0.1" then
+            host_pg = "host.docker.internal"
+          end
+          local extra_env = {
+            CONTAINER_NAME = asg.name,
+            APP_SITE       = ctx.cfg.site,
+            APP_CPU_ID     = ctx.cfg.cpu_id,
+            PG_HOST        = host_pg,
+            PG_PORT        = tostring(ctx.cfg.pg_port),
+            PG_DB          = ctx.cfg.pg_db,
+            PG_USER        = ctx.cfg.pg_user,
+            PG_PASSWORD    = os.getenv("PG_PASSWORD")
+                             or os.getenv("POSTGRES_PASSWORD") or "",
+          }
+          local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
+          if rok then
+            log("node_control", string.format(
+              "MAINTENANCE exit %s -> docker run %s",
+              asg.name, tostring(rres):sub(1, 12)))
+            register_assignment(asg)
+          else
+            log_container_failure(asg.name,
+              "maintenance restart failed: " .. tostring(rres))
+          end
+        end
+      end
+      prev[asg.name] = in_maintenance
+    end
+  end
+
   R.LOG_SYSTEM_READY_TRANSITIONS   = oneshot_stub(log, "LOG_SYSTEM_READY_TRANSITIONS",         "node_control")
 
   R.WRITE_PROCESS_GLOBALS_NODE_OPERATIONAL_TRUE = function(_h, _n)

@@ -32,6 +32,7 @@
     const popupClose = $('#status-popup-close');
     const operatorEl = $('#operator-name');
     const alarmBtn   = $('#alarm-btn');
+    const refreshBtn = $('#refresh-btn');
 
     // Current view's status endpoints -- updated each time shell:context fires.
     let currentStatusUrl = null;
@@ -101,6 +102,28 @@
     if (alarmBtn) {
         alarmBtn.addEventListener('click', () => setAlarmEnabled(!getAlarmEnabled()));
         renderAlarmBtn();
+    }
+
+    // ---- refresh button ------------------------------------------------
+    // Manual re-fetch of the currently-loaded view. Uses the same
+    // resolution as boot: hash -> default-view meta -> nothing.
+    // Useful for polling state that changes slowly (maintenance lease
+    // expiry, pg snapshot after an external mutation, etc.) without
+    // forcing a full browser reload.
+
+    function refreshCurrentView() {
+        const m = location.hash.match(/^#view=(.+)$/);
+        let fragment = m && m[1];
+        if (!fragment) {
+            const meta = document.querySelector('meta[name="dcs-default-view"]');
+            if (meta && meta.content) fragment = meta.content;
+        }
+        if (fragment) {
+            htmx.ajax('GET', fragment, '#shell-content');
+        }
+    }
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshCurrentView);
     }
 
     // ---- drawer --------------------------------------------------------

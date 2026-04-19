@@ -10,6 +10,7 @@ local path = ngx.var[1] or ""
 -- 1. Static routes.
 local STATIC_ROUTES = {
   ["system/overview"]         = "views.system_overview",
+  ["system/setpoints"]        = "views.system_setpoints",
   ["exception/active"]        = "views.exception_active",
   ["exception/acknowledged"]  = "views.exception_acknowledged",
   ["exception/history"]       = "views.exception_history",

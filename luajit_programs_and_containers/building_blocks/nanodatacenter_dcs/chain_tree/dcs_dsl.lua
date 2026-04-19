@@ -396,6 +396,17 @@ local function node_control(ct, kb_name)
                     ct:asm_reset()
                 ct:end_column(hb_col)
 
+                -- Phase 7b / X7: every 5s, diff each assignment's
+                -- pg-declared maintenance_until against process-local
+                -- last-seen; stop+deregister on enter, docker-run+
+                -- register on exit (lease expiry or operator Start Now).
+                local maint_col = ct:define_column("node_monitor_maint")
+                    ct:asm_one_shot_handler(
+                        "APPLY_MAINTENANCE_TRANSITIONS", {})
+                    ct:asm_wait_time(5.0)
+                    ct:asm_reset()
+                ct:end_column(maint_col)
+
                 local verify_col = ct:define_column("node_monitor_verify")
                     ct:asm_wait_time(5.0)   -- settle before first verify
                     ct:asm_verify("VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY",

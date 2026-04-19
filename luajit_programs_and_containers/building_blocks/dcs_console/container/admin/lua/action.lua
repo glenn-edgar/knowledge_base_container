@@ -19,8 +19,12 @@ end
 local path = ngx.var[1] or ""
 
 local ROUTES = {
-  ["exception/ack"]   = "actions.exception_ack",
-  ["exception/clear"] = "actions.exception_clear",
+  ["exception/ack"]              = "actions.exception_ack",
+  ["exception/clear"]            = "actions.exception_clear",
+  ["setpoint/update"]            = "actions.setpoint_update",
+  ["container/maintenance-start"]  = "actions.container_maintenance_start",
+  ["container/maintenance-end"]    = "actions.container_maintenance_end",
+  ["container/maintenance-extend"] = "actions.container_maintenance_extend",
 }
 
 local mod_name = ROUTES[path]

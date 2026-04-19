@@ -28,7 +28,8 @@ end
 local function system_branch()
   return branch("System",
     leaf("fragment/system/overview",   "Overview") ..
-    leaf("fragment/system/ready_bits", "Ready bits"),
+    leaf("fragment/system/ready_bits", "Ready bits") ..
+    leaf("fragment/system/setpoints",  "Setpoints"),
     true)
 end
 
@@ -80,7 +81,18 @@ local function containers_branch(containers, cpus)
   for _, cpu in ipairs(cpu_keys) do
     local inner = {}
     for _, c in ipairs(by_cpu[cpu]) do
-      inner[#inner + 1] = leaf("fragment/container/" .. c.name .. "/status", c.name)
+      if c.registered then
+        inner[#inner + 1] = leaf("fragment/container/" .. c.name .. "/status", c.name)
+      else
+        -- In maintenance (deregistered but still placed). Show it
+        -- dimmed with a small indicator so operator can click through
+        -- to the maintenance panel and bring it back.
+        inner[#inner + 1] = string.format(
+          '<li><a href="#" data-fragment="fragment/container/%s/status" ' ..
+          'style="color:#888" title="paused for maintenance">' ..
+          '%s <span style="color:#fc6;font-size:0.8em">&#128274;</span></a></li>',
+          sh.escape(c.name), sh.escape(c.name))
+      end
     end
     local hostname = host_of[cpu] or "(no hostname)"
     local group_label = string.format("%s [%s]", hostname, cpu)
@@ -135,6 +147,7 @@ ngx.say([[<!doctype html>
   <button id="menu-btn" type="button" aria-label="Menu">&#9776;</button>
   <h1 id="shell-title">DCS admin</h1>
   <span id="operator-name" title="Operator identity"></span>
+  <button id="refresh-btn" type="button" aria-label="Refresh current view" title="Refresh current view">&#8635;</button>
   <button id="alarm-btn" type="button" aria-label="Toggle audio alarm">&#128277;</button>
   <button id="status-btn" type="button" aria-label="Status" disabled style="opacity:0.4">
     &#9432;<span id="status-badge" hidden></span>

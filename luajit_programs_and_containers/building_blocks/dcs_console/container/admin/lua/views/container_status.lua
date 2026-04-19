@@ -52,23 +52,62 @@ function M.build_body(name)
   local c         = sh.get_container(pg, name)
   local exc_count = sh.active_exception_count(pg)
   local host_cpu
-  if c and c.cpu_id then host_cpu = sh.get_cpu(pg, c.cpu_id) end
+  local m_until
+  if c and c.cpu_id then
+    host_cpu = sh.get_cpu(pg, c.cpu_id)
+    m_until  = sh.read_maintenance_until(pg, c.cpu_id, name)
+  end
   pg:disconnect()
 
   if not c then
-    return string.format(
-      '<h2>container %s</h2>' ..
-      '<p class="placeholder">Not present in CONTAINER_REGISTRY.</p>' ..
-      '<p style="color:#666;font-size:0.9em">The container is either stopped, ' ..
-      'not yet started, or has been deregistered. Check <code>docker ps</code> ' ..
-      'on its assigned CPU or open the CPU\'s Assignments view.</p>',
-      sh.escape(name)),
-      { title = "container / " .. name .. " / not found" }
+    -- Not in CONTAINER_REGISTRY, but may still exist in the KB's
+    -- container.* tree with a maintenance_until row. Find the CPU id
+    -- so the maintenance section can render while the container is
+    -- offline -- Path shape is
+    -- `system.site.<S...>.cpu.<cpu_id>.container.<name>`; subpath
+    -- -3,1 pulls cpu_id regardless of how many labels the site
+    -- name has.
+    local pg2 = sh.pg_connect()
+    local meta_cpu, maint_lookup
+    if pg2 then
+      local rs = pg2:query(string.format([[
+        SELECT subpath(path, -3, 1)::text AS cpu_id
+        FROM knowledge_base
+        WHERE label = 'container' AND name = '%s'
+        LIMIT 1
+      ]], name:gsub("'", "''")))
+      if rs and rs[1] and rs[1].cpu_id then
+        meta_cpu = rs[1].cpu_id
+      end
+      if meta_cpu then
+        maint_lookup = sh.read_maintenance_until(pg2, meta_cpu, name)
+      end
+      pg2:disconnect()
+    end
+    if meta_cpu then
+      -- Reconstruct a minimal c shell so the maintenance block renders.
+      c        = { name = name, cpu_id = meta_cpu, definition = "?", ports = {} }
+      m_until  = maint_lookup or 0
+    else
+      return string.format(
+        '<h2>container %s</h2>' ..
+        '<p class="placeholder">Not present in CONTAINER_REGISTRY or KB.</p>',
+        sh.escape(name)),
+        { title = "container / " .. name .. " / not found" }
+    end
   end
 
-  -- "Running" inference: a row exists; node_control removes it on stop.
-  -- We render an ok-pill but caveat the wording in the footer.
-  local running_pill = sh.pill("ok", "REGISTERED")
+  -- Status pill: operator-visible state. If maintenance_until is in the
+  -- future, the container is (or will be shortly) stopped by node_control
+  -- and deregistered; we highlight this as WARN rather than green.
+  local now_ts = os.time()
+  local in_maintenance = (m_until or 0) > now_ts
+  local running_pill
+  if in_maintenance then
+    running_pill = sh.pill("warn", "MAINTENANCE")
+  else
+    running_pill = sh.pill("ok", "REGISTERED")
+  end
 
   local hostname = (host_cpu and host_cpu.hostname) or "(unknown)"
   local cpu_display = string.format("%s (%s)", hostname, c.cpu_id or "?")
@@ -95,6 +134,49 @@ function M.build_body(name)
     '</dd>',
     '</dl>',
   }
+
+  -- Maintenance section (Phase 7b / X7). Shows either a Stop button
+  -- (container is live) or a pair Extend/Start-Now (in maintenance).
+  -- Every action POST returns this same view body so the UI flips
+  -- state immediately; the real stop/start happens on node_control's
+  -- next tick (~5s) and is reflected on the next reload.
+  local name_attr = sh.escape(name)
+  table.insert(parts,
+    '<h3 style="color:#fff;font-weight:500;margin-top:1.4em">Maintenance</h3>')
+  if in_maintenance then
+    local remaining = m_until - now_ts
+    table.insert(parts, string.format([[
+<p>In maintenance. Lease expires at <time datetime="%s" data-stale-after="%d"></time>
+ (in ~%ds). node_control holds the container stopped + deregistered
+ until the lease ends. Gateway routes that point here return 404 in
+ the meantime.</p>
+<p>
+  <button hx-post="action/container/maintenance-extend"
+          hx-target="#shell-content" hx-swap="innerHTML"
+          hx-vals='{"name":"%s"}'
+          style="color:#bff;background:#133;border:1px solid #466;padding:0.3em 0.8em;border-radius:3px;cursor:pointer;margin-right:0.5em">extend lease</button>
+  <button hx-post="action/container/maintenance-end"
+          hx-target="#shell-content" hx-swap="innerHTML"
+          hx-vals='{"name":"%s"}'
+          style="color:#bfb;background:#131;border:1px solid #464;padding:0.3em 0.8em;border-radius:3px;cursor:pointer">start now</button>
+</p>]],
+      os.date("!%Y-%m-%dT%H:%M:%SZ", m_until),
+      math.max(60, math.floor(remaining / 10)),
+      remaining,
+      name_attr, name_attr))
+  else
+    table.insert(parts, string.format([[
+<p>Container is live. Stop for maintenance pauses health checks,
+ docker-stops the container, and deregisters its gateway routes
+ until the lease ends. Default lease comes from the
+ <code>unmonitor_lease_default_s</code> setpoint.</p>
+<p>
+  <button hx-post="action/container/maintenance-start"
+          hx-target="#shell-content" hx-swap="innerHTML"
+          hx-vals='{"name":"%s"}'
+          style="color:#fc6;background:#321;border:1px solid #653;padding:0.3em 0.8em;border-radius:3px;cursor:pointer">stop for maintenance</button>
+</p>]], name_attr))
+  end
 
   -- Ports table.
   if c.ports and #c.ports > 0 then

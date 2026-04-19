@@ -544,6 +544,14 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
                             { value = 0 })
         kb:add_status_field("restart_count", {}, "restart count",
                             { value = 0 })
+        -- Operator-initiated maintenance lease (Phase 7b, X7).
+        -- 0 = not in maintenance. > 0 = epoch seconds when lease
+        -- expires; while now() < this, node_control holds the
+        -- container stopped and deregistered. Flipped back to 0 by
+        -- operator (start-now) or lazily when the lease expires.
+        kb:add_status_field("maintenance_until", {},
+                            "operator maintenance lease (epoch seconds; 0 = not in maintenance)",
+                            { value = 0 })
         kb:add_stream_field("events", 32, "app lifecycle events")
       end
 

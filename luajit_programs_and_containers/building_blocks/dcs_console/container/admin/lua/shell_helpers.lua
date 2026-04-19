@@ -183,21 +183,32 @@ function M.list_cpus(pg)
   return out
 end
 
--- List every registered container with its assigned CPU + image +
--- description. Null-safe on the status-row side (freshly-constructed
--- KB has the schema row but an empty status.data until REGISTER writes).
+-- List every PLACED application container (from the `container`
+-- header rows construct_dcs_kb plants), not just registered ones.
+-- CONTAINER_REGISTRY rows come and go with node_control's REGISTER/
+-- DEREGISTER dance (Phase 7b maintenance takes a container out of
+-- the registry while its header row stays). We want the tree to
+-- show all placements so the operator can navigate to a paused
+-- container and bring it back.
+--
+-- Result rows include a `registered` boolean derived from the left
+-- join; UI can dim/annotate off-registry entries.
 function M.list_containers(pg)
   local rs, err = pg:query([[
-    SELECT k.name,
-           k.properties->>'cpu_id'      AS cpu_id,
-           k.properties->>'definition'  AS definition,
-           s.data->>'image'             AS image,
-           s.data->>'description'       AS description,
-           s.data->>'registered_at'     AS registered_at
+    SELECT k.name                              AS name,
+           k.properties->>'definition'         AS definition,
+           subpath(k.path, -3, 1)::text        AS cpu_id,
+           rs.data->>'image'                   AS image,
+           rs.data->>'description'             AS description,
+           rs.data->>'registered_at'           AS registered_at,
+           (kr.name IS NOT NULL)               AS registered
     FROM knowledge_base k
-    LEFT JOIN knowledge_base_status s ON s.path = k.path
-    WHERE k.label = 'CONTAINER_REGISTRY'
-    ORDER BY k.properties->>'cpu_id', k.name
+    LEFT JOIN knowledge_base        kr
+           ON kr.label = 'CONTAINER_REGISTRY' AND kr.name = k.name
+    LEFT JOIN knowledge_base_status rs ON rs.path = kr.path
+    WHERE k.label = 'container'
+      AND k.properties->>'kind' = 'application'
+    ORDER BY subpath(k.path, -3, 1)::text, k.name
   ]])
   if not rs then return nil, err end
   local out = {}
@@ -209,6 +220,7 @@ function M.list_containers(pg)
       image         = r.image,
       description   = r.description,
       registered_at = tonumber(r.registered_at),
+      registered    = (r.registered == true or r.registered == "t"),
     }
   end
   return out
@@ -353,6 +365,94 @@ end
 
 function M.now_utc_iso()
   return os.date("!%Y-%m-%dT%H:%M:%SZ")
+end
+
+------------------------------------------------------------------------
+-- Maintenance lease (Phase 7b, X7)
+------------------------------------------------------------------------
+
+local function maintenance_path(cpu_id, container_name)
+  return string.format(
+    "system.site.%s.cpu.%s.container.%s.KB_STATUS_FIELD.maintenance_until",
+    site(), cpu_id, container_name)
+end
+
+-- Returns epoch seconds the lease expires (0 = not in maintenance).
+function M.read_maintenance_until(pg, cpu_id, container_name)
+  local path = maintenance_path(cpu_id, container_name)
+  local rs, err = pg:query(string.format(
+    "SELECT COALESCE((data->>'value')::bigint, 0) AS v " ..
+    "FROM knowledge_base_status WHERE path = '%s'::ltree",
+    path:gsub("'", "''")))
+  if not rs or not rs[1] then return 0 end
+  return tonumber(rs[1].v) or 0
+end
+
+-- Write the lease. Caller is responsible for computing the expiry epoch
+-- (now + lease_default, or 0 to end the lease).
+function M.write_maintenance_until(pg, cpu_id, container_name, epoch_seconds)
+  local n = math.floor(tonumber(epoch_seconds) or 0)
+  local path = maintenance_path(cpu_id, container_name)
+  local rs, err = pg:query(string.format([[
+    UPDATE knowledge_base_status
+    SET data = jsonb_build_object('value', %d)::json
+    WHERE path = '%s'::ltree
+  ]], n, path:gsub("'", "''")))
+  if not rs then return nil, err end
+  return true
+end
+
+-- Default lease duration from the site-level setpoint (phase 7a
+-- tunable), with a 900s fallback if the setpoint somehow isn't
+-- planted.
+function M.maintenance_lease_default(pg)
+  local v = M.site_status_value(pg, "unmonitor_lease_default_s")
+  return tonumber(v) or 900
+end
+
+------------------------------------------------------------------------
+-- Setpoints (Phase 7a) -- operator-tunable site-level status fields
+------------------------------------------------------------------------
+
+-- Read both the runtime value and the schema default for one setpoint.
+-- Returns { current, default, description }; current is nil when the
+-- status row data is empty (so the effective value is the default).
+function M.read_setpoint(pg, name)
+  local path = string.format("system.site.%s.KB_STATUS_FIELD.%s",
+                             site(), name)
+  local rs, err = pg:query(string.format([[
+    SELECT k.properties->>'description' AS description,
+           k.data->>'value' AS default_value,
+           NULLIF(s.data->>'value', '') AS current_value
+    FROM knowledge_base k
+    LEFT JOIN knowledge_base_status s ON s.path = k.path
+    WHERE k.path = '%s'::ltree
+  ]], (path):gsub("'", "''")))
+  if not rs or not rs[1] then return nil, err or "setpoint not found" end
+  local r = rs[1]
+  return {
+    current     = tonumber(r.current_value),
+    default     = tonumber(r.default_value),
+    description = r.description,
+  }
+end
+
+-- Atomic write of a setpoint's runtime value. Full overwrite of the
+-- status row's data blob -- setpoint rows only ever have the
+-- {"value": N} shape so there's nothing to preserve. Caller must have
+-- already validated the range.
+function M.write_setpoint(pg, name, value)
+  local n = tonumber(value)
+  if n == nil then return nil, "value must be a number" end
+  local path = string.format("system.site.%s.KB_STATUS_FIELD.%s",
+                             site(), name)
+  local rs, err = pg:query(string.format([[
+    UPDATE knowledge_base_status
+    SET data = jsonb_build_object('value', %d)::json
+    WHERE path = '%s'::ltree
+  ]], n, (path):gsub("'", "''")))
+  if not rs then return nil, err end
+  return true
 end
 
 ------------------------------------------------------------------------
