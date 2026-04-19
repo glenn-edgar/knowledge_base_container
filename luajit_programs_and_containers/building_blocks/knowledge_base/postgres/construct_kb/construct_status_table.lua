@@ -135,9 +135,11 @@ function Construct_Status_Table:add_status_field(status_key, properties, descrip
   end
   assert(type(properties) == "table", "properties must be a table")
 
-  print("Added status field '" .. status_key ..
-        "' with properties: " .. json.encode(properties) ..
-        " and data: " .. json.encode(initial_data))
+  if os.getenv("DCS_KB_VERBOSE") == "1" then
+    print("Added status field '" .. status_key ..
+          "' with properties: " .. json.encode(properties) ..
+          " and data: " .. json.encode(initial_data))
+  end
 
   self.construct_kb:add_info_node("KB_STATUS_FIELD", status_key, properties, initial_data, description)
 
@@ -177,7 +179,8 @@ function Construct_Status_Table:check_installation()
     specified_paths[#specified_paths + 1] = p
     specified_set[p] = true
   end
-  print("specified_paths: " .. table.concat(specified_paths, ", "))
+  local VERBOSE = os.getenv("DCS_KB_VERBOSE") == "1"
+  if VERBOSE then print("specified_paths: " .. table.concat(specified_paths, ", ")) end
 
   -- Find missing paths (in specified but not in status table)
   local missing_paths = {}
@@ -186,7 +189,7 @@ function Construct_Status_Table:check_installation()
       missing_paths[#missing_paths + 1] = path
     end
   end
-  print("missing_paths: " .. table.concat(missing_paths, ", "))
+  if VERBOSE then print("missing_paths: " .. table.concat(missing_paths, ", ")) end
 
   -- Find not-specified paths (in status table but not in knowledge base)
   local not_specified_paths = {}
@@ -195,21 +198,37 @@ function Construct_Status_Table:check_installation()
       not_specified_paths[#not_specified_paths + 1] = path
     end
   end
-  print("not_specified_paths: " .. table.concat(not_specified_paths, ", "))
+  if VERBOSE then print("not_specified_paths: " .. table.concat(not_specified_paths, ", ")) end
 
-  -- Delete not-specified entries
-  for _, path in ipairs(not_specified_paths) do
-    print("deleting path: " .. path)
-    self:_exec(string.format("DELETE FROM %s WHERE path = %s;",
-      tn, quote_literal(path)))
+  -- Delete not-specified entries (batched; PG supports long IN lists).
+  if #not_specified_paths > 0 then
+    local lits = {}
+    for _, path in ipairs(not_specified_paths) do
+      lits[#lits + 1] = quote_literal(path)
+      if VERBOSE then print("deleting path: " .. path) end
+    end
+    -- Chunk to avoid pathologically long statements.
+    local CHUNK = 500
+    for i = 1, #lits, CHUNK do
+      local j = math.min(i + CHUNK - 1, #lits)
+      self:_exec(string.format("DELETE FROM %s WHERE path IN (%s);",
+        tn, table.concat(lits, ",", i, j)))
+    end
   end
 
-  -- Insert missing entries
-  for _, path in ipairs(missing_paths) do
-    print("inserting path: " .. path)
-    self:_exec(string.format([[
-      INSERT INTO %s (data, path) VALUES ('{}', %s)
-    ]], tn, quote_literal(path)))
+  -- Insert missing entries as a single multi-row VALUES (chunked).
+  if #missing_paths > 0 then
+    local tuples = {}
+    for _, path in ipairs(missing_paths) do
+      tuples[#tuples + 1] = "('{}'," .. quote_literal(path) .. ")"
+      if VERBOSE then print("inserting path: " .. path) end
+    end
+    local CHUNK = 500
+    for i = 1, #tuples, CHUNK do
+      local j = math.min(i + CHUNK - 1, #tuples)
+      self:_exec(string.format("INSERT INTO %s (data, path) VALUES %s",
+        tn, table.concat(tuples, ",", i, j)))
+    end
   end
 
   return {

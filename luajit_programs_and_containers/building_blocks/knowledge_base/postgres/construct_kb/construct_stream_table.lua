@@ -207,12 +207,24 @@ function Construct_Stream_Table:_manage_stream_table(specified_stream_paths, spe
           math.abs(diff)))
 
     elseif diff > 0 then
-      -- Add new empty records
-      for _ = 1, diff do
-        self:_exec(string.format([[
-          INSERT INTO %s (path, recorded_at, data, valid)
-          VALUES (%s, CURRENT_TIMESTAMP, '{}', FALSE)
-        ]], tn, quote_literal(path)))
+      -- Add new empty records as a single multi-row INSERT (chunked to
+      -- avoid pathologically long statements). N individual INSERTs at
+      -- ~2-5 ms each dominate large builds; one batched INSERT is 10-50x
+      -- faster and equivalent for pre-allocation.
+      local CHUNK = 500
+      local literal_path = quote_literal(path)
+      local remaining = diff
+      while remaining > 0 do
+        local this_chunk = math.min(remaining, CHUNK)
+        local tuples = {}
+        for _ = 1, this_chunk do
+          tuples[#tuples + 1] =
+            "(" .. literal_path .. ", CURRENT_TIMESTAMP, '{}', FALSE)"
+        end
+        self:_exec(string.format(
+          "INSERT INTO %s (path, recorded_at, data, valid) VALUES %s",
+          tn, table.concat(tuples, ",")))
+        remaining = remaining - this_chunk
       end
     end
   end

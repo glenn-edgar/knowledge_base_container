@@ -268,12 +268,15 @@ local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
   "readiness_sync",
+  "site_logs",             -- Task 4: site-wide KB_LOGs + seed rules
   "cpu_bootstrap",
   "cpu_heartbeat",
   "cpu_maintenance",
   "cpu_exceptions",
+  "cpu_logs",              -- Task 4: per-CPU KB_LOGs (host + DCS internals)
   "node_monitor",
   "container_runtime",
+  "container_logs",        -- Task 4: per-container KB_LOGs + seed rules
   "domain_registry",
   "site_local",
 }

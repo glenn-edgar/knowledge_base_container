@@ -126,7 +126,7 @@ function Construct_KB:add_header_node(link, node_name, node_properties, node_dat
   self.path_values[self.working_kb][node_path] = true
 
   local path = join_path(segments)
-  print("path", path)
+  if os.getenv("DCS_KB_VERBOSE") == "1" then print("path", path) end
 
   KnowledgeBaseManager.add_node(self, self.working_kb, link, node_name,
                                  node_properties, node_data, path)

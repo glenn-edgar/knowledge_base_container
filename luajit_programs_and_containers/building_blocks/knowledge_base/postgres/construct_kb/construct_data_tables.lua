@@ -30,6 +30,7 @@ local Construct_Jsonb_Table     = require("construct_jsonb_table")
 local Construct_Doc_Store       = require("construct_doc_store")
 local Construct_Stream_Store    = require("construct_stream_store")
 local Construct_Exception_Store = require("construct_exception_store")
+local Construct_Log_Store       = require("construct_log_store")
 
 local Construct_Data_Tables = {}
 Construct_Data_Tables.__index = Construct_Data_Tables
@@ -70,6 +71,8 @@ function Construct_Data_Tables.new(host, port, dbname, user, password, database,
   -- exception_store takes the facade (self) so it can compose
   -- with_header + add_status_field + add_jsonb_field.
   self.exception_store  = Construct_Exception_Store.new(conn, self, database, upload_flag)
+  -- log_store: KB_LOG / KB_RULE emitters + rollups table.
+  self.log_store        = Construct_Log_Store.new(conn, self, database, upload_flag)
 
   -- Expose KB path for inspection
   self.path = self.kb.path
@@ -163,6 +166,14 @@ function Construct_Data_Tables:add_exception(...)
   return self.exception_store:add_exception(...)
 end
 
+function Construct_Data_Tables:add_log(...)
+  return self.log_store:add_log(...)
+end
+
+function Construct_Data_Tables:add_log_rule(...)
+  return self.log_store:add_log_rule(...)
+end
+
 function Construct_Data_Tables:create_bit_mask_entry(...)
   return self.bit_mask_store:create_bit_mask_entry(...)
 end
@@ -191,6 +202,7 @@ function Construct_Data_Tables:check_installation()
   self.doc_store:check_installation()
   self.stream_store:check_installation()
   self.exception_store:check_installation()
+  self.log_store:check_installation()
 end
 
 return Construct_Data_Tables
