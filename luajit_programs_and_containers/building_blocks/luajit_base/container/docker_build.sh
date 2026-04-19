@@ -5,7 +5,7 @@
 # Sources (read-only):
 #   ../../chain_tree_luajit/runtime/              -> chain_tree/
 #   ../../chain_tree_luajit/lua_dsl/              -> chain_tree/lua_dsl/
-#   ../../nanodatacenter_dcs/host_processes/*.lua -> lua share/
+#   ../../nanodatacenter_dcs/runtime/dcs_host/*.lua -> lua share/
 #   /usr/local/lib/lua/5.1/dbd/postgresql.so
 #   /usr/local/share/lua/5.1/{DBI,dkjson}.lua
 #   /usr/local/lib/ltree.so
@@ -18,7 +18,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BB_DIR="$SCRIPT_DIR/../.."   # building_blocks/
 
 CT="$BB_DIR/chain_tree_luajit"
-DCS_HP="$BB_DIR/nanodatacenter_dcs/host_processes"
+DCS_HP="$BB_DIR/nanodatacenter_dcs/runtime/dcs_host"
 
 for d in "$CT/runtime" "$CT/lua_dsl" "$DCS_HP"; do
     [[ -d "$d" ]] || { echo "ERROR: missing source: $d" >&2; exit 1; }

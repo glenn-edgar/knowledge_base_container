@@ -27,6 +27,8 @@ local Construct_RPC_Client_Table = require("construct_rpc_client_table")
 local Construct_RPC_Server_Table = require("construct_rpc_server_table")
 local Construct_Bit_Mask_Store  = require("construct_bit_mask_store")
 local Construct_Jsonb_Table     = require("construct_jsonb_table")
+local Construct_Doc_Store       = require("construct_doc_store")
+local Construct_Stream_Store    = require("construct_stream_store")
 
 local Construct_Data_Tables = {}
 Construct_Data_Tables.__index = Construct_Data_Tables
@@ -62,6 +64,8 @@ function Construct_Data_Tables.new(host, port, dbname, user, password, database,
   self.rpc_server_table = Construct_RPC_Server_Table.new(conn, self.kb, database, upload_flag)
   self.bit_mask_store   = Construct_Bit_Mask_Store.new(conn, self.kb, upload_flag)
   self.jsonb_table      = Construct_Jsonb_Table.new(conn, self.kb, database, upload_flag)
+  self.doc_store        = Construct_Doc_Store.new(conn, self.kb, database, upload_flag)
+  self.stream_store     = Construct_Stream_Store.new(conn, self.kb, database, upload_flag)
 
   -- Expose KB path for inspection
   self.path = self.kb.path
@@ -133,6 +137,14 @@ function Construct_Data_Tables:add_jsonb_field(...)
   return self.jsonb_table:add_jsonb_field(...)
 end
 
+function Construct_Data_Tables:add_doc_class(...)
+  return self.doc_store:add_doc_class(...)
+end
+
+function Construct_Data_Tables:add_stream_class(...)
+  return self.stream_store:add_stream_class(...)
+end
+
 function Construct_Data_Tables:create_bit_mask_entry(...)
   return self.bit_mask_store:create_bit_mask_entry(...)
 end
@@ -158,6 +170,8 @@ function Construct_Data_Tables:check_installation()
   self.rpc_client_table:check_installation()
   self.rpc_server_table:check_installation()
   self.jsonb_table:check_installation()
+  self.doc_store:check_installation()
+  self.stream_store:check_installation()
 end
 
 return Construct_Data_Tables
