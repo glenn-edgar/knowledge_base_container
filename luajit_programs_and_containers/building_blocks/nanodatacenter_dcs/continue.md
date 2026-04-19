@@ -94,6 +94,98 @@ nanodatacenter_dcs/
 
 ---
 
+## Next session (planned, 2026-04-20) — Task 2: DSL ergonomics
+
+### Goal
+
+Make the chain-tree DSL legible to someone who doesn't already know the
+chain-tree runtime. Today's `dcs_dsl.lua` is a thin imperative shell over
+the raw primitives; a novice looking at it has to learn a dozen vocab
+items (`asm_verify` vs `asm_wait` vs `asm_verify_timeout`, `timer_only`
+vs `wait_bool`, columns vs state-machines, `asm_reset` loops vs
+`asm_wait_time` one-shots, change_state + halt ceremony) before they can
+confidently write "start pg, wait, fail loudly if it stalls."
+
+### Approach: pattern helpers (additive, non-breaking)
+
+Add a small helper library -- call it
+`chain_tree_luajit/lua_dsl/dcs_dsl_patterns.lua` or
+`nanodatacenter_dcs/construction/dsl_patterns.lua` -- that wraps the
+repeated sequences under readable names. The existing low-level DSL
+stays usable for edge cases; idiomatic code shifts to helpers.
+
+Pattern catalogue to seed:
+
+| Helper | Wraps | Example call |
+|---|---|---|
+| `ct:bring_up(svc, timeout, err)` | `asm_one_shot_handler("START_<SVC>_CONTAINER")` + `asm_verify_timeout` + `asm_verify("VERIFY_<SVC>")`, all with the same `err` | `ct:bring_up("pg", 30, "ERR_INFRA_FAIL")` |
+| `ct:require(verify, timeout, err)` | `asm_verify_timeout` + `asm_verify` pair (no START) | `ct:require("VERIFY_NATS", 15, "ERR_INFRA_FAIL")` |
+| `ct:wait_until(verify, count, err)` | `asm_wait(verify, {}, false, count, "CFL_TIMER_EVENT", err, {})` | `ct:wait_until("VERIFY_CLUSTER_GO", 60, "ERR_MASTER_NEVER_GO")` |
+| `ct:wait_patiently(verify, err)` | `asm_wait` with a huge count (effectively no timeout) | `ct:wait_patiently("VERIFY_INFRA_REACHABLE", "ERR_INFRA_FAIL")` |
+| `ct:monitor_loop(name, handler, cadence)` | `define_column` + `asm_one_shot_handler` + `asm_wait_time` + `asm_reset` | `ct:monitor_loop("hb", "PUBLISH_HEARTBEAT", 5)` |
+| `ct:monitor_verify_col(name, settle, {verifies...})` | define_column + wait_time + N verifies + asm_halt | single-call replacement for the 5-line verify column blocks |
+| `ct:advance(sm, next_state)` | `change_state(sm, next_state)` + `asm_halt()` | removes the always-paired pattern |
+
+Naming discipline: follow the pattern `ct:verb_noun(args)` with positional
+args in "what / constraint / error" order. `timeout` always in seconds.
+
+### What the DSL reads like after
+
+Before:
+```lua
+ct:asm_one_shot_handler("START_PG_CONTAINER", {})
+ct:asm_verify_timeout(30.0, true, "ERR_INFRA_FAIL", {})
+ct:asm_verify("VERIFY_PG", {}, false, "ERR_INFRA_FAIL", {})
+ct:asm_one_shot_handler("START_NATS_CONTAINER", {})
+ct:asm_verify_timeout(15.0, true, "ERR_INFRA_FAIL", {})
+ct:asm_verify("VERIFY_NATS", {}, false, "ERR_INFRA_FAIL", {})
+-- ...etc 4 services...
+ct:change_state(sys_sm, "setup")
+ct:asm_halt()
+```
+
+After:
+```lua
+ct:bring_up("pg",        30, "ERR_INFRA_FAIL")
+ct:bring_up("nats",      15, "ERR_INFRA_FAIL")
+ct:bring_up("mqtt",      15, "ERR_INFRA_FAIL")
+ct:bring_up("kv_bridge", 15, "ERR_INFRA_FAIL")
+ct:advance(sys_sm, "setup")
+```
+
+Half the lines, zero ceremony, reads like English.
+
+### Naming convention contract
+
+`bring_up(svc, ...)` assumes handlers named:
+- `START_<SVC:upper>_CONTAINER` (one-shot)
+- `VERIFY_<SVC:upper>` (boolean)
+
+If your handler names don't follow the convention, use the primitive
+directly. The helper is a style nudge, not a straitjacket.
+
+### Scope and staging
+
+- **Step 1**: write `dsl_patterns.lua` with the table above. No DSL changes yet.
+- **Step 2**: convert ONE KB in `dcs_dsl.lua` (pick `sync_control_master` -- the simplest) to use helpers. Verify build_dsl + runtime still match.
+- **Step 3**: convert the remaining KBs. Each conversion is mechanical; diff should show only line-count reduction and identical generated `dcs.json`.
+- **Step 4**: add a short "DSL patterns" doc in `construction/docs/` with before/after examples so future authors learn by copying.
+
+Keep the helper library in the `chain_tree_luajit` repo if the helpers
+are project-agnostic (probably yes for `bring_up`, `monitor_loop`,
+`advance`); keep DCS-specific helpers (if any -- e.g., ones that assume
+SYS_EXCEPTION semantics) in `nanodatacenter_dcs/construction/`.
+
+### Non-goals for Task 2
+
+- Don't port to a declarative table DSL (Option B in the discussion). It's a
+  bigger rewrite, and we don't know yet whether Option A closes the gap.
+- Don't try to re-generalise the pattern helpers for use by any consumer
+  of chain_tree_luajit in the repo. Solve the DCS case first; generalise
+  later if a second consumer has the same pattern.
+
+---
+
 ## Session 9 (2026-04-15) — gateway + ops_ui design (no DCS code yet)
 
 Long design session that locked in the architecture for a site-wide
