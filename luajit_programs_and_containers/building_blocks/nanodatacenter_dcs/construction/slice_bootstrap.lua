@@ -6,7 +6,7 @@
 -- in the same VM (collapsed for shared connectors / process_globals dict).
 --
 -- Output per CPU:
---   build_output/<cpu_id>/bootstrap.db   (read-only)
+--   deployment/<cpu_id>/bootstrap.db   (read-only)
 --
 -- Bootstrap.db schema = knowledge_base + knowledge_base_info tables only
 -- (Construct_KB; no satellite tables — no runtime state at boot).
@@ -43,19 +43,19 @@ local function script_dir()
   return abs .. "/"
 end
 
-local DIR        = script_dir()
-local DCS_ROOT   = DIR .. "../../"
-local OUT_ROOT   = DCS_ROOT .. "build_output/"
-local LTREE_PATH = DIR .. "../../../knowledge_base/sqlite3/construct_kb/ltree"
+local DIR        = script_dir()                        -- .../nanodatacenter_dcs/construction/
+local DCS_ROOT   = DIR .. "../"                         -- .../nanodatacenter_dcs/
+local OUT_ROOT   = DCS_ROOT .. "deployment/"            -- per-CPU artifact dir
+local LTREE_PATH = DIR .. "../../knowledge_base/sqlite3/construct_kb/ltree"
 
-local function load_lua(name)
-  local chunk, err = loadfile(DIR .. name)
-  if not chunk then error("loadfile " .. name .. ": " .. tostring(err)) end
+local function load_lua(rel)
+  local chunk, err = loadfile(DIR .. rel)
+  if not chunk then error("loadfile " .. rel .. ": " .. tostring(err)) end
   return chunk()
 end
 
-local DEFINITIONS = load_lua("definitions.lua")
-local TOPOLOGY    = load_lua("topology.lua")
+local DEFINITIONS = load_lua("catalogs/definitions.lua")
+local TOPOLOGY    = load_lua("catalogs/topology.lua")
 local SITE        = TOPOLOGY.site
 local PG          = TOPOLOGY.pg_connect
 
@@ -220,8 +220,14 @@ local pg, err = DBI.Connect("PostgreSQL", PG.dbname, PG.user, PASSWORD,
 if not pg then error("pg connect: " .. tostring(err)) end
 pg:autocommit(true)
 
-print("wiping " .. OUT_ROOT)
-rmrf(OUT_ROOT)
+-- Wipe only the per-CPU subdirs, not the deployment/ root itself --
+-- README.md + .gitignore at the root are tracked repo files and
+-- must survive re-slicing.
+print("wiping per-CPU dirs under " .. OUT_ROOT)
+for cpu_id, _ in pairs(TOPOLOGY.cpus) do
+  rmrf(OUT_ROOT .. cpu_id)
+end
+mkdirp(OUT_ROOT)
 
 for cpu_id, _ in pairs(TOPOLOGY.cpus) do
   local is_master = (cpu_id == TOPOLOGY.master)

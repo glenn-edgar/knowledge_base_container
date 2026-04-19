@@ -97,6 +97,16 @@ function Construct_Data_Tables:leave_header_node(...)
   return self.kb:leave_header_node(...)
 end
 
+function Construct_Data_Tables:with_header(link, name, props, data, desc, body)
+  return self.kb:with_header(link, name, props, data, desc, function()
+    body(self)
+  end)
+end
+
+function Construct_Data_Tables:with_kb(kb_name, body)
+  return self.kb:with_kb(kb_name, function() body(self) end)
+end
+
 function Construct_Data_Tables:add_link_node(...)
   return self.kb:add_link_node(...)
 end

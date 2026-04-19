@@ -14,16 +14,17 @@
 local pgc  = require("pg_connector")
 local kbcr = require("kb_container_registry")
 
-local function load_sibling(filename)
+local function load_catalog(filename)
   local src = debug.getinfo(1, "S").source
   if src:sub(1, 1) == "@" then src = src:sub(2) end
   local dir = src:match("(.*/)") or "./"
-  local chunk, err = loadfile(dir .. filename)
+  -- tests/ -> ../catalogs/<filename>
+  local chunk, err = loadfile(dir .. "../catalogs/" .. filename)
   if not chunk then error("load " .. filename .. ": " .. tostring(err)) end
   return chunk()
 end
 
-local TOPOLOGY = load_sibling("topology.lua")
+local TOPOLOGY = load_catalog("topology.lua")
 local SITE     = TOPOLOGY.site
 local CPU      = TOPOLOGY.master
 assert(SITE and CPU, "topology.site / topology.master missing")

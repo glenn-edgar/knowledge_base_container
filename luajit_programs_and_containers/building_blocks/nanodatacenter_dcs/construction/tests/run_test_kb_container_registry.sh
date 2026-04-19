@@ -11,6 +11,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+# tests live at nanodatacenter_dcs/construction/tests/; runtime/dcs_host
+# modules needed: pg_connector, kb_container_registry.
 
 SECRETS_FILE="${HOME}/.config/nanodatacenter/secrets.env"
 if [[ ! -f "$SECRETS_FILE" ]]; then
@@ -25,10 +27,11 @@ if [[ -z "$POSTGRES_PASSWORD" ]]; then
     exit 1
 fi
 
-# host_processes holds pg_connector + kb_container_registry;
-# laptop dir has topology.lua (loaded via loadfile + sibling trick).
-HOST_PROCESSES="$SCRIPT_DIR/../../host_processes"
-export LUA_PATH="$HOST_PROCESSES/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+# runtime/dcs_host holds pg_connector + kb_container_registry;
+# topology.lua lives at construction/catalogs/topology.lua.
+HOST_PROCESSES="$SCRIPT_DIR/../../runtime/dcs_host"
+CATALOGS="$SCRIPT_DIR/../catalogs"
+export LUA_PATH="$HOST_PROCESSES/?.lua;$CATALOGS/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 
 cd "$SCRIPT_DIR"
 exec luajit test_kb_container_registry.lua

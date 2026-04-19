@@ -6,7 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PG_KB_DIR="$REPO_ROOT/building_blocks/knowledge_base/postgres/construct_kb"
 
 if [[ ! -d "$PG_KB_DIR" ]]; then
@@ -32,4 +32,4 @@ export POSTGRES_PASSWORD="$PG_PASSWORD"
 export LUA_PATH="$PG_KB_DIR/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 
 cd "$SCRIPT_DIR"
-exec luajit construct_dcs_kb.lua "$@"
+exec luajit build_kb.lua "$@"
