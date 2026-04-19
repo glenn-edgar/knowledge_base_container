@@ -68,16 +68,18 @@ function M.build_body(name)
     -- -3,1 pulls cpu_id regardless of how many labels the site
     -- name has.
     local pg2 = sh.pg_connect()
-    local meta_cpu, maint_lookup
+    local meta_cpu, meta_def, maint_lookup
     if pg2 then
       local rs = pg2:query(string.format([[
-        SELECT subpath(path, -3, 1)::text AS cpu_id
+        SELECT subpath(path, -3, 1)::text        AS cpu_id,
+               properties->>'definition'         AS definition
         FROM knowledge_base
         WHERE label = 'container' AND name = '%s'
         LIMIT 1
       ]], name:gsub("'", "''")))
-      if rs and rs[1] and rs[1].cpu_id then
+      if rs and rs[1] then
         meta_cpu = rs[1].cpu_id
+        meta_def = rs[1].definition
       end
       if meta_cpu then
         maint_lookup = sh.read_maintenance_until(pg2, meta_cpu, name)
@@ -86,8 +88,11 @@ function M.build_body(name)
     end
     if meta_cpu then
       -- Reconstruct a minimal c shell so the maintenance block renders.
-      c        = { name = name, cpu_id = meta_cpu, definition = "?", ports = {} }
-      m_until  = maint_lookup or 0
+      c       = { name = name, cpu_id = meta_cpu,
+                  definition = meta_def or "?",
+                  category   = "application",
+                  ports      = {} }
+      m_until = maint_lookup or 0
     else
       return string.format(
         '<h2>container %s</h2>' ..
@@ -164,18 +169,33 @@ function M.build_body(name)
       math.max(60, math.floor(remaining / 10)),
       remaining,
       name_attr, name_attr))
+  elseif sh.is_protected_container(c) then
+    -- dcs_console (gateway + admin UI) is guarded: pausing or
+    -- restarting it from the UI would cut the operator off with no
+    -- way back. Show the rationale; server-side actions return 403
+    -- if called anyway (direct curl, stale cached page).
+    table.insert(parts, [[
+<p>Container is live. <strong>Guarded</strong> &mdash; this container
+ hosts the gateway and the admin UI you're using right now. Pausing
+ or restarting it from here would take the UI offline with no way
+ back. If you truly need to cycle it, use <code>docker restart</code>
+ from a shell on the host.</p>]])
   else
     table.insert(parts, string.format([[
 <p>Container is live. Stop for maintenance pauses health checks,
  docker-stops the container, and deregisters its gateway routes
- until the lease ends. Default lease comes from the
- <code>unmonitor_lease_default_s</code> setpoint.</p>
+ until the lease ends. Restart cycles the container (stop+start);
+ use it after a config change or if the container is misbehaving.</p>
 <p>
   <button hx-post="action/container/maintenance-start"
           hx-target="#shell-content" hx-swap="innerHTML"
           hx-vals='{"name":"%s"}'
-          style="color:#fc6;background:#321;border:1px solid #653;padding:0.3em 0.8em;border-radius:3px;cursor:pointer">stop for maintenance</button>
-</p>]], name_attr))
+          style="color:#fc6;background:#321;border:1px solid #653;padding:0.3em 0.8em;border-radius:3px;cursor:pointer;margin-right:0.5em">stop for maintenance</button>
+  <button hx-post="action/container/restart"
+          hx-target="#shell-content" hx-swap="innerHTML"
+          hx-vals='{"name":"%s"}'
+          style="color:#bff;background:#133;border:1px solid #466;padding:0.3em 0.8em;border-radius:3px;cursor:pointer">restart</button>
+</p>]], name_attr, name_attr))
   end
 
   -- Ports table.

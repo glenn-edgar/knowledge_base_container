@@ -410,6 +410,48 @@ function M.maintenance_lease_default(pg)
   return tonumber(v) or 900
 end
 
+-- Guard rail: containers whose *definition* is `dcs_console` host
+-- both the gateway (the operator's browser entry point) and the
+-- admin UI itself. Stopping or restarting them from the UI kicks
+-- the operator off and leaves them no way back except shell access.
+-- Actions that would pause or cycle the container short-circuit
+-- with this check first. An operator who really wants to stop
+-- dcs_console can do it via docker CLI or a direct pg UPDATE.
+local PROTECTED_DEFS = { dcs_console = true }
+
+function M.is_protected_container(c)
+  if not c or not c.definition then return false end
+  return PROTECTED_DEFS[c.definition] == true
+end
+
+-- CPU-wide maintenance lease (X4). 0 = CPU is live; >0 = epoch
+-- seconds when the whole-CPU lease expires.
+local function cpu_maintenance_path(cpu_id)
+  return string.format(
+    "system.site.%s.cpu.%s.KB_STATUS_FIELD.cpu_maintenance_until",
+    site(), cpu_id)
+end
+function M.read_cpu_maintenance_until(pg, cpu_id)
+  local path = cpu_maintenance_path(cpu_id)
+  local rs = pg:query(string.format(
+    "SELECT COALESCE((data->>'value')::bigint, 0) AS v " ..
+    "FROM knowledge_base_status WHERE path = '%s'::ltree",
+    path:gsub("'", "''")))
+  if not rs or not rs[1] then return 0 end
+  return tonumber(rs[1].v) or 0
+end
+function M.write_cpu_maintenance_until(pg, cpu_id, epoch_seconds)
+  local n = math.floor(tonumber(epoch_seconds) or 0)
+  local path = cpu_maintenance_path(cpu_id)
+  local rs, err = pg:query(string.format([[
+    UPDATE knowledge_base_status
+    SET data = jsonb_build_object('value', %d)::json
+    WHERE path = '%s'::ltree
+  ]], n, path:gsub("'", "''")))
+  if not rs then return nil, err end
+  return true
+end
+
 ------------------------------------------------------------------------
 -- Setpoints (Phase 7a) -- operator-tunable site-level status fields
 ------------------------------------------------------------------------

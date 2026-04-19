@@ -25,6 +25,11 @@ local ROUTES = {
   ["container/maintenance-start"]  = "actions.container_maintenance_start",
   ["container/maintenance-end"]    = "actions.container_maintenance_end",
   ["container/maintenance-extend"] = "actions.container_maintenance_extend",
+  ["container/restart"]            = "actions.container_restart",
+  -- cpu/maintenance-{start,end} removed from UI surface 2026-04-19:
+  -- too easy to self-sandbox the master. Node_control still reads
+  -- cpu_maintenance_until from pg (harmless; no UI writer). Bring
+  -- back via a direct pg UPDATE if ever needed for emergencies.
 }
 
 local mod_name = ROUTES[path]

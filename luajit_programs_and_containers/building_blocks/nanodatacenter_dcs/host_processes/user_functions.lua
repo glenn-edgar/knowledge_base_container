@@ -982,9 +982,32 @@ function M.build(ctx)
       return row and tonumber(row.m_until) or 0
     end
 
+    -- CPU-wide maintenance lease (X4). When active, every assignment
+    -- is treated as if individually in maintenance even if its own
+    -- flag is 0. One query per tick.
+    local function read_cpu_m_until()
+      local path = string.format(
+        "system.site.%s.cpu.%s.KB_STATUS_FIELD.cpu_maintenance_until",
+        ctx.cfg.site, ctx.cfg.cpu_id)
+      local sth, perr = ctx.connectors.pg:prepare(string.format(
+        "SELECT COALESCE((data->>'value')::bigint, 0) AS m_until " ..
+        "FROM knowledge_base_status WHERE path = '%s'::ltree",
+        path:gsub("'", "''")))
+      if not sth then return 0 end
+      local ok, eerr = sth:execute()
+      if not ok then sth:close(); return 0 end
+      local row = sth:fetch(true)
+      sth:close()
+      return row and tonumber(row.m_until) or 0
+    end
+    local cpu_m_until     = read_cpu_m_until()
+    local cpu_in_maint    = cpu_m_until > now
+
     for _, asg in ipairs(assignments) do
       local m_until         = read_m_until(asg.name)
-      local in_maintenance  = m_until > now
+      -- CPU-wide lease wins -- a paused CPU puts every container in
+      -- maintenance regardless of the container's own flag.
+      local in_maintenance  = m_until > now or cpu_in_maint
       local was_in          = prev[asg.name] == true
       if in_maintenance and not was_in then
         log("node_control", string.format(

@@ -41,6 +41,16 @@ function M.execute()
     ngx.say("container not in registry")
     return
   end
+  if sh.is_protected_container(c) then
+    sh.audit_log_append(pg, operator, "maintenance_start", name, "",
+                         "error: protected container (" .. c.definition .. ")")
+    pg:disconnect()
+    ngx.status = 403
+    ngx.say("refused: " .. name .. " hosts the gateway + admin UI; " ..
+            "pausing it would take the UI offline. Use docker CLI if " ..
+            "you really need to stop it.")
+    return
+  end
 
   local lease    = sh.maintenance_lease_default(pg)
   local until_ts = os.time() + lease

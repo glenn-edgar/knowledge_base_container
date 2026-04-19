@@ -407,6 +407,14 @@ for cpu_id, cpu in pairs(TOPOLOGY.cpus) do
     kb:create_bit_mask_entry("system", "heartbeat", 1, 0,
                              "CPU " .. cpu_id .. " heartbeat (64-bit ns timestamp)")
 
+    -- CPU-level maintenance lease (Phase 7b X4). Operator can pause an
+    -- entire CPU's workload in one click; node_control's transition
+    -- handler treats every assignment as if individually in maintenance
+    -- while this is > now(). Cleared (0) on resume.
+    kb:add_status_field("cpu_maintenance_until", {},
+                        "operator CPU-wide maintenance lease (epoch seconds; 0 = live)",
+                        { value = 0 })
+
     -- Build 2c: agent exception schema rows. label = SYS_EXCEPTION (custom);
     -- properties = {type, instance, description}; data column null. The
     -- runtime status row is created lazily by kb_exception.log_exception

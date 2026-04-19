@@ -108,7 +108,11 @@ function M.build_body(cpu_id)
     '</dl>',
     '<footer class="last-event">',
       'Heartbeat stale threshold: ', tostring(HEARTBEAT_STALE_S), 's. ',
-      'Click <span aria-hidden="true">&#9432;</span> for the live status stream.',
+      'Click <span aria-hidden="true">&#9432;</span> for the live status stream. ',
+      'For maintenance, operate on individual containers -- per-container ',
+      'pause/restart is available on each Container view. A CPU-wide pause ',
+      'was removed from the UI after it proved too easy to trip into a ',
+      'self-maintenance loop when applied to the master.',
     '</footer>',
   }
   local html = table.concat(parts)
