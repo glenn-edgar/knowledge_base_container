@@ -63,12 +63,15 @@ local function sync_control_master(ct, kb_name)
                 ct:asm_verify("VERIFY_KV_BRIDGE", {}, false,
                               "ERR_INFRA_FAIL", {})
 
-                -- Reset coordinator state before advertising our own sync
-                -- bit, so a previous crash's stale {cluster_sync_bits,
-                -- cluster_go} can't make us (or a slave) skip the wait.
-                ct:asm_one_shot_handler("CLEAR_ALL_CLUSTER_SYNC_BITS", {})
-                ct:asm_one_shot_handler("CLEAR_CLUSTER_GO",            {})
-
+                -- Coordinator state is NOT cleared here anymore. Clearing
+                -- cluster_sync_bits on every master restart wiped slaves'
+                -- bits too, and slaves in operational don't re-enter
+                -- sync, so master would wait forever. Leaving stale 0x3
+                -- is safe: if a slave is actually offline, its own
+                -- node_control stopped; master can still proceed and
+                -- the slave catches up on its next sync entry.
+                -- (cluster_go ends up overwritten by WRITE_CLUSTER_GO_
+                -- TRUE below, so no explicit clear needed there either.)
                 ct:asm_one_shot_handler("SET_OWN_SYNC_BIT", {})
                 ct:change_state(sync_sm, "await_quorum")
                 ct:asm_halt()

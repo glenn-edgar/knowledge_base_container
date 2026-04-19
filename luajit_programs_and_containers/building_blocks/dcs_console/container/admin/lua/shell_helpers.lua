@@ -410,6 +410,77 @@ function M.maintenance_lease_default(pg)
   return tonumber(v) or 900
 end
 
+-- Recent audit_log entries, optionally filtered to a specific target.
+-- Pass target=nil (or empty) to get site-wide recent activity.
+-- Returns array of rows; each row has string fields:
+--   id, ts, operator, action, target, note, result
+function M.recent_audit(pg, target, limit)
+  limit = tonumber(limit) or 10
+  local filter = ""
+  if target and target ~= "" then
+    filter = "WHERE target = '" .. tostring(target):gsub("'", "''") .. "'"
+  end
+  local rs = pg:query(string.format([[
+    SELECT id,
+           to_char(ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS ts,
+           extract(epoch FROM ts)::bigint AS epoch,
+           operator, action, target, note, result
+    FROM audit_log
+    %s
+    ORDER BY id DESC
+    LIMIT %d
+  ]], filter, limit))
+  if not rs then return {} end
+  local out = {}
+  for _, r in ipairs(rs) do
+    out[#out + 1] = {
+      id = r.id, ts = r.ts, epoch = tonumber(r.epoch),
+      operator = r.operator, action = r.action, target = r.target,
+      note = r.note, result = r.result,
+    }
+  end
+  return out
+end
+
+-- Render a compact audit-log table (HTML fragment). Reused across
+-- per-target views (container_status, cpu_summary, system_overview).
+function M.audit_table_html(rows, empty_msg)
+  if not rows or #rows == 0 then
+    return '<p class="placeholder">' .. (empty_msg or "No activity recorded.") .. '</p>'
+  end
+  local out = { '<table style="width:100%;border-collapse:collapse">',
+    '<thead><tr style="color:#888;font-size:0.88em;text-align:left">' ..
+      '<th style="padding:0.35em 0.6em;border-bottom:1px solid #333">When</th>' ..
+      '<th style="padding:0.35em 0.6em;border-bottom:1px solid #333">Operator</th>' ..
+      '<th style="padding:0.35em 0.6em;border-bottom:1px solid #333">Action</th>' ..
+      '<th style="padding:0.35em 0.6em;border-bottom:1px solid #333">Note</th>' ..
+      '<th style="padding:0.35em 0.6em;border-bottom:1px solid #333">Result</th>' ..
+    '</tr></thead><tbody>' }
+  for _, r in ipairs(rows) do
+    local result_cell = r.result or ""
+    local result_style = "color:#8f8"
+    if result_cell:find("^error") then result_style = "color:#f88" end
+    local when_html = r.epoch and M.time_el(r.epoch, 86400)
+                   or M.escape(r.ts or "")
+    out[#out + 1] = string.format(
+      '<tr>' ..
+      '<td style="padding:0.35em 0.6em;border-bottom:1px solid #222;font-size:0.88em">%s</td>' ..
+      '<td style="padding:0.35em 0.6em;border-bottom:1px solid #222;font-size:0.88em">%s</td>' ..
+      '<td style="padding:0.35em 0.6em;border-bottom:1px solid #222;font-size:0.88em"><code>%s</code></td>' ..
+      '<td style="padding:0.35em 0.6em;border-bottom:1px solid #222;font-size:0.85em;color:#aaa">%s</td>' ..
+      '<td style="padding:0.35em 0.6em;border-bottom:1px solid #222;font-size:0.85em;%s">%s</td>' ..
+      '</tr>',
+      when_html,
+      M.escape(r.operator or ""),
+      M.escape(r.action or ""),
+      M.escape(r.note or ""),
+      result_style,
+      M.escape(result_cell))
+  end
+  out[#out + 1] = '</tbody></table>'
+  return table.concat(out)
+end
+
 -- Guard rail: containers whose *definition* is `dcs_console` host
 -- both the gateway (the operator's browser entry point) and the
 -- admin UI itself. Stopping or restarting them from the UI kicks

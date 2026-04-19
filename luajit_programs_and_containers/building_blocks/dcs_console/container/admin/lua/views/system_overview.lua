@@ -38,6 +38,7 @@ function M.build_body()
   local sync_bits    = sh.site_bit_mask(pg, "cluster_sync_bits")
   local expected     = sh.expected_cpu_count(pg)
   local exc_count    = sh.active_exception_count(pg)
+  local audit_rows   = sh.recent_audit(pg, nil, 10)
   pg:disconnect()
 
   local expected_mask
@@ -109,9 +110,13 @@ function M.build_body()
     '<dt>Active exceptions</dt><dd>', exc_pill, '</dd>',
     '<dt>Updated</dt><dd>',        sh.time_el(os.time(), 30), '</dd>',
     '</dl>',
+    '<h3 style="color:#fff;font-weight:500;margin-top:1.8em">Recent activity (site-wide)</h3>',
+    sh.audit_table_html(audit_rows, "No operator actions recorded yet."),
     '<footer class="last-event">Snapshot taken at ',
       sh.time_el(os.time(), 120),
-    '. Open the status popup (<span aria-hidden="true">&#9432;</span>) for a live feed.</footer>',
+    '. Open the status popup (<span aria-hidden="true">&#9432;</span>) for a live feed. ',
+    'Per-CPU and per-container activity is also visible on their detail views.',
+    '</footer>',
   }
   html = table.concat(parts, "\n")
 

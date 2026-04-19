@@ -36,6 +36,7 @@ function M.build_body(cpu_id)
   local hb_epoch   = sh.read_cpu_heartbeat_epoch(pg, cpu_id)
   local assigns    = sh.containers_on(pg, cpu_id) or {}
   local exc_count  = sh.active_exception_count(pg)
+  local audit_rows = sh.recent_audit(pg, cpu_id, 10)
   pg:disconnect()
 
   if not me then
@@ -106,15 +107,22 @@ function M.build_body(cpu_id)
     '</dd>',
     '<dt>Updated</dt><dd>',           sh.time_el(os.time(), 30), '</dd>',
     '</dl>',
-    '<footer class="last-event">',
-      'Heartbeat stale threshold: ', tostring(HEARTBEAT_STALE_S), 's. ',
-      'Click <span aria-hidden="true">&#9432;</span> for the live status stream. ',
-      'For maintenance, operate on individual containers -- per-container ',
-      'pause/restart is available on each Container view. A CPU-wide pause ',
-      'was removed from the UI after it proved too easy to trip into a ',
-      'self-maintenance loop when applied to the master.',
-    '</footer>',
   }
+
+  table.insert(parts,
+    '<h3 style="color:#fff;font-weight:500;margin-top:1.4em">Recent activity</h3>')
+  table.insert(parts, sh.audit_table_html(audit_rows,
+    "No operator actions recorded for this CPU yet."))
+
+  table.insert(parts,
+    '<footer class="last-event">' ..
+    'Heartbeat stale threshold: ' .. tostring(HEARTBEAT_STALE_S) .. 's. ' ..
+    'Click <span aria-hidden="true">&#9432;</span> for the live status stream. ' ..
+    'For maintenance, operate on individual containers -- per-container ' ..
+    'pause/restart is available on each Container view. A CPU-wide pause ' ..
+    'was removed from the UI after it proved too easy to trip into a ' ..
+    'self-maintenance loop when applied to the master.' ..
+    '</footer>')
   local html = table.concat(parts)
 
   local ctx = {

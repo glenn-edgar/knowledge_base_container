@@ -57,6 +57,7 @@ function M.build_body(name)
     host_cpu = sh.get_cpu(pg, c.cpu_id)
     m_until  = sh.read_maintenance_until(pg, c.cpu_id, name)
   end
+  local audit_rows = sh.recent_audit(pg, name, 10)
   pg:disconnect()
 
   if not c then
@@ -216,15 +217,14 @@ function M.build_body(name)
     table.insert(parts, '</tbody></table>')
   end
 
-  -- Events placeholder -- phase 5+ will stream real lifecycle events.
+  -- Activity: recent audit_log entries scoped to this container.
+  -- (Container lifecycle events stream is deferred: schema is planted
+  -- at KB_STREAM_FIELD.events but no writer yet. When that lands,
+  -- merge its rows with these here.)
   table.insert(parts,
-    '<h3 style="color:#fff;font-weight:500;margin-top:1.4em">Lifecycle events</h3>')
+    '<h3 style="color:#fff;font-weight:500;margin-top:1.4em">Recent activity</h3>')
   table.insert(parts,
-    '<p class="placeholder">No events ring written yet. Phase 5 will populate ' ..
-    'from the per-container <code>KB_STREAM_FIELD.events</code> stream at ' ..
-    sh.kb_path_span("cpu", c.cpu_id or "?", "container", name,
-                    "KB_STREAM_FIELD", "events") ..
-    '.</p>')
+    sh.audit_table_html(audit_rows, "No operator actions recorded for this container yet."))
 
   -- Footer.
   table.insert(parts,
