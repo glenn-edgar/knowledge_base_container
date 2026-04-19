@@ -208,6 +208,15 @@ return {
     runtime       = "docker",
     image         = "nanodatacenter/observability:latest",
     restart_policy = "unless-stopped",
+    -- Analyzer + web servers all talk to the master Postgres. node_control
+    -- resolves these from its host env at `docker run` time.
+    env_required  = { "POSTGRES_PASSWORD" },
+    env_defaults  = {
+      PG_HOST = "host.docker.internal",
+      PG_PORT = "5432",
+      PG_DB   = "knowledge_base",
+      PG_USER = "gedgar",
+    },
     port_spec = {
       exception_web = {
         internal    = 8080,
