@@ -196,4 +196,32 @@ return {
     },
   },
 
+  -- observability: Task 4 SCADA-style observability hub. Singleton on
+  -- master. Four supervised processes:
+  --   exception_analyzer (lua)  -- SYS_EXCEPTION janitor
+  --   log_analyzer       (lua)  -- KB_LOG ingest + rule eval + rollups
+  --   exception_web      (ors)  -- alarm ops UI (internal 8080)
+  --   log_web            (ors)  -- strip charts + rule inventory (internal 8081)
+  -- Phase 5 is a shell build; Phases 6-8 fill in real logic.
+  observability = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/observability:latest",
+    restart_policy = "unless-stopped",
+    port_spec = {
+      exception_web = {
+        internal    = 8080,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "SCADA alarm operations UI (shell -> phase 8)",
+      },
+      log_web = {
+        internal    = 8081,
+        protocol    = "tcp",
+        purpose     = "ui",
+        description = "Log strip charts + rule inventory (shell -> phase 8)",
+      },
+    },
+  },
+
 }

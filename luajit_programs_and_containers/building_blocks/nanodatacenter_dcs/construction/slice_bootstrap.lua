@@ -165,6 +165,11 @@ local function slice_cpu(pg, db_path, cpu_id, is_master, all_cpus)
   local kb = Construct_KB.new(db_path, "knowledge_base", nil, false)
   local sdb = kb:get_db_objects()
 
+  -- Wrap the ~2000 INSERTs in a single transaction. sqlite commits each
+  -- statement by default (including an fsync), making per-row inserts
+  -- ~5-10ms each. A single transaction is 50-100x faster.
+  h.sql_exec(sdb, "BEGIN TRANSACTION")
+
   local filters = compute_filters(cpu_id, is_master, all_cpus)
 
   -- knowledge_base table rows
@@ -203,6 +208,7 @@ local function slice_cpu(pg, db_path, cpu_id, is_master, all_cpus)
     end
   end
 
+  h.sql_exec(sdb, "COMMIT")
   kb:disconnect()
 
   -- chmod 0444

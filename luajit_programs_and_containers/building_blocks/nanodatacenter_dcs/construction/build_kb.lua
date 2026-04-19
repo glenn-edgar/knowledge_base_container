@@ -248,6 +248,13 @@ for _ in pairs(TOPOLOGY.cpus) do CPU_COUNT = CPU_COUNT + 1 end
 local kb = CDT.new(PG.host, PG.port, PG.dbname, PG.user, PASSWORD,
                    "knowledge_base", false)
 
+-- Disable autocommit so the entire build runs in ONE transaction.
+-- At ~5000 INSERTs, each implicit commit is a pg round-trip; this cuts
+-- build_kb from ~40s to ~5-10s on WSL2/Docker Desktop.
+-- Committed explicitly after check_installation; rolled back implicitly
+-- if the lua process exits with an error before commit.
+kb.kb.conn:autocommit(false)
+
 ---------------------------------------------------------------------------
 -- Subsystem registry
 ---------------------------------------------------------------------------
@@ -356,9 +363,14 @@ fire("install_own_kb")
 local ok, err = pcall(function() kb:check_installation() end)
 if not ok then
   print("check_installation failed: " .. tostring(err))
+  kb.kb.conn:rollback()
   kb:disconnect()
   os.exit(1)
 end
+
+-- Commit the whole build as one transaction.
+kb.kb.conn:commit()
+kb.kb.conn:autocommit(true)
 
 local def_count = 0
 for _ in pairs(DEFINITIONS) do def_count = def_count + 1 end

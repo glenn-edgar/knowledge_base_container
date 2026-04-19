@@ -103,6 +103,9 @@ return {
           ports = { exceptions_ui = 19001, logs_ui = 19002 } },
         { name = "dcs_console_01", def = "dcs_console",
           ports = { gateway = 19003, admin = 19004 } },
+        -- Task 4 SCADA observability hub. Singleton on master.
+        { name = "observability_01", def = "observability",
+          ports = { exception_web = 19007, log_web = 19008 } },
       },
     },
 

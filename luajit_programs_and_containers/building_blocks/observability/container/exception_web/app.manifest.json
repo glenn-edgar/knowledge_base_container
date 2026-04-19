@@ -1,0 +1,10 @@
+{
+    "name": "exception_web",
+    "argv": ["/usr/local/openresty/bin/openresty",
+             "-p", "/opt/apps/exception_web/",
+             "-c", "conf/nginx.conf",
+             "-g", "daemon off;"],
+    "start_order": 30,
+    "restart_policy": "always",
+    "kb_path": ""
+}
