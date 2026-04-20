@@ -410,6 +410,30 @@ local function node_control(ct, kb_name)
                     ct:asm_reset()
                 ct:end_column(maint_col)
 
+                -- Reconcile: cold-respawn any assigned container that has
+                -- disappeared (docker rm, crash, OOM-kill). Wait THEN
+                -- check so setup-phase starts can settle and a freshly
+                -- respawned container has time to come up before the
+                -- next pass. 10s cadence.
+                local reconcile_col = ct:define_column("node_monitor_reconcile")
+                    ct:asm_wait_time(10.0)
+                    ct:asm_one_shot_handler(
+                        "RECONCILE_ASSIGNED_CONTAINERS", {})
+                    ct:asm_reset()
+                ct:end_column(reconcile_col)
+
+                -- Watchdog: HTTP-probe each running container's primary
+                -- external port. 3 consecutive strikes -> docker stop +
+                -- respawn + SYS_EXCEPTION container_hung. 15s cadence
+                -- (≈45s worst-case detection). Wait-then-check for the
+                -- same settle reason as reconcile.
+                local watchdog_col = ct:define_column("node_monitor_watchdog")
+                    ct:asm_wait_time(15.0)
+                    ct:asm_one_shot_handler(
+                        "WATCHDOG_CHECK_ASSIGNED_CONTAINERS", {})
+                    ct:asm_reset()
+                ct:end_column(watchdog_col)
+
                 local verify_col = ct:define_column("node_monitor_verify")
                     ct:asm_wait_time(5.0)   -- settle before first verify
                     ct:asm_verify("VERIFY_ALL_ASSIGNED_CONTAINERS_HEALTHY",

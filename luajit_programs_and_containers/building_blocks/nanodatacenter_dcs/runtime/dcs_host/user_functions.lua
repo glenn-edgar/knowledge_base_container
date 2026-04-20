@@ -854,6 +854,60 @@ function M.build(ctx)
     reconcile_registry(assignments)
   end
 
+  -- launch_assignment: shared machinery for START + RECONCILE + WATCHDOG.
+  -- Assumes caller has already confirmed the container is NOT running
+  -- and handled port/listening accounting. Returns (true, id_short) on
+  -- success, (false, reason) on failure. Registers on success.
+  local function launch_assignment(asg, listening)
+    local build_specs = ctx.system_control_globals.build_specs or {}
+    local spec = build_specs[asg.definition]
+    if not spec then
+      return false, "build.spec not loaded for definition " ..
+                    tostring(asg.definition)
+    end
+    local ok, bad_port = check_port_conflict(asg, listening)
+    if not ok then
+      return false, "external port " .. tostring(bad_port) ..
+                    " already in use on host"
+    end
+    -- Merge: keep def.spec but override ports with per-instance
+    -- resolved records (slot/internal/external from service.main).
+    local merged = {}
+    for k, v in pairs(spec) do merged[k] = v end
+    merged.ports = (asg.service and asg.service.ports) or {}
+    -- PG_HOST normalization: the DCS process reads pg at the host's
+    -- localhost, but a bridge-network container's localhost is itself.
+    -- Swap to host.docker.internal so the app's luajit-base supervisor
+    -- can VERIFY_PG successfully. (The --add-host flag in run_from_spec
+    -- creates the alias on both Docker Desktop and Linux-native.)
+    local host_pg = ctx.cfg.pg_host
+    if host_pg == "localhost" or host_pg == "127.0.0.1" then
+      host_pg = "host.docker.internal"
+    end
+    local extra_env = {
+      CONTAINER_NAME = asg.name,
+      APP_SITE       = ctx.cfg.site,
+      APP_CPU_ID     = ctx.cfg.cpu_id,
+      PG_HOST        = host_pg,
+      PG_PORT        = tostring(ctx.cfg.pg_port),
+      PG_DB          = ctx.cfg.pg_db,
+      PG_USER        = ctx.cfg.pg_user,
+      PG_PASSWORD    = os.getenv("PG_PASSWORD")
+                       or os.getenv("POSTGRES_PASSWORD") or "",
+    }
+    local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
+    if not rok then
+      return false, tostring(rres)
+    end
+    register_assignment(asg)
+    -- Optimistic: our ports are ours now; update the listening set so a
+    -- second assignment with the same port would be flagged.
+    for _, port in ipairs(external_ports_of(asg)) do
+      listening[port] = true
+    end
+    return true, tostring(rres):sub(1, 12)
+  end
+
   -- START_ASSIGNED_CONTAINERS: for each assignment, pre-flight port
   -- conflict, docker run from merged spec, register on success. Per-
   -- assignment failures are logged + SYS_EXCEPTION'd but do NOT halt the
@@ -865,63 +919,168 @@ function M.build(ctx)
       return
     end
     local listening = listening_ports()
-    local build_specs = ctx.system_control_globals.build_specs or {}
 
     for _, asg in ipairs(assignments) do
       if docker.is_running(asg.name) then
         log("node_control", "START " .. asg.name .. ": already running, re-register")
         register_assignment(asg)
       else
-        local spec = build_specs[asg.definition]
-        if not spec then
-          log_container_failure(asg.name,
-            "build.spec not loaded for definition " .. tostring(asg.definition))
+        local ok, res = launch_assignment(asg, listening)
+        if ok then
+          log("node_control", string.format("START %s -> %s", asg.name, res))
         else
-          local ok, bad_port = check_port_conflict(asg, listening)
-          if not ok then
-            log_container_failure(asg.name,
-              "external port " .. tostring(bad_port) .. " already in use on host")
+          log_container_failure(asg.name, res)
+        end
+      end
+    end
+  end
+
+  ----------------------------------------------------------------------
+  -- Runtime supervision: reconcile (cold-respawn missing containers) +
+  -- watchdog (HTTP probe running containers; docker-restart unresponsive
+  -- ones). Both run as parallel columns under node_control monitor_st
+  -- with a leading asm_wait_time (settle-then-check). Per-container
+  -- state lives in node_control_globals so it survives column resets.
+  ----------------------------------------------------------------------
+
+  local RECONCILE_COOLDOWN_S = 30     -- don't respawn same container within
+  local WATCHDOG_PROBE_TIMEOUT_S = 2  -- curl --connect-timeout + --max-time
+  local WATCHDOG_FAIL_THRESHOLD  = 3  -- consecutive strikes before kick
+  local WATCHDOG_BOOT_GRACE_S    = 30 -- post-restart probe hold-off
+
+  -- Skip a container if its maintenance lease is active (either per-
+  -- container or CPU-wide). Reads APPLY_MAINTENANCE_TRANSITIONS's
+  -- cached map; falls back to "not in maintenance" if the first
+  -- maintenance tick hasn't populated it yet.
+  local function is_in_maintenance(asg_name)
+    local m = ctx.node_control_globals.maintenance_state or {}
+    return m[asg_name] == true
+  end
+
+  -- Reconcile helper -- calls launch_assignment with a fresh listening
+  -- snapshot. Separate from the one used by START to avoid stale
+  -- entries after containers have come and gone.
+  local function respawn_and_log(asg, cause)
+    local listening = listening_ports()
+    local ok, res = launch_assignment(asg, listening)
+    if ok then
+      log("node_control", string.format(
+        "%s %s -> docker run %s", cause, asg.name, res))
+      if ctx.connectors.pg then
+        local xpath = exc_path(
+          (cause == "WATCHDOG") and "container_hung" or "container_respawned")
+        kb_exc.raise(ctx.connectors.pg, xpath, {
+          error       = string.format("%s respawn %s", cause, asg.name),
+          source_path = asg.name,
+        })
+      end
+    else
+      log_container_failure(asg.name,
+        string.lower(cause) .. " respawn failed: " .. tostring(res))
+    end
+    return ok
+  end
+
+  -- RECONCILE_ASSIGNED_CONTAINERS: fires once per monitor-column tick
+  -- (after the column's asm_wait_time). For each assignment not under
+  -- maintenance, check docker.is_running; respawn if absent. Quiet when
+  -- everything is healthy -- only logs on actual state change.
+  R.RECONCILE_ASSIGNED_CONTAINERS = function(_h, _n)
+    local assignments = ctx.node_control_globals.assignments or {}
+    if #assignments == 0 then return end
+    ctx.node_control_globals.last_restart_ts =
+      ctx.node_control_globals.last_restart_ts or {}
+    local lrts = ctx.node_control_globals.last_restart_ts
+    local now = os.time()
+
+    for _, asg in ipairs(assignments) do
+      if not is_in_maintenance(asg.name) then
+        if docker.is_running(asg.name) then
+          -- Healthy: nothing to do, stay quiet.
+        else
+          local last = lrts[asg.name] or 0
+          if (now - last) < RECONCILE_COOLDOWN_S then
+            -- Give the previous respawn a chance to settle before
+            -- trying again; avoids tight restart loops when a container
+            -- keeps crashing on boot.
           else
-            -- Merge: keep def.spec but override ports with per-instance
-            -- resolved records (slot/internal/external from service.main).
-            local merged = {}
-            for k, v in pairs(spec) do merged[k] = v end
-            merged.ports = (asg.service and asg.service.ports) or {}
-            -- PG_HOST normalization: the DCS process reads pg at the
-            -- host's localhost, but a bridge-network container's localhost
-            -- is itself. Swap to host.docker.internal so the app's
-            -- luajit-base supervisor can VERIFY_PG successfully. (The
-            -- --add-host flag in docker.run_from_spec creates the alias
-            -- on both Docker Desktop and Linux-native.)
-            local host_pg = ctx.cfg.pg_host
-            if host_pg == "localhost" or host_pg == "127.0.0.1" then
-              host_pg = "host.docker.internal"
+            log("node_control", string.format(
+              "RECONCILE %s missing -- respawning", asg.name))
+            if respawn_and_log(asg, "RECONCILE") then
+              lrts[asg.name] = now
             end
-            local extra_env = {
-              CONTAINER_NAME = asg.name,
-              APP_SITE       = ctx.cfg.site,
-              APP_CPU_ID     = ctx.cfg.cpu_id,
-              PG_HOST        = host_pg,
-              PG_PORT        = tostring(ctx.cfg.pg_port),
-              PG_DB          = ctx.cfg.pg_db,
-              PG_USER        = ctx.cfg.pg_user,
-              PG_PASSWORD    = os.getenv("PG_PASSWORD")
-                               or os.getenv("POSTGRES_PASSWORD") or "",
-            }
-            local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
-            if rok then
-              log("node_control", string.format(
-                "START %s -> %s", asg.name, tostring(rres):sub(1, 12)))
-              register_assignment(asg)
-              -- Optimistic: our ports are ours now; update the listening
-              -- set so a second assignment with the same port would be
-              -- flagged (should be caught at construct, but belt-and-braces).
-              for _, port in ipairs(external_ports_of(asg)) do
-                listening[port] = true
-              end
-            else
-              log_container_failure(asg.name, tostring(rres))
+          end
+        end
+      end
+    end
+  end
+
+  -- HTTP probe a container's primary external port. Returns true on
+  -- any 2xx/3xx/4xx (the server is talking); false on connect failure
+  -- or timeout. Uses curl because it's the one tool every linux host
+  -- we care about already has, and its exit code is deterministic.
+  local function probe_container(port)
+    local cmd = string.format(
+      "curl -s -o /dev/null -w '%%{http_code}' " ..
+      "--connect-timeout %d --max-time %d " ..
+      "http://127.0.0.1:%d/ 2>/dev/null",
+      WATCHDOG_PROBE_TIMEOUT_S, WATCHDOG_PROBE_TIMEOUT_S + 1, port)
+    local p = io.popen(cmd)
+    if not p then return false end
+    local code_s = p:read("*a") or ""
+    p:close()
+    local code = tonumber((code_s:gsub("%s+", "")))
+    return code and code > 0
+  end
+
+  -- WATCHDOG_CHECK_ASSIGNED_CONTAINERS: for each running assignment
+  -- with a probable external port, HTTP-probe it. N consecutive
+  -- strikes -> docker stop + immediate respawn + SYS_EXCEPTION.
+  -- Skips containers under maintenance and those freshly restarted
+  -- (boot grace window).
+  R.WATCHDOG_CHECK_ASSIGNED_CONTAINERS = function(_h, _n)
+    local assignments = ctx.node_control_globals.assignments or {}
+    if #assignments == 0 then return end
+    ctx.node_control_globals.watchdog_state =
+      ctx.node_control_globals.watchdog_state or {}
+    ctx.node_control_globals.last_restart_ts =
+      ctx.node_control_globals.last_restart_ts or {}
+    local wstate = ctx.node_control_globals.watchdog_state
+    local lrts   = ctx.node_control_globals.last_restart_ts
+    local now    = os.time()
+
+    for _, asg in ipairs(assignments) do
+      local ports_list = external_ports_of(asg)
+      local port = ports_list[1]
+      local last_restart = lrts[asg.name] or 0
+      local boot_grace_active = (now - last_restart) < WATCHDOG_BOOT_GRACE_S
+
+      if port
+         and not is_in_maintenance(asg.name)
+         and docker.is_running(asg.name)
+         and not boot_grace_active then
+        local st = wstate[asg.name] or { fail_count = 0 }
+        wstate[asg.name] = st
+        if probe_container(port) then
+          if st.fail_count > 0 then
+            log("node_control", string.format(
+              "WATCHDOG %s probe recovered (was fail=%d)",
+              asg.name, st.fail_count))
+          end
+          st.fail_count = 0
+        else
+          st.fail_count = st.fail_count + 1
+          log("node_control", string.format(
+            "WATCHDOG %s probe failed (port %d) fail=%d/%d",
+            asg.name, port, st.fail_count, WATCHDOG_FAIL_THRESHOLD))
+          if st.fail_count >= WATCHDOG_FAIL_THRESHOLD then
+            log("node_control", string.format(
+              "WATCHDOG %s hung -- restarting", asg.name))
+            docker.stop(asg.name)
+            if respawn_and_log(asg, "WATCHDOG") then
+              lrts[asg.name] = now
             end
+            st.fail_count = 0
           end
         end
       end
