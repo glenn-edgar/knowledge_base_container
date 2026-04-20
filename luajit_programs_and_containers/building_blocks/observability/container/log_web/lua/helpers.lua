@@ -212,4 +212,124 @@ function M.list_logs(pg)
   return rows
 end
 
+--- List all KB_LOGs filtered by kind ('operational' | 'archival' | 'diagnostic').
+--- Includes a joined summary: last_value + last_sample_ts + live_stats (for slope / ma).
+function M.list_logs_with_summary(pg, kind_filter)
+  local filter = ""
+  if kind_filter then
+    filter = string.format("AND k.properties->>'kind' = %s", quote_literal(kind_filter))
+  end
+  local sql = string.format([[
+    SELECT k.path::text AS path,
+           k.properties AS props,
+           COALESCE(s_lv.data->>'value', '') AS last_value,
+           CASE WHEN (s_ts.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s_ts.data->>'value')::bigint ELSE 0 END AS last_sample_ts,
+           CASE WHEN (s_cnt.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s_cnt.data->>'value')::bigint ELSE 0 END AS sample_count_total,
+           d.data AS live_stats
+      FROM knowledge_base k
+      LEFT JOIN knowledge_base_status s_lv
+        ON s_lv.path = (k.path::text || '.KB_STATUS_FIELD.last_value')::ltree
+      LEFT JOIN knowledge_base_status s_ts
+        ON s_ts.path = (k.path::text || '.KB_STATUS_FIELD.last_sample_ts')::ltree
+      LEFT JOIN knowledge_base_status s_cnt
+        ON s_cnt.path = (k.path::text || '.KB_STATUS_FIELD.sample_count_total')::ltree
+      LEFT JOIN knowledge_base_document d
+        ON d.ltree = (k.path::text || '.KB_JSONB_FIELD.live_stats')::ltree
+     WHERE k.label = 'KB_LOG' %s
+     ORDER BY k.path
+  ]], filter)
+  local rows = pg:query(sql) or {}
+  for _, r in ipairs(rows) do
+    if type(r.props) == "string"      then r.props = cjson.decode(r.props) or {} end
+    if type(r.live_stats) == "string" then r.live_stats = cjson.decode(r.live_stats) or {} end
+    -- live_stats stored bare or wrapped
+    if r.live_stats and type(r.live_stats) == "table" and type(r.live_stats.value) == "table" then
+      r.live_stats = r.live_stats.value
+    end
+  end
+  return rows
+end
+
+--- List all KB_RULE paths site-wide with parent log, props + state.
+function M.list_all_rules(pg)
+  local sql = [[
+    SELECT k.path::text AS path,
+           k.properties AS props,
+           COALESCE(s_en.data->>'value', 'true')  AS enabled,
+           COALESCE(s_sup.data->>'value', 'false') AS suppressed,
+           CASE WHEN (s_su.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s_su.data->>'value')::bigint ELSE 0 END AS suppressed_until,
+           CASE WHEN (s_fc.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s_fc.data->>'value')::bigint ELSE 0 END AS fire_count,
+           CASE WHEN (s_ft.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s_ft.data->>'value')::bigint ELSE 0 END AS last_fired_ts,
+           COALESCE(s_fv.data->>'value', '') AS last_fired_value
+      FROM knowledge_base k
+      LEFT JOIN knowledge_base_status s_en
+        ON s_en.path = (k.path::text || '.KB_STATUS_FIELD.enabled')::ltree
+      LEFT JOIN knowledge_base_status s_sup
+        ON s_sup.path = (k.path::text || '.KB_STATUS_FIELD.suppressed')::ltree
+      LEFT JOIN knowledge_base_status s_su
+        ON s_su.path = (k.path::text || '.KB_STATUS_FIELD.suppressed_until')::ltree
+      LEFT JOIN knowledge_base_status s_fc
+        ON s_fc.path = (k.path::text || '.KB_STATUS_FIELD.fire_count')::ltree
+      LEFT JOIN knowledge_base_status s_ft
+        ON s_ft.path = (k.path::text || '.KB_STATUS_FIELD.last_fired_ts')::ltree
+      LEFT JOIN knowledge_base_status s_fv
+        ON s_fv.path = (k.path::text || '.KB_STATUS_FIELD.last_fired_value')::ltree
+     WHERE k.label = 'KB_RULE'
+     ORDER BY fire_count DESC, k.path
+  ]]
+  local rows = pg:query(sql) or {}
+  for _, r in ipairs(rows) do
+    if type(r.props) == "string" then r.props = cjson.decode(r.props) or {} end
+  end
+  return rows
+end
+
+---------------------------------------------------------------------------
+-- Rule state writes (pgmoon-native)
+---------------------------------------------------------------------------
+
+local function write_status(pg, path, field, value)
+  local p = path .. ".KB_STATUS_FIELD." .. field
+  local json = cjson.encode({ value = value })
+  local sql = string.format(
+    "INSERT INTO knowledge_base_status (path, data) " ..
+    "VALUES (%s::ltree, %s::json) " ..
+    "ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data",
+    quote_literal(p), quote_literal(json))
+  return pg:query(sql)
+end
+
+function M.rule_set_enabled(pg, rule_path, on)
+  return write_status(pg, rule_path, "enabled", on and true or false)
+end
+
+function M.rule_shelve(pg, rule_path, duration_s)
+  local now   = os.time()
+  local until_ = (tonumber(duration_s) or 0) > 0
+                 and (now + tonumber(duration_s)) or 0
+  write_status(pg, rule_path, "suppressed", true)
+  write_status(pg, rule_path, "suppressed_until", until_)
+  return true
+end
+
+function M.rule_unshelve(pg, rule_path)
+  write_status(pg, rule_path, "suppressed", false)
+  write_status(pg, rule_path, "suppressed_until", 0)
+  return true
+end
+
+---------------------------------------------------------------------------
+-- Form helpers
+---------------------------------------------------------------------------
+
+function M.read_post_args()
+  ngx.req.read_body()
+  return ngx.req.get_post_args() or {}
+end
+
 return M
