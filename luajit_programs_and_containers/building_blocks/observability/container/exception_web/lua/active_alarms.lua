@@ -88,7 +88,7 @@ else
       '<tr>' ..
       '<td><span class="state-badge %s">P%d</span></td>' ..
       '<td><span class="state-badge %s">%s</span></td>' ..
-      '<td><a href="/detail?path=%s"><code>%s</code></a></td>' ..
+      '<td><a href="' .. h.mk_url("/detail") .. '?path=%s"><code>%s</code></a></td>' ..
       '<td>%s</td><td>%s</td>' ..
       '<td>%s</td><td>%s</td>' ..
       '<td title="%s">%s</td><td>%s</td>' ..

@@ -131,7 +131,7 @@ else
       '<tr><td title="%s">%s</td>' ..
       '<td><span class="state-badge" style="border-color:%s;color:%s">%s</span></td>' ..
       '<td><span class="state-badge %s">P%d</span></td>' ..
-      '<td><a href="/detail?path=%s"><code>%s</code></a></td>' ..
+      '<td><a href="' .. h.mk_url("/detail") .. '?path=%s"><code>%s</code></a></td>' ..
       '<td>%s</td><td>%s</td></tr>',
       h.escape(h.fmt_ts(ev.ts)), h.escape(h.fmt_age(ev.ts)),
       col, col, h.escape(ev.kind),

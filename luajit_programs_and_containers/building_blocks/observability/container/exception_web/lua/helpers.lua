@@ -289,4 +289,37 @@ function M.urlencode(s)
   end))
 end
 
+---------------------------------------------------------------------------
+-- Reverse-proxy prefix awareness
+--
+-- When this app is reached via the dcs_console gateway, the gateway sets
+-- X-Forwarded-Prefix to the namespaced path (e.g. /ui/observability_01/
+-- exception_web). Every internal href, form action, and static-asset URL
+-- must be prepended with this prefix so the browser stays inside the
+-- iframe namespace when it follows the link. Direct-port access has no
+-- header set; mk_url() then no-ops and the path is used as-is, so the
+-- app remains independently testable.
+---------------------------------------------------------------------------
+
+--- Read the X-Forwarded-Prefix request header, normalized.
+--- Returns "" when not set (direct-port access) or the prefix WITHOUT a
+--- trailing slash so concatenation with a leading-slash path is exact.
+function M.gateway_prefix()
+  local v = ngx.var.http_x_forwarded_prefix
+  if not v or v == "" then return "" end
+  -- Strip any trailing slash; mk_url always supplies its own.
+  return (v:gsub("/+$", ""))
+end
+
+--- Build a URL inside this app, prefix-aware.
+---  mk_url("/detail?path=foo")
+---    direct port -> "/detail?path=foo"
+---    via gateway -> "/ui/observability_01/exception_web/detail?path=foo"
+--- Always pass a path that begins with "/"; that's the unambiguous root.
+function M.mk_url(path)
+  if not path or path == "" then return M.gateway_prefix() .. "/" end
+  if path:sub(1, 1) ~= "/" then path = "/" .. path end
+  return M.gateway_prefix() .. path
+end
+
 return M

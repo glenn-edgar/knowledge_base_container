@@ -33,7 +33,7 @@ if not path or path == "" then
     for _, lg in ipairs(rows) do
       local p = lg.properties or {}
       parts[#parts + 1] = string.format(
-        '<tr><td><a href="/detail?path=%s">%s</a></td>' ..
+        '<tr><td><a href="' .. h.mk_url("/detail") .. '?path=%s">%s</a></td>' ..
         '<td><span class="kind-badge kind-%s">%s</span></td>' ..
         '<td><code>%s</code></td><td>%s</td></tr>',
         h.urlencode(lg.path), h.escape(h.short_log_path(lg.path)),
@@ -181,7 +181,7 @@ emit('<div class="time-range">')
 for _, rng in ipairs(ranges) do
   local lbl, ws = rng[1], rng[2]
   local cls = (ws == window_s) and ' class="active"' or ""
-  emit(string.format('<a href="/detail?path=%s&window_s=%d"%s>%s</a>',
+  emit(string.format('<a href="' .. h.mk_url("/detail") .. '?path=%s&window_s=%d"%s>%s</a>',
     h.urlencode(path), ws, cls, h.escape(lbl)))
 end
 emit('</div>')

@@ -332,4 +332,22 @@ function M.read_post_args()
   return ngx.req.get_post_args() or {}
 end
 
+---------------------------------------------------------------------------
+-- Reverse-proxy prefix awareness (mirrors exception_web/helpers.lua).
+-- Gateway sets X-Forwarded-Prefix; mk_url() prepends it to internal URLs
+-- so links/forms/static-assets stay inside the iframe namespace.
+---------------------------------------------------------------------------
+
+function M.gateway_prefix()
+  local v = ngx.var.http_x_forwarded_prefix
+  if not v or v == "" then return "" end
+  return (v:gsub("/+$", ""))
+end
+
+function M.mk_url(path)
+  if not path or path == "" then return M.gateway_prefix() .. "/" end
+  if path:sub(1, 1) ~= "/" then path = "/" .. path end
+  return M.gateway_prefix() .. path
+end
+
 return M

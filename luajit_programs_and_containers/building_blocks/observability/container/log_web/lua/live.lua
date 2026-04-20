@@ -77,7 +77,7 @@ else
     end
 
     emit(string.format(
-      '<a class="%s" href="/detail?path=%s">' ..
+      '<a class="%s" href="' .. h.mk_url("/detail") .. '?path=%s">' ..
       '<div class="title">%s</div>' ..
       '<div class="scope">%s</div>' ..
       '<div class="value">%s<span class="unit">%s</span></div>' ..

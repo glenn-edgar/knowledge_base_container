@@ -158,7 +158,7 @@ emit('</div>')
 emit('<div class="panel"><h3>Actions</h3>')
 local function form(op, label, extras)
   emit(string.format(
-    '<form method="POST" action="/action" style="display:inline-block;margin-right:0.5em">' ..
+    '<form method="POST" action="' .. h.mk_url("/action") .. '" style="display:inline-block;margin-right:0.5em">' ..
     '<input type="hidden" name="op" value="%s">' ..
     '<input type="hidden" name="path" value="%s">%s' ..
     '<button type="submit" style="padding:0.4em 1em;background:%s;color:#fff;border:none;border-radius:3px;cursor:pointer">%s</button>' ..
@@ -182,6 +182,6 @@ emit('<code>knowledge_base_status</code> + state children; refresh shows new sta
 emit('</div>')
 
 -- Back link
-emit('<p><a href="/alarms">&larr; Back to Active Alarms</a></p>')
+emit('<p><a href="' .. h.mk_url("/alarms") .. '">&larr; Back to Active Alarms</a></p>')
 
 r.page("Alarm Detail", "active", table.concat(parts, "\n"))

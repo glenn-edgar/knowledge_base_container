@@ -35,7 +35,7 @@ else
     local name  = row.path:match("KB_LOG%.(.+)$") or row.path
     local last_ts = tonumber(row.last_sample_ts) or 0
     emit(string.format(
-      '<tr><td><a href="/detail?path=%s&window_s=2592000">%s</a></td>' ..
+      '<tr><td><a href="' .. h.mk_url("/detail") .. '?path=%s&window_s=2592000">%s</a></td>' ..
       '<td>%s</td><td><code>%s</code></td><td>%s</td>' ..
       '<td title="%s">%s</td><td>%s</td></tr>',
       h.urlencode(row.path), h.escape(name),

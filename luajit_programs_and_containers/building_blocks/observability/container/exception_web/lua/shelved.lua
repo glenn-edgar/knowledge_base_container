@@ -79,7 +79,7 @@ else
       '<td><code>%s</code></td><td>%s</td>' ..
       '<td title="%s">%s</td><td>%s</td><td>%s</td><td>%s</td>' ..
       '<td style="text-align:right">' ..
-      '<form method="POST" action="/action" style="display:inline">' ..
+      '<form method="POST" action="' .. h.mk_url("/action") .. '" style="display:inline">' ..
       '<input type="hidden" name="op" value="unshelve">' ..
       '<input type="hidden" name="path" value="%s">' ..
       '<button type="submit" style="padding:0.25em 0.8em;background:#6b6;color:#fff;border:none;border-radius:3px;cursor:pointer">Unshelve</button>' ..

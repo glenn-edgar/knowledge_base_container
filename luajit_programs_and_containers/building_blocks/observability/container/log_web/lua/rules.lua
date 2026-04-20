@@ -76,7 +76,7 @@ for _, row in ipairs(rows) do
     emit(string.format(
       '<tr>' ..
       '<td><code>%s</code></td>' ..
-      '<td><a href="/detail?path=%s">%s</a></td>' ..
+      '<td><a href="' .. h.mk_url("/detail") .. '?path=%s">%s</a></td>' ..
       '<td>%s</td>' ..
       '<td><code>%s</code></td>' ..
       '<td>%d</td>' ..
@@ -95,18 +95,18 @@ for _, row in ipairs(rows) do
       is_suppressed and "✓" or "—",
       -- action forms: toggle enabled; shelve / unshelve
       string.format(
-        '<form method="POST" action="/action" style="display:inline">' ..
+        '<form method="POST" action="' .. h.mk_url("/action") .. '" style="display:inline">' ..
         '<input type="hidden" name="op" value="%s">' ..
         '<input type="hidden" name="path" value="%s">' ..
         '<button type="submit" style="padding:0.2em 0.6em;background:#345;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:0.85em">%s</button>' ..
         '</form> ' ..
         (is_suppressed
-          and ('<form method="POST" action="/action" style="display:inline">' ..
+          and ('<form method="POST" action="' .. h.mk_url("/action") .. '" style="display:inline">' ..
                '<input type="hidden" name="op" value="unshelve">' ..
                '<input type="hidden" name="path" value="' .. h.escape(row.path) .. '">' ..
                '<button type="submit" style="padding:0.2em 0.6em;background:#6b6;color:#fff;border:none;border-radius:3px;cursor:pointer;font-size:0.85em">Unsup</button>' ..
                '</form>')
-          or ('<form method="POST" action="/action" style="display:inline">' ..
+          or ('<form method="POST" action="' .. h.mk_url("/action") .. '" style="display:inline">' ..
               '<input type="hidden" name="op" value="shelve">' ..
               '<input type="hidden" name="path" value="' .. h.escape(row.path) .. '">' ..
               '<input type="hidden" name="duration_s" value="300">' ..

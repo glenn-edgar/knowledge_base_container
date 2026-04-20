@@ -114,7 +114,7 @@ else
     emit(string.format(
       '<tr><td><span class="state-badge %s">P%d</span></td>' ..
       '<td><span class="state-badge %s">%s</span></td>' ..
-      '<td><a href="/detail?path=%s">%s</a></td>' ..
+      '<td><a href="' .. h.mk_url("/detail") .. '?path=%s">%s</a></td>' ..
       '<td>%s</td><td title="%s">%s</td><td>%s</td></tr>',
       h.pri_class(pri), pri,
       h.state_class(state), h.escape(state),

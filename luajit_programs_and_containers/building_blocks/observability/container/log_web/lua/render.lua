@@ -1,5 +1,7 @@
 -- log_web/lua/render.lua -- shared page frame for log views.
 
+local h = require("helpers")
+
 local M = {}
 
 local CSS = [[
@@ -88,7 +90,7 @@ local function render_tabs(active_id)
   for _, t in ipairs(TABS) do
     local cls = (t.id == active_id) and ' class="active"' or ""
     parts[#parts + 1] = string.format('<a href="%s"%s>%s</a>',
-      t.path, cls, t.label)
+      h.mk_url(t.path), cls, t.label)
   end
   parts[#parts + 1] = "</nav>"
   return table.concat(parts, "")
@@ -106,9 +108,14 @@ function M.page(title, tab, body, include_uplot)
   ngx.say(string.format('<title>observability :: %s</title>', title))
   ngx.say(CSS)
   if include_uplot then
-    ngx.say('<link rel="stylesheet" href="/static/uPlot.min.css">')
-    ngx.say('<script src="/static/uPlot.iife.min.js"></script>')
+    ngx.say(string.format(
+      '<link rel="stylesheet" href="%s">', h.mk_url("/static/uPlot.min.css")))
+    ngx.say(string.format(
+      '<script src="%s"></script>', h.mk_url("/static/uPlot.iife.min.js")))
   end
+  -- Expose the gateway prefix to inline JS (e.g. uPlot fetch URLs).
+  ngx.say(string.format(
+    '<script>window.GATEWAY_PREFIX=%q;</script>', h.gateway_prefix()))
   ngx.say('</head><body>')
   ngx.say('<header class="bar">')
   ngx.say('<h1>observability / logs</h1>')
