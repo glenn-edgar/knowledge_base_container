@@ -112,19 +112,16 @@ local CSS = [[
 local TABS = {
   { id = "overview", label = "Site Overview", path = "/overview" },
   { id = "active",   label = "Active Alarms", path = "/alarms"   },
-  -- Phase 8b tabs land here:
-  { id = "journal",  label = "Alarm Journal", path = "/journal", placeholder = true },
-  { id = "shelved",  label = "Shelved",       path = "/shelved", placeholder = true },
+  { id = "journal",  label = "Alarm Journal", path = "/journal"  },
+  { id = "shelved",  label = "Shelved",       path = "/shelved"  },
 }
 
 local function render_tabs(active_id)
   local parts = { '<nav class="tabs">' }
   for _, t in ipairs(TABS) do
     local cls = (t.id == active_id) and ' class="active"' or ""
-    local href = t.placeholder and "#" or t.path
-    local title = t.placeholder and ' title="Coming in Phase 8b"' or ""
-    parts[#parts + 1] = string.format('<a href="%s"%s%s>%s</a>',
-      href, cls, title, t.label)
+    parts[#parts + 1] = string.format('<a href="%s"%s>%s</a>',
+      t.path, cls, t.label)
   end
   parts[#parts + 1] = "</nav>"
   return table.concat(parts, "")

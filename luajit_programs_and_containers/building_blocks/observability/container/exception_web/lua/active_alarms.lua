@@ -88,14 +88,14 @@ else
       '<tr>' ..
       '<td><span class="state-badge %s">P%d</span></td>' ..
       '<td><span class="state-badge %s">%s</span></td>' ..
-      '<td><code>%s</code></td>' ..
+      '<td><a href="/detail?path=%s"><code>%s</code></a></td>' ..
       '<td>%s</td><td>%s</td>' ..
       '<td>%s</td><td>%s</td>' ..
       '<td title="%s">%s</td><td>%s</td>' ..
       '</tr>',
       h.pri_class(pri), pri,
       h.state_class(state), h.escape(state),
-      h.escape(h.short_path(row.path)),
+      h.urlencode(row.path), h.escape(h.short_path(row.path)),
       h.escape(row.type or ""),
       h.escape(row.description or ""),
       h.escape(tostring(row.hit_count or 0)),

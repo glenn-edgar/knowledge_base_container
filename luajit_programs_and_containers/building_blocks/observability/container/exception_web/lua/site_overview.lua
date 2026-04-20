@@ -114,10 +114,11 @@ else
     emit(string.format(
       '<tr><td><span class="state-badge %s">P%d</span></td>' ..
       '<td><span class="state-badge %s">%s</span></td>' ..
-      '<td>%s</td><td>%s</td><td title="%s">%s</td><td>%s</td></tr>',
+      '<td><a href="/detail?path=%s">%s</a></td>' ..
+      '<td>%s</td><td title="%s">%s</td><td>%s</td></tr>',
       h.pri_class(pri), pri,
       h.state_class(state), h.escape(state),
-      h.escape(h.short_path(row.path)),
+      h.urlencode(row.path), h.escape(h.short_path(row.path)),
       h.escape(row.description or ""),
       h.escape(h.fmt_ts(row.last_raised_ts)),
       h.escape(h.fmt_age(row.last_raised_ts)),

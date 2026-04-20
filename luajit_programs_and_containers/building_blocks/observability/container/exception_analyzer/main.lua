@@ -111,14 +111,19 @@ end
 --- Find SYS_EXCEPTIONs whose shelve_until has elapsed and unshelve them.
 --- Operator-set leases expire automatically via this path.
 local function sweep_expired_shelves(conn, now)
+  -- Guard the ::int cast with a regex check: PG's planner may reorder
+  -- the cast ahead of the JOIN filter, evaluating it on non-shelve_until
+  -- rows whose `value` is a text string (like "jane.doe" for last_shelve_by).
+  -- The regex guard short-circuits the cast for non-numeric values.
   local sql = string.format([[
     SELECT k.path::text AS path
       FROM knowledge_base k
       JOIN knowledge_base_status s
         ON s.path = (k.path::text || '.KB_STATUS_FIELD.shelve_until')::ltree
      WHERE k.label = 'SYS_EXCEPTION'
-       AND COALESCE((s.data->>'value')::int, 0) > 0
-       AND COALESCE((s.data->>'value')::int, 0) <= %d
+       AND (s.data->>'value') ~ '^-?[0-9]+$'
+       AND (s.data->>'value')::bigint > 0
+       AND (s.data->>'value')::bigint <= %d
   ]], now)
   local rows, err = fetch_all(conn, sql)
   if not rows then
@@ -144,9 +149,11 @@ local FLOOD_THRESHOLD    = 0.1       -- 0.1 raises/s ≈ 6/min ≈ 360/hr
 local FLOOD_SHELVE_S     = 300       -- auto-shelve duration
 
 local function update_flap_snapshots(conn, now)
+  -- Same regex guard as sweep_expired_shelves: PG may cast pre-JOIN.
   local rows, err = fetch_all(conn, [[
     SELECT k.path::text AS path,
-           COALESCE((s.data->>'value')::bigint, 0) AS hit_count
+           CASE WHEN (s.data->>'value') ~ '^-?[0-9]+$'
+                THEN (s.data->>'value')::bigint ELSE 0 END AS hit_count
       FROM knowledge_base k
       JOIN knowledge_base_status s
         ON s.path = (k.path::text || '.KB_STATUS_FIELD.hit_count')::ltree
