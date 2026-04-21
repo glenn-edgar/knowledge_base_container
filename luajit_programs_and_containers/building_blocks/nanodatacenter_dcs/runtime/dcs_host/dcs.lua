@@ -31,6 +31,7 @@ local pg_connector     = require("pg_connector")
 local bit_mask_helpers = require("bit_mask_helpers")
 local kb_status        = require("kb_status")
 local kb_exception     = require("kb_exception")
+local kb_log           = require("kb_log")
 
 ---------------------------------------------------------------------------
 -- paths
@@ -221,17 +222,49 @@ function M.run_loop(ctx)
   local burst    = 0
   local deadline = ptime.now_sec()
 
+  -- Pre-build the per-CPU KB_LOG paths once. The pg conn may not be up
+  -- on the first burst; we guard on it before each push. Writes are
+  -- pcalled so a transient pg hiccup never crashes the tick loop.
+  local cpu_log_root = string.format(
+    "system.site.%s.cpu.%s.KB_LOG", ctx.cfg.site, ctx.cfg.cpu_id)
+  local LOG_TICK_DURATION_MS = cpu_log_root .. ".tick_duration_ms"
+  local LOG_TICKS_PER_BURST  = cpu_log_root .. ".ticks_per_burst"
+  local LOG_PG_ROUNDTRIP_MS  = cpu_log_root .. ".pg_roundtrip_ms"
+
   while true do
     burst = burst + 1
     local t0 = ptime.now_sec()
     cfl_rt.run(handle)
     local run_ms = (ptime.now_sec() - t0) * 1000.0
+    local tick_count = handle.tick_count or 0
 
     ctx.log("dcs", string.format(
       "burst=%d ticks=%d run=%.1fms sys_ready=%s node_op=%s",
-      burst, handle.tick_count or 0, run_ms,
+      burst, tick_count, run_ms,
       tostring(ctx.process_globals.system_ready_current),
       tostring(ctx.process_globals.node_control_operational)))
+
+    -- Performance writers: push tick + pg-roundtrip metrics into the
+    -- per-CPU KB_LOG rings. These give the observability log_web a
+    -- live dataset to chart without inventing a new sampler. Frequency
+    -- = once per burst (1Hz) -- ring sample_cap is 1200, so ~20 min
+    -- of raw history. Throwaway pcall keeps tick-loop liveness independent
+    -- of pg. Skipped until pg_connector wires ctx.connectors.pg.
+    if ctx.connectors and ctx.connectors.pg then
+      local conn = ctx.connectors.pg
+      pcall(kb_log.push_sample, conn, LOG_TICK_DURATION_MS, run_ms)
+      pcall(kb_log.push_sample, conn, LOG_TICKS_PER_BURST,  tick_count)
+
+      local r0 = ptime.now_sec()
+      local sth = conn:prepare("SELECT 1")
+      if sth then
+        local ok = pcall(function() sth:execute(); sth:close() end)
+        if ok then
+          pcall(kb_log.push_sample, conn, LOG_PG_ROUNDTRIP_MS,
+                (ptime.now_sec() - r0) * 1000.0)
+        end
+      end
+    end
 
     -- Terminate detection: either an error handler pumped
     -- CFL_TERMINATE_SYSTEM_EVENT (runtime set cfl_engine_flag=false and
