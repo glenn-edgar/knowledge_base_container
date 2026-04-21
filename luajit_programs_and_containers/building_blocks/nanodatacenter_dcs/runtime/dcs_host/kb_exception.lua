@@ -66,7 +66,9 @@ local function fetch_one(conn, sql)
   return rows[1]
 end
 
-local function now_s() return math.floor(ptime.now_sec()) end
+-- Wall-clock seconds (not monotonic -- the alarm journal sorts on
+-- last_raised_ts and the UI computes "N minutes ago" against os.time()).
+local function now_s() return os.time() end
 
 local function decode_jsonb(v)
   if not v or v == "" then return {} end

@@ -63,7 +63,11 @@ local function fetch_one(conn, sql)
   return rows and rows[1]
 end
 
-local function now_s() return math.floor(ptime.now_sec()) end
+-- Wall-clock seconds. MUST be wall-clock (os.time), NOT monotonic
+-- (ptime.now_sec returns CLOCK_MONOTONIC seconds since boot). The chart
+-- viewer + alarm journal filter samples by `(os.time() - ts) <= window`;
+-- a monotonic ts evicts everything.
+local function now_s() return os.time() end
 
 local function decode_jsonb(v)
   if not v or v == "" then return {} end
