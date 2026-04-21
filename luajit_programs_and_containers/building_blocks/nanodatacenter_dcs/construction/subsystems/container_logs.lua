@@ -63,7 +63,7 @@ return {
       description = "container CPU percent",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("hog", {
         kind = "threshold", op = ">=", value = 90,
@@ -78,7 +78,7 @@ return {
       description = "container RSS memory in MB",
       sample_cap = 120, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("leak", {
         kind = "slope_trend",

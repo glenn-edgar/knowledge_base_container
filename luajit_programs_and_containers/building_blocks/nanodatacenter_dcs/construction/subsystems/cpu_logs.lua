@@ -92,7 +92,7 @@ return {
       description = "host CPU percent usage",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("saturated", {
         kind = "threshold", op = ">=", value = 95,
@@ -113,7 +113,7 @@ return {
       description = "host memory RSS used in MB",
       sample_cap = 120, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("high", {
         kind = "threshold", op = ">=", value = 6000,  -- tune per host
@@ -134,7 +134,7 @@ return {
       description = "host free memory in MB",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("critical", {
         kind = "threshold", op = "<=", value = 128,
@@ -148,7 +148,7 @@ return {
       description = "host inbound network rate",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("stalled", {
         kind = "sample_gap", gap_s = 180,  -- 3 missed samples at 60s
@@ -162,7 +162,7 @@ return {
       description = "host outbound network rate",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     })  -- no custom rules; auto_health covers stalled sampler
 
     kb:add_log("disk_used_pct", {
@@ -170,7 +170,7 @@ return {
       description = "root filesystem utilization percent",
       sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("high", {
         kind = "threshold", op = ">=", value = 85,
@@ -218,12 +218,61 @@ return {
       -- (= 1 under normal ops), so fast sampling wastes writes.
       sample_cap = 360, expected_hz = 0.1,
       ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("stalled", {
         kind = "sample_gap", gap_s = 60,  -- ~6 missed samples
         target_exception = "dcs_tick_stalled",
         cooldown_s = 30, description = "DCS host process stopped reporting ticks",
+      })
+    end)
+
+    --------------------------------------------------------------------
+    -- node_control supervision timings (2)
+    -- Writers: user_functions.lua RECONCILE_ASSIGNED_CONTAINERS (~0.1 Hz)
+    --          + WATCHDOG_CHECK_ASSIGNED_CONTAINERS (~0.067 Hz).
+    -- Track how long the supervision passes take, not just whether they
+    -- happened. Growing reconcile/watchdog durations usually precede
+    -- operational issues (docker socket slow, pg contention, flaky net).
+    --------------------------------------------------------------------
+    kb:add_exception("reconcile_slow", {
+      type = "dcs_internal", instance = "node_control",
+      description = "container reconcile pass taking longer than expected",
+      priority = 3,
+    })
+    kb:add_exception("watchdog_slow", {
+      type = "dcs_internal", instance = "node_control",
+      description = "watchdog probe batch taking longer than expected",
+      priority = 3,
+    })
+
+    kb:add_log("reconcile_check_ms", {
+      kind = "operational", unit = "ms",
+      description = "duration of one RECONCILE_ASSIGNED_CONTAINERS pass",
+      sample_cap = 360, expected_hz = 0.1,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 1800,
+    }, function()
+      kb:add_log_rule("slow", {
+        kind = "threshold", op = ">=", value = 500,
+        target_exception = "reconcile_slow",
+        cooldown_s = 300,
+        description = "reconcile pass >= 500 ms",
+      })
+    end)
+
+    kb:add_log("watchdog_probe_ms", {
+      kind = "operational", unit = "ms",
+      description = "duration of one WATCHDOG_CHECK_ASSIGNED_CONTAINERS pass",
+      sample_cap = 240, expected_hz = 1/15,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 1800,
+    }, function()
+      kb:add_log_rule("slow", {
+        kind = "threshold", op = ">=", value = 2000,
+        target_exception = "watchdog_slow",
+        cooldown_s = 300,
+        description = "watchdog probe batch >= 2 s",
       })
     end)
 

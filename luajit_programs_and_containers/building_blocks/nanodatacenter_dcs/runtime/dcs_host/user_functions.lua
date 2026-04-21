@@ -14,6 +14,8 @@ local eq_mod = require("cfl_event_queue")
 local defs   = require("cfl_definitions")
 local kbcr   = require("kb_container_registry")
 local kb_asg = require("kb_assignments")
+local kb_log = require("kb_log")
+local ptime  = require("posix_time")  -- sub-second timing for supervision metrics
 
 local M = {}
 
@@ -992,6 +994,7 @@ function M.build(ctx)
       ctx.node_control_globals.last_restart_ts or {}
     local lrts = ctx.node_control_globals.last_restart_ts
     local now = os.time()
+    local t0  = ptime.now_sec()
 
     for _, asg in ipairs(assignments) do
       if not is_in_maintenance(asg.name) then
@@ -1012,6 +1015,16 @@ function M.build(ctx)
           end
         end
       end
+    end
+
+    -- Publish pass duration. Includes docker.is_running syscalls across
+    -- every assignment, so useful for catching docker-socket slowness.
+    if ctx.connectors.pg then
+      local dur_ms = (ptime.now_sec() - t0) * 1000.0
+      pcall(kb_log.push_sample, ctx.connectors.pg,
+        string.format("system.site.%s.cpu.%s.KB_LOG.reconcile_check_ms",
+                      ctx.cfg.site, ctx.cfg.cpu_id),
+        dur_ms)
     end
   end
 
@@ -1048,6 +1061,7 @@ function M.build(ctx)
     local wstate = ctx.node_control_globals.watchdog_state
     local lrts   = ctx.node_control_globals.last_restart_ts
     local now    = os.time()
+    local t0     = ptime.now_sec()
 
     for _, asg in ipairs(assignments) do
       local ports_list = external_ports_of(asg)
@@ -1084,6 +1098,17 @@ function M.build(ctx)
           end
         end
       end
+    end
+
+    -- Publish pass duration. Includes every containers' HTTP probe (each
+    -- capped at ~3s by curl --max-time), so a hung upstream shows up as
+    -- a spike here before the 3-strike threshold fires the alarm.
+    if ctx.connectors.pg then
+      local dur_ms = (ptime.now_sec() - t0) * 1000.0
+      pcall(kb_log.push_sample, ctx.connectors.pg,
+        string.format("system.site.%s.cpu.%s.KB_LOG.watchdog_probe_ms",
+                      ctx.cfg.site, ctx.cfg.cpu_id),
+        dur_ms)
     end
   end
 
@@ -1446,6 +1471,47 @@ function M.build(ctx)
       disk_io_delta    = disk_io_delta,
       net_delta        = net_delta,
     })
+
+    -- Fan out the 6 declared host KB_LOGs (cpu_logs.lua subsystem). Each
+    -- ring gets a single scalar per sample; the jsonb blob above stays
+    -- the authoritative raw record. Rings are declared at 1/60 Hz to
+    -- match the SAMPLE_HOST cadence. Net rates need an elapsed-time
+    -- divisor -- take it from the wall-clock delta since last push.
+    if ctx.connectors.pg and mem then
+      local conn   = ctx.connectors.pg
+      local now_ts = os.time()
+      local elapsed_s = mon.prev_host_push_ts
+                        and (now_ts - mon.prev_host_push_ts) or 0
+      mon.prev_host_push_ts = now_ts
+
+      local mem_used_mb = math.floor((mem.mem_total_kb - mem.mem_available_kb) / 1024)
+      local mem_free_mb = math.floor(mem.mem_available_kb / 1024)
+
+      -- Aggregate rx/tx bytes across all ifaces, convert delta to kbps.
+      local rx_bytes_total, tx_bytes_total = 0, 0
+      for _, d in pairs(net_delta) do
+        rx_bytes_total = rx_bytes_total + (d.rx_bytes or 0)
+        tx_bytes_total = tx_bytes_total + (d.tx_bytes or 0)
+      end
+      local rx_kbps = (elapsed_s > 0)
+                      and math.floor((rx_bytes_total * 8) / (1000 * elapsed_s))
+                      or 0
+      local tx_kbps = (elapsed_s > 0)
+                      and math.floor((tx_bytes_total * 8) / (1000 * elapsed_s))
+                      or 0
+
+      -- Root filesystem disk_used_pct (first DISK_PROBES entry).
+      local root_used_pct = (disk_free["/"] and disk_free["/"].used_pct) or 0
+
+      local cpu_log_root = string.format(
+        "system.site.%s.cpu.%s.KB_LOG", ctx.cfg.site, ctx.cfg.cpu_id)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_cpu_pct",      cpu_pct.cpu_pct)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_mem_used_mb",  mem_used_mb)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_mem_free_mb",  mem_free_mb)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".net_rx_kbps",       rx_kbps)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".net_tx_kbps",       tx_kbps)
+      pcall(kb_log.push_sample, conn, cpu_log_root .. ".disk_used_pct",     root_used_pct)
+    end
   end
 
   R.SAMPLE_SYSTEM_CONTROL_PROCESS = function(_h, _n)
