@@ -193,18 +193,21 @@ function Construct_Stream_Table:_manage_stream_table(specified_stream_paths, spe
     local diff = target_length - current_count
 
     if diff < 0 then
-      -- Remove oldest records
+      -- Remove oldest records. Match on id (unique) not recorded_at,
+      -- because placeholder rows inserted in a single batch all share
+      -- one CURRENT_TIMESTAMP; a recorded_at-IN subquery would expand
+      -- to "IN (<one value>)" and over-delete every row with that
+      -- timestamp. id ASC as the tiebreaker keeps the DELETE bounded
+      -- to exactly |diff| rows even when timestamps collide.
       self:_exec(string.format([[
         DELETE FROM %s
-        WHERE path = %s AND recorded_at IN (
-          SELECT recorded_at FROM %s
+        WHERE id IN (
+          SELECT id FROM %s
           WHERE path = %s
-          ORDER BY recorded_at ASC
+          ORDER BY recorded_at ASC, id ASC
           LIMIT %d
         )
-      ]], tn, quote_literal(path),
-          tn, quote_literal(path),
-          math.abs(diff)))
+      ]], tn, tn, quote_literal(path), math.abs(diff)))
 
     elseif diff > 0 then
       -- Add new empty records as a single multi-row INSERT (chunked to

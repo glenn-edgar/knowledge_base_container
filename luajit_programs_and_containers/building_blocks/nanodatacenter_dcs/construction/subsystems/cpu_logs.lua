@@ -84,12 +84,15 @@ return {
     -- Host-resource logs (6)
     --------------------------------------------------------------------
 
+    -- Host-resource log rates: host_sampler writes at 60s cadence, so
+    -- rings declare the matching 1/60 Hz. cap=60 covers 1 hour of raw
+    -- history; longer windows hit tier-1 rollups.
     kb:add_log("host_cpu_pct", {
       kind = "operational", unit = "%",
       description = "host CPU percent usage",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 60, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("saturated", {
         kind = "threshold", op = ">=", value = 95,
@@ -108,9 +111,9 @@ return {
     kb:add_log("host_mem_used_mb", {
       kind = "operational", unit = "mb",
       description = "host memory RSS used in MB",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 120, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("high", {
         kind = "threshold", op = ">=", value = 6000,  -- tune per host
@@ -129,9 +132,9 @@ return {
     kb:add_log("host_mem_free_mb", {
       kind = "operational", unit = "mb",
       description = "host free memory in MB",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 60, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("critical", {
         kind = "threshold", op = "<=", value = 128,
@@ -143,29 +146,29 @@ return {
     kb:add_log("net_rx_kbps", {
       kind = "operational", unit = "kbps",
       description = "host inbound network rate",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 60, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("stalled", {
-        kind = "sample_gap", gap_s = 60,
+        kind = "sample_gap", gap_s = 180,  -- 3 missed samples at 60s
         target_exception = "net_sampler_stalled",
-        cooldown_s = 120, description = "no network samples for >60s",
+        cooldown_s = 120, description = "no network samples for >180s",
       })
     end)
 
     kb:add_log("net_tx_kbps", {
       kind = "operational", unit = "kbps",
       description = "host outbound network rate",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 60, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     })  -- no custom rules; auto_health covers stalled sampler
 
     kb:add_log("disk_used_pct", {
       kind = "operational", unit = "%",
       description = "root filesystem utilization percent",
-      sample_cap = 256, expected_hz = 0.1,  -- sampled every 10s
+      sample_cap = 60, expected_hz = 1/60,
       ma_short_s = 300, ma_long_s = 3600,
       default_window_s = 3600,
     }, function()
@@ -211,12 +214,14 @@ return {
     kb:add_log("ticks_per_burst", {
       kind = "operational", unit = "count",
       description = "chain-tree ticks per burst (dcs.lua tick_count delta)",
-      sample_cap = 600, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      -- Throttled to every 10th burst (~1/10 Hz). Value is near-constant
+      -- (= 1 under normal ops), so fast sampling wastes writes.
+      sample_cap = 360, expected_hz = 0.1,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("stalled", {
-        kind = "sample_gap", gap_s = 10,
+        kind = "sample_gap", gap_s = 60,  -- ~6 missed samples
         target_exception = "dcs_tick_stalled",
         cooldown_s = 30, description = "DCS host process stopped reporting ticks",
       })
@@ -225,9 +230,11 @@ return {
     kb:add_log("pg_roundtrip_ms", {
       kind = "operational", unit = "ms",
       description = "sampled Postgres query roundtrip latency",
-      sample_cap = 600, expected_hz = 1.0,
+      -- Throttled to every 5th burst (~0.2 Hz). Still fast enough to
+      -- detect pg stress within seconds; 5x less write pressure.
+      sample_cap = 360, expected_hz = 0.2,
       ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("slow", {
         kind = "threshold", op = ">=", value = 200,

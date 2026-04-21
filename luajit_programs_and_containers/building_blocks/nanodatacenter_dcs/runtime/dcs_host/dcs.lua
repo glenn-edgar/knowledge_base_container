@@ -244,25 +244,33 @@ function M.run_loop(ctx)
       tostring(ctx.process_globals.system_ready_current),
       tostring(ctx.process_globals.node_control_operational)))
 
-    -- Performance writers: push tick + pg-roundtrip metrics into the
-    -- per-CPU KB_LOG rings. These give the observability log_web a
-    -- live dataset to chart without inventing a new sampler. Frequency
-    -- = once per burst (1Hz) -- ring sample_cap is 1200, so ~20 min
-    -- of raw history. Throwaway pcall keeps tick-loop liveness independent
-    -- of pg. Skipped until pg_connector wires ctx.connectors.pg.
+    -- Performance writers: push per-burst metrics into per-CPU KB_LOG
+    -- rings. Cadences differ per metric to avoid pounding pg with
+    -- signals that are near-constant or slow-moving:
+    --   tick_duration_ms  -- every burst (1 Hz); spikes matter per-tick
+    --   pg_roundtrip_ms   -- every 5th burst (~0.2 Hz); fast enough to
+    --                        detect pg stress, 5x less write pressure
+    --   ticks_per_burst   -- every 10th burst (~0.1 Hz); near-constant
+    -- Throwaway pcall keeps tick-loop liveness independent of pg.
+    -- Skipped until pg_connector wires ctx.connectors.pg.
     if ctx.connectors and ctx.connectors.pg then
       local conn = ctx.connectors.pg
       pcall(kb_log.push_sample, conn, LOG_TICK_DURATION_MS, run_ms)
-      pcall(kb_log.push_sample, conn, LOG_TICKS_PER_BURST,  tick_count)
 
-      local r0 = ptime.now_sec()
-      local sth = conn:prepare("SELECT 1")
-      if sth then
-        local ok = pcall(function() sth:execute(); sth:close() end)
-        if ok then
-          pcall(kb_log.push_sample, conn, LOG_PG_ROUNDTRIP_MS,
-                (ptime.now_sec() - r0) * 1000.0)
+      if burst % 5 == 0 then
+        local r0 = ptime.now_sec()
+        local sth = conn:prepare("SELECT 1")
+        if sth then
+          local ok = pcall(function() sth:execute(); sth:close() end)
+          if ok then
+            pcall(kb_log.push_sample, conn, LOG_PG_ROUNDTRIP_MS,
+                  (ptime.now_sec() - r0) * 1000.0)
+          end
         end
+      end
+
+      if burst % 10 == 0 then
+        pcall(kb_log.push_sample, conn, LOG_TICKS_PER_BURST, tick_count)
       end
     end
 

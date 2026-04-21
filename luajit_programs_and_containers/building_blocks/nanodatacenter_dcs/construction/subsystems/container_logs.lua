@@ -49,12 +49,21 @@ return {
     -- Log declarations (5 per container)
     --------------------------------------------------------------------
 
+    -- Rate rationale:
+    --   Source is host_sampler at 60s cadence. Rings declared faster
+    --   than that just repeat stale values. cpu/mem stay on the 60s
+    --   track; disk I/O sits at 30s to give spike detection a bit more
+    --   granularity; restart_count is sampled slowly (60s) because the
+    --   underlying counter is event-driven and changes are rare.
+    --   sample_cap is sized for (default_window_s * expected_hz * ~2)
+    --   so the raw ring covers the UI's default view plus margin;
+    --   longer windows fall through to tier-1/2/3 rollups.
     kb:add_log("container_cpu_pct", {
       kind = "operational", unit = "%",
       description = "container CPU percent",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 60, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("hog", {
         kind = "threshold", op = ">=", value = 90,
@@ -67,9 +76,9 @@ return {
     kb:add_log("container_mem_rss_mb", {
       kind = "operational", unit = "mb",
       description = "container RSS memory in MB",
-      sample_cap = 512, expected_hz = 1.0,
-      ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      sample_cap = 120, expected_hz = 1/60,
+      ma_short_s = 300, ma_long_s = 3600,
+      default_window_s = 3600,
     }, function()
       kb:add_log_rule("leak", {
         kind = "slope_trend",
@@ -89,17 +98,17 @@ return {
     kb:add_log("container_disk_read_kbps", {
       kind = "operational", unit = "kbps",
       description = "container block-device read rate",
-      sample_cap = 512, expected_hz = 1.0,
+      sample_cap = 120, expected_hz = 1/30,
       ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      default_window_s = 1800,
     })  -- no custom rules; auto_health only
 
     kb:add_log("container_disk_write_kbps", {
       kind = "operational", unit = "kbps",
       description = "container block-device write rate",
-      sample_cap = 512, expected_hz = 1.0,
+      sample_cap = 120, expected_hz = 1/30,
       ma_short_s = 60, ma_long_s = 900,
-      default_window_s = 300,
+      default_window_s = 1800,
     }, function()
       kb:add_log_rule("spike", {
         kind = "rate_of_change",
@@ -113,9 +122,9 @@ return {
     kb:add_log("container_restart_count", {
       kind = "operational", unit = "count",
       description = "cumulative container restart count",
-      sample_cap = 256, expected_hz = 0.1,  -- slow-moving
-      ma_short_s = 300, ma_long_s = 3600,
-      default_window_s = 3600,
+      sample_cap = 64, expected_hz = 1/60,  -- slow-moving, event-driven
+      ma_short_s = 3600, ma_long_s = 86400,
+      default_window_s = 86400,
     }, function()
       kb:add_log_rule("restarted", {
         kind = "threshold", op = ">=", value = 1,
