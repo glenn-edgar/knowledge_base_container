@@ -82,6 +82,23 @@ local function pg_connect()
   return conn, { host = host, port = port, db = db, user = user }
 end
 
+--- Liveness probe for the DBI connection. Returns true when a trivial
+--- SELECT 1 round-trips successfully. Used by the main loop to detect
+--- a dead connection and reconnect transparently (any build_kb on the
+--- master, pg restart, or idle-timeout can drop the socket silently;
+--- without this every subsequent prepare fails forever with
+--- "Error allocating statement handle: no connection to the server").
+local function conn_alive(conn)
+  if not conn then return false end
+  local ok_prep, sth = pcall(function() return conn:prepare("SELECT 1") end)
+  if not ok_prep or not sth then return false end
+  local ok_exec = pcall(function()
+    assert(sth:execute())
+    sth:close()
+  end)
+  return ok_exec == true
+end
+
 ---------------------------------------------------------------------------
 -- Per-log in-memory state
 ---------------------------------------------------------------------------
@@ -225,9 +242,32 @@ local function main()
   local last_day_bucket  = math.floor(ptime.now_sec() / 86400)
 
   local tick_count = 0
+  local last_conn_check = 0
   while true do
     local now = ptime.now_sec()
     tick_count = tick_count + 1
+
+    -- Liveness check + self-heal (every 10s to keep probe overhead low).
+    -- A dead connection makes every subsequent prepare fail; reconnecting
+    -- here means a stale socket gets replaced on the next loop iteration
+    -- instead of silently breaking the pipeline until the container is
+    -- manually respawned.
+    if now - last_conn_check > 10 then
+      last_conn_check = now
+      if not conn_alive(conn) then
+        log("pg connection dead; reconnecting")
+        pcall(function() if conn then conn:close() end end)
+        local ok_pc, new_conn_or_err = pcall(pg_connect)
+        if ok_pc and new_conn_or_err then
+          conn = new_conn_or_err   -- pcall returns (true, conn) on success
+          log("pg reconnected")
+        else
+          -- pg still unreachable. pcall body-wrapped queries below will
+          -- fail quietly this tick; we'll retry on the next liveness poll.
+          log("pg reconnect failed: " .. tostring(new_conn_or_err))
+        end
+      end
+    end
 
     -- Core: sample ingest + rule eval
     local ok, err = pcall(tick, conn)

@@ -233,10 +233,16 @@ end
 -- live_stats (analyzer-maintained jsonb blob)
 ---------------------------------------------------------------------------
 
+-- live_stats is a KB_JSONB_FIELD child of each KB_LOG; KB_JSONB_FIELD
+-- data lives in knowledge_base_document (key column: ltree), NOT in
+-- knowledge_base_status (key column: path). Using the wrong table silently
+-- succeeds (round-trip is internally consistent) but the log_web UI reads
+-- from knowledge_base_document per the KB's field-type conventions, so
+-- the Welford/MA/envelope panel stays empty.
 function M.read_live_stats(conn, log_path)
   local path = log_path .. ".KB_JSONB_FIELD.live_stats"
   local row, err = fetch_one(conn, string.format(
-    "SELECT data FROM knowledge_base_status WHERE path = '%s'::ltree",
+    "SELECT data FROM knowledge_base_document WHERE ltree = '%s'::ltree",
     escape_sql(path)))
   if err then return nil, err end
   if not row then return {} end
@@ -248,9 +254,9 @@ end
 function M.write_live_stats(conn, log_path, stats)
   local path = log_path .. ".KB_JSONB_FIELD.live_stats"
   return exec(conn, string.format(
-    "INSERT INTO knowledge_base_status (path, data) " ..
-    "VALUES ('%s'::ltree, '%s'::json) " ..
-    "ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data",
+    "INSERT INTO knowledge_base_document (ltree, data) " ..
+    "VALUES ('%s'::ltree, '%s'::jsonb) " ..
+    "ON CONFLICT (ltree) DO UPDATE SET data = EXCLUDED.data",
     escape_sql(path),
     escape_sql(dkjson.encode({ value = stats or {} }))))
 end

@@ -64,6 +64,19 @@ local function pg_connect()
   return conn, { host = host, port = port, db = db, user = user }
 end
 
+--- Liveness probe (mirrors log_analyzer/main.lua). Returns true if a
+--- SELECT 1 round-trips successfully. Main loop uses this to detect a
+--- dead connection and reconnect before queries silently fail.
+local function conn_alive(conn)
+  if not conn then return false end
+  local ok_prep, sth = pcall(function() return conn:prepare("SELECT 1") end)
+  if not ok_prep or not sth then return false end
+  local ok_exec = pcall(function()
+    assert(sth:execute()); sth:close()
+  end)
+  return ok_exec == true
+end
+
 ---------------------------------------------------------------------------
 -- SQL helpers
 ---------------------------------------------------------------------------
@@ -234,11 +247,30 @@ local function main()
 
   local last_sweep   = 0
   local last_flap    = 0
+  local last_conn_check = 0
   local tick_count   = 0
 
   while true do
     local now = math.floor(ptime.now_sec())
     tick_count = tick_count + 1
+
+    -- Liveness + self-heal every 10s. Same pattern as log_analyzer:
+    -- without this, a severed pg socket (from build_kb DROP TABLE or
+    -- an idle timeout) makes every subsequent prepare fail silently.
+    if now - last_conn_check > 10 then
+      last_conn_check = now
+      if not conn_alive(conn) then
+        log("pg connection dead; reconnecting")
+        pcall(function() if conn then conn:close() end end)
+        local ok_pc, new_conn_or_err = pcall(pg_connect)
+        if ok_pc and new_conn_or_err then
+          conn = new_conn_or_err
+          log("pg reconnected")
+        else
+          log("pg reconnect failed: " .. tostring(new_conn_or_err))
+        end
+      end
+    end
 
     -- Every 10s: sweep expired shelves
     if now - last_sweep > 10 then
