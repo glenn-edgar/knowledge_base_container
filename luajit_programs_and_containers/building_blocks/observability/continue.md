@@ -1,5 +1,86 @@
 # observability container — continue plan
 
+Last updated end of **2026-04-23**. Overnight run surfaced real
+issues; see "Current problems" below. Longer roadmap still captured
+at the bottom; tree-control + scoped-namespace work promoted out of
+"last UI item" on 2026-04-23.
+
+## Current problems (prioritized)
+
+### Breaking now
+
+1. **cpu_02 `dcs.lua` is silently dead.** PID 98925 still running but
+   pg connection severed ~11 min ago. Every heartbeat write fails;
+   no samples flow; `system_ready` goes false because cpu_02's
+   heartbeat bit isn't advancing. Fix: `kill -KILL 98925`; start.sh
+   respawns it with current code.
+
+2. **cpu_02 zombie is running pre-fix code.** Even if its connection
+   recovered it'd still write live_stats to the wrong table. The
+   respawn in (1) fixes both.
+
+### Time bombs (will recur)
+
+3. **`dcs.lua` has no pg-reconnect logic.** Same dead-connection bug
+   the analyzers had. I fixed log_analyzer + exception_analyzer
+   (commit 87999ceb) but not dcs.lua. pg_connector gives dcs.lua one
+   connection at startup with no self-heal. Every build_kb, pg
+   idle-timeout, WSL2 network blip kills it. Same `conn_alive` +
+   reconnect pattern from log_analyzer/main.lua needs to land in
+   pg_connector.lua or dcs.lua's tick loop.
+
+4. **`build_kb` against a live cluster is destructive.** DROP CASCADE
+   on `knowledge_base` + satellites severs every active pg connection
+   and wipes `CONTAINER_REGISTRY` rows. We've hit this 3 times now
+   (overnight, cpu_02 today, yesterday). Two fixes possible:
+     - Pre-flight check: refuse to drop while any connection holds
+       locks on knowledge_base tables, unless `--force`.
+     - Make analyzers / dcs.lua universally reconnect-capable (partly
+       done -- analyzers only).
+
+5. **Welford warmup is unfiltered.** First samples (often 0 or
+   placeholder values) skew running mean/variance forever. Observed:
+   tick_duration_ms mean=197ms with stddev=673ms -- 3x mean. Already
+   caused false `tick_overrun` fire on first 500ms+ burst because the
+   mean was pulled low by warmup. Fix: skip first N samples or gate
+   rule evaluation on `welford.n >= 10`.
+
+### Incomplete / deferred
+
+6. **50 of 69 KB_LOGs have no writer.** Container-resource metrics
+   (`container_cpu_pct` etc.) declared × 9 containers. host_sampler
+   produces the JSON blob in `monitor.samples` but nothing decomposes
+   into per-metric rings. WSL2 cgroup visibility gap compounds --
+   some would be empty even with a decomposer on this host.
+
+7. **Build-system modularization for outside review.** Single
+   canonical entrypoint, clear separation between "rebuild image" /
+   "rebuild KB" / "redeploy", top-to-bottom doc for first-time
+   reviewer. User priority between reconnect fix and tree-control.
+
+8. **Tree-control + base-context scoping across all inventory views
+   (promoted 2026-04-23).** All 7 inventory views currently render
+   flat lists (`/alarms` 161 alarms, `/rules` 138 rules, `/live` 20+
+   charts, etc.). Needs a shared sidebar tree + `?base=` query param
+   so every list query gets `WHERE path <@ <base>::ltree`. Same
+   primitive generalizes to cloud rollup (one more level in the
+   tree) and future permission scoping. See roadmap section for
+   layered roll-out.
+
+### UI gaps (medium-term)
+
+9. **Analyzer / host-process health is not surfaced in the UI.**
+   Dead pg connections manifest as lines in a log file, not alarms.
+   The thing that would raise the alarm is the thing that's dead.
+   Needs a liveness ping from analyzers to KB; separate heartbeat
+   SYS_EXCEPTION that stale-sample-gap can trip.
+
+10. **`system_ready=false` has no diagnostic trail in admin UI.**
+    Requires grepping error.log to find which CPU's heartbeat is
+    stale. Admin UI should surface per-CPU heartbeat age.
+
+## Session log
+
 Session 2026-04-20 ended very productive. User happy with the state of
 the system. Locked-in plan for the next few sessions below; longer
 roadmap captured at the bottom.
@@ -86,12 +167,31 @@ shapes the order of the remaining infra items.
    the project for the first time. Target audience: external
    reviewer (collaborator, employer, open-source contributor).
 
-4. **Namespace layout: scoped namespace + tree-control sidebar
-   (LAST UI work).** Long-term answer to "ltree paths are too long"
-   and "rollup-to-cloud needs uniform IDs." Operator picks a base
-   context (URL `?base=<ltree>`); all paths render relative; tree
-   sidebar lets them pick a new base. Cloud rollup is just one
-   layer deeper. Layered roll-out:
+4. **Tree-control + base-context scoping across ALL inventory views
+   (promoted 2026-04-23).** Originally framed as "scope the log_detail
+   namespace display"; user elevated the scope on 2026-04-23 after
+   seeing flat lists hurting every inventory view. Today 7 views
+   (exception: /alarms /journal /shelved; log: /live /rules /archival
+   /detail picker) each enumerate their full inventory flat. With
+   ~161 tracked SYS_EXCEPTIONs + 69 KB_LOGs + 138 rules, operators
+   can't narrow to "just cpu_01" or "just container X" without
+   scrolling. Tree-control fix applies one unified pattern to all
+   seven:
+     - Sidebar tree renders once per page from
+       `SELECT DISTINCT path FROM knowledge_base WHERE label IN
+        ('SYS_EXCEPTION','KB_LOG','KB_RULE')`, grouped by ltree
+       prefix; plain `<details><summary>` (no JS widget).
+     - `?base=<ltree>` query param picks base context; default is
+       site root.
+     - Every inventory query gets an implicit `WHERE path <@
+       <base>::ltree` clause using the existing GiST index.
+     - Same base propagates through detail drill-ins via mk_url.
+   Cloud rollup becomes natural: each site posts its tree to the
+   aggregator at `cloud.fleet.<site_code>.<local-path>`; same UI code
+   handles deeper tree with zero special-case.
+   Permissions hook: subtree scoping maps to future auth roles for
+   free (operator X sees only cpu_01; fleet manager sees everything).
+   Layered roll-out:
      - v1 (~2h): URL ?base=, relpath() helper, flat sidebar list of
        common bases.
      - v2: real expandable tree using `<details><summary>`.
