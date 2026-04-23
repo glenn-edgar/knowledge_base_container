@@ -44,4 +44,19 @@ function M.try_connect(cfg, password)
   return conn, nil
 end
 
+-- Liveness probe. Returns true if SELECT 1 round-trips on the given
+-- DBI connection. Used by dcs.lua's tick loop to detect a severed
+-- socket before the next handler issues a query that'd fail silently.
+-- A dead connection commonly results from: build_kb DROP CASCADE on
+-- knowledge_base tables, pg idle-timeout, network blip (WSL2 vpnkit).
+function M.is_alive(conn)
+  if not conn then return false end
+  local ok_prep, sth = pcall(function() return conn:prepare("SELECT 1") end)
+  if not ok_prep or not sth then return false end
+  local ok_exec = pcall(function()
+    assert(sth:execute()); sth:close()
+  end)
+  return ok_exec == true
+end
+
 return M

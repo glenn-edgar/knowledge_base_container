@@ -231,7 +231,36 @@ function M.run_loop(ctx)
   local LOG_TICKS_PER_BURST  = cpu_log_root .. ".ticks_per_burst"
   local LOG_PG_ROUNDTRIP_MS  = cpu_log_root .. ".pg_roundtrip_ms"
 
+  -- pg-connection self-heal. Every Nth burst we check liveness and
+  -- transparently replace a severed conn. Without this the DCS host
+  -- silently stops writing the moment pg drops the socket (any build_kb
+  -- DROP CASCADE, pg idle-timeout, or vpnkit blip kills it) and stays
+  -- broken until operator-restart. Matches the same pattern in
+  -- observability's log_analyzer + exception_analyzer.
+  local last_conn_check = 0
+  local CONN_CHECK_INTERVAL_S = 10
+  local function ensure_pg_alive()
+    local now = ptime.now_sec()
+    if now - last_conn_check < CONN_CHECK_INTERVAL_S then return end
+    last_conn_check = now
+    if pg_connector.is_alive(ctx.connectors.pg) then return end
+    ctx.log("dcs", "pg connection dead; reconnecting")
+    pcall(function()
+      if ctx.connectors.pg then ctx.connectors.pg:close() end
+    end)
+    ctx.connectors.pg = nil
+    local pass = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
+    local new_conn, err = pg_connector.try_connect(ctx.cfg, pass)
+    if new_conn then
+      ctx.connectors.pg = new_conn
+      ctx.log("dcs", "pg reconnected")
+    else
+      ctx.log("dcs", "pg reconnect failed: " .. tostring(err))
+    end
+  end
+
   while true do
+    ensure_pg_alive()
     burst = burst + 1
     local t0 = ptime.now_sec()
     cfl_rt.run(handle)

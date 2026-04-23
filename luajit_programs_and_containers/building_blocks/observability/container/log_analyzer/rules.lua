@@ -111,6 +111,18 @@ end
 -- Sample-driven evaluation (called per new sample per log)
 ---------------------------------------------------------------------------
 
+-- Warmup gate: don't let rules fire until Welford has integrated
+-- enough samples to produce a stable mean. Early samples are often
+-- zeros or placeholder reads that skew mean + stddev dramatically
+-- (observed: tick_duration_ms stddev 673 vs mean 212 for the first
+-- few hundred samples because warmup hit zero-valued rows). Any rule
+-- kind that reads `live.welford.mean` / `live.ma_*` / `live.stddev_*`
+-- -- basically all statistical rules -- gets nonsense signals during
+-- this window. Threshold rules that only compare the raw value to a
+-- constant are safe; we exempt them.
+local WELFORD_WARMUP_N = 10
+local STATELESS_KINDS  = { threshold = true, sample_gap = true }
+
 function M.evaluate(conn, log_path, rule_rows, live, value, ts, logger)
   for _, rule in ipairs(rule_rows) do
     local rule_path = rule.path
@@ -121,6 +133,12 @@ function M.evaluate(conn, log_path, rule_rows, live, value, ts, logger)
     if not evaluator then
       -- unknown kind; skip silently (would have failed at construct time)
       goto continue
+    end
+
+    -- Warmup filter: skip statistical-rule kinds until welford.n > N.
+    if not STATELESS_KINDS[kind] then
+      local n = live and live.welford and tonumber(live.welford.n) or 0
+      if n < WELFORD_WARMUP_N then goto continue end
     end
 
     local state    = kb_rule.read_state(conn, rule_path) or {}
