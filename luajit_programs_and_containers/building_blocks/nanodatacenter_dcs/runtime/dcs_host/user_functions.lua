@@ -1140,6 +1140,14 @@ function M.build(ctx)
             "WATCHDOG %s probe recovered (was fail=%d)",
             asg.name, st.fail_count))
         end
+        -- Auto-clear container_hung on every successful probe. The alarm
+        -- was raised when we restarted this container; once it's
+        -- answering again, transition its state out of the active
+        -- class. kb_exc.clear is idempotent (NORMAL stays NORMAL), so
+        -- calling every probe is harmless.
+        if ctx.connectors.pg then
+          pcall(kb_exc.clear, ctx.connectors.pg, exc_path("container_hung"))
+        end
         st.fail_count = 0
       else
         st.fail_count = st.fail_count + 1

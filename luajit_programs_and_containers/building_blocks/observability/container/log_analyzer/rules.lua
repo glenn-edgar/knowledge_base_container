@@ -144,13 +144,14 @@ function M.evaluate(conn, log_path, rule_rows, live, value, ts, logger)
     local state    = kb_rule.read_state(conn, rule_path) or {}
     if not kb_rule.is_actionable(state) then goto continue end
 
-    local cooldown = tonumber(props.cooldown_s) or 60
-    if kb_rule.is_in_cooldown(state, cooldown, ts) then goto continue end
-
     local tripped, observed, details = evaluator(props, live, value)
+    local cooldown = tonumber(props.cooldown_s) or 60
+    local target   = resolve_target(log_path, props.target_exception or "")
+
     if tripped then
+      -- CONDITION TRIPPED: raise (respecting cooldown to avoid spam).
+      if kb_rule.is_in_cooldown(state, cooldown, ts) then goto continue end
       kb_rule.record_fire(conn, rule_path, observed, details, ts)
-      local target = resolve_target(log_path, props.target_exception or "")
       local err_msg = string.format(
         "rule %s (%s) tripped on %s: %s",
         (rule_path:match("KB_RULE%.(.+)$") or rule_path),
@@ -167,6 +168,17 @@ function M.evaluate(conn, log_path, rule_rows, live, value, ts, logger)
       })
       if logger then
         logger(string.format("FIRED %s -> %s", rule_path, target))
+      end
+    else
+      -- CONDITION CLEARED: auto-clear the target exception. Mirrors the
+      -- sample_gap auto-clear (kb_exc.clear is idempotent: no-op on
+      -- NORMAL, transitions UNACK_ACTIVE → RTN_UNACK etc). Without this
+      -- every threshold/slope/rate_of_change/z_score/etc. alarm stays
+      -- stuck UNACK_ACTIVE forever once raised, even after the metric
+      -- returns to healthy -- the noise source behind container_hung
+      -- and watchdog_slow lingering after boot transients.
+      if target and target ~= "" then
+        kb_exc.clear(conn, target)
       end
     end
     ::continue::
