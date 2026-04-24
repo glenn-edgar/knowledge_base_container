@@ -921,15 +921,29 @@ function M.build(ctx)
       return
     end
     local listening = listening_ports()
+    ctx.node_control_globals.last_restart_ts =
+      ctx.node_control_globals.last_restart_ts or {}
+    local lrts = ctx.node_control_globals.last_restart_ts
+    local now  = os.time()
 
     for _, asg in ipairs(assignments) do
       if docker.is_running(asg.name) then
         log("node_control", "START " .. asg.name .. ": already running, re-register")
         register_assignment(asg)
+        -- Record so watchdog's boot grace window applies to already-running
+        -- containers too. Without this, after a dcs.lua restart the
+        -- watchdog will probe containers it didn't just spawn with zero
+        -- grace and fire container_hung on any slow-to-respond service.
+        lrts[asg.name] = now
       else
         local ok, res = launch_assignment(asg, listening)
         if ok then
           log("node_control", string.format("START %s -> %s", asg.name, res))
+          -- CRITICAL: stamp last_restart_ts so watchdog's boot_grace
+          -- window applies to first-time spawns. Was only set by the
+          -- reconcile + watchdog respawn paths; first boot got zero
+          -- grace and watchdog fired container_hung within seconds.
+          lrts[asg.name] = now
         else
           log_container_failure(asg.name, res)
         end
