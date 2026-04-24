@@ -279,11 +279,27 @@ local function main()
       last_rediscover = now
     end
 
-    -- sample_gap check every 10s
+    -- sample_gap check every 10s. MUST run BEFORE the heartbeat push
+    -- below, otherwise on a cold restart-after-outage the fresh write
+    -- masks the gap evidence and the log_analyzer_stalled alarm never
+    -- fires. Running the check first means we evaluate the rehydrated
+    -- (pre-death) last_ts and fire the catch-up alarm correctly.
+    -- Pass os.time() (wall-clock epoch), NOT ptime.now_sec() (monotonic
+    -- seconds since boot) -- the check compares against live.last_ts
+    -- which is wall-clock epoch. Using monotonic made `age` nonsense
+    -- and no sample_gap rule would ever fire.
     if now - last_gap_check > 10 then
-      pcall(check_all_sample_gaps, conn, now)
+      pcall(check_all_sample_gaps, conn, os.time())
       last_gap_check = now
     end
+
+    -- Heartbeat: push wall-clock epoch into the site-level
+    -- log_analyzer_heartbeat ring. Placed after the gap check above so
+    -- restart-after-outage raises the alarm before we overwrite last_ts.
+    pcall(kb_log.push_sample, conn,
+      "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
+        ".KB_LOG.log_analyzer_heartbeat",
+      os.time())
 
     -- rule suppression sweep every 10s
     if now - last_suppr_sweep > 10 then

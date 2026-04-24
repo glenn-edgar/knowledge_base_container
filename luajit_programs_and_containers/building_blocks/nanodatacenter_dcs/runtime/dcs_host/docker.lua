@@ -83,6 +83,23 @@ function M.is_running(name)
 end
 
 ---------------------------------------------------------------------------
+-- list_running: one batched `docker ps` shell-out instead of N inspects.
+-- Callers iterating over an assignment list should use this set lookup
+-- in place of per-container is_running() calls. On a 5-container CPU
+-- that reduces reconcile pass from ~250 ms (5 × ~50 ms inspect) to
+-- ~30 ms (1 × ~30 ms ps). Set key = container name, value = true.
+---------------------------------------------------------------------------
+
+function M.list_running()
+  local out = capture("docker ps --format '{{.Names}}'")
+  local set = {}
+  if out then
+    for name in out:gmatch("[^\r\n]+") do set[name] = true end
+  end
+  return set
+end
+
+---------------------------------------------------------------------------
 -- docker run from a build.spec
 ---------------------------------------------------------------------------
 

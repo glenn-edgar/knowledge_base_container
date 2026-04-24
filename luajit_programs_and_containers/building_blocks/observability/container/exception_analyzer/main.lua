@@ -22,6 +22,7 @@ local dkjson = require("dkjson")
 local DBI    = require("DBI")
 local ptime  = require("posix_time")
 local kb_exc = require("kb_exception")
+local kb_log = require("kb_log")
 
 ---------------------------------------------------------------------------
 -- Logging
@@ -290,7 +291,15 @@ local function main()
       last_flap = now
     end
 
-    -- Heartbeat every 30 ticks (~30s)
+    -- KB heartbeat: push wall-clock epoch into the site-level
+    -- exception_analyzer_heartbeat ring every tick. sample_gap rule
+    -- (60s) raises SYS_EXCEPTION.exception_analyzer_stalled on silence.
+    pcall(kb_log.push_sample, conn,
+      "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
+        ".KB_LOG.exception_analyzer_heartbeat",
+      os.time())
+
+    -- Heartbeat log every 30 ticks (~30s)
     if tick_count % 30 == 0 then
       local tracked = 0
       for _ in pairs(flap_snapshots) do tracked = tracked + 1 end

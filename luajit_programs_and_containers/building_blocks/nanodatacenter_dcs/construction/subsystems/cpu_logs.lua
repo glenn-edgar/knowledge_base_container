@@ -198,9 +198,12 @@ return {
       default_window_s = 300,
     }, function()
       kb:add_log_rule("overrun", {
-        kind = "threshold", op = ">=", value = 500,
+        kind = "threshold", op = ">=", value = 1500,
         target_exception = "tick_overrun",
-        cooldown_s = 60, description = "tick exceeded 500 ms",
+        cooldown_s = 60,
+        description = "tick exceeded 1500 ms (was 500 until 2026-04-24; " ..
+                      "master CPU baseline with SAMPLE_CONTAINERS fires " ..
+                      "600-900 ms per tick, so 500 was under the noise floor)",
       })
       kb:add_log_rule("degrading", {
         kind = "slope_trend",
