@@ -296,10 +296,15 @@ local function main()
     -- Heartbeat: push wall-clock epoch into the site-level
     -- log_analyzer_heartbeat ring. Placed after the gap check above so
     -- restart-after-outage raises the alarm before we overwrite last_ts.
-    pcall(kb_log.push_sample, conn,
-      "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
-        ".KB_LOG.log_analyzer_heartbeat",
-      os.time())
+    -- Throttled to every 5th tick (~0.2 Hz). The sample_gap rule fires
+    -- at gap_s=60, so 5s cadence has plenty of headroom and we shed
+    -- ~4× of the pg push_sample load from this writer.
+    if tick_count % 5 == 0 then
+      pcall(kb_log.push_sample, conn,
+        "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
+          ".KB_LOG.log_analyzer_heartbeat",
+        os.time())
+    end
 
     -- rule suppression sweep every 10s
     if now - last_suppr_sweep > 10 then

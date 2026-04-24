@@ -153,34 +153,53 @@ function M.push_sample(conn, log_path, value, ts, extra)
   ts = ts or now_s()
   local stream_path = log_path .. ".KB_STREAM_FIELD.samples"
 
-  local oldest, err = fetch_one(conn, string.format(
-    "SELECT id FROM knowledge_base_stream " ..
-    "WHERE path = '%s'::ltree " ..
-    "ORDER BY recorded_at ASC LIMIT 1",
-    escape_sql(stream_path)))
-  if err then return nil, err end
-  if not oldest then
-    return nil, "no preallocated slots at " .. stream_path ..
-                " (run slice_bootstrap after build_kb)"
-  end
-
   local payload = { ts = ts, value = value }
   if extra then for k, v in pairs(extra) do payload[k] = v end end
+  local payload_json = dkjson.encode(payload)
 
-  local ok, oerr = exec(conn, string.format(
-    "UPDATE knowledge_base_stream SET data = '%s'::jsonb, " ..
-    "recorded_at = NOW(), valid = TRUE WHERE id = %d",
-    escape_sql(dkjson.encode(payload)), tonumber(oldest.id)))
-  if not ok then return nil, oerr end
+  -- Query 1 (was 2): UPDATE the oldest ring row in one round-trip using
+  -- a subquery for the target id. Eliminates the separate SELECT id ...
+  -- ORDER BY ASC step. Previously: 2 ops, now: 1.
+  local ok, err = exec(conn, string.format(
+    "UPDATE knowledge_base_stream " ..
+    "   SET data = '%s'::jsonb, recorded_at = NOW(), valid = TRUE " ..
+    " WHERE id = (SELECT id FROM knowledge_base_stream " ..
+    "              WHERE path = '%s'::ltree " ..
+    "              ORDER BY recorded_at ASC LIMIT 1)",
+    escape_sql(payload_json), escape_sql(stream_path)))
+  if not ok then return nil, err end
 
-  -- Update status children. Failures here are non-fatal for the sample
-  -- itself; they just leave last_*_ts stale. Return first error if any.
-  set_status_child(conn, log_path, "last_sample_ts", ts)
-  set_status_child(conn, log_path, "last_value",     value)
+  -- Query 2 (was 2): upsert last_sample_ts + last_value in one
+  -- multi-row INSERT ... ON CONFLICT. Values are constants so the DO
+  -- UPDATE just takes EXCLUDED.data for both rows.
+  local p_ts  = log_path .. ".KB_STATUS_FIELD.last_sample_ts"
+  local p_val = log_path .. ".KB_STATUS_FIELD.last_value"
+  local j_ts  = dkjson.encode({ value = ts })
+  local j_val = dkjson.encode({ value = value })
+  ok, err = exec(conn, string.format(
+    "INSERT INTO knowledge_base_status (path, data) VALUES " ..
+    "('%s'::ltree, '%s'::jsonb), " ..
+    "('%s'::ltree, '%s'::jsonb) " ..
+    "ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data",
+    escape_sql(p_ts),  escape_sql(j_ts),
+    escape_sql(p_val), escape_sql(j_val)))
+  if not ok then return nil, err end
 
-  local cur = read_status_child(conn, log_path, "sample_count_total") or 0
-  set_status_child(conn, log_path, "sample_count_total", (tonumber(cur) or 0) + 1)
+  -- Query 3 (was 2): atomic increment of sample_count_total. Previously
+  -- a SELECT+UPDATE pair; now a single INSERT ... ON CONFLICT where the
+  -- DO UPDATE body reads the existing row's counter and adds one.
+  local p_cnt = log_path .. ".KB_STATUS_FIELD.sample_count_total"
+  ok, err = exec(conn, string.format(
+    "INSERT INTO knowledge_base_status (path, data) " ..
+    "VALUES ('%s'::ltree, '{\"value\":1}'::jsonb) " ..
+    "ON CONFLICT (path) DO UPDATE SET " ..
+    "  data = jsonb_build_object('value', " ..
+    "    COALESCE((knowledge_base_status.data->>'value')::bigint, 0) + 1)",
+    escape_sql(p_cnt)))
+  if not ok then return nil, err end
 
+  -- Total: 3 pg ops (was 6). See 2026-04-24 work log for the Pi 4
+  -- performance driver -- reduces observability pg load by ~50%.
   return true
 end
 

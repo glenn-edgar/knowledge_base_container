@@ -292,12 +292,14 @@ local function main()
     end
 
     -- KB heartbeat: push wall-clock epoch into the site-level
-    -- exception_analyzer_heartbeat ring every tick. sample_gap rule
-    -- (60s) raises SYS_EXCEPTION.exception_analyzer_stalled on silence.
-    pcall(kb_log.push_sample, conn,
-      "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
-        ".KB_LOG.exception_analyzer_heartbeat",
-      os.time())
+    -- exception_analyzer_heartbeat ring. Throttled to every 5th tick
+    -- (~0.2 Hz); sample_gap rule is 60s so 5s cadence has headroom.
+    if tick_count % 5 == 0 then
+      pcall(kb_log.push_sample, conn,
+        "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
+          ".KB_LOG.exception_analyzer_heartbeat",
+        os.time())
+    end
 
     -- Heartbeat log every 30 ticks (~30s)
     if tick_count % 30 == 0 then
