@@ -187,12 +187,14 @@ function M.check_sample_gaps(conn, log_path, rule_rows, live, now, logger)
 
     local state    = kb_rule.read_state(conn, rule.path) or {}
     if not kb_rule.is_actionable(state) then goto continue end
-    local cooldown = tonumber(props.cooldown_s) or 60
-    if kb_rule.is_in_cooldown(state, cooldown, now) then goto continue end
 
     local gap_s = tonumber(props.gap_s) or 60
     local age   = now - last_ts
+    local cooldown = tonumber(props.cooldown_s) or 60
+
     if age >= gap_s then
+      -- GAP OPEN: fire (respecting cooldown to avoid re-raise spam).
+      if kb_rule.is_in_cooldown(state, cooldown, now) then goto continue end
       kb_rule.record_fire(conn, rule.path, age, {
         last_ts = last_ts, now = now, age_s = age, gap_s = gap_s,
       }, now)
@@ -207,6 +209,15 @@ function M.check_sample_gaps(conn, log_path, rule_rows, live, now, logger)
       if logger then
         logger(string.format("GAP %s -> %s (age=%ds)", rule.path, target, age))
       end
+    else
+      -- GAP CLOSED: auto-clear. kb_exc.clear is idempotent and transitions
+      -- UNACK_ACTIVE → RTN_UNACK, ACK_ACTIVE → NORMAL, SHELVED → NORMAL,
+      -- NORMAL → NORMAL (no-op). SCADA-correct semantics: once samples
+      -- resume, the alarm reflects "condition cleared." Without this,
+      -- transient outages (reboots, pg blips) leave stuck UNACK_ACTIVE
+      -- alarms forever until operator acks + clears manually.
+      local target = resolve_target(log_path, props.target_exception or "")
+      kb_exc.clear(conn, target)
     end
     ::continue::
   end
