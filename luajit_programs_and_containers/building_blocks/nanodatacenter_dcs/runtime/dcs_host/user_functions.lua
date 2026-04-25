@@ -572,33 +572,71 @@ function M.build(ctx)
   local SYSTEM_CONTAINERS = {
     "pg-vector", "nats-js-ram", "mosquitto-ram-ws_main", "kv-bridge",
   }
+  -- Steady-state monitor verify. Phase-3b "react to confirmed bad state,
+  -- not absence of state":
+  --
+  --   * broker refresh failure          -> return true (no fresh data; be quiet)
+  --   * broker reports stale snapshot   -> return true (cached data older than
+  --                                        fresh_window/hb_fresh_window; can't
+  --                                        trust it for action)
+  --   * broker fresh AND container down -> return false (real fault; trip)
+  --
+  -- Why the change: the previous "fail closed on absence of broker data"
+  -- contract triggered ERR_MONITOR_TRIP -> teardown_st on every brief broker
+  -- hiccup. teardown_st calls broker_client.stop on every infra container,
+  -- and if the broker recovered DURING teardown, the queued stops actually
+  -- ran and tore down infra. Teardown can't recover broker outage anyway --
+  -- only confirmed bad container state warrants destructive action here.
+  --
+  -- Per-container verifies (VERIFY_PG/NATS/MQTT/KV_BRIDGE) keep the original
+  -- fail-closed semantics: those run during sync_st boot where a real
+  -- broker outage means infra is genuinely not ready and waiting is correct.
   R.VERIFY_SYSTEM_CONTAINERS_HEALTHY = timer_only(function(_h, _n)
     local conn = ctx.connectors and ctx.connectors.pg
-    local failed = {}
-    if conn then
-      -- Single broker_client refresh + N constant-time cache reads instead
-      -- of N docker shell-outs per chain-tree tick. Removes the per-tick
-      -- walker-blocking that originally tore down infra.
-      local rok, rerr = broker_client.refresh(conn)
-      if not rok then
-        log("system_control", string.format(
-          "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (broker refresh: %s)",
-          tostring(rerr)))
-        return false
-      end
-      for _, name in ipairs(SYSTEM_CONTAINERS) do
-        local running = broker_client.is_running(conn, name)
-        if not running then failed[#failed + 1] = name end
-      end
-    else
-      -- Fallback during early bootstrap before pg connector is wired.
+    if not conn then
+      -- Bootstrap fallback: pg connector not wired yet, can't reach broker
+      -- mirror. Direct-docker fallback retained for boot-time verification.
+      local failed = {}
       for _, name in ipairs(SYSTEM_CONTAINERS) do
         if not docker.is_running(name) then failed[#failed + 1] = name end
+      end
+      if #failed == 0 then return true end
+      log("system_control", string.format(
+        "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false bootstrap (down: %s)",
+        table.concat(failed, ", ")))
+      return false
+    end
+
+    local rok, rerr = broker_client.refresh(conn)
+    if not rok then
+      -- No fresh data -- can't tell whether containers are down or broker
+      -- is just briefly unreachable. Be quiet; let recovery happen.
+      log("system_control", string.format(
+        "VERIFY_SYSTEM_CONTAINERS_HEALTHY: broker refresh failed (%s) -- staying quiet",
+        tostring(rerr)))
+      return true
+    end
+
+    local fresh, fresh_reason = broker_client.is_fresh()
+    if not fresh then
+      -- Stale broker data: snapshot/heartbeat older than fresh_window.
+      -- Same logic as refresh failure -- don't act on stale data.
+      log("system_control", string.format(
+        "VERIFY_SYSTEM_CONTAINERS_HEALTHY: broker stale (%s) -- staying quiet",
+        tostring(fresh_reason)))
+      return true
+    end
+
+    -- Broker data is fresh. Trust it.
+    local failed = {}
+    for _, name in ipairs(SYSTEM_CONTAINERS) do
+      if not broker_client.is_running(conn, name) then
+        failed[#failed + 1] = name
       end
     end
     if #failed == 0 then return true end
     log("system_control", string.format(
-      "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (down: %s)",
+      "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false fresh (down: %s)",
       table.concat(failed, ", ")))
     return false
   end)
