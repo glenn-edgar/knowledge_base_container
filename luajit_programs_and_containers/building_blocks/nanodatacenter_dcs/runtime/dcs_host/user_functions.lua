@@ -572,23 +572,34 @@ function M.build(ctx)
   local SYSTEM_CONTAINERS = {
     "pg-vector", "nats-js-ram", "mosquitto-ram-ws_main", "kv-bridge",
   }
+  -- Hysteresis: VERIFY_SYSTEM_CONTAINERS_HEALTHY needs N consecutive
+  -- failures before it returns false, so brief broker hiccups (vpnkit
+  -- pause, docker daemon stall, broker restart < ~3 verify cycles)
+  -- don't cascade into ERR_MONITOR_TRIP -> teardown_st -> respawn loop.
+  -- Sustained broker death still trips fail-closed within N * cycle.
+  -- Reset to zero on the first clean check; the closure dies with the
+  -- process so no per-trip reset is needed.
+  local sys_health_fail_streak = 0
+  local SYS_HEALTH_TRIP_THRESHOLD = 3
   R.VERIFY_SYSTEM_CONTAINERS_HEALTHY = timer_only(function(_h, _n)
     local conn = ctx.connectors and ctx.connectors.pg
     local failed = {}
+    local refresh_err
     if conn then
       -- Single broker_client refresh + N constant-time cache reads instead
       -- of N docker shell-outs per chain-tree tick. Removes the per-tick
       -- walker-blocking that originally tore down infra.
       local rok, rerr = broker_client.refresh(conn)
       if not rok then
-        log("system_control", string.format(
-          "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (broker refresh: %s)",
-          tostring(rerr)))
-        return false
-      end
-      for _, name in ipairs(SYSTEM_CONTAINERS) do
-        local running = broker_client.is_running(conn, name)
-        if not running then failed[#failed + 1] = name end
+        refresh_err = rerr
+        for _, name in ipairs(SYSTEM_CONTAINERS) do
+          failed[#failed + 1] = name
+        end
+      else
+        for _, name in ipairs(SYSTEM_CONTAINERS) do
+          local running = broker_client.is_running(conn, name)
+          if not running then failed[#failed + 1] = name end
+        end
       end
     else
       -- Fallback during early bootstrap before pg connector is wired.
@@ -596,10 +607,30 @@ function M.build(ctx)
         if not docker.is_running(name) then failed[#failed + 1] = name end
       end
     end
-    if #failed == 0 then return true end
+
+    if #failed == 0 then
+      if sys_health_fail_streak > 0 then
+        log("system_control", string.format(
+          "VERIFY_SYSTEM_CONTAINERS_HEALTHY recovered after %d failed checks",
+          sys_health_fail_streak))
+      end
+      sys_health_fail_streak = 0
+      return true
+    end
+
+    sys_health_fail_streak = sys_health_fail_streak + 1
+    local detail = refresh_err
+                   and ("broker refresh: " .. tostring(refresh_err))
+                   or ("down: " .. table.concat(failed, ", "))
+    if sys_health_fail_streak < SYS_HEALTH_TRIP_THRESHOLD then
+      log("system_control", string.format(
+        "VERIFY_SYSTEM_CONTAINERS_HEALTHY transient %d/%d (%s) -- riding through",
+        sys_health_fail_streak, SYS_HEALTH_TRIP_THRESHOLD, detail))
+      return true
+    end
     log("system_control", string.format(
-      "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (down: %s)",
-      table.concat(failed, ", ")))
+      "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false sustained=%d (%s)",
+      sys_health_fail_streak, detail))
     return false
   end)
 
