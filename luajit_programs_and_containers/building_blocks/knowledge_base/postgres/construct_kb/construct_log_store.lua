@@ -203,7 +203,10 @@ function Construct_Log_Store:add_log(name, opts, body)
     -- SYS_EXCEPTION. target_exception is a BARE NAME; the analyzer
     -- resolves it to the sibling SYS_EXCEPTION at the log's scope.
     if auto_health then
-      local gap_s = math.max(1, math.floor(3.0 / expected_hz))
+      -- 6 missed samples, floored at 10 s. The 10 s floor keeps fast
+      -- signals (expected_hz >= 1) above WSL2/vpnkit jitter — a 3 s
+      -- threshold on a 1 Hz signal trips on a single late pg roundtrip.
+      local gap_s = math.max(10, math.floor(6.0 / expected_hz))
       self:_add_rule_internal(cdt, "__health_gap", {
         kind             = "sample_gap",
         gap_s            = gap_s,
@@ -222,7 +225,7 @@ function Construct_Log_Store:add_log(name, opts, body)
       type        = "log_health",
       instance    = name,
       description = "Log '" .. name .. "' stopped reporting samples " ..
-                    "(no writes for > 3 / expected_hz seconds)",
+                    "(no writes for > max(10, 6 / expected_hz) seconds)",
       priority    = 3,
       response_procedure = "",
     })
