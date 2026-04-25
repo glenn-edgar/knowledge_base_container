@@ -31,6 +31,12 @@
 --                         protocol    = "tcp",         -- default "tcp"
 --                         purpose     = "ui",          -- "ui" | "service" | ...
 --                         description = "human text",  -- optional
+--                         probe       = {              -- optional; default-off
+--                           path           = "/health",-- required when probe present
+--                           expect_status  = 200,      -- default 200
+--                           interval_s     = 5,        -- default 5
+--                           timeout_ms     = 2000,     -- default 2000
+--                         },
 --                       },
 --                       ...
 --                     }
@@ -39,6 +45,18 @@
 --                   EXTERNAL ports across all instances (port_spec + legacy) is
 --                   enforced; every slot must have a matching entry in the
 --                   instance's topology-level `ports` table.
+--
+--                   `probe` block (Phase 4 broker-active HTTP probes):
+--                   When present, dcs_host's spec_adapter emits Docker labels
+--                   `nanodatacenter.probe.<slot>.{path,expect_status,
+--                   interval_s,timeout_ms,internal_port}` at run time. The
+--                   docker_host_broker reads those labels, issues HTTP GETs
+--                   against the container's internal bridge IP (NOT through
+--                   host port forwarding -- bypasses vpnkit), and publishes
+--                   per-container probe state in containers.snapshot. dcs.lua
+--                   WATCHDOG trips when probe.fail_streak crosses
+--                   WATCHDOG_FAIL_THRESHOLD. See WIRE_PROTOCOL.md
+--                   "Broker-active HTTP probes" for the full wire shape.
 --   volumes       : { { host = "~/Postgres_Data", cont = "/var/lib/..." }, ... }
 --                   host-side paths resolved against $HOME at run time
 --   labels        : { key = value, ... } -- "nanodatacenter=true" added

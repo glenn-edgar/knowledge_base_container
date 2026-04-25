@@ -116,7 +116,8 @@ broker.
         {"host_ip": "0.0.0.0", "host_port": 5432, "container_port": 5432, "proto": "tcp"}
       ],
       "labels": {},
-      "ip_addresses": {"bridge": "172.17.0.5"}
+      "ip_addresses": {"bridge": "172.17.0.5"},
+      "probe": null
     }
   ]
 }
@@ -127,6 +128,96 @@ broker.
 
 `health`: one of `healthy`, `unhealthy`, `starting`, `none` (when no
 HEALTHCHECK is defined). Matches Docker's health status.
+
+`probe`: broker-active HTTP probe state, or `null` when the container
+has no probe declared. See **Broker-active HTTP probes (Phase 4)** below
+for the field shape, label-driven configuration, and `no_route` semantics.
+
+### Broker-active HTTP probes (Phase 4)
+
+Docker's `state` field catches dead/exited containers, and `health` catches
+containers with a Docker `HEALTHCHECK`. Neither catches "process is running
+but the HTTP server inside is wedged." The broker fills that gap by issuing
+its own HTTP GETs against the container's internal bridge IP (NOT through
+host port forwarding, which on Docker Desktop / WSL2 goes through vpnkit
+and is the source of the false-positive cascade documented in
+`feedback_watchdog_vpnkit_false_positives`).
+
+Probe state is published as a `probe` sub-object on each container entry of
+the snapshot (additive change, no v2 bump). When no probe is declared on a
+container, `probe` is `null`. When at least one probe is declared:
+
+```json
+"probe": {
+  "configured": true,
+  "ok": true,
+  "fail_streak": 0,
+  "last_ok_ts": 1714098765.123,
+  "last_probe_ts": 1714098765.456,
+  "last_status": 200,
+  "last_err": null,
+  "route": "planner-net"
+}
+```
+
+Field semantics:
+
+* `configured` (bool): `true` whenever the container has at least one
+  probe slot declared. `false`/missing only when `probe` itself is `null`.
+* `ok` (bool): `true` if the most recent probe attempt returned a status
+  code matching the slot's `expect_status`.
+* `fail_streak` (int): consecutive failed probes since the last success.
+  Resets to 0 on a success. Raw integer — broker does NOT publish a
+  derived "stuck" verdict; the supervisor (dcs.lua WATCHDOG) owns the
+  threshold (see Q4 of Phase 4 design — keeps broker policy-free).
+* `last_ok_ts` (float seconds): timestamp of the most recent successful
+  probe. `null` if never succeeded.
+* `last_probe_ts` (float seconds): timestamp of the most recent attempt
+  (success or failure).
+* `last_status` (int): HTTP status code of the most recent attempt.
+  `null` if the attempt didn't get a status code (connect-refused,
+  timeout, DNS failure).
+* `last_err` (string): short error string for the most recent failure
+  (e.g. `"connect refused"`, `"timeout"`, `"http 503"`). `null` on success.
+* `route` (string): which network the probe IP came from. One of the
+  network names the broker shares with the container, OR `"no_route"`
+  when the broker and container have no overlapping network. When
+  `route == "no_route"`, the broker does NOT probe; `ok` and
+  `fail_streak` are frozen at their last-known values (typically zero
+  on a never-probed container). Supervisors MUST treat `no_route` as
+  "skip" — never as failure (avoids cascading on misconfigured networks).
+
+Network resolution: at startup the broker inspects its own container,
+caches the set of networks it is on, and for each probed container picks
+the first matching network from `ContainerInfo.IPAddresses`, preferring
+non-`bridge` networks (e.g. `planner-net`) over `bridge`.
+
+Probe configuration is carried as Docker labels on the target container,
+written by DCS at `run` time (not via a separate broker config file —
+keeps the broker stateless across restarts and avoids drift). Label
+convention, one set per probed slot:
+
+| Label key                                                | Value          | Default | Meaning |
+|---|---|---|---|
+| `nanodatacenter.probe.<slot>.path`                       | string         | (required) | URL path component, e.g. `/health` |
+| `nanodatacenter.probe.<slot>.expect_status`              | int (as str)   | `200`   | Status code that counts as success |
+| `nanodatacenter.probe.<slot>.interval_s`                 | int (as str)   | `5`     | Seconds between probes |
+| `nanodatacenter.probe.<slot>.timeout_ms`                 | int (as str)   | `2000`  | HTTP client timeout per attempt |
+| `nanodatacenter.probe.<slot>.internal_port`              | int (as str)   | (required) | Internal port to probe |
+
+`<slot>` matches the catalog's `port_spec` slot name (e.g. `exception_web`).
+The broker walks every label whose key starts with `nanodatacenter.probe.`,
+groups by slot, validates each group, and starts one goroutine per
+(container × slot). When a container has multiple probed slots, the
+snapshot's `probe` object aggregates: `ok = AND` over all slots,
+`fail_streak = max` across slots, `last_err` from the worst slot. The
+raw per-slot detail is available via the HTTP `/v1/state/containers/<name>`
+endpoint for debugging (not in the snapshot, to keep payload small).
+
+Cadence: probe results are visible via the regular `containers.snapshot`
+publish (5s default). A probe failure → WATCHDOG-trip pipeline therefore
+has a worst-case latency of `N × interval_s + snapshot_period`, e.g.
+`3 × 5 + 5 = 20s` with default settings.
 
 ### `system.site.<site>.docker_broker.containers.delta`
 Cadence: on each detected change between two consecutive polls

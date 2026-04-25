@@ -24,7 +24,7 @@ import (
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
 )
 
-const brokerVersion = "0.1.0-phase1b"
+const brokerVersion = "0.2.0-phase2"
 
 type config struct {
 	site             string
