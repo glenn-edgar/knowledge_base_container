@@ -1059,7 +1059,7 @@ function M.build(ctx)
     local ok, res = launch_assignment(asg, listening)
     if ok then
       log("node_control", string.format(
-        "%s %s -> docker run %s", cause, asg.name, res))
+        "%s %s -> broker run %s", cause, asg.name, res))
       if ctx.connectors.pg then
         local xpath = exc_path(
           (cause == "WATCHDOG") and "container_hung" or "container_respawned")
