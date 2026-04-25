@@ -16,6 +16,8 @@ local kbcr   = require("kb_container_registry")
 local kb_asg = require("kb_assignments")
 local kb_log = require("kb_log")
 local ptime  = require("posix_time")  -- sub-second timing for supervision metrics
+local broker_client = require("broker_client")  -- read docker_host_broker state from KB
+local spec_adapter  = require("spec_adapter")   -- catalog spec -> wire-protocol RunSpec
 
 local M = {}
 
@@ -77,6 +79,19 @@ function M.build(ctx)
   local ct       = ctx.chain_tree
   local pg       = ctx.process_globals
 
+  -- Configure broker_client with the site from bootstrap, plus the HTTP
+  -- mutation endpoint. Verifies (read path) need site; START/STOP/RUN/RM
+  -- handlers (mutation path) need http_base_url. BROKER_HTTP_URL falls
+  -- back to the wire-protocol default (127.0.0.1:9100) so deployments
+  -- without an explicit env still work.
+  if ctx.cfg and ctx.cfg.site then
+    broker_client.configure{
+      site           = ctx.cfg.site,
+      http_base_url  = os.getenv("BROKER_HTTP_URL") or "http://127.0.0.1:9100",
+      http_timeout_s = 10,
+    }
+  end
+
   local R = {}
 
   ----------------------------------------------------------------------
@@ -117,32 +132,33 @@ function M.build(ctx)
   R.SET_SYSTEM_STATE          = oneshot_stub(log, "SET_SYSTEM_STATE",          "system_control")
 
   -- Helper: start a pre-existing container by name. DCS does NOT create
-  -- infra containers; the laptop install scripts created them. We just
-  -- toggle their state via docker start / docker stop. Idempotent: if
-  -- already running, docker start is a no-op.
+  -- infra containers; the laptop install scripts created them. We toggle
+  -- state via the docker_host_broker (POST /v1/cmd/start). Idempotent:
+  -- broker returns 409 already_running which broker_client.start maps
+  -- onto ok=true with info.idempotent=true.
   local function start_container(inst_name, _def_name)
-    if docker.is_running(inst_name) then
-      log("system_control",
-          string.format("START %s: already running", inst_name))
-      return
-    end
-    local ok, result = docker.start_existing(inst_name)
+    local ok, info = broker_client.start(inst_name)
     if ok then
-      log("system_control",
-          string.format("START %s -> %s", inst_name, tostring(result):sub(1, 12)))
+      if type(info) == "table" and info.idempotent then
+        log("system_control",
+            string.format("START %s: already running", inst_name))
+      else
+        log("system_control", "START " .. inst_name)
+      end
     else
       log("system_control",
-          string.format("START %s FAILED: %s", inst_name, tostring(result)))
+          string.format("START %s FAILED: %s", inst_name, tostring(info)))
     end
   end
 
   local function stop_container(inst_name)
-    local ok, err = docker.stop_only(inst_name)
+    -- Infra containers persist (laptop placed them); stop only, no rm.
+    local ok, info = broker_client.stop(inst_name, 10)
     if ok then
-      log("system_control", string.format("STOP %s", inst_name))
+      log("system_control", "STOP " .. inst_name)
     else
       log("system_control",
-          string.format("STOP %s FAILED: %s", inst_name, tostring(err)))
+          string.format("STOP %s FAILED: %s", inst_name, tostring(info)))
     end
   end
 
@@ -509,15 +525,37 @@ function M.build(ctx)
       return false
     end
   end)
-  -- Broker verifies: docker.is_running as a v1 health proxy. Sufficient
-  -- until Build 3+ wires real Lua clients (NATS/MQTT subscribers, HTTP
-  -- probe for kv_bridge) that exercise each broker's API. Container
-  -- up => broker accepting connections (--restart=always keeps them alive).
+  -- Broker verifies: read container state from docker_host_broker via the
+  -- KB row it mirrors into knowledge_base_status. Reads are O(1) pg row
+  -- lookups (~ms on local pg) cached for ~0.5s — does NOT shell out.
+  -- See building_blocks/docker_host_broker/WIRE_PROTOCOL.md.
+  -- Falls back to docker.is_running when the broker hasn't been configured
+  -- (e.g., site not set, dcs.lua bootstrapping pre-broker), so this module
+  -- still works during Phase 1c migration without a hard dependency.
+  --
+  -- Configured at the bottom of this build(ctx) function once cfg.site is
+  -- known.
   local function is_running_verify(name, half)
     return timer_only(function(_h, _n)
+      if ctx.connectors and ctx.connectors.pg then
+        -- Force a refresh on miss to surface the underlying error.
+        local rok, rerr = broker_client.refresh(ctx.connectors.pg)
+        if not rok then
+          log(half, string.format("VERIFY %s broker_client.refresh err: %s",
+              name, tostring(rerr)))
+          return false
+        end
+        local ok, why = broker_client.is_running(ctx.connectors.pg, name)
+        if not ok then
+          log(half, string.format("VERIFY %s running -> false (broker: %s)",
+              name, tostring(why)))
+        end
+        return ok
+      end
+      -- Fallback path while ctx.connectors.pg is being established.
       local ok = docker.is_running(name)
       if not ok then
-        log(half, string.format("VERIFY %s running -> false", name))
+        log(half, string.format("VERIFY %s running -> false (docker fallback)", name))
       end
       return ok
     end)
@@ -535,9 +573,28 @@ function M.build(ctx)
     "pg-vector", "nats-js-ram", "mosquitto-ram-ws_main", "kv-bridge",
   }
   R.VERIFY_SYSTEM_CONTAINERS_HEALTHY = timer_only(function(_h, _n)
+    local conn = ctx.connectors and ctx.connectors.pg
     local failed = {}
-    for _, name in ipairs(SYSTEM_CONTAINERS) do
-      if not docker.is_running(name) then failed[#failed + 1] = name end
+    if conn then
+      -- Single broker_client refresh + N constant-time cache reads instead
+      -- of N docker shell-outs per chain-tree tick. Removes the per-tick
+      -- walker-blocking that originally tore down infra.
+      local rok, rerr = broker_client.refresh(conn)
+      if not rok then
+        log("system_control", string.format(
+          "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false (broker refresh: %s)",
+          tostring(rerr)))
+        return false
+      end
+      for _, name in ipairs(SYSTEM_CONTAINERS) do
+        local running = broker_client.is_running(conn, name)
+        if not running then failed[#failed + 1] = name end
+      end
+    else
+      -- Fallback during early bootstrap before pg connector is wired.
+      for _, name in ipairs(SYSTEM_CONTAINERS) do
+        if not docker.is_running(name) then failed[#failed + 1] = name end
+      end
     end
     if #failed == 0 then return true end
     log("system_control", string.format(
@@ -897,7 +954,18 @@ function M.build(ctx)
       PG_PASSWORD    = os.getenv("PG_PASSWORD")
                        or os.getenv("POSTGRES_PASSWORD") or "",
     }
-    local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
+    -- Catalog spec -> wire-protocol RunSpec. Resolves env_required from
+    -- os.getenv, expands ~ in volume paths, normalizes ports.
+    local run_spec, sa_err = spec_adapter.build_run_spec(asg.name, merged, extra_env)
+    if not run_spec then
+      return false, tostring(sa_err)
+    end
+    -- rm-then-run: docker.run_from_spec did `docker rm -f <name>` first
+    -- to clear any stale stopped instance from a prior boot. We emulate
+    -- that with broker_client.rm(force=true), which is idempotent on 404
+    -- (already gone) and removes any stopped/dead remnant otherwise.
+    broker_client.rm(asg.name, true)
+    local rok, rres = broker_client.run(run_spec)
     if not rok then
       return false, tostring(rres)
     end
@@ -907,7 +975,10 @@ function M.build(ctx)
     for _, port in ipairs(external_ports_of(asg)) do
       listening[port] = true
     end
-    return true, tostring(rres):sub(1, 12)
+    -- broker_client.run returns info table on success; .id is the new
+    -- container ID. Caller logs the first 12 chars to mirror prior format.
+    local id_short = tostring((type(rres) == "table" and rres.id) or ""):sub(1, 12)
+    return true, id_short
   end
 
   -- START_ASSIGNED_CONTAINERS: for each assignment, pre-flight port
@@ -926,8 +997,15 @@ function M.build(ctx)
     local lrts = ctx.node_control_globals.last_restart_ts
     local now  = os.time()
 
+    -- Refresh broker cache once before the per-assignment is_running
+    -- check. Skips a docker-ps shell-out per pass (used to be the
+    -- chain-tree-walker-starvation source on WSL2).
+    if ctx.connectors.pg then
+      broker_client.refresh(ctx.connectors.pg)
+    end
+
     for _, asg in ipairs(assignments) do
-      if docker.is_running(asg.name) then
+      if ctx.connectors.pg and broker_client.is_running(ctx.connectors.pg, asg.name) then
         log("node_control", "START " .. asg.name .. ": already running, re-register")
         register_assignment(asg)
         -- Record so watchdog's boot grace window applies to already-running
@@ -1010,12 +1088,25 @@ function M.build(ctx)
     local now = os.time()
     local t0  = ptime.now_sec()
 
-    -- Batch docker ps ONCE for the whole pass instead of N inspects per
-    -- assignment. Drops ~250ms of shell-out on a 5-container CPU down
-    -- to ~30ms. tick_overrun alarms (threshold 500ms) were tripping
-    -- every 30s when reconcile + watchdog coincided on the same burst;
-    -- this is the fix.
-    local running = docker.list_running()
+    -- Read running set from the broker cache (pg-mirrored); skip the
+    -- `docker ps` shell-out that previously starved the chain-tree
+    -- walker on WSL2. Falls back to docker.list_running only if the
+    -- broker cache is unavailable.
+    local running
+    if ctx.connectors.pg then
+      local rok = broker_client.refresh(ctx.connectors.pg)
+      if rok then
+        running = {}
+        for _, asg in ipairs(assignments) do
+          if broker_client.is_running(ctx.connectors.pg, asg.name) then
+            running[asg.name] = true
+          end
+        end
+      end
+    end
+    if not running then
+      running = docker.list_running()
+    end
 
     for _, asg in ipairs(assignments) do
       if not is_in_maintenance(asg.name) then
@@ -1102,11 +1193,31 @@ function M.build(ctx)
     return code and code > 0
   end
 
-  -- WATCHDOG_CHECK_ASSIGNED_CONTAINERS: for each running assignment
-  -- with a probable external port, HTTP-probe it. N consecutive
-  -- strikes -> docker stop + immediate respawn + SYS_EXCEPTION.
-  -- Skips containers under maintenance and those freshly restarted
-  -- (boot grace window).
+  -- WATCHDOG_CHECK_ASSIGNED_CONTAINERS (Phase 1c migration):
+  --
+  -- Was: parallel curl HTTP probes against 127.0.0.1:<port> per
+  -- assignment, 3-strike kick → docker stop + respawn.
+  --
+  -- Problem (observed 2026-04-25): on Docker Desktop / WSL2, vpnkit
+  -- port-forwarder hiccups produce coordinated probe failures across
+  -- all containers simultaneously. Three consecutive vpnkit hiccups
+  -- across the 3-strike window then fire docker stop+run for every
+  -- "hung" assignment, which (a) destroys healthy containers, and
+  -- (b) blocks the chain-tree walker for 15+s on the docker mutations
+  -- → starves the heartbeat publisher → ERR_MONITOR_TRIP detonates infra.
+  -- Documented end-to-end in observability/continue.md.
+  --
+  -- Now: rely on broker container state. The broker watches docker via
+  -- the SDK and reports state (running/exited/restarting) plus health
+  -- (when a HEALTHCHECK is defined). If state ≠ running, watchdog
+  -- restarts. If state == running and health == "unhealthy", watchdog
+  -- restarts. Otherwise, leave the container alone.
+  --
+  -- Loss of capability vs. HTTP probes: containers without a Docker
+  -- HEALTHCHECK and that are "running but stuck" (the RPC/HTTP server
+  -- inside the container is wedged) won't be detected. Phase 4 of the
+  -- broker plan adds container-internal-IP probes inside the broker
+  -- itself (bypassing vpnkit) to restore that capability.
   R.WATCHDOG_CHECK_ASSIGNED_CONTAINERS = function(_h, _n)
     local assignments = ctx.node_control_globals.assignments or {}
     if #assignments == 0 then return end
@@ -1119,85 +1230,84 @@ function M.build(ctx)
     local now    = os.time()
     local t0     = ptime.now_sec()
 
-    -- One batched docker ps instead of N inspects (pairs with reconcile's
-    -- same change; both passes share this cost reduction).
-    local running = docker.list_running()
+    local conn = ctx.connectors.pg
+    if not conn then return end  -- no broker access; nothing safe to do
 
-    -- Collect the probe targets first, then fire curls in parallel via
-    -- probe_many. Serial curls were up to N × 3s on a cluster with any
-    -- hung container; parallel is ~max(individual curl) regardless of N.
-    local targets = {}
-    for _, asg in ipairs(assignments) do
-      local ports_list = external_ports_of(asg)
-      local port = ports_list[1]
-      local last_restart = lrts[asg.name] or 0
-      local boot_grace_active = (now - last_restart) < WATCHDOG_BOOT_GRACE_S
-
-      if port
-         and not is_in_maintenance(asg.name)
-         and running[asg.name]
-         and not boot_grace_active then
-        targets[#targets + 1] = { name = asg.name, port = port, asg = asg }
-      end
+    local rok, rerr = broker_client.refresh(conn)
+    if not rok then
+      log("node_control", "WATCHDOG broker refresh: " .. tostring(rerr))
+      return
     end
 
-    local probe_results = probe_many(targets)
-
-    for _, t in ipairs(targets) do
-      local asg  = t.asg
-      local port = t.port
-      local st   = wstate[asg.name] or { fail_count = 0 }
-      wstate[asg.name] = st
-      if probe_results[asg.name] then
-        if st.fail_count > 0 then
-          log("node_control", string.format(
-            "WATCHDOG %s probe recovered (was fail=%d)",
-            asg.name, st.fail_count))
-        end
-        -- Auto-clear container_hung on every successful probe. The alarm
-        -- was raised when we restarted this container; once it's
-        -- answering again, transition its state out of the active
-        -- class. kb_exc.clear is idempotent (NORMAL stays NORMAL), so
-        -- calling every probe is harmless.
-        if ctx.connectors.pg then
-          pcall(kb_exc.clear, ctx.connectors.pg, exc_path("container_hung"))
-        end
-        st.fail_count = 0
+    -- Reconcile already handles "completely missing" containers; this
+    -- watchdog pass focuses on "broker reports unhealthy/exited/dead
+    -- while the assignment expects it running."
+    for _, asg in ipairs(assignments) do
+      local last_restart = lrts[asg.name] or 0
+      if (now - last_restart) < WATCHDOG_BOOT_GRACE_S then
+        -- in boot grace; skip
+      elseif is_in_maintenance(asg.name) then
+        -- under maintenance; skip
       else
-        st.fail_count = st.fail_count + 1
-        log("node_control", string.format(
-          "WATCHDOG %s probe failed (port %d) fail=%d/%d",
-          asg.name, port, st.fail_count, WATCHDOG_FAIL_THRESHOLD))
-        if st.fail_count >= WATCHDOG_FAIL_THRESHOLD then
+        local ci = broker_client.get_container(conn, asg.name)
+        local st = wstate[asg.name] or { fail_count = 0 }
+        wstate[asg.name] = st
+
+        local fault_reason = nil
+        if not ci then
+          -- Reconcile owns this case; don't double-act.
+        elseif ci.state == "running" and ci.health == "unhealthy" then
+          fault_reason = "broker reports health=unhealthy"
+        elseif ci.state == "exited" or ci.state == "dead" then
+          fault_reason = "broker reports state=" .. tostring(ci.state)
+        end
+
+        if fault_reason then
+          st.fail_count = st.fail_count + 1
           log("node_control", string.format(
-            "WATCHDOG %s hung -- restarting", asg.name))
-          docker.stop(asg.name)
-          if respawn_and_log(asg, "WATCHDOG") then
-            lrts[asg.name] = now
+            "WATCHDOG %s %s fail=%d/%d",
+            asg.name, fault_reason, st.fail_count, WATCHDOG_FAIL_THRESHOLD))
+          if st.fail_count >= WATCHDOG_FAIL_THRESHOLD then
+            log("node_control", string.format(
+              "WATCHDOG %s hung -- restarting (%s)", asg.name, fault_reason))
+            -- Best-effort SIGTERM grace before the launch_assignment path
+            -- force-removes and re-creates. broker_client.stop is idempotent
+            -- on already-stopped, so it's safe even when watchdog tripped on
+            -- state=exited rather than a still-running hang.
+            broker_client.stop(asg.name, 10)
+            if respawn_and_log(asg, "WATCHDOG") then
+              lrts[asg.name] = now
+            end
+            st.fail_count = 0
           end
+        else
+          if st.fail_count > 0 then
+            log("node_control", string.format(
+              "WATCHDOG %s recovered (was fail=%d)", asg.name, st.fail_count))
+          end
+          pcall(kb_exc.clear, conn, exc_path("container_hung"))
           st.fail_count = 0
         end
       end
     end
 
-    -- Publish pass duration. Includes every containers' HTTP probe (each
-    -- capped at ~3s by curl --max-time), so a hung upstream shows up as
-    -- a spike here before the 3-strike threshold fires the alarm.
-    if ctx.connectors.pg then
-      local dur_ms = (ptime.now_sec() - t0) * 1000.0
-      pcall(kb_log.push_sample, ctx.connectors.pg,
-        string.format("system.site.%s.cpu.%s.KB_LOG.watchdog_probe_ms",
-                      ctx.cfg.site, ctx.cfg.cpu_id),
-        dur_ms)
-    end
+    local dur_ms = (ptime.now_sec() - t0) * 1000.0
+    pcall(kb_log.push_sample, conn,
+      string.format("system.site.%s.cpu.%s.KB_LOG.watchdog_probe_ms",
+                    ctx.cfg.site, ctx.cfg.cpu_id),
+      dur_ms)
   end
 
-  -- STOP_ASSIGNED_CONTAINERS: for each assignment, docker stop + rm +
-  -- deregister. docker.stop is "soft": SIGTERM + grace + rm -f fallback.
+  -- STOP_ASSIGNED_CONTAINERS: for each assignment, broker stop + rm +
+  -- deregister. Mirrors the prior docker.stop semantics (SIGTERM + grace
+  -- + rm -f). broker_client.stop returns ok-idempotent on already-stopped
+  -- and broker_client.rm with force=true is idempotent on 404, so this
+  -- pass is safe to re-run on an already-empty assignment set.
   R.STOP_ASSIGNED_CONTAINERS = function(_h, _n)
     local assignments = ctx.node_control_globals.assignments or {}
     for _, asg in ipairs(assignments) do
-      docker.stop(asg.name)
+      broker_client.stop(asg.name, 10)
+      broker_client.rm(asg.name, true)
       log("node_control", "STOP " .. asg.name)
       deregister_assignment(asg.name)
     end
@@ -1276,7 +1386,8 @@ function M.build(ctx)
       if in_maintenance and not was_in then
         log("node_control", string.format(
           "MAINTENANCE enter %s until epoch=%d", asg.name, m_until))
-        docker.stop(asg.name)
+        broker_client.stop(asg.name, 10)
+        broker_client.rm(asg.name, true)
         deregister_assignment(asg.name)
       elseif was_in and not in_maintenance then
         local spec = build_specs[asg.definition]
@@ -1303,15 +1414,23 @@ function M.build(ctx)
             PG_PASSWORD    = os.getenv("PG_PASSWORD")
                              or os.getenv("POSTGRES_PASSWORD") or "",
           }
-          local rok, rres = docker.run_from_spec(asg.name, merged, extra_env)
-          if rok then
-            log("node_control", string.format(
-              "MAINTENANCE exit %s -> docker run %s",
-              asg.name, tostring(rres):sub(1, 12)))
-            register_assignment(asg)
-          else
+          local run_spec, sa_err = spec_adapter.build_run_spec(asg.name, merged, extra_env)
+          if not run_spec then
             log_container_failure(asg.name,
-              "maintenance restart failed: " .. tostring(rres))
+              "maintenance restart spec error: " .. tostring(sa_err))
+          else
+            broker_client.rm(asg.name, true)
+            local rok, rres = broker_client.run(run_spec)
+            if rok then
+              local id_short = tostring((type(rres) == "table" and rres.id) or ""):sub(1, 12)
+              log("node_control", string.format(
+                "MAINTENANCE exit %s -> broker run %s",
+                asg.name, id_short))
+              register_assignment(asg)
+            else
+              log_container_failure(asg.name,
+                "maintenance restart failed: " .. tostring(rres))
+            end
           end
         end
       end
@@ -1644,78 +1763,49 @@ function M.build(ctx)
   end
 
   local function sample_containers_via_docker_stats()
-    -- Single `docker stats --no-stream` pulls stats for all running
-    -- containers at once. --format JSON gives one line per container.
-    local p = io.popen(
-      "timeout 5 docker stats --no-stream --format '{{json .}}' 2>/dev/null")
-    if not p then return end
-    local out = p:read("*a") or ""
-    p:close()
+    -- Phase 1c: read pre-computed per-container stats from the broker
+    -- (pg-mirrored). Replaces the prior `docker stats` shell-out which
+    -- could block the chain-tree walker for 1-3 seconds and starve the
+    -- node_control heartbeat publisher. Broker has already done the
+    -- delta-rate computation, so we just emit samples.
+    local conn = ctx.connectors.pg
+    if not conn then return end
+    local site   = ctx.cfg.site
+    local cpu_id = ctx.cfg.cpu_id
 
-    mon.prev_docker_stats = mon.prev_docker_stats or {}
-    local dkjson_ok, dkjson = pcall(require, "dkjson")
-    if not dkjson_ok or not dkjson then return end
+    local stats, err = broker_client.get_stats(conn)
+    if not stats then
+      log("node_monitor", "SAMPLE_CONTAINERS broker stats unavailable: " .. tostring(err))
+      return
+    end
+    local fresh, ferr = broker_client.stats_fresh()
+    if not fresh then
+      log("node_monitor", "SAMPLE_CONTAINERS broker stats stale: " .. tostring(ferr))
+      return
+    end
 
-    local now_ts   = os.time()
-    local conn     = ctx.connectors.pg
-    local site     = ctx.cfg.site
-    local cpu_id   = ctx.cfg.cpu_id
+    for name, s in pairs(stats) do
+      local cpu_pct         = tonumber(s.cpu_pct)        or 0
+      local mem_mb          = math.floor(tonumber(s.mem_rss_mb) or 0)
+      local disk_read_kbps  = math.floor(tonumber(s.disk_read_kbps)  or 0)
+      local disk_write_kbps = math.floor(tonumber(s.disk_write_kbps) or 0)
 
-    for line in out:gmatch("[^\r\n]+") do
-      local rec = dkjson.decode(line)
-      if rec and rec.Name then
-        local name = rec.Name
+      _emit_sample("container", {
+        name                = name,
+        cpu_pct             = cpu_pct,
+        mem_rss_mb          = mem_mb,
+        disk_read_kbps      = disk_read_kbps,
+        disk_write_kbps     = disk_write_kbps,
+        source              = "broker",
+      })
 
-        -- gsub returns (str, n_replacements); extra arg to tonumber is
-        -- interpreted as base. Wrap the gsub chain in parens to drop it.
-        local cpu_str = ((rec.CPUPerc or "0%"):gsub("%%", "")):gsub("%s", "")
-        local cpu_pct = tonumber(cpu_str) or 0
-        local mem_use, _ = (rec.MemUsage or ""):match("^([^/]+)/(.+)$")
-        local mem_bytes = parse_human_bytes(mem_use)
-        local mem_mb    = math.floor(mem_bytes / (1024 * 1024))
-
-        local nr, nt = (rec.NetIO or ""):match("^([^/]+)/(.+)$")
-        local blr, blw = (rec.BlockIO or ""):match("^([^/]+)/(.+)$")
-        local net_rx  = parse_human_bytes(nr)
-        local net_tx  = parse_human_bytes(nt)
-        local blk_r   = parse_human_bytes(blr)
-        local blk_w   = parse_human_bytes(blw)
-
-        -- Rates from cumulative-delta / elapsed wall time.
-        local prev = mon.prev_docker_stats[name]
-        local elapsed_s = prev and (now_ts - prev.ts) or 0
-        local disk_read_kbps  = 0
-        local disk_write_kbps = 0
-        if prev and elapsed_s > 0 then
-          disk_read_kbps  = math.floor((blk_r - prev.blk_r) / (1000 * elapsed_s))
-          disk_write_kbps = math.floor((blk_w - prev.blk_w) / (1000 * elapsed_s))
-          if disk_read_kbps  < 0 then disk_read_kbps  = 0 end  -- container restart resets cumulative
-          if disk_write_kbps < 0 then disk_write_kbps = 0 end
-        end
-        mon.prev_docker_stats[name] = {
-          ts = now_ts, net_rx = net_rx, net_tx = net_tx,
-          blk_r = blk_r, blk_w = blk_w,
-        }
-
-        _emit_sample("container", {
-          name                = name,
-          cpu_pct             = cpu_pct,
-          mem_rss_mb          = mem_mb,
-          disk_read_kbps      = disk_read_kbps,
-          disk_write_kbps     = disk_write_kbps,
-          source              = "docker_stats",
-        })
-
-        if conn then
-          local root = string.format(
-            "system.site.%s.cpu.%s.container.%s.KB_LOG",
-            site, cpu_id, name)
-          pcall(kb_log.push_sample, conn, root .. ".container_cpu_pct",        cpu_pct)
-          pcall(kb_log.push_sample, conn, root .. ".container_mem_rss_mb",     mem_mb)
-          pcall(kb_log.push_sample, conn, root .. ".container_disk_read_kbps", disk_read_kbps)
-          pcall(kb_log.push_sample, conn, root .. ".container_disk_write_kbps",disk_write_kbps)
-        end
-      end
+      local root = string.format(
+        "system.site.%s.cpu.%s.container.%s.KB_LOG",
+        site, cpu_id, name)
+      pcall(kb_log.push_sample, conn, root .. ".container_cpu_pct",        cpu_pct)
+      pcall(kb_log.push_sample, conn, root .. ".container_mem_rss_mb",     mem_mb)
+      pcall(kb_log.push_sample, conn, root .. ".container_disk_read_kbps", disk_read_kbps)
+      pcall(kb_log.push_sample, conn, root .. ".container_disk_write_kbps",disk_write_kbps)
     end
   end
 
