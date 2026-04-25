@@ -52,6 +52,30 @@ type ContainerInfo struct {
 	Ports       []PortBinding     `json:"ports"`
 	Labels      map[string]string `json:"labels"`
 	IPAddresses map[string]string `json:"ip_addresses"`
+	// Probe is the broker's active-HTTP-probe state, aggregated across
+	// all probed slots on the container. nil (serializes as JSON null)
+	// for containers with no nanodatacenter.probe.* labels. See
+	// WIRE_PROTOCOL.md § "Broker-active HTTP probes (Phase 4)".
+	Probe *ProbeState `json:"probe"`
+}
+
+// ProbeState mirrors the wire-protocol probe sub-object. All fields are
+// the cross-slot aggregate when a container has multiple probed slots:
+// Ok = AND across slots; FailStreak = max; LastErr from the worst slot.
+// Per-slot detail is exposed via /v1/state/containers/<name> for
+// debugging, not in the snapshot.
+type ProbeState struct {
+	Configured  bool     `json:"configured"`
+	Ok          bool     `json:"ok"`
+	FailStreak  int      `json:"fail_streak"`
+	LastOkTs    *float64 `json:"last_ok_ts"`
+	LastProbeTs *float64 `json:"last_probe_ts"`
+	LastStatus  *int     `json:"last_status"`
+	LastErr     *string  `json:"last_err"`
+	// Route is the network the probe IP came from, or "no_route" when
+	// the broker shares no network with the container. When "no_route"
+	// the broker does NOT probe; supervisors MUST treat as skip, not fail.
+	Route string `json:"route"`
 }
 
 // PortBinding mirrors the wire-protocol port shape.

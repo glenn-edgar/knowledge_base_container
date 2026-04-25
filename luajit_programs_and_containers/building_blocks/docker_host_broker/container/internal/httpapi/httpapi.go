@@ -23,24 +23,36 @@ import (
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
 )
 
-// Server bundles the broker's HTTP listener and its dependencies.
-type Server struct {
-	httpAddr string
-	cache    *state.Cache
-	status   *state.Status
-	docker   dockercli.Client
-	mux      *http.ServeMux
-	srv      *http.Server
+// Annotator fills in derived fields (currently: per-container Probe state)
+// on a snapshot list before it's serialized. Implemented by
+// internal/probes.Runner. Kept as a local interface so httpapi doesn't
+// depend on the probes package.
+type Annotator interface {
+	Annotate([]dockercli.ContainerInfo)
 }
 
-// New constructs a Server with all routes wired.
-func New(httpAddr string, cache *state.Cache, status *state.Status, docker dockercli.Client) *Server {
+// Server bundles the broker's HTTP listener and its dependencies.
+type Server struct {
+	httpAddr  string
+	cache     *state.Cache
+	status    *state.Status
+	docker    dockercli.Client
+	annotator Annotator
+	mux       *http.ServeMux
+	srv       *http.Server
+}
+
+// New constructs a Server with all routes wired. annotator may be nil
+// (probes disabled / pre-Phase-4 mode) — handlers skip annotation in
+// that case.
+func New(httpAddr string, cache *state.Cache, status *state.Status, docker dockercli.Client, annotator Annotator) *Server {
 	s := &Server{
-		httpAddr: httpAddr,
-		cache:    cache,
-		status:   status,
-		docker:   docker,
-		mux:      http.NewServeMux(),
+		httpAddr:  httpAddr,
+		cache:     cache,
+		status:    status,
+		docker:    docker,
+		annotator: annotator,
+		mux:       http.NewServeMux(),
 	}
 	s.routes()
 	s.srv = &http.Server{
@@ -147,6 +159,9 @@ func (s *Server) handleStateContainers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ts, seq, list := s.cache.SnapshotContainers()
+	if s.annotator != nil {
+		s.annotator.Annotate(list)
+	}
 	writeJSON(w, http.StatusOK, stateContainersBody{
 		TS:         tsFloat(ts),
 		Seq:        seq,
@@ -174,6 +189,11 @@ func (s *Server) handleStateContainerByName(w http.ResponseWriter, r *http.Reque
 	if !ok {
 		writeError(w, http.StatusNotFound, "container not found")
 		return
+	}
+	if s.annotator != nil {
+		one := []dockercli.ContainerInfo{ci}
+		s.annotator.Annotate(one)
+		ci = one[0]
 	}
 	writeJSON(w, http.StatusOK, stateContainerBody{
 		TS:        tsFloat(ts),

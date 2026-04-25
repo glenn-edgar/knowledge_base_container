@@ -21,6 +21,7 @@ import (
 	"github.com/nanodatacenter/docker_host_broker/internal/httpapi"
 	"github.com/nanodatacenter/docker_host_broker/internal/natspub"
 	"github.com/nanodatacenter/docker_host_broker/internal/pgwriter"
+	"github.com/nanodatacenter/docker_host_broker/internal/probes"
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
 )
 
@@ -112,7 +113,19 @@ func main() {
 		log.Printf("pgwriter disabled (PG_DSN unset); NATS-only mode")
 	}
 
-	httpSrv := httpapi.New(cfg.httpAddr, cache, status, dock)
+	// Probes (Phase 4): broker-active HTTP health checks. Router resolves
+	// once at startup; runner reconciles per container poll cycle. Failure
+	// to build the router is fatal — no probes means the WATCHDOG signal
+	// the supervisor depends on is silently absent (worse than failing loud).
+	router, err := probes.NewRouter(ctx, dock)
+	if err != nil {
+		log.Fatalf("probes router: %v", err)
+	}
+	log.Printf("probes: broker on networks %v", router.Networks())
+	probeRunner := probes.NewRunner(router)
+	defer probeRunner.Stop()
+
+	httpSrv := httpapi.New(cfg.httpAddr, cache, status, dock, probeRunner)
 
 	// --- goroutine loops ---
 	var wg sync.WaitGroup
@@ -120,7 +133,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		runContainerPoll(ctx, dock, cache, pub, pgw, status, time.Duration(cfg.pollContainersS)*time.Second)
+		runContainerPoll(ctx, dock, cache, pub, pgw, status, probeRunner, time.Duration(cfg.pollContainersS)*time.Second)
 	}()
 
 	wg.Add(1)
@@ -164,6 +177,9 @@ func main() {
 // runContainerPoll fires immediately, then on each tick: list + inspect
 // every container in parallel, push into cache, publish snapshot and
 // any deltas. pgw may be nil — in that case the pg mirror is skipped.
+// probeRunner reconciles its goroutine pool against the fresh container
+// list each tick and annotates the snapshot with per-container probe
+// state before publication.
 func runContainerPoll(
 	ctx context.Context,
 	dock dockercli.Client,
@@ -171,6 +187,7 @@ func runContainerPoll(
 	pub natspub.Publisher,
 	pgw *pgwriter.Writer,
 	status *state.Status,
+	probeRunner *probes.Runner,
 	period time.Duration,
 ) {
 	tick := func() {
@@ -211,7 +228,9 @@ func runContainerPoll(
 		status.SetDockerSocketOK(true)
 
 		deltas := cache.UpdateContainers(now, full)
+		probeRunner.Reconcile(ctx, full)
 		ts, seq, snap := cache.SnapshotContainers()
+		probeRunner.Annotate(snap)
 		if err := pub.PublishContainersSnapshot(ts, seq, snap); err != nil {
 			log.Printf("container poll: publish snapshot: %v", err)
 		}
