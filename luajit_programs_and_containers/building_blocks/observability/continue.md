@@ -1,189 +1,253 @@
-# observability container — continue plan
+# observability + DCS — continue plan
 
-Last updated end of **2026-04-24**. Session covered a big batch of
-observability polish + some hard lessons about Docker Desktop's
-platform flakiness. Pi 4 deployment remains the target.
+Last updated **2026-04-25** end of session. The session ran the broker
+Phase 2 cutover from design through validated soak, plus a corrective
+Phase 3b after Phase 3a's first attempt revealed a destructive race
+in the verify-trip cascade.
 
 ## Location of this file
 
 `~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/observability/continue.md`
 
-## 2026-04-24 session commits (newest first)
+A second handoff with broker-internal detail lives at:
+`~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/docker_host_broker/continue.md`
+(read after this one if you'll be editing broker Go code.)
 
-| commit   | what |
-|----------|------|
-| `0fe32b90` | `START_ASSIGNED_CONTAINERS` stamps `last_restart_ts` — first-boot containers now get watchdog's 30s grace |
-| `666639eb` | Auto-clear threshold/slope/rate rules + container_hung on successful probe |
-| `6b4dbb2e` | `sample_gap` rules self-clear when gap closes (SCADA RTN_UNACK transition) |
-| `11063ca4` | `push_sample` 6→3 pg ops + analyzer heartbeats throttled 1Hz → 0.2Hz |
-| `62063d05` | Consolidated D+A+C+B fix (heartbeats + stalled rules / batch docker / container-stats writer / export endpoints) |
+## Cluster status at session end
 
-Plus side-fixes in `62063d05`:
-- Fixed `check_sample_gaps` comparing monotonic-clock `now` to wall-clock `live.last_ts` — no sample_gap rule would ever have fired until this fix.
-- Fixed `tonumber(str:gsub(...))` crash in docker-stats parser (gsub's replacement-count was being interpreted as a base).
-- Raised `tick_overrun` threshold 500ms → 1500ms (master CPU baseline is 600-900ms; 500 was under the noise floor).
+* All 4 infra containers Up and healthy: `pg-vector`, `nats-js-ram`,
+  `mosquitto-ram-ws_main`, `kv-bridge`.
+* `docker-host-broker` Up, running the Phase 2 image
+  (`nanodatacenter/docker-host-broker:latest` = `:phase2`). Rollback
+  tag preserved as `:phase1c-rollback` (sha `19b98ef5c035`).
+* Two `dcs.lua` processes alive (cpu_01 master, cpu_02 slave),
+  cpu_01 `sys_ready=true`, cpu_02 `sys_ready=false` (slave's steady
+  state — see history: 66,398/66,398 lines false since 2026-04-18).
+* Five app containers running: `observability_01`, `dcs_console_01`,
+  `robot_manager_01`, `test_app_01`, `ros_mission_planner_ii_01`.
 
-## What landed, categorized
+## What landed this session — 8 commits since `1e041067`
 
-### Observability-of-observability (D)
-- Site-level `log_analyzer_heartbeat` and `exception_analyzer_heartbeat` KB_LOGs (`diagnostic` kind, `auto_health=false`).
-- `SYS_EXCEPTION log_analyzer_stalled` / `exception_analyzer_stalled` at priority 1.
-- `sample_gap` rules (60s threshold, 120s cooldown) on each heartbeat.
-- Heartbeat cadence throttled to 0.2 Hz in both analyzer tick loops.
-- **Verified via synthetic outage** (put observability_01 under 180s maintenance lease + wait 88s, clear lease → catch-up fire): `log_analyzer_stalled` transitions to UNACK_ACTIVE with `last_error = "sample_gap: 125s since last sample"`.
-
-### Batch docker + parallel probes (A)
-- New `docker.list_running()` — one `docker ps` instead of N `docker inspect`.
-- New `probe_many()` helper in `user_functions.lua` — shell-background parallel curls via `&` + `wait`. Wall-time ≈ max(slowest curl) regardless of N.
-- Measured result on Snapdragon: reconcile_check_ms 250→65ms, watchdog_probe_ms 500→70-100ms.
-
-### Container-metric writer via docker stats (C)
-- `sample_containers_via_docker_stats()` fallback triggers when cgroup path is disabled (Docker Desktop / WSL2).
-- Shells out `docker stats --no-stream --format '{{json .}}'` once per SAMPLE_CONTAINERS tick (60s cadence).
-- Decomposes into 4 per-metric KB_LOG rings per container (cpu_pct, mem_rss_mb, disk_read_kbps, disk_write_kbps).
-- Delta-tracks cumulative block-bytes → rate via wall-clock divisor.
-- **Verified populating**: 7 containers × 4 metrics with sensible values (pg-vector 8% CPU, idle near 0%).
-
-### Export endpoints (B)
-- `/export?path=<ltree>&tier=raw|1min|1hour|1day&format=csv|json&window_s=N` in `log_web`.
-- Streams rows from `knowledge_base_stream` (raw) or `knowledge_base_rollups` (tier).
-- Content-Disposition prompts browser download; `curl -O` also works.
-
-### Alarm hygiene (huge noise reduction)
-- `sample_gap` rules call `kb_exc.clear()` when gap closes — alarm transitions UNACK_ACTIVE → RTN_UNACK on its own.
-- `rules.evaluate` (threshold/slope/rate/z_score/etc.) same treatment: clear target when not tripped.
-- Watchdog handler clears `container_hung` on every successful probe.
-- **Measured effect**: 76 stuck alarms post-reboot collapsed to 2 after first fix, 0 after second.
-
-### Connection resilience
-- `pg_connector.is_alive()` helper (liveness probe via `SELECT 1`).
-- `dcs.lua` tick loop now auto-reconnects on dead pg connection (10s liveness check).
-- Both analyzers had their own reconnect loops added earlier in session (commit `87999ceb` from the start-of-session wall-clock fix).
-- Boot-grace: `START_ASSIGNED_CONTAINERS` stamps `last_restart_ts[asg.name] = now` so first-time spawns get the 30s watchdog grace.
-
-### pg write-amplification reduction
-- `push_sample` collapsed 6 pg ops → 3:
-  1. UPDATE stream with subquery (was SELECT + UPDATE).
-  2. Multi-row INSERT ON CONFLICT for last_sample_ts + last_value.
-  3. Single INSERT ON CONFLICT with inline increment for sample_count_total.
-- Heartbeat writes throttled to every 5th tick.
-- **Honest note**: I misread docker stats' CPU % formula earlier in the session. On Snapdragon pg-vector at 8% = 0.08 cores (8% of one), NOT 1 core of 12. Pi 4 projection was 12× too pessimistic. System was never CPU-constrained. The collapse is still useful cleanup but wasn't urgent.
-
-## Current problems (as of end-of-session)
-
-### Unresolved — Docker Desktop platform issues
-
-**Not DCS bugs.** Go away on Pi 4 with native Docker.
-
-1. **Infra containers exit in sync.** pg-vector, nats-js-ram, mosquitto-ram-ws_main received SIGTERM together at least twice during this session (exit codes 0/0/1/0 within 5s of each other). Cause: Docker Desktop backend restart or WSL2 reset. Now mitigated by setting `restart: unless-stopped` on all four (was `no` on three of them).
-
-2. **vpnkit port-forwarder flakiness.** `curl 127.0.0.1:<port>` and `psql -h localhost` both intermittently fail even when the target container is healthy. Watchdog's probe uses `http://127.0.0.1:<port>/` so it gets false-positive "container hung" readings during forwarder glitches. Respawns that container unnecessarily, which adds load, compounding the forwarder stress.
-
-3. **Duplicated DCS watchdogs after session handovers.** Multiple `pkill` / `nohup` cycles today left behind zombie `start.sh` + `dcs.lua` pairs. Each pair ran reconcile + watchdog independently, thrashing containers. Fixed by explicit PID-kill cleanup; worth adding a systemd/supervisor-style single-instance guard someday.
-
-### Architectural gap exposed by (2) above
-
-**Watchdog probing via 127.0.0.1:port is wrong long-term.** The probe shouldn't depend on the host's external port map — it should reach the container via its Docker internal network IP. Two benefits:
-- Immune to vpnkit/port-forwarder problems (bypasses them entirely).
-- Works identically on Docker Desktop, native Linux, Pi 4.
-
-Not landed today; documented here as next major improvement to the watchdog.
-
-### SCADA semantics gap (fixed today but worth noting)
-
-Before today, every rule's fire path called `kb_exc.raise` but never `kb_exc.clear`. Once an alarm fired, it stayed `UNACK_ACTIVE` until operator intervention — even after the condition cleared. All rules (`threshold`, `slope_trend`, `rate_of_change`, `z_score`, `envelope_drift`, `cusum`, `sample_gap`) had this anti-pattern. Today's fix covers all of them. Now:
-- Condition tripped → `raise` → UNACK_ACTIVE
-- Condition gone → `clear` → RTN_UNACK (operator ack → NORMAL)
-
-## Open problems queue (deferred)
-
-1. **Watchdog probe via container IP, not 127.0.0.1:port** — see architectural gap above. Next major supervisor improvement.
-2. **Single-instance guard on DCS watchdogs** — prevents zombie `start.sh` pairs from dueling.
-3. **Build-system modularization for outside review** (already noted; unchanged).
-4. **Tree-control + `?base=` scoping across all inventory views** (already noted).
-5. **NATS-for-samples pilot** on the 3 high-cadence dcs.lua metrics (already scoped).
-6. **pgmoon migration** of dcs_host — low priority now that the performance picture is corrected.
-7. **Cloud aggregator service** (Go) — for fleet rollup. Future.
-
-## Rebuild sequence (cheat-sheet)
-
-```bash
-# Rebuild observability image
-cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/observability/container
-./docker_build.sh
-
-# Rebuild dcs_console image
-cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/dcs_console/container
-./docker_build.sh
-
-# Rebuild KB from topology (only if construction/ changed)
-cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/nanodatacenter_dcs/construction
-./build_kb.sh
-./slice_bootstrap.sh
-./stage_deploy.sh
-
-# Rebuild chain-tree IR (only if dcs_dsl.lua changed)
-cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/nanodatacenter_dcs/runtime/chain_tree
-./build_dsl.sh
-
-# Apply dcs.lua / user_functions.lua changes (no rebuild, just restart)
-pkill -KILL -u $USER -f 'deployment/cpu_0[12]/runtime/dcs_host/dcs\.lua'
+```
+4f46039f  dcs_host: VERIFY_SYSTEM_CONTAINERS_HEALTHY reacts to confirmed bad state only (phase 3b)
+0c0982a7  Revert "dcs_host: hysteresis on VERIFY_SYSTEM_CONTAINERS_HEALTHY (phase 3a)"
+53907825  [reverted by 0c0982a7] phase 3a hysteresis -- N=3 was misleadingly small
+9247f6df  dcs_host: log "broker run" not "docker run" in respawn_and_log
+a4ca295f  dcs_host: route docker mutations through broker (phase 2)
+fd7ccf12  docker_host_broker: phase 1b/1c baseline (Go scaffolding + read-side)
+fe90ac67  docker_host_broker: phase 2 -- real start/stop/run/rm mutations
+f98cf74b  construct_log_store: lift auto_health gap floor to 10s / 6 missed samples
 ```
 
-## Cold-start from scratch
+## Phase 2 — broker mutations (DONE)
+
+Full chain-tree-side cutover from `docker.run_from_spec` and friends
+to `broker_client.run/stop/start/rm` over HTTP. Bootstrap model is
+**Option B** (broker as platform infra, `--restart=unless-stopped`,
+DCS treats it as a peer of dockerd; DCS does zero shell-outs in the
+steady-state hot path).
+
+New chain-tree-side modules in `runtime/dcs_host/`:
+
+* `http_client.lua` (~55 LoC): synchronous JSON over `luasocket.http`,
+  three-valued return `(status, body, err)` separating transport
+  failure from HTTP error.
+* `spec_adapter.lua` (~110 LoC): catalog-spec → wire-protocol RunSpec.
+  Resolves `env_required` from `os.getenv`, expands `~` in volume
+  host paths, normalizes the catalog's three port-record shapes,
+  injects the `nanodatacenter=true` discovery label and the
+  `host.docker.internal:host-gateway` extra_host.
+* `broker_client.lua`: extended with `run/stop/start/rm` mutation
+  methods. The `(ok, info_or_err)` shape collapses wire-protocol
+  202/404/409 outcomes including the idempotent `already_running`,
+  `already_stopped`, and `name_taken` collisions.
+
+Wire-protocol additions: `extra_hosts[]` and `entrypoint[]` to
+`/v1/cmd/run` (parity with the prior `docker.run_from_spec`). See
+`docker_host_broker/WIRE_PROTOCOL.md`.
+
+Migrated handlers in `user_functions.lua`:
+
+* `start_container`/`stop_container` (sys infra)
+* `launch_assignment` (used by START + RECONCILE + WATCHDOG respawn)
+* `START_ASSIGNED_CONTAINERS` is_running gate
+* `STOP_ASSIGNED_CONTAINERS`
+* WATCHDOG hung-restart kill
+* `APPLY_MAINTENANCE_TRANSITIONS` (both legs)
+
+`KILL_NON_INFRA_CONTAINERS` intentionally still a no-op — see
+`feedback_kill_non_infra_contract`. Promoting it requires
+container-side cooperative pause first; that's Phase 6 below.
+
+## Phase 3a — REVERTED hysteresis attempt (lesson captured)
+
+Tried `N=3 consecutive failures before trip` on
+`VERIFY_SYSTEM_CONTAINERS_HEALTHY`. Failed because:
+
+1. The verify column ticks at **1 second**, not 5. So N=3 = 3s
+   tolerance, far shorter than typical broker restart times (5-15s).
+2. The cascade itself has a **destructive race**: after the trip,
+   `teardown_st` runs and calls `broker_client.stop` on every infra
+   container. If broker recovers DURING teardown, the queued stops
+   succeed and infra goes down. Test on 2026-04-25 14:55 hit this:
+   pg/nats/mqtt/kv-bridge all stopped, broker `--link pg-vector`
+   broke, manual recovery needed.
+
+Lesson saved: `feedback_broker_outage_threshold` (5s window =
+hb_fresh_window_s, not 15s).
+
+## Phase 3b — confirmed-bad-state-only verify (DONE, the fix)
+
+Replaced 3a with the architectural fix: `VERIFY_SYSTEM_CONTAINERS_HEALTHY`
+now returns false **only when the broker reports fresh data showing
+a container down**. Stale broker data → return true, be quiet.
+Refresh failure → return true, be quiet. The supervisor reacts only
+to confirmed bad state, never to absence of state.
+
+Validated:
+* 12s broker outage → 0 trips, all infra Up, sys_ready=true throughout.
+* 60s broker outage → 0 trips, all infra Up, sys_ready=true throughout.
+  ~59 "staying quiet" log lines, transitioning from "heartbeat stale"
+  (T+5s) to "snapshot stale" (T+15s).
+* Confirmed bad state path still works: test 8c earlier (docker stop
+  test_app_01) was correctly detected and respawned via RECONCILE.
+
+Per-container verifies (`VERIFY_PG/NATS/MQTT/KV_BRIDGE` via
+`is_running_verify`) intentionally NOT changed — those run during
+sys_sm sync_st boot where fail-closed-on-broker-outage is correct.
+
+## Trade-off accepted in 3b
+
+If the broker is **permanently** down, sys_sm stays in `sys_ready=true`
+indefinitely with no escalation. That's acceptable — operators see
+broker death via its own `/v1/health` endpoint, and the alternative
+(periodic teardown attempts that can't succeed because teardown also
+goes through broker) is strictly worse. See commit message of
+`4f46039f` for full reasoning.
+
+## Outstanding small item
+
+`broker_version` string in `internal/state/status.go` still reads
+`0.1.0-phase1b` even though we're running phase 2 code. Cosmetic
+only — surfaces in `/v1/health` response and broker startup log.
+Bump to `0.2.0-phase2` whenever convenient.
+
+---
+
+## Next session — agreed roadmap
+
+User agreed to this sequence at session end:
+
+### 1. Phase 4 — broker-driven HTTP probes (~1+ hour)
+
+Currently DCS WATCHDOG uses broker container state only
+(state/health from `docker inspect`). That catches dead/exited
+containers but misses "running but stuck" — a container whose
+process is up but not responding on its port. Original WATCHDOG
+used curl HTTP probes from dcs.lua side; that was traded away in
+Phase 1c because vpnkit-flaky 127.0.0.1 probes caused false
+positives (see `feedback_watchdog_vpnkit_false_positives`).
+
+Phase 4 puts the HTTP probe **inside the broker**, hitting each
+container's internal bridge IP (which doesn't go through vpnkit).
+Broker publishes per-container health to NATS + pg-mirror. dcs.lua
+reads it like any other broker state.
+
+Implementation hints:
+* Container internal IP is already exposed in `ContainerInfo.IPAddresses`
+  (per-network map, see `internal/dockercli/dockercli.go`).
+* Need a probe spec: which containers to probe, on what port + path,
+  what cadence (default 5-10s). Probably extend the catalog
+  `definitions.lua` entry shape.
+* Goroutine per probed container; bounded http.Client; timeout 2-3s.
+* Publish to `system.site.<S>.docker_broker.containers.health` (new
+  subject) or fold into existing snapshot.
+
+### 2. Bump broker_version (5 min)
+
+`internal/state/status.go` — change `0.1.0-phase1b` to something
+truthful. Could be folded into the same Phase 4 commit.
+
+### 3. Fortify luajit-base container controller (Phase 6)
+
+The chain-tree controller running INSIDE each app container (managed
+by luajit-base supervisor) needs hardening against:
+
+* **Infra container loss** — pg-vector / nats-js-ram dies during
+  steady operation. Today: containers using libpq just see
+  connection errors and either retry or crash. They should
+  cooperatively pause workers and wait for re-sync.
+* **Missing host-process heartbeat** — dcs.lua dies or stops
+  publishing. Today: app containers keep running their workload.
+  They should pause and wait, in line with
+  `feedback_kill_non_infra_contract` (no destructive force-kill;
+  controller-side graceful pause).
+
+This is the prerequisite that, once landed, unlocks the
+`KILL_NON_INFRA_CONTAINERS` host-side handler from "no-op" to
+"graceful host-side coordination". See
+`feedback_kill_non_infra_contract` for the contract shape.
+
+Specific work likely:
+* Add a "sync lost" state to the luajit-base controller chain-tree.
+* Add a worker-pause primitive that supervised app processes can
+  poll (or be signaled with).
+* Add a per-app heartbeat from app workers to controller, so the
+  controller knows when a worker has acked the pause.
+* Define recovery semantics: how does the controller decide sync
+  is back? Probably: pg connection re-established + dcs heartbeat
+  fresh.
+
+### 4. Restructure KB_LOG construction DSL — tree, not list (Phase 7)
+
+The current KB_LOG construction in `construct_kb/construct_log_store.lua`
+is essentially a flat list of `add_log(name, opts, body)` calls per
+parent KB. The user wants log streams organized as a tree, so
+hierarchical observability views (drill-down) become natural.
+
+Specific work likely:
+* Decide tree shape — by subsystem? by container? by log_kind?
+* Migrate existing call sites in `construction/subsystems/*.lua`
+  to the new shape.
+* Keep the existing pg ltree storage; the change is at the DSL
+  surface, not the storage.
+
+This is a larger refactor — touches every `add_log` call site and
+likely the construct script DSL itself.
+
+---
+
+## Files to read at session start
+
+1. This file.
+2. `building_blocks/docker_host_broker/continue.md` — broker-side
+   detail, especially before Phase 4 work.
+3. `building_blocks/docker_host_broker/WIRE_PROTOCOL.md` — the
+   contract; Phase 4 probably extends this.
+4. The post-Phase-3b `runtime/dcs_host/user_functions.lua` —
+   current handler shapes.
+
+## Recovery / rollback notes
+
+If anything goes sideways with the running broker, the rollback
+tag is preserved:
 
 ```bash
-# 1. Kill DCS watchdogs + dcs.lua (clean stop)
-pkill -KILL -u $USER -f 'deployment/cpu_0[12]/(start\.sh|runtime/dcs_host/dcs\.lua)'
-# If any duplicate start.sh remains, kill by PID:
-#   ps -eo pid,cmd | grep 'start.sh'
-
-# 2. Start infra (auto-start after restart policy fix, but belt+braces)
-docker start pg-vector nats-js-ram mosquitto-ram-ws_main kv-bridge
-
-# 3. (Optional) Remove app containers so node_control recreates fresh
-docker rm -f observability_01 dcs_console_01 test_app_01 robot_manager_01 ros_mission_planner_ii_01
-
-# 4. (Optional) Reset any stale alarm state
-source ~/.config/nanodatacenter/secrets.env
-PGPASSWORD="$PG_PASSWORD" psql -h localhost -U gedgar -d knowledge_base -tAc "
-UPDATE knowledge_base_status SET data = jsonb_build_object('value', 'NORMAL')
- WHERE path::text LIKE '%SYS_EXCEPTION%.state'
-   AND (data::jsonb->>'value') IN ('UNACK_ACTIVE', 'ACK_ACTIVE', 'RTN_UNACK')"
-
-# 5. Launch DCS watchdogs (use setsid to detach cleanly)
-( cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/nanodatacenter_dcs/deployment/cpu_01 && setsid nohup ./start.sh > /tmp/cpu_01.out 2>&1 < /dev/null & )
-( cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/nanodatacenter_dcs/deployment/cpu_02 && setsid nohup ./start.sh > /tmp/cpu_02.out 2>&1 < /dev/null & )
-
-# 6. Wait for sys_ready = 1
-until [ "$(PGPASSWORD=$PG_PASSWORD psql -h localhost -U gedgar -d knowledge_base -tAc "SELECT data::jsonb->>'value' FROM knowledge_base_status WHERE path::text='system.site.moonbase.alpha.dcs.KB_STATUS_FIELD.system_ready'" 2>/dev/null | tr -d ' ')" = "1" ]; do sleep 3; done
-echo "system_ready = 1"
+docker stop docker-host-broker && docker rm docker-host-broker
+docker tag nanodatacenter/docker-host-broker:phase1c-rollback \
+           nanodatacenter/docker-host-broker:latest
+docker run -d --name docker-host-broker --restart unless-stopped \
+  --link pg-vector --link nats-js-ram \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -p 127.0.0.1:9100:9100 \
+  -e SITE=moonbase.alpha.dcs \
+  -e NATS_URL=nats://nats-js-ram:4222 \
+  -e PG_DSN="host=pg-vector port=5432 user=gedgar dbname=knowledge_base password=ready2go sslmode=disable" \
+  -e HTTP_ADDR=0.0.0.0:9100 \
+  nanodatacenter/docker-host-broker:latest
 ```
 
-## Access points
-
-| what | URL |
-|---|---|
-| DCS gateway (main UI) | `http://127.0.0.1:19003/` |
-| DCS admin | `http://127.0.0.1:19004/` |
-| observability exception_web | via gateway tab OR `http://127.0.0.1:19007/overview` |
-| observability log_web | via gateway tab OR `http://127.0.0.1:19008/detail` |
-| test_app | `http://127.0.0.1:19001/` |
-| robot_manager (stub) | `http://127.0.0.1:19006/` |
-| ros_mission_planner_ii (stub) | `http://127.0.0.1:19005/` |
-
-## Next session — suggested opening moves
-
-1. **If Docker Desktop is misbehaving again**: `wsl --shutdown` from PowerShell, then re-launch Docker Desktop. Clears vpnkit state.
-2. Review this file's "open problems queue" and pick next item.
-3. The next major landable item — my vote — is **watchdog probe via container IP** (solves Docker Desktop flakiness AND is better on Pi 4). ~2-3 hours.
-
-## Pre-apps roadmap (reminder — from earlier sessions)
-
-1. Reconcile + dcs.lua reconnect ✓ (earlier in session)
-2. Build-system modularization (outside review)
-3. Tree-control + base-context scoping (UI primitive across all inventory views)
-4. Namespace cleanup (merges with #3)
-5. Application development
-
-User's infra-before-apps principle (`feedback_infra_before_apps.md`) remains the north star.
+DCS code rollback (3 commits):
+`git revert 4f46039f a4ca295f fe90ac67`
+(skips `9247f6df` cosmetic + `f98cf74b` auto-health gap fix —
+those are independent and fine to keep.)
