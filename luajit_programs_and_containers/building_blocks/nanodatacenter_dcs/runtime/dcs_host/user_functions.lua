@@ -1298,6 +1298,19 @@ function M.build(ctx)
           fault_reason = "broker reports health=unhealthy"
         elseif ci.state == "exited" or ci.state == "dead" then
           fault_reason = "broker reports state=" .. tostring(ci.state)
+        elseif ci.state == "running" and ci.probe
+               and ci.probe.route ~= "no_route" then
+          -- Phase 4 broker-active probe: act only on fresh broker data.
+          -- Stale fail_streak from a dead broker mustn't cause WATCHDOG
+          -- trips (the Phase 3b "confirmed bad state only" rule).
+          local fresh = broker_client.is_fresh()
+          local streak = tonumber(ci.probe.fail_streak)
+          if fresh and streak and streak >= WATCHDOG_FAIL_THRESHOLD then
+            fault_reason = string.format(
+              "broker probe stuck (streak=%d, last=%s)",
+              streak,
+              ci.probe.last_err or tostring(ci.probe.last_status))
+          end
         end
 
         if fault_reason then

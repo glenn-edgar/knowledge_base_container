@@ -24,6 +24,11 @@
 --   4. inject the global "nanodatacenter=true" discovery label and the
 --      "host.docker.internal:host-gateway" extra host (these are DCS
 --      conventions, not broker primitives — broker stays generic)
+--   5. inject "nanodatacenter.probe.<slot>.*" labels for every port_spec
+--      slot that declared an optional `probe` block in the catalog. The
+--      docker_host_broker reads these at container poll time and starts
+--      one HTTP probe goroutine per slot. See WIRE_PROTOCOL.md
+--      § "Broker-active HTTP probes" for the label table.
 -- =============================================================================
 
 local M = {}
@@ -120,6 +125,30 @@ function M.build_run_spec(name, spec, extra_env)
   local labels = {}
   for k, v in pairs(spec.labels or {}) do labels[k] = tostring(v) end
   labels["nanodatacenter"] = "true"
+
+  -- probe labels: walk port_spec for slots with an optional `probe = {...}`
+  -- block. The broker parses these at container poll time. We only emit the
+  -- fields the catalog actually set; broker has its own defaults for
+  -- expect_status / interval_s / timeout_ms (see internal/probes/spec.go).
+  if type(spec.port_spec) == "table" then
+    for slot, slot_spec in pairs(spec.port_spec) do
+      local probe = slot_spec.probe
+      if type(probe) == "table" and probe.path then
+        local prefix = "nanodatacenter.probe." .. slot .. "."
+        labels[prefix .. "path"]          = tostring(probe.path)
+        labels[prefix .. "internal_port"] = tostring(slot_spec.internal)
+        if probe.expect_status ~= nil then
+          labels[prefix .. "expect_status"] = tostring(probe.expect_status)
+        end
+        if probe.interval_s ~= nil then
+          labels[prefix .. "interval_s"] = tostring(probe.interval_s)
+        end
+        if probe.timeout_ms ~= nil then
+          labels[prefix .. "timeout_ms"] = tostring(probe.timeout_ms)
+        end
+      end
+    end
+  end
 
   -- restart_policy: catalog uses "no" as the don't-restart sentinel; the
   -- wire protocol expects "" (omitted) for the same meaning, so docker
