@@ -1,9 +1,10 @@
 # observability + DCS — continue plan
 
-Last updated **2026-04-25** end of session. The session ran the broker
-Phase 2 cutover from design through validated soak, plus a corrective
-Phase 3b after Phase 3a's first attempt revealed a destructive race
-in the verify-trip cascade.
+Last updated **2026-04-25 (evening)** end of session. The session
+brought Phase 4 (broker-active HTTP probes) end-to-end on the code
+side: wire protocol locked, broker Go implementation + 19 unit tests
+green, dcs.lua spec_adapter + WATCHDOG consumer landed. Cluster
+unchanged; integration soak deferred to next session.
 
 ## Location of this file
 
@@ -15,180 +16,192 @@ A second handoff with broker-internal detail lives at:
 
 ## Cluster status at session end
 
+Unchanged from morning session — Phase 4 work was code-only, no
+containers were rebuilt or redeployed.
+
 * All 4 infra containers Up and healthy: `pg-vector`, `nats-js-ram`,
   `mosquitto-ram-ws_main`, `kv-bridge`.
-* `docker-host-broker` Up, running the Phase 2 image
-  (`nanodatacenter/docker-host-broker:latest` = `:phase2`). Rollback
-  tag preserved as `:phase1c-rollback` (sha `19b98ef5c035`).
-* Two `dcs.lua` processes alive (cpu_01 master, cpu_02 slave),
-  cpu_01 `sys_ready=true`, cpu_02 `sys_ready=false` (slave's steady
-  state — see history: 66,398/66,398 lines false since 2026-04-18).
+* `docker-host-broker` Up running phase 2 image (`:latest` ==
+  `:phase2`). The new Phase 4 broker code is committed but NOT YET
+  built/deployed — that's step 1 of next session.
+* `dcs.lua` running on cpu_01 (master) and cpu_02 (slave), both
+  loading the post-Phase-3b WATCHDOG. The Phase 4 dcs.lua changes
+  (spec_adapter probe labels + WATCHDOG probe branch) are committed
+  but inert — no catalog entry has a probe block yet.
 * Five app containers running: `observability_01`, `dcs_console_01`,
   `robot_manager_01`, `test_app_01`, `ros_mission_planner_ii_01`.
 
-## What landed this session — 8 commits since `1e041067`
+## What landed this session — 3 commits since `b2281839`
 
 ```
-4f46039f  dcs_host: VERIFY_SYSTEM_CONTAINERS_HEALTHY reacts to confirmed bad state only (phase 3b)
-0c0982a7  Revert "dcs_host: hysteresis on VERIFY_SYSTEM_CONTAINERS_HEALTHY (phase 3a)"
-53907825  [reverted by 0c0982a7] phase 3a hysteresis -- N=3 was misleadingly small
-9247f6df  dcs_host: log "broker run" not "docker run" in respawn_and_log
-a4ca295f  dcs_host: route docker mutations through broker (phase 2)
-fd7ccf12  docker_host_broker: phase 1b/1c baseline (Go scaffolding + read-side)
-fe90ac67  docker_host_broker: phase 2 -- real start/stop/run/rm mutations
-f98cf74b  construct_log_store: lift auto_health gap floor to 10s / 6 missed samples
+50269ea4  dcs_host: phase 4 -- consume broker probe state (dcs.lua side)
+bc30cc9c  docker_host_broker: phase 4 -- broker-active HTTP probes (broker side)
+fa52f8b9  docker_host_broker: phase 4 design -- wire protocol + catalog schema
 ```
 
-## Phase 2 — broker mutations (DONE)
+## Phase 4 — broker-active HTTP probes (CODE DONE, SOAK PENDING)
 
-Full chain-tree-side cutover from `docker.run_from_spec` and friends
-to `broker_client.run/stop/start/rm` over HTTP. Bootstrap model is
-**Option B** (broker as platform infra, `--restart=unless-stopped`,
-DCS treats it as a peer of dockerd; DCS does zero shell-outs in the
-steady-state hot path).
+**Why this matters.** Phase 1c traded HTTP probes for broker container-
+state polling because vpnkit-flaky 127.0.0.1 probes were causing
+coordinated cross-container false positives that detonated infra. That
+trade lost the "running but stuck" detection capability. Phase 4
+restores it by moving the probe inside the broker, hitting container
+internal IPs (which don't go through vpnkit).
 
-New chain-tree-side modules in `runtime/dcs_host/`:
+### Design locks (the four Q&A from morning)
 
-* `http_client.lua` (~55 LoC): synchronous JSON over `luasocket.http`,
-  three-valued return `(status, body, err)` separating transport
-  failure from HTTP error.
-* `spec_adapter.lua` (~110 LoC): catalog-spec → wire-protocol RunSpec.
-  Resolves `env_required` from `os.getenv`, expands `~` in volume
-  host paths, normalizes the catalog's three port-record shapes,
-  injects the `nanodatacenter=true` discovery label and the
-  `host.docker.internal:host-gateway` extra_host.
-* `broker_client.lua`: extended with `run/stop/start/rm` mutation
-  methods. The `(ok, info_or_err)` shape collapses wire-protocol
-  202/404/409 outcomes including the idempotent `already_running`,
-  `already_stopped`, and `name_taken` collisions.
+| Q | Decision |
+|---|---|
+| Q1 | Probe spec lives in `port_spec.<slot>.probe = { path, expect_status, interval_s, timeout_ms }` in `definitions.lua`. Default-off. |
+| Q2 | Broker resolves probe IP by intersecting its own networks with the container's; prefer non-`bridge`. `no_route` when no shared network. |
+| Q3 | Probe state folded into `containers.snapshot` per container as a `probe` sub-object. Additive wire change, no v2 bump. |
+| Q4 | Broker publishes raw `fail_streak`; WATCHDOG owns threshold (existing `WATCHDOG_FAIL_THRESHOLD = 3`). `no_route` is skipped, not failed. Gated by snapshot freshness. |
 
-Wire-protocol additions: `extra_hosts[]` and `entrypoint[]` to
-`/v1/cmd/run` (parity with the prior `docker.run_from_spec`). See
-`docker_host_broker/WIRE_PROTOCOL.md`.
+Probe configuration is carried as Docker labels on the target
+container, written by DCS at `run` time (not via a separate broker
+config file — keeps the broker stateless across restarts and avoids
+drift).
 
-Migrated handlers in `user_functions.lua`:
+### Broker Go (commit `bc30cc9c`)
 
-* `start_container`/`stop_container` (sys infra)
-* `launch_assignment` (used by START + RECONCILE + WATCHDOG respawn)
-* `START_ASSIGNED_CONTAINERS` is_running gate
-* `STOP_ASSIGNED_CONTAINERS`
-* WATCHDOG hung-restart kill
-* `APPLY_MAINTENANCE_TRANSITIONS` (both legs)
+New `internal/probes/` package, ~510 LoC + ~430 LoC tests:
+* `router.go` — own-network resolution at startup, IP picker.
+* `spec.go` — label parsing + validation.
+* `runner.go` — per-(container × slot) goroutines, state cache,
+  cross-slot aggregation.
 
-`KILL_NON_INFRA_CONTAINERS` intentionally still a no-op — see
-`feedback_kill_non_infra_contract`. Promoting it requires
-container-side cooperative pause first; that's Phase 6 below.
+Wired into `cmd/broker/main.go`: router built once at startup (fatal on
+failure), `runner.Reconcile` per container poll, `runner.Annotate`
+before each publish. `httpapi` gained an `Annotator` interface (kept
+local to keep httpapi free of the probes import).
 
-## Phase 3a — REVERTED hysteresis attempt (lesson captured)
+`ContainerInfo` gained `Probe *ProbeState`; nil serializes as JSON
+`null` (additive wire change). natspub + pgwriter inherit the new
+field for free since they emit `ContainerInfo` verbatim.
 
-Tried `N=3 consecutive failures before trip` on
-`VERIFY_SYSTEM_CONTAINERS_HEALTHY`. Failed because:
+19/19 tests green. `broker_version` bumped to `0.2.0-phase2`.
 
-1. The verify column ticks at **1 second**, not 5. So N=3 = 3s
-   tolerance, far shorter than typical broker restart times (5-15s).
-2. The cascade itself has a **destructive race**: after the trip,
-   `teardown_st` runs and calls `broker_client.stop` on every infra
-   container. If broker recovers DURING teardown, the queued stops
-   succeed and infra goes down. Test on 2026-04-25 14:55 hit this:
-   pg/nats/mqtt/kv-bridge all stopped, broker `--link pg-vector`
-   broke, manual recovery needed.
+### dcs.lua (commit `50269ea4`)
 
-Lesson saved: `feedback_broker_outage_threshold` (5s window =
-hb_fresh_window_s, not 15s).
+* `spec_adapter.lua`: walks `port_spec.<slot>.probe` blocks, emits
+  `nanodatacenter.probe.<slot>.{path,internal_port,expect_status,
+  interval_s,timeout_ms}` labels. Smoke-tested with three slots
+  (full, none, minimal); output matches design.
+* `user_functions.lua` WATCHDOG: new `elseif` branch on
+  `ci.probe.fail_streak >= WATCHDOG_FAIL_THRESHOLD`. Skips when
+  `probe.route == "no_route"`. Gated by `broker_client.is_fresh()`
+  so stale fail_streak from a dead broker can't trigger trips.
 
-## Phase 3b — confirmed-bad-state-only verify (DONE, the fix)
+`is_fresh()` gate intentionally asymmetric: applied only to the new
+probe path, not retro-fitted to the existing health/state branches
+that were soak-validated in Phase 3b. Tightening those is scope creep.
 
-Replaced 3a with the architectural fix: `VERIFY_SYSTEM_CONTAINERS_HEALTHY`
-now returns false **only when the broker reports fresh data showing
-a container down**. Stale broker data → return true, be quiet.
-Refresh failure → return true, be quiet. The supervisor reacts only
-to confirmed bad state, never to absence of state.
+### What's INERT until next session
 
-Validated:
-* 12s broker outage → 0 trips, all infra Up, sys_ready=true throughout.
-* 60s broker outage → 0 trips, all infra Up, sys_ready=true throughout.
-  ~59 "staying quiet" log lines, transitioning from "heartbeat stale"
-  (T+5s) to "snapshot stale" (T+15s).
-* Confirmed bad state path still works: test 8c earlier (docker stop
-  test_app_01) was correctly detected and respawned via RECONCILE.
-
-Per-container verifies (`VERIFY_PG/NATS/MQTT/KV_BRIDGE` via
-`is_running_verify`) intentionally NOT changed — those run during
-sys_sm sync_st boot where fail-closed-on-broker-outage is correct.
-
-## Trade-off accepted in 3b
-
-If the broker is **permanently** down, sys_sm stays in `sys_ready=true`
-indefinitely with no escalation. That's acceptable — operators see
-broker death via its own `/v1/health` endpoint, and the alternative
-(periodic teardown attempts that can't succeed because teardown also
-goes through broker) is strictly worse. See commit message of
-`4f46039f` for full reasoning.
-
-## Outstanding small item
-
-`broker_version` string in `internal/state/status.go` still reads
-`0.1.0-phase1b` even though we're running phase 2 code. Cosmetic
-only — surfaces in `/v1/health` response and broker startup log.
-Bump to `0.2.0-phase2` whenever convenient.
+No catalog entry has a probe block yet. The broker also hasn't been
+rebuilt + redeployed — it's still running `:phase2`. So today's commits
+add the machinery without any behavior change. Turning probes on for
+any container is a one-line catalog edit.
 
 ---
 
-## Next session — agreed roadmap
+## Next session — Phase 4 integration test (~1-2 hours)
 
-User agreed to this sequence at session end:
+This is the part we explicitly deferred to the next day. Cluster-touching
+work; user-driven per `feedback_user_driven_testing`.
 
-### 1. Phase 4 — broker-driven HTTP probes (~1+ hour)
+### 1. Pick a guinea pig + add `/health` to its image
 
-Currently DCS WATCHDOG uses broker container state only
-(state/health from `docker inspect`). That catches dead/exited
-containers but misses "running but stuck" — a container whose
-process is up but not responding on its port. Original WATCHDOG
-used curl HTTP probes from dcs.lua side; that was traded away in
-Phase 1c because vpnkit-flaky 127.0.0.1 probes caused false
-positives (see `feedback_watchdog_vpnkit_false_positives`).
+Cheapest: `test_app_01.exceptions_ui` slot. It's already a shell
+process (one of test_app's four supervised workers). Adding `/health`
+is ~3 lines of openresty / shell.
 
-Phase 4 puts the HTTP probe **inside the broker**, hitting each
-container's internal bridge IP (which doesn't go through vpnkit).
-Broker publishes per-container health to NATS + pg-mirror. dcs.lua
-reads it like any other broker state.
+### 2. Catalog: add probe block to that one slot
 
-Implementation hints:
-* Container internal IP is already exposed in `ContainerInfo.IPAddresses`
-  (per-network map, see `internal/dockercli/dockercli.go`).
-* Need a probe spec: which containers to probe, on what port + path,
-  what cadence (default 5-10s). Probably extend the catalog
-  `definitions.lua` entry shape.
-* Goroutine per probed container; bounded http.Client; timeout 2-3s.
-* Publish to `system.site.<S>.docker_broker.containers.health` (new
-  subject) or fold into existing snapshot.
+```lua
+-- definitions.lua
+test_app = {
+  port_spec = {
+    exceptions_ui = {
+      internal    = 8080,
+      protocol    = "tcp",
+      purpose     = "ui",
+      description = "Exception aggregation viewer (shell)",
+      probe = {
+        path = "/health",   -- defaults: expect_status=200, interval_s=5, timeout_ms=2000
+      },
+    },
+    ...
+```
 
-### 2. Bump broker_version (5 min)
+Rebuild bootstrap.db (the construct script).
 
-`internal/state/status.go` — change `0.1.0-phase1b` to something
-truthful. Could be folded into the same Phase 4 commit.
+### 3. Broker rebuild
 
-### 3. Fortify luajit-base container controller (Phase 6)
+```bash
+cd ~/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/docker_host_broker/container
+# Tag the running phase2 image as a rollback before overwriting :latest
+docker tag nanodatacenter/docker-host-broker:latest nanodatacenter/docker-host-broker:phase2-rollback
+./docker_build.sh   # or whatever the local rebuild flow is
+docker stop docker-host-broker && docker rm docker-host-broker
+# Re-run via the bootstrap recipe at the bottom of this file.
+```
+
+### 4. Live tests (in order)
+
+* **Health observation.** `SELECT data FROM knowledge_base_status WHERE
+  path LIKE '%docker_broker.containers.KB_STATUS_FIELD.snapshot%';`
+  should show `"probe": { "configured": true, "ok": true, ... }` for
+  `test_app_01` and `"probe": null` for everyone else.
+* **Soak baseline.** 10 minutes idle: 0 trips, 0 spurious WATCHDOG
+  fires. Confirms inert default-off path stays inert.
+* **Stuck-process test.** `docker exec test_app_01 sh -c 'kill -STOP $(pgrep -f exceptions_ui)'`.
+  After ~15s broker probe times out, `fail_streak` hits 3, WATCHDOG
+  fires `"broker probe stuck (streak=3, ...)"`, container respawns.
+* **No-route test.** Briefly disconnect the broker from a network the
+  container is on (or run a probe-configured container only on a
+  network the broker isn't on). Confirm WATCHDOG does NOT trip and
+  `route=no_route` is published in the snapshot.
+* **Broker-outage gate test.** While probe is failing, kill the broker
+  for >5s and bring it back. Confirm WATCHDOG holds during the outage
+  (the `is_fresh()` gate works), then resumes once the broker recovers.
+
+If all five pass: tag `:phase4`, expand probe blocks to the other
+app slots in a follow-up commit.
+
+---
+
+## After Phase 4 — Phase 6 (luajit-base controller hardening)
+
+This is the user's stated next priority after Phase 4. Carried over
+from the morning's continue.md, lightly updated:
+
+### Why
 
 The chain-tree controller running INSIDE each app container (managed
 by luajit-base supervisor) needs hardening against:
 
 * **Infra container loss** — pg-vector / nats-js-ram dies during
-  steady operation. Today: containers using libpq just see
-  connection errors and either retry or crash. They should
-  cooperatively pause workers and wait for re-sync.
+  steady operation. Today: containers using libpq just see connection
+  errors and either retry or crash. They should cooperatively pause
+  workers and wait for re-sync.
 * **Missing host-process heartbeat** — dcs.lua dies or stops
   publishing. Today: app containers keep running their workload.
   They should pause and wait, in line with
   `feedback_kill_non_infra_contract` (no destructive force-kill;
   controller-side graceful pause).
 
-This is the prerequisite that, once landed, unlocks the
-`KILL_NON_INFRA_CONTAINERS` host-side handler from "no-op" to
-"graceful host-side coordination". See
-`feedback_kill_non_infra_contract` for the contract shape.
+### Why now (after Phase 4)
 
-Specific work likely:
+Phase 4 gives us a way to *detect* per-container stuck state from the
+host side. Phase 6 gives us the per-container *response* shape:
+graceful pause when upstream infra is gone, resume when it returns.
+Together they unlock promoting `KILL_NON_INFRA_CONTAINERS` from no-op
+to graceful host-side coordination. That's the original
+`feedback_kill_non_infra_contract` shape.
+
+### Specific work likely
+
 * Add a "sync lost" state to the luajit-base controller chain-tree.
 * Add a worker-pause primitive that supervised app processes can
   poll (or be signaled with).
@@ -196,24 +209,17 @@ Specific work likely:
   controller knows when a worker has acked the pause.
 * Define recovery semantics: how does the controller decide sync
   is back? Probably: pg connection re-established + dcs heartbeat
-  fresh.
+  fresh + (optionally) broker probe ok.
+* WATCHDOG strobing: needs design — the broker now provides probe
+  signal; the question is what cadence the in-container controller
+  should respond at, and whether the strobe is *to* dcs.lua (heartbeat
+  beacon) or *from* dcs.lua (liveness ping).
 
-### 4. Restructure KB_LOG construction DSL — tree, not list (Phase 7)
+### Phase 7 — KB_LOG construction DSL → tree (deferred again)
 
-The current KB_LOG construction in `construct_kb/construct_log_store.lua`
-is essentially a flat list of `add_log(name, opts, body)` calls per
-parent KB. The user wants log streams organized as a tree, so
-hierarchical observability views (drill-down) become natural.
-
-Specific work likely:
-* Decide tree shape — by subsystem? by container? by log_kind?
-* Migrate existing call sites in `construction/subsystems/*.lua`
-  to the new shape.
-* Keep the existing pg ltree storage; the change is at the DSL
-  surface, not the storage.
-
-This is a larger refactor — touches every `add_log` call site and
-likely the construct script DSL itself.
+Same shape as morning: flat-list `add_log` calls in
+`construct_kb/construct_log_store.lua` need to become a tree DSL for
+hierarchical observability views. Big refactor, no urgency.
 
 ---
 
@@ -221,20 +227,19 @@ likely the construct script DSL itself.
 
 1. This file.
 2. `building_blocks/docker_host_broker/continue.md` — broker-side
-   detail, especially before Phase 4 work.
-3. `building_blocks/docker_host_broker/WIRE_PROTOCOL.md` — the
-   contract; Phase 4 probably extends this.
-4. The post-Phase-3b `runtime/dcs_host/user_functions.lua` —
-   current handler shapes.
+   detail.
+3. `building_blocks/docker_host_broker/WIRE_PROTOCOL.md` § "Broker-active
+   HTTP probes (Phase 4)" — the contract you're testing.
+4. `building_blocks/nanodatacenter_dcs/runtime/dcs_host/spec_adapter.lua`
+   and the new WATCHDOG branch around `user_functions.lua:1297`.
 
 ## Recovery / rollback notes
 
-If anything goes sideways with the running broker, the rollback
-tag is preserved:
+If the Phase 4 broker rebuild goes sideways:
 
 ```bash
 docker stop docker-host-broker && docker rm docker-host-broker
-docker tag nanodatacenter/docker-host-broker:phase1c-rollback \
+docker tag nanodatacenter/docker-host-broker:phase2-rollback \
            nanodatacenter/docker-host-broker:latest
 docker run -d --name docker-host-broker --restart unless-stopped \
   --link pg-vector --link nats-js-ram \
@@ -247,7 +252,13 @@ docker run -d --name docker-host-broker --restart unless-stopped \
   nanodatacenter/docker-host-broker:latest
 ```
 
-DCS code rollback (3 commits):
-`git revert 4f46039f a4ca295f fe90ac67`
-(skips `9247f6df` cosmetic + `f98cf74b` auto-health gap fix —
-those are independent and fine to keep.)
+(`:phase2-rollback` is what we're calling the currently-running
+:latest image. Tag it before overwriting.)
+
+DCS code rollback for Phase 4 (2 commits):
+`git revert 50269ea4 bc30cc9c`
+The design-only commit `fa52f8b9` is wire-protocol doc — fine to keep
+even on rollback since no consumer depends on it.
+
+The earlier-session phase 3b rollback recipe still applies if you need
+to go back further.
