@@ -145,6 +145,9 @@ return {
         protocol    = "tcp",
         purpose     = "ui",
         description = "Exception aggregation viewer (shell)",
+        probe = {
+          path = "/health",
+        },
       },
       logs_ui = {
         internal    = 8081,
