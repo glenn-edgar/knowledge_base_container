@@ -1,0 +1,80 @@
+site_name: ros_planner_ii_mqtt_robot
+site_description: Sim-robot built on libphysics.so + Planner II MQTT protocol
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/index.md
+      - Main tick loop: architecture/main-loop.md
+      - Continuous-motion dispatcher: architecture/controller.md
+      - HAL selector: architecture/hal.md
+      - Continuous-motion design: architecture/continuous-motion.md
+      - Control / physics pipe: architecture/pipe.md
+  - Physics:
+      - Overview: physics/index.md
+      - physics_core.c: physics/core.md
+      - Control logic: physics/control.md
+      - physics_ffi.lua: physics/ffi.md
+      - physics_config.json: physics/config.md
+      - sim_map.json: physics/sim-map.md
+  - Workers:
+      - Overview: workers/index.md
+      - Path workers: workers/paths.md
+      - Arm-cycle workers: workers/arm-cycle.md
+      - Dwell workers: workers/dwell.md
+      - Recharge: workers/recharge.md
+      - Init-check: workers/init-check.md
+      - Bitmask conventions: workers/bitmasks.md
+  - Protocol:
+      - Overview: protocol/index.md
+      - Link lifecycle: protocol/link.md
+      - Command packets (RPC): protocol/rpc.md
+      - Stream events: protocol/stream.md
+  - Operations:
+      - Overview: operations/index.md
+      - Build: operations/build.md
+      - Configuration: operations/config.md
+      - Running: operations/running.md
+      - Testing: operations/testing.md
+      - Debugging: operations/debug.md
+      - Status: operations/status.md
+  - Roadmap:
+      - Overview: roadmap/index.md
+      - Pipe implementation: roadmap/pipe-implementation.md

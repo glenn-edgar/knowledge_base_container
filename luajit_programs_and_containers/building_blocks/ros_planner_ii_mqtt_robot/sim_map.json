@@ -1,0 +1,34 @@
+{
+    "_comment": "Passive fixtures in the sim world. Robot docks at (dock_pose) within (tolerance) to interact.",
+
+    "stations": [
+        { "id": "recharger_1",
+          "kind": "charger",
+          "dock_pose": [ 8.0, 0.0, 0.0 ],
+          "charge_rate_w": 4000.0,
+          "tolerance_m": 0.25,
+          "tolerance_h_deg": 20 },
+
+        { "id": "shipping_1",
+          "kind": "load_dock",
+          "dock_pose": [ 6.0, 6.0, 1.5707963 ],
+          "payload":   { "id": "box_5kg", "mass_kg": 5.0 },
+          "pickup_arm_angle_deg": 75,
+          "tolerance_m": 0.25,
+          "tolerance_h_deg": 20 },
+
+        { "id": "paint_stand_1",
+          "kind": "paint_fixture",
+          "dock_pose": [ -4.0, 3.0, 3.1415927 ],
+          "paint_arm_angle_deg": 90,
+          "tolerance_m": 0.25,
+          "tolerance_h_deg": 20 },
+
+        { "id": "assembly_1",
+          "kind": "assembly_fixture",
+          "dock_pose": [ 6.0, -6.0, -1.5707963 ],
+          "deliver_arm_angle_deg": 110,
+          "tolerance_m": 0.25,
+          "tolerance_h_deg": 20 }
+    ]
+}

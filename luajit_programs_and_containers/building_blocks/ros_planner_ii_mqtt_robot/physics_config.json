@@ -1,0 +1,53 @@
+{
+    "_comment": "Physics model for rover_1. Units: meters, seconds, radians, kg, newtons.",
+
+    "kinematics": "diff",
+    "chassis": {
+        "wheelbase_m":     0.30,
+        "wheel_radius_m":  0.04,
+        "mass_kg":         8.0,
+        "inertia_kg_m2":   0.12,
+        "cog_offset_m":    0.00,
+        "lin_friction":    0.8,
+        "ang_friction":    0.4
+    },
+
+    "motors": {
+        "max_torque_nm":   1.5,
+        "max_wheel_rad_s": 30.0,
+        "pid": { "kp": 8.0, "ki": 4.0, "kd": 0.05 },
+        "energy_k":        1.0
+    },
+
+    "path_follower": {
+        "lookahead_min_m":        0.20,
+        "lookahead_k_v":          0.40,
+        "arrival_tol_m":          0.05,
+        "heading_tol_rad":        0.05,
+        "max_linear_accel":       1.0,
+        "max_angular_accel":      3.0,
+        "cross_track_abort_m":    20.0,
+        "queue_capacity":         32,
+        "stopped_eps_v":          0.01,
+        "stopped_eps_omega":      0.02,
+        "inner_dt_s":             0.005
+    },
+
+    "sensors": {
+        "gps":     { "pose_sigma_xy": 0.00, "pose_sigma_h": 0.000, "rate_hz": 20 },
+        "imu":     { "yaw_rate_sigma": 0.000, "bias_drift": 0.0 },
+        "battery": { "noise_pct": 0.0 }
+    },
+
+    "tools": [
+        { "slot": 0, "name": "arm",         "kind": "revolute_1dof",
+          "limits_deg": [-30, 180], "max_speed_dps": 60, "max_torque": 1.5 },
+        { "slot": 1, "name": "gripper",     "kind": "binary",
+          "states": ["open", "closed"], "transition_ms": 400 },
+        { "slot": 2, "name": "charge_port", "kind": "passive_dock",
+          "offset_xyz": [0.10, 0.0, 0.05], "tolerance_m": 0.10, "tolerance_h_deg": 20 }
+    ],
+
+    "initial_pose": { "x": 0.0, "y": 0.0, "heading": 0.0 },
+    "battery": { "capacity_j": 100000.0, "initial_j": 100000.0 }
+}

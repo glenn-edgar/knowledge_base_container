@@ -68,6 +68,16 @@ local defs          = require("ct_definitions")
 local engine        = require("ct_engine")
 local link_client   = require("link_client")
 local robot_ctrl    = require("robot_controller")
+local robot_hal_mod = require("robot_hal")
+
+-- Physics / HAL
+local robot_dir = config_path:match("(.*/)") or "./"
+local hal = robot_hal_mod.new({
+    dir  = cfg.physics_dir or robot_dir,
+    seed = cfg.sim_seed,
+})
+io.stderr:write(string.format("MQTT_ROBOT [%s]: physics loaded (mode=%s)\n",
+    cfg.robot_id, hal.mode))
 
 local remote_data = ct_loader.load(cfg.remote_json)
 
@@ -103,6 +113,7 @@ remote_handle.active_test_count = 0
 local ctrl = robot_ctrl.new({
     handle          = remote_handle,
     transport       = cfg.transport,
+    hal             = hal,
     energy_max      = cfg.energy_max,
     energy_infinite = cfg.energy_infinite,
 })
@@ -131,6 +142,9 @@ local lc = link_client.new({
         bb.worker_done = false
         bb.worker_success = false
         bb.active_worker = ""
+        -- Clear robot_controller worker queue + C path queue so we don't
+        -- resume stale commands once the planner reconnects.
+        ctrl:abort_all()
     end,
 })
 
@@ -139,28 +153,35 @@ io.stderr:write(string.format("MQTT_ROBOT [%s]: running (%s, %d capabilities, wi
 io.stderr:flush()
 
 ---------------------------------------------------------------------------
--- Tick loop with energy save and bitmask publishing
+-- Tick loop: physics + ChainTree + link + energy save
 ---------------------------------------------------------------------------
 
-local ENERGY_SAVE_INTERVAL = 30  -- seconds
-local BITMASK_PUBLISH_INTERVAL = 10  -- ticks
-local last_energy_save = os.time()
-local tick_count = 0
+local CT_TICK_SIM_S         = 0.10          -- 10 Hz logical tick (sim clock)
+local SPEED_FACTOR          = tonumber(os.getenv("SPEED_FACTOR")) or cfg.speed_factor or 1.0
+local WALL_SLEEP_US         = math.max(0, math.floor((CT_TICK_SIM_S / SPEED_FACTOR) * 1e6))
+local ENERGY_SAVE_SIM_S     = 30.0
+local BITMASK_PUBLISH_EVERY = 10   -- ticks
+local last_energy_save_t    = 0.0
+local tick_count            = 0
+
+io.stderr:write(string.format("MQTT_ROBOT [%s]: tick loop (CT=%.2fs sim, speed_factor=%.1fx)\n",
+    cfg.robot_id, CT_TICK_SIM_S, SPEED_FACTOR))
 
 while true do
     if remote_handle.blackboard.shutdown_requested == true then
         break
     end
 
-    -- Link protocol tick (announce, monitor planner heartbeats)
+    -- Advance physics by 100ms of sim time (controller + PID run at 200 Hz inside)
+    hal:step(CT_TICK_SIM_S)
+    local sim_t = hal:sim_time()
+
+    -- Link protocol tick
     lc:tick()
 
-    -- Only process missions when registered with planner
     if lc:is_live() then
-        -- Controller: drain RPC commands, watchdog, heartbeat, completion
         ctrl:tick()
 
-        -- Workers: inject timer events and execute via ChainTree
         for kb_name, _ in pairs(remote_handle.active_tests) do
             local kb = remote_handle.kb_table[kb_name]
             if kb then
@@ -180,26 +201,21 @@ while true do
 
     tick_count = tick_count + 1
 
-    -- Publish bitmask + heartbeat every N ticks
-    if tick_count % BITMASK_PUBLISH_INTERVAL == 0 then
+    if tick_count % BITMASK_PUBLISH_EVERY == 0 then
         local bb = remote_handle.blackboard
         local active_kb = bb.active_worker or ""
         local raw = 0
         local fields = {}
-
-        if active_kb ~= "" then
+        if active_kb ~= "" and active_kb ~= nil then
             raw = bb[active_kb .. ".bitmask"] or 0
         end
-
         mqtt_robot_config.publish_bitmask(
             cfg.status_pub, cfg.site, cfg.robot_id,
-            active_kb, raw, fields)
+            active_kb or "", raw, fields)
     end
 
-    -- Update link_client energy and save periodically
-    local now = os.time()
-    if now - last_energy_save >= ENERGY_SAVE_INTERVAL then
-        last_energy_save = now
+    if sim_t - last_energy_save_t >= ENERGY_SAVE_SIM_S then
+        last_energy_save_t = sim_t
         local current_energy = ctrl:get_energy()
         lc:set_energy(current_energy.remaining)
         mqtt_robot_config.save_energy(
@@ -207,7 +223,7 @@ while true do
             current_energy.max, current_energy.remaining)
     end
 
-    ffi.C.usleep(1000)  -- 1ms tick
+    if WALL_SLEEP_US > 0 then ffi.C.usleep(WALL_SLEEP_US) end
 end
 
 ---------------------------------------------------------------------------

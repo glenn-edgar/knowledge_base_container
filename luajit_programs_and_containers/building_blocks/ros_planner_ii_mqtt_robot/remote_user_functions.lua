@@ -1,14 +1,22 @@
 --[[
-    remote_user_functions.lua -- ChainTree worker functions for MQTT robot.
+    remote_user_functions.lua -- ChainTree worker functions for sim robot.
 
-    Individual worker per virtual node — matches KB definitions.
-    Each worker:
-      1. Prints the command JSON on init (VN parameters visible)
-      2. Sets bb.worker_alive = true every tick (liveness ping to controller)
-      3. Simulates execution with a tick countdown
-      4. Sets delta pose fields matching KB pose_fields
+    New shape (continuous-motion version):
+      - Path workers (line, spline, rotate) are thin: they wait for C to finish
+        their seg_id. The controller has already pushed the segment to the C
+        queue, so the robot keeps moving without stopping between segments.
+      - Non-motion workers (deliver, paint, load, scan, idle, recharge, op,
+        pass_gate) run only after the robot is at rest. robot_controller
+        activates them only once phys_is_stopped() is true.
+      - init_check is a self-test that just completes after a short dwell.
 
-    Controller logic is in robot_controller.lua (not ChainTree).
+    bb.active_worker is the worker KB name.
+    bb._seg_id is set by robot_controller when a path worker activates.
+    bb._seg_start holds pose snapshot at activation (for per-packet deltas).
+    bb._tool_start holds arm angle at activation (for delta_arm_angle).
+
+    Hal handle is stashed on the blackboard (bb._hal) by robot_controller.
+    All workers set bb.worker_alive = true each tick (watchdog ping).
 ]]
 
 local defs        = require("ct_definitions")
@@ -16,62 +24,29 @@ local cmd_packets = require("command_packets")
 local json_util   = require("json_util")
 
 local M = {}
-
--- Simulated action durations (ticks)
-local action_durations = {
-    [cmd_packets.TYPE_INIT_CHECK]      = 15,
-    [cmd_packets.TYPE_PATH_SPLINE]     = 25,
-    [cmd_packets.TYPE_PATH_LINE]       = 25,
-    [cmd_packets.TYPE_PATH_WALL]       = 25,
-    [cmd_packets.TYPE_PATH_ROTATE]     = 15,
-    [cmd_packets.TYPE_DELIVER_PART]    = 20,
-    [cmd_packets.TYPE_PAINT_SAMPLE]    = 20,
-    [cmd_packets.TYPE_LOAD_SHIPPING]   = 20,
-    [cmd_packets.TYPE_PASS_GATE]       = 15,
-    [cmd_packets.TYPE_INSPECTION_SCAN] = 12,
-    [cmd_packets.TYPE_RECHARGE]        = 30,
-    [cmd_packets.TYPE_OPERATION]       = 20,
-    [cmd_packets.TYPE_IDLE]            = 5,
-}
-
 M.main = {}
 M.one_shot = {}
 M.boolean = {}
 
--- Watchdog max silence (must match robot_controller.lua)
-local WATCHDOG_MAX_SILENCE = 50
+local function band(a, b)
+    -- LuaJIT has bit.band; fall back to math if not loaded
+    return bit.band(a, b)
+end
 
 -- =========================================================================
--- Common worker termination
+-- Common termination
 -- =========================================================================
 
 M.one_shot.WORKER_TERM = function(handle, node)
     local bb = handle.blackboard
-    if not (bb.watchdog_silence and bb.watchdog_silence >= WATCHDOG_MAX_SILENCE) then
-        bb.worker_done = true; bb.worker_success = true
+    if bb.worker_done ~= true then
+        bb.worker_done = true
+        if bb.worker_success == nil then bb.worker_success = true end
     end
 end
 
 -- =========================================================================
--- Command parser helper (flattens params)
--- =========================================================================
-
-local function parse_cmd(bb)
-    local ok, cmd = pcall(json_util.decode, bb.command_json)
-    if not ok or not cmd then return {} end
-    if cmd.params then
-        for k, v in pairs(cmd.params) do
-            if cmd[k] == nil then cmd[k] = v end
-        end
-    end
-    return cmd
-end
-
--- =========================================================================
--- init_check: preflight self-test
--- packet_type=1, no params
--- bitmask: battery_ok(0)|motors_ok(1)|sensors_ok(2)|comms_ok(3)
--- pose: (none)
+-- init_check
 -- =========================================================================
 
 M.one_shot.WKR_INIT_CHECK_INIT = function(h)
@@ -86,12 +61,14 @@ M.main.WKR_INIT_CHECK_MAIN = function(h, bf, n, eid)
     bb.worker_alive = true
     if bb.exec_start then
         bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_INIT_CHECK]
+        bb.ticks_remaining = 3   -- very short self-test
     end
     if bb.exec_active then
         bb.ticks_remaining = bb.ticks_remaining - 1
         if bb.ticks_remaining <= 0 then
             bb.exec_active = false
+            bb["worker_init_check.bitmask"] = 0x0F  -- battery|motors|sensors|comms ok
+            bb.worker_success = true
             return defs.CFL_DISABLE
         end
     end
@@ -99,433 +76,349 @@ M.main.WKR_INIT_CHECK_MAIN = function(h, bf, n, eid)
 end
 
 -- =========================================================================
--- path_spline: follow spline path between nodes
--- packet_type=2, params: from_x,from_y,to_x,to_y,speed,distance,segment_index,total_segments
--- bitmask: seg_complete(0)|obstacle(1)|motor_fault(2)
--- pose: delta_x, delta_y, delta_heading
+-- Path workers: C is already tracking bb._seg_id. We poll for completion.
 -- =========================================================================
 
-M.one_shot.WKR_PATH_SPLINE_INIT = function(h)
-    local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_dx = 0; bb._target_dy = 0
-    io.stderr:write(string.format("  VN[path_spline] cmd: %s\n", bb.command_json))
-end
-
-M.main.WKR_PATH_SPLINE_MAIN = function(h, bf, n, eid)
-    if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
+local function path_main(h, segment_done_mask)
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PATH_SPLINE]
-        local c = parse_cmd(bb)
-        bb._target_dx = (c.to_x or 0) - (c.from_x or 0)
-        bb._target_dy = (c.to_y or 0) - (c.from_y or 0)
+
+    local hal = bb._hal
+    local pose = hal:read_pose()
+    local st   = hal:read_path_status()
+
+    -- per-packet pose deltas (since worker activation)
+    local s0 = bb._seg_start or { x = 0, y = 0, heading = 0 }
+    bb.delta_x       = pose.x - s0.x
+    bb.delta_y       = pose.y - s0.y
+    bb.delta_heading = pose.heading - s0.heading
+
+    -- Fault: cross-track explosion reported as PATH_F_FAULT
+    if band(st.flags, hal.PATH_F.FAULT) ~= 0 then
+        bb[bb.active_worker .. ".bitmask"] = 0x04  -- motor_fault
+        bb.worker_success = false
+        bb.fault_reason = "path_fault"
+        return defs.CFL_DISABLE
     end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_PATH_SPLINE]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_x = (bb._target_dx or 0) * p
-        bb.delta_y = (bb._target_dy or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_x = bb._target_dx or 0
-            bb.delta_y = bb._target_dy or 0
-            return defs.CFL_DISABLE
-        end
+
+    -- Done when our seg_id has been declared last_done
+    if bb._seg_id and st.last_done_seg_id == bb._seg_id then
+        bb[bb.active_worker .. ".bitmask"] = segment_done_mask
+        bb.worker_success = true
+        return defs.CFL_DISABLE
     end
+
+    -- Progress bit (progress lives in bit 0 of bitmask heartbeat - unused for now)
     return defs.CFL_CONTINUE
 end
 
--- =========================================================================
--- path_line: line follow between nodes
--- packet_type=3, params: from_x,from_y,to_x,to_y,speed,distance
--- bitmask: seg_complete(0)|obstacle(1)|motor_fault(2)
--- pose: delta_x, delta_y, delta_heading
--- =========================================================================
+-- --- path_line / path_spline / path_wall share the same MAIN -----------
 
-M.one_shot.WKR_PATH_LINE_INIT = function(h)
+local function path_init(h, kind)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_dx = 0; bb._target_dy = 0
-    io.stderr:write(string.format("  VN[path_line] cmd: %s\n", bb.command_json))
+    bb.exec_start = false; bb.exec_active = true
+    io.stderr:write(string.format("  VN[%s] seg_id=%s cmd: %s\n",
+        kind, tostring(bb._seg_id), bb.command_json))
 end
 
-M.main.WKR_PATH_LINE_MAIN = function(h, bf, n, eid)
+M.one_shot.WKR_PATH_LINE_INIT = function(h)   path_init(h, "path_line")   end
+M.main.WKR_PATH_LINE_MAIN     = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
-    local bb = h.blackboard
-    bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PATH_LINE]
-        local c = parse_cmd(bb)
-        bb._target_dx = (c.to_x or 0) - (c.from_x or 0)
-        bb._target_dy = (c.to_y or 0) - (c.from_y or 0)
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_PATH_LINE]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_x = (bb._target_dx or 0) * p
-        bb.delta_y = (bb._target_dy or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_x = bb._target_dx or 0
-            bb.delta_y = bb._target_dy or 0
-            return defs.CFL_DISABLE
-        end
-    end
-    return defs.CFL_CONTINUE
+    return path_main(h, 0x01)  -- seg_complete bit
 end
 
--- =========================================================================
--- path_wall: wall follow between nodes
--- packet_type=4, params: from_x,from_y,to_x,to_y,speed,distance,wall_standoff
--- bitmask: seg_complete(0)|obstacle(1)|motor_fault(2)|wall_lost(3)
--- pose: delta_x, delta_y, delta_heading
--- =========================================================================
+M.one_shot.WKR_PATH_SPLINE_INIT = function(h) path_init(h, "path_spline") end
+M.main.WKR_PATH_SPLINE_MAIN     = function(h, bf, n, eid)
+    if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
+    return path_main(h, 0x01)
+end
 
+M.one_shot.WKR_PATH_ROTATE_INIT = function(h) path_init(h, "path_rotate") end
+M.main.WKR_PATH_ROTATE_MAIN     = function(h, bf, n, eid)
+    if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
+    return path_main(h, 0x01)  -- rotate_complete
+end
+
+-- path_wall: deannounced in capabilities. Keep a stub that faults.
 M.one_shot.WKR_PATH_WALL_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_dx = 0; bb._target_dy = 0
-    io.stderr:write(string.format("  VN[path_wall] cmd: %s\n", bb.command_json))
+    io.stderr:write("  VN[path_wall] UNSUPPORTED in sim (no obstacles)\n")
+    bb.exec_active = true
 end
-
 M.main.WKR_PATH_WALL_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PATH_WALL]
-        local c = parse_cmd(bb)
-        bb._target_dx = (c.to_x or 0) - (c.from_x or 0)
-        bb._target_dy = (c.to_y or 0) - (c.from_y or 0)
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_PATH_WALL]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_x = (bb._target_dx or 0) * p
-        bb.delta_y = (bb._target_dy or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_x = bb._target_dx or 0
-            bb.delta_y = bb._target_dy or 0
-            return defs.CFL_DISABLE
+    bb.worker_success = false
+    bb.fault_reason = "path_wall_unsupported"
+    bb["worker_path_wall.bitmask"] = 0x04  -- motor_fault
+    return defs.CFL_DISABLE
+end
+
+-- =========================================================================
+-- Non-motion helpers: parse command, check stopped, run a sub-state machine.
+-- robot_controller only activates non-motion workers when hal:is_stopped()
+-- is already true, so workers may assume stationary at start.
+-- =========================================================================
+
+local function parse_cmd(bb)
+    local ok, cmd = pcall(json_util.decode, bb.command_json)
+    if not ok or not cmd then return {} end
+    if cmd.params then
+        for k, v in pairs(cmd.params) do
+            if cmd[k] == nil then cmd[k] = v end
         end
     end
-    return defs.CFL_CONTINUE
+    return cmd
 end
 
--- =========================================================================
--- path_rotate: rotate in place to heading
--- packet_type=5, params: from_heading,to_heading
--- bitmask: rotate_complete(0)|motor_fault(1)
--- pose: delta_heading
--- =========================================================================
-
-M.one_shot.WKR_PATH_ROTATE_INIT = function(h)
+-- Arm operation: extend -> (optional grip/release) -> return home.
+-- Sub-states via bb._sub.
+local function arm_cycle_init(h, sub_sequence, cmd_kind)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_dh = 0
-    io.stderr:write(string.format("  VN[path_rotate] cmd: %s\n", bb.command_json))
+    local cmd = parse_cmd(bb)
+    bb._sub = 1
+    bb._arm_target = math.rad(cmd.arm_target or 0)
+    bb._arm_speed  = math.rad(cmd.arm_speed  or 60)
+    bb._arm_return = math.rad(cmd.arm_return or 0)
+    bb._sub_sequence = sub_sequence
+    io.stderr:write(string.format("  VN[%s] seq=%s cmd: %s\n",
+        cmd_kind, table.concat(sub_sequence, ","), bb.command_json))
+
+    local hal = bb._hal
+    local t = hal:read_tool_status(0)
+    bb._tool_start = t.value
+
+    -- Kick off first sub-op
+    local first = sub_sequence[1]
+    if first == "extend" then
+        hal:begin_tool_move(0, bb._arm_target, bb._arm_speed)
+    elseif first == "grip" then
+        hal:begin_grip(1)
+    elseif first == "release" then
+        hal:begin_release(1)
+    elseif first == "retract" then
+        hal:begin_tool_move(0, bb._arm_return, bb._arm_speed)
+    end
+    bb.exec_active = true
 end
 
-M.main.WKR_PATH_ROTATE_MAIN = function(h, bf, n, eid)
-    if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
+local function arm_cycle_main(h)
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PATH_ROTATE]
-        local c = parse_cmd(bb)
-        bb._target_dh = (c.to_heading or 0) - (c.from_heading or 0)
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_PATH_ROTATE]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_heading = (bb._target_dh or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_heading = bb._target_dh or 0
+    local hal = bb._hal
+
+    local cur_op = bb._sub_sequence[bb._sub]
+    local slot = (cur_op == "grip" or cur_op == "release") and 1 or 0
+    local ts = hal:read_tool_status(slot)
+    bb.delta_arm_angle = (hal:read_tool_status(0)).value - (bb._tool_start or 0)
+
+    if band(ts.flags, hal.TOOL_F.AT_TARGET) ~= 0 then
+        bb._sub = bb._sub + 1
+        local nxt = bb._sub_sequence[bb._sub]
+        if not nxt then
+            bb[bb.active_worker .. ".bitmask"] = 0x07  -- at_target|gripped|complete
+            bb.worker_success = true
             return defs.CFL_DISABLE
         end
+        if nxt == "extend" then
+            hal:begin_tool_move(0, bb._arm_target, bb._arm_speed)
+        elseif nxt == "retract" then
+            hal:begin_tool_move(0, bb._arm_return, bb._arm_speed)
+        elseif nxt == "grip" then
+            hal:begin_grip(1)
+        elseif nxt == "release" then
+            hal:begin_release(1)
+        elseif nxt == "hold" then
+            bb._hold_start = hal:sim_time()
+            bb._hold_duration = (parse_cmd(bb).hold_time or 3.0)
+        end
+    elseif cur_op == "hold" then
+        local now = hal:sim_time()
+        if now - (bb._hold_start or now) >= (bb._hold_duration or 3.0) then
+            bb._sub = bb._sub + 1
+            local nxt = bb._sub_sequence[bb._sub]
+            if not nxt then
+                bb[bb.active_worker .. ".bitmask"] = 0x03
+                bb.worker_success = true
+                return defs.CFL_DISABLE
+            end
+            if nxt == "retract" then hal:begin_tool_move(0, bb._arm_return, bb._arm_speed) end
+        end
+    elseif band(ts.flags, hal.TOOL_F.FAULT) ~= 0 then
+        bb[bb.active_worker .. ".bitmask"] = 0x08  -- arm_fault
+        bb.worker_success = false
+        bb.fault_reason = "tool_fault"
+        return defs.CFL_DISABLE
     end
+
     return defs.CFL_CONTINUE
 end
 
--- =========================================================================
--- deliver_part: arm delivery at assembly station
--- packet_type=6, params: arm_target,arm_speed,arm_return,payload_type
--- bitmask: arm_at_target(0)|payload_gripped(1)|action_complete(2)|arm_fault(3)
--- pose: delta_arm_angle
--- =========================================================================
-
+-- deliver_part: extend -> release -> retract  (drop a payload at assembly)
 M.one_shot.WKR_DELIVER_PART_INIT = function(h)
-    local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_arm = 0
-    io.stderr:write(string.format("  VN[deliver_part] cmd: %s\n", bb.command_json))
+    arm_cycle_init(h, { "extend", "release", "retract" }, "deliver_part")
 end
-
 M.main.WKR_DELIVER_PART_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
-    local bb = h.blackboard
-    bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_DELIVER_PART]
-        local c = parse_cmd(bb)
-        bb._target_arm = c.arm_target or 0
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_DELIVER_PART]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_arm_angle = (bb._target_arm or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_arm_angle = bb._target_arm or 0
-            return defs.CFL_DISABLE
-        end
-    end
-    return defs.CFL_CONTINUE
+    return arm_cycle_main(h)
 end
 
--- =========================================================================
--- paint_sample: paint operation at painting station
--- packet_type=7, params: arm_target,arm_speed,arm_return,hold_time
--- bitmask: arm_at_target(0)|action_complete(1)|arm_fault(2)
--- pose: delta_arm_angle
--- =========================================================================
-
+-- paint_sample: extend -> hold -> retract
 M.one_shot.WKR_PAINT_SAMPLE_INIT = function(h)
-    local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_arm = 0
-    io.stderr:write(string.format("  VN[paint_sample] cmd: %s\n", bb.command_json))
+    arm_cycle_init(h, { "extend", "hold", "retract" }, "paint_sample")
 end
-
 M.main.WKR_PAINT_SAMPLE_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
-    local bb = h.blackboard
-    bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PAINT_SAMPLE]
-        local c = parse_cmd(bb)
-        bb._target_arm = c.arm_target or 0
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_PAINT_SAMPLE]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_arm_angle = (bb._target_arm or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_arm_angle = bb._target_arm or 0
-            return defs.CFL_DISABLE
-        end
-    end
-    return defs.CFL_CONTINUE
+    return arm_cycle_main(h)
 end
 
--- =========================================================================
--- load_shipping: load container at shipping station
--- packet_type=8, params: arm_target,arm_speed,arm_return,payload_type
--- bitmask: arm_at_target(0)|payload_gripped(1)|action_complete(2)|arm_fault(3)
--- pose: delta_arm_angle
--- =========================================================================
-
+-- load_shipping: extend -> grip -> retract  (pickup a payload at shipping)
 M.one_shot.WKR_LOAD_SHIPPING_INIT = function(h)
-    local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    bb._target_arm = 0
-    io.stderr:write(string.format("  VN[load_shipping] cmd: %s\n", bb.command_json))
+    arm_cycle_init(h, { "extend", "grip", "retract" }, "load_shipping")
 end
-
 M.main.WKR_LOAD_SHIPPING_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
-    local bb = h.blackboard
-    bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_LOAD_SHIPPING]
-        local c = parse_cmd(bb)
-        bb._target_arm = c.arm_target or 0
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        local total = action_durations[cmd_packets.TYPE_LOAD_SHIPPING]
-        local p = 1.0 - (bb.ticks_remaining / total)
-        bb.delta_arm_angle = (bb._target_arm or 0) * p
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            bb.delta_arm_angle = bb._target_arm or 0
-            return defs.CFL_DISABLE
-        end
-    end
-    return defs.CFL_CONTINUE
+    return arm_cycle_main(h)
 end
 
 -- =========================================================================
--- pass_gate: open gate, drive through, close gate
--- packet_type=9, params: rpc_open_hash,rpc_close_hash,drive_through
--- bitmask: gate_opened(0)|drive_complete(1)|gate_closed(2)|action_complete(3)
--- pose: delta_x, delta_y, delta_heading
+-- pass_gate: not implemented in first-pass sim (no gate infrastructure).
+-- Simulate as a 1.5 sim-second dwell.
 -- =========================================================================
 
 M.one_shot.WKR_PASS_GATE_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
+    bb.exec_active = true
+    bb._gate_start = bb._hal:sim_time()
     io.stderr:write(string.format("  VN[pass_gate] cmd: %s\n", bb.command_json))
 end
-
 M.main.WKR_PASS_GATE_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_PASS_GATE]
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            return defs.CFL_DISABLE
-        end
+    if bb._hal:sim_time() - (bb._gate_start or 0) >= 1.5 then
+        bb["worker_pass_gate.bitmask"] = 0x0F
+        bb.worker_success = true
+        return defs.CFL_DISABLE
     end
     return defs.CFL_CONTINUE
 end
 
 -- =========================================================================
--- inspection_scan: sensor read at inspection point
--- packet_type=10, params: sensor_port,sensor_type
--- bitmask: reading_ready(0)|sensor_fault(1)
--- pose: (none)
+-- inspection_scan: short dwell
 -- =========================================================================
 
 M.one_shot.WKR_INSPECTION_SCAN_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
+    bb.exec_active = true
+    bb._scan_start = bb._hal:sim_time()
     io.stderr:write(string.format("  VN[inspection_scan] cmd: %s\n", bb.command_json))
 end
-
 M.main.WKR_INSPECTION_SCAN_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_INSPECTION_SCAN]
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            return defs.CFL_DISABLE
-        end
+    if bb._hal:sim_time() - (bb._scan_start or 0) >= 1.0 then
+        bb["worker_inspection_scan.bitmask"] = 0x01  -- reading_ready
+        bb.worker_success = true
+        return defs.CFL_DISABLE
     end
     return defs.CFL_CONTINUE
 end
 
 -- =========================================================================
--- recharge: recharge energy at charging station
--- packet_type=12, params: target_energy
--- bitmask: charging(0)|charge_complete(1)|charger_fault(2)
--- pose: (none)
+-- recharge: dock + begin_charge until target_energy, then release
 -- =========================================================================
 
 M.one_shot.WKR_RECHARGE_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    io.stderr:write(string.format("  VN[recharge] cmd: %s\n", bb.command_json))
-end
+    local cmd = parse_cmd(bb)
+    bb.exec_active = true
 
+    local hal = bb._hal
+    -- Verify we're at a charger
+    local si = hal:station_at_pose("charger")
+    if si < 0 then
+        bb._recharge_fault = "not_at_charger"
+    else
+        -- target_j in joules; cmd.target_energy is the planner's request
+        local target_j = cmd.target_energy or hal:read_tool_status(2).battery_capacity_j
+        local rc = hal:begin_charge("charge_port", target_j)
+        if rc < 0 then bb._recharge_fault = "charge_begin_failed:" .. tostring(rc) end
+    end
+    io.stderr:write(string.format("  VN[recharge] cmd: %s fault=%s\n",
+        bb.command_json, tostring(bb._recharge_fault)))
+end
 M.main.WKR_RECHARGE_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_RECHARGE]
+
+    if bb._recharge_fault then
+        bb["worker_recharge.bitmask"] = 0x04  -- charger_fault
+        bb.worker_success = false
+        bb.fault_reason = bb._recharge_fault
+        bb._recharge_fault = nil
+        return defs.CFL_DISABLE
     end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            return defs.CFL_DISABLE
-        end
+
+    local hal = bb._hal
+    local ts = hal:read_tool_status(2)
+    if band(ts.flags, hal.TOOL_F.AT_TARGET) ~= 0 then
+        bb["worker_recharge.bitmask"] = 0x02  -- charge_complete
+        bb.worker_success = true
+        return defs.CFL_DISABLE
+    end
+    if band(ts.flags, hal.TOOL_F.FAULT) ~= 0 then
+        bb["worker_recharge.bitmask"] = 0x04
+        bb.worker_success = false
+        bb.fault_reason = "charger_fault"
+        return defs.CFL_DISABLE
     end
     return defs.CFL_CONTINUE
 end
 
 -- =========================================================================
--- operation: generic operation at a stop
--- packet_type=20, params: operation_type, data
--- bitmask: action_complete(0)|action_fault(1)
--- pose: (none)
+-- operation: generic, short dwell
 -- =========================================================================
 
 M.one_shot.WKR_OPERATION_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
-    local cmd = parse_cmd(bb)
-    io.stderr:write(string.format("  VN[operation] type=%s cmd: %s\n",
-        tostring(cmd.operation_type), bb.command_json))
+    bb.exec_active = true
+    bb._op_start = bb._hal:sim_time()
+    io.stderr:write(string.format("  VN[operation] cmd: %s\n", bb.command_json))
 end
-
 M.main.WKR_OPERATION_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_OPERATION]
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            return defs.CFL_DISABLE
-        end
+    if bb._hal:sim_time() - (bb._op_start or 0) >= 2.0 then
+        bb["worker_operation.bitmask"] = 0x01  -- action_complete
+        bb.worker_success = true
+        return defs.CFL_DISABLE
     end
     return defs.CFL_CONTINUE
 end
 
 -- =========================================================================
--- idle: park robot
--- packet_type=11, no params
--- bitmask: parked(0)
--- pose: (none)
+-- idle: short park dwell
 -- =========================================================================
 
 M.one_shot.WKR_IDLE_INIT = function(h)
     local bb = h.blackboard
-    bb.exec_start = true; bb.exec_active = false
+    bb.exec_active = true
+    bb._idle_start = bb._hal:sim_time()
     io.stderr:write(string.format("  VN[idle] cmd: %s\n", bb.command_json))
 end
-
 M.main.WKR_IDLE_MAIN = function(h, bf, n, eid)
     if eid ~= defs.CFL_TIMER_EVENT then return defs.CFL_CONTINUE end
     local bb = h.blackboard
     bb.worker_alive = true
-    if bb.exec_start then
-        bb.exec_start = false; bb.exec_active = true
-        bb.ticks_remaining = action_durations[cmd_packets.TYPE_IDLE]
-    end
-    if bb.exec_active then
-        bb.ticks_remaining = bb.ticks_remaining - 1
-        if bb.ticks_remaining <= 0 then
-            bb.exec_active = false
-            return defs.CFL_DISABLE
-        end
+    if bb._hal:sim_time() - (bb._idle_start or 0) >= 0.5 then
+        bb["worker_idle.bitmask"] = 0x01  -- parked
+        bb.worker_success = true
+        return defs.CFL_DISABLE
     end
     return defs.CFL_CONTINUE
 end

@@ -9,8 +9,10 @@
     "energy_infinite": false,
     "wire_format": "json",
     "capabilities": [
-        "init_check", "path_spline", "path_line", "path_wall",
+        "init_check", "path_spline", "path_line",
         "path_rotate", "deliver_part", "paint_sample", "load_shipping",
         "pass_gate", "inspection_scan", "recharge", "idle"
-    ]
+    ],
+    "speed_factor": 5.0
 }
+
