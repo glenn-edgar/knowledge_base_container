@@ -40,8 +40,11 @@ comm_result_t manifest_validate(const uint8_t *blob,
     if (m->bus_count   > COMM_BUSES_MAX)                            return COMM_ERR_BAD_MANIFEST;
     if (m->slave_count > COMM_SLAVES_MAX)                           return COMM_ERR_BAD_MANIFEST;
 
-    // Invariant 2: dongles[0] is HOST_INTERNAL_DONGLE.
-    if (!manifest_dongle_is_host(m->dongles[0].dongle_uuid)) return COMM_ERR_BAD_MANIFEST;
+    // Invariant 2 used to require dongles[0] to be HOST_INTERNAL_DONGLE
+    // (all-zero uuid). Phase B drops that requirement: every dongle now
+    // carries a real (type, instance) identity. The all-zero sentinel
+    // is still a valid value (legacy inproc-mode tests depend on that)
+    // — it's just no longer mandatory in slot 0.
 
     // Each dongle's bus_count must fit and bus_local_ids must be in-range.
     for (uint8_t di = 0; di < m->dongle_count; di++) {

@@ -171,6 +171,39 @@ if [[ $SKIP_UNIT -eq 0 ]]; then
         [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_comm_loopback.log"
         FAILURES=$((FAILURES+1))
     fi
+
+    log "running libcomm slave-handler dispatch tests (slice 2a)"
+    if luajit "$SCRIPT_DIR/test_comm_slave_handler.lua" >"$LOG_DIR/test_comm_slave_handler.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_comm_slave_handler.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_comm_slave_handler.log" || true)
+        pass "libcomm slave-handler: $local_pass passed, $local_fail failed"
+    else
+        fail "libcomm slave-handler tests failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_comm_slave_handler.log"
+        FAILURES=$((FAILURES+1))
+    fi
+
+    log "running libcomm pty single-dongle loopback tests (slice 2c.75)"
+    if luajit "$SCRIPT_DIR/test_comm_pty_loopback.lua" >"$LOG_DIR/test_comm_pty_loopback.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_comm_pty_loopback.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_comm_pty_loopback.log" || true)
+        pass "libcomm pty single-dongle: $local_pass passed, $local_fail failed"
+    else
+        fail "libcomm pty single-dongle tests failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_comm_pty_loopback.log"
+        FAILURES=$((FAILURES+1))
+    fi
+
+    log "running libcomm pty multi-dongle tests (slice 2c.75 phase B)"
+    if luajit "$SCRIPT_DIR/test_comm_pty_multi_dongle.lua" >"$LOG_DIR/test_comm_pty_multi_dongle.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_comm_pty_multi_dongle.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_comm_pty_multi_dongle.log" || true)
+        pass "libcomm pty multi-dongle: $local_pass passed, $local_fail failed"
+    else
+        fail "libcomm pty multi-dongle tests failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_comm_pty_multi_dongle.log"
+        FAILURES=$((FAILURES+1))
+    fi
 fi
 
 # ---------- step 3+: e2e ----------

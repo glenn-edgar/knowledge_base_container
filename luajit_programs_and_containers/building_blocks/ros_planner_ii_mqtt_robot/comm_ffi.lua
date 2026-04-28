@@ -25,7 +25,23 @@ typedef struct {
 
 typedef void (*comm_logger_fn)(int level, const char* msg);
 
+typedef void (*comm_slave_handler_fn)(uint8_t mcu,
+                                      comm_cmd_t cmd,
+                                      const uint8_t *payload,
+                                      uint16_t payload_len,
+                                      uint8_t in_seq,
+                                      void *ctx);
+
+typedef struct {
+    const char *path;
+    uint16_t    dongle_type;
+    uint16_t    dongle_instance;
+} comm_dongle_attach_t;
+
 comm_result_t     comm_init           (const uint8_t *blob, size_t len);
+comm_result_t     comm_init_with_dongles(const uint8_t *blob, size_t len,
+                                         const comm_dongle_attach_t *specs,
+                                         size_t n_specs);
 void              comm_shutdown       (void);
 comm_result_t     comm_attach_internal(uint8_t dongle_idx, uint8_t bus_id,
                                        uint8_t addr, void *physics_handle);
@@ -40,6 +56,13 @@ comm_result_t     comm_status          (comm_handle_t h);
 comm_result_t     comm_claim           (comm_handle_t h, comm_event_t *out);
 comm_result_t     comm_cancel          (comm_handle_t h);
 int               comm_poll            (comm_event_t *out, int max);
+
+comm_result_t     comm_set_slave_handler(uint8_t mcu, comm_slave_handler_fn fn, void *ctx);
+comm_result_t     comm_slave_respond    (uint8_t mcu, uint8_t in_seq, comm_cmd_t cmd,
+                                         const uint8_t *payload, uint16_t payload_len,
+                                         uint8_t ack_status);
+comm_result_t     comm_slave_ack_bare   (uint8_t mcu, uint8_t in_seq);
+comm_result_t     comm_slave_nak        (uint8_t mcu, uint8_t in_seq, uint8_t reason);
 
 comm_node_state_t comm_node_state        (uint8_t mcu);
 uint32_t          comm_node_physics_model(uint8_t mcu);
@@ -104,6 +127,19 @@ M.PAYLOAD_MAX     = 128
 M.HANDLE_INVALID  = 0
 M.ACK_FLAG_URGENT = 0x80
 
-M.event_t = ffi.typeof("comm_event_t")
+M.NAK_REASON = {
+    NO_HANDLER  = 0xFD,
+    NO_RESPONSE = 0xFE,
+    UNKNOWN_CMD = 0xFF,
+}
+
+M.DONGLE_TYPE = {
+    RESERVED    = 0,
+    DRIVE_BASE  = 1,
+}
+
+M.event_t          = ffi.typeof("comm_event_t")
+M.slave_handler_fn = ffi.typeof("comm_slave_handler_fn")
+M.dongle_attach_t  = ffi.typeof("comm_dongle_attach_t")
 
 return M

@@ -182,12 +182,18 @@ do
           "slave bus_id not in dongle.bus_local_ids[] rejects manifest")
 end
 
+-- Invariant 2 (dongles[0] must be HOST_INTERNAL_DONGLE) was dropped in
+-- Phase B: every dongle now carries a real (type, instance) identity,
+-- so any non-zero uuid in slot 0 is legal. The all-zeros sentinel
+-- remains a valid value (this test's default rover_1 manifest uses it
+-- for inproc-mode tests below) but is no longer required.
 do
     local pkt = build_rover_1_packet()
     pkt.data.dongles[0].dongle_uuid[0] = 0x42
     local rc = C.comm_init(ffi.cast("const uint8_t*", pkt), PACKET_SIZE)
-    check(rc == COMM_ERR_BAD_MANIFEST,
-          "dongles[0] not HOST_INTERNAL_DONGLE rejects manifest")
+    check(rc == COMM_OK,
+          "dongles[0] non-zero uuid is now ACCEPTED (Phase B drop of invariant 2)")
+    if rc == COMM_OK then C.comm_shutdown() end
 end
 
 ------------------------------------------------------------------------
