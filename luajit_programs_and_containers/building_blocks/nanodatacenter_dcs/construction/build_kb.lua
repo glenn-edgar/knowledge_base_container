@@ -275,6 +275,7 @@ local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
   "readiness_sync",
+  "sync_queues",           -- Phase 6.1: pg-backed sync transport + peer_state
   "site_logs",             -- Task 4: site-wide KB_LOGs + seed rules
   "cpu_bootstrap",
   "cpu_heartbeat",

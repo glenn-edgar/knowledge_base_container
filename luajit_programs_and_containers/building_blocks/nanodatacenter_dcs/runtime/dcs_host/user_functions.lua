@@ -18,6 +18,7 @@ local kb_log = require("kb_log")
 local ptime  = require("posix_time")  -- sub-second timing for supervision metrics
 local broker_client = require("broker_client")  -- read docker_host_broker state from KB
 local spec_adapter  = require("spec_adapter")   -- catalog spec -> wire-protocol RunSpec
+local sync_rpc      = require("sync_rpc")       -- Phase 6.1 inter-CPU sync
 
 local M = {}
 
@@ -93,6 +94,14 @@ function M.build(ctx)
   end
 
   local R = {}
+
+  -- Phase 6.1: instantiate the sync RPC module and register its handlers.
+  -- Owns: 7 verbs (JOIN_REQ/JOIN_ACK/JOIN_CONFIRM/HEARTBEAT/HEARTBEAT_ACK/
+  -- RESET_HINT/DRAIN), rpc_scheduler tick, slave heartbeat tick, peer_state
+  -- KB writeback, budget telemetry, and the wait_bool predicates
+  -- VERIFY_ALL_PEERS_ACTIVE / VERIFY_OWN_ACTIVE.
+  ctx.sync_rpc = sync_rpc.new(ctx)
+  ctx.sync_rpc:install_handlers(R)
 
   ----------------------------------------------------------------------
   -- Per-agent SYS_EXCEPTION path resolver. Construct script writes:
@@ -296,27 +305,26 @@ function M.build(ctx)
     cfl_rt.add_test(ct.handle, idx)
   end
   ----------------------------------------------------------------------
-  -- sync_control handlers
+  -- sync_control handlers (Phase 6.1: RPC-queue based handshake).
   --
-  -- sync_control runs BEFORE the operational phase and is patient-forever:
-  -- no infra-reachability failure ever raises an exception; it just keeps
-  -- polling. The single exception defined here fires only on the master,
-  -- if a slave hasn't posted its cluster_sync_bit within the quorum-wait
-  -- window -- and even then the master logs slave_never_joined and
-  -- PROCEEDS (no teardown) so a dead slave can't pin the whole site.
+  -- The master/slave bit-mask + cluster_go protocol is REPLACED by
+  -- message-passing via kb_sync_queue, implemented in sync_rpc.lua
+  -- (instantiated as ctx.sync_rpc above). The remaining handlers below
+  -- are infra reachability + KB activation orchestration; the actual
+  -- inter-CPU handshake handlers (VERIFY_ALL_PEERS_ACTIVE,
+  -- VERIFY_OWN_ACTIVE, MASTER_SYNC_INIT, SLAVE_SYNC_INIT,
+  -- SLAVE_SEND_JOIN, RPC_SCHEDULER_TICK, SLAVE_HEARTBEAT_TICK,
+  -- RPC_KB_WRITEBACK_TICK) are registered by sync_rpc:install_handlers(R)
+  -- at the top of M.build.
   --
-  -- Boundary: once sync_control's handoff fires ENABLE_SYSTEM_CONTROL_KB /
-  -- ENABLE_NODE_CONTROL_KB + DISABLE_SYNC_CONTROL_*, the operational KBs
-  -- take over with their strict fail-fast semantics. Any op-phase
-  -- failure -> watchdog restart -> sync_control re-entered, which
-  -- quietly re-verifies infra and re-hands-off.
+  -- Why deleted (no backwards compat per PHASE6_DESIGN §9):
+  --   SET_OWN_SYNC_BIT, CLEAR_OWN_SYNC_BIT, VERIFY_SYNC_QUORUM_OR_TIMEOUT,
+  --   WRITE_CLUSTER_GO_TRUE, CLEAR_CLUSTER_GO, CLEAR_ALL_CLUSTER_SYNC_BITS,
+  --   VERIFY_CLUSTER_GO -- all replaced by RPC verbs that don't share
+  --   mutable state. The 2026-04-26 master-bounce hang was a textbook
+  --   stale-shared-state failure (master cleared its view, slave never
+  --   re-asserted); message passing eliminates the failure class.
   ----------------------------------------------------------------------
-
-  -- Master quorum timeout tracking. One-shot start time seeded by the
-  -- first VERIFY_SYNC_QUORUM_OR_TIMEOUT tick; reset by CLEAR_CLUSTER_GO
-  -- on teardown so a subsequent sync cycle restarts the clock.
-  local SYNC_QUORUM_TIMEOUT_S = 300.0
-  local sync_quorum_started_at = nil
 
   -- Reusable helper: all 4 infra endpoints reachable right now.
   -- Done in two phases so we don't block the chain-tree tick on a libpq
@@ -343,118 +351,23 @@ function M.build(ctx)
     return true
   end
 
-  -- Used in the slave's wait_infra state's asm_wait: halts (returns false)
-  -- on non-TIMER events and performs the real probe on each TIMER tick.
+  -- Slave wait_infra: re-checks infra reachability each TIMER tick.
   R.VERIFY_ALL_INFRA_REACHABLE = wait_bool(function(_h, _n)
     return all_infra_reachable()
   end)
 
-  R.SET_OWN_SYNC_BIT = function(_h, _n)
-    if not ctx.connectors.pg then
-      -- Re-open: sync phase may have closed the connector between cycles.
-      local pw = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
-      local conn, err = pg_conn.try_connect(ctx.cfg, pw or "")
-      if not conn then
-        log("sync_control", "SET_OWN_SYNC_BIT: pg connect failed: " .. tostring(err))
-        return
-      end
-      ctx.connectors.pg = conn
+  -- Phase 6.1: ensure pg connection is open before slave starts JOIN.
+  -- (Master always reaches its own infra during bring_up_infra).
+  R.OPEN_PG_CONNECTION = function(_h, _n)
+    if ctx.connectors.pg then return end
+    local pw = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
+    local conn, err = pg_conn.try_connect(ctx.cfg, pw or "")
+    if not conn then
+      log("sync_control", "OPEN_PG_CONNECTION failed: " .. tostring(err))
+      return
     end
-    local ok, err = bm.set_cluster_sync_bit(
-      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.bit_index)
-    log("sync_control", ok
-      and string.format("cluster_sync bit %d SET", ctx.cfg.bit_index)
-       or string.format("cluster_sync bit set FAILED: %s", tostring(err)))
+    ctx.connectors.pg = conn
   end
-
-  R.CLEAR_OWN_SYNC_BIT = function(_h, _n)
-    if not ctx.connectors.pg then return end
-    local ok, err = bm.clear_cluster_sync_bit(
-      ctx.connectors.pg, ctx.cfg.site, ctx.cfg.bit_index)
-    if not ok then
-      log("sync_control", "cluster_sync bit clear FAILED: " .. tostring(err))
-    end
-  end
-
-  -- Master-only: combines quorum check with a soft timeout. Returns true
-  -- when all bits are set OR the timeout has elapsed (logging
-  -- slave_never_joined in the latter case). Used with asm_wait so we
-  -- halt on non-TIMER events (wait_bool wrapper) rather than racing
-  -- past on state-entry events.
-  R.VERIFY_SYNC_QUORUM_OR_TIMEOUT = wait_bool(function(_h, _n)
-    if not ctx.connectors.pg then return false end
-    if sync_quorum_started_at == nil then
-      sync_quorum_started_at = os.time()
-    end
-    local actual, err = bm.read_cluster_sync_bits(
-      ctx.connectors.pg, ctx.cfg.site)
-    if not actual then
-      log("sync_control", "VERIFY_SYNC_QUORUM read err: " .. tostring(err))
-      return false
-    end
-    local expected = bm.expected_full_mask(ctx.cfg.expected_cpu_count)
-    if actual == expected then
-      log("sync_control", string.format(
-        "SYNC QUORUM reached (bits=0x%x)", actual))
-      return true
-    end
-    local elapsed = os.time() - sync_quorum_started_at
-    if elapsed >= SYNC_QUORUM_TIMEOUT_S then
-      log("sync_control", string.format(
-        "SYNC QUORUM TIMEOUT after %ds; actual=0x%x expected=0x%x; logging slave_never_joined and proceeding",
-        elapsed, actual, expected))
-      kb_exc.log_exception(ctx.connectors.pg,
-        exc_path("slave_never_joined"),
-        string.format("quorum timeout; actual=0x%x expected=0x%x",
-                      actual, expected))
-      return true
-    end
-    return false
-  end)
-
-  R.WRITE_CLUSTER_GO_TRUE = function(_h, _n)
-    if not ctx.connectors.pg then return end
-    local path = "system.site." .. ctx.cfg.site .. ".KB_STATUS_FIELD.cluster_go"
-    local ok, err = kb_stat.set_status_data(ctx.connectors.pg, path, { value = 1 })
-    log("sync_control", ok
-      and "cluster_go = 1 WRITTEN"
-       or ("cluster_go write FAILED: " .. tostring(err)))
-  end
-
-  R.CLEAR_CLUSTER_GO = function(_h, _n)
-    if not ctx.connectors.pg then return end
-    local path = "system.site." .. ctx.cfg.site .. ".KB_STATUS_FIELD.cluster_go"
-    kb_stat.set_status_data(ctx.connectors.pg, path, { value = 0 })
-    -- Reset the per-process timeout tracker so a subsequent cycle
-    -- restarts the clock from zero.
-    sync_quorum_started_at = nil
-  end
-
-  -- Master-only: zero the cluster_sync mask at the start of a sync cycle
-  -- so a restart after a crash doesn't see stale bits from last time.
-  R.CLEAR_ALL_CLUSTER_SYNC_BITS = function(_h, _n)
-    if not ctx.connectors.pg then
-      local pw = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
-      local conn, err = pg_conn.try_connect(ctx.cfg, pw or "")
-      if not conn then
-        log("sync_control", "CLEAR_ALL_CLUSTER_SYNC_BITS: pg connect failed: " .. tostring(err))
-        return
-      end
-      ctx.connectors.pg = conn
-    end
-    local ok, err = bm.clear_all_cluster_sync_bits(ctx.connectors.pg, ctx.cfg.site)
-    log("sync_control", ok and "cluster_sync_bits reset to 0"
-                            or ("cluster_sync_bits reset FAILED: " .. tostring(err)))
-  end
-
-  -- Used in slave's wait_go state's asm_wait.
-  R.VERIFY_CLUSTER_GO = wait_bool(function(_h, _n)
-    if not ctx.connectors.pg then return false end
-    local path = "system.site." .. ctx.cfg.site .. ".KB_STATUS_FIELD.cluster_go"
-    local data = kb_stat.get_status_data(ctx.connectors.pg, path)
-    if type(data) ~= "table" then return false end
-    return tonumber(data.value) == 1
-  end)
 
   -- KB activation handoff. ENABLE_NODE_CONTROL_KB already exists above.
   R.ENABLE_SYSTEM_CONTROL_KB = function(_h, _n)

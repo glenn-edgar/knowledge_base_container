@@ -80,6 +80,39 @@ coverage.** Smoke test queued before catalog migration. See
   construction (no conflict resolution needed for content-addressable
   storage).
 
+### Transport (locked 2026-04-28)
+
+**Pg-backed RPC queues for Phase 6.1+6.2.** NATS deferred to Phase 6.4
+container layer ONLY (HEARTBEAT pub-sub + PAUSE/RESUME/DRAIN broadcast
+fan-out). Inter-CPU sync state of truth stays in pg. Rationale + full
+trade-off analysis: `project_phase6_transport.md` memory.
+
+### Handler budget + scheduling (locked 2026-04-28)
+
+Five hard constraints (`feedback_phase6_handler_budget` memory):
+
+1. **<50ms per handler.** Forbidden: shell-out, broker HTTP, docker
+   SDK, sleep, retry loops, unindexed pg, file reads.
+2. **Heavy work goes to a dedicated chain-tree tick column.** Handler
+   sets a flag; column polls flag and does the work over N ticks.
+3. **Max 5 verbs drained per slave per tick** (backlog drains across
+   ticks naturally).
+4. **Master round-robins ONE slave per walker tick** (cursor over
+   slave list). A slow handler on cpu_03 cannot starve cpu_04 — cpu_04
+   is one tick away regardless of N. Worst-case tick = ~250ms.
+5. **Jitter heartbeat cadence ±10%.**
+
+Observability requirement (must ship with 6.1, not bolted on later):
+- INFO log on any handler >30ms.
+- SCADA exception `RPC_HANDLER_OVER_BUDGET` on any handler >50ms.
+- 60s rolling summary in tick log: max/p95/violation counts.
+- Walker tick log extended with `rpc: cursor=<cpu_id> drained=N outbound=N`.
+
+New chain-tree column `rpc_scheduler` (separate from `sync_master` /
+`sync_slave`) owns the round-robin cursor, per-slave outbox flush, and
+budget telemetry. Sync state machines read `peer_state[cpu_id]` from
+RAM; scheduler is the only writer.
+
 ### Verb set (8, not 7)
 
 The original draft had 7 verbs. Strategic discussion added

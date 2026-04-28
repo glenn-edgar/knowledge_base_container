@@ -16,18 +16,17 @@
 local ChainTreeMaster = require("chain_tree_master")
 
 -- =============================================================================
--- KB 0: sync_control_master
+-- KB 0: sync_control_master  (Phase 6.1 -- RPC-queue handshake)
 --
--- Runs ONLY on the master CPU at boot (dcs.lua activate_initial_kb picks
--- this or sync_control_slave based on cfg.is_master). Brings up the 4
--- infra containers, waits for every slave to set its cluster_sync bit,
--- then hands off to system_control + node_control and disables itself.
+-- Runs ONLY on the master CPU at boot. Brings up the 4 infra containers,
+-- runs MASTER_SYNC_INIT (resets per-peer state map + 2s grace), then
+-- enters await_active. The rpc_scheduler column drains master_q one peer
+-- per tick and processes JOIN_REQ/JOIN_CONFIRM/HEARTBEAT/DRAIN verbs;
+-- VERIFY_ALL_PEERS_ACTIVE returns true when every peer has reached
+-- ACTIVE. Hands off to system_control + node_control and disables self.
 --
--- Patient-forever semantics: no exception can fire while waiting on a
--- slave -- VERIFY_SYNC_QUORUM_OR_TIMEOUT absorbs the 300s timeout and
--- returns true after logging slave_never_joined, so the master always
--- proceeds. Strict semantics kick back in once the operational KBs are
--- active (any failure there -> watchdog restart -> sync re-entered).
+-- Per feedback_one_reset_path: this is the ONE reset path. Any failure
+-- in operational KBs -> watchdog restart -> re-enters this KB cleanly.
 -- =============================================================================
 
 local function sync_control_master(ct, kb_name)
@@ -41,7 +40,7 @@ local function sync_control_master(ct, kb_name)
 
         local sync_sm = ct:define_state_machine(
             "sync_master_sm_col", "sync_master_sm",
-            { "bring_up_infra", "await_quorum", "handoff" },
+            { "bring_up_infra", "await_active", "handoff" },
             "bring_up_infra", false)
 
             local bring_up_st = ct:define_state("bring_up_infra", nil)
@@ -63,37 +62,38 @@ local function sync_control_master(ct, kb_name)
                 ct:asm_verify("VERIFY_KV_BRIDGE", {}, false,
                               "ERR_INFRA_FAIL", {})
 
-                -- Coordinator state is NOT cleared here anymore. Clearing
-                -- cluster_sync_bits on every master restart wiped slaves'
-                -- bits too, and slaves in operational don't re-enter
-                -- sync, so master would wait forever. Leaving stale 0x3
-                -- is safe: if a slave is actually offline, its own
-                -- node_control stopped; master can still proceed and
-                -- the slave catches up on its next sync entry.
-                -- (cluster_go ends up overwritten by WRITE_CLUSTER_GO_
-                -- TRUE below, so no explicit clear needed there either.)
-                ct:asm_one_shot_handler("SET_OWN_SYNC_BIT", {})
-                ct:change_state(sync_sm, "await_quorum")
+                -- Phase 6.1: open pg conn so the rpc_scheduler can
+                -- start servicing master_q. Reset per-peer state map
+                -- and start the 2s grace clock.
+                ct:asm_one_shot_handler("OPEN_PG_CONNECTION", {})
+                ct:asm_one_shot_handler("MASTER_SYNC_INIT", {})
+                ct:change_state(sync_sm, "await_active")
                 ct:asm_halt()
             ct:end_column(bring_up_st)
 
-            local quorum_st = ct:define_state("await_quorum", nil)
-                ct:asm_log_message("sync_master: await_quorum (entering)")
-                -- asm_wait halts until the verify returns true; count=0
-                -- disables chain-tree's own event-count timeout, since
-                -- VERIFY_SYNC_QUORUM_OR_TIMEOUT owns the 300s timeout
-                -- internally (logs slave_never_joined then returns true).
-                -- asm_verify wouldn't work here -- timer_only-wrapped
-                -- verifies return true on non-TIMER events like
-                -- CFL_CHANGE_STATE_EVENT (the event that lands us in
-                -- this state), which would race past the wait.
-                ct:asm_wait("VERIFY_SYNC_QUORUM_OR_TIMEOUT", {}, false,
-                            0, "CFL_TIMER_EVENT",
-                            "CFL_NULL", {})
-                ct:asm_one_shot_handler("WRITE_CLUSTER_GO_TRUE", {})
-                ct:change_state(sync_sm, "handoff")
-                ct:asm_halt()
-            ct:end_column(quorum_st)
+            local active_st = ct:define_state("await_active", nil)
+                ct:asm_log_message("sync_master: await_active (entering)")
+                -- Parallel columns: scheduler ticks alongside the wait.
+                local sched_col = ct:define_column("sync_master_sched")
+                    ct:asm_one_shot_handler("RPC_SCHEDULER_TICK", {})
+                    ct:asm_one_shot_handler("RPC_KB_WRITEBACK_TICK", {})
+                    ct:asm_wait_time(0.2)   -- 5 Hz drain
+                    ct:asm_reset()
+                ct:end_column(sched_col)
+
+                local verify_col = ct:define_column("sync_master_verify")
+                    -- Wait until every peer has reached ACTIVE. No
+                    -- timeout: master is patient (matches old "patient-
+                    -- forever" semantics). Slaves that never join
+                    -- log slave_never_joined upstream; admin can use
+                    -- peer_state KB rows to see who's stuck.
+                    ct:asm_wait("VERIFY_ALL_PEERS_ACTIVE", {}, false,
+                                0, "CFL_TIMER_EVENT",
+                                "CFL_NULL", {})
+                    ct:change_state(sync_sm, "handoff")
+                    ct:asm_halt()
+                ct:end_column(verify_col)
+            ct:end_column(active_st)
 
             local handoff_st = ct:define_state("handoff", nil)
                 ct:asm_log_message("sync_master: handoff (entering)")
@@ -110,12 +110,20 @@ local function sync_control_master(ct, kb_name)
 end
 
 -- =============================================================================
--- KB 1: sync_control_slave
+-- KB 1: sync_control_slave  (Phase 6.1 -- RPC-queue handshake)
 --
--- Runs on every non-master CPU. Patient loop waiting for infra to become
--- reachable (master brings it up); sets own cluster_sync bit; waits for
--- master's cluster_go flag; hands off to node_control and disables self.
--- No retry-crash on infra-not-yet-up -- the while-column just loops.
+-- Runs on every non-master CPU. Wait for infra reachable (master brings
+-- it up); SLAVE_SEND_JOIN pushes JOIN_REQ to master_q; rpc_scheduler
+-- column drains own inbox and processes JOIN_ACK / HEARTBEAT_ACK /
+-- RESET_HINT; VERIFY_OWN_ACTIVE returns true once own state == ACTIVE.
+--
+-- The slave_heartbeat_tick column also runs in parallel and:
+--   - sends HEARTBEAT every 5s ±10% jitter once we've passed JOINING
+--   - increments missed_acks count when no HEARTBEAT_ACK seen
+--   - calls os.exit(0) at 3 missed (watchdog respawns into wait_infra)
+--
+-- This is the bidirectional master-loss detection (Phase 6.3) -- a free
+-- fallout of the heartbeat round-trip.
 -- =============================================================================
 
 local function sync_control_slave(ct, kb_name)
@@ -128,39 +136,54 @@ local function sync_control_slave(ct, kb_name)
 
         local sync_sm = ct:define_state_machine(
             "sync_slave_sm_col", "sync_slave_sm",
-            { "wait_infra", "wait_go", "handoff" },
+            { "wait_infra", "join", "handoff" },
             "wait_infra", false)
 
             local wait_infra_st = ct:define_state("wait_infra", nil)
                 ct:asm_log_message("sync_slave: wait_infra (entering)")
                 -- Patient polling: asm_wait re-checks VERIFY_ALL_INFRA_
-                -- REACHABLE every TIMER tick (~1s). The count cap is 24h
-                -- worth of ticks -- master takes seconds to bring up
-                -- infra in practice, so we never hit the cap. If we
-                -- somehow do, the ERR fires and watchdog restarts us
-                -- back into this state, effectively extending the wait.
+                -- REACHABLE every TIMER tick. Master takes seconds to
+                -- bring up infra in practice. ERR fires only at 24h cap.
                 ct:asm_wait("VERIFY_ALL_INFRA_REACHABLE", {}, false,
                             86400, "CFL_TIMER_EVENT",
                             "ERR_INFRA_FAIL", {})
-
-                ct:asm_one_shot_handler("SET_OWN_SYNC_BIT", {})
-                ct:change_state(sync_sm, "wait_go")
+                ct:asm_one_shot_handler("OPEN_PG_CONNECTION", {})
+                ct:asm_one_shot_handler("SLAVE_SYNC_INIT", {})
+                ct:asm_one_shot_handler("SLAVE_SEND_JOIN", {})
+                ct:change_state(sync_sm, "join")
                 ct:asm_halt()
             ct:end_column(wait_infra_st)
 
-            local wait_go_st = ct:define_state("wait_go", nil)
-                ct:asm_log_message("sync_slave: wait_go (entering)")
-                -- Slave-side timeout: master should flip cluster_go
-                -- within seconds of the last sync bit being set. 60s
-                -- is extremely generous. If it doesn't, something is
-                -- wrong with master -- ERR fires, watchdog restarts us
-                -- into wait_infra, and we start over.
-                ct:asm_wait("VERIFY_CLUSTER_GO", {}, false,
-                            60, "CFL_TIMER_EVENT",
-                            "ERR_INFRA_FAIL", {})
-                ct:change_state(sync_sm, "handoff")
-                ct:asm_halt()
-            ct:end_column(wait_go_st)
+            local join_st = ct:define_state("join", nil)
+                ct:asm_log_message("sync_slave: join (entering)")
+                -- Three parallel columns: scheduler drains inbox,
+                -- heartbeat sends + missed-ACK detect, verify waits
+                -- for own state == ACTIVE.
+                local sched_col = ct:define_column("sync_slave_sched")
+                    ct:asm_one_shot_handler("RPC_SCHEDULER_TICK", {})
+                    ct:asm_one_shot_handler("RPC_KB_WRITEBACK_TICK", {})
+                    ct:asm_wait_time(0.2)   -- 5 Hz drain
+                    ct:asm_reset()
+                ct:end_column(sched_col)
+
+                local hb_col = ct:define_column("sync_slave_hb")
+                    ct:asm_one_shot_handler("SLAVE_HEARTBEAT_TICK", {})
+                    ct:asm_wait_time(1.0)
+                    ct:asm_reset()
+                ct:end_column(hb_col)
+
+                local verify_col = ct:define_column("sync_slave_verify")
+                    -- Wait for ACTIVE. No timeout: SLAVE_HEARTBEAT_TICK
+                    -- handles fail-stop on missed-ACK threshold by
+                    -- exiting the process; watchdog respawns us back
+                    -- into wait_infra.
+                    ct:asm_wait("VERIFY_OWN_ACTIVE", {}, false,
+                                0, "CFL_TIMER_EVENT",
+                                "CFL_NULL", {})
+                    ct:change_state(sync_sm, "handoff")
+                    ct:asm_halt()
+                ct:end_column(verify_col)
+            ct:end_column(join_st)
 
             local handoff_st = ct:define_state("handoff", nil)
                 ct:asm_log_message("sync_slave: handoff (entering)")
@@ -453,9 +476,11 @@ local function node_control(ct, kb_name)
                 ct:asm_one_shot_handler(
                     "WRITE_PROCESS_GLOBALS_NODE_STOPPED_TRUE", {})
                 -- Symmetric cleanup of the bits this CPU owns so a
-                -- watchdog-restart re-enters sync cleanly.
+                -- watchdog-restart re-enters sync cleanly. Phase 6.1:
+                -- cluster_sync_bit removed (replaced by RPC handshake);
+                -- ready_bit retained (orthogonal to sync, gates
+                -- system_ready aggregation).
                 ct:asm_one_shot_handler("CLEAR_OWN_READY_BIT", {})
-                ct:asm_one_shot_handler("CLEAR_OWN_SYNC_BIT",  {})
                 -- Stop the sampler LAST so it covers the teardown.
                 ct:asm_one_shot_handler("DISABLE_NODE_MONITOR_KB", {})
                 -- Exit cleanly; watchdog restarts from sync.

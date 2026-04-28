@@ -19,9 +19,10 @@ return {
     kb:add_status_field("gateway_poll_interval_sec", {},
       "dcs_console gateway poll cadence in seconds (operator-tunable)",
       { value = 15 })
-    kb:add_status_field("cluster_go", {},
-      "sync-phase gate: 1 = all CPUs synced, handoff to operational",
-      { value = 0 })
+    -- cluster_go removed in Phase 6.1: sync handshake is now RPC-queue
+    -- based (kb_sync_queue + sync_rpc.lua). VERIFY_ALL_PEERS_ACTIVE
+    -- replaces the cluster_go gate; peer_state_<cpu_id> KB rows give
+    -- per-peer observability for the admin UI.
   end,
 
 }
