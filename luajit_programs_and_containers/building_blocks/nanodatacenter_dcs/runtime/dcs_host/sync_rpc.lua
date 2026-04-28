@@ -332,6 +332,11 @@ function M:_slave_on_join_ack(payload)
     cpu_id = self.cpu_id,
     epoch  = self.epoch,
   })
+  -- Fire the first HEARTBEAT on the very next scheduler tick rather than
+  -- waiting for the periodic cadence. Slave reaches S_ACTIVE on the
+  -- HEARTBEAT_ACK round-trip; without this nudge it stalls up to
+  -- HEARTBEAT_PERIOD_S, racing master's setup-state aggregator timeout.
+  self.slave.next_hb_at = now_s()
 end
 
 function M:_slave_on_heartbeat_ack(payload)

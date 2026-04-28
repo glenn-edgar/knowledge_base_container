@@ -99,8 +99,16 @@ local function sync_control_master(ct, kb_name)
                 ct:asm_log_message("sync_master: handoff (entering)")
                 ct:asm_one_shot_handler("ENABLE_SYSTEM_CONTROL_KB", {})
                 ct:asm_one_shot_handler("ENABLE_NODE_CONTROL_KB",   {})
-                ct:asm_one_shot_handler("DISABLE_SYNC_CONTROL_MASTER_KB", {})
-                ct:asm_halt()
+                -- Steady-state keepalive: master drains master_q forever
+                -- so live slaves see HEARTBEAT_ACK round-trips. Loses kb-
+                -- self-disable; sync_control_master_kb stays enabled for
+                -- the lifetime of the dcs.lua process.
+                local sched_col = ct:define_column("sync_master_sched_keep")
+                    ct:asm_one_shot_handler("RPC_SCHEDULER_TICK", {})
+                    ct:asm_one_shot_handler("RPC_KB_WRITEBACK_TICK", {})
+                    ct:asm_wait_time(0.2)
+                    ct:asm_reset()
+                ct:end_column(sched_col)
             ct:end_column(handoff_st)
 
         ct:end_state_machine(sync_sm, "sync_master_sm")
@@ -187,9 +195,25 @@ local function sync_control_slave(ct, kb_name)
 
             local handoff_st = ct:define_state("handoff", nil)
                 ct:asm_log_message("sync_slave: handoff (entering)")
-                ct:asm_one_shot_handler("ENABLE_NODE_CONTROL_KB",       {})
-                ct:asm_one_shot_handler("DISABLE_SYNC_CONTROL_SLAVE_KB", {})
-                ct:asm_halt()
+                ct:asm_one_shot_handler("ENABLE_NODE_CONTROL_KB", {})
+                -- Steady-state keepalive: HEARTBEAT every 5s ±10%; 3 missed
+                -- ACKs trigger os.exit(0) inside SLAVE_HEARTBEAT_TICK and
+                -- the watchdog respawns into wait_infra. This is the one-
+                -- reset-path master-loss detector promised at the top of
+                -- this file. Loses kb-self-disable; sync_control_slave_kb
+                -- stays enabled for the lifetime of the dcs.lua process.
+                local sched_col = ct:define_column("sync_slave_sched_keep")
+                    ct:asm_one_shot_handler("RPC_SCHEDULER_TICK", {})
+                    ct:asm_one_shot_handler("RPC_KB_WRITEBACK_TICK", {})
+                    ct:asm_wait_time(0.2)
+                    ct:asm_reset()
+                ct:end_column(sched_col)
+
+                local hb_col = ct:define_column("sync_slave_hb_keep")
+                    ct:asm_one_shot_handler("SLAVE_HEARTBEAT_TICK", {})
+                    ct:asm_wait_time(1.0)
+                    ct:asm_reset()
+                ct:end_column(hb_col)
             ct:end_column(handoff_st)
 
         ct:end_state_machine(sync_sm, "sync_slave_sm")

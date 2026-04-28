@@ -34,6 +34,7 @@ BB_ROOT="$DCS_ROOT/.."                          # building_blocks/
 
 DCS_BIN="$RUNTIME/dcs_host/dcs.lua"
 SQLITE_KB_DIR="$BB_ROOT/knowledge_base/sqlite3/construct_kb"
+PG_DATA_DIR="$BB_ROOT/knowledge_base/postgres/data_structures"
 CT_RUNTIME="$BB_ROOT/chain_tree_luajit/runtime"
 CT_DSL="$BB_ROOT/chain_tree_luajit/lua_dsl"
 
@@ -44,7 +45,7 @@ CT_DSL="$BB_ROOT/chain_tree_luajit/lua_dsl"
     exit 1
 }
 
-export LUA_PATH="$RUNTIME/dcs_host/?.lua;$CT_RUNTIME/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$SQLITE_KB_DIR/?.lua;?.lua;;"
+export LUA_PATH="$RUNTIME/dcs_host/?.lua;$CT_RUNTIME/?.lua;$CT_DSL/?.lua;$CT_DSL/lua_support/?.lua;$SQLITE_KB_DIR/?.lua;$PG_DATA_DIR/?.lua;?.lua;;"
 # cjson for LuaJIT 5.1
 export LUA_CPATH="/usr/local/lib/lua/5.1/?.so;${LUA_CPATH:-};;"
 
