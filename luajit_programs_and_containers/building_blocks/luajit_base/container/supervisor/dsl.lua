@@ -48,6 +48,9 @@ local function controller(ct, kb_name)
                 ct:asm_verify("VERIFY_ALL_APPS_ALIVE", {}, false,
                               "ERR_APPS_START_FAIL", {})
                 ct:asm_one_shot_handler("WRITE_CONTAINER_HEALTH_TRUE", {})
+                -- Phase 6.4: announce container to master via container_rpc.
+                -- Idempotent + safe to call before monitor starts ticking.
+                ct:asm_one_shot_handler("CONTAINER_RPC_CLIENT_INIT", {})
                 ct:asm_log_message("ctrl state: setup -> monitor")
                 ct:change_state(sm, "monitor")
                 ct:asm_halt()
@@ -74,6 +77,20 @@ local function controller(ct, kb_name)
                                   "ERR_TEARDOWN_REQUESTED", {})
                     ct:asm_reset()
                 ct:end_column(shutdown_col)
+
+                -- Phase 6.4: container-layer RPC tick. Drains inbox for
+                -- PAUSE/RESUME/DRAIN/RESET_HINT/HEARTBEAT_ACK; sends
+                -- HEARTBEAT every 60s ±10%; on missed-ACK threshold (3)
+                -- the client os.exit(0)s for watchdog respawn. DRAIN sets
+                -- drain_pending; the verify trips ERR_TEARDOWN_REQUESTED
+                -- so we converge on the same teardown path as SIGTERM.
+                local crpc_col = ct:define_column("ctrl_crpc_col")
+                    ct:asm_one_shot_handler("CONTAINER_RPC_CLIENT_TICK", {})
+                    ct:asm_verify("VERIFY_NO_DRAIN_REQUEST", {}, false,
+                                  "ERR_TEARDOWN_REQUESTED", {})
+                    ct:asm_wait_time(2.0)
+                    ct:asm_reset()
+                ct:end_column(crpc_col)
             ct:end_column(monitor_st)
 
             -- request_shutdown: cooperative stop of apps.

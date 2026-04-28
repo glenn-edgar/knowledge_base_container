@@ -276,6 +276,37 @@ function M.build(ctx)
     end
 
     ------------------------------------------------------------------
+    -- Phase 6.4 container-layer RPC client. Lazily instantiated since
+    -- it depends on ctx.connectors.pg (set by VERIFY_PG in sync state).
+    ------------------------------------------------------------------
+    local container_rpc_client = require("container_rpc_client")
+
+    R.CONTAINER_RPC_CLIENT_INIT = function(_h, _n)
+        if ctx.crpc then return end   -- idempotent
+        ctx.crpc = container_rpc_client.new(ctx)
+        local ok, err = ctx.crpc:send_ready()
+        if not ok then
+            log("ctrl", "CONTAINER_RPC_CLIENT_INIT send_ready failed: " ..
+                        tostring(err))
+        end
+    end
+
+    R.CONTAINER_RPC_CLIENT_TICK = function(_h, _n)
+        if not ctx.crpc then return end
+        ctx.crpc:tick()
+    end
+
+    -- DRAIN verb arrives via tick(); the client sets drain_pending. Verify
+    -- here so the chain-tree advances to request_shutdown via the existing
+    -- ERR_TEARDOWN_REQUESTED path. Wait-time outside this verify gives
+    -- tick() room to actually drain the inbox before the check fires.
+    R.VERIFY_NO_DRAIN_REQUEST = function(_h, _n, _et, event_id, _ed)
+        if event_id ~= defs.CFL_TIMER_EVENT then return true end
+        if not ctx.crpc then return true end
+        return not ctx.crpc:drain_pending()
+    end
+
+    ------------------------------------------------------------------
     -- monitor: reap/respawn + shutdown watch
     -- (STROBE_HEARTBEAT pruned; re-add when the KB grows a per-container
     --  heartbeat bit for cross-VM monitoring.)

@@ -56,6 +56,10 @@ done
 cp "$BB_DIR/knowledge_base/sqlite3/construct_kb/sqlite3_helpers.lua" \
    "$SCRIPT_DIR/prebuilt_lua_share/"
 
+# Phase 6.4: kb_sync_queue is the runtime client used by container_rpc_client.
+cp "$BB_DIR/knowledge_base/postgres/data_structures/kb_sync_queue.lua" \
+   "$SCRIPT_DIR/prebuilt_lua_share/"
+
 # DSL -> JSON IR compile now happens INSIDE the image (see Dockerfile
 # RUN step). No host-side luajit/chain_tree dependency required to build.
 # Stale artifacts from previous runs are removed here for hygiene.
