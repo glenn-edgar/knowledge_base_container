@@ -76,7 +76,8 @@ function M.new(ctx)
   self.epoch      = math.floor(os.time())   -- boot timestamp; rotates on restart
 
   -- Master-side per-peer state map (in RAM; pg writeback is observability).
-  self.master = { peer = {}, cursor = 1, grace_until = 0 }
+  self.master = { peer = {}, cursor = 1, grace_until = 0,
+                  self_kb_write_at = 0 }
   if self.is_master then
     for _, peer_id in ipairs(self.peers) do
       self.master.peer[peer_id] = {
@@ -456,6 +457,24 @@ function M:_write_peer_state_kb()
         p.last_kb_write_at = now
       end
     end
+    -- Master self-row: construction declares peer_state_<every_cpu>
+    -- (per sync_queues subsystem) for symmetry, so observability sees a
+    -- master entry. If we don't write it, it sits as {} forever.
+    if now - self.master.self_kb_write_at >= PEER_STATE_WRITE_S then
+      local path = status_path(self.ctx, "peer_state_" .. self.cpu_id)
+      pcall(function()
+        self.ctx.kb_status.set_status_data(conn, path, {
+          state             = "ACTIVE",
+          epoch             = self.epoch,
+          last_heartbeat_at = now,
+          last_verb_seen    = "self",
+          drained           = self.budget.drained_total,
+          outbound          = 0,
+          updated_at        = now,
+        })
+      end)
+      self.master.self_kb_write_at = now
+    end
   else
     -- Slave's own row (master also has one; slave writes its self-row).
     local path = status_path(self.ctx, "peer_state_" .. self.cpu_id)
@@ -521,8 +540,14 @@ function M:_slave_heartbeat_tick()
   -- Only count once per missed window.
   if self.slave.state == S_ACTIVE then
     local since_ack = now - self.slave.last_ack_at
-    -- Each full HEARTBEAT_PERIOD_S without an ACK = one miss.
-    local expected_misses = math.floor(since_ack / HEARTBEAT_PERIOD_S)
+    -- Each full HEARTBEAT_PERIOD_S without an ACK = one miss. The "-1"
+    -- absorbs the ~one-period gap that's normal between an ACK arriving
+    -- and the next periodic HB tick: at steady state since_ack
+    -- naturally hovers at HEARTBEAT_PERIOD_S +/- jitter, which would
+    -- otherwise log a false-positive miss every period. Real misses
+    -- still escalate (since_ack=10s -> 1, 15s -> 2, 20s -> 3 = fail-stop).
+    local expected_misses = math.max(0,
+      math.floor(since_ack / HEARTBEAT_PERIOD_S) - 1)
     if expected_misses > self.slave.missed_acks then
       self.slave.missed_acks = expected_misses
       self.ctx.log("sync_rpc", string.format(

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# stop.sh -- Stop the dcs.lua watchdog + child for THIS deployment dir.
+#
+# Pkill -f patterns matching just "start.sh" silently no-op because the
+# watchdog cmdline is "bash ./start.sh" with no path -- the dir context
+# lives in CWD, not argv. The dcs.lua child cmdline DOES carry the full
+# bootstrap.db path, so we kill via that.
+#
+# Layout (this file's directory, after stage_deploy):
+#   start.sh           sibling watchdog
+#   stop.sh            (this script)
+#   bootstrap.db       (used as the kill key)
+#
+# Usage: ./stop.sh
+set -u
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOOTSTRAP="$SCRIPT_DIR/bootstrap.db"
+
+# Find dcs.lua processes for this CPU (matched by full bootstrap.db path).
+DCS_PIDS=$(pgrep -f "$BOOTSTRAP" || true)
+
+# Walk parent chain to find the start.sh watchdog(s) above each dcs.lua.
+WATCHDOG_PIDS=""
+for pid in $DCS_PIDS; do
+    parent=$(awk '{print $4}' "/proc/$pid/stat" 2>/dev/null || true)
+    [[ -n "$parent" && "$parent" != "1" ]] && WATCHDOG_PIDS="$WATCHDOG_PIDS $parent"
+done
+
+ALL=$(echo "$WATCHDOG_PIDS $DCS_PIDS" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+ALL_TRIM="$(echo "$ALL" | tr -d ' ')"
+if [[ -z "$ALL_TRIM" ]]; then
+    echo "stop.sh: no processes for $SCRIPT_DIR"
+    exit 0
+fi
+
+echo "stop.sh: stopping PIDs:$ALL"
+kill -TERM $ALL 2>/dev/null || true
+sleep 3
+# Anything still alive gets SIGKILL. pgrep again to filter dead PIDs.
+STILL_ALIVE=$(for p in $ALL; do kill -0 "$p" 2>/dev/null && echo "$p"; done | tr '\n' ' ')
+if [[ -n "$(echo "$STILL_ALIVE" | tr -d ' ')" ]]; then
+    echo "stop.sh: SIGKILL holdouts:$STILL_ALIVE"
+    kill -KILL $STILL_ALIVE 2>/dev/null || true
+fi
+echo "stop.sh: done"

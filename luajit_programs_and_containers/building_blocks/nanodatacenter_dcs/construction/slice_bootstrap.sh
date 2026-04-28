@@ -29,13 +29,18 @@ luajit slice_bootstrap.lua "$@"
 # After slicing, drop a start.sh into each per-CPU dir under deployment/.
 # start.sh execs into runtime/dcs_host/dcs.lua via the wired runtime/ link
 # (set up later by stage_deploy.sh).
-SCRIPT_TEMPLATE="$SCRIPT_DIR/start.sh.template"
-[[ -f "$SCRIPT_TEMPLATE" ]] || { echo "missing $SCRIPT_TEMPLATE" >&2; exit 1; }
+START_TEMPLATE="$SCRIPT_DIR/start.sh.template"
+STOP_TEMPLATE="$SCRIPT_DIR/stop.sh.template"
+[[ -f "$START_TEMPLATE" ]] || { echo "missing $START_TEMPLATE" >&2; exit 1; }
+[[ -f "$STOP_TEMPLATE"  ]] || { echo "missing $STOP_TEMPLATE"  >&2; exit 1; }
 
 shopt -s nullglob
 for cpu_dir in "$DCS_ROOT"/deployment/*/; do
     [[ -d "$cpu_dir" ]] || continue
-    cp "$SCRIPT_TEMPLATE" "$cpu_dir/start.sh"
+    cp "$START_TEMPLATE" "$cpu_dir/start.sh"
     chmod +x "$cpu_dir/start.sh"
     echo "  wrote ${cpu_dir}start.sh"
+    cp "$STOP_TEMPLATE" "$cpu_dir/stop.sh"
+    chmod +x "$cpu_dir/stop.sh"
+    echo "  wrote ${cpu_dir}stop.sh"
 done
