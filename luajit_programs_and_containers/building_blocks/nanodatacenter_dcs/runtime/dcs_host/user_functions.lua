@@ -522,8 +522,22 @@ function M.build(ctx)
 
     local rok, rerr = broker_client.refresh(conn)
     if not rok then
-      -- No fresh data -- can't tell whether containers are down or broker
-      -- is just briefly unreachable. Be quiet; let recovery happen.
+      -- Phase 6.2: distinguish pg-down from broker-hiccup. broker_client
+      -- reads from pg, so if pg is the dead infra we'd get "broker refresh
+      -- failed" with no way to discriminate. Probe pg directly with a
+      -- sentinel query: prepare on a dead connection raises "no connection
+      -- to the server" and we treat that as a confirmed infra fault so
+      -- the chain-tree can route to restoring_infra. Anything else (broker
+      -- process briefly down, network blip) we still absorb silently.
+      local sentinel, sperr = conn:prepare("SELECT 1")
+      if sentinel then sentinel:close() end
+      if not sentinel then
+        log("system_control", string.format(
+          "VERIFY_SYSTEM_CONTAINERS_HEALTHY -> false pg-unreachable (sentinel: %s)",
+          tostring(sperr)))
+        pg.failed_infra = { "pg-vector" }
+        return false
+      end
       log("system_control", string.format(
         "VERIFY_SYSTEM_CONTAINERS_HEALTHY: broker refresh failed (%s) -- staying quiet",
         tostring(rerr)))
@@ -553,6 +567,91 @@ function M.build(ctx)
       table.concat(failed, ", ")))
     return false
   end)
+
+  -- ----------------------------------------------------------------------
+  -- Phase 6.2: per-node infra restart (state lives on master only).
+  --
+  -- When VERIFY_SYSTEM_CONTAINERS_HEALTHY trips during monitor, the
+  -- chain-tree routes to restoring_infra (instead of teardown via
+  -- ERR_MONITOR_TRIP). restoring_infra runs:
+  --   IDENTIFY_FAILED_INFRA -> RESTART_FAILED_INFRA -> wait 5s
+  --     -> verify -> on success: RESET_INFRA_RETRY + back to monitor
+  --                  on fail:    ERR_INFRA_RETRY (count++ + retry,
+  --                              or escalate to request_shutdown after
+  --                              MAX_INFRA_RETRIES consecutive fails).
+  -- ----------------------------------------------------------------------
+  local MAX_INFRA_RETRIES   = 3
+  local INFRA_STOP_TIMEOUT_S = 5
+  pg.failed_infra      = pg.failed_infra      or {}
+  pg.infra_retry_count = pg.infra_retry_count or 0
+
+  R.IDENTIFY_FAILED_INFRA = function(_h, _n)
+    local conn = ctx.connectors and ctx.connectors.pg
+    -- Sentinel ping: if pg is down, broker_client.is_running can't tell
+    -- us anything (it reads from pg). Skip broker, declare pg-vector as
+    -- the failure directly. RESTART_FAILED_INFRA goes through broker
+    -- HTTP -- which doesn't need pg -- so the restart can still proceed.
+    if conn then
+      local stmt = conn:prepare("SELECT 1")
+      if not stmt then
+        pg.failed_infra = { "pg-vector" }
+        log("system_control", string.format(
+          "IDENTIFY_FAILED_INFRA: pg sentinel failed -- pg-vector down (retry=%d/%d)",
+          pg.infra_retry_count, MAX_INFRA_RETRIES))
+        return
+      end
+      stmt:close()
+    end
+    pg.failed_infra = {}
+    if conn then
+      pcall(broker_client.refresh, conn)
+      for _, name in ipairs(SYSTEM_CONTAINERS) do
+        if not broker_client.is_running(conn, name) then
+          pg.failed_infra[#pg.failed_infra + 1] = name
+        end
+      end
+    else
+      -- bootstrap fallback: query docker directly
+      for _, name in ipairs(SYSTEM_CONTAINERS) do
+        if not docker.is_running(name) then
+          pg.failed_infra[#pg.failed_infra + 1] = name
+        end
+      end
+    end
+    log("system_control", string.format(
+      "IDENTIFY_FAILED_INFRA: %d down (%s) (retry=%d/%d)",
+      #pg.failed_infra,
+      table.concat(pg.failed_infra, ", "),
+      pg.infra_retry_count, MAX_INFRA_RETRIES))
+  end
+
+  R.RESTART_FAILED_INFRA = function(_h, _n)
+    -- Broker has no atomic restart verb. stop+start: stop is idempotent
+    -- on already_stopped, start is idempotent on already_running. Small
+    -- window between stop and start where the broker could die; if so,
+    -- the post-restart verify catches it and ERR_INFRA_RETRY drives a
+    -- retry on the next pass.
+    for _, name in ipairs(pg.failed_infra) do
+      local sok, serr = broker_client.stop(name, INFRA_STOP_TIMEOUT_S)
+      log("system_control", string.format(
+        "RESTART_FAILED_INFRA: stop %s -> %s",
+        name, sok and "ok" or tostring(serr)))
+      local rok, rerr = broker_client.start(name)
+      log("system_control", string.format(
+        "RESTART_FAILED_INFRA: start %s -> %s",
+        name, rok and "ok" or tostring(rerr)))
+    end
+  end
+
+  R.RESET_INFRA_RETRY = function(_h, _n)
+    if pg.infra_retry_count > 0 then
+      log("system_control", string.format(
+        "RESET_INFRA_RETRY: cleared count (was %d) -- infra restored",
+        pg.infra_retry_count))
+    end
+    pg.infra_retry_count = 0
+    pg.failed_infra      = {}
+  end
 
   -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH: heartbeat_ts must be within
   -- heartbeat_fresh_s of now. node_control writes heartbeat_ts every
@@ -681,6 +780,36 @@ function M.build(ctx)
     log_then_change_state(handle, "system_control",
                           "ERR_MONITOR_TRIP", "slave_unreachable",
                           "sys_sm", "request_shutdown")
+  end
+
+  -- Phase 6.2: infra trip routes to restoring_infra (per-node restart)
+  -- instead of full teardown. No SYS_EXCEPTION written -- the restart
+  -- attempt is expected behavior; only escalation via
+  -- ERR_INFRA_RESTART_FAILED warrants a SCADA alarm.
+  R.ERR_INFRA_TRIP = function(handle, _n)
+    log_then_change_state(handle, "system_control",
+                          "ERR_INFRA_TRIP", nil,
+                          "sys_sm", "restoring_infra")
+  end
+
+  -- Phase 6.2: post-restart verify failed. Bump retry counter; either
+  -- re-enter restoring_infra (within budget) or escalate to teardown.
+  R.ERR_INFRA_RETRY = function(handle, _n)
+    pg.infra_retry_count = (pg.infra_retry_count or 0) + 1
+    if pg.infra_retry_count >= MAX_INFRA_RETRIES then
+      log_then_change_state(handle, "system_control",
+                            string.format("ERR_INFRA_RESTART_FAILED -- %d consecutive retries exhausted",
+                                          pg.infra_retry_count),
+                            "infra_restart_exhausted",
+                            "sys_sm", "request_shutdown")
+    else
+      log("system_control", string.format(
+        "ERR_INFRA_RETRY: retry %d/%d -- re-entering restoring_infra",
+        pg.infra_retry_count, MAX_INFRA_RETRIES))
+      log_then_change_state(handle, "system_control",
+                            "ERR_INFRA_RETRY", nil,
+                            "sys_sm", "restoring_infra")
+    end
   end
 
   -- Fired by request_shutdown's asm_wait timeout. Forces transition to

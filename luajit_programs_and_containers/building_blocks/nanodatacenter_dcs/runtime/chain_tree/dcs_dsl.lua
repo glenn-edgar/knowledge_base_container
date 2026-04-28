@@ -243,7 +243,8 @@ local function system_control(ct, kb_name)
         -- children at once, making every state run simultaneously.
         local sys_sm = ct:define_state_machine(
             "sys_sm_col", "sys_sm",
-            { "sync", "setup", "monitor", "request_shutdown", "teardown" },
+            { "sync", "setup", "monitor", "restoring_infra",
+              "request_shutdown", "teardown" },
             "sync", false)
 
             local sync_st = ct:define_state("sync", nil)
@@ -325,11 +326,36 @@ local function system_control(ct, kb_name)
                     ct:asm_wait_time(5.0)   -- settle before first verify
                     ct:asm_verify("VERIFY_NODE_CTRL_HEARTBEAT_FRESH", {}, false,
                                   "ERR_MONITOR_TRIP", {})
+                    -- Phase 6.2: infra trip routes to restoring_infra
+                    -- (per-node restart) instead of ERR_MONITOR_TRIP
+                    -- (full teardown). Escalation back to teardown
+                    -- happens after MAX_INFRA_RETRIES consecutive
+                    -- failures via ERR_INFRA_RESTART_FAILED.
                     ct:asm_verify("VERIFY_SYSTEM_CONTAINERS_HEALTHY", {}, false,
-                                  "ERR_MONITOR_TRIP", {})
+                                  "ERR_INFRA_TRIP", {})
                     ct:asm_halt()
                 ct:end_column(verify_col)
             ct:end_column(monitor_st)
+
+            -- restoring_infra: identify failing infra container(s) via
+            -- broker snapshot, restart each via broker (stop+start),
+            -- wait 5s, re-verify. On success: reset retry counter and
+            -- return to monitor. On failure: ERR_INFRA_RETRY handler
+            -- bumps the retry counter and either re-enters this state
+            -- (count < MAX_INFRA_RETRIES) or escalates to
+            -- request_shutdown via ERR_INFRA_RESTART_FAILED.
+            local restoring_infra_st = ct:define_state("restoring_infra", nil)
+                ct:asm_log_message("sys state: restoring_infra (entering)")
+                ct:asm_one_shot_handler("IDENTIFY_FAILED_INFRA", {})
+                ct:asm_one_shot_handler("RESTART_FAILED_INFRA",  {})
+                ct:asm_wait_time(5.0)
+                ct:asm_verify("VERIFY_SYSTEM_CONTAINERS_HEALTHY", {}, false,
+                              "ERR_INFRA_RETRY", {})
+                ct:asm_one_shot_handler("RESET_INFRA_RETRY", {})
+                ct:asm_log_message("sys state: restoring_infra -> monitor (recovered)")
+                ct:change_state(sys_sm, "monitor")
+                ct:asm_halt()
+            ct:end_column(restoring_infra_st)
 
             -- request_shutdown: cooperative pause between monitor and
             -- teardown. Posts the shutdown request to node_control (and
