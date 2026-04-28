@@ -322,6 +322,18 @@ local function system_control(ct, kb_name)
                     ct:asm_reset()
                 ct:end_column(hb_col)
 
+                -- Phase 6.4: container-layer RPC scheduler. Drains
+                -- container_inbox_<cpu_id>_q at 5 Hz, dispatches
+                -- CONTAINER_READY/HEARTBEAT, runs missed-HB scan +
+                -- two-tier escalation, flushes outbox. Master-only;
+                -- the handlers no-op on non-master CPUs.
+                local crpc_col = ct:define_column("sys_monitor_crpc")
+                    ct:asm_one_shot_handler("CONTAINER_RPC_SCHEDULER_TICK",   {})
+                    ct:asm_one_shot_handler("CONTAINER_RPC_KB_WRITEBACK_TICK",{})
+                    ct:asm_wait_time(0.2)
+                    ct:asm_reset()
+                ct:end_column(crpc_col)
+
                 local verify_col = ct:define_column("sys_monitor_verify")
                     ct:asm_wait_time(5.0)   -- settle before first verify
                     ct:asm_verify("VERIFY_NODE_CTRL_HEARTBEAT_FRESH", {}, false,

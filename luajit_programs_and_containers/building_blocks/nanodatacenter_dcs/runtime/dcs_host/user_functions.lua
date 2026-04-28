@@ -19,6 +19,7 @@ local ptime  = require("posix_time")  -- sub-second timing for supervision metri
 local broker_client = require("broker_client")  -- read docker_host_broker state from KB
 local spec_adapter  = require("spec_adapter")   -- catalog spec -> wire-protocol RunSpec
 local sync_rpc      = require("sync_rpc")       -- Phase 6.1 inter-CPU sync
+local container_rpc = require("container_rpc")  -- Phase 6.4 container layer
 
 local M = {}
 
@@ -102,6 +103,15 @@ function M.build(ctx)
   -- VERIFY_ALL_PEERS_ACTIVE / VERIFY_OWN_ACTIVE.
   ctx.sync_rpc = sync_rpc.new(ctx)
   ctx.sync_rpc:install_handlers(R)
+
+  -- Phase 6.4: container-layer RPC, master-only. Listens on
+  -- container_inbox_<cpu_id>_q for CONTAINER_READY/HEARTBEAT from local
+  -- app containers; sends PAUSE/RESUME/DRAIN/RESET_HINT/HEARTBEAT_ACK
+  -- per-container. Two-tier escalation: missed-HB threshold -> RESET_HINT
+  -- (in-place reset), 3 RESET_HINTs -> declare LOST + SYS_EXCEPTION
+  -- (node_control's reconcile path then docker rms + spawns fresh).
+  ctx.container_rpc = container_rpc.new(ctx)
+  ctx.container_rpc:install_handlers(R)
 
   ----------------------------------------------------------------------
   -- Per-agent SYS_EXCEPTION path resolver. Construct script writes:
