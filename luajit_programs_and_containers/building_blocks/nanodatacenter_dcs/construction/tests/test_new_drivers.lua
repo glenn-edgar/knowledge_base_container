@@ -297,6 +297,8 @@ drop_if('DROP TABLE IF EXISTS "drivers_smoke_stream_msg__smoke_heartbeat" CASCAD
 drop_if('DROP FUNCTION IF EXISTS "drivers_smoke_stream_push__smoke_heartbeat"(ltree, bytea)')
 -- Baseline KB tables created by KnowledgeBaseManager / satellites:
 drop_if('DROP TABLE IF EXISTS "drivers_smoke" CASCADE')
+drop_if('DROP TABLE IF EXISTS "drivers_smoke_info" CASCADE')
+drop_if('DROP TABLE IF EXISTS "drivers_smoke_rollups" CASCADE')
 drop_if('DROP TABLE IF EXISTS "drivers_smoke_stream" CASCADE')
 drop_if('DROP TABLE IF EXISTS "drivers_smoke_status" CASCADE')
 drop_if('DROP TABLE IF EXISTS "drivers_smoke_job" CASCADE')
