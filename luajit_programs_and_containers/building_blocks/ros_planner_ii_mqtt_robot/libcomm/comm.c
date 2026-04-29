@@ -81,6 +81,15 @@ static router_t           g_router;
 static link_t             g_link;
 static transport_inproc_t g_host_inproc;
 static uart_dongle_t      g_uart_dongles[COMM_DONGLES_MAX];
+
+// Owned copy of the validated manifest. manifest_validate aliases the
+// caller's blob, but callers can't always keep that blob alive for
+// libcomm's lifetime (notably LuaJIT FFI cdata that gets GC'd after the
+// init call returns). Copying into static storage makes the lib robust
+// against caller memory-management mistakes — symptom was a dangling
+// g_manifest causing comm_poll's bus_id lookup to read garbage and every
+// response to be silently dropped.
+static comm_manifest_v1_wire_t        g_manifest_storage;
 static const comm_manifest_v1_wire_t *g_manifest = 0;
 
 static comm_slot_t        g_slots[COMM_HANDLES_MAX];
@@ -225,8 +234,9 @@ comm_result_t comm_init(const uint8_t* manifest_blob, size_t blob_len)
     decoders_init();
     handlers_init();
 
-    g_manifest    = m;
-    g_host_kind   = HOST_TRANSPORT_INPROC;
+    g_manifest_storage = *m;
+    g_manifest         = &g_manifest_storage;
+    g_host_kind        = HOST_TRANSPORT_INPROC;
     g_initialized = 1;
     return COMM_OK;
 }
@@ -449,8 +459,9 @@ comm_result_t comm_init_with_dongles(const uint8_t              *manifest_blob,
     decoders_init();
     handlers_init();
 
-    g_manifest    = m;
-    g_host_kind   = HOST_TRANSPORT_DONGLES;
+    g_manifest_storage = *m;
+    g_manifest         = &g_manifest_storage;
+    g_host_kind        = HOST_TRANSPORT_DONGLES;
     g_initialized = 1;
     return COMM_OK;
 }

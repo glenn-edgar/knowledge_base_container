@@ -330,13 +330,14 @@ do
 end
 
 ------------------------------------------------------------------------
--- Stress N kept moderate because multi-dongle full-duplex over pty in
--- LuaJIT exposes a timing race we have not finished diagnosing — at
--- N=100 the harness flakes ~30%, with one of the two dongles' last
--- few responses arriving very late. Phase A's single-dongle 1000x
--- gate stays the long-run stress baseline; this multi-dongle test
--- proves multi-dongle routing + isolation works repeatably at smaller N.
-local STRESS_N = 20
+-- Stress count. The N=100 flake debugged in slice 2c.75 turned out to be
+-- a dangling g_manifest pointer in libcomm: manifest_validate aliased
+-- the caller's blob, and Lua-side ffi.new() cdata got GC'd mid-test, so
+-- comm_poll's bus_id lookup read garbage and dropped responses
+-- silently. Fixed by copying the validated manifest into static storage
+-- in comm_init / comm_init_with_dongles. N=100 now reliable; N=500
+-- runs in ~1.3 s serialized / ~0.7 s interleaved.
+local STRESS_N = 100
 
 io.write(string.format("[%dx PING serialized through each dongle]\n", STRESS_N))
 do
