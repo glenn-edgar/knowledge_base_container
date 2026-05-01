@@ -10,9 +10,11 @@ NDC_BASE="${NDC_BASE:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
 PG_KB_DIR="$NDC_BASE/commissioning_software/kb/postgres/construct_kb"
 SQLITE_KB_DIR="$NDC_BASE/commissioning_software/kb/sqlite3/construct_kb"
 DCS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DCS_RT_DIR="$DCS_ROOT/runtime/dcs_host"
 
 [[ -d "$PG_KB_DIR"     ]] || { echo "missing $PG_KB_DIR"     >&2; exit 1; }
 [[ -d "$SQLITE_KB_DIR" ]] || { echo "missing $SQLITE_KB_DIR" >&2; exit 1; }
+[[ -d "$DCS_RT_DIR"    ]] || { echo "missing $DCS_RT_DIR"    >&2; exit 1; }
 
 SECRETS_FILE="${HOME}/.config/nanodatacenter/secrets.env"
 [[ -f "$SECRETS_FILE" ]] || { echo "missing $SECRETS_FILE -- run setup_secrets.sh" >&2; exit 1; }
@@ -21,7 +23,7 @@ source "$SECRETS_FILE"
 [[ -n "${PG_PASSWORD:-}" ]] || { echo "PG_PASSWORD not set after sourcing $SECRETS_FILE" >&2; exit 1; }
 
 export POSTGRES_PASSWORD="$PG_PASSWORD"
-export LUA_PATH="$SQLITE_KB_DIR/?.lua;$PG_KB_DIR/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+export LUA_PATH="$SQLITE_KB_DIR/?.lua;$PG_KB_DIR/?.lua;$DCS_RT_DIR/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 
 cd "$SCRIPT_DIR"
 luajit slice_bootstrap.lua "$@"

@@ -22,17 +22,19 @@
 local SCRIPT_DIR = (arg[0] or ""):match("(.+)/[^/]+$") or "."
 package.path = SCRIPT_DIR .. "/../../../knowledge_base/postgres/data_structures/?.lua;"
             .. SCRIPT_DIR .. "/../../../luajit_base/container/supervisor/?.lua;"
+            .. SCRIPT_DIR .. "/../../runtime/dcs_host/?.lua;"
             .. package.path
 
-local DBI = require("DBI")
+local DBI         = require("DBI")
 local crpc_client = require("container_rpc_client")
+local ndc_paths   = require("ndc_paths")
 
 local NAME    = os.getenv("CONTAINER_NAME") or "test_app_01"
 local CPU_ID  = os.getenv("APP_CPU_ID")     or "cpu_01"
 local SITE    = os.getenv("APP_SITE")       or "moonbase.alpha.dcs"
 local PG_PASS = os.getenv("POSTGRES_PASSWORD") or os.getenv("PG_PASSWORD")
-local STATUS_PATH = "system.site." .. SITE
-                  .. ".KB_STATUS_FIELD.container_state_" .. NAME
+local STATUS_PATH = ndc_paths.site_status_field_path(
+                      SITE, "container_state_" .. NAME)
 
 local function die(msg) io.stderr:write("FAIL: " .. msg .. "\n"); os.exit(1) end
 local function ok(msg)  print("  PASS: " .. msg) end

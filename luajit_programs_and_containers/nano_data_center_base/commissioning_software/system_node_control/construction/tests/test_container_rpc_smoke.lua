@@ -21,10 +21,12 @@
 local SCRIPT_DIR = (arg[0] or ""):match("(.+)/[^/]+$") or "."
 package.path = SCRIPT_DIR .. "/../../../knowledge_base/postgres/data_structures/?.lua;"
             .. SCRIPT_DIR .. "/../../../knowledge_base/postgres/?.lua;"
+            .. SCRIPT_DIR .. "/../../runtime/dcs_host/?.lua;"
             .. package.path
 
-local sync_q = require("kb_sync_queue")
-local DBI    = require("DBI")
+local sync_q    = require("kb_sync_queue")
+local DBI       = require("DBI")
+local ndc_paths = require("ndc_paths")
 
 local DATABASE = "knowledge_base"
 local SITE     = "moonbase.alpha.dcs"
@@ -32,8 +34,8 @@ local CPU_ID   = "cpu_01"
 local NAME     = "test_app_01"
 local INBOX_Q  = "container_inbox_" .. CPU_ID .. "_q"
 local OUTBOX_Q = "container_" .. NAME .. "_q"
-local STATUS_PATH = "system.site." .. SITE
-                  .. ".KB_STATUS_FIELD.container_state_" .. NAME
+local STATUS_PATH = ndc_paths.site_status_field_path(
+                      SITE, "container_state_" .. NAME)
 
 local function die(msg)
   io.stderr:write("FAIL: " .. msg .. "\n")

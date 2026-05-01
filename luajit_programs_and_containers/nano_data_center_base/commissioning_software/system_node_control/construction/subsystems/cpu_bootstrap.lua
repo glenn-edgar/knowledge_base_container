@@ -6,6 +6,8 @@
 -- Read once at host-process startup.
 -- =============================================================================
 
+local ndc_paths = require("ndc_paths")
+
 return {
 
   install_cpu = function(ctx, cpu_id, cpu_cfg)
@@ -27,8 +29,7 @@ return {
         is_master          = (cpu_id == ctx.MASTER_CPU) and 1 or 0,
         master_cpu         = ctx.MASTER_CPU,
         peers              = peers,   -- Phase 6.1
-        kb_root            = string.format("system.site.%s.cpu.%s",
-                                           ctx.SITE, cpu_id),
+        kb_root            = ndc_paths.cpu_root(ctx.SITE, cpu_id),
         pg_host            = PG.host,
         pg_port            = PG.port,
         pg_db              = PG.dbname,

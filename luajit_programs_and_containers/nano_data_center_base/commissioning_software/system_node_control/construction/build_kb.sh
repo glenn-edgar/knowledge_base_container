@@ -10,9 +10,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # lives at <NDC_BASE>/commissioning_software/system_node_control/construction/).
 NDC_BASE="${NDC_BASE:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
 PG_KB_DIR="$NDC_BASE/commissioning_software/kb/postgres/construct_kb"
+DCS_RT_DIR="$NDC_BASE/commissioning_software/system_node_control/runtime/dcs_host"
 
 if [[ ! -d "$PG_KB_DIR" ]]; then
     echo "expected postgres construct_kb at $PG_KB_DIR" >&2
+    exit 1
+fi
+if [[ ! -d "$DCS_RT_DIR" ]]; then
+    echo "expected dcs_host runtime dir at $DCS_RT_DIR" >&2
     exit 1
 fi
 
@@ -31,7 +36,7 @@ fi
 
 # the postgres construct lib expects POSTGRES_PASSWORD
 export POSTGRES_PASSWORD="$PG_PASSWORD"
-export LUA_PATH="$PG_KB_DIR/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
+export LUA_PATH="$PG_KB_DIR/?.lua;$DCS_RT_DIR/?.lua;$SCRIPT_DIR/?.lua;?.lua;;"
 
 cd "$SCRIPT_DIR"
 exec luajit build_kb.lua "$@"

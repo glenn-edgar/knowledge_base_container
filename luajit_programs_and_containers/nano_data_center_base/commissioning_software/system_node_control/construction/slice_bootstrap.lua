@@ -24,9 +24,10 @@
 -- After write, file is chmod 0444 (read-only).
 -- =============================================================================
 
-local DBI         = require("DBI")
+local DBI          = require("DBI")
 local Construct_KB = require("construct_kb")
-local h           = require("sqlite3_helpers")
+local h            = require("sqlite3_helpers")
+local ndc_paths    = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- locate sibling files
@@ -95,12 +96,12 @@ local function compute_filters(cpu_id, is_master, all_cpus)
   local function E(p) exact[#exact + 1] = p end
 
   -- tree integrity
-  E(string.format("system.site.%s",         SITE))
-  E(string.format("system.site.%s.cpu.%s",  SITE, cpu_id))
+  E(ndc_paths.site_root(SITE))
+  E(ndc_paths.cpu_root(SITE, cpu_id))
 
   -- bootstrap.config (identity + pg connect) + its header
-  E(string.format("system.site.%s.cpu.%s.bootstrap",        SITE, cpu_id))
-  E(string.format("system.site.%s.cpu.%s.bootstrap.config", SITE, cpu_id))
+  E(ndc_paths.cpu_path(SITE, cpu_id, "bootstrap"))
+  E(ndc_paths.cpu_path(SITE, cpu_id, "bootstrap.config"))
 
   -- include kinds:
   --   infrastructure -- only on master (system_control half manages these)
@@ -112,8 +113,7 @@ local function compute_filters(cpu_id, is_master, all_cpus)
   for _, inst in ipairs(cpu.instances or {}) do
     local def = DEFINITIONS[inst.def]
     if def and include_kinds[def.kind] then
-      S(string.format("system.site.%s.cpu.%s.container.%s",
-                      SITE, cpu_id, inst.name))
+      S(ndc_paths.container_root(SITE, cpu_id, inst.name))
       S(string.format("system.container_definition.%s", inst.def))
     end
   end
