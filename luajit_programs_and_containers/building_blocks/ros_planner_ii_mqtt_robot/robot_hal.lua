@@ -35,8 +35,24 @@ end
 function M.new(opts)
     opts = opts or {}
     local mode = opts.mode or os.getenv("HAL_MODE") or "sim"
+
+    if mode == "dongle" then
+        -- HAL_MODE=dongle: master-side HAL backed by libcomm. Spawns
+        -- nothing; assumes orchestrator (start_robot.sh) has already
+        -- launched a robot_sim and exposed its pty path via
+        -- ROBOT_SIM_PTY env var or opts.pty_path.
+        local dongle_hal = require("dongle_hal")
+        return dongle_hal.new({
+            pty_path        = opts.pty_path,
+            dongle_type     = opts.dongle_type,
+            dongle_instance = opts.dongle_instance,
+            slave_addr      = opts.slave_addr,
+            mcu             = opts.mcu,
+        })
+    end
+
     if mode ~= "sim" then
-        error("robot_hal: mode '" .. mode .. "' not supported yet (only 'sim')")
+        error("robot_hal: mode '" .. mode .. "' not supported (use 'sim' or 'dongle')")
     end
 
     local physics_ffi = require("physics_ffi")

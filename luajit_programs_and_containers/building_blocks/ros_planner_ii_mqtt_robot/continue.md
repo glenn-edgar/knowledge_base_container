@@ -133,6 +133,46 @@ plan mistakenly called physics_core JSON-shaped — corrected
 
 ### Slice L5 — wire ros_planner_ii through to drive_base
 
+**Status 2026-05-01 (mid):** L5.1 + L5.1b + L5.2 + L5.3 + dongle_hal.lua
+skeleton landed; e2e blocked on libcomm architectural gap (below).
+
+**Architectural gap to resolve at start of next session:**
+
+libcomm's master-side `comm_poll` only surfaces s2m frames whose
+`ack_seq` matches an outstanding request slot. drive_base's
+`DRV_EVT_TELEMETRY` / `DRV_EVT_SEG_DONE` events are emitted
+**unsolicited** — they reach the wire but get filtered on the master
+side as "stale or unmatched" (libcomm/comm.c:725 `if (s->seq !=
+in->ack_seq) return`).
+
+This is a real design issue. Two paths to choose from:
+
+1. **Polling protocol (smaller change):**
+   - Add `DRV_CMD_GET_TELEMETRY` (0x1031). Empty request payload.
+     Response = 32-byte struct (x, y, h, v, ω, energy,
+     last_done_master_seq, queue_depth, flags).
+   - Manager refactor: don't auto-ACK GET_* commands; let drive_base
+     produce the response (set bus_msg.seq = request seq so libcomm
+     correlates it).
+   - Master HAL polls every ~50 ms.
+   - dongle_hal.lua already has the cache structure; just needs to
+     swap the (broken) "TELEMETRY_ON + drain unsolicited" with
+     "submit GET_TELEMETRY + decode response" in `_drain`.
+   - Existing in-process tests (test_drive_base, test_dongle_catalogue)
+     still use the unsolicited ext_tx_q path; don't break them.
+
+2. **Unsolicited s2m path in libcomm (bigger):** add a callback /
+   queue on the master side that surfaces unsolicited s2m frames.
+   Mirrors the embedded RTOS event push pattern more naturally but
+   is a libcomm extension.
+
+**Recommendation:** path 1 (polling). Smaller blast radius, fits the
+existing libcomm shape, can land incrementally. Polling at 50 ms
+costs ~20 ms-of-stale on read_pose vs unsolicited push, which is fine
+for the existing controller tick (CT_TICK_SIM_S = 100 ms anyway).
+
+**After the gap is resolved:**
+
 - Replace `mqtt_robot_main.lua`'s direct `physics_core` calls with
   `comm_submit(drive_base_cmd)` through libcomm: pty → robot_sim →
   drive_base → physics_core.
