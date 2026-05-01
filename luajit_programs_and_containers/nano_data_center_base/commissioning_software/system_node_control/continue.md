@@ -74,8 +74,22 @@ docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
 grep -iE "ERROR|PANIC|FATAL|stack trace" $DEP/cpu_01/error.log $DEP/cpu_02/error.log
 ```
 
-If all-clean: proceed to Layer M-2 below. If any check regresses: rollback line is
-`git reset --hard 8fb88bb1` (returns to pre-M-1 master).
+If all-clean: proceed to Layer M-2 below. If any check regresses, rollback the
+M-1 commits without losing the unrelated robot work that interleaved on master
+(commits `907cd431` + `532c16ae` are L5/L6 work, untouched by M-1):
+
+```bash
+# Reverts each M-1 commit by creating a NEW commit that undoes it.
+# Order: NEWEST first (so the diff applies cleanly).
+cd $NDC_BASE
+git revert --no-edit b9175a0e 232183c9 0d248831 bfeb2afb
+# Then rebuild + reslice + restage + reboot per the recipe below.
+```
+
+`git revert` is non-destructive: it makes new commits, doesn't rewrite history,
+and never touches files outside the M-1 scope. After the reverts, your robot
+L5/L6 work is still on master, and the cluster goes back to pre-M-1 path
+emission.
 
 ### **Layer M-2 — the actual rename (next session)**
 
@@ -389,8 +403,9 @@ green; overnight soak underway.
 2026-05-01 EVENING session" block has the morning soak-check command and
 the step-by-step Layer M-2 (the actual rename) recipe.
 
-Rollback line if soak regresses: `git reset --hard 8fb88bb1`
-(returns to pre-M-1 master, commit "continue.md: end-of-session 2026-05-01 — L5 blocked on libcomm gap").
+Rollback line if soak regresses: `git revert --no-edit b9175a0e 232183c9 0d248831 bfeb2afb`
+(creates 4 new commits that undo M-1 in reverse order; preserves the unrelated
+L5/L6 robot commits `907cd431` + `532c16ae` that landed on master tonight).
 
 Earlier in the day (afternoon): Phase A complete, cluster ported to
 `nano_data_center_base/`; `building_blocks/nanodatacenter_dcs/` retained
