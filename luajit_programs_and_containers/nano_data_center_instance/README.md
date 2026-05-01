@@ -8,7 +8,7 @@ needs site-tier KB rows, file-store seed scripts, or per-node site.json.
 
 ```
 nano_data_center_instance/
-├── app_containers/                 (empty; first app port = ros_mission_planner_ii + thread_bridge)
+├── app_containers/                 (empty; first app port = ros_mission_planner_ii — single container, planner + planner_ui processes inside)
 ├── configurations/
 │   └── moon_base_alpha/            (FIRST SITE)
 │       ├── kb_script/              (KB construction inputs — site-tier rows)

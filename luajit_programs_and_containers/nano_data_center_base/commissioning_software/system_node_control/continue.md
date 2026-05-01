@@ -60,11 +60,25 @@ and is no longer used in production.
 Phase A's plan called Phase B "live cutover + first app port"; the cutover
 happened in this session, so Phase B is now just the first app port.
 
-### Phase B target: ros_mission_planner_ii + thread_bridge (paired)
+### Phase B target: ros_mission_planner_ii (ONE container)
 
-These two app-tier containers belong together — `thread_bridge` is the Go
-MQTT→NATS bridge that `ros_mission_planner_ii` depends on. They get ported
-from `building_blocks/` to `nano_data_center_instance/app_containers/`.
+CORRECTION 2026-05-01: planner + UI are a SINGLE container, not two.
+`building_blocks/ros_mission_planner_ii/container/` has one `Dockerfile`
+(`FROM openresty-base`), one image
+(`nanodatacenter/ros-mission-planner-ii:latest`), and TWO processes
+inside it (`planner/` Lua worker + `planner_ui/` openresty on internal
+:8080), both supervised by the chain-tree controller baked into
+luajit-base. The gateway reverse-proxies the UI's port; the planner
+process runs alongside but is not directly reachable from outside.
+
+`thread_bridge/` in building_blocks is a Lua/C library (fnv1a hashing),
+NOT a containerized service. Per `project_thread_bridge.md` memory, an
+actual Thread-mesh NATS bridge container is planned separately; the
+fnv1a code is scaffolding for that future container, not part of the
+planner port.
+
+So Phase B = port one container (`ros_mission_planner_ii`) from
+`building_blocks/` to `nano_data_center_instance/app_containers/`.
 
 This is the first real test of the base/instance split: the app needs its
 KB-namespace root registered dynamically (per
