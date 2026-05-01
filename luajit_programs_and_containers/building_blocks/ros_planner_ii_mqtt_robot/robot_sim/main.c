@@ -111,11 +111,28 @@ static int create_pty(char *slave_path_out, size_t slave_path_max)
     return fd;
 }
 
+// Load tunables from a binary blob laid out as drive_base_tunables_t.
+// Mirrors Q3's NVS read path; on embedded the same struct comes back
+// from Zephyr settings. Returns 0 on success, -1 on file/size error,
+// -2 on schema mismatch. On success, *out is populated.
+static int load_tunables_blob(const char *path, drive_base_tunables_t *out)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+    size_t got = fread(out, 1, sizeof(*out), f);
+    int eof_short = (got != sizeof(*out));
+    fclose(f);
+    if (eof_short) return -1;
+    if (out->schema_version != DRV_TUNABLES_SCHEMA_VERSION) return -2;
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     long type     = -1;
     long instance = -1;
     long slave_addr = 1;
+    const char *tunables_path = NULL;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--type") == 0 && i + 1 < argc) {
             type = strtol(argv[++i], NULL, 10);
@@ -123,6 +140,8 @@ int main(int argc, char **argv)
             instance = strtol(argv[++i], NULL, 10);
         } else if (strcmp(argv[i], "--addr") == 0 && i + 1 < argc) {
             slave_addr = strtol(argv[++i], NULL, 10);
+        } else if (strcmp(argv[i], "--tunables") == 0 && i + 1 < argc) {
+            tunables_path = argv[++i];
         } else {
             fprintf(stderr, "robot_sim: unknown arg: %s\n", argv[i]);
             return 2;
@@ -175,11 +194,33 @@ int main(int argc, char **argv)
     bus_msgq_init (&ctx.ext_tx_q,  ctx.ext_tx_buf,
                    (uint16_t)sizeof(bus_msg_t), DONGLE_QUEUE_DEPTH);
 
-    // Configure drive_base instance (slot 0). Tunables are hardcoded
-    // for the Linux waypoint (Q3 mirror); on embedded these come from
-    // NVS. Outbound events flow directly to ext_tx_q so ext_bus_thread
-    // encodes them as s2m frames in one hop.
-    ctx.drive_base.tun            = default_drive_base_tunables();
+    // Configure drive_base instance (slot 0). Tunables come from a
+    // binary blob (--tunables) when provided, mirroring the Q3 NVS
+    // read path; otherwise fall back to compiled defaults so a bare
+    // --type/--instance invocation still works for the wire-level
+    // pty multi-dongle test.
+    drive_base_tunables_t tun;
+    if (tunables_path) {
+        int rc = load_tunables_blob(tunables_path, &tun);
+        if (rc == -1) {
+            fprintf(stderr, "robot_sim: cannot read tunables blob '%s' "
+                            "(or wrong size; expected %zu bytes)\n",
+                    tunables_path, sizeof(tun));
+            close(master_fd);
+            return 1;
+        }
+        if (rc == -2) {
+            fprintf(stderr, "robot_sim: tunables schema_version mismatch "
+                            "(got %u, expected %u)\n",
+                    (unsigned)tun.schema_version,
+                    (unsigned)DRV_TUNABLES_SCHEMA_VERSION);
+            close(master_fd);
+            return 1;
+        }
+    } else {
+        tun = default_drive_base_tunables();
+    }
+    ctx.drive_base.tun            = tun;
     ctx.drive_base.outbound       = &ctx.ext_tx_q;
     ctx.drive_base.tick_period_ms = drive_base_vtable.tick_period_ms;
     ctx.drive_base.bus_addr       = ctx.slave_addr;
