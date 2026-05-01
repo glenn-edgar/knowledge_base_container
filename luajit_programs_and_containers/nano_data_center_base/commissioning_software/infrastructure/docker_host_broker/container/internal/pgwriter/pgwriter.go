@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/nanodatacenter/docker_host_broker/internal/dockercli"
+	"github.com/nanodatacenter/docker_host_broker/internal/pathkb"
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
 )
 
@@ -45,7 +46,7 @@ type paths struct {
 }
 
 func pathsFor(site string) paths {
-	root := "system.site." + site + ".docker_broker."
+	root := pathkb.BrokerRoot(site)
 	return paths{
 		containers:  root + "containers.KB_STATUS_FIELD.snapshot",
 		stats:       root + "containers.KB_STATUS_FIELD.stats",

@@ -19,6 +19,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nanodatacenter/docker_host_broker/internal/dockercli"
+	"github.com/nanodatacenter/docker_host_broker/internal/pathkb"
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
 )
 
@@ -42,7 +43,7 @@ type subjects struct {
 }
 
 func subjectsFor(site string) subjects {
-	root := "system.site." + site + ".docker_broker."
+	root := pathkb.BrokerRoot(site)
 	return subjects{
 		heartbeat:   root + "heartbeat",
 		snapshot:    root + "containers.snapshot",
