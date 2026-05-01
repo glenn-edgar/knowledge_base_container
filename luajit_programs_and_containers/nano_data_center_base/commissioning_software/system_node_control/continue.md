@@ -155,6 +155,7 @@ build time. Cross-app reads at runtime are the integration path.
 | Layer | Goal | Checkpoint |
 |---|---|---|
 | **M** — namespace migration | Add `system` segment everywhere; rename `moonbase.alpha.dcs` → `moon_base_alpha`. ~50–80 lines across topology.lua, path composers in dcs_host/, broker env, site.json. | Cluster boots green on `system.moon_base.site.moon_base_alpha.*`. |
+| **O** — observability tree-by-namespace | Update the observability container (`platform_containers/observability/container/log_web/` + `exception_web/`) so the UI renders KB_LOG / SYS_EXCEPTION rows under a collapsible **tree control** keyed by the path namespace (`system.<sys>.site.<s>.cpu.<id>.container.<c>.KB_LOG.<sample>`). Each ltree segment becomes a tree node; leaves are the actual log/exception streams. Drives discoverability for app-container logs landing under `app_containers.<c>.runtime.*` once F lands. Server-side: extend `log_web/lua/helpers.lua` + `exception_web/lua/helpers.lua` with a tree-build query (`SELECT path, count(*) FROM knowledge_base_stream GROUP BY path` etc.) returning a node tree; client-side: htmx-driven expand/collapse view per node. | Operator can navigate full KB log/exception namespace as a tree; clicking a leaf opens the existing strip-chart / detail pane. |
 | **F** — apps-builder framework (base) | `nano_data_center_base/commissioning_software/apps_builder_framework/` with driver.lua + dsl.lua + scoped_writer.lua + container_spec_validator.lua. Unit tests for scope confinement and atomic failure. | Framework + tests green; nothing wired into runtime yet. |
 | **A** — port the planner (instance) | `git mv` planner from `building_blocks/` to `nano_data_center_instance/app_containers/ros_mission_planner_ii/`. Author its `kb_build.lua` + `container_spec.lua`. Rebuild planner image. | Planner image builds green; not yet started. |
 | **I** — instance plumbing | `nano_data_center_instance/commissioning_software/apps_builder/` Dockerfile that composes framework + per-app functions. Build apps-builder image. Author placement row in site config. Wire into `build_kb.sh` and `rebuild_and_start.sh`. | Full pipeline green; pg has planner anchor populated under `app_containers`. |
@@ -170,11 +171,12 @@ build time. Cross-app reads at runtime are the integration path.
 ### Sequencing within a session
 
 - Layer M is its own session (or first half of a session). Migration touches lots of files but is mechanical; finish + verify before opening F.
+- Layer O (observability tree control) lands AFTER M and BEFORE F. Rationale: with the namespace finalized, the tree control's path math stops drifting; landing it before app containers means new app-container logs (under `app_containers.<c>.runtime.*` and `app_containers.<c>.KB_LOG.*`) are visible in the tree from day one. Single session — backend + frontend live in the same container.
 - Layers F + A + I can be a single session if the planner port goes smoothly; expect it to take 1–2 sessions.
 - Layer N is its own session because of node_control refactor risk.
 - Layer V is half a session (build + smoke).
 
-Total: 3–5 sessions for Phase B as scoped above.
+Total: 4–6 sessions for Phase B as scoped above (was 3–5 before O insertion).
 
 ### Other pending items (unchanged from earlier)
 
