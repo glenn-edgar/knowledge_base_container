@@ -53,5 +53,75 @@ export MQTT_HOST="${MQTT_HOST:-localhost}"
 export MQTT_PORT="${MQTT_PORT:-1883}"
 export VMRT_KB_SITE="${VMRT_KB_SITE:-moonbase.alpha.surface_ops}"
 
-echo "Starting MQTT robot: $CONFIG_FILE"
-exec luajit "$MQTT_ROBOT/mqtt_robot_main.lua" "$CONFIG_FILE"
+# HAL_MODE selects the robot_hal backend:
+#   sim    (default) — direct FFI into libphysics inside this process
+#   dongle           — libcomm pty into a robot_sim subprocess running
+#                      the four-thread dongle architecture (Tracks A+C,
+#                      slices L1..L5)
+HAL_MODE="${HAL_MODE:-sim}"
+export HAL_MODE
+
+ROBOT_SIM_PID=""
+
+cleanup_robot_sim() {
+    if [ -n "$ROBOT_SIM_PID" ]; then
+        kill "$ROBOT_SIM_PID" 2>/dev/null || true
+        wait "$ROBOT_SIM_PID" 2>/dev/null || true
+    fi
+}
+trap cleanup_robot_sim EXIT INT TERM
+
+if [ "$HAL_MODE" = "dongle" ]; then
+    # Dongle mode: spawn robot_sim, capture its pty path, hand it
+    # to mqtt_robot_main via ROBOT_SIM_PTY env var.
+    DONGLE_TYPE="${DONGLE_TYPE:-1}"          # 1 = DRIVE_BASE
+    DONGLE_INSTANCE="${DONGLE_INSTANCE:-1}"
+    SLAVE_ADDR="${SLAVE_ADDR:-1}"
+
+    # Build tunables blob from the robot's physics_config.json (Q3
+    # mirror — drive_base reads this binary the same way it would
+    # read NVS on embedded).
+    PHYSICS_CFG="$(dirname "$CONFIG_FILE")/physics_config.json"
+    if [ ! -f "$PHYSICS_CFG" ]; then
+        PHYSICS_CFG="$MQTT_ROBOT/physics_config.json"
+    fi
+    TUNABLES_BIN="$(mktemp -t drive_base_tunables.XXXXXX.bin)"
+    luajit "$MQTT_ROBOT/build_drive_base_tunables.lua" \
+           "$PHYSICS_CFG" "$TUNABLES_BIN"
+
+    # Spawn robot_sim. Its stdout reveals "PTY=/dev/pts/N" which we
+    # capture via a coproc, then "READY".
+    coproc ROBOT_SIM { "$MQTT_ROBOT/robot_sim/robot_sim" \
+                       --type "$DONGLE_TYPE" \
+                       --instance "$DONGLE_INSTANCE" \
+                       --addr "$SLAVE_ADDR" \
+                       --tunables "$TUNABLES_BIN" 2>&1 ; }
+    ROBOT_SIM_PID="$ROBOT_SIM_PID"
+
+    # Read until we see PTY= line.
+    PTY_PATH=""
+    while IFS= read -r line <&"${ROBOT_SIM[0]}"; do
+        case "$line" in
+            PTY=*)   PTY_PATH="${line#PTY=}" ;;
+            READY)   break ;;
+            *)       echo "[robot_sim] $line" ;;
+        esac
+    done
+
+    if [ -z "$PTY_PATH" ]; then
+        echo "Error: robot_sim did not publish PTY path"
+        exit 1
+    fi
+
+    export ROBOT_SIM_PTY="$PTY_PATH"
+    echo "Starting MQTT robot: $CONFIG_FILE (HAL_MODE=dongle, pty=$PTY_PATH)"
+else
+    echo "Starting MQTT robot: $CONFIG_FILE (HAL_MODE=$HAL_MODE)"
+fi
+
+# Cannot exec — we need the trap to clean up robot_sim. Run in the
+# foreground and wait. SIGTERM/SIGINT to start_robot.sh will fire the
+# trap.
+luajit "$MQTT_ROBOT/mqtt_robot_main.lua" "$CONFIG_FILE"
+ROBOT_RC=$?
+exit $ROBOT_RC

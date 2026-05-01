@@ -333,14 +333,116 @@ static void test_seg_done_carries_master_seq(void)
     stop_dongle_no_extbus(&ctx);
 }
 
+// L5 — GET_TELEMETRY is a request-response catalogue cmd. Manager
+// routes to drive_base WITHOUT auto-ACK; drive_base produces the
+// response itself with seq=request.seq, payload=32-byte state struct.
+
+static void test_get_telemetry_round_trip(void)
+{
+    static dongle_ctx_t ctx;
+    start_dongle_no_extbus(&ctx);
+
+    // Drain any startup events.
+    bus_thread_sleep_ms(50);
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+    }
+
+    // Issue GET_TELEMETRY. Expect the response (cmd=0x1031, seq=0x33,
+    // 32-byte payload) — and NO ACK_BARE before it (request-response).
+    post_to_manager(&ctx, ctx.slave_addr, DRV_CMD_GET_TELEMETRY, 0x33,
+                    NULL, 0);
+
+    bus_msg_t resp;
+    int got = wait_for_cmd_in_ext_tx(&ctx, DRV_CMD_GET_TELEMETRY, &resp,
+                                     bus_now_ms() + 200);
+    CHECK(got, "GET_TELEMETRY produced a response on ext_tx_q");
+    if (got) {
+        CHECK(resp.seq         == 0x33,
+              "response.seq echoes request seq (libcomm correlation)");
+        CHECK(resp.src_addr    == ctx.slave_addr,
+              "response.src_addr is slave");
+        CHECK(resp.payload_len == 32,
+              "response payload is 32 bytes");
+    }
+
+    // Manager must NOT have auto-ACK'd. After our response is drained,
+    // ext_tx_q should be empty (modulo any background telemetry we
+    // already drained).
+    bus_thread_sleep_ms(20);
+    int ack_seen = 0;
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+        uint16_t cmd = (uint16_t)msg.cmd_lo | ((uint16_t)msg.cmd_hi << 8);
+        if (cmd == COMM_CMD_ACK_BARE) ack_seen = 1;
+    }
+    CHECK(!ack_seen,
+          "manager skipped auto-ACK on GET_TELEMETRY (request-response)");
+
+    stop_dongle_no_extbus(&ctx);
+}
+
+// After a PUSH_LINE completes, GET_TELEMETRY should reflect the new
+// last_done_master_seq. Validates the polled completion-tracking path.
+static void test_get_telemetry_reports_seg_completion(void)
+{
+    static dongle_ctx_t ctx;
+    start_dongle_no_extbus(&ctx);
+
+    // Push a 1m line, then poll until last_done_master_seq becomes the
+    // request seq.
+    bus_msg_t cmd;
+    drive_base_build_push_line(&cmd, /*dst*/0, /*seq*/0xCC,
+                               0.0f, 0.0f, 1.0f, 0.0f,
+                               0.0f, 0.0f, 0.5f);
+    cmd.src_addr = ctx.slave_addr;
+    bus_msgq_put(&ctx.mgr_in_q, &cmd);
+
+    // Drain ACK + any unsolicited events.
+    bus_thread_sleep_ms(50);
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+    }
+
+    // Poll GET_TELEMETRY repeatedly until last_done_master_seq == 0xCC,
+    // up to a 4-second budget for the segment to complete.
+    int saw_completion = 0;
+    uint32_t deadline = bus_now_ms() + 4000;
+    while (bus_now_ms() < deadline && !saw_completion) {
+        post_to_manager(&ctx, ctx.slave_addr, DRV_CMD_GET_TELEMETRY,
+                        /*seq*/0x44, NULL, 0);
+        bus_msg_t resp;
+        int got = wait_for_cmd_in_ext_tx(&ctx, DRV_CMD_GET_TELEMETRY,
+                                         &resp, bus_now_ms() + 100);
+        if (got && resp.payload_len == 32) {
+            uint32_t last_done = (uint32_t)resp.payload[24]
+                              | ((uint32_t)resp.payload[25] <<  8)
+                              | ((uint32_t)resp.payload[26] << 16)
+                              | ((uint32_t)resp.payload[27] << 24);
+            if (last_done == 0xCCu) saw_completion = 1;
+        }
+        bus_thread_sleep_ms(50);
+    }
+
+    CHECK(saw_completion,
+          "GET_TELEMETRY eventually reports last_done_master_seq == 0xCC");
+
+    stop_dongle_no_extbus(&ctx);
+}
+
 int main(void)
 {
-    printf("[dongle_catalogue slice L4b/L5.1b]\n");
+    printf("[dongle_catalogue slice L4b/L5]\n");
     test_ping_link_control_inline();
     test_unknown_link_control_naks();
     test_catalogue_routes_to_drive_base();
     test_telemetry_on_off_via_catalogue();
     test_seg_done_carries_master_seq();
+    test_get_telemetry_round_trip();
+    test_get_telemetry_reports_seg_completion();
     printf("[summary] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;
 }

@@ -45,6 +45,7 @@ extern "C" {
 #define DRV_CMD_ABORT         0x1012u
 #define DRV_CMD_TELEMETRY_ON  0x1020u    // master enables periodic events
 #define DRV_CMD_TELEMETRY_OFF 0x1021u    // and disables them
+#define DRV_CMD_GET_TELEMETRY 0x1031u    // request-response: master poll (L5 path)
 
 #define DRV_EVT_TELEMETRY     0x1080u
 #define DRV_EVT_SEG_DONE      0x1081u    // seg_id = master_seq, not libphysics internal
@@ -142,7 +143,12 @@ typedef struct {
     // also write the field directly. Avoids ext_tx_q saturation when
     // nobody is listening.
     uint8_t               telemetry_enabled;
-    uint8_t               _pad[1];
+    // Cached on each SEG_DONE edge inside tick. Read by the
+    // GET_TELEMETRY response builder so the master HAL can observe
+    // segment completions through libcomm's request/response model
+    // (libcomm's master comm_poll filters unsolicited s2m frames by
+    // ack_seq match — see continue.md L5 gap).
+    uint8_t               last_done_master_seq;
 
     // master_seq -> phys_seg_id FIFO (see DRV_SEG_TRACK_DEPTH).
     drv_seg_track_t       seg_track[DRV_SEG_TRACK_DEPTH];

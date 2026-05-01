@@ -36,7 +36,7 @@ end
 io.stderr:write("\n[T1] Single-segment line: robot arrives at endpoint\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     local id  = hal:push_line(0, 0, 2.0, 0, 0, 0, 0.5)
     ok(id > 0, "push_line returned id>0")
     ok(hal:queue_depth() == 1, "queue_depth==1 after push")
@@ -55,7 +55,7 @@ end
 io.stderr:write("\n[T2] Continuous 3-segment path (no stopping between)\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     local s1 = hal:push_line(0, 0, 2, 0, 0, 0, 0.5)
     local s2 = hal:push_spline(2, 0, 2, 2, 0, math.pi/2, 0.5)
     local s3 = hal:push_line(2, 2, 4, 2, math.pi/2, 0, 0.5)
@@ -82,7 +82,7 @@ end
 io.stderr:write("\n[T3] Stop + release resumes motion\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     hal:push_line(0, 0, 5, 0, 0, 0, 0.5)
     run_until(hal, function() return hal:sim_time() >= 3.0 end, 5.0)
     local p_mid = hal:read_pose_truth()
@@ -106,7 +106,7 @@ end
 io.stderr:write("\n[T4] Arm tool: revolute ramp to target + back\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     local target_rad = math.rad(90)
     ok(hal:begin_tool_move("arm", target_rad, math.rad(60)) == 0, "begin_tool_move accepted")
     run_until(hal, function()
@@ -130,7 +130,7 @@ end
 io.stderr:write("\n[T5] Charger dock + charge\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     -- Drive to charger at (8, 0, 0)
     hal:push_line(0, 0, 8, 0, 0, 0, 0.5)
     run_until(hal, function() return hal:queue_depth() == 0 and hal:is_stopped() end, 25.0)
@@ -160,7 +160,7 @@ end
 io.stderr:write("\n[T6] Payload pickup increases effective mass\n")
 -- =========================================================================
 do
-    local hal = hal_mod.new({ dir = "." })
+    local hal = hal_mod.new({ dir = ".", mode = "sim" })
     -- Drive to shipping dock at (6, 6, pi/2)
     hal:push_line(0, 0, 6, 0, 0, 0, 0.5)
     hal:push_line(6, 0, 6, 6, 0, math.pi/2, 0.5)

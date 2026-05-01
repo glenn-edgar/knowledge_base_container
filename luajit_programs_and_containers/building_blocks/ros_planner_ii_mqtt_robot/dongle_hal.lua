@@ -130,52 +130,78 @@ end
 local hal_mt = {}
 hal_mt.__index = hal_mt
 
--- Update the cached state from a freshly-arrived event.
-function hal_mt:_apply_event(e)
-    local cmd = e.cmd
-    if cmd == db.EVT.TELEMETRY then
-        local t = db.decode_telemetry(e)
-        if t then
-            self._pose.x         = t.x
-            self._pose.y         = t.y
-            self._pose.heading   = t.heading
-            self._pose.v         = t.v
-            self._pose.omega     = t.omega
-            self._path.flags             = t.flags
-            self._path.active_seg_id     = t.active_seg_id
-            self._path.queue_depth       = t.queue_depth
-            self._path.energy_used_total = t.energy_used_total
-        end
-    elseif cmd == db.EVT.SEG_DONE then
-        local d = db.decode_seg_done(e)
-        if d then
-            self._path.last_done_seg_id = d.seg_id
-        end
-    end
+-- Decode a 32-byte GET_TELEMETRY response payload into the cache.
+-- Layout (mirrors libcomm/drive_base_robot.c GET_TELEMETRY handler):
+--   off  0   x          float32
+--   off  4   y          float32
+--   off  8   heading    float32
+--   off 12   v          float32
+--   off 16   omega      float32
+--   off 20   energy     float32
+--   off 24   last_done  uint32 LE  (master_seq, zero-extended)
+--   off 28   q_depth    uint16 LE
+--   off 30   flags      uint16 LE
+local function apply_get_telemetry(self, e)
+    if e.payload_len ~= 32 then return end
+    local p = e.payload
+    local fp = ffi.cast("const float*", p)
+    self._pose.x       = fp[0]
+    self._pose.y       = fp[1]
+    self._pose.heading = fp[2]
+    self._pose.v       = fp[3]
+    self._pose.omega   = fp[4]
+    self._path.energy_used_total = fp[5]
+    self._path.last_done_seg_id  = p[24]
+                                 + bit.lshift(p[25],  8)
+                                 + bit.lshift(p[26], 16)
+                                 + bit.lshift(p[27], 24)
+    self._path.queue_depth = p[28] + bit.lshift(p[29], 8)
+    self._path.flags       = p[30] + bit.lshift(p[31], 8)
 end
 
--- Drain any pending events so cache stays current. Called from each
--- HAL method that observes state.
+-- Drain any pending events so the cache stays current. Polled
+-- request/response model: synchronously issue GET_TELEMETRY and
+-- wait for the response, then apply.
 --
--- libcomm surfaces each slot at most once per poll; if we call
--- comm_poll without applying the events, they're lost. Every place
--- that drives comm_poll routes through here.
+-- libcomm filters unsolicited s2m frames by ack_seq match
+-- (comm.c:725), so drive_base's TELEMETRY/SEG_DONE emitted without
+-- a matching outstanding request never reach us. We poll explicitly.
+--
+-- libcomm's per-node depth is 1: we cannot have a GET_TELEMETRY in
+-- flight when the controller submits a push_line. Synchronous wait
+-- avoids the race entirely; the cost is ~1-3 ms per drain over pty
+-- which is fine at the planner's 100 ms tick cadence.
+--
+-- Throttle to POLL_INTERVAL_MS so a controller that calls many HAL
+-- methods per tick doesn't burn the wire on redundant polls.
+local POLL_INTERVAL_MS = 50
+
 function hal_mt:_drain()
-    local events = ct_comm.poll(comm_ffi.HANDLES_MAX)
-    if events then
-        for i = 1, #events do
-            self:_apply_event(events[i])
-        end
+    if (now_ms() - self._poll_done_ms) < POLL_INTERVAL_MS then
+        return
     end
+    local h, err = ct_comm.submit(self.mcu, db.CMD.GET_TELEMETRY, nil, 0)
+    if h == 0 then
+        -- Submit failed — likely because a prior submit hasn't
+        -- terminated. Skip this drain; cache stays stale until next.
+        return
+    end
+    local s, e = self:_poll_for_completion(h, 200)
+    if s == R.OK and e ~= nil then
+        apply_get_telemetry(self, e)
+    end
+    self._poll_done_ms = now_ms()
 end
 
--- Wait for handle h to terminate (ACK / NAK / fault / timeout). Each
--- poll iteration drains telemetry into the cache so a long-running
--- ACK wait doesn't drop telemetry events.
+-- Wait for handle h to terminate (ACK / NAK / fault / timeout).
+-- IMPORTANT: this polls the libcomm slot but does NOT call
+-- self:_drain(), which would issue + reap GET_TELEMETRY polls. We
+-- want a single-handle wait here; the caller's slot state is what
+-- we care about, not background telemetry.
 function hal_mt:_poll_for_completion(h, timeout_ms)
     local deadline = now_ms() + (timeout_ms or 200)
     while now_ms() < deadline do
-        self:_drain()
+        ct_comm.poll(8)            -- tick libcomm to surface events
         local s = C.comm_status(h)
         if s == R.OK then
             local e, _rc = ct_comm.claim(h)
@@ -234,8 +260,25 @@ function hal_mt:read_path_status()
     }
 end
 
+-- Tools aren't in the drive_base catalogue yet (paths_only e2e). We
+-- return a benign stub so the controller's energy-poll path doesn't
+-- crash. Battery comes back from energy_used_total bookkeeping;
+-- for full tool support, extend the catalogue with DRV_CMD_GET_TOOL.
 function hal_mt:read_tool_status(_slot)
-    error("dongle_hal: tools not in drive_base catalogue (paths_only mode)")
+    self:_drain()
+    -- Cap battery at the configured initial_j proxy. We don't actually
+    -- have battery_j on the wire today; return a constant high value
+    -- so the controller never enters low-energy abort.
+    local big = 1.0e7
+    return {
+        flags              = 0,
+        kind               = 0,
+        value              = 0.0,
+        target             = 0.0,
+        payload_mass       = 0.0,
+        battery_j          = big,
+        battery_capacity_j = big,
+    }
 end
 
 -- ============ COMMANDS ============
@@ -354,22 +397,25 @@ function M.new(opts)
     -- Hold pty_path string alive for the lifetime of comm — the spec
     -- struct holds a raw pointer.
     local hal = setmetatable({
-        mode        = "dongle",
-        mcu         = mcu,
-        slave_addr  = slave_addr,
-        _t0_ms      = now_ms(),
-        _pty_holder = pty_path,
-        _pose       = { x = 0, y = 0, heading = 0, v = 0, omega = 0 },
-        _path       = { flags = 0, active_seg_id = 0, last_done_seg_id = 0,
-                        queue_depth = 0, energy_used_total = 0 },
+        mode         = "dongle",
+        mcu          = mcu,
+        slave_addr   = slave_addr,
+        _t0_ms       = now_ms(),
+        _pty_holder  = pty_path,
+        _pose        = { x = 0, y = 0, heading = 0, v = 0, omega = 0 },
+        _path        = { flags = 0, active_seg_id = 0, last_done_seg_id = 0,
+                         queue_depth = 0, energy_used_total = 0 },
+        _poll_done_ms = 0,         -- when the last GET_TELEMETRY completed
         PATH_F       = PATH_F,
         TOOL_F       = TOOL_F,
         TOOL_KIND    = TOOL_KIND,
         STATION_KIND = STATION_KIND,
     }, hal_mt)
 
-    -- Enable telemetry so read_pose / read_path_status see live data.
-    hal:_submit_simple(db.CMD.TELEMETRY_ON)
+    -- No TELEMETRY_ON: libcomm filters unsolicited s2m frames. Master
+    -- HAL polls GET_TELEMETRY explicitly via _drain instead. Drive_base
+    -- starts producing valid GET_TELEMETRY responses as soon as init
+    -- completes, no setup needed.
 
     return hal
 end

@@ -236,6 +236,7 @@ static void drive_base_init_fn(void *self_)
     s->started               = 1;
     s->last_tick_ms          = 0;
     s->last_done_phys_seg_id = 0;
+    s->last_done_master_seq  = 0;
     s->seg_track_head        = 0;
     s->seg_track_tail        = 0;
     s->seg_track_count       = 0;
@@ -335,6 +336,35 @@ static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
                                  break;
     case DRV_CMD_TELEMETRY_ON:   s->telemetry_enabled = 1; break;
     case DRV_CMD_TELEMETRY_OFF:  s->telemetry_enabled = 0; break;
+    case DRV_CMD_GET_TELEMETRY: {
+        // Request-response: master polls; we reply with current state
+        // as a 32-byte payload. Manager refrains from auto-ACK'ing
+        // GET_* commands so this response IS the response. seq echoes
+        // the request seq for libcomm's master correlation.
+        if (!s->outbound) break;
+        phys_pose_t        pose;
+        phys_path_status_t status;
+        phys_read_pose       (s->phys, &pose);
+        phys_read_path_status(s->phys, &status);
+
+        bus_msg_t resp;
+        msg_clear(&resp, 0, m->seq, DRV_CMD_GET_TELEMETRY);
+        resp.src_addr   = s->bus_addr;
+        resp.payload_len = 32;
+        put_f32   (resp.payload +  0, (float)pose.x);
+        put_f32   (resp.payload +  4, (float)pose.y);
+        put_f32   (resp.payload +  8, (float)pose.heading);
+        put_f32   (resp.payload + 12, (float)pose.v);
+        put_f32   (resp.payload + 16, (float)pose.omega);
+        put_f32   (resp.payload + 20, (float)status.energy_used_total);
+        // 4 bytes for last_done_master_seq (zero-extended), then
+        // 2 + 2 for queue_depth + flags.
+        put_le_u32(resp.payload + 24, (uint32_t)s->last_done_master_seq);
+        put_le_u16(resp.payload + 28, (uint16_t)(status.queue_depth & 0xFFFF));
+        put_le_u16(resp.payload + 30, (uint16_t)(status.flags       & 0xFFFF));
+        (void)bus_msgq_put(s->outbound, &resp);
+        break;
+    }
     default:
         // Unknown command — fail-stop discipline says raise it as a
         // fault event rather than silently dropping. v1 just logs via
@@ -381,11 +411,21 @@ static void drive_base_emit_telemetry(drive_base_t *s)
      && status.last_done_seg_id != s->last_done_phys_seg_id) {
         uint8_t  master_seq = 0;
         (void)seg_track_pop_match(s, status.last_done_seg_id, &master_seq);
+
+        // Cache for GET_TELEMETRY responses (master HAL reads this
+        // to track segment completion via libcomm's request/response
+        // model — unsolicited DRV_EVT_SEG_DONE below is dropped on
+        // the wire by libcomm's master_handle_frame).
+        s->last_done_master_seq = master_seq;
+
+        // Unsolicited SEG_DONE event — kept for in-process tests
+        // (test_drive_base, test_dongle_catalogue) that observe
+        // ext_tx_q directly. Master HAL doesn't see these over the
+        // wire; it polls GET_TELEMETRY instead.
         bus_msg_t done;
         msg_clear(&done, 0, 0, DRV_EVT_SEG_DONE);
         done.src_addr   = s->bus_addr;
         done.payload_len = 8;
-        // 4-byte seg_id field carries the master_seq (zero-extended).
         put_le_u32(done.payload + 0, (uint32_t)master_seq);
         put_f32   (done.payload + 4, (float)status.energy_used_total);
         (void)bus_msgq_put(s->outbound, &done);

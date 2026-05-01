@@ -317,17 +317,26 @@ void dongle_manager_entry(void *arg)
             // the trivial single-robot case: slave_addr → robots[0]
             // (drive_base).
             in.dst_robot = 0;
-            // Send an immediate ACK_BARE — Q1 lock: ACK = "manager
-            // queued the command." The robot will emit its own events
-            // (TELEMETRY / SEG_DONE / FAULT) as completion advances.
+
+            // Two flavours of catalogue command:
+            //  - "request-response" (GET_*): the target robot produces
+            //    its own response (with seq=request.seq). Manager
+            //    must NOT auto-ACK or libcomm's slot would close
+            //    before the real response arrives.
+            //  - "fire-and-forget" (PUSH_*, STOP/RESUME/ABORT,
+            //    TELEMETRY_ON/OFF): manager auto-ACKs to confirm the
+            //    command was queued (Q1 lock); robot reports
+            //    completion via its own events later.
+            int request_response = (cmd == 0x1031u);   // GET_TELEMETRY
+
             bus_result_t put_rc = bus_msgq_put(&ctx->int_bus_q, &in);
             if (put_rc == BUS_OK) {
-                (void)manager_push_simple_ack(ctx,
-                    ctx->slave_addr, COMM_CMD_ACK_BARE, in.seq, 0, 0);
+                if (!request_response) {
+                    (void)manager_push_simple_ack(ctx,
+                        ctx->slave_addr, COMM_CMD_ACK_BARE, in.seq, 0, 0);
+                }
             } else {
                 // Fail-stop: queue full means the robot is backlogged.
-                // NAK with a reason (no_response is our closest
-                // pre-defined reason without adding a new code).
                 (void)manager_push_simple_ack(ctx,
                     ctx->slave_addr, COMM_CMD_NAK, in.seq,
                     COMM_NAK_REASON_NO_RESPONSE, 1);

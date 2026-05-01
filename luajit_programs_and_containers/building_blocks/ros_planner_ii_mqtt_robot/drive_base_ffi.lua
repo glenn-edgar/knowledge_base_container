@@ -25,6 +25,7 @@ M.CMD = {
     ABORT          = 0x1012,
     TELEMETRY_ON   = 0x1020,
     TELEMETRY_OFF  = 0x1021,
+    GET_TELEMETRY  = 0x1031,    -- request-response: master poll (L5)
 }
 
 M.EVT = {
