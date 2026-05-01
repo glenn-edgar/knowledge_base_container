@@ -259,6 +259,17 @@ if [[ $SKIP_UNIT -eq 0 ]]; then
         [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_drive_base.log"
         FAILURES=$((FAILURES+1))
     fi
+
+    log "running dongle catalogue routing test (Slice L4b)"
+    if "$SCRIPT_DIR/test_dongle_catalogue" >"$LOG_DIR/test_dongle_catalogue.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_dongle_catalogue.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_dongle_catalogue.log" || true)
+        pass "dongle_catalogue: $local_pass passed, $local_fail failed"
+    else
+        fail "dongle catalogue routing test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_dongle_catalogue.log"
+        FAILURES=$((FAILURES+1))
+    fi
 fi
 
 # ---------- step 3+: e2e ----------

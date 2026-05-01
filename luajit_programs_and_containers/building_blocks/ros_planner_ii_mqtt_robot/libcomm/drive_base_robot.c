@@ -297,25 +297,33 @@ static void drive_base_emit_telemetry(drive_base_t *s)
     phys_read_pose       (s->phys, &pose);
     phys_read_path_status(s->phys, &status);
 
-    bus_msg_t evt;
-    msg_clear(&evt, /*dst*/0, /*seq*/0, DRV_EVT_TELEMETRY);
-    evt.payload_len = 32;
-    put_f32   (evt.payload +  0, (float)pose.x);
-    put_f32   (evt.payload +  4, (float)pose.y);
-    put_f32   (evt.payload +  8, (float)pose.heading);
-    put_f32   (evt.payload + 12, (float)pose.v);
-    put_f32   (evt.payload + 16, (float)pose.omega);
-    put_f32   (evt.payload + 20, (float)status.energy_used_total);
-    put_le_u32(evt.payload + 24, status.active_seg_id);
-    put_le_u16(evt.payload + 28, (uint16_t)(status.queue_depth & 0xFFFF));
-    put_le_u16(evt.payload + 30, (uint16_t)(status.flags       & 0xFFFF));
-    (void)bus_msgq_put(s->outbound, &evt);
+    // Periodic telemetry is opt-in; without it, drive_base still
+    // advances physics every tick but stays quiet on the wire.
+    // SEG_DONE (below) is unconditional — completion edges always
+    // flow because they're correlated to commands the master sent.
+    if (s->telemetry_enabled) {
+        bus_msg_t evt;
+        msg_clear(&evt, /*dst*/0, /*seq*/0, DRV_EVT_TELEMETRY);
+        evt.src_addr   = s->bus_addr;
+        evt.payload_len = 32;
+        put_f32   (evt.payload +  0, (float)pose.x);
+        put_f32   (evt.payload +  4, (float)pose.y);
+        put_f32   (evt.payload +  8, (float)pose.heading);
+        put_f32   (evt.payload + 12, (float)pose.v);
+        put_f32   (evt.payload + 16, (float)pose.omega);
+        put_f32   (evt.payload + 20, (float)status.energy_used_total);
+        put_le_u32(evt.payload + 24, status.active_seg_id);
+        put_le_u16(evt.payload + 28, (uint16_t)(status.queue_depth & 0xFFFF));
+        put_le_u16(evt.payload + 30, (uint16_t)(status.flags       & 0xFFFF));
+        (void)bus_msgq_put(s->outbound, &evt);
+    }
 
     // Edge-detect seg-done: emit DRV_EVT_SEG_DONE on each new completion.
     if (status.last_done_seg_id != 0
      && status.last_done_seg_id != s->last_done_seg_id) {
         bus_msg_t done;
         msg_clear(&done, 0, 0, DRV_EVT_SEG_DONE);
+        done.src_addr   = s->bus_addr;
         done.payload_len = 8;
         put_le_u32(done.payload + 0, status.last_done_seg_id);
         put_f32   (done.payload + 4, (float)status.energy_used_total);

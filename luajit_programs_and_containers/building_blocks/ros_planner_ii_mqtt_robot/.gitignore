@@ -6,3 +6,4 @@ test_ext_bus_contract
 test_bus_msg
 test_logical_robot
 test_drive_base
+test_dongle_catalogue

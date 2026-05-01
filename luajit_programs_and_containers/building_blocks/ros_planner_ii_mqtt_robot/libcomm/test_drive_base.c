@@ -90,9 +90,10 @@ static void test_init_and_telemetry(void)
     bus_msgq_init(&outbox, outbox_buf, sizeof(bus_msg_t), 64);
 
     drive_base_t db = {0};
-    db.tun            = default_tunables();
-    db.outbound       = &outbox;
-    db.tick_period_ms = drive_base_vtable.tick_period_ms;
+    db.tun               = default_tunables();
+    db.outbound          = &outbox;
+    db.tick_period_ms    = drive_base_vtable.tick_period_ms;
+    db.telemetry_enabled = 1;     // tests check telemetry — opt in
 
     logical_robot_t r;
     bus_result_t rc = logical_robot_init(&r, "drvbase", &drive_base_vtable,
@@ -124,9 +125,10 @@ static void test_push_line_advances_pose(void)
     bus_msgq_init(&outbox, outbox_buf, sizeof(bus_msg_t), 256);
 
     drive_base_t db = {0};
-    db.tun            = default_tunables();
-    db.outbound       = &outbox;
-    db.tick_period_ms = drive_base_vtable.tick_period_ms;
+    db.tun               = default_tunables();
+    db.outbound          = &outbox;
+    db.tick_period_ms    = drive_base_vtable.tick_period_ms;
+    db.telemetry_enabled = 1;     // tests check telemetry — opt in
 
     logical_robot_t r;
     logical_robot_init(&r, "drvbase", &drive_base_vtable, &db, inbox_buf, 16);
@@ -178,9 +180,10 @@ static void test_stop_freezes_pose(void)
     bus_msgq_init(&outbox, outbox_buf, sizeof(bus_msg_t), 256);
 
     drive_base_t db = {0};
-    db.tun            = default_tunables();
-    db.outbound       = &outbox;
-    db.tick_period_ms = drive_base_vtable.tick_period_ms;
+    db.tun               = default_tunables();
+    db.outbound          = &outbox;
+    db.tick_period_ms    = drive_base_vtable.tick_period_ms;
+    db.telemetry_enabled = 1;     // tests check telemetry — opt in
 
     logical_robot_t r;
     logical_robot_init(&r, "drvbase", &drive_base_vtable, &db, inbox_buf, 16);
@@ -234,9 +237,10 @@ static void test_unknown_cmd_is_noop(void)
     bus_msgq_init(&outbox, outbox_buf, sizeof(bus_msg_t), 64);
 
     drive_base_t db = {0};
-    db.tun            = default_tunables();
-    db.outbound       = &outbox;
-    db.tick_period_ms = drive_base_vtable.tick_period_ms;
+    db.tun               = default_tunables();
+    db.outbound          = &outbox;
+    db.tick_period_ms    = drive_base_vtable.tick_period_ms;
+    db.telemetry_enabled = 1;     // tests check telemetry — opt in
 
     logical_robot_t r;
     logical_robot_init(&r, "drvbase", &drive_base_vtable, &db, inbox_buf, 8);

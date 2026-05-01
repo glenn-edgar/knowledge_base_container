@@ -57,9 +57,18 @@ TEST_DRIVE_BASE_SRCS   = libcomm/test_drive_base.c \
                          libcomm/logical_robot.c \
                          libcomm/bus_kernel_linux.c
 
+TEST_DONGLE_CAT_TARGET = test_dongle_catalogue
+TEST_DONGLE_CAT_SRCS   = libcomm/test_dongle_catalogue.c \
+                         robot_sim/dongle_threads.c \
+                         libcomm/drive_base_robot.c \
+                         libcomm/logical_robot.c \
+                         libcomm/bus_kernel_linux.c \
+                         libcomm/frame.c
+
 all: $(TARGET) $(LIBCOMM_TARGET) $(ROBOT_SIM_TARGET) \
      $(TEST_BUS_KERNEL_TARGET) $(TEST_EXT_BUS_TARGET) $(TEST_BUS_MSG_TARGET) \
-     $(TEST_LOGICAL_ROBOT_TARGET) $(TEST_DRIVE_BASE_TARGET) manifest
+     $(TEST_LOGICAL_ROBOT_TARGET) $(TEST_DRIVE_BASE_TARGET) \
+     $(TEST_DONGLE_CAT_TARGET) manifest
 
 $(TEST_BUS_KERNEL_TARGET): $(TEST_BUS_KERNEL_SRCS) libcomm/bus_kernel.h libcomm/bus_config.h
 	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -I. \
@@ -86,23 +95,36 @@ $(TEST_DRIVE_BASE_TARGET): $(TEST_DRIVE_BASE_SRCS) $(DRIVE_BASE_HDRS) libcomm/lo
 	    $(TEST_DRIVE_BASE_SRCS) -o $(TEST_DRIVE_BASE_TARGET) \
 	    -L. -lphysics -lm -lpthread -Wl,-rpath,'$$ORIGIN'
 
+$(TEST_DONGLE_CAT_TARGET): $(TEST_DONGLE_CAT_SRCS) $(DRIVE_BASE_HDRS) libcomm/logical_robot.h libcomm/bus_msg.h libcomm/bus_kernel.h libcomm/bus_config.h libcomm/frame.h libcomm/comm.h robot_sim/dongle_skeleton.h $(TARGET)
+	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -Irobot_sim -I. \
+	    $(TEST_DONGLE_CAT_SRCS) -o $(TEST_DONGLE_CAT_TARGET) \
+	    -L. -lphysics -lm -lpthread -Wl,-rpath,'$$ORIGIN'
+
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
 
 $(LIBCOMM_TARGET): $(LIBCOMM_SRCS) $(LIBCOMM_HDRS)
 	$(CC) $(CFLAGS) -Ilibcomm -I. $(LIBCOMM_SRCS) -o $(LIBCOMM_TARGET) $(LDFLAGS) -lpthread
 
-# robot_sim: Phase A standalone process holding the slave end of a pty.
-# Mirrors what a USB dongle + its attached MCUs jointly do; in production
-# this binary is replaced by real hardware and not packed into the image.
-# Reuses libcomm/frame.c for SLIP/CRC and libcomm/comm.h for cmd codes.
+# robot_sim: Phase A/B standalone process holding the slave end of a
+# pty. Slice L4b adds drive_base hosted inside the four-thread shape
+# (ext_bus + dongle_manager + internal_bus + drive_base logical_robot),
+# so we now link libphysics.so for the phys_* symbols. -Wl,-rpath,
+# '$$ORIGIN' lets the binary find libphysics.so next to itself at
+# runtime without LD_LIBRARY_PATH.
 # (ROBOT_SIM_TARGET is defined above so the `all:` line resolves.)
-ROBOT_SIM_SRCS   = robot_sim/main.c libcomm/frame.c
-ROBOT_SIM_HDRS   = libcomm/frame.h libcomm/comm.h libcomm/bus_config.h
+ROBOT_SIM_SRCS   = robot_sim/main.c robot_sim/dongle_threads.c \
+                   libcomm/frame.c libcomm/bus_kernel_linux.c \
+                   libcomm/logical_robot.c libcomm/drive_base_robot.c
+ROBOT_SIM_HDRS   = libcomm/frame.h libcomm/comm.h libcomm/bus_config.h \
+                   libcomm/bus_kernel.h libcomm/bus_msg.h \
+                   libcomm/logical_robot.h libcomm/drive_base_robot.h \
+                   robot_sim/dongle_skeleton.h
 
-$(ROBOT_SIM_TARGET): $(ROBOT_SIM_SRCS) $(ROBOT_SIM_HDRS)
+$(ROBOT_SIM_TARGET): $(ROBOT_SIM_SRCS) $(ROBOT_SIM_HDRS) $(TARGET)
 	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -I. \
-	    $(ROBOT_SIM_SRCS) -o $(ROBOT_SIM_TARGET) -lpthread
+	    $(ROBOT_SIM_SRCS) -o $(ROBOT_SIM_TARGET) \
+	    -L. -lphysics -lm -lpthread -Wl,-rpath,'$$ORIGIN/..'
 
 # libcomm depends on the generated comm_manifest.h, so make sure the
 # manifest target runs first.
@@ -117,6 +139,7 @@ clean:
 	rm -f $(TARGET) $(LIBCOMM_TARGET) $(ROBOT_SIM_TARGET) \
 	      $(TEST_BUS_KERNEL_TARGET) $(TEST_EXT_BUS_TARGET) $(TEST_BUS_MSG_TARGET) \
 	      $(TEST_LOGICAL_ROBOT_TARGET) $(TEST_DRIVE_BASE_TARGET) \
+	      $(TEST_DONGLE_CAT_TARGET) \
 	      $(MANIFEST_OUTPUTS)
 
 .PHONY: all clean manifest

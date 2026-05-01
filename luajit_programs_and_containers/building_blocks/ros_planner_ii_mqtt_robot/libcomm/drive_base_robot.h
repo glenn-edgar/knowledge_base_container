@@ -108,12 +108,21 @@ typedef struct phys_s phys_t;       // forward decl from libphysics
 typedef struct {
     drive_base_tunables_t tun;
     phys_t               *phys;             // owned: phys_create at init
-    bus_msgq_t           *outbound;         // caller-owned events sink
+    bus_msgq_t           *outbound;         // caller-owned events sink (typically ext_tx_q)
     uint32_t              tick_period_ms;   // for dt computation
     uint32_t              last_tick_ms;
     uint32_t              last_done_seg_id;
+    uint8_t               bus_addr;         // src_addr stamped on emitted events
     uint8_t               started;          // 1 once init has run
-    uint8_t               _pad[3];
+    // Telemetry is opt-in. Default 0 — drive_base runs phys_step every
+    // tick but does NOT emit DRV_EVT_TELEMETRY events. SEG_DONE
+    // (correlated to commands) and FAULT (mandatory) still flow. Chain-
+    // tree enables/disables via tests that set this field directly, or
+    // (future) a catalogue command analogous to physics_pipe.h's
+    // CMD_SET_TELEM_RATE. This avoids ext_tx_q saturation when nobody
+    // is listening for telemetry.
+    uint8_t               telemetry_enabled;
+    uint8_t               _pad[1];
 } drive_base_t;
 
 // ============ VTABLE ============

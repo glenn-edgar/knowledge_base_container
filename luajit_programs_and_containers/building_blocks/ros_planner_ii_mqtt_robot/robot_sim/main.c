@@ -1,50 +1,34 @@
-// robot_sim/main.c — Phase B stub (one process == one virtual dongle).
+// robot_sim/main.c — Slice L4a (four-thread dongle decomposition).
+// One process == one virtual dongle, same as before. The big change
+// vs. earlier: a single watcher_thread is replaced by three
+// infrastructure threads (ext_bus + dongle_manager + internal_bus)
+// matching the embedded shape locked at Track C. Identity (type +
+// instance) and the slave addr are still passed via argv (Linux
+// mirror of Q3's NVS). The pty creation + READY publication is
+// unchanged — the existing pty multi-dongle test pins on this output.
 //
-// Phase B re-architecture: robot_sim CREATES the pty (each process is a
-// virtual dongle, mirroring how a real USB dongle plugs in and creates
-// /dev/ttyUSBn). Identity = (dongle_type, dongle_instance), passed in
-// via argv to mimic what the TBD dongle-commissioning tool will store
-// in non-volatile dongle storage. The slave path is published on stdout
-// for the orchestrator / test harness to capture and put into
-// dongles.json before chain_tree_host is started.
-//
-// Wire behavior:
-//   - addr=0xFE + cmd=DONGLE_HELLO  →  reply DONGLE_IDENT carrying our
-//     (type, instance) packed into uuid[0..3], remainder zero.
-//   - addr=<our slave addr> + cmd=PING  →  ACK_BARE.
-//   - any other cmd                  →  NAK reason 0xFF.
-// The PING/NAK behavior is the same Phase A stub policy; Phase B keeps
-// it so we can reuse the master-side test patterns. Real slave-class
-// dispatch + physics_core integration land later inside this same
-// process.
-//
-// Lifecycle:
-//   - Created pty's master FD is held inside this process. The slave
-//     end is what we reply on; chain_tree_host opens a copy of the slave
-//     end via the published path. So technically the chain_tree side is
-//     opening the OTHER end of the pty pair. (Yes — robot_sim is the
-//     "controller" of this pty; chain_tree is the "device" from the
-//     pty's POV. Naming is just historical; the byte stream is
-//     symmetric.)
-//   - On EIO/EOF (chain_tree closes its end) or SIGTERM, watcher exits
-//     cleanly.
+// Wire behavior is bit-for-bit unchanged from the prior single-thread
+// stub:
+//   addr=0xFE + cmd=DONGLE_HELLO      →  DONGLE_IDENT
+//   addr=<slave_addr> + cmd=PING      →  ACK_BARE
+//   anything else                     →  NAK reason 0xFF
+// L4b will route non-handshake traffic through internal_bus into a
+// drive_base logical_robot.
 //
 // Usage:
-//   robot_sim --type <num> --instance <num>
-// Optional:
-//   --addr <num>      slave bus address to respond to (default 1)
+//   robot_sim --type <num> --instance <num> [--addr <num>]
 //
-// Stdout (line-buffered):
-//   PTY=/dev/pts/N
-//   READY
-// stderr is reserved for diagnostics.
+// Stdout (line-buffered):  PTY=/dev/pts/N  then  READY
 
 #define _XOPEN_SOURCE 700
 #define _DEFAULT_SOURCE
 #define _POSIX_C_SOURCE 200809L
 
-#include "frame.h"
+#include "dongle_skeleton.h"
 #include "comm.h"
+#include "bus_kernel.h"
+#include "drive_base_robot.h"
+#include "logical_robot.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -56,183 +40,49 @@
 #include <termios.h>
 #include <unistd.h>
 
-static volatile int g_should_exit = 0;
+static dongle_ctx_t *g_ctx_for_signal;
 
 static void on_signal(int sig)
 {
     (void)sig;
-    g_should_exit = 1;
+    if (g_ctx_for_signal) g_ctx_for_signal->should_exit = 1;
 }
 
-typedef struct {
-    int      fd;
-    uint16_t dongle_type;
-    uint16_t dongle_instance;
-    uint8_t  slave_addr;
-} watcher_ctx_t;
-
-// Encode-and-write one s2m frame to the pty. Atomic at the frame level.
-static int emit_s2m(int fd,
-                    uint8_t addr,
-                    comm_cmd_t cmd,
-                    uint8_t in_seq,
-                    uint8_t ack_status,
-                    const uint8_t *payload,
-                    uint8_t payload_len)
+// Hardcoded drive_base tunables for the Linux waypoint. Mirrors the
+// rover_1 defaults in physics_config.json. On embedded these come
+// from NVS via the Q3 schema-versioned blob.
+static drive_base_tunables_t default_drive_base_tunables(void)
 {
-    // frame_ring_init contract: size must be power-of-2. Worst-case
-    // SLIP-escaped frame is roughly 2*FRAME_BUFFER_MAX + 3 bytes; round
-    // up to the next power-of-2 (512 covers all m2s and s2m frames).
-    uint8_t      ring_buf[512];
-    frame_ring_t ring;
-    frame_ring_init(&ring, ring_buf, sizeof(ring_buf));
-
-    frame_meta_t meta;
-    memset(&meta, 0, sizeof(meta));
-    meta.addr        = addr;
-    meta.cmd         = cmd;
-    meta.seq         = 0;
-    meta.ack_seq     = in_seq;
-    meta.ack_status  = ack_status;
-    meta.payload_len = payload_len;
-
-    if (frame_encode_s2m(&meta, payload, &ring) != 0) return -1;
-
-    uint8_t  scratch[FRAME_BUFFER_MAX * 2];
-    uint32_t n = frame_ring_read_drain(&ring, scratch, sizeof(scratch));
-    if (getenv("ROBOT_SIM_TRACE")) {
-        fprintf(stderr, "[robot_sim] writing %u bytes:", n);
-        for (uint32_t i = 0; i < n; i++) fprintf(stderr, " %02x", scratch[i]);
-        fprintf(stderr, "\n");
-    }
-    size_t   off = 0;
-    while (off < n) {
-        ssize_t w = write(fd, scratch + off, n - off);
-        if (w < 0) {
-            if (errno == EINTR) continue;
-            return -1;
-        }
-        off += (size_t)w;
-    }
-    return 0;
+    drive_base_tunables_t t = {0};
+    t.schema_version       = DRV_TUNABLES_SCHEMA_VERSION;
+    t.wheelbase_m          = 0.30f;
+    t.wheel_radius_m       = 0.04f;
+    t.mass_kg              = 8.0f;
+    t.inertia_kg_m2        = 0.12f;
+    t.lin_friction         = 0.8f;
+    t.ang_friction         = 0.4f;
+    t.max_torque_nm        = 1.5f;
+    t.max_wheel_rad_s      = 30.0f;
+    t.pid_kp               = 8.0f;
+    t.pid_ki               = 4.0f;
+    t.pid_kd               = 0.05f;
+    t.energy_k             = 1.0f;
+    t.lookahead_min_m      = 0.20f;
+    t.lookahead_k_v        = 0.40f;
+    t.arrival_tol_m        = 0.05f;
+    t.heading_tol_rad      = 0.05f;
+    t.max_linear_accel     = 1.0f;
+    t.max_angular_accel    = 3.0f;
+    t.cross_track_abort_m  = 20.0f;
+    t.inner_dt_s           = 0.005f;
+    t.battery_capacity_j   = 100000.0f;
+    t.battery_initial_j    = 100000.0f;
+    t.seed                 = 0xC0FFEE42ULL;
+    return t;
 }
 
-// IDENT payload format (Phase B): 33 bytes total.
-//   uuid[16]                   bytes 0-1 = type LE, 2-3 = instance LE, rest zero
-//   fw_ver  u32                fixed at 0x00010000 for Phase B
-//   bus_count u8               1
-//   bus_local_ids[8]           [0]=0, rest 0
-//   capabilities u32           0
-// Mirrors the wire spec in the locked design (project memory) so the
-// master side can pin against it once it stops being a stub on this end.
-static void emit_ident(int fd, watcher_ctx_t *ctx, uint8_t in_seq)
-{
-    uint8_t payload[33];
-    memset(payload, 0, sizeof(payload));
-    comm_dongle_set_type    (payload + 0, ctx->dongle_type);
-    comm_dongle_set_instance(payload + 0, ctx->dongle_instance);
-    // fw_ver = 0x00010000 little-endian
-    payload[16] = 0x00; payload[17] = 0x00;
-    payload[18] = 0x01; payload[19] = 0x00;
-    payload[20] = 1;             // bus_count
-    payload[21] = 0;             // bus_local_ids[0]
-    // capabilities at [29..32] left zero.
-    (void)emit_s2m(fd, COMM_ADDR_DONGLE_SELF,
-                   COMM_CMD_DONGLE_IDENT, in_seq, 0,
-                   payload, sizeof(payload));
-}
-
-static void respond(watcher_ctx_t *ctx, const frame_meta_t *in)
-{
-    // Dongle-self handshake at addr=0xFE.
-    if (in->addr == COMM_ADDR_DONGLE_SELF) {
-        if (in->cmd == COMM_CMD_DONGLE_HELLO) {
-            emit_ident(ctx->fd, ctx, in->seq);
-            return;
-        }
-        // Other cmds at 0xFE not understood by Phase B stub.
-        uint8_t reason = COMM_NAK_REASON_UNKNOWN_CMD;
-        (void)emit_s2m(ctx->fd, COMM_ADDR_DONGLE_SELF,
-                       COMM_CMD_NAK, in->seq, 0, &reason, 1);
-        return;
-    }
-
-    // Slave-bus traffic addressed to our slave addr.
-    if (in->addr == ctx->slave_addr) {
-        if (in->cmd == COMM_CMD_PING) {
-            (void)emit_s2m(ctx->fd, ctx->slave_addr,
-                           COMM_CMD_ACK_BARE, in->seq, 0, NULL, 0);
-        } else {
-            uint8_t reason = COMM_NAK_REASON_UNKNOWN_CMD;
-            (void)emit_s2m(ctx->fd, ctx->slave_addr,
-                           COMM_CMD_NAK, in->seq, 0, &reason, 1);
-        }
-        return;
-    }
-
-    // Frame for some other address — not our concern (multidrop bus).
-    // Phase B will route this to the appropriate virtual MCU; the stub
-    // just drops it.
-}
-
-static void *watcher_thread(void *arg)
-{
-    watcher_ctx_t *ctx = (watcher_ctx_t *)arg;
-
-    sigset_t unblockset;
-    sigemptyset(&unblockset);
-    sigaddset(&unblockset, SIGTERM);
-    sigaddset(&unblockset, SIGINT);
-    pthread_sigmask(SIG_UNBLOCK, &unblockset, NULL);
-
-    frame_decoder_t dec;
-    frame_decoder_init(&dec, FRAME_DIR_M2S);
-
-    uint8_t      buf[256];
-    frame_meta_t fm;
-    uint8_t      fp[COMM_PAYLOAD_MAX];
-
-    int trace = getenv("ROBOT_SIM_TRACE") ? 1 : 0;
-    while (!g_should_exit) {
-        ssize_t r = read(ctx->fd, buf, sizeof(buf));
-        if (r < 0) {
-            if (errno == EINTR) {
-                if (g_should_exit) break;
-                continue;
-            }
-            if (errno != EIO) {
-                fprintf(stderr, "robot_sim: pty read errno=%d (%s)\n",
-                        errno, strerror(errno));
-            }
-            break;
-        }
-        if (r == 0) break;
-        if (trace) {
-            fprintf(stderr, "[robot_sim] read %ld bytes:", (long)r);
-            for (ssize_t i = 0; i < r; i++) fprintf(stderr, " %02x", buf[i]);
-            fprintf(stderr, "\n");
-        }
-        for (ssize_t i = 0; i < r; i++) {
-            frame_decode_result_t dr = frame_decoder_feed(&dec, buf[i], &fm, fp);
-            if (dr == FRAME_DECODE_FRAME_READY) {
-                if (trace) {
-                    fprintf(stderr, "[robot_sim] frame addr=%02x cmd=%04x seq=%02x len=%u\n",
-                            fm.addr, fm.cmd, fm.seq, fm.payload_len);
-                }
-                respond(ctx, &fm);
-            } else if (dr != FRAME_DECODE_NEED_MORE && trace) {
-                fprintf(stderr, "[robot_sim] decode error %d on byte %02x\n",
-                        (int)dr, buf[i]);
-            }
-        }
-    }
-    g_should_exit = 1;
-    return NULL;
-}
-
-// Allocate a kernel pty pair, master FD owned by this process.
-// Returns master_fd (>=0) on success, or -1 on failure with errno set.
-// The slave path is written to slave_path_out (NUL-terminated).
+// Allocate a kernel pty pair, master FD owned by this process. Same
+// as before; nothing in L4a changes how we set up the pty.
 static int create_pty(char *slave_path_out, size_t slave_path_max)
 {
     int fd = posix_openpt(O_RDWR | O_NOCTTY);
@@ -287,12 +137,6 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = on_signal;
-    sigaction(SIGTERM, &sa, NULL);
-    sigaction(SIGINT,  &sa, NULL);
-
     char pty_path[128];
     int master_fd = create_pty(pty_path, sizeof(pty_path));
     if (master_fd < 0) {
@@ -305,34 +149,108 @@ int main(int argc, char **argv)
     fprintf(stdout, "PTY=%s\n", pty_path);
     fflush(stdout);
 
-    // Route async signals to the watcher thread, not the main thread.
+    // Per pthread_signal_routing memory: block SIGTERM/SIGINT in main
+    // BEFORE pthread_create so workers inherit the block, then
+    // selectively unblock in main while we wait. Otherwise pthread_join
+    // can deadlock against blocked-in-read workers.
     sigset_t blockset;
     sigemptyset(&blockset);
     sigaddset(&blockset, SIGTERM);
     sigaddset(&blockset, SIGINT);
     pthread_sigmask(SIG_BLOCK, &blockset, NULL);
 
-    watcher_ctx_t ctx = {
-        .fd              = master_fd,
-        .dongle_type     = (uint16_t)type,
-        .dongle_instance = (uint16_t)instance,
-        .slave_addr      = (uint8_t)slave_addr,
-    };
+    static dongle_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.master_fd       = master_fd;
+    ctx.dongle_type     = (uint16_t)type;
+    ctx.dongle_instance = (uint16_t)instance;
+    ctx.slave_addr      = (uint8_t)slave_addr;
+    ctx.should_exit     = 0;
 
-    pthread_t th;
-    if (pthread_create(&th, NULL, watcher_thread, &ctx) != 0) {
-        fprintf(stderr, "robot_sim: pthread_create failed\n");
+    bus_mutex_init(&ctx.pty_write_mu);
+    bus_msgq_init (&ctx.mgr_in_q,  ctx.mgr_in_buf,
+                   (uint16_t)sizeof(bus_msg_t), DONGLE_QUEUE_DEPTH);
+    bus_msgq_init (&ctx.int_bus_q, ctx.int_bus_buf,
+                   (uint16_t)sizeof(bus_msg_t), DONGLE_QUEUE_DEPTH);
+    bus_msgq_init (&ctx.ext_tx_q,  ctx.ext_tx_buf,
+                   (uint16_t)sizeof(bus_msg_t), DONGLE_QUEUE_DEPTH);
+
+    // Configure drive_base instance (slot 0). Tunables are hardcoded
+    // for the Linux waypoint (Q3 mirror); on embedded these come from
+    // NVS. Outbound events flow directly to ext_tx_q so ext_bus_thread
+    // encodes them as s2m frames in one hop.
+    ctx.drive_base.tun            = default_drive_base_tunables();
+    ctx.drive_base.outbound       = &ctx.ext_tx_q;
+    ctx.drive_base.tick_period_ms = drive_base_vtable.tick_period_ms;
+    ctx.drive_base.bus_addr       = ctx.slave_addr;
+
+    bus_result_t lr_rc = logical_robot_init(&ctx.drive_base_handle,
+                                            "drvbase",
+                                            &drive_base_vtable,
+                                            &ctx.drive_base,
+                                            ctx.drive_base_inbox_buf,
+                                            DONGLE_QUEUE_DEPTH);
+    if (lr_rc != BUS_OK) {
+        fprintf(stderr, "robot_sim: drive_base init failed (%d)\n", (int)lr_rc);
+        close(master_fd);
+        return 1;
+    }
+    ctx.robots[0] = &ctx.drive_base_handle;
+
+    g_ctx_for_signal = &ctx;
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = on_signal;
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGINT,  &sa, NULL);
+
+    bus_result_t r1 = bus_thread_start(&ctx.ext_bus_th,      "ext_bus",
+                                        BUS_PRIO_HIGH,
+                                        ext_bus_entry, &ctx);
+    bus_result_t r2 = bus_thread_start(&ctx.manager_th,      "mgr",
+                                        BUS_PRIO_MED,
+                                        dongle_manager_entry, &ctx);
+    bus_result_t r3 = bus_thread_start(&ctx.internal_bus_th, "int_bus",
+                                        BUS_PRIO_MED,
+                                        internal_bus_entry, &ctx);
+    if (r1 != BUS_OK || r2 != BUS_OK || r3 != BUS_OK) {
+        fprintf(stderr, "robot_sim: thread start failed (%d/%d/%d)\n",
+                (int)r1, (int)r2, (int)r3);
+        ctx.should_exit = 1;
+        if (r1 == BUS_OK) bus_thread_join(&ctx.ext_bus_th,      UINT32_MAX);
+        if (r2 == BUS_OK) bus_thread_join(&ctx.manager_th,      UINT32_MAX);
+        if (r3 == BUS_OK) bus_thread_join(&ctx.internal_bus_th, UINT32_MAX);
         close(master_fd);
         return 1;
     }
 
-    // READY is published AFTER the watcher thread is up so the
-    // orchestrator never opens the pty before robot_sim is actually
-    // listening on it.
+    // READY is published AFTER the threads are up so the orchestrator
+    // never opens the pty before robot_sim is actually listening.
     fprintf(stdout, "READY\n");
     fflush(stdout);
 
-    pthread_join(th, NULL);
+    // Main thread waits for shutdown. We poll should_exit at 100 ms
+    // since we cannot block on threads while still wanting signals to
+    // arrive — but on Linux we have already routed signals to the
+    // main thread (others have SIGTERM/SIGINT blocked).
+    sigset_t empty;
+    sigemptyset(&empty);
+    while (!ctx.should_exit) {
+        // sigsuspend lets us wake on SIGTERM/SIGINT without busy
+        // looping. After a signal arrives, on_signal sets
+        // should_exit=1 and we fall through to the join.
+        sigsuspend(&empty);
+    }
+
+    bus_thread_join(&ctx.ext_bus_th,      UINT32_MAX);
+    bus_thread_join(&ctx.manager_th,      UINT32_MAX);
+    bus_thread_join(&ctx.internal_bus_th, UINT32_MAX);
+
+    // drive_base last — its thread can be blocked in bus_msgq_get
+    // forever if no msgs flowed; logical_robot_shutdown posts a
+    // sentinel and joins.
+    logical_robot_shutdown(&ctx.drive_base_handle);
+
     close(master_fd);
     return 0;
 }
