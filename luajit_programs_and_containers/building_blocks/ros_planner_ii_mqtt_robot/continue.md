@@ -1,226 +1,230 @@
-# continue.md — 2026-05-01 session handoff (L1+L2 landed)
+# continue.md — 2026-05-01 end-of-session handoff
 
-## What landed this session
+**Open here next session.** This file is the single source of truth for
+where the dongle port stands and what to do next. Memory has the
+locked decisions (`project_dongle_track_*`); this doc has the
+imperative work plan.
 
-### Track A — portability refactor — DONE
+## Current state — clean checkpoint
 
-Committed in `24f19a5c` (commit message names nano_data_center work due
-to a parallel-terminal commit-a mixup — the actual contents are Track A
-plus two unrelated nano_data_center file edits; not destructive, just
-untidy in the log).
+Working tree is clean (verify with `git status`). Five-commit stack on
+master ahead of origin:
 
-- `libcomm/bus_config.h` — central #define site for tunable sizes;
-  per-target overrides via `-D`. Forward-looking entries (LOGICAL_ROBOT_MAX,
-  MSGQ_DEPTH_DEFAULT, BUS_THREAD_STACK_BYTES) included.
-- `libcomm/bus_kernel.h` — portable thread/msgq/timer/mutex interface;
-  storage-opaque blobs sized for pthread + Zephyr worst case.
-- `libcomm/bus_kernel_linux.c` — pthreads backend, all four primitives.
-- `libcomm/bus_kernel_zephyr.c` — concrete skeleton (no TODOs); guarded
-  by `#ifndef __ZEPHYR__ #error` so the Linux Makefile cannot
-  accidentally build it.
-- `libcomm/ext_bus.h` + `libcomm/ext_bus_linux_pty.c` — 3-fn driver
-  contract (tx/rx/rx_wait); per-silicon swap point. transport_uart.c
-  now sits *above* `ext_bus_t` and uses `ext_bus_tx/rx`.
-- `libcomm/test_bus_kernel.c` (29 checks) + `libcomm/test_ext_bus_contract.c`
-  (14 checks) wired into `run_tests.sh`.
-- Bonus fix: pre-existing Makefile `$(ROBOT_SIM_TARGET)` forward-reference
-  bug — `make clean && make` no longer skips robot_sim.
+```
+f6b9a578  L5.5: dongle_hal.lua skeleton + libcomm gap discovered  ← top
+41247f23  L5.2 + L5.3: drive_base FFI and tunables blob loader
+0babc8f5  drive_base: L5.1b — TELEMETRY_ON/OFF + master-seq
+d2c289ac  robot_sim: L4 — four-thread dongle decomposition
+a376ebdf  libcomm: L3 — drive_base logical_robot wired to libphysics
+c0342bc2  libcomm: Track A portability + Track C contracts + L1/L2
+```
 
-**Validation:** `bash run_tests.sh --skip-e2e` → 227 unit checks green
-(was 184; +29 bus_kernel, +14 ext_bus contract). 10/10 N=100
-multi-dongle stress runs, no flakes.
+(Two earlier commits — `e73e88a5`, `b13e2b5a` — are unrelated
+nano_data_center work that landed in parallel terminals.)
 
-### Track C — design contracts — LOCKED
-
-All five questions answered. Memory: `project_dongle_track_c.md`.
-
-| # | Decision | Lock |
-|---|---|---|
-| Q1 | Internal-bus message format | 40-B `bus_msg_t` envelope, 32-B inline payload, no internal acks, no robot-to-robot peer queues. Manager owns 2 ~10-LoC translators (`frame_meta_t ↔ bus_msg_t`) at the ext-bus boundary. |
-| Q2 | Logical-robot lifecycle | Long-lived `bus_thread` per robot, vtable + tick sentinel via `bus_timer`. Sentinels reserved at `dst_robot=0xFF`. |
-| Q3 | Identity storage | Zephyr settings + NVS for identity AND per-robot tunables (PID, calibration). Schema-versioned. Robot_sim mirrors via JSON file. |
-| Q4 | External-bus speed | 921.6 kbps default / 100 msg/s sustained / 250 burst / 10 ms e2e. RX 4 KB / TX 2 KB DMA rings. 400 kbps documented override band. |
-| Q5 | Logical-robot count v1 | `LOGICAL_ROBOT_MAX = 8`, 2 primary + 6 aux split. ~25 KB worst-case RAM per dongle. |
-
-## What this enables
-
-Tracks A+C let us build the **four-thread dongle decomposition on Linux**
-inside `robot_sim` BEFORE touching real hardware. Once that works,
-Track B (Pico bring-up) becomes mechanical because the architecture is
-already validated.
-
-## Plan of action — next sessions
-
-Pivot from "Track B next" to **Linux logical_robot slices L1-L5**:
-build the four-thread dongle shape on Linux, run the existing mission
-planner against it, prove the architecture e2e on Linux. Track B (real
-Pico hardware) is **deferred** until L1-L5 are green.
-
-### Slice L1 — bus_msg.h + sentinels — DONE
-
-- bus_config.h gained BUS_MSG_INLINE_PAYLOAD_MAX=32,
-  BUS_MSGQ_DEFAULT_DEPTH=16, LOGICAL_ROBOT_PRIMARY_MAX=2,
-  LOGICAL_ROBOT_AUX_MAX=6, sentinel constants.
-- libcomm/bus_msg.h: bus_msg_t (40 B locked) + sentinel helpers,
-  static-asserted invariants (size, payload, header offset,
-  sentinel-outside-robot-space).
-- libcomm/test_bus_msg.c: 23 checks (size invariants, sentinel
-  helpers, real-msg-not-sentinel, msgq round-trip with 0/5/32-byte
-  payloads).
-
-### Slice L2 — logical_robot lifecycle — DONE
-
-- libcomm/logical_robot.h: vtable (init/on_msg/tick/shutdown/
-  tick_period_ms) + handle struct + 4-fn API.
-- libcomm/logical_robot.c: generic logical_robot_entry — calls init,
-  starts tick timer if tick_period_ms>0, blocks on
-  bus_msgq_get(FOREVER), dispatches sentinels (tick / shutdown) and
-  real messages, drains + calls shutdown on exit.
-- libcomm/test_logical_robot.c: 16 checks (basic lifecycle,
-  on_msg ordering, sentinel rejection, tick fires, inbox-full
-  backpressure).
-- ships in libcomm.so; ready for L3+.
-
-### Slice L3 — drive_base logical_robot wired to physics_core
-
-physics_core.c already has a clean transport-portable C API
-(`physics_pipe.h`): 64-byte cmd blocks (CMD_PUSH_LINE, CMD_PUSH_SPLINE,
-CMD_PUSH_ROTATE, CMD_BEGIN_GRIP, CMD_BEGIN_DOCK, CMD_SET_PARAM, …)
-flowing chain_tree→physics, 256-byte up blocks (events + telemetry)
-flowing physics→chain_tree, two SPSC ring buffers. The header
-explicitly anticipates "in-process today, shared-memory next,
-SLIP-framed serial later."
-
-CBOR/JSON wire-format flag in `rover_1_*config.json` is about the
-MQTT bridge between ros_planner_ii and the robot Lua process; it's
-above libcomm and never touches drive_base. Earlier draft of this
-plan mistakenly called physics_core JSON-shaped — corrected
-2026-05-01.
-
-- New `robot_sim/drive_base_robot.c`:
-  - `drive_base_init`: phys_create() (or whatever physics_core calls
-    its constructor), load tunables, push CMD_SET_PARAM blocks.
-  - `drive_base_on_msg`: translate bus_msg_t (40 B) → physics_pipe
-    cmd block (64 B). ~10 LoC adapter; both shapes are already
-    designed for this. Uses drive_base catalogue from
-    project_drive_base_catalogue (line + B-spline subset; streaming
-    deferred).
-  - `drive_base_tick`: drain up-FIFO of physics_core, emit each
-    event/telemetry as a bus_msg_t upward to the manager's outbound.
-  - `drive_base_shutdown`: phys_destroy().
-- Tunables: PID constants + max velocity + max acceleration. JSON
-  file in Linux mode (mirrors Zephyr settings/NVS on embedded per Q3).
-- **Done when:** unit tests verify a "MOVE_LINE" command via
-  bus_msg_t produces a CMD_PUSH_LINE in physics_pipe and the physics
-  state updates.
-- **Estimated scope:** ~250-400 LoC drive_base_robot.c + ~100 LoC test.
-  ~1 session, not 1-2.
-
-### Slice L4 — robot_sim restructure: four threads + manager wiring
-
-- `robot_sim/main.c` shrinks to argv parsing + spawning four threads.
-- `robot_sim/external_bus.c` — high-prio thread reading pty master,
-  feeding frame decoder, posting decoded frames to manager's inbox.
-- `robot_sim/dongle_manager.c` — HELLO/IDENT (existing) + commissioning
-  state machine (Q3) + frame→bus_msg translation + routing + reverse
-  path (events → s2m frames → ext_bus tx).
-- `robot_sim/internal_bus.c` — fan-out worker: reads single fan-out
-  queue, dispatches to per-robot inboxes by `dst_robot`.
-- drive_base logical_robot from L3 starts inside this shape.
-- **Done when:** existing pty multi-dongle tests still green at N=100;
-  new e2e test issues a drive_base command via libcomm and observes
-  physics state change.
-
-### Slice L5 — wire ros_planner_ii through to drive_base
-
-**Status 2026-05-01 (mid):** L5.1 + L5.1b + L5.2 + L5.3 + dongle_hal.lua
-skeleton landed; e2e blocked on libcomm architectural gap (below).
-
-**Architectural gap to resolve at start of next session:**
-
-libcomm's master-side `comm_poll` only surfaces s2m frames whose
-`ack_seq` matches an outstanding request slot. drive_base's
-`DRV_EVT_TELEMETRY` / `DRV_EVT_SEG_DONE` events are emitted
-**unsolicited** — they reach the wire but get filtered on the master
-side as "stale or unmatched" (libcomm/comm.c:725 `if (s->seq !=
-in->ack_seq) return`).
-
-This is a real design issue. Two paths to choose from:
-
-1. **Polling protocol (smaller change):**
-   - Add `DRV_CMD_GET_TELEMETRY` (0x1031). Empty request payload.
-     Response = 32-byte struct (x, y, h, v, ω, energy,
-     last_done_master_seq, queue_depth, flags).
-   - Manager refactor: don't auto-ACK GET_* commands; let drive_base
-     produce the response (set bus_msg.seq = request seq so libcomm
-     correlates it).
-   - Master HAL polls every ~50 ms.
-   - dongle_hal.lua already has the cache structure; just needs to
-     swap the (broken) "TELEMETRY_ON + drain unsolicited" with
-     "submit GET_TELEMETRY + decode response" in `_drain`.
-   - Existing in-process tests (test_drive_base, test_dongle_catalogue)
-     still use the unsolicited ext_tx_q path; don't break them.
-
-2. **Unsolicited s2m path in libcomm (bigger):** add a callback /
-   queue on the master side that surfaces unsolicited s2m frames.
-   Mirrors the embedded RTOS event push pattern more naturally but
-   is a libcomm extension.
-
-**Recommendation:** path 1 (polling). Smaller blast radius, fits the
-existing libcomm shape, can land incrementally. Polling at 50 ms
-costs ~20 ms-of-stale on read_pose vs unsolicited push, which is fine
-for the existing controller tick (CT_TICK_SIM_S = 100 ms anyway).
-
-**After the gap is resolved:**
-
-- Replace `mqtt_robot_main.lua`'s direct `physics_core` calls with
-  `comm_submit(drive_base_cmd)` through libcomm: pty → robot_sim →
-  drive_base → physics_core.
-- Existing `test_random_paths.lua` MQTT scenarios become the e2e
-  validator for the whole stack.
-- **Done when:** `bash run_tests.sh` (no --skip-e2e) runs full MQTT
-  scenarios and they pass through the new architecture.
-
-## How to resume
+## How to verify on resume
 
 ```bash
 cd /home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/building_blocks/ros_planner_ii_mqtt_robot
 make
-bash run_tests.sh --skip-e2e   # 266 checks should be green (227 prior + 23 L1 + 16 L2)
+bash run_tests.sh --skip-e2e
+# → 300 unit checks green across 12 test groups
 ```
 
-Quick stress sanity:
+N=100 multi-dongle stress sanity:
 
 ```bash
 for i in 1 2 3 4 5; do luajit test_comm_pty_multi_dongle.lua 2>/dev/null | grep summary; done
-# expect: 5x "[summary] 18 passed, 0 failed"
+# → 5x "[summary] 18 passed, 0 failed"
 ```
 
-Open with **Slice L3** — drive_base logical_robot wired to
-physics_core via physics_pipe.h. The physics_core C API is already
-transport-portable (64-byte cmd blocks + 256-byte up blocks), so no
-JSON/CBOR parsing in libcomm. ~1 session.
+## What's done (all slices)
 
-## Track B (real Pico hardware) — DEFERRED
+- **Track A** — portability refactor (bus_config.h, bus_kernel.h
+  pthreads + Zephyr skeleton, ext_bus.h 3-fn driver contract,
+  transport_uart layered above ext_bus). 43 new test checks.
+- **Track C** — five Q&A locks (Q1 message format, Q2 lifecycle,
+  Q3 identity storage, Q4 ext-bus speed, Q5 robot count). Memory:
+  `project_dongle_track_c.md`.
+- **L1** — `bus_msg.h` (40-byte envelope) + sentinel helpers + 23
+  unit checks.
+- **L2** — generic `logical_robot_entry` (vtable + tick sentinel)
+  + 16 unit checks.
+- **L3** — `drive_base_robot.{h,c}` translating bus_msg_t to
+  libphysics. 15 unit checks.
+- **L4a + L4b** — robot_sim restructured into four `bus_thread`s
+  (ext_bus, manager, internal_bus, drive_base). Catalogue routes
+  through to drive_base; SEG_DONE flows back through ext_tx_q.
+  19 catalogue routing checks. Bug caught + fixed: drive_base's
+  unconditional 100Hz telemetry was overflowing ext_tx_q and
+  flaking PING ACKs.
+- **L5.1b** — `DRV_CMD_TELEMETRY_ON / _OFF` + master-seq
+  attribution in seg_track FIFO.
+- **L5.2** — `drive_base_ffi.lua` (Lua catalogue + payload builders).
+- **L5.3** — robot_sim `--tunables blob.bin` (Q3 NVS mirror) +
+  `build_drive_base_tunables.lua` JSON→bin tool.
+- **L5.5 (partial)** — `dongle_hal.lua` skeleton + `robot_hal.lua`
+  mode == "dongle" branch.
 
-continue.md's prior Track B plan (Zephyr workspace, RP2040 UART driver,
-two-Pico interop) is correct but waits until L1-L5 prove the
-architecture on Linux. Reasons:
+## **🛑 Gap blocking L5 e2e — open here next session**
 
-- L1-L5 use the exact same `bus_kernel.h` / `bus_msg_t` / vtable
-  contracts that Track B will use → all the design risk is taken
-  before any hardware time.
-- Track B needs ordered hardware (Pico + Pi Debug Probe) and a Zephyr
-  workspace setup (~2-3 GB toolchain).
-- USB passthrough on WSL2 is flakier than native; user may want to
-  run Track B from a different machine.
+**The problem:**
 
-Track B is unblocked the moment L1-L5 are green.
+`libcomm`'s master-side `comm_poll` only surfaces s2m frames whose
+`ack_seq` matches an outstanding request slot:
 
-## Track C follow-ups deferred to Track B
+```c
+// libcomm/comm.c:725 (in master_handle_frame)
+if (s->seq != in->ack_seq) return;     // stale or unmatched
+```
 
-- Q3 commissioning protocol (which catalogue cmd, exact framing of
-  identity/tunables write).
-- Q4 motor/sensor bus contract (per-logical_robot, per-silicon).
+`drive_base`'s `DRV_EVT_TELEMETRY` and `DRV_EVT_SEG_DONE` are emitted
+**unsolicited** — they reach the wire fine but get filtered on the
+master side as "stale or unmatched." `dongle_hal.lua`'s cache never
+updates; `read_pose()` / `read_path_status()` return stale zeros.
 
-Both surface naturally at Track B time. Not blockers for L1-L5.
+`test_dongle_hal.lua` reproduces this:
+
+```
+PASS  robot_sim opened a pty
+PASS  HAL initialised in dongle mode
+PASS  initial pose at origin
+PASS  push_line returned seg_id=1
+FAIL  SEG_DONE arrived for our seg_id   ← unsolicited frame dropped
+FAIL  rover advanced past x=0.5m        ← cache never updated
+PASS  rover stayed near y axis
+```
+
+**Recommended fix — polled GET_TELEMETRY (smaller change):**
+
+1. Add `DRV_CMD_GET_TELEMETRY` (0x1031) to `libcomm/drive_base_robot.h`.
+   Empty request payload. Response = 32-byte struct (x, y, h, v, ω,
+   energy_used_total, last_done_master_seq, queue_depth, flags).
+
+2. Refactor `robot_sim/dongle_threads.c` manager: classify catalogue
+   commands into "fire-and-forget" (auto-ACK as today) vs
+   "request-response" (route to int_bus_q, do NOT auto-ACK; the
+   target robot produces the response itself). Use a simple range or
+   bitmap. GET_TELEMETRY = request-response.
+
+3. `libcomm/drive_base_robot.c` on_msg adds GET_TELEMETRY handler:
+   read phys state, build 32-byte payload, emit bus_msg_t to
+   outbound with `seq = request.seq` so libcomm correlates the
+   response. drive_base's `s->last_done_master_seq` is set on each
+   SEG_DONE edge inside tick (separate from the now-vestigial
+   unsolicited DRV_EVT_SEG_DONE emission, which we keep for the
+   in-process tests).
+
+4. `dongle_hal.lua`: replace the broken "TELEMETRY_ON + drain
+   unsolicited" approach with periodic GET_TELEMETRY polls. Cache
+   structure already exists (`self._pose`, `self._path`); just pump
+   it from the polled response payload. Suggested tick rate: 50 ms.
+
+5. Update existing in-process tests if needed (they should still
+   pass since they use ext_tx_q directly, not over-the-wire).
+
+**Why polling is fine for our workload:**
+- Controller tick (CT_TICK_SIM_S = 100 ms) is slower than 50 ms poll.
+- 921.6 kbps wire trivially handles 20 polls/s × 80-byte round trips.
+- Matches how physics_pipe.h already works (cmd block down,
+  telemetry up — but with explicit request-response on each side).
+
+**Alternative (bigger):** extend libcomm with an unsolicited s2m
+path (callback or queue on the master side). More natural for embedded
+RTOS but a real libcomm extension. Skipping for now; revisit if
+polling proves too chatty in practice.
+
+## Plan of action — next session
+
+In order:
+
+### Step 1 — manager refactor + GET_TELEMETRY catalogue (~30-60 min)
+
+- Add `DRV_CMD_GET_TELEMETRY = 0x1031` in `libcomm/drive_base_robot.h`.
+- Add `s->last_done_master_seq` field to drive_base_t.
+- drive_base tick: on SEG_DONE edge, update `last_done_master_seq`
+  (in addition to emitting the unsolicited DRV_EVT_SEG_DONE for
+  in-process tests).
+- drive_base on_msg: handle GET_TELEMETRY → build 32-byte response
+  (replace `active_seg_id` field with `last_done_master_seq` since
+  that's what the master cares about), emit bus_msg with
+  `seq = request.seq`, post to outbound.
+- Manager (`robot_sim/dongle_threads.c`): split catalogue handling
+  into two cases. Suggested:
+  ```c
+  if (cmd == DRV_CMD_GET_TELEMETRY) {
+      // request-response: route, no auto-ACK
+      bus_msgq_put(&ctx->int_bus_q, &in);
+  } else if (cmd >= 0x0100u) {
+      // fire-and-forget: route + auto-ACK
+      bus_msgq_put(&ctx->int_bus_q, &in);
+      manager_push_simple_ack(...ACK_BARE...);
+  }
+  ```
+- Extend `test_dongle_catalogue.c` with a GET_TELEMETRY round-trip
+  check.
+
+### Step 2 — dongle_hal polled drain (~30 min)
+
+- `dongle_hal.lua`: drop `TELEMETRY_ON` from init.
+- Replace `_drain` body with: submit GET_TELEMETRY (using a cached
+  reusable handle or fresh per call), wait for response, decode
+  payload, update `self._pose` / `self._path`.
+- Throttle: only re-submit if a previous GET_TELEMETRY isn't
+  outstanding, OR if last update is > 50 ms old.
+- Re-run `test_dongle_hal.lua` — should now show pose advancing,
+  SEG_DONE matching.
+
+### Step 3 — orchestration (L5.6, ~30 min)
+
+- `start_robot.sh` (in `building_blocks/ros_scripts/`): spawn
+  `robot_sim --type 1 --instance 1 --addr 1 --tunables /tmp/dbt.bin`
+  before launching `mqtt_robot_main.lua`. Capture its `PTY=…` line
+  via stdout pipe. Export `ROBOT_SIM_PTY=<path>` and `HAL_MODE=dongle`.
+  Also build the tunables blob via
+  `luajit build_drive_base_tunables.lua physics_config.json /tmp/dbt.bin`.
+- `mqtt_robot_main.lua` doesn't change — `robot_hal.new()` already
+  routes to `dongle_hal` when `HAL_MODE=dongle`.
+
+### Step 4 — e2e MQTT scenarios (L5.7)
+
+```bash
+bash run_tests.sh   # without --skip-e2e
+```
+
+Should run `test_random_paths.lua` paths_only scenarios end-to-end
+through the new architecture. Mixed scenarios will fail (tools not
+in drive_base catalogue yet — deferred to L6+).
+
+Expect to debug timing / orchestration issues on first run.
+
+### Step 5 — commit + memory update
+
+Once paths_only e2e green: commit, update
+`project_dongle_l1_l5_progress.md` memory file, update this
+continue.md to mark L5 closed and Track B (Pico hardware) as the
+next milestone.
+
+## Track B (Pico hardware) — still deferred
+
+`bus_kernel_zephyr.c` is a concrete skeleton ready to compile under
+a Zephyr workspace. `ext_bus_rp2040_uart_dma.c` is the per-silicon
+file to write next. Hardware needs: Raspberry Pi Pico (~$5) + Pi
+Debug Probe (~$12). USB passthrough via WSL2's `usbipd-win` is
+viable but flakier than native Linux.
+
+Track B is unblocked the moment L5 is green.
+
+## Memory pointers
+
+Read these for context:
+
+- `project_dongle_architecture.md` — locked architecture
+  (4-role decomposition, 3 boundaries, 3 Zephyr targets).
+- `project_dongle_port_track_a.md` — Track A summary.
+- `project_dongle_track_c.md` — Track C contract decisions (Q1-Q5).
+- `feedback_chain_tree_no_blocking_io.md` — tick handler discipline.
+- `feedback_no_soft_faults.md` — fail-stop everywhere.
+- `feedback_phase6_handler_budget.md` — ≤50 ms handler cap.
+- `feedback_verify_handoff_hypothesis.md` — caught the L4b telemetry
+  saturation bug and the L5 unsolicited gap; verify before fixing.
