@@ -24,6 +24,11 @@ LIBCOMM_HDRS   = libcomm/comm.h libcomm/frame.h libcomm/transport_inproc.h \
                  libcomm/bus_config.h libcomm/bus_kernel.h libcomm/bus_msg.h \
                  libcomm/logical_robot.h \
                  comm_manifest.h
+# drive_base_robot lives ABOVE libcomm: it's a logical_robot class, not
+# transport infrastructure. Built into test binaries (and eventually
+# robot_sim) directly, not linked into libcomm.so.
+DRIVE_BASE_SRCS = libcomm/drive_base_robot.c
+DRIVE_BASE_HDRS = libcomm/drive_base_robot.h
 
 # Generated avro_dsl artifacts. Regenerate by running `make manifest` after
 # editing comm_manifest.lua. Generated files MUST NOT be hand-edited.
@@ -46,9 +51,15 @@ TEST_LOGICAL_ROBOT_SRCS   = libcomm/test_logical_robot.c \
                             libcomm/logical_robot.c \
                             libcomm/bus_kernel_linux.c
 
+TEST_DRIVE_BASE_TARGET = test_drive_base
+TEST_DRIVE_BASE_SRCS   = libcomm/test_drive_base.c \
+                         libcomm/drive_base_robot.c \
+                         libcomm/logical_robot.c \
+                         libcomm/bus_kernel_linux.c
+
 all: $(TARGET) $(LIBCOMM_TARGET) $(ROBOT_SIM_TARGET) \
      $(TEST_BUS_KERNEL_TARGET) $(TEST_EXT_BUS_TARGET) $(TEST_BUS_MSG_TARGET) \
-     $(TEST_LOGICAL_ROBOT_TARGET) manifest
+     $(TEST_LOGICAL_ROBOT_TARGET) $(TEST_DRIVE_BASE_TARGET) manifest
 
 $(TEST_BUS_KERNEL_TARGET): $(TEST_BUS_KERNEL_SRCS) libcomm/bus_kernel.h libcomm/bus_config.h
 	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -I. \
@@ -65,6 +76,15 @@ $(TEST_BUS_MSG_TARGET): $(TEST_BUS_MSG_SRCS) libcomm/bus_msg.h libcomm/bus_kerne
 $(TEST_LOGICAL_ROBOT_TARGET): $(TEST_LOGICAL_ROBOT_SRCS) libcomm/logical_robot.h libcomm/bus_msg.h libcomm/bus_kernel.h libcomm/bus_config.h
 	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -I. \
 	    $(TEST_LOGICAL_ROBOT_SRCS) -o $(TEST_LOGICAL_ROBOT_TARGET) -lpthread
+
+# test_drive_base links against libphysics.so for the phys_* symbols.
+# -Wl,-rpath,'$$ORIGIN' makes the binary search for libphysics.so in
+# its own directory at runtime, so test runs without setting
+# LD_LIBRARY_PATH.
+$(TEST_DRIVE_BASE_TARGET): $(TEST_DRIVE_BASE_SRCS) $(DRIVE_BASE_HDRS) libcomm/logical_robot.h libcomm/bus_msg.h libcomm/bus_kernel.h libcomm/bus_config.h $(TARGET)
+	$(CC) -O2 -Wall -Wextra -std=c99 -Ilibcomm -I. \
+	    $(TEST_DRIVE_BASE_SRCS) -o $(TEST_DRIVE_BASE_TARGET) \
+	    -L. -lphysics -lm -lpthread -Wl,-rpath,'$$ORIGIN'
 
 $(TARGET): $(SRC)
 	$(CC) $(CFLAGS) $(SRC) -o $(TARGET) $(LDFLAGS)
@@ -96,7 +116,7 @@ $(MANIFEST_OUTPUTS): $(MANIFEST_SRC)
 clean:
 	rm -f $(TARGET) $(LIBCOMM_TARGET) $(ROBOT_SIM_TARGET) \
 	      $(TEST_BUS_KERNEL_TARGET) $(TEST_EXT_BUS_TARGET) $(TEST_BUS_MSG_TARGET) \
-	      $(TEST_LOGICAL_ROBOT_TARGET) \
+	      $(TEST_LOGICAL_ROBOT_TARGET) $(TEST_DRIVE_BASE_TARGET) \
 	      $(MANIFEST_OUTPUTS)
 
 .PHONY: all clean manifest

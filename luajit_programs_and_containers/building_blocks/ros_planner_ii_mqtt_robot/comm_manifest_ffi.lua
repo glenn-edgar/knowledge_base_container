@@ -116,9 +116,9 @@ do
     pkt.data.dongle_count = 1
     pkt.data.bus_count = 1
     pkt.data.slave_count = 1
-    pkt.data.dongles[0] = table: 0x70b863a9dd58
-    pkt.data.buses[0] = table: 0x70b863a9dee0
-    pkt.data.slaves[0] = table: 0x70b863a90a88
+    pkt.data.dongles[0] = table: 0x3885b3bcd0e0
+    pkt.data.buses[0] = table: 0x3885b3bcd3c0
+    pkt.data.slaves[0] = table: 0x3885b3bcc6e8
     M.const_packets["rover_1_manifest"] = pkt
 end
 

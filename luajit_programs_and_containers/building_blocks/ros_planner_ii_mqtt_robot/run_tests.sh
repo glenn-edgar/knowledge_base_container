@@ -248,6 +248,17 @@ if [[ $SKIP_UNIT -eq 0 ]]; then
         [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_logical_robot.log"
         FAILURES=$((FAILURES+1))
     fi
+
+    log "running drive_base logical_robot test (Slice L3)"
+    if "$SCRIPT_DIR/test_drive_base" >"$LOG_DIR/test_drive_base.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_drive_base.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_drive_base.log" || true)
+        pass "drive_base: $local_pass passed, $local_fail failed"
+    else
+        fail "drive_base logical_robot test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_drive_base.log"
+        FAILURES=$((FAILURES+1))
+    fi
 fi
 
 # ---------- step 3+: e2e ----------
