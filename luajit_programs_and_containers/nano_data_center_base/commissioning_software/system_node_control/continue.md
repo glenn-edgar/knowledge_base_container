@@ -1,5 +1,150 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-01 EVENING session — Phase B Layer M-1 DONE + overnight soak underway
+
+Phase B Layer M (namespace migration) is split into M-1 (path-composition
+centralization, finished tonight) and M-2 (the actual rename, still pending).
+Cluster is in overnight soak as of ~22:40 local against the M-1 code path.
+
+### What landed tonight (5 commits)
+
+| Commit | Layer | Scope |
+|---|---|---|
+| `bfeb2afb` | M-1a | dcs_host runtime: new `ndc_paths.lua` (Lua path composer) + 8 modules refactored to use it. `luajit_base/container/docker_build.sh` ships `ndc_paths.lua` into the base layer's `prebuilt_lua_share/`. |
+| `0d248831` | M-1b | Container processes: `luajit_base/supervisor/user_functions.lua`, `dcs_console/{admin,gateway}/lua/`, `observability/{exception,log}_analyzer/main.lua`. observability stages `ndc_paths.lua` into `_staged_lib/` for self-contained image rebuilds. |
+| `232183c9` | M-1c | Go broker: new `internal/pathkb/` package + 5 unit tests; `pgwriter.go` + `natspub.go` switched to `pathkb.BrokerRoot(site)`. |
+| `b9175a0e` | M-1d | Laptop construction: `build_kb.sh` + `slice_bootstrap.sh` extend `LUA_PATH` with `runtime/dcs_host`; `slice_bootstrap.lua` (5 callsites) + `subsystems/cpu_bootstrap.lua` + 2 acceptance tests refactored. |
+| `300c5abe` | plan | Inserted Layer **O** (observability tree-by-namespace) between M and F. |
+
+Helper output verified byte-for-byte identical to the legacy format strings;
+zero active production callsites still hardcode `"system.site.%s..."` outside
+`ndc_paths.lua` / `pathkb.go`.
+
+### Tonight's rebuild + soak
+
+| Step | Result |
+|---|---|
+| 5 platform images rebuilt (luajit_base, openresty_base, observability, dcs_console, docker_host_broker) | green; ~75s total |
+| Stop platform containers (so node_control reconcile pulls new images) | observability_01, dcs_console_01, docker-host-broker stopped |
+| `build_kb.sh` (M-1d touched it) | defs=9, cpus=2, instances=9, subsystems=16 |
+| `slice_bootstrap.sh` per-CPU bootstraps | cpu_01=2014 rows, cpu_02=581 rows (matches Phase A baseline) |
+| `stage_deploy.sh --mode=dev` | runtime symlinks refreshed, env.sh preserved |
+| `phase6_preflight.sh` | all 10 checks PASS |
+| broker re-run with new image (canonical bootstrap) | pgwriter connected, http listening, probes finding test_app_01 |
+| Boot cpu_01 (master), sleep 3, boot cpu_02 (slave) | exactly 1 dcs.lua + 1 watchdog per CPU |
+| 5-min soak health check | sys_ready=1, both peers ACTIVE, ready_bits=3, heartbeats <3s old, broker docker_socket_ok=true, zero active SYS_EXCEPTIONs, zero panics in error.log |
+
+Two transient ~500ms tick spikes (cpu_01 burst=313, cpu_02 burst=311 around
+22:44:52) — single occurrence, no SYS_EXCEPTION fired, likely pg-cache
+warm-up after the fresh build_kb. Watch overnight; not actionable yet.
+
+App containers (test_app_01, robot_manager_01, ros_mission_planner_ii_01)
+intentionally NOT rebuilt — they `FROM luajit_base` but have no M-1
+callsites of their own. Their cached layers stay on pre-M-1 base; supervisor
+emits identical paths to the new ndc_paths-based one.
+
+### **First action next session — verify soak survived**
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+export PGPASSWORD=$(docker exec pg-vector printenv POSTGRES_PASSWORD)
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+# 1. processes still 1 dcs.lua + 1 start.sh per CPU?
+pgrep -af "dcs\.lua|start\.sh" | grep -v claude
+
+# 2. system_ready / peer_state still ACTIVE?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data FROM knowledge_base_status \
+   WHERE path::text LIKE '%system_ready' OR path::text LIKE '%peer_state%' \
+   ORDER BY path"
+
+# 3. heartbeat freshness (age_s should be <15s)
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT node_id, extract(epoch from now())-bit_mask/1e9 AS age_s \
+   FROM bit_mask_table WHERE node_id LIKE '%heartbeat%' ORDER BY node_id"
+
+# 4. any SYS_EXCEPTIONs raised overnight?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data->>'last_error', data->>'acknowledged' \
+   FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+
+# 5. error.log scan for new panics/errors
+grep -iE "ERROR|PANIC|FATAL|stack trace" $DEP/cpu_01/error.log $DEP/cpu_02/error.log
+```
+
+If all-clean: proceed to Layer M-2 below. If any check regresses: rollback line is
+`git reset --hard 8fb88bb1` (returns to pre-M-1 master).
+
+### **Layer M-2 — the actual rename (next session)**
+
+Now small thanks to M-1 centralization. Single session.
+
+1. **Topology change.** `commissioning_software/system_node_control/construction/catalogs/topology.lua`:
+   ```lua
+   -- before:
+   site = "moonbase.alpha.dcs"
+   -- after:
+   system_name = "moon_base"
+   site        = "moon_base_alpha"
+   ```
+   Search for any other place that consumes `topology.site` and surface them
+   (`grep -rn "TOPOLOGY.site\|topology\.site"`).
+
+2. **Path composer flip.** `runtime/dcs_host/ndc_paths.lua` and
+   `commissioning_software/infrastructure/docker_host_broker/container/internal/pathkb/pathkb.go`:
+   add module-private `cfg.system_name` + `Configure{system_name=...}`,
+   change `SiteRoot(site)` to `"system." .. cfg.system_name .. ".site." .. site`.
+   Update the `pathkb_test.go` expected strings.
+
+3. **Configure call wiring.** Three places that bootstrap the cluster need to
+   call `Configure(...)` once at startup:
+   - `runtime/dcs_host/dcs.lua` — read `system_name` from
+     `bootstrap.config.system_name` (added to bootstrap.config in step 4) and
+     call `ndc_paths.configure{system_name = ...}`.
+   - `construction/build_kb.lua` + `slice_bootstrap.lua` — read from `topology.system_name`
+     and configure before any path emission.
+   - Broker `cmd/broker/main.go` — accept `SYSTEM` env var (parallel to
+     `SITE`) and call `pathkb.Configure(systemName)`.
+
+4. **Bootstrap.config schema bump.** `subsystems/cpu_bootstrap.lua` writes
+   `system_name` into the bootstrap row alongside `site`/`cpu_id`. Update
+   `kb_root` to use the new shape (already does this via `ndc_paths.cpu_root`
+   so just re-running build_kb after step 2 suffices).
+
+5. **Broker run command update.** Where the broker is launched (continue.md
+   in `infrastructure/docker_host_broker/`), add `-e SYSTEM=moon_base`
+   alongside `-e SITE=moon_base_alpha`.
+
+6. **Doc-comment sweep.** ~30 lines reference the old shape literally.
+   Search: `grep -rn "system\.site\.<S>\|system\.site\.<site>"`. Replace
+   shape only where comments document path layout.
+
+7. **Smoke.** Stop cluster → `build_kb.sh` → `slice_bootstrap.sh` →
+   `stage_deploy.sh` → `phase6_preflight.sh` → boot → 5-min check.
+   Verify pg paths now read `system.moon_base.site.moon_base_alpha.*`:
+   ```bash
+   docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+     "SELECT count(*) FROM knowledge_base WHERE path::text LIKE 'system.moon_base.%'"
+   # should be > 0; legacy 'system.site.moonbase.alpha.dcs.%' should be 0
+   ```
+
+8. **Commit + soak.** Two commits ideally: `M-2a topology + composer flip`,
+   `M-2b doc-comment sweep`. Then short soak (1–2 hours) before opening Layer O.
+
+### Layer ordering after M-2
+
+```
+M-2 (rename)  →  short soak  →  O (observability tree-by-namespace)  →  F + A + I  →  N  →  V
+```
+
+Layer O lands BEFORE F so app-container logs (`app_containers.<c>.runtime.*`,
+`app_containers.<c>.KB_LOG.*`) are visible in the tree from day one of app
+onboarding. See the layer table below for full Phase B scope.
+
+---
+
 ## State at end of 2026-05-01 session — Phase A DONE
 
 The directory restructure (base port) is **complete and live**. The cluster
@@ -196,9 +341,10 @@ Total: 4–6 sessions for Phase B as scoped above (was 3–5 before O insertion)
 | 1 | Solidify system/node-control RPC (Phase 6.1+6.2+6.3) | ✅ Done |
 | 2 | Container base + RPC methods (Phase 6.4) | ✅ Done |
 | 3 | **Condense for build (this restructure)** | ✅ DONE 2026-05-01 |
-| 4 | KB-driven everything (file store, three-tier config, catalog hydration) | 🔲 |
-| 5 | App-container build documentation | 🔲 (first app port = ros_mission_planner_ii) |
-| 6 | Log-analysis web UI by KB namespace tree | 🔲 |
+| 3.5 | Phase B Layer M-1 — path-composition centralization | ✅ DONE 2026-05-01 evening (`bfeb2afb`..`b9175a0e`) |
+| 4 | KB-driven everything (file store, three-tier config, catalog hydration) | 🔲 (M-2 rename next) |
+| 5 | App-container build documentation | 🔲 (gated by Layer O after M-2) |
+| 6 | Log-analysis web UI by KB namespace tree | 🔲 (now scoped as Phase B Layer O — lands BEFORE app port) |
 | 7 | v1 done = soak-node + 30-day adversarial soak | 🔲 |
 
 ---
@@ -231,9 +377,21 @@ bash stage_deploy.sh --mode=dev
 
 ---
 
-## End of 2026-05-01 session
+## End of 2026-05-01 EVENING session
 
-Phase A complete. Cluster running from `nano_data_center_base/`.
-`building_blocks/nanodatacenter_dcs/` retained for historical reference,
-no longer used. Next session: Phase B (first app port — `ros_mission_planner_ii`
-+ `thread_bridge`).
+Phase B Layer M-1 (path-composition centralization) DONE across host runtime,
+container processes, Go broker, and laptop construction pipeline. 5 commits
+pushed to local master (`bfeb2afb`, `0d248831`, `232183c9`, `b9175a0e`,
+`300c5abe`). Cluster rebuilt + booted on the M-1 code path; 5-min check
+green; overnight soak underway.
+
+**Open the next session at the top of this file** — the "State at end of
+2026-05-01 EVENING session" block has the morning soak-check command and
+the step-by-step Layer M-2 (the actual rename) recipe.
+
+Rollback line if soak regresses: `git reset --hard 8fb88bb1`
+(returns to pre-M-1 master, commit "continue.md: end-of-session 2026-05-01 — L5 blocked on libcomm gap").
+
+Earlier in the day (afternoon): Phase A complete, cluster ported to
+`nano_data_center_base/`; `building_blocks/nanodatacenter_dcs/` retained
+historical only.
