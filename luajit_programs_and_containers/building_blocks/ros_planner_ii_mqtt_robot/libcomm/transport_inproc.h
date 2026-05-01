@@ -10,13 +10,14 @@
 #pragma once
 
 #include "frame.h"
+#include "bus_config.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define TRANSPORT_INPROC_MAX_ENDPOINTS  32
-#define TRANSPORT_INPROC_RING_SIZE      512   // power of 2; per-direction per-endpoint
+// TRANSPORT_INPROC_MAX_ENDPOINTS and TRANSPORT_INPROC_RING_SIZE live in
+// bus_config.h. The ring size must be power-of-2 (frame_ring_init).
 
 typedef struct {
     uint8_t       in_use;

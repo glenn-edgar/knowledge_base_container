@@ -1,3 +1,7 @@
 remote.json
 remote_debug.yaml
 robot_sim/robot_sim
+test_bus_kernel
+test_ext_bus_contract
+test_bus_msg
+test_logical_robot

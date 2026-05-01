@@ -204,6 +204,50 @@ if [[ $SKIP_UNIT -eq 0 ]]; then
         [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_comm_pty_multi_dongle.log"
         FAILURES=$((FAILURES+1))
     fi
+
+    log "running bus_kernel smoke test (Track A.3)"
+    if "$SCRIPT_DIR/test_bus_kernel" >"$LOG_DIR/test_bus_kernel.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_bus_kernel.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_bus_kernel.log" || true)
+        pass "bus_kernel smoke: $local_pass passed, $local_fail failed"
+    else
+        fail "bus_kernel smoke test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_bus_kernel.log"
+        FAILURES=$((FAILURES+1))
+    fi
+
+    log "running ext_bus contract test (Track A.6)"
+    if "$SCRIPT_DIR/test_ext_bus_contract" >"$LOG_DIR/test_ext_bus_contract.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_ext_bus_contract.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_ext_bus_contract.log" || true)
+        pass "ext_bus contract: $local_pass passed, $local_fail failed"
+    else
+        fail "ext_bus contract test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_ext_bus_contract.log"
+        FAILURES=$((FAILURES+1))
+    fi
+
+    log "running bus_msg unit test (Slice L1)"
+    if "$SCRIPT_DIR/test_bus_msg" >"$LOG_DIR/test_bus_msg.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_bus_msg.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_bus_msg.log" || true)
+        pass "bus_msg: $local_pass passed, $local_fail failed"
+    else
+        fail "bus_msg unit test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_bus_msg.log"
+        FAILURES=$((FAILURES+1))
+    fi
+
+    log "running logical_robot lifecycle test (Slice L2)"
+    if "$SCRIPT_DIR/test_logical_robot" >"$LOG_DIR/test_logical_robot.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_logical_robot.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_logical_robot.log" || true)
+        pass "logical_robot: $local_pass passed, $local_fail failed"
+    else
+        fail "logical_robot lifecycle test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_logical_robot.log"
+        FAILURES=$((FAILURES+1))
+    fi
 fi
 
 # ---------- step 3+: e2e ----------

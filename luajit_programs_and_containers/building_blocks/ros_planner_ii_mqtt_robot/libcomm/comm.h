@@ -12,18 +12,16 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "bus_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // ============ CONSTANTS ============
-
-#define COMM_PAYLOAD_MAX             128   // max payload bytes per frame
-#define COMM_HANDLES_MAX              32   // simultaneous in-flight requests
-#define COMM_DONGLES_MAX               4   // virtual host + up to 3 real dongles
-#define COMM_BUSES_MAX                 8   // logical buses across all dongles
-#define COMM_SLAVES_MAX               64   // declarable slaves total
-#define CT_COMM_RX_PERIOD_MS          20   // chain-tree heartbeat for comm_rx; floor for tick_period_ms
+// Tunable sizes (COMM_PAYLOAD_MAX, COMM_HANDLES_MAX, COMM_DONGLES_MAX,
+// COMM_BUSES_MAX, COMM_SLAVES_MAX, CT_COMM_RX_PERIOD_MS) live in
+// bus_config.h so per-target builds can override them with -D.
 
 // Handle layout: slot in low 5 bits, generation in high 27 bits.
 #define COMM_HANDLE_SLOT_BITS          5

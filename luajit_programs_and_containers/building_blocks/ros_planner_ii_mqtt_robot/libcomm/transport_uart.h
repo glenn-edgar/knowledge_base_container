@@ -15,25 +15,33 @@
 #pragma once
 
 #include "frame.h"
+#include "bus_config.h"
+#include "ext_bus.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Ring sizes. tx side staged by frame_encode_m2s (max ~140 B / frame
-// SLIP-escaped); rx side absorbs bursts of s2m frames before the master
-// drains. Both must be power-of-2 (frame_ring_init contract).
-#define TRANSPORT_UART_TX_SIZE   1024
-#define TRANSPORT_UART_RX_SIZE   2048
-#define TRANSPORT_UART_PATH_MAX    64
+// Ring sizes (TRANSPORT_UART_TX_SIZE / _RX_SIZE) and path length
+// (TRANSPORT_UART_PATH_MAX) live in bus_config.h. Both ring sizes must be
+// power-of-2 (frame_ring_init contract).
+//
+// As of Track A.5, transport_uart_t is a thin staging layer over
+// ext_bus_t (libcomm/ext_bus.h). The pty/USB-serial FD specifics are in
+// ext_bus_linux_pty.c; on embedded targets a different ext_bus_*.c
+// implements the same 3-fn contract behind the ext_bus_t opaque blob.
+// `master_fd` is kept as a diagnostic int (mirror of the underlying FD)
+// purely so existing logging continues to work — it is no longer the
+// owner of the FD.
 
 typedef struct {
-    int           master_fd;                      // -1 when closed
+    int           master_fd;                      // diagnostic mirror; ext_bus owns the FD
     char          slave_path[TRANSPORT_UART_PATH_MAX];
+    ext_bus_t     bus;
     uint8_t       tx_buf[TRANSPORT_UART_TX_SIZE];
     uint8_t       rx_buf[TRANSPORT_UART_RX_SIZE];
-    frame_ring_t  tx_ring;                        // m2s bytes pending write to FD
-    frame_ring_t  rx_ring;                        // s2m bytes drained from FD
+    frame_ring_t  tx_ring;                        // m2s bytes pending write to bus
+    frame_ring_t  rx_ring;                        // s2m bytes drained from bus
 } transport_uart_t;
 
 // Open an existing path (pty in sim, /dev/ttyUSBn in prod), apply
