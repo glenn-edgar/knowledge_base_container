@@ -22,7 +22,8 @@ local dkjson = require("dkjson")
 local DBI    = require("DBI")
 local ptime  = require("posix_time")
 local kb_exc = require("kb_exception")
-local kb_log = require("kb_log")
+local kb_log    = require("kb_log")
+local ndc_paths = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- Logging
@@ -296,8 +297,8 @@ local function main()
     -- (~0.2 Hz); sample_gap rule is 60s so 5s cadence has headroom.
     if tick_count % 5 == 0 then
       pcall(kb_log.push_sample, conn,
-        "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
-          ".KB_LOG.exception_analyzer_heartbeat",
+        ndc_paths.site_path(os.getenv("APP_SITE") or "moonbase.alpha.dcs",
+                            "KB_LOG.exception_analyzer_heartbeat"),
         os.time())
     end
 

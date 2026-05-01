@@ -20,12 +20,13 @@ local eq_mod = require("cfl_event_queue")
 local defs   = require("cfl_definitions")
 local sm_mod = require("cfl_state_machine")
 
-local ptime   = require("posix_time")
-local pp      = require("process_primitives")
-local pg_conn = require("pg_connector")
-local kb_exc  = require("kb_exception")
-local kb_stat = require("kb_status")
-local dkjson  = require("dkjson")
+local ptime     = require("posix_time")
+local pp        = require("process_primitives")
+local pg_conn   = require("pg_connector")
+local kb_exc    = require("kb_exception")
+local kb_stat   = require("kb_status")
+local dkjson    = require("dkjson")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 
@@ -55,9 +56,8 @@ local function safe_pg(log, conn, op_name, fn, ...)
 end
 
 local function container_path(ctx)
-    return string.format("system.site.%s.cpu.%s.container.%s",
-                         ctx.env.APP_SITE, ctx.env.APP_CPU_ID,
-                         ctx.env.CONTAINER_NAME)
+    return ndc_paths.container_root(ctx.env.APP_SITE, ctx.env.APP_CPU_ID,
+                                    ctx.env.CONTAINER_NAME)
 end
 
 local function app_path(ctx, app_name)

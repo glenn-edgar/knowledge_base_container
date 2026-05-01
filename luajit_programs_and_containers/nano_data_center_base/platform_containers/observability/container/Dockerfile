@@ -16,8 +16,8 @@
 FROM nanodatacenter/openresty-base:latest
 
 # Staged DCS libs (kb_log / kb_rule / kb_exception / posix_time /
-# pg_connector) used by the analyzer processes. docker_build.sh
-# populates _staged_lib/ from ../nanodatacenter_dcs/runtime/dcs_host/
+# pg_connector / ndc_paths) used by the analyzer processes. docker_build.sh
+# populates _staged_lib/ from ../system_node_control/runtime/dcs_host/
 # at build time.
 COPY _staged_lib/ /opt/apps/lib/
 

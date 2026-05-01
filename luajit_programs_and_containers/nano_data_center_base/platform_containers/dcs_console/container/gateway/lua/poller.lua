@@ -22,8 +22,9 @@
 --     the gateway from routing back to itself -- design #7).
 --   * Only records with purpose == "ui" enter the route table.
 
-local pgmoon = require("pgmoon")
-local cjson  = require("cjson.safe")
+local pgmoon    = require("pgmoon")
+local cjson     = require("cjson.safe")
+local ndc_paths = require("ndc_paths")
 
 local DEFAULT_POLL_SEC = 15
 local PIDFILE          = "/tmp/nginx_dcs_console_gateway.pid"
@@ -80,8 +81,8 @@ local SITE = os.getenv("APP_SITE") or "moonbase.alpha.dcs"
 -- KB_STATUS_FIELD.<name>). The schema row (knowledge_base) holds the
 -- default {"value":15}; the status row (knowledge_base_status) is
 -- empty {} until an operator writes a new value.
-local POLL_CONFIG_PATH = string.format(
-  "system.site.%s.KB_STATUS_FIELD.gateway_poll_interval_sec", SITE)
+local POLL_CONFIG_PATH = ndc_paths.site_status_field_path(
+  SITE, "gateway_poll_interval_sec")
 
 local REGISTRY_SQL = [[
   SELECT k.name AS name, k.properties AS properties, s.data AS data

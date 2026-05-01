@@ -5,8 +5,9 @@
 -- cgroups, so in dev the container-kind samples will often be
 -- absent (see project_dcs_resource_monitor memo).
 
-local sh    = require("shell_helpers")
-local cjson = require("cjson.safe")
+local sh        = require("shell_helpers")
+local cjson     = require("cjson.safe")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 
@@ -32,9 +33,9 @@ function M.render(cpu_id)
   local me = sh.get_cpu(pg, cpu_id)
 
   -- Grab last N samples from the stream table, newest first.
-  local path = string.format(
-    "system.site.%s.cpu.%s.monitor.samples.KB_STREAM_FIELD.samples",
-    os.getenv("APP_SITE") or "moonbase.alpha.dcs", cpu_id)
+  local path = ndc_paths.cpu_path(
+    os.getenv("APP_SITE") or "moonbase.alpha.dcs", cpu_id,
+    "monitor.samples.KB_STREAM_FIELD.samples")
   local rs, qerr = pg:query(string.format([[
     SELECT recorded_at, data
     FROM knowledge_base_stream

@@ -27,7 +27,8 @@ local kb_rule  = require("kb_rule")
 local kb_exc   = require("kb_exception")
 local stats    = require("stats")
 local rules    = require("rules")
-local rollups  = require("rollups")
+local rollups   = require("rollups")
+local ndc_paths = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- Logging
@@ -301,8 +302,8 @@ local function main()
     -- ~4× of the pg push_sample load from this writer.
     if tick_count % 5 == 0 then
       pcall(kb_log.push_sample, conn,
-        "system.site." .. (os.getenv("APP_SITE") or "moonbase.alpha.dcs") ..
-          ".KB_LOG.log_analyzer_heartbeat",
+        ndc_paths.site_path(os.getenv("APP_SITE") or "moonbase.alpha.dcs",
+                            "KB_LOG.log_analyzer_heartbeat"),
         os.time())
     end
 

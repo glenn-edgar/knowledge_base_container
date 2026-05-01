@@ -10,8 +10,9 @@
 --   lines.
 -- * M.escape(s): HTML-escape a string.
 
-local pgmoon = require("pgmoon")
-local cjson  = require("cjson.safe")
+local pgmoon    = require("pgmoon")
+local cjson     = require("cjson.safe")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 
@@ -109,8 +110,7 @@ end
 -- knowledge_base_status); falls back to the schema default if the
 -- runtime row is empty (first boot). Returns nil on any error.
 function M.site_status_value(pg, name)
-  local path = string.format("system.site.%s.KB_STATUS_FIELD.%s",
-                             site(), name)
+  local path = ndc_paths.site_status_field_path(site(), name)
   local rs, err = pg:query(string.format([[
     SELECT COALESCE(
       NULLIF(s.data->>'value', ''),
@@ -126,8 +126,8 @@ end
 
 -- Read a site-level bit_mask_table value (ready_bits, cluster_sync_bits).
 function M.site_bit_mask(pg, name)
-  local node_id = (string.format("system.site.%s.KB_BIT_MASK.%s",
-                                 site(), name)):gsub("%.", "_"):lower()
+  local node_id = (ndc_paths.site_path(site(), "KB_BIT_MASK." .. name))
+                    :gsub("%.", "_"):lower()
   local rs, err = pg:query(string.format(
     "SELECT bit_mask FROM bit_mask_table WHERE node_id = '%s'",
     node_id:gsub("'", "''")))
@@ -253,9 +253,8 @@ end
 -- Read a CPU's heartbeat timestamp (epoch seconds) from the
 -- bit_mask_table. Returns nil if the CPU hasn't written yet (bit_mask=0).
 function M.read_cpu_heartbeat_epoch(pg, cpu_id)
-  local node_id = (string.format(
-    "system.site.%s.cpu.%s.KB_BIT_MASK.heartbeat", site(), cpu_id))
-    :gsub("%.", "_"):lower()
+  local node_id = ndc_paths.heartbeat_path(site(), cpu_id)
+                    :gsub("%.", "_"):lower()
   local rs, err = pg:query(string.format(
     "SELECT bit_mask FROM bit_mask_table WHERE node_id = '%s'",
     node_id:gsub("'", "''")))
@@ -372,9 +371,8 @@ end
 ------------------------------------------------------------------------
 
 local function maintenance_path(cpu_id, container_name)
-  return string.format(
-    "system.site.%s.cpu.%s.container.%s.KB_STATUS_FIELD.maintenance_until",
-    site(), cpu_id, container_name)
+  return ndc_paths.container_status_field_path(
+    site(), cpu_id, container_name, "maintenance_until")
 end
 
 -- Returns epoch seconds the lease expires (0 = not in maintenance).
@@ -498,9 +496,8 @@ end
 -- CPU-wide maintenance lease (X4). 0 = CPU is live; >0 = epoch
 -- seconds when the whole-CPU lease expires.
 local function cpu_maintenance_path(cpu_id)
-  return string.format(
-    "system.site.%s.cpu.%s.KB_STATUS_FIELD.cpu_maintenance_until",
-    site(), cpu_id)
+  return ndc_paths.cpu_status_field_path(
+    site(), cpu_id, "cpu_maintenance_until")
 end
 function M.read_cpu_maintenance_until(pg, cpu_id)
   local path = cpu_maintenance_path(cpu_id)
@@ -531,8 +528,7 @@ end
 -- Returns { current, default, description }; current is nil when the
 -- status row data is empty (so the effective value is the default).
 function M.read_setpoint(pg, name)
-  local path = string.format("system.site.%s.KB_STATUS_FIELD.%s",
-                             site(), name)
+  local path = ndc_paths.site_status_field_path(site(), name)
   local rs, err = pg:query(string.format([[
     SELECT k.properties->>'description' AS description,
            k.data->>'value' AS default_value,
@@ -557,8 +553,7 @@ end
 function M.write_setpoint(pg, name, value)
   local n = tonumber(value)
   if n == nil then return nil, "value must be a number" end
-  local path = string.format("system.site.%s.KB_STATUS_FIELD.%s",
-                             site(), name)
+  local path = ndc_paths.site_status_field_path(site(), name)
   local rs, err = pg:query(string.format([[
     UPDATE knowledge_base_status
     SET data = jsonb_build_object('value', %d)::json
