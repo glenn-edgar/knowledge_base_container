@@ -253,12 +253,94 @@ static void test_catalogue_routes_to_drive_base(void)
     stop_dongle_no_extbus(&ctx);
 }
 
+// L5.1b — TELEMETRY_ON makes drive_base emit periodic events; SEG_DONE
+// carries the master's bus_msg seq (not libphysics's internal seg_id).
+
+static void test_telemetry_on_off_via_catalogue(void)
+{
+    static dongle_ctx_t ctx;
+    start_dongle_no_extbus(&ctx);
+
+    // Default: telemetry disabled. Drain any startup events.
+    bus_thread_sleep_ms(50);
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+    }
+
+    // Issue TELEMETRY_ON; expect ACK_BARE then a TELEMETRY event soon.
+    post_to_manager(&ctx, ctx.slave_addr, DRV_CMD_TELEMETRY_ON, 5, NULL, 0);
+
+    bus_msg_t ack;
+    int got_ack = wait_for_cmd_in_ext_tx(&ctx, COMM_CMD_ACK_BARE, &ack,
+                                         bus_now_ms() + 200);
+    CHECK(got_ack,                         "TELEMETRY_ON got ACK_BARE");
+
+    bus_msg_t tel;
+    int got_tel = wait_for_cmd_in_ext_tx(&ctx, DRV_EVT_TELEMETRY, &tel,
+                                         bus_now_ms() + 300);
+    CHECK(got_tel,                         "TELEMETRY events flow after ON");
+
+    // TELEMETRY_OFF, drain queue, confirm no more events arrive.
+    post_to_manager(&ctx, ctx.slave_addr, DRV_CMD_TELEMETRY_OFF, 6, NULL, 0);
+    bus_thread_sleep_ms(50);
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+    }
+    bus_thread_sleep_ms(60);    // 6 ticks worth at 10 ms tick period
+    int telemetry_after_off = 0;
+    while (bus_msgq_count(&ctx.ext_tx_q) > 0) {
+        bus_msg_t msg;
+        bus_msgq_get(&ctx.ext_tx_q, &msg, 0);
+        uint16_t cmd = (uint16_t)msg.cmd_lo | ((uint16_t)msg.cmd_hi << 8);
+        if (cmd == DRV_EVT_TELEMETRY) telemetry_after_off++;
+    }
+    CHECK(telemetry_after_off == 0,        "no telemetry after TELEMETRY_OFF");
+
+    stop_dongle_no_extbus(&ctx);
+}
+
+static void test_seg_done_carries_master_seq(void)
+{
+    static dongle_ctx_t ctx;
+    start_dongle_no_extbus(&ctx);
+
+    // Send a PUSH_LINE with a recognisable seq so we can verify the
+    // SEG_DONE event echoes it.
+    bus_msg_t cmd;
+    drive_base_build_push_line(&cmd, /*dst*/0, /*seq*/0xA5,
+                               0.0f, 0.0f, 1.0f, 0.0f,
+                               0.0f, 0.0f, 0.5f);
+    cmd.src_addr = ctx.slave_addr;
+    bus_msgq_put(&ctx.mgr_in_q, &cmd);
+
+    // Drain ACK_BARE.
+    bus_msg_t ack;
+    (void)wait_for_cmd_in_ext_tx(&ctx, COMM_CMD_ACK_BARE, &ack,
+                                 bus_now_ms() + 200);
+
+    bus_msg_t done;
+    int got = wait_for_cmd_in_ext_tx(&ctx, DRV_EVT_SEG_DONE, &done,
+                                     bus_now_ms() + 4000);
+    CHECK(got,                             "SEG_DONE arrived");
+    if (got) {
+        drive_base_seg_done_t info;
+        drive_base_decode_seg_done(&done, &info);
+        CHECK(info.seg_id == 0xA5,         "SEG_DONE.seg_id == master seq (0xA5)");
+    }
+
+    stop_dongle_no_extbus(&ctx);
+}
+
 int main(void)
 {
-    printf("[dongle_catalogue slice L4b]\n");
+    printf("[dongle_catalogue slice L4b/L5.1b]\n");
     test_ping_link_control_inline();
     test_unknown_link_control_naks();
     test_catalogue_routes_to_drive_base();
+    test_telemetry_on_off_via_catalogue();
+    test_seg_done_carries_master_seq();
     printf("[summary] %d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;
 }

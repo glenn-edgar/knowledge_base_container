@@ -233,9 +233,52 @@ static void drive_base_init_fn(void *self_)
                           s->tun.init_x, s->tun.init_y, s->tun.init_heading);
     if (s->tun.seed) phys_set_seed(s->phys, s->tun.seed);
 
-    s->started        = 1;
-    s->last_tick_ms   = 0;
-    s->last_done_seg_id = 0;
+    s->started               = 1;
+    s->last_tick_ms          = 0;
+    s->last_done_phys_seg_id = 0;
+    s->seg_track_head        = 0;
+    s->seg_track_tail        = 0;
+    s->seg_track_count       = 0;
+}
+
+static void seg_track_push(drive_base_t *s, uint8_t master_seq, uint32_t phys_seg_id)
+{
+    if (s->seg_track_count >= DRV_SEG_TRACK_DEPTH) {
+        // Full — pop oldest. This indicates more in-flight commands than
+        // the ring sized for, which the master should not allow given
+        // its own outstanding-count budget. If it happens, the oldest
+        // tracked seg loses its master_seq attribution and would emit
+        // SEG_DONE with seg_id=0 instead.
+        s->seg_track_head = (uint8_t)((s->seg_track_head + 1) % DRV_SEG_TRACK_DEPTH);
+        s->seg_track_count--;
+    }
+    s->seg_track[s->seg_track_tail].master_seq  = master_seq;
+    s->seg_track[s->seg_track_tail].phys_seg_id = phys_seg_id;
+    s->seg_track_tail = (uint8_t)((s->seg_track_tail + 1) % DRV_SEG_TRACK_DEPTH);
+    s->seg_track_count++;
+}
+
+static int seg_track_pop_match(drive_base_t *s, uint32_t phys_seg_id, uint8_t *master_seq_out)
+{
+    while (s->seg_track_count > 0) {
+        drv_seg_track_t *head = &s->seg_track[s->seg_track_head];
+        if (head->phys_seg_id == phys_seg_id) {
+            *master_seq_out = head->master_seq;
+            s->seg_track_head = (uint8_t)((s->seg_track_head + 1) % DRV_SEG_TRACK_DEPTH);
+            s->seg_track_count--;
+            return 1;
+        }
+        // Out-of-order completion: discard heads with smaller seg_id.
+        // libphysics reports completions in queue order (FIFO) so this
+        // shouldn't happen in practice, but guard against drift.
+        if (head->phys_seg_id < phys_seg_id) {
+            s->seg_track_head = (uint8_t)((s->seg_track_head + 1) % DRV_SEG_TRACK_DEPTH);
+            s->seg_track_count--;
+            continue;
+        }
+        break;
+    }
+    return 0;
 }
 
 static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
@@ -254,7 +297,8 @@ static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
         float hf = get_f32(m->payload + 16);
         float ht = get_f32(m->payload + 20);
         float sp = get_f32(m->payload + 24);
-        (void)phys_push_line(s->phys, fx, fy, tx, ty, hf, ht, sp);
+        uint32_t pid = phys_push_line(s->phys, fx, fy, tx, ty, hf, ht, sp);
+        if (pid != 0) seg_track_push(s, m->seq, pid);
         break;
     }
     case DRV_CMD_PUSH_SPLINE: {
@@ -266,7 +310,8 @@ static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
         float hf = get_f32(m->payload + 16);
         float ht = get_f32(m->payload + 20);
         float sp = get_f32(m->payload + 24);
-        (void)phys_push_spline(s->phys, fx, fy, tx, ty, hf, ht, sp);
+        uint32_t pid = phys_push_spline(s->phys, fx, fy, tx, ty, hf, ht, sp);
+        if (pid != 0) seg_track_push(s, m->seq, pid);
         break;
     }
     case DRV_CMD_PUSH_ROTATE: {
@@ -274,12 +319,22 @@ static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
         float fh = get_f32(m->payload + 0);
         float th = get_f32(m->payload + 4);
         float r  = get_f32(m->payload + 8);
-        (void)phys_push_rotate(s->phys, fh, th, r);
+        uint32_t pid = phys_push_rotate(s->phys, fh, th, r);
+        if (pid != 0) seg_track_push(s, m->seq, pid);
         break;
     }
-    case DRV_CMD_STOP:    phys_request_stop (s->phys); break;
-    case DRV_CMD_RESUME:  phys_release_stop (s->phys); break;
-    case DRV_CMD_ABORT:   phys_abort_path   (s->phys); break;
+    case DRV_CMD_STOP:           phys_request_stop (s->phys); break;
+    case DRV_CMD_RESUME:         phys_release_stop (s->phys); break;
+    case DRV_CMD_ABORT:          phys_abort_path   (s->phys);
+                                 // Stale seg trackers belong to aborted
+                                 // path — drop them so a stale completion
+                                 // doesn't incorrectly emit SEG_DONE.
+                                 s->seg_track_head  = 0;
+                                 s->seg_track_tail  = 0;
+                                 s->seg_track_count = 0;
+                                 break;
+    case DRV_CMD_TELEMETRY_ON:   s->telemetry_enabled = 1; break;
+    case DRV_CMD_TELEMETRY_OFF:  s->telemetry_enabled = 0; break;
     default:
         // Unknown command — fail-stop discipline says raise it as a
         // fault event rather than silently dropping. v1 just logs via
@@ -319,16 +374,22 @@ static void drive_base_emit_telemetry(drive_base_t *s)
     }
 
     // Edge-detect seg-done: emit DRV_EVT_SEG_DONE on each new completion.
+    // The seg_id field on the wire carries the MASTER's bus_msg.seq for
+    // the originating PUSH_*, popped from seg_track via FIFO match —
+    // not libphysics's internal seg_id, which the master never saw.
     if (status.last_done_seg_id != 0
-     && status.last_done_seg_id != s->last_done_seg_id) {
+     && status.last_done_seg_id != s->last_done_phys_seg_id) {
+        uint8_t  master_seq = 0;
+        (void)seg_track_pop_match(s, status.last_done_seg_id, &master_seq);
         bus_msg_t done;
         msg_clear(&done, 0, 0, DRV_EVT_SEG_DONE);
         done.src_addr   = s->bus_addr;
         done.payload_len = 8;
-        put_le_u32(done.payload + 0, status.last_done_seg_id);
+        // 4-byte seg_id field carries the master_seq (zero-extended).
+        put_le_u32(done.payload + 0, (uint32_t)master_seq);
         put_f32   (done.payload + 4, (float)status.energy_used_total);
         (void)bus_msgq_put(s->outbound, &done);
-        s->last_done_seg_id = status.last_done_seg_id;
+        s->last_done_phys_seg_id = status.last_done_seg_id;
     }
 }
 

@@ -43,9 +43,11 @@ extern "C" {
 #define DRV_CMD_STOP          0x1010u
 #define DRV_CMD_RESUME        0x1011u
 #define DRV_CMD_ABORT         0x1012u
+#define DRV_CMD_TELEMETRY_ON  0x1020u    // master enables periodic events
+#define DRV_CMD_TELEMETRY_OFF 0x1021u    // and disables them
 
 #define DRV_EVT_TELEMETRY     0x1080u
-#define DRV_EVT_SEG_DONE      0x1081u
+#define DRV_EVT_SEG_DONE      0x1081u    // seg_id = master_seq, not libphysics internal
 #define DRV_EVT_FAULT         0x1082u
 
 // ============ TUNABLES ============
@@ -105,24 +107,49 @@ typedef struct {
 
 typedef struct phys_s phys_t;       // forward decl from libphysics
 
+// Master-seq → libphysics seg_id FIFO. Whenever drive_base receives a
+// DRV_CMD_PUSH_* it remembers (master_seq, libphysics_seg_id) here in
+// arrival order. When libphysics reports a new last_done_seg_id, the
+// matching head entry is popped and DRV_EVT_SEG_DONE fires with the
+// MASTER's seq as the seg_id field. This means master-side HAL's
+// last_done_seg_id matches whatever push_line returned, not an
+// internal libphysics number that the master never saw.
+//
+// Ring sized to MSGQ_DEPTH_DEFAULT × 2 so a saturated inbox-load
+// (depth 16) still has slack while in-flight commands drain.
+#define DRV_SEG_TRACK_DEPTH   32
+
+typedef struct {
+    uint8_t   master_seq;
+    uint8_t   _pad0;
+    uint16_t  _pad1;
+    uint32_t  phys_seg_id;
+} drv_seg_track_t;
+
 typedef struct {
     drive_base_tunables_t tun;
     phys_t               *phys;             // owned: phys_create at init
     bus_msgq_t           *outbound;         // caller-owned events sink (typically ext_tx_q)
     uint32_t              tick_period_ms;   // for dt computation
     uint32_t              last_tick_ms;
-    uint32_t              last_done_seg_id;
+    uint32_t              last_done_phys_seg_id;
     uint8_t               bus_addr;         // src_addr stamped on emitted events
     uint8_t               started;          // 1 once init has run
     // Telemetry is opt-in. Default 0 — drive_base runs phys_step every
     // tick but does NOT emit DRV_EVT_TELEMETRY events. SEG_DONE
-    // (correlated to commands) and FAULT (mandatory) still flow. Chain-
-    // tree enables/disables via tests that set this field directly, or
-    // (future) a catalogue command analogous to physics_pipe.h's
-    // CMD_SET_TELEM_RATE. This avoids ext_tx_q saturation when nobody
-    // is listening for telemetry.
+    // (correlated to commands) and FAULT (mandatory) still flow.
+    // Master enables/disables via DRV_CMD_TELEMETRY_ON/OFF; tests may
+    // also write the field directly. Avoids ext_tx_q saturation when
+    // nobody is listening.
     uint8_t               telemetry_enabled;
     uint8_t               _pad[1];
+
+    // master_seq -> phys_seg_id FIFO (see DRV_SEG_TRACK_DEPTH).
+    drv_seg_track_t       seg_track[DRV_SEG_TRACK_DEPTH];
+    uint8_t               seg_track_head;   // next pop slot
+    uint8_t               seg_track_tail;   // next push slot
+    uint8_t               seg_track_count;
+    uint8_t               _pad2;
 } drive_base_t;
 
 // ============ VTABLE ============
