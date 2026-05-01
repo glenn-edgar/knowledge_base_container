@@ -1,0 +1,11 @@
+{
+  "_comment": "Three-tier config: this JSON file is the boot-before-pg site config. See feedback_three_tier_config.md.",
+  "site": "moon_base_alpha",
+  "role": "slave",
+  "node_id": "slave_node_1",
+  "ndc_base": "/opt/ndc_base",
+  "master_addr": "MASTER_LAN_IP_TBD",
+  "pg_host": "MASTER_LAN_IP_TBD",
+  "pg_port": 5432,
+  "pg_db": "knowledge_base"
+}

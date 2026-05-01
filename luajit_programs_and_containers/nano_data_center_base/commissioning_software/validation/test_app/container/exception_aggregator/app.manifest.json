@@ -1,0 +1,7 @@
+{
+    "name": "exception_aggregator",
+    "argv": ["luajit", "/opt/apps/exception_aggregator/main.lua"],
+    "start_order": 10,
+    "restart_policy": "always",
+    "kb_path": ""
+}

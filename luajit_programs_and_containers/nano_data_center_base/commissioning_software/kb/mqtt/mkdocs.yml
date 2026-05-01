@@ -1,0 +1,4 @@
+site_name: Luajit MQTT Bindings
+nav:
+  - MQTT Job Queue and Key-Value Store: README_mqtt.md
+

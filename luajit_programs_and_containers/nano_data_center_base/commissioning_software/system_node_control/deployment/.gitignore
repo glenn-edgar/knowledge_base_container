@@ -1,0 +1,5 @@
+# Everything in this directory is generated per-CPU, except the
+# README and this file itself.
+*
+!README.md
+!.gitignore

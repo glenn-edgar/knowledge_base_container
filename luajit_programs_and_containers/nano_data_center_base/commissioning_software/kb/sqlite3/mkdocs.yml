@@ -1,0 +1,5 @@
+site_name: Luajit SQLite3 Knowledge Base
+nav:
+  - Construct Knowledge Base: README_construct_kb_luajit.md
+  - Data Structures LuaJIT: README_data_structures_luajit.md
+  - LTree Extension: README_LTREE_EXTENSION.md

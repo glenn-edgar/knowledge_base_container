@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Telemetry</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Courier New', monospace; background: #1a1a2e; color: #e0e0e0; padding: 1rem; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #333; }
+    .header h1 { font-size: 1.1rem; color: #64ffda; }
+    .header .prefix { color: #666; font-size: 0.75rem; }
+
+    .section-title { font-size: 0.85rem; color: #90caf9; margin-bottom: 0.5rem; margin-top: 1.25rem; }
+    .section-title:first-of-type { margin-top: 0; }
+
+    /* Event log */
+    .event-log {
+      background: #0d1117; border: 1px solid #333; border-radius: 6px;
+      max-height: 300px; overflow-y: auto; font-size: 0.78rem;
+    }
+    .event-log::-webkit-scrollbar { width: 6px; }
+    .event-log::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .event-row { display: flex; gap: 0.75rem; padding: 4px 10px; border-bottom: 1px solid #1c2129; }
+    .event-row:last-child { border-bottom: none; }
+    .event-ts { color: #484f58; min-width: 80px; }
+    .event-type { min-width: 120px; font-weight: bold; }
+    .event-type.start { color: #3fb950; }
+    .event-type.complete { color: #64ffda; }
+    .event-type.failed { color: #f85149; }
+    .event-type.heartbeat { color: #d29922; }
+    .event-type.action { color: #58a6ff; }
+    .event-detail { color: #8b949e; }
+
+    /* Mission log table */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .log-table th {
+      text-align: left; color: #90caf9; padding: 6px 10px;
+      border-bottom: 2px solid #333; background: #0d1117;
+      position: sticky; top: 0;
+    }
+    .log-table td { padding: 5px 10px; border-bottom: 1px solid #1c2129; }
+    .log-table tr:hover td { background: #1c2129; }
+    .log-table .success { color: #3fb950; }
+    .log-table .failure { color: #f85149; }
+
+    .empty-state { color: #484f58; font-size: 0.8rem; padding: 2rem; text-align: center; }
+
+    .status-bar {
+      display: flex; gap: 1rem; align-items: center;
+      background: #0d1117; border: 1px solid #333; border-radius: 4px;
+      padding: 0.5rem 1rem; margin-bottom: 1rem; font-size: 0.8rem;
+    }
+    .status-bar .slabel { color: #666; }
+    .status-bar .svalue { color: #64ffda; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>Telemetry</h1>
+      <div class="prefix">moonbase.alpha.surface_ops</div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span><span class="slabel">Stream:</span> <span class="svalue" id="stream-status">disconnected</span></span>
+    <span><span class="slabel">Events:</span> <span class="svalue" id="event-count">0</span></span>
+    <span><span class="slabel">Last:</span> <span class="svalue" id="last-event">-</span></span>
+  </div>
+
+  <!-- Live Stream Section -->
+  <div id="section-live">
+    <div class="section-title">Live Event Stream</div>
+    <div class="event-log" id="event-log">
+      <div class="empty-state">Waiting for NATS connection...</div>
+    </div>
+  </div>
+
+  <!-- Mission History Section -->
+  <div id="section-history">
+    <div class="section-title">Mission Log (Last 50)</div>
+    <div class="event-log">
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Robot</th>
+            <th>Board</th>
+            <th>Result</th>
+            <th>Actions</th>
+            <th>Elapsed</th>
+            <th>Fault</th>
+          </tr>
+        </thead>
+        <tbody id="mission-log-body">
+          <tr><td colspan="7" class="empty-state">No mission history yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    var eventCount = 0;
+
+    // ---------------------------------------------------------------
+    // Add event to the live log
+    // ---------------------------------------------------------------
+    function addEvent(type, detail, ts) {
+      var log = document.getElementById("event-log");
+
+      // Clear empty state on first event
+      if (eventCount === 0) log.innerHTML = "";
+
+      eventCount++;
+      document.getElementById("event-count").textContent = eventCount;
+      document.getElementById("last-event").textContent = type;
+
+      var typeClass = "action";
+      if (type.indexOf("start") >= 0) typeClass = "start";
+      else if (type.indexOf("complete") >= 0) typeClass = "complete";
+      else if (type.indexOf("fail") >= 0) typeClass = "failed";
+      else if (type === "heartbeat") typeClass = "heartbeat";
+
+      var row = document.createElement("div");
+      row.className = "event-row";
+      row.innerHTML =
+        '<span class="event-ts">' + (ts || now()) + '</span>' +
+        '<span class="event-type ' + typeClass + '">' + type + '</span>' +
+        '<span class="event-detail">' + (detail || "") + '</span>';
+
+      log.insertBefore(row, log.firstChild);
+
+      // Cap at 200 entries
+      while (log.children.length > 200) log.removeChild(log.lastChild);
+    }
+
+    function now() {
+      return new Date().toLocaleTimeString("en-US", { hour12: false });
+    }
+
+    // ---------------------------------------------------------------
+    // Add mission to history table
+    // ---------------------------------------------------------------
+    function addMission(m) {
+      var tbody = document.getElementById("mission-log-body");
+
+      // Clear empty state on first entry
+      if (tbody.querySelector(".empty-state")) tbody.innerHTML = "";
+
+      var tr = document.createElement("tr");
+      var resultClass = m.success ? "success" : "failure";
+      var resultText = m.success ? "OK" : "FAIL";
+      var elapsed = m.elapsed_ms ? (m.elapsed_ms / 1000).toFixed(1) + "s" : "-";
+      var ts = m.timestamp ? new Date(m.timestamp).toLocaleTimeString("en-US", { hour12: false }) : "-";
+
+      tr.innerHTML =
+        '<td>' + ts + '</td>' +
+        '<td>' + (m.robot_id || "-") + '</td>' +
+        '<td>' + (m.board || "-") + '</td>' +
+        '<td class="' + resultClass + '">' + resultText + '</td>' +
+        '<td>' + (m.completed || 0) + '/' + (m.total || 0) + '</td>' +
+        '<td>' + elapsed + '</td>' +
+        '<td>' + (m.fault || "-") + '</td>';
+
+      tbody.insertBefore(tr, tbody.firstChild);
+    }
+
+    // ---------------------------------------------------------------
+    // Demo data (will be replaced by NATS subscription)
+    // ---------------------------------------------------------------
+    function loadDemoData() {
+      // Demo live events
+      addEvent("mission_start", "rover_1 on landing_zone (6 actions)");
+      addEvent("action_start", "rover_1 init_check [1/6]");
+      addEvent("action_complete", "rover_1 init_check OK");
+      addEvent("action_start", "rover_1 path_spline [2/6] lander_pad \u2192 mining_zone_a");
+      addEvent("heartbeat", "rover_1 path_spline x=400 y=0");
+      addEvent("action_complete", "rover_1 path_spline OK");
+
+      document.getElementById("stream-status").textContent = "demo mode";
+
+      // Demo mission log
+      addMission({ timestamp: "2026-04-07T10:15:00Z", robot_id: "rover_1", board: "landing_zone", success: true,  completed: 6, total: 6, elapsed_ms: 4500, fault: null });
+      addMission({ timestamp: "2026-04-07T09:45:00Z", robot_id: "rover_2", board: "landing_zone", success: false, completed: 3, total: 6, elapsed_ms: 2100, fault: "ack_timeout" });
+      addMission({ timestamp: "2026-04-07T09:20:00Z", robot_id: "rover_1", board: "landing_zone", success: true,  completed: 4, total: 4, elapsed_ms: 3200, fault: null });
+    }
+
+    loadDemoData();
+
+    // ---------------------------------------------------------------
+    // Hash navigation
+    // ---------------------------------------------------------------
+    function scrollToHash(hash) {
+      var map = { live: "section-live", history: "section-history" };
+      var targetId = map[hash];
+      if (targetId) {
+        var el = document.getElementById(targetId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    if (window.location.hash) {
+      setTimeout(function() { scrollToHash(window.location.hash.substring(1)); }, 200);
+    }
+
+    window.addEventListener("message", function(e) {
+      if (e.data && e.data.type === "navigate" && e.data.hash) {
+        scrollToHash(e.data.hash);
+      }
+    });
+  </script>
+</body>
+</html>

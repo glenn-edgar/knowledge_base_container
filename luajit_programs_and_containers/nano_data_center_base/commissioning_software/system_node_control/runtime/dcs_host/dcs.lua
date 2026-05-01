@@ -1,0 +1,379 @@
+#!/usr/bin/env luajit
+-- =============================================================================
+-- dcs.lua -- DCS host-process harness.
+--
+-- Reusable module exposing the lifecycle of a DCS host process:
+--   open bootstrap.db -> init chain-tree -> activate initial KB -> tick loop.
+--
+-- User-function implementations live in host_processes/user_functions.lua
+-- (a separate module). They are injected via the context object so this
+-- harness stays free of project-specific policy.
+--
+-- Direct invocation (from start.sh) runs M.main(arg).
+-- Module mode: `local dcs = require("dcs"); dcs.main(...)` or exercise the
+-- helpers (open_bootstrap, init_chain_tree, run_loop) from a test driver.
+-- =============================================================================
+
+local M = {}
+
+local h    = require("sqlite3_helpers")
+local json = h.json
+
+local cfl_rt   = require("cfl_runtime")
+local loader   = require("cfl_json_loader")
+local builtins = require("cfl_builtins")
+local sm       = require("cfl_state_machine")
+
+local user_functions   = require("user_functions")
+local ptime            = require("posix_time")
+local docker           = require("docker")
+local pg_connector     = require("pg_connector")
+local bit_mask_helpers = require("bit_mask_helpers")
+local kb_status        = require("kb_status")
+local kb_exception     = require("kb_exception")
+local kb_log           = require("kb_log")
+
+---------------------------------------------------------------------------
+-- paths
+---------------------------------------------------------------------------
+
+local function script_dir()
+  local src = debug.getinfo(1, "S").source
+  if src:sub(1,1) == "@" then src = src:sub(2) end
+  return src:match("(.*/)") or "./"
+end
+M.script_dir = script_dir
+
+---------------------------------------------------------------------------
+-- logger (stderr; start.sh redirects to error.log)
+---------------------------------------------------------------------------
+
+function M.make_logger()
+  return function(half, msg)
+    io.stderr:write(string.format("%s [%s] %s\n",
+      os.date("!%Y-%m-%dT%H:%M:%SZ"), half, msg))
+    io.stderr:flush()
+  end
+end
+
+---------------------------------------------------------------------------
+-- default context shared by user functions
+---------------------------------------------------------------------------
+
+function M.default_context()
+  return {
+    cfg        = nil,
+    bootstrap  = { path = nil, db = nil },
+    log        = M.make_logger(),
+    connectors = { pg = nil, nats = nil, mqtt = nil },
+    process_globals = {
+      node_control_operational      = false,
+      node_control_heartbeat_ts     = 0,
+      node_control_teardown_request = false,
+      node_control_stopped          = false,
+      system_ready_current          = false,
+    },
+    system_control_globals = {},
+    node_control_globals   = {},
+    chain_tree = { flash = nil, handle = nil, kb_indexes = {} },
+    -- cfl_rt is referenced by user functions that activate/deactivate KBs
+    cfl_rt     = cfl_rt,
+    -- docker primitives (stop_labelled, run_from_spec, stop, is_running)
+    docker     = docker,
+    -- pg connect helper (consumed by VERIFY_PG)
+    pg_connector = pg_connector,
+    -- direct-SQL helpers for bit_mask_table + status_table writes
+    bit_mask_helpers = bit_mask_helpers,
+    kb_status        = kb_status,
+    kb_exception     = kb_exception,
+    -- tunable settings (override before M.main, or inject via ctx builder).
+    -- Default: sim time matches wall time so chain-tree verify_timeout(30s)
+    -- actually waits ~30 real seconds. One chain-tree tick per outer loop;
+    -- outer loop paces via CLOCK_MONOTONIC at 1s.
+    settings = {
+      tick_interval_s     = 1.0,   -- outer-loop pacing
+      cfl_delta_time      = 1.0,   -- chain-tree seconds per tick
+      cfl_max_ticks       = 1,     -- chain-tree ticks per outer burst
+      heartbeat_fresh_s   = 10,    -- VERIFY_NODE_CTRL_HEARTBEAT_FRESH window
+                                   -- (must exceed publish cadence; monitor
+                                   --  hb_col publishes every 5s)
+    },
+  }
+end
+
+---------------------------------------------------------------------------
+-- open bootstrap.db (read-only) and parse bootstrap.config
+---------------------------------------------------------------------------
+
+function M.open_bootstrap(path)
+  local ffi = require("ffi")
+  local sl  = h.sqlite3_lib
+  pcall(ffi.cdef, [[
+    int sqlite3_open_v2(const char *filename, void **ppDb,
+                        int flags, const char *zVfs);
+  ]])
+  local SQLITE_OPEN_READONLY = 0x00000001
+  local pp = ffi.new("void*[1]")
+  if sl.sqlite3_open_v2(path, pp, SQLITE_OPEN_READONLY, nil) ~= 0 then
+    error("cannot open " .. path .. " (read-only)")
+  end
+  local db = pp[0]
+  local rows = h.sql_query(db,
+    "SELECT data FROM knowledge_base WHERE label='bootstrap' AND name='config'", {})
+  if #rows == 0 then error("bootstrap.config not found in " .. path) end
+  local cfg = json.decode(rows[1].data)
+  return db, cfg
+end
+
+---------------------------------------------------------------------------
+-- load all container_definition build.spec rows into a map keyed by def name
+-- (consumed by user functions to drive docker.run_from_spec)
+---------------------------------------------------------------------------
+
+function M.load_build_specs(bdb)
+  local rows = h.sql_query(bdb, [[
+    SELECT path, data FROM knowledge_base
+     WHERE label = 'build' AND name = 'spec'
+       AND path LIKE 'system.container_definition.%'
+  ]], {})
+  local specs = {}
+  for _, r in ipairs(rows) do
+    -- path = system.container_definition.<def>.build.spec
+    local def_name = r.path:match("^system%.container_definition%.([^%.]+)%.build%.spec$")
+    if def_name then
+      specs[def_name] = json.decode(r.data)
+    end
+  end
+  return specs
+end
+
+---------------------------------------------------------------------------
+-- load chain-tree JSON IR + register user functions + validate
+---------------------------------------------------------------------------
+
+function M.init_chain_tree(json_path, user_fns, settings)
+  settings = settings or { cfl_delta_time = 0.1, cfl_max_ticks = 50 }
+
+  local flash = loader.load(json_path)
+  loader.register_functions(flash, builtins, sm, user_fns)
+  local ok, missing = loader.validate(flash)
+  if not ok then
+    local list = {}
+    for _, m in ipairs(missing) do
+      list[#list + 1] = "  " .. m.kind .. ": " .. m.name
+    end
+    error("chain-tree has unresolved user functions:\n" ..
+          table.concat(list, "\n"))
+  end
+
+  local kb_indexes = {}
+  for i, kb in ipairs(flash.kb_table) do
+    kb_indexes[kb.name] = i - 1   -- 0-based
+  end
+
+  local handle = cfl_rt.create({
+    delta_time = settings.cfl_delta_time,
+    max_ticks  = settings.cfl_max_ticks,
+  }, flash)
+  cfl_rt.reset(handle)
+
+  return flash, handle, kb_indexes
+end
+
+---------------------------------------------------------------------------
+-- activate initial KB on master/slave policy
+---------------------------------------------------------------------------
+
+function M.activate_initial_kb(ctx)
+  local kb_idx = ctx.chain_tree.kb_indexes
+  local h_     = ctx.chain_tree.handle
+  -- Both master and slave boot into the sync_control KB for their role.
+  -- That KB brings up / verifies infra, waits for the whole cluster to
+  -- hit its cluster_sync bit, then hands off to system_control +
+  -- node_control and disables itself. From that moment on the
+  -- operational KBs run with strict fail-fast semantics; any failure
+  -- crashes out to the watchdog, which re-enters sync_control.
+  if ctx.cfg.is_master == 1 then
+    ctx.log("dcs", "activating sync_control_master KB")
+    cfl_rt.add_test(h_, kb_idx.sync_control_master)
+  else
+    ctx.log("dcs", "activating sync_control_slave KB")
+    cfl_rt.add_test(h_, kb_idx.sync_control_slave)
+  end
+end
+
+---------------------------------------------------------------------------
+-- tick loop (stops on SIGTERM/SIGINT via watchdog)
+---------------------------------------------------------------------------
+
+-- Return true if any KB is still registered as active.
+local function any_active(handle)
+  for _ in pairs(handle.active_tests) do return true end
+  return false
+end
+
+function M.run_loop(ctx)
+  local interval = (ctx.settings and ctx.settings.tick_interval_s) or 1.0
+  ctx.log("dcs", string.format(
+    "entering chain-tree tick loop (interval=%.3fs, CLOCK_MONOTONIC)",
+    interval))
+
+  local handle   = ctx.chain_tree.handle
+  local burst    = 0
+  local deadline = ptime.now_sec()
+
+  -- Pre-build the per-CPU KB_LOG paths once. The pg conn may not be up
+  -- on the first burst; we guard on it before each push. Writes are
+  -- pcalled so a transient pg hiccup never crashes the tick loop.
+  local cpu_log_root = string.format(
+    "system.site.%s.cpu.%s.KB_LOG", ctx.cfg.site, ctx.cfg.cpu_id)
+  local LOG_TICK_DURATION_MS = cpu_log_root .. ".tick_duration_ms"
+  local LOG_TICKS_PER_BURST  = cpu_log_root .. ".ticks_per_burst"
+  local LOG_PG_ROUNDTRIP_MS  = cpu_log_root .. ".pg_roundtrip_ms"
+
+  -- pg-connection self-heal. Every Nth burst we check liveness and
+  -- transparently replace a severed conn. Without this the DCS host
+  -- silently stops writing the moment pg drops the socket (any build_kb
+  -- DROP CASCADE, pg idle-timeout, or vpnkit blip kills it) and stays
+  -- broken until operator-restart. Matches the same pattern in
+  -- observability's log_analyzer + exception_analyzer.
+  local last_conn_check = 0
+  local CONN_CHECK_INTERVAL_S = 10
+  local function ensure_pg_alive()
+    local now = ptime.now_sec()
+    if now - last_conn_check < CONN_CHECK_INTERVAL_S then return end
+    last_conn_check = now
+    if pg_connector.is_alive(ctx.connectors.pg) then return end
+    ctx.log("dcs", "pg connection dead; reconnecting")
+    pcall(function()
+      if ctx.connectors.pg then ctx.connectors.pg:close() end
+    end)
+    ctx.connectors.pg = nil
+    local pass = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
+    local new_conn, err = pg_connector.try_connect(ctx.cfg, pass)
+    if new_conn then
+      ctx.connectors.pg = new_conn
+      ctx.log("dcs", "pg reconnected")
+    else
+      ctx.log("dcs", "pg reconnect failed: " .. tostring(err))
+    end
+  end
+
+  while true do
+    ensure_pg_alive()
+    burst = burst + 1
+    local t0 = ptime.now_sec()
+    cfl_rt.run(handle)
+    local run_ms = (ptime.now_sec() - t0) * 1000.0
+    local tick_count = handle.tick_count or 0
+
+    ctx.log("dcs", string.format(
+      "burst=%d ticks=%d run=%.1fms sys_ready=%s node_op=%s",
+      burst, tick_count, run_ms,
+      tostring(ctx.process_globals.system_ready_current),
+      tostring(ctx.process_globals.node_control_operational)))
+
+    -- Performance writers: push per-burst metrics into per-CPU KB_LOG
+    -- rings. Cadences differ per metric to avoid pounding pg with
+    -- signals that are near-constant or slow-moving:
+    --   tick_duration_ms  -- every burst (1 Hz); spikes matter per-tick
+    --   pg_roundtrip_ms   -- every 5th burst (~0.2 Hz); fast enough to
+    --                        detect pg stress, 5x less write pressure
+    --   ticks_per_burst   -- every 10th burst (~0.1 Hz); near-constant
+    -- Throwaway pcall keeps tick-loop liveness independent of pg.
+    -- Skipped until pg_connector wires ctx.connectors.pg.
+    if ctx.connectors and ctx.connectors.pg then
+      local conn = ctx.connectors.pg
+      pcall(kb_log.push_sample, conn, LOG_TICK_DURATION_MS, run_ms)
+
+      if burst % 5 == 0 then
+        local r0 = ptime.now_sec()
+        local sth = conn:prepare("SELECT 1")
+        if sth then
+          local ok = pcall(function() sth:execute(); sth:close() end)
+          if ok then
+            pcall(kb_log.push_sample, conn, LOG_PG_ROUNDTRIP_MS,
+                  (ptime.now_sec() - r0) * 1000.0)
+          end
+        end
+      end
+
+      if burst % 10 == 0 then
+        pcall(kb_log.push_sample, conn, LOG_TICKS_PER_BURST, tick_count)
+      end
+    end
+
+    -- Terminate detection: either an error handler pumped
+    -- CFL_TERMINATE_SYSTEM_EVENT (runtime set cfl_engine_flag=false and
+    -- cleared active_tests) or all KBs finished normally. In both cases
+    -- no KB remains; exit so watchdog restarts.
+    if not any_active(handle) then
+      local reason = ctx.terminate_reason or "no active tests"
+      ctx.log("dcs", "exiting cleanly: " .. reason)
+      os.exit(1)
+    end
+
+    -- Drift-free pacing: deadline advances by interval regardless of run time.
+    -- If a burst overruns, skip ahead (don't stack backlog).
+    deadline = deadline + interval
+    local now = ptime.now_sec()
+    if deadline < now then deadline = now end
+    ptime.sleep_until(deadline)
+  end
+end
+
+---------------------------------------------------------------------------
+-- entry point
+---------------------------------------------------------------------------
+
+function M.main(args)
+  local bootstrap_path = args[1]
+    or error("missing argv[1] (bootstrap.db path)")
+
+  local ctx = M.default_context()
+  ctx.bootstrap.path = bootstrap_path
+
+  local bdb, cfg = M.open_bootstrap(bootstrap_path)
+  ctx.bootstrap.db = bdb
+  ctx.cfg          = cfg
+
+  ctx.log("dcs", "opened " .. bootstrap_path .. " (read-only)")
+  ctx.log("dcs", string.format("identity: site=%s cpu=%s master=%s",
+    cfg.site, cfg.cpu_id, tostring(cfg.is_master == 1)))
+
+  -- Load build specs once at boot; user functions consume via
+  -- ctx.system_control_globals.build_specs[def_name].
+  ctx.system_control_globals.build_specs = M.load_build_specs(bdb)
+  local spec_names = {}
+  for name, _ in pairs(ctx.system_control_globals.build_specs) do
+    spec_names[#spec_names + 1] = name
+  end
+  table.sort(spec_names)
+  ctx.log("dcs", "build specs loaded: " .. table.concat(spec_names, ", "))
+
+  -- Build user_fns over ctx (closures capture connectors, globals, etc.)
+  local user_fns = user_functions.build(ctx)
+
+  local json_path = script_dir() .. "../chain_tree/dcs.json"
+  ctx.log("dcs", "loading chain-tree IR from " .. json_path)
+  local flash, handle, kb_indexes =
+    M.init_chain_tree(json_path, user_fns, ctx.settings)
+  ctx.chain_tree.flash      = flash
+  ctx.chain_tree.handle     = handle
+  ctx.chain_tree.kb_indexes = kb_indexes
+  ctx.log("dcs", string.format("KB indexes: system_control=%d node_control=%d",
+    kb_indexes.system_control or -1, kb_indexes.node_control or -1))
+
+  M.activate_initial_kb(ctx)
+  M.run_loop(ctx)
+end
+
+---------------------------------------------------------------------------
+-- direct invocation
+---------------------------------------------------------------------------
+
+if arg and (arg[0] or ""):match("dcs%.lua$") then
+  M.main(arg)
+end
+
+return M

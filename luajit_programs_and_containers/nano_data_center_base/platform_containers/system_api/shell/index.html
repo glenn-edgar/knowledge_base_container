@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Embedded Data Center</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #e0e0e0; display: flex; flex-direction: column; }
+
+    /* ---- Top bar ---- */
+    nav {
+      display: flex; align-items: center;
+      background: #161b22; border-bottom: 2px solid #0f3460;
+      padding: 0; height: 36px; flex-shrink: 0;
+    }
+    .nav-brand {
+      color: #64ffda; font-size: 0.85rem; font-weight: bold;
+      padding: 0 1.25rem; border-right: 1px solid #333;
+      height: 100%; display: flex; align-items: center;
+    }
+    .menu-btn {
+      background: none; border: none; color: #8b949e;
+      font-size: 1.2rem; padding: 0 0.75rem; cursor: pointer;
+      height: 100%; display: none; align-items: center;
+    }
+    .menu-btn:hover { color: #64ffda; }
+    .nav-crumb {
+      font-size: 0.78rem; color: #8b949e; padding: 0 0.75rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      display: none;
+    }
+    .nav-spacer { flex: 1; }
+    .nav-status {
+      font-size: 0.75rem; padding: 0 1.25rem;
+      height: 100%; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .indicator { width: 8px; height: 8px; border-radius: 50%; }
+    .indicator.ok  { background: #3fb950; }
+    .indicator.err { background: #f85149; }
+    .indicator.off { background: #484f58; }
+
+    /* ---- Main layout ---- */
+    .main { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+    /* ---- Tree sidebar ---- */
+    .sidebar {
+      width: 220px; min-width: 180px; max-width: 320px;
+      background: #161b22; border-right: 1px solid #333;
+      overflow-y: auto; flex-shrink: 0;
+      font-size: 0.8rem; padding: 0.5rem 0;
+      user-select: none; z-index: 10;
+    }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    .sidebar-overlay {
+      display: none; position: absolute; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 5;
+    }
+
+    .tree-node { cursor: default; }
+    .tree-row {
+      display: flex; align-items: center; gap: 4px;
+      padding: 3px 8px 3px 0; cursor: pointer;
+      border-left: 3px solid transparent; white-space: nowrap;
+    }
+    .tree-row:hover { background: #1c2129; }
+    .tree-row.selected { background: #1c2129; border-left-color: #64ffda; color: #64ffda; }
+    .tree-arrow {
+      width: 16px; height: 16px; text-align: center; line-height: 16px;
+      color: #484f58; font-size: 0.7rem; flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .tree-arrow.open { transform: rotate(90deg); }
+    .tree-arrow.hidden { visibility: hidden; }
+    .tree-icon { flex-shrink: 0; font-size: 0.75rem; width: 16px; text-align: center; }
+    .tree-label { overflow: hidden; text-overflow: ellipsis; }
+    .tree-children { display: none; }
+    .tree-children.open { display: block; }
+
+    /* ---- Content area ---- */
+    .content-area {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    /* Planner status bar (persistent) */
+    .planner-bar {
+      display: flex; gap: 1rem; align-items: center;
+      background: #0d1117; border-bottom: 1px solid #333;
+      padding: 0.4rem 1rem; font-size: 0.78rem; flex-shrink: 0; flex-wrap: wrap;
+    }
+    .planner-bar .plabel { color: #666; }
+    .planner-bar .pvalue { color: #64ffda; }
+
+    /* Panel containers */
+    #panel-fullscreen {
+      flex: 1; overflow: hidden; display: none;
+    }
+    .panel-content {
+      width: 100%; height: 100%; overflow-y: auto; padding: 1rem;
+    }
+    #legacy-frame {
+      flex: 1; border: none; background: #1a1a2e; display: none;
+    }
+
+    /* ---- Popup overlay ---- */
+    #panel-popup-layer {
+      position: absolute; top: 0; left: 220px; right: 0; bottom: 0;
+      z-index: 20; pointer-events: none; display: none;
+    }
+    .popup-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.5); pointer-events: auto;
+    }
+    .popup-panel {
+      position: absolute; top: 1rem; left: 1rem; right: 1rem; bottom: 1rem;
+      background: #0d1117; border: 1px solid #333; border-radius: 8px;
+      pointer-events: auto; display: flex; flex-direction: column;
+    }
+    .popup-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.5rem 1rem; border-bottom: 1px solid #333; flex-shrink: 0;
+    }
+    .popup-title { color: #64ffda; font-size: 0.9rem; }
+    .popup-close {
+      background: none; border: none; color: #8b949e;
+      font-size: 1.2rem; cursor: pointer; padding: 0 0.25rem;
+    }
+    .popup-close:hover { color: #f85149; }
+    .popup-body { flex: 1; overflow: auto; padding: 0.5rem; }
+
+    /* ---- Shared panel styles (used by panel modules) ---- */
+    .section-title { font-size: 0.85rem; color: #90caf9; margin-bottom: 0.5rem; }
+
+    .robot-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+    .robot-card { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 0.75rem 1rem; cursor: pointer; transition: border-color 0.2s; }
+    .robot-card.selected { border-color: #64ffda; }
+    .robot-card:hover { background: #1c2129; }
+    .robot-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .robot-card .robot-name { color: #64ffda; font-weight: bold; font-size: 0.95rem; }
+    .status-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 3px; }
+    .status-badge.offline { background: #b71c1c; color: #ef9a9a; }
+    .status-badge.live { background: #1b5e20; color: #a5d6a7; }
+    .status-badge.idle { background: #1b5e20; color: #a5d6a7; }
+    .status-badge.stale { background: #e65100; color: #ffcc80; }
+    .status-badge.registering { background: #0f3460; color: #90caf9; }
+    .status-badge.executing { background: #e65100; color: #ffcc80; }
+    .status-badge.active { background: #e65100; color: #ffcc80; }
+    .robot-card .card-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 1rem; font-size: 0.8rem; }
+    .card-body .label { color: #666; }
+    .card-body .value { color: #c9d1d9; }
+    .energy-bar { height: 4px; background: #333; border-radius: 2px; margin-top: 0.4rem; }
+    .energy-bar .fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+    .fill.high { background: #3fb950; }
+    .fill.mid { background: #d29922; }
+    .fill.low { background: #f85149; }
+    .badge { background: #0f3460; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; color: #90caf9; }
+    .caps { color: #888; font-size: 0.7rem; margin-top: 0.3rem; }
+
+    .mission-panel { background: #16213e; border: 1px solid #333; border-radius: 6px; padding: 1rem; margin-top: 1rem; }
+    .mission-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .mission-row label { color: #90caf9; font-size: 0.8rem; min-width: 50px; }
+    .mission-row select { background: #0d1117; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 0.3rem 0.5rem; font-family: inherit; font-size: 0.8rem; min-width: 130px; }
+    .mission-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .btn { padding: 0.4rem 1rem; border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+    .btn-go { background: #3fb950; color: #0d1117; font-weight: bold; }
+    .btn-go:hover { background: #2ea043; }
+    .btn-stop { background: #f85149; color: #fff; }
+    .btn-stop:hover { background: #da3633; }
+    .btn-idle { background: #0f3460; color: #64ffda; }
+    .btn-idle:hover { background: #1a4a8a; }
+    .mission-status { font-size: 0.8rem; color: #666; margin-top: 0.5rem; }
+
+    /* Board SVG styles */
+    svg .edge { stroke: #333; stroke-width: 2; }
+    svg .node-circle { fill: #16213e; stroke: #58a6ff; stroke-width: 2; }
+    svg .node-circle.base { stroke: #3fb950; }
+    svg .node-circle.recharge { stroke: #d29922; }
+    svg .node-circle.deliver_part { stroke: #f85149; }
+    svg .node-circle.inspection_scan { stroke: #bc8cff; }
+    svg .node-circle.load_shipping { stroke: #f0883e; }
+    svg .node-circle.pass_gate { stroke: #3fb950; }
+    svg .node-circle.paint_sample { stroke: #e06c75; }
+    svg .node-transit { fill: #0d1117; stroke: #555; stroke-width: 1.5; stroke-dasharray: 4 2; }
+    svg .node-label { fill: #c9d1d9; font-size: 9px; text-anchor: middle; pointer-events: none; }
+    svg .node-label.transit-label { fill: #666; font-size: 8px; }
+    svg .robot-marker { fill: #64ffda; stroke: #1a1a2e; stroke-width: 2; }
+    svg .edge-label { fill: #555; font-size: 7px; text-anchor: middle; }
+
+    /* Log table styles */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .log-table th { text-align: left; color: #90caf9; padding: 6px 10px; border-bottom: 2px solid #333; background: #0d1117; position: sticky; top: 0; }
+    .log-table td { padding: 5px 10px; border-bottom: 1px solid #1c2129; white-space: nowrap; }
+    .log-table tr:hover td { background: #1c2129; }
+    .log-table .success { color: #3fb950; }
+    .log-table .failure { color: #f85149; }
+    .log-table .log-toggle { width: 22px; text-align: center; cursor: pointer; color: #8b949e; user-select: none; }
+    .log-table .log-toggle:hover { color: #64ffda; }
+    .log-table .log-toggle.fail { color: #f85149; }
+    .log-table .log-robot { color: #64ffda; }
+    .log-table tr.log-expanded td {
+      background: #0a0e14; padding: 0.5rem 0.75rem 0.6rem 2.6rem;
+      white-space: normal; border-bottom: 1px solid #1c2129;
+    }
+    .log-table tr.log-expanded:hover td { background: #0a0e14; }
+
+    /* Telemetry event styles */
+    .telemetry-bar {
+      display: flex; gap: 1rem; align-items: center;
+      background: #0d1117; border: 1px solid #333; border-radius: 4px;
+      padding: 0.5rem 1rem; margin-bottom: 0.75rem; font-size: 0.8rem;
+    }
+    .telemetry-bar .slabel { color: #666; }
+    .telemetry-bar .svalue { color: #64ffda; }
+    .event-row { display: flex; gap: 0.75rem; padding: 4px 10px; border-bottom: 1px solid #1c2129; font-size: 0.78rem; white-space: nowrap; }
+    .event-ts { color: #484f58; min-width: 80px; }
+    .event-type { min-width: 120px; font-weight: bold; }
+    .event-type.start { color: #3fb950; }
+    .event-type.complete { color: #64ffda; }
+    .event-type.failed { color: #f85149; }
+    .event-type.heartbeat { color: #d29922; }
+    .event-type.action { color: #58a6ff; }
+    .event-detail { color: #8b949e; }
+
+    /* Panel layout helpers */
+    .panel-robots, .panel-mission-log, .panel-telemetry, .panel-planner {
+      display: flex; flex-direction: column; height: 100%;
+    }
+    .panel-mission-log .log-scroll,
+    .panel-telemetry .event-log-scroll { flex: 1; min-height: 0; overflow: auto; }
+
+    /* Mission Planner */
+    .planner-header {
+      display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+      background: #16213e; border: 1px solid #333; border-radius: 6px;
+      padding: 0.6rem 1rem; margin-bottom: 0.5rem;
+    }
+    .planner-header label { color: #90caf9; font-size: 0.8rem; }
+    .planner-header select { background: #0d1117; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 0.3rem 0.5rem; font-family: inherit; font-size: 0.8rem; min-width: 130px; }
+    .planner-start { color: #8b949e; font-size: 0.8rem; }
+    .bookend-label { color: #8b949e; font-size: 0.8rem; display: flex; align-items: center; gap: 0.3rem; }
+    .bookend-label input { accent-color: #64ffda; }
+
+    .steps-toolbar {
+      display: flex; flex-direction: column; align-items: center;
+      margin-bottom: 0.25rem; padding: 0.25rem 0; gap: 0.25rem;
+    }
+    .steps-buttons { display: flex; gap: 0.4rem; }
+    .btn-tool { padding: 0.35rem 0.75rem; font-size: 0.8rem; background: #0f3460; color: #90caf9; border: 1px solid #1a4a8a; border-radius: 4px; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .btn-tool:hover { background: #1a4a8a; border-color: #58a6ff; }
+    .btn-tool-danger { background: #5c1a1a; color: #ef9a9a; border-color: #7c2a2a; }
+    .btn-tool-danger:hover { background: #7c2a2a; border-color: #f85149; }
+
+    .steps-scroll { flex: 0 1 auto; max-height: 250px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; background: #0d1117; }
+    .steps-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .steps-table th { text-align: left; color: #666; padding: 4px 8px; border-bottom: 1px solid #333; font-weight: normal; font-size: 0.7rem; position: sticky; top: 0; background: #0d1117; }
+    .steps-table td { padding: 4px 8px; border-bottom: 1px solid #1c2129; }
+    .steps-table tr:hover td { background: #1c2129; }
+    .steps-table tr.step-selected td { background: #0f3460; }
+    .step-num { color: #484f58; width: 30px; text-align: center; }
+    .step-radio, .step-check { width: 28px; text-align: center; }
+    .step-radio input, .step-check input { accent-color: #64ffda; }
+    .step-dest { color: #64ffda; }
+    .step-cost { color: #8b949e; text-align: right; width: 70px; font-size: 0.75rem; }
+    .step-cost.fail { color: #f85149; }
+    .action-select { background: #161b22; color: #c9d1d9; border: 1px solid #333; border-radius: 3px; padding: 2px 4px; font-family: inherit; font-size: 0.78rem; min-width: 120px; }
+
+    /* Expansion chevron + expanded row content */
+    .step-toggle { width: 22px; text-align: center; cursor: pointer; color: #8b949e; user-select: none; }
+    .step-toggle:hover { color: #64ffda; }
+    .step-toggle.fail { color: #f85149; }
+    .steps-table tr.step-row.fail .step-dest { color: #f85149; }
+    .steps-table tr.step-expanded td { background: #0a0e14; padding: 0.5rem 0.75rem 0.6rem 2.6rem; border-bottom: 1px solid #1c2129; }
+    .preflight-fail-banner {
+      color: #f85149; font-size: 0.78rem; margin-bottom: 0.4rem;
+      padding: 0.3rem 0.5rem; background: rgba(248,81,73,0.08);
+      border-left: 2px solid #f85149; border-radius: 2px;
+    }
+    .preflight-ok-banner {
+      color: #3fb950; font-size: 0.78rem; margin-bottom: 0.4rem;
+    }
+    .action-list { display: flex; flex-direction: column; gap: 2px; font-size: 0.76rem; }
+    .action-item { display: flex; gap: 0.5rem; padding: 2px 0; color: #c9d1d9; }
+    .action-item .a-num { color: #484f58; min-width: 20px; text-align: right; }
+    .action-item .a-name { color: #90caf9; min-width: 110px; }
+    .action-item .a-detail { color: #666; }
+    .action-item.fail .a-name { color: #f85149; font-weight: bold; }
+    .action-item.fail .a-detail { color: #f85149; }
+
+    /* Top-of-table preflight summary banner */
+    .preflight-banner {
+      display: flex; gap: 0.75rem; align-items: center;
+      padding: 0.4rem 0.75rem; margin-bottom: 0.4rem;
+      border-radius: 4px; font-size: 0.78rem;
+      border-left: 3px solid #484f58; background: #0d1117;
+      color: #8b949e;
+    }
+    .preflight-banner.ok   { border-left-color: #3fb950; color: #3fb950; }
+    .preflight-banner.warn { border-left-color: #d29922; color: #d29922; }
+    .preflight-banner.fail { border-left-color: #f85149; color: #f85149; }
+    .preflight-banner .pf-detail { color: #8b949e; margin-left: auto; font-size: 0.74rem; }
+
+    .submit-row { display: flex; align-items: center; gap: 1rem; padding: 0.5rem 0; }
+    .planner-msg { color: #8b949e; font-size: 0.8rem; }
+
+    .planner-board-scroll { flex: 1; min-height: 200px; overflow: auto; border: 1px solid #333; border-radius: 6px; background: #0d1117; position: relative; }
+    .planner-board-scroll svg { display: block; }
+
+    /* Co-located VN cluster icon */
+    svg .node-cluster { fill: #16213e; stroke: #d29922; stroke-width: 3; }
+    svg .node-cluster:hover { fill: #1c2129; stroke: #64ffda; }
+    svg .node-cluster.selected { fill: #0f3460; stroke: #64ffda; stroke-width: 4; }
+    svg .cluster-count { fill: #d29922; font-size: 18px; font-weight: bold; text-anchor: middle; pointer-events: none; }
+
+    /* Subgraph inset (board cluster drill-in) */
+    .board-inset {
+      position: absolute; z-index: 12;
+      background: #161b22; border: 1px solid #58a6ff; border-radius: 6px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.6);
+      width: 280px; display: flex; flex-direction: column;
+    }
+    .board-inset-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.35rem 0.6rem; border-bottom: 1px solid #333;
+      font-size: 0.74rem; color: #90caf9;
+    }
+    .inset-title { color: #90caf9; }
+    .inset-close {
+      background: none; border: none; color: #8b949e;
+      font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0 0.25rem;
+    }
+    .inset-close:hover { color: #f85149; }
+    .inset-svg { width: 100%; height: 160px; display: block; background: #0d1117; }
+
+    .inset-svg .inset-edge { stroke: #58a6ff; stroke-width: 2; }
+    .inset-svg .inset-edge-label { fill: #666; font-size: 9px; text-anchor: middle; pointer-events: none; }
+    .inset-svg .inset-stub-edge {
+      stroke: #d29922; stroke-width: 2; stroke-dasharray: 4 3;
+    }
+    .inset-svg .inset-stub-label {
+      fill: #d29922; font-size: 9px; pointer-events: none;
+    }
+    .inset-svg .inset-node {
+      fill: #16213e; stroke: #58a6ff; stroke-width: 2;
+    }
+    .inset-svg .inset-node.base { stroke: #3fb950; }
+    .inset-svg .inset-node.recharge { stroke: #d29922; }
+    .inset-svg .inset-node.deliver_part { stroke: #f85149; }
+    .inset-svg .inset-node.inspection_scan { stroke: #bc8cff; }
+    .inset-svg .inset-node.load_shipping { stroke: #f0883e; }
+    .inset-svg .inset-node.pass_gate { stroke: #3fb950; }
+    .inset-svg .inset-node.paint_sample { stroke: #e06c75; }
+    .inset-svg .inset-node.transit { fill: #0d1117; stroke: #555; stroke-width: 1.5; stroke-dasharray: 4 2; }
+    .inset-svg .inset-node.interactive { cursor: pointer; }
+    .inset-svg .inset-node.interactive:hover { fill: #1c2129; stroke: #64ffda; }
+
+    /* Clickable member list (primary picker) */
+    .inset-list {
+      max-height: 200px; overflow-y: auto;
+      border-top: 1px solid #333;
+      background: #0d1117;
+    }
+    .inset-list-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.7rem;
+      border-bottom: 1px solid #1c2129;
+      font-size: 0.78rem; color: #c9d1d9;
+    }
+    .inset-list-item:last-child { border-bottom: none; }
+    .inset-list-item.interactive { cursor: pointer; }
+    .inset-list-item.interactive:hover {
+      background: #1c2129; color: #64ffda;
+    }
+    .inset-list-dot {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; flex-shrink: 0;
+      background: #16213e; border: 2px solid #58a6ff;
+    }
+    .inset-list-dot.base { border-color: #3fb950; }
+    .inset-list-dot.recharge { border-color: #d29922; }
+    .inset-list-dot.deliver_part { border-color: #f85149; }
+    .inset-list-dot.inspection_scan { border-color: #bc8cff; }
+    .inset-list-dot.load_shipping { border-color: #f0883e; }
+    .inset-list-dot.pass_gate { border-color: #3fb950; }
+    .inset-list-dot.paint_sample { border-color: #e06c75; }
+    .inset-list-dot.transit { border-color: #555; border-style: dashed; background: #0d1117; }
+    .inset-list-item.transit-item { color: #666; }
+    .inset-list-item.transit-item.interactive { cursor: default; }
+    .inset-list-item.transit-item.interactive:hover { background: inherit; color: #666; }
+    .inset-list-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Multi-robot count badge on a clustered diamond */
+    svg .cluster-count-badge { fill: #64ffda; stroke: #1a1a2e; stroke-width: 1; }
+
+    /* Path highlighting for planner board */
+    svg .edge.path-active { stroke: #64ffda; stroke-width: 3; stroke-dasharray: 8 4; animation: dash 1s linear infinite; }
+    svg .node-circle.selected { fill: #0f3460; stroke: #64ffda; stroke-width: 3; }
+
+    /* Confirmation overlay */
+    .confirm-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 30;
+    }
+    .confirm-box {
+      background: #161b22; border: 1px solid #333; border-radius: 8px;
+      padding: 1.25rem; max-width: 500px; width: 90%;
+      font-size: 0.85rem;
+    }
+
+    /* ---- Mobile ---- */
+    @media (max-width: 768px) {
+      .menu-btn { display: flex; }
+      .nav-crumb { display: block; }
+      .sidebar {
+        position: absolute; top: 0; left: 0; bottom: 0;
+        width: 260px; max-width: 80vw;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease; box-shadow: none;
+      }
+      .sidebar.open { transform: translateX(0); box-shadow: 4px 0 20px rgba(0,0,0,0.6); }
+      .sidebar-overlay.visible { display: block; }
+      #panel-popup-layer { left: 0; }
+      .popup-panel { top: 0; left: 0; right: 0; bottom: 0; border-radius: 0; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="nav-brand">EDC</div>
+    <button class="menu-btn" id="menu-btn" aria-label="Toggle menu">&#9776;</button>
+    <span class="nav-crumb" id="nav-crumb"></span>
+    <div class="nav-spacer"></div>
+    <div class="nav-status">
+      <span class="indicator off" id="nats-dot"></span>
+      <span id="nats-label" style="color:#484f58">NATS</span>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content-area">
+      <!-- Persistent planner bar -->
+      <div class="planner-bar" id="planner-bar">
+        <span><span class="plabel">Planner:</span> <span class="pvalue" id="planner-state">-</span></span>
+        <span><span class="plabel">Active:</span> <span class="pvalue" id="planner-active">0</span></span>
+        <span><span class="plabel">Registered:</span> <span class="pvalue" id="planner-registered">-</span></span>
+      </div>
+      <!-- Panel content area -->
+      <div id="panel-fullscreen"></div>
+      <iframe id="legacy-frame"></iframe>
+      <!-- Popup overlay layer -->
+      <div id="panel-popup-layer"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { KvManager } from "./panels/kv-manager.js";
+    import { PanelManager } from "./panels/registry.js";
+
+    // ---------------------------------------------------------------
+    // Mobile drawer
+    // ---------------------------------------------------------------
+    var sidebarEl = document.getElementById("sidebar");
+    var overlay = document.getElementById("sidebar-overlay");
+    var menuBtn = document.getElementById("menu-btn");
+    var crumbEl = document.getElementById("nav-crumb");
+
+    function openDrawer() { sidebarEl.classList.add("open"); overlay.classList.add("visible"); }
+    function closeDrawer() { sidebarEl.classList.remove("open"); overlay.classList.remove("visible"); }
+    function isMobile() { return window.matchMedia("(max-width: 768px)").matches; }
+
+    menuBtn.addEventListener("click", function () {
+      if (sidebarEl.classList.contains("open")) closeDrawer(); else openDrawer();
+    });
+    overlay.addEventListener("click", closeDrawer);
+
+    // ---------------------------------------------------------------
+    // Tree data — built dynamically from /api/domains
+    // ---------------------------------------------------------------
+    var TREE = [];
+
+    var selectedId = null;
+    var panelMgr = null;
+
+    // ---------------------------------------------------------------
+    // Render tree
+    // ---------------------------------------------------------------
+    function renderTree(nodes, container, depth) {
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        var el = document.createElement("div");
+        el.className = "tree-node";
+
+        var row = document.createElement("div");
+        row.className = "tree-row";
+        row.style.paddingLeft = (depth * 14 + 8) + "px";
+        row.dataset.id = node.id;
+
+        var arrow = document.createElement("span");
+        arrow.className = "tree-arrow" + (node.children ? "" : " hidden");
+        arrow.textContent = "\u25B8";
+        row.appendChild(arrow);
+
+        var icon = document.createElement("span");
+        icon.className = "tree-icon";
+        icon.textContent = node.icon || "\u2022";
+        row.appendChild(icon);
+
+        var label = document.createElement("span");
+        label.className = "tree-label";
+        label.textContent = node.label;
+        row.appendChild(label);
+
+        el.appendChild(row);
+
+        if (node.children) {
+          var childBox = document.createElement("div");
+          childBox.className = "tree-children";
+          childBox.id = "children-" + node.id;
+          renderTree(node.children, childBox, depth + 1);
+          el.appendChild(childBox);
+        }
+
+        (function (n, r, a) {
+          r.addEventListener("click", function () {
+            if (n.children) {
+              var box = document.getElementById("children-" + n.id);
+              var isOpen = box.classList.contains("open");
+              box.classList.toggle("open");
+              a.classList.toggle("open", !isOpen);
+              if (n.panel || n.src) selectLeaf(n, r);
+            } else if (n.panel || n.src) {
+              selectLeaf(n, r);
+            }
+          });
+        })(node, row, arrow);
+
+        container.appendChild(el);
+      }
+    }
+
+    function selectLeaf(node, rowEl) {
+      // Don't deselect for popups
+      if (!node.popup) {
+        var prev = document.querySelector(".tree-row.selected");
+        if (prev) prev.classList.remove("selected");
+        rowEl.classList.add("selected");
+        selectedId = node.id;
+      }
+
+      crumbEl.textContent = node.label;
+
+      if (node.panel) {
+        if (node.popup) {
+          panelMgr.showPopup(node.panel);
+        } else {
+          panelMgr.show(node.panel);
+        }
+      } else if (node.src) {
+        panelMgr.showLegacy(node.src);
+      }
+
+      if (isMobile()) closeDrawer();
+    }
+
+    // ---------------------------------------------------------------
+    // Build tree (deferred until domains are loaded)
+    // ---------------------------------------------------------------
+    function expandNode(id) {
+      var box = document.getElementById("children-" + id);
+      if (box) {
+        box.classList.add("open");
+        var row = box.previousElementSibling;
+        if (row) {
+          var arrow = row.querySelector(".tree-arrow");
+          if (arrow) arrow.classList.add("open");
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // Escape key closes popups
+    // ---------------------------------------------------------------
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && panelMgr) panelMgr.hideAllPopups();
+    });
+
+    // ---------------------------------------------------------------
+    // Planner panel definitions (template for each domain with planner_data)
+    // ---------------------------------------------------------------
+    var PLANNER_PANELS = [
+      { suffix: "robots",          label: "Robots",          icon: "\u2022", type: "fullscreen", file: "robots.js" },
+      { suffix: "mission_planner", label: "Mission Planner", icon: "\u2316", type: "fullscreen", file: "mission-planner.js" },
+      { suffix: "mission_log",     label: "Mission Log",     icon: "\u2022", type: "fullscreen", file: "mission-log.js" },
+      { suffix: "live_telemetry",  label: "Live Telemetry",  icon: "\u2022", type: "fullscreen", file: "live-telemetry.js" },
+      { suffix: "board",           label: "Board",           icon: "\u25A6", type: "popup",      file: "board.js" },
+    ];
+
+    // ---------------------------------------------------------------
+    // Fetch domains from KB and build tree + panels
+    // ---------------------------------------------------------------
+    async function buildTreeFromDomains() {
+      var domains = [];
+      try {
+        var resp = await fetch("/api/domains");
+        var data = await resp.json();
+        domains = data.domains || [];
+      } catch (e) {
+        console.error("Failed to load domains:", e.message);
+      }
+
+      var tree = [];
+      for (var i = 0; i < domains.length; i++) {
+        var d = domains[i];
+        if (d.has_planner_data && d.site) {
+          var children = [];
+          for (var j = 0; j < PLANNER_PANELS.length; j++) {
+            var p = PLANNER_PANELS[j];
+            var childId = d.name + "/" + p.suffix;
+            var entry = { id: childId, label: p.label, icon: p.icon, panel: childId };
+            if (p.type === "popup") entry.popup = true;
+            children.push(entry);
+          }
+          tree.push({
+            id: d.name,
+            label: d.description || d.name,
+            icon: "\u2609",
+            domain: d,
+            children: children,
+          });
+        } else {
+          tree.push({
+            id: d.name,
+            label: d.description || d.name,
+            icon: "\u229A",
+            src: "tabs/" + d.name + ".html",
+          });
+        }
+      }
+
+      // Static entries
+      tree.push({ id: "kb", label: "KB Console", icon: "\u2263", src: "tabs/kb_console.html" });
+
+      return { tree: tree, domains: domains };
+    }
+
+    // ---------------------------------------------------------------
+    // NATS + panel system init
+    // ---------------------------------------------------------------
+    async function initSystem() {
+      // Step 1: Load domains and build tree
+      var result = await buildTreeFromDomains();
+      TREE = result.tree;
+      var domains = result.domains;
+
+      renderTree(TREE, sidebarEl, 0);
+
+      // Step 2: Connect NATS
+      var nc = null;
+      var js = null;
+      var kvManager = null;
+
+      try {
+        var mod = await import("./vendor/nats.js");
+        nc = await mod.connect({ servers: "ws://localhost:9222" });
+        document.getElementById("nats-dot").className = "indicator ok";
+        document.getElementById("nats-label").style.color = "#3fb950";
+        js = nc.jetstream();
+        kvManager = new KvManager(js);
+      } catch (e) {
+        document.getElementById("nats-dot").className = "indicator err";
+        document.getElementById("nats-label").style.color = "#f85149";
+        console.error("NATS:", e.message);
+      }
+
+      // Step 3: Create panel manager (shared NATS context, no domain-specific site)
+      var ctx = {
+        nc: nc,
+        js: js,
+        kvManager: kvManager,
+        site: null,
+        siteBucket: null,
+      };
+
+      panelMgr = new PanelManager(ctx);
+      var _v = "?v=" + Date.now();
+
+      // Step 4: Register panels per domain (each gets its own domain context)
+      for (var i = 0; i < domains.length; i++) {
+        var d = domains[i];
+        if (!d.has_planner_data || !d.site) continue;
+
+        for (var j = 0; j < PLANNER_PANELS.length; j++) {
+          var p = PLANNER_PANELS[j];
+          panelMgr.register(d.name + "/" + p.suffix, {
+            type: p.type,
+            modulePath: "/panels/" + p.file + _v,
+            domain: d,
+          });
+        }
+      }
+
+      // Step 5: Planner bar — tracks active domain, rewires watcher on switch
+      var barWatchToken = null;
+
+      function updatePlannerBar(val) {
+        var active = val.active_missions || 0;
+        document.getElementById("planner-state").textContent = active > 0 ? "executing" : "idle";
+        document.getElementById("planner-active").textContent = active;
+        var reg = val.registered_robots || [];
+        document.getElementById("planner-registered").textContent = reg.join(", ") || "-";
+      }
+
+      panelMgr._onDomainChange = async function (domain) {
+        if (!kvManager) return;
+
+        // Release old watcher
+        if (barWatchToken) { kvManager.release(barWatchToken); barWatchToken = null; }
+
+        var bucket = domain.site.replace(/\./g, "_") + "_action_server";
+        var key = domain.site + ".action_server.summary";
+
+        // Reset bar
+        document.getElementById("planner-state").textContent = "idle";
+        document.getElementById("planner-active").textContent = "0";
+        document.getElementById("planner-registered").textContent = "-";
+
+        try {
+          var initial = await kvManager.get(bucket, key);
+          if (initial) updatePlannerBar(initial);
+        } catch (e) { /* no summary yet */ }
+
+        try {
+          barWatchToken = await kvManager.watch(bucket, function (k, val) {
+            if (k === key) updatePlannerBar(val);
+          });
+        } catch (e) { /* watch failed */ }
+      };
+
+      // Step 6: Expand first domain and auto-select first panel
+      if (TREE.length > 0 && TREE[0].children) {
+        expandNode(TREE[0].id);
+        var firstId = TREE[0].children[0].id;
+        var firstRow = document.querySelector('.tree-row[data-id="' + firstId + '"]');
+        if (firstRow) firstRow.click();
+      }
+    }
+
+    initSystem();
+  </script>
+</body>
+</html>

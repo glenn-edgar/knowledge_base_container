@@ -1,0 +1,271 @@
+/* dcs_shell -- mobile-first operator console shell.
+ *
+ * Pattern (reused across every user container that serves an operator UI):
+ *   header  : [menu]  title  [status]
+ *   drawer  : slides in from left; full-width on phones, 280px fixed on
+ *             desktop; holds a <details>-based tree.
+ *   content : single pane, htmx-swapped.
+ *   status  : dropdown anchored under [status] on desktop; full-screen
+ *             <dialog> on mobile. Hosts a one-shot GET or an SSE stream.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #111;
+  color: #ddd;
+}
+
+/* ---------- header ---------- */
+
+#shell-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0 0.4em;
+  height: 3em;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+  z-index: 20;
+}
+#shell-header button {
+  background: none;
+  border: 0;
+  color: #ddd;
+  font-size: 1.4em;
+  padding: 0.2em 0.6em;
+  cursor: pointer;
+  line-height: 1;
+}
+#shell-header button:hover { background: #222; border-radius: 4px; }
+#shell-title {
+  flex: 1;
+  margin: 0;
+  font-size: 1em;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#operator-name {
+  font-size: 0.82em;
+  color: #888;
+  padding: 0 0.2em;
+  max-width: 7em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Hide the operator name on narrow screens; it lives in the status popup
+   too. */
+@media (max-width: 499px) { #operator-name { display: none; } }
+#status-btn { position: relative; }
+#status-badge {
+  position: absolute;
+  top: 0.25em;
+  right: 0.25em;
+  min-width: 1.3em;
+  height: 1.3em;
+  padding: 0 0.3em;
+  border-radius: 0.65em;
+  background: #e55;
+  color: #fff;
+  font-size: 0.7em;
+  line-height: 1.3em;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* ---------- drawer ---------- */
+
+#shell-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 22em;
+  background: #1a1a1a;
+  border-right: 1px solid #333;
+  transform: translateX(-100%);
+  transition: transform 0.18s ease-out;
+  z-index: 30;
+  overflow-y: auto;
+  padding: 0.4em 0;
+}
+#shell-drawer.open { transform: translateX(0); }
+#shell-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 25;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+#shell-scrim.open { opacity: 1; pointer-events: auto; }
+
+.tree, .tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tree summary,
+.tree a {
+  display: block;
+  padding: 0.45em 1em;
+  color: #ddd;
+  text-decoration: none;
+  cursor: pointer;
+  border-radius: 3px;
+  user-select: none;
+}
+.tree summary { color: #fff; font-weight: 500; }
+.tree summary:hover,
+.tree a:hover { background: #222; }
+.tree a.active { background: #1f2a33; color: #fff; }
+.tree ul ul a,
+.tree ul ul summary { padding-left: 2em; font-size: 0.93em; }
+.tree ul ul ul a,
+.tree ul ul ul summary { padding-left: 3em; font-size: 0.9em; color: #bbb; }
+.tree details > summary { list-style: none; position: relative; }
+.tree details > summary::before {
+  content: "▸";
+  color: #666;
+  position: absolute;
+  right: 0.8em;
+  transition: transform 0.12s;
+}
+.tree details[open] > summary::before { transform: rotate(90deg); }
+
+/* ---------- content ---------- */
+
+#shell-content {
+  padding: 1em;
+  min-height: calc(100vh - 3em);
+}
+#shell-content .placeholder { color: #666; font-style: italic; }
+#shell-content h2 { margin-top: 0; color: #fff; font-weight: 500; }
+
+/* ---------- SCADA traffic-light pills ---------- */
+/* Always paired with both an icon and plain text so they work for
+   colour-blind operators and screenshots. */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  font-size: 0.88em;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  background: #222;
+}
+.status .icon { font-size: 0.9em; line-height: 1; }
+.status.ok      { color: #8f8; }
+.status.ok      .icon::before { content: "\2714"; }   /* check */
+.status.warn    { color: #fc6; }
+.status.warn    .icon::before { content: "\26A0"; }   /* warning triangle */
+.status.fail    { color: #f88; background: #401515; }
+.status.fail    .icon::before { content: "\2718"; }   /* x */
+.status.unknown { color: #888; }
+.status.unknown .icon::before { content: "\003F"; }   /* ? */
+
+/* ---------- key/value status list ---------- */
+.status-list {
+  display: grid;
+  grid-template-columns: minmax(10em, max-content) 1fr;
+  gap: 0.4em 1.2em;
+  margin: 0;
+}
+.status-list dt { color: #888; font-size: 0.9em; align-self: center; }
+.status-list dd { margin: 0; color: #eee; align-self: center; word-break: break-word; }
+
+/* ---------- stale-time indicator ---------- */
+/* <time datetime="ISO"> elements ticked by shell.js every second; after
+ * data-stale-after seconds the element gets .stale and its text is
+ * suffixed with " \u00b7 STALE". */
+time[datetime] { color: #bbb; font-variant-numeric: tabular-nums; }
+time.stale {
+  color: #fc6;
+}
+time.stale::after {
+  content: " \00b7 STALE";
+  color: #fc6;
+  font-weight: 500;
+}
+
+/* ---------- last-event footer ---------- */
+#shell-content footer.last-event {
+  margin-top: 2em;
+  padding-top: 0.6em;
+  border-top: 1px solid #222;
+  color: #666;
+  font-size: 0.85em;
+}
+
+/* ---------- KB ltree path ---------- */
+/* Every view that corresponds to a KB node shows its canonical path
+   (system.site.X.cpu.Y.Z...) so operators can query pg directly or
+   understand where in the tree they are. */
+.kb-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  color: #8bc;
+  word-break: break-all;
+  background: #1a1a1a;
+  padding: 0.15em 0.45em;
+  border-radius: 3px;
+}
+
+/* ---------- status popup ---------- */
+
+#status-popup {
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #ddd;
+  padding: 0;
+  border-radius: 4px;
+  max-width: 22em;
+  width: 100%;
+  margin: 0;
+}
+#status-popup::backdrop { background: rgba(0, 0, 0, 0.5); }
+#status-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6em 0.8em;
+  border-bottom: 1px solid #333;
+}
+#status-popup-title { font-weight: 500; color: #fff; }
+#status-popup-close {
+  background: none; border: 0; color: #aaa; cursor: pointer;
+  font-size: 1.2em; padding: 0 0.4em;
+}
+#status-popup-close:hover { color: #fff; }
+#status-body { padding: 0.8em; font-size: 0.92em; }
+#status-body .empty { color: #666; font-style: italic; }
+
+/* ---------- desktop breakpoint ---------- */
+
+@media (min-width: 700px) {
+  #shell-drawer { width: 18em; }
+  /* Status popup becomes an anchored dropdown, not a modal. */
+  #status-popup {
+    position: fixed;
+    top: 3.2em;
+    right: 0.4em;
+    margin: 0;
+    max-height: calc(100vh - 4em);
+    overflow-y: auto;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  }
+  #status-popup::backdrop { background: transparent; }
+}

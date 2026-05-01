@@ -1,0 +1,7 @@
+{
+    "name": "log_analyzer",
+    "argv": ["luajit", "/opt/apps/log_analyzer/main.lua"],
+    "start_order": 20,
+    "restart_policy": "always",
+    "kb_path": ""
+}

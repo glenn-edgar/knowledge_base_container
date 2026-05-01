@@ -1,0 +1,4 @@
+site_name: Luajit NATS Bindings
+nav:
+  - Overview: README_nats.md
+  - StreamBuffer: README_stream.md
