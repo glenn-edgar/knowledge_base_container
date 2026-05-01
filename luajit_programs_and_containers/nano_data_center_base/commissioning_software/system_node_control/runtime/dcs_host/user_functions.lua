@@ -20,6 +20,7 @@ local broker_client = require("broker_client")  -- read docker_host_broker state
 local spec_adapter  = require("spec_adapter")   -- catalog spec -> wire-protocol RunSpec
 local sync_rpc      = require("sync_rpc")       -- Phase 6.1 inter-CPU sync
 local container_rpc = require("container_rpc")  -- Phase 6.4 container layer
+local ndc_paths     = require("ndc_paths")       -- KB path composer (Layer M)
 
 local M = {}
 
@@ -119,8 +120,7 @@ function M.build(ctx)
   -- We inline the prefix from cfg so callers just pass the short name.
   ----------------------------------------------------------------------
   local function exc_path(name)
-    return string.format("system.site.%s.cpu.%s.SYS_EXCEPTION.%s",
-                         ctx.cfg.site, ctx.cfg.cpu_id, name)
+    return ndc_paths.cpu_exception_path(ctx.cfg.site, ctx.cfg.cpu_id, name)
   end
 
   -- Boolean helper: always returns true. Used as the loop-condition aux
@@ -260,7 +260,7 @@ function M.build(ctx)
   local function _system_ready_path()
     if not SYSTEM_READY_PATH then
       SYSTEM_READY_PATH =
-        "system.site." .. ctx.cfg.site .. ".KB_STATUS_FIELD.system_ready"
+        ndc_paths.site_status_field_path(ctx.cfg.site, "system_ready")
     end
     return SYSTEM_READY_PATH
   end
@@ -1224,8 +1224,7 @@ function M.build(ctx)
     if ctx.connectors.pg then
       local dur_ms = (ptime.now_sec() - t0) * 1000.0
       pcall(kb_log.push_sample, ctx.connectors.pg,
-        string.format("system.site.%s.cpu.%s.KB_LOG.reconcile_check_ms",
-                      ctx.cfg.site, ctx.cfg.cpu_id),
+        ndc_paths.cpu_log_path(ctx.cfg.site, ctx.cfg.cpu_id) .. ".reconcile_check_ms",
         dur_ms)
     end
   end
@@ -1396,8 +1395,7 @@ function M.build(ctx)
 
     local dur_ms = (ptime.now_sec() - t0) * 1000.0
     pcall(kb_log.push_sample, conn,
-      string.format("system.site.%s.cpu.%s.KB_LOG.watchdog_probe_ms",
-                    ctx.cfg.site, ctx.cfg.cpu_id),
+      ndc_paths.cpu_log_path(ctx.cfg.site, ctx.cfg.cpu_id) .. ".watchdog_probe_ms",
       dur_ms)
   end
 
@@ -1444,9 +1442,8 @@ function M.build(ctx)
     -- per CPU, so per-row is fine; batches can come later if the
     -- container count ever explodes.
     local function read_m_until(container_name)
-      local path = string.format(
-        "system.site.%s.cpu.%s.container.%s.KB_STATUS_FIELD.maintenance_until",
-        ctx.cfg.site, ctx.cfg.cpu_id, container_name)
+      local path = ndc_paths.container_status_field_path(
+        ctx.cfg.site, ctx.cfg.cpu_id, container_name, "maintenance_until")
       local sth, perr = ctx.connectors.pg:prepare(string.format(
         "SELECT COALESCE((data->>'value')::bigint, 0) AS m_until " ..
         "FROM knowledge_base_status WHERE path = '%s'::ltree",
@@ -1463,9 +1460,8 @@ function M.build(ctx)
     -- is treated as if individually in maintenance even if its own
     -- flag is 0. One query per tick.
     local function read_cpu_m_until()
-      local path = string.format(
-        "system.site.%s.cpu.%s.KB_STATUS_FIELD.cpu_maintenance_until",
-        ctx.cfg.site, ctx.cfg.cpu_id)
+      local path = ndc_paths.cpu_status_field_path(
+        ctx.cfg.site, ctx.cfg.cpu_id, "cpu_maintenance_until")
       local sth, perr = ctx.connectors.pg:prepare(string.format(
         "SELECT COALESCE((data->>'value')::bigint, 0) AS m_until " ..
         "FROM knowledge_base_status WHERE path = '%s'::ltree",
@@ -1611,9 +1607,8 @@ function M.build(ctx)
   -- The construct_kb library inserts the satellite label (KB_STREAM_FIELD)
   -- as a path component, so the runtime path mirrors the build-time one.
   local function _monitor_stream_path()
-    return string.format(
-      "system.site.%s.cpu.%s.monitor.samples.KB_STREAM_FIELD.samples",
-      ctx.cfg.site, ctx.cfg.cpu_id)
+    return ndc_paths.cpu_path(ctx.cfg.site, ctx.cfg.cpu_id,
+      "monitor.samples.KB_STREAM_FIELD.samples")
   end
 
   local function _emit_sample(kind, payload)
@@ -1805,8 +1800,7 @@ function M.build(ctx)
       -- Root filesystem disk_used_pct (first DISK_PROBES entry).
       local root_used_pct = (disk_free["/"] and disk_free["/"].used_pct) or 0
 
-      local cpu_log_root = string.format(
-        "system.site.%s.cpu.%s.KB_LOG", ctx.cfg.site, ctx.cfg.cpu_id)
+      local cpu_log_root = ndc_paths.cpu_log_path(ctx.cfg.site, ctx.cfg.cpu_id)
       pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_cpu_pct",      cpu_pct.cpu_pct)
       pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_mem_used_mb",  mem_used_mb)
       pcall(kb_log.push_sample, conn, cpu_log_root .. ".host_mem_free_mb",  mem_free_mb)
@@ -1902,9 +1896,7 @@ function M.build(ctx)
         source              = "broker",
       })
 
-      local root = string.format(
-        "system.site.%s.cpu.%s.container.%s.KB_LOG",
-        site, cpu_id, name)
+      local root = ndc_paths.container_log_path(site, cpu_id, name)
       pcall(kb_log.push_sample, conn, root .. ".container_cpu_pct",        cpu_pct)
       pcall(kb_log.push_sample, conn, root .. ".container_mem_rss_mb",     mem_mb)
       pcall(kb_log.push_sample, conn, root .. ".container_disk_read_kbps", disk_read_kbps)

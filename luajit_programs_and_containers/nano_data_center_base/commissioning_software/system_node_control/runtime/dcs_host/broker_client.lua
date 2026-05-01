@@ -24,6 +24,7 @@
 local dkjson      = require("dkjson")
 local posix_time  = require("posix_time")
 local http_client = require("http_client")
+local ndc_paths   = require("ndc_paths")
 
 local M = {}
 
@@ -43,27 +44,21 @@ local function snapshot_path()
   if not cfg.site then
     error("broker_client: not configured; call M.configure{ site = ... } first")
   end
-  return string.format(
-    "system.site.%s.docker_broker.containers.KB_STATUS_FIELD.snapshot",
-    cfg.site)
+  return ndc_paths.broker_snapshot_path(cfg.site)
 end
 
 local function heartbeat_path()
   if not cfg.site then
     error("broker_client: not configured; call M.configure{ site = ... } first")
   end
-  return string.format(
-    "system.site.%s.docker_broker.heartbeat.KB_STATUS_FIELD.last",
-    cfg.site)
+  return ndc_paths.broker_heartbeat_path(cfg.site)
 end
 
 local function stats_path()
   if not cfg.site then
     error("broker_client: not configured; call M.configure{ site = ... } first")
   end
-  return string.format(
-    "system.site.%s.docker_broker.containers.KB_STATUS_FIELD.stats",
-    cfg.site)
+  return ndc_paths.broker_stats_path(cfg.site)
 end
 
 -- ---------------------------------------------------------------------------

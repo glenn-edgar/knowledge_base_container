@@ -49,7 +49,9 @@ cp "$CT/lua_dsl/lua_support/"*.lua           "$SCRIPT_DIR/prebuilt_lua_share/cha
 cp "$CT/lua_dsl/luajit_pipeline/"*.lua       "$SCRIPT_DIR/prebuilt_lua_share/chain_tree/lua_dsl/luajit_pipeline/" 2>/dev/null || true
 
 # DCS helpers reused verbatim as base-image libraries.
-for f in posix_time.lua pg_connector.lua kb_status.lua kb_stream.lua kb_exception.lua bit_mask_helpers.lua; do
+# ndc_paths.lua is a dependency of bit_mask_helpers.lua (path composer);
+# must ship together or supervisor boot fails with module-not-found.
+for f in posix_time.lua pg_connector.lua kb_status.lua kb_stream.lua kb_exception.lua bit_mask_helpers.lua ndc_paths.lua; do
     cp "$DCS_HP/$f" "$SCRIPT_DIR/prebuilt_lua_share/"
 done
 

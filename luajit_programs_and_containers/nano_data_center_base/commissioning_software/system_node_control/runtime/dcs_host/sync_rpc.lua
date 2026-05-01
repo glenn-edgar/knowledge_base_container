@@ -29,7 +29,8 @@
 -- feedback_phase6_handler_budget, feedback_one_reset_path.
 -- =============================================================================
 
-local sync_q = require("kb_sync_queue")
+local sync_q    = require("kb_sync_queue")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 M.__index = M
@@ -136,13 +137,11 @@ local function jittered_period(period, pct)
 end
 
 local function exc_path(ctx, name)
-  return string.format("system.site.%s.cpu.%s.SYS_EXCEPTION.%s",
-                       ctx.cfg.site, ctx.cfg.cpu_id, name)
+  return ndc_paths.cpu_exception_path(ctx.cfg.site, ctx.cfg.cpu_id, name)
 end
 
 local function status_path(ctx, name)
-  return string.format("system.site.%s.KB_STATUS_FIELD.%s",
-                       ctx.cfg.site, name)
+  return ndc_paths.site_status_field_path(ctx.cfg.site, name)
 end
 
 -- Compute p95 from samples (ms only).

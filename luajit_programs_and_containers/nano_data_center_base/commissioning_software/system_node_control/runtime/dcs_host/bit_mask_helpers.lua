@@ -14,7 +14,8 @@
 -- =============================================================================
 
 local M = {}
-local ptime = require("posix_time")
+local ptime     = require("posix_time")
+local ndc_paths = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- helpers
@@ -65,15 +66,11 @@ end
 ---------------------------------------------------------------------------
 
 function M.heartbeat_node_id(site, cpu_id)
-  -- matches construct: "system.site.<S>.cpu.<id>.KB_BIT_MASK.heartbeat"
-  return flatten_path(string.format(
-    "system.site.%s.cpu.%s.KB_BIT_MASK.heartbeat", site, cpu_id))
+  return flatten_path(ndc_paths.heartbeat_path(site, cpu_id))
 end
 
 function M.ready_bits_node_id(site)
-  -- matches construct: "system.site.<S>.KB_BIT_MASK.ready_bits"
-  return flatten_path(string.format(
-    "system.site.%s.KB_BIT_MASK.ready_bits", site))
+  return flatten_path(ndc_paths.ready_bits_path(site))
 end
 
 ---------------------------------------------------------------------------

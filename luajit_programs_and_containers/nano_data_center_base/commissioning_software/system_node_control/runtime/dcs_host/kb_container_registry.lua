@@ -32,7 +32,8 @@
 -- for writes or (result, err) for reads.
 -- =============================================================================
 
-local dkjson = require("dkjson")
+local dkjson    = require("dkjson")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 
@@ -102,8 +103,7 @@ function M.path(site, cpu_id, container_name)
   if type(container_name) ~= "string" or container_name == "" then
     error("M.path: container_name required")
   end
-  return string.format("system.site.%s.cpu.%s.%s.%s",
-                       site, cpu_id, M.LABEL, container_name)
+  return ndc_paths.cpu_path(site, cpu_id, M.LABEL .. "." .. container_name)
 end
 
 ---------------------------------------------------------------------------
@@ -179,8 +179,7 @@ end
 ---------------------------------------------------------------------------
 
 function M.list_by_cpu(conn, site, cpu_id)
-  local prefix = string.format("system.site.%s.cpu.%s.%s",
-                               escape_sql(site), escape_sql(cpu_id), M.LABEL)
+  local prefix = escape_sql(ndc_paths.cpu_path(site, cpu_id, M.LABEL))
   local rows, err = fetch_all(conn, string.format(
     "SELECT k.path, k.name, k.properties AS properties, s.data AS data " ..
     "FROM knowledge_base k " ..

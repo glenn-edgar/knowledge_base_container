@@ -32,6 +32,7 @@ local bit_mask_helpers = require("bit_mask_helpers")
 local kb_status        = require("kb_status")
 local kb_exception     = require("kb_exception")
 local kb_log           = require("kb_log")
+local ndc_paths        = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- paths
@@ -225,8 +226,7 @@ function M.run_loop(ctx)
   -- Pre-build the per-CPU KB_LOG paths once. The pg conn may not be up
   -- on the first burst; we guard on it before each push. Writes are
   -- pcalled so a transient pg hiccup never crashes the tick loop.
-  local cpu_log_root = string.format(
-    "system.site.%s.cpu.%s.KB_LOG", ctx.cfg.site, ctx.cfg.cpu_id)
+  local cpu_log_root = ndc_paths.cpu_log_path(ctx.cfg.site, ctx.cfg.cpu_id)
   local LOG_TICK_DURATION_MS = cpu_log_root .. ".tick_duration_ms"
   local LOG_TICKS_PER_BURST  = cpu_log_root .. ".ticks_per_burst"
   local LOG_PG_ROUNDTRIP_MS  = cpu_log_root .. ".pg_roundtrip_ms"

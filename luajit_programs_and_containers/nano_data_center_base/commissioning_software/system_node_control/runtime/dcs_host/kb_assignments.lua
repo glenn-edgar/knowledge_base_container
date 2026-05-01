@@ -23,7 +23,8 @@
 -- two gives a full docker-run spec.
 -- =============================================================================
 
-local dkjson = require("dkjson")
+local dkjson    = require("dkjson")
+local ndc_paths = require("ndc_paths")
 
 local M = {}
 
@@ -62,8 +63,7 @@ end
 ---------------------------------------------------------------------------
 
 function M.list_node_managed(conn, site, cpu_id)
-  local prefix = string.format("system.site.%s.cpu.%s.container",
-                               escape_sql(site), escape_sql(cpu_id))
+  local prefix = escape_sql(ndc_paths.cpu_path(site, cpu_id, "container"))
   local sql = string.format([[
     SELECT
       c.name       AS name,
