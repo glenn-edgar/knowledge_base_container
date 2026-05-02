@@ -322,4 +322,73 @@ function M.mk_url(path)
   return M.gateway_prefix() .. path
 end
 
+---------------------------------------------------------------------------
+-- Tree-by-namespace (Phase B Layer O)
+---------------------------------------------------------------------------
+
+local function quote_literal(s)
+  return "'" .. tostring(s):gsub("'", "''") .. "'"
+end
+
+--- Build a nested tree from SYS_EXCEPTION paths. Each path's segments
+--- become sibling nodes; leaves carry { state, priority, path }.
+--- Internal nodes carry { name, children, leaf_count } (count of leaves
+--- under them).
+---
+--- State derivation mirrors active_alarms: a SYS_EXCEPTION row with
+--- status_table.data->>'status' = true and acknowledged != true is
+--- "unack-active"; ack'd is "ack-active"; status=false + last_state set
+--- is "rtn-unack" or "normal"; shelved overrides.
+function M.build_sys_exception_tree(pg)
+  local sql = [[
+    SELECT k.path::text                AS path,
+           k.properties->>'priority'   AS priority,
+           COALESCE((s.data->>'status')::boolean, false)        AS active,
+           COALESCE((s.data->>'acknowledged')::boolean, false)  AS acked,
+           COALESCE((sh.data->>'value')::boolean, false)        AS shelved
+      FROM knowledge_base k
+      LEFT JOIN knowledge_base_status s
+        ON s.path = k.path
+      LEFT JOIN knowledge_base_status sh
+        ON sh.path = (k.path::text || '.KB_STATUS_FIELD.shelved')::ltree
+     WHERE k.label = 'SYS_EXCEPTION'
+     ORDER BY k.path
+  ]]
+  local rows = pg:query(sql) or {}
+
+  local function classify(r)
+    if r.shelved then return "shelved" end
+    if r.active and not r.acked then return "unack-active" end
+    if r.active and r.acked     then return "ack-active"   end
+    return "normal"
+  end
+
+  local root = { name = "(root)", children = {}, leaf_count = 0 }
+  for _, r in ipairs(rows) do
+    local node = root
+    local segs = {}
+    for seg in r.path:gmatch("[^%.]+") do segs[#segs + 1] = seg end
+    for i, seg in ipairs(segs) do
+      node.children = node.children or {}
+      if not node.children[seg] then
+        node.children[seg] = { name = seg, children = {}, leaf_count = 0,
+                               active_count = 0 }
+      end
+      node = node.children[seg]
+      node.leaf_count = node.leaf_count + 1
+      if r.active and not r.acked then
+        node.active_count = (node.active_count or 0) + 1
+      end
+      if i == #segs then
+        node.is_leaf  = true
+        node.path     = r.path
+        node.priority = tonumber(r.priority) or 4
+        node.state    = classify(r)
+      end
+    end
+  end
+  root.leaf_count = #rows
+  return root
+end
+
 return M

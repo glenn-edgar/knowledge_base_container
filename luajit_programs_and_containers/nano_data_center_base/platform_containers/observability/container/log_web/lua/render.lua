@@ -79,6 +79,7 @@ local CSS = [[
 ]]
 
 local TABS = {
+  { id = "tree",      label = "Tree",             path = "/tree" },
   { id = "live",      label = "Live Operational", path = "/live" },
   { id = "detail",    label = "Log Detail",       path = "/detail" },
   { id = "archival",  label = "Archival",         path = "/archival" },
@@ -130,6 +131,114 @@ end
 function M.error_page(title, tab, msg)
   M.page(title, tab, string.format(
     '<div class="panel"><p class="err">error: %s</p></div>', msg or "(nil)"))
+end
+
+---------------------------------------------------------------------------
+-- Tree renderer (Phase B Layer O)
+--
+-- Recursive <details>/<summary> — pure CSS, no JS, browser-native expand/
+-- collapse. Leaves link to /detail?path=<full_path> so the existing strip-
+-- chart view opens for each KB_LOG.
+---------------------------------------------------------------------------
+
+local TREE_CSS = [[
+<style>
+  .tree { font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+          padding-left: 0.4em; }
+  .tree details { margin: 0; padding: 0; }
+  .tree summary {
+    list-style: none; cursor: pointer; padding: 0.15em 0.4em;
+    border-radius: 3px; user-select: none;
+  }
+  .tree summary::-webkit-details-marker { display: none; }
+  .tree summary:hover { background: #12161c; }
+  .tree summary::before {
+    content: "▸"; display: inline-block; width: 1em; color: var(--muted);
+    transition: transform 0.1s;
+  }
+  .tree details[open] > summary::before { content: "▾"; }
+  .tree .node-name  { color: var(--fg); }
+  .tree .node-count { color: var(--muted); margin-left: 0.5em; font-size: 0.85em; }
+  .tree .leaf {
+    display: block; padding: 0.15em 0.4em 0.15em 1.4em;
+    border-radius: 3px; color: var(--accent); text-decoration: none;
+  }
+  .tree .leaf:hover { background: #12161c; text-decoration: underline; }
+  .tree .leaf .leaf-meta { color: var(--muted); margin-left: 0.6em; font-size: 0.8em; }
+  .tree .kind-badge {
+    display: inline-block; padding: 0 5px; margin-left: 0.4em;
+    border-radius: 3px; font-size: 0.7em; font-weight: 600; border: 1px solid;
+  }
+  .tree ul { list-style: none; margin: 0; padding-left: 1.2em; }
+  .tree li { margin: 0; }
+</style>
+]]
+
+M.tree_css = TREE_CSS
+
+local function sorted_child_keys(children)
+  local keys = {}
+  for k in pairs(children or {}) do keys[#keys + 1] = k end
+  table.sort(keys)
+  return keys
+end
+
+--- Render one tree node (and all descendants).
+--- node: { name, children?, is_leaf?, path?, kind?, sample_count?, leaf_count? }
+--- leaf_url_fn: function(path) -> string  (called for each leaf's href)
+--- open_top: if true, the top-level <details> is rendered open.
+function M.render_tree_node(node, leaf_url_fn, open_top)
+  local h_ = require("helpers")
+  local parts = {}
+  local function emit(s) parts[#parts + 1] = s end
+
+  if node.is_leaf then
+    local kind = node.kind or "diagnostic"
+    local kind_class = "kind-" .. kind
+    emit(string.format(
+      '<a class="leaf" href="%s"><span>%s</span>' ..
+      '<span class="kind-badge %s">%s</span>' ..
+      '<span class="leaf-meta">%d sample%s</span></a>',
+      h_.escape(leaf_url_fn(node.path)),
+      h_.escape(node.name),
+      kind_class, h_.escape(kind),
+      node.sample_count or 0,
+      (node.sample_count or 0) == 1 and "" or "s"))
+    return table.concat(parts, "")
+  end
+
+  -- Internal node: <details><summary>name (count)</summary><ul>...</ul></details>
+  emit(open_top and '<details open>' or '<details>')
+  emit(string.format(
+    '<summary><span class="node-name">%s</span>' ..
+    '<span class="node-count">(%d)</span></summary>',
+    h_.escape(node.name or ""),
+    node.leaf_count or 0))
+  emit('<ul>')
+  for _, k in ipairs(sorted_child_keys(node.children)) do
+    local child = node.children[k]
+    emit('<li>')
+    emit(M.render_tree_node(child, leaf_url_fn, false))
+    emit('</li>')
+  end
+  emit('</ul>')
+  emit('</details>')
+  return table.concat(parts, "")
+end
+
+--- Render the whole tree starting from root. Skips root summary; renders
+--- each top-level child of root open-by-default.
+function M.render_tree(root, leaf_url_fn)
+  local parts = { TREE_CSS, '<div class="tree">' }
+  if not root.children or next(root.children) == nil then
+    parts[#parts + 1] = '<p class="empty">no entries.</p></div>'
+    return table.concat(parts, "")
+  end
+  for _, k in ipairs(sorted_child_keys(root.children)) do
+    parts[#parts + 1] = M.render_tree_node(root.children[k], leaf_url_fn, true)
+  end
+  parts[#parts + 1] = '</div>'
+  return table.concat(parts, "")
 end
 
 return M

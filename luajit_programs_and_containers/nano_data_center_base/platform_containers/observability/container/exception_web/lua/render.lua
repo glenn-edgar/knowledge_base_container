@@ -112,6 +112,7 @@ local CSS = [[
 ]]
 
 local TABS = {
+  { id = "tree",     label = "Tree",          path = "/tree"     },
   { id = "overview", label = "Site Overview", path = "/overview" },
   { id = "active",   label = "Active Alarms", path = "/alarms"   },
   { id = "journal",  label = "Alarm Journal", path = "/journal"  },
@@ -161,6 +162,105 @@ end
 function M.error_page(title, tab, msg)
   M.page(title, tab, string.format(
     '<div class="panel"><p class="err">error: %s</p></div>', msg or "(no message)"))
+end
+
+---------------------------------------------------------------------------
+-- Tree renderer (Phase B Layer O)
+--
+-- Recursive <details>/<summary> — pure CSS, no JS, browser-native expand/
+-- collapse. Leaves link to /detail?path=<full_path> so the existing alarm
+-- detail view opens for each SYS_EXCEPTION.
+---------------------------------------------------------------------------
+
+local TREE_CSS = [[
+<style>
+  .tree { font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+          padding-left: 0.4em; }
+  .tree details { margin: 0; padding: 0; }
+  .tree summary {
+    list-style: none; cursor: pointer; padding: 0.15em 0.4em;
+    border-radius: 3px; user-select: none;
+  }
+  .tree summary::-webkit-details-marker { display: none; }
+  .tree summary:hover { background: #12161c; }
+  .tree summary::before {
+    content: "▸"; display: inline-block; width: 1em; color: var(--muted);
+  }
+  .tree details[open] > summary::before { content: "▾"; }
+  .tree .node-name  { color: var(--fg); }
+  .tree .node-count { color: var(--muted); margin-left: 0.5em; font-size: 0.85em; }
+  .tree .node-active { color: var(--st-unack-active); margin-left: 0.4em;
+                       font-size: 0.8em; font-weight: 700; }
+  .tree .leaf {
+    display: block; padding: 0.15em 0.4em 0.15em 1.4em;
+    border-radius: 3px; color: var(--accent); text-decoration: none;
+  }
+  .tree .leaf:hover { background: #12161c; text-decoration: underline; }
+  .tree .leaf .leaf-meta { color: var(--muted); margin-left: 0.6em; font-size: 0.8em; }
+  .tree ul { list-style: none; margin: 0; padding-left: 1.2em; }
+  .tree li { margin: 0; }
+</style>
+]]
+
+local function sorted_child_keys(children)
+  local keys = {}
+  for k in pairs(children or {}) do keys[#keys + 1] = k end
+  table.sort(keys)
+  return keys
+end
+
+function M.render_tree_node(node, leaf_url_fn, open_top)
+  local h_ = require("helpers")
+  local parts = {}
+  local function emit(s) parts[#parts + 1] = s end
+
+  if node.is_leaf then
+    local state_cls = "st-" .. (node.state or "normal")
+    emit(string.format(
+      '<a class="leaf" href="%s"><span>%s</span>' ..
+      '<span class="state-badge %s">%s</span>' ..
+      '<span class="leaf-meta">priority %d</span></a>',
+      h_.escape(leaf_url_fn(node.path)),
+      h_.escape(node.name),
+      state_cls, h_.escape(node.state or "normal"),
+      node.priority or 4))
+    return table.concat(parts, "")
+  end
+
+  emit(open_top and '<details open>' or '<details>')
+  local active_badge = ""
+  if (node.active_count or 0) > 0 then
+    active_badge = string.format('<span class="node-active">%d active</span>',
+      node.active_count)
+  end
+  emit(string.format(
+    '<summary><span class="node-name">%s</span>' ..
+    '<span class="node-count">(%d)</span>%s</summary>',
+    h_.escape(node.name or ""),
+    node.leaf_count or 0,
+    active_badge))
+  emit('<ul>')
+  for _, k in ipairs(sorted_child_keys(node.children)) do
+    emit('<li>')
+    emit(M.render_tree_node(node.children[k], leaf_url_fn, false))
+    emit('</li>')
+  end
+  emit('</ul>')
+  emit('</details>')
+  return table.concat(parts, "")
+end
+
+function M.render_tree(root, leaf_url_fn)
+  local parts = { TREE_CSS, '<div class="tree">' }
+  if not root.children or next(root.children) == nil then
+    parts[#parts + 1] = '<p class="empty">no entries.</p></div>'
+    return table.concat(parts, "")
+  end
+  for _, k in ipairs(sorted_child_keys(root.children)) do
+    parts[#parts + 1] = M.render_tree_node(root.children[k], leaf_url_fn, true)
+  end
+  parts[#parts + 1] = '</div>'
+  return table.concat(parts, "")
 end
 
 return M

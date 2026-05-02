@@ -252,6 +252,58 @@ function M.list_logs_with_summary(pg, kind_filter)
   return rows
 end
 
+---------------------------------------------------------------------------
+-- Tree-by-namespace (Phase B Layer O)
+---------------------------------------------------------------------------
+
+--- Build a nested tree from KB_LOG paths. Each path's segments become
+--- sibling nodes; leaves carry { kind, sample_count, path }. Internal
+--- nodes carry only { name, children, leaf_count } (sum of leaves under
+--- them).
+---
+--- Returns the tree root: { name, children = { ... }, leaf_count }.
+function M.build_kb_log_tree(pg)
+  -- KB_LOG paths + kind. Sample counts joined per-leaf via the
+  -- KB_STREAM_FIELD.samples child path on knowledge_base_stream.
+  local sql = [[
+    SELECT k.path::text AS path,
+           k.properties->>'kind' AS kind,
+           COALESCE(sc.n, 0) AS sample_count
+      FROM knowledge_base k
+      LEFT JOIN LATERAL (
+        SELECT count(*)::bigint AS n
+          FROM knowledge_base_stream s
+         WHERE s.path = (k.path::text || '.KB_STREAM_FIELD.samples')::ltree
+      ) sc ON true
+     WHERE k.label = 'KB_LOG'
+     ORDER BY k.path
+  ]]
+  local rows = pg:query(sql) or {}
+
+  local root = { name = "(root)", children = {}, leaf_count = 0 }
+  for _, r in ipairs(rows) do
+    local node = root
+    local segs = {}
+    for seg in r.path:gmatch("[^%.]+") do segs[#segs + 1] = seg end
+    for i, seg in ipairs(segs) do
+      node.children = node.children or {}
+      if not node.children[seg] then
+        node.children[seg] = { name = seg, children = {}, leaf_count = 0 }
+      end
+      node = node.children[seg]
+      node.leaf_count = node.leaf_count + 1
+      if i == #segs then
+        node.is_leaf     = true
+        node.path        = r.path
+        node.kind        = r.kind
+        node.sample_count = tonumber(r.sample_count) or 0
+      end
+    end
+  end
+  root.leaf_count = #rows
+  return root
+end
+
 --- List all KB_RULE paths site-wide with parent log, props + state.
 function M.list_all_rules(pg)
   local sql = [[
