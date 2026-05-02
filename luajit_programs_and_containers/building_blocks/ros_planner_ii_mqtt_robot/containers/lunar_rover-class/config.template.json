@@ -1,0 +1,18 @@
+{
+    "robot_id": "${ROBOT_ID}",
+    "site": "${VMRT_KB_SITE}",
+    "mqtt_host": "${MQTT_HOST}",
+    "mqtt_port": ${MQTT_PORT},
+    "robot_class": "${ROBOT_CLASS}",
+    "remote_json": "${CLASS_ROOT}/remote.json",
+    "physics_dir": "${CLASS_ROOT}",
+    "energy_max": ${ENERGY_MAX},
+    "energy_infinite": ${ENERGY_INFINITE},
+    "wire_format": "${WIRE_FORMAT}",
+    "speed_factor": ${SPEED_FACTOR},
+    "capabilities": [
+        "init_check", "path_spline", "path_line",
+        "path_rotate", "deliver_part", "paint_sample", "load_shipping",
+        "pass_gate", "inspection_scan", "recharge", "idle"
+    ]
+}

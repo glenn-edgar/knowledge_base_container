@@ -73,7 +73,27 @@ void              comm_set_logger       (comm_logger_fn fn, int level);
 uint32_t          comm_now_ms           (void);
 ]]
 
-local C = ffi.load("./libcomm.so")
+local function load_lib()
+    local info = debug.getinfo(1, "S")
+    local src = info.source:match("@(.*)")
+    local script_dir = src and src:match("(.*/)") or "./"
+    -- Use "" (filtered below) instead of nil for unset env so ipairs
+    -- doesn't short-circuit at index 1 when LIBCOMM_PATH is missing.
+    local candidates = {
+        os.getenv("LIBCOMM_PATH") or "",
+        script_dir .. "libcomm.so",
+        "./libcomm.so",
+        "libcomm",
+    }
+    for _, c in ipairs(candidates) do
+        if c and c ~= "" then
+            local ok, lib = pcall(ffi.load, c)
+            if ok then return lib end
+        end
+    end
+    error("comm_ffi: cannot load libcomm.so")
+end
+local C = load_lib()
 
 local M = { C = C }
 

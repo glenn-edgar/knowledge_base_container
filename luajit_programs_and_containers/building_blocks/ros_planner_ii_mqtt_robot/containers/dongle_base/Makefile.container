@@ -1,0 +1,51 @@
+# Makefile.container -- builds the dongle_base static archives + .so
+# variants used by class images.
+#
+# Outputs:
+#   libcomm.a, libcomm.so          -- USB framing + bus_kernel + router + link
+#                                     (.a for class robot_sim final-link;
+#                                      .so for Lua FFI consumers)
+#   libphysics.a, libphysics.so    -- simulation (same dual-output rationale)
+#
+# Class images consume these via:
+#   FROM mycorp/dongle_base:1.0  (multi-stage builder + runtime)
+# The class final-links robot_sim with libcomm.a + libphysics.a, and
+# Lua FFI loads libcomm.so + libphysics.so at runtime.
+
+CC      = gcc
+AR      = ar
+CFLAGS  = -O2 -fPIC -Wall -Wextra -Wno-unused-parameter -std=c99
+LDSHARED = -shared -lm
+
+LIBPHYSICS_A   = libphysics.a
+LIBPHYSICS_SO  = libphysics.so
+LIBCOMM_A      = libcomm.a
+LIBCOMM_SO     = libcomm.so
+
+PHYSICS_OBJS = physics_core.o
+LIBCOMM_SRCS = libcomm/comm.c libcomm/frame.c libcomm/transport_inproc.c \
+               libcomm/transport_uart.c libcomm/ext_bus_linux_pty.c \
+               libcomm/manifest.c libcomm/router.c libcomm/link.c \
+               libcomm/bus_kernel_linux.c libcomm/logical_robot.c
+LIBCOMM_OBJS = $(LIBCOMM_SRCS:.c=.o)
+
+.PHONY: all
+all: $(LIBPHYSICS_A) $(LIBPHYSICS_SO) $(LIBCOMM_A) $(LIBCOMM_SO)
+
+physics_core.o: physics_core.c
+	$(CC) $(CFLAGS) -I. -c $< -o $@
+
+libcomm/%.o: libcomm/%.c
+	$(CC) $(CFLAGS) -Ilibcomm -I. -c $< -o $@
+
+$(LIBPHYSICS_A): $(PHYSICS_OBJS)
+	$(AR) rcs $@ $^
+
+$(LIBPHYSICS_SO): $(PHYSICS_OBJS)
+	$(CC) $(LDSHARED) $^ -o $@
+
+$(LIBCOMM_A): $(LIBCOMM_OBJS)
+	$(AR) rcs $@ $^
+
+$(LIBCOMM_SO): $(LIBCOMM_OBJS)
+	$(CC) $(LDSHARED) $^ -o $@ -lpthread

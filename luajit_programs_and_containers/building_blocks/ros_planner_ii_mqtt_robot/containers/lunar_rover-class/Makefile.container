@@ -1,0 +1,42 @@
+# Makefile.container -- lunar_rover-class final-link.
+#
+# Inputs (from dongle_base):
+#   /opt/dongle_base/lib/libcomm.a, libphysics.a   static archives
+#   /opt/dongle_base/include/libcomm/*.h           headers
+#
+# Class-supplied (in /build/class):
+#   robot_sim/main.c, robot_sim/dongle_threads.c   sim host (still
+#                                                  here until vtable
+#                                                  abstraction lands)
+#   libcomm/drive_base_robot.c                     class logical_robot
+#                                                  impl
+#
+# Output: robot_sim/robot_sim (single static-linked binary; no .so deps
+# beyond libc/libpthread/libm).
+
+CC      = gcc
+CFLAGS  = -O2 -Wall -Wextra -std=c99
+DONGLE  = /opt/dongle_base
+INCLUDES = -I$(DONGLE)/include -I$(DONGLE)/include/libcomm -I.
+
+ROBOT_SIM = robot_sim/robot_sim
+
+# Class-specific C: drive_base impl + sim host + dongle_threads.
+# main.c #include "drive_base_robot.h" today, so for now main.c stays
+# in the class. Vtable refactor will lift it into dongle_base.
+CLASS_SRCS = robot_sim/main.c \
+             robot_sim/dongle_threads.c \
+             libcomm/drive_base_robot.c
+
+# Static archives produced by dongle_base.
+DONGLE_LIBS = $(DONGLE)/lib/libcomm.a $(DONGLE)/lib/libphysics.a
+
+.PHONY: all
+all: $(ROBOT_SIM)
+
+$(ROBOT_SIM): $(CLASS_SRCS)
+	mkdir -p robot_sim
+	$(CC) $(CFLAGS) $(INCLUDES) \
+	    $(CLASS_SRCS) $(DONGLE_LIBS) \
+	    -lpthread -lm \
+	    -o $(ROBOT_SIM)

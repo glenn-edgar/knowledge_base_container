@@ -1,0 +1,20 @@
+{
+    "robot_sim": {
+        "argv": [
+            "/opt/apps/lunar_rover/robot_sim/robot_sim",
+            "--type",     "${DONGLE_TYPE}",
+            "--instance", "${DONGLE_INSTANCE}",
+            "--addr",     "${SLAVE_ADDR}",
+            "--tunables", "/opt/apps/lunar_rover/tunables.bin"
+        ],
+        "env": {}
+    },
+    "mqtt_robot": {
+        "argv": [
+            "luajit",
+            "/opt/dongle_base/lua/mqtt_robot_main.lua",
+            "/run/robot/config.json"
+        ],
+        "env": {}
+    }
+}

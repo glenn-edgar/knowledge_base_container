@@ -1,0 +1,7 @@
+# Build context contains stage/ + Dockerfile + Makefile.container only.
+# .dockerignore excludes everything else from the context to keep image
+# pushes / cache invalidation tight.
+*
+!Dockerfile
+!stage
+!stage/**
