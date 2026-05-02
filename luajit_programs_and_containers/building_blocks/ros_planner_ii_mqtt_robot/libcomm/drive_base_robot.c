@@ -67,6 +67,25 @@ typedef struct {
 extern void phys_read_pose       (phys_t *p, phys_pose_t *out);
 extern void phys_read_path_status(phys_t *p, phys_path_status_t *out);
 
+// Tool primitives (L6 catalogue).
+typedef struct {
+    uint32_t flags;
+    int32_t  kind;
+    double   value;
+    double   target;
+    double   payload_mass;
+    double   battery_j;
+    double   battery_capacity_j;
+} phys_tool_status_t;
+
+extern void phys_read_tool_status(phys_t *p, int slot, phys_tool_status_t *out);
+extern int  phys_begin_tool_move (phys_t *p, int slot, double target, double speed);
+extern int  phys_begin_grip      (phys_t *p, int slot);
+extern int  phys_begin_release   (phys_t *p, int slot);
+extern int  phys_begin_dock      (phys_t *p, int slot);
+extern int  phys_begin_charge    (phys_t *p, int slot, double target_j);
+extern int  phys_station_at_pose (phys_t *p, int kind);
+
 // ============ HELPERS — bus_msg_t builders ============
 
 static inline void put_le_u16(uint8_t *p, uint16_t v) {
@@ -198,6 +217,22 @@ int drive_base_decode_seg_done(const bus_msg_t       *m,
     if (cmd != DRV_EVT_SEG_DONE || m->payload_len != 8) return -1;
     out->seg_id             = get_le_u32(m->payload + 0);
     out->energy_at_complete = get_f32   (m->payload + 4);
+    return 0;
+}
+
+int drive_base_decode_tool_status(const bus_msg_t          *m,
+                                  drive_base_tool_status_t *out)
+{
+    if (!m || !out) return -1;
+    uint16_t cmd = (uint16_t)m->cmd_lo | ((uint16_t)m->cmd_hi << 8);
+    if (cmd != DRV_CMD_GET_TOOL_STATUS || m->payload_len != 28) return -1;
+    out->flags              = get_le_u32(m->payload +  0);
+    out->kind               = (int32_t)get_le_u32(m->payload + 4);
+    out->value              = get_f32   (m->payload +  8);
+    out->target             = get_f32   (m->payload + 12);
+    out->payload_mass       = get_f32   (m->payload + 16);
+    out->battery_j          = get_f32   (m->payload + 20);
+    out->battery_capacity_j = get_f32   (m->payload + 24);
     return 0;
 }
 
@@ -336,6 +371,73 @@ static void drive_base_on_msg_fn(void *self_, const bus_msg_t *m)
                                  break;
     case DRV_CMD_TELEMETRY_ON:   s->telemetry_enabled = 1; break;
     case DRV_CMD_TELEMETRY_OFF:  s->telemetry_enabled = 0; break;
+    case DRV_CMD_BEGIN_GRIP: {
+        if (m->payload_len < 1) return;
+        (void)phys_begin_grip(s->phys, (int)m->payload[0]);
+        break;
+    }
+    case DRV_CMD_BEGIN_RELEASE: {
+        if (m->payload_len < 1) return;
+        (void)phys_begin_release(s->phys, (int)m->payload[0]);
+        break;
+    }
+    case DRV_CMD_BEGIN_DOCK: {
+        if (m->payload_len < 1) return;
+        (void)phys_begin_dock(s->phys, (int)m->payload[0]);
+        break;
+    }
+    case DRV_CMD_BEGIN_CHARGE: {
+        if (m->payload_len < 5) return;
+        int   slot     = (int)m->payload[0];
+        float target_j = get_f32(m->payload + 1);
+        (void)phys_begin_charge(s->phys, slot, (double)target_j);
+        break;
+    }
+    case DRV_CMD_TOOL_MOVE: {
+        if (m->payload_len < 9) return;
+        int   slot   = (int)m->payload[0];
+        float target = get_f32(m->payload + 1);
+        float speed  = get_f32(m->payload + 5);
+        (void)phys_begin_tool_move(s->phys, slot, (double)target, (double)speed);
+        break;
+    }
+    case DRV_CMD_GET_TOOL_STATUS: {
+        // Master polls tool state; response is 28 B mirroring
+        // phys_tool_status_t (doubles → floats). seq echoes request.
+        if (!s->outbound || m->payload_len < 1) break;
+        int slot = (int)m->payload[0];
+        phys_tool_status_t ts;
+        phys_read_tool_status(s->phys, slot, &ts);
+
+        bus_msg_t resp;
+        msg_clear(&resp, 0, m->seq, DRV_CMD_GET_TOOL_STATUS);
+        resp.src_addr   = s->bus_addr;
+        resp.payload_len = 28;
+        put_le_u32(resp.payload +  0, ts.flags);
+        put_le_u32(resp.payload +  4, (uint32_t)ts.kind);
+        put_f32   (resp.payload +  8, (float)ts.value);
+        put_f32   (resp.payload + 12, (float)ts.target);
+        put_f32   (resp.payload + 16, (float)ts.payload_mass);
+        put_f32   (resp.payload + 20, (float)ts.battery_j);
+        put_f32   (resp.payload + 24, (float)ts.battery_capacity_j);
+        (void)bus_msgq_put(s->outbound, &resp);
+        break;
+    }
+    case DRV_CMD_GET_STATION: {
+        // Master queries "is the rover docked at a station of `kind`?".
+        // Response: 4 B i32 (negative = none, else station index).
+        if (!s->outbound || m->payload_len < 1) break;
+        int kind = (int)m->payload[0];
+        int idx  = phys_station_at_pose(s->phys, kind);
+
+        bus_msg_t resp;
+        msg_clear(&resp, 0, m->seq, DRV_CMD_GET_STATION);
+        resp.src_addr   = s->bus_addr;
+        resp.payload_len = 4;
+        put_le_u32(resp.payload + 0, (uint32_t)(int32_t)idx);
+        (void)bus_msgq_put(s->outbound, &resp);
+        break;
+    }
     case DRV_CMD_GET_TELEMETRY: {
         // Request-response: master polls; we reply with current state
         // as a 32-byte payload. Manager refrains from auto-ACK'ing

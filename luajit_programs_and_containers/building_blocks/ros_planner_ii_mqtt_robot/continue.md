@@ -1,4 +1,4 @@
-# continue.md — 2026-05-02 end-of-session handoff (3-layer refactor green)
+# continue.md — 2026-05-02 end-of-session handoff (3-layer + L6 green)
 
 **Open here next session.** Three pieces of state to be aware of:
 
@@ -23,6 +23,16 @@
    `Summary: cmds=6 ack=6 hb=168 done=6 (6 ok / 0 fail)`. Boot
    fail-stop on missing ROBOT_ID and on ROBOT_CLASS mismatch both
    fire. SIGTERM teardown clean.
+
+5. **L6 drive_base tool catalogue shipped + e2e green.** 7 new wire
+   opcodes (BEGIN_GRIP/RELEASE/DOCK/CHARGE/TOOL_MOVE + GET_TOOL_STATUS
+   + GET_STATION). Slave-side dispatch in `libcomm/drive_base_robot.c`
+   calls `phys_begin_*`. Master-side `dongle_hal.lua` replaces the tool
+   stubs with real `comm_submit` + poll-for-response. Mission workers
+   needed **zero changes** — `WKR_DELIVER_PART / PAINT_SAMPLE /
+   LOAD_SHIPPING / RECHARGE` already called the right hal:* methods,
+   they just stopped erroring out on the dongle path. Mixed-mode e2e:
+   `cmds=10 ack=10 done=10 (10 ok / 0 fail)`.
 
 4. **Static-link policy.** Everything we build is statically linked
    into the rover binary (libcomm.a + libphysics.a → robot_sim). Lua
@@ -78,30 +88,20 @@ docker rm -f rover_smoke; pkill -f test_mock_planner.lua
 
 ## Locked roadmap (greenlit 2026-05-02)
 
-### 1. L6 drive_base tool catalogue (NEXT)
+### 1. L6 drive_base tool catalogue ✅ DONE 2026-05-02 evening
 
-Add `BEGIN_GRIP / RELEASE / DOCK / CHARGE / TOOL_MOVE` to the wire
-catalogue so mixed_* MQTT scenarios pass. Touches:
-- `comm_manifest.lua` — 5 cmd structs + 5 event structs
-- `libcomm/drive_base_robot.c` — handlers
-- `physics_core.c` — tool slot state machine (begin_tool_move/grip/
-  release/dock/charge primitives already partially exposed)
-- `dongle_hal.lua`, `drive_base_ffi.lua` — master dispatch
-- `robot_controller.lua`, `remote_user_functions.lua`, `remote.json` —
-  worker funcs per command
+7 wire opcodes added (BEGIN_GRIP/RELEASE/DOCK/CHARGE/TOOL_MOVE +
+GET_TOOL_STATUS + GET_STATION). Mixed e2e 10/10 green. Mission-side
+needed zero changes.
 
-This robot is throw-away → don't agonize over TOOL_MOVE coordinate
-space; pick whatever physics_core.c already has and run with it.
-
-~1.5–2 sessions. Both DOCK and CHARGE are paired (dock parks; charge
-transfers). Either can fail mid-action — clean abort path needed.
-
-### 2. Test harness consolidation (folded into L6 mixed_* tests)
+### 2. Test harness consolidation (NEXT)
 
 Extract `planner_test_peer.lua` from test_mock_planner.lua +
 test_random_paths.lua boilerplate. Generic mission-side handshake +
 heartbeat + RPC peer with `:send/:wait_for/:expect_telemetry/:expect_done`
-methods. Each new mixed_* test becomes ~30 lines on top.
+methods. Each new mixed_* test becomes ~30 lines on top. Also remove
+the requirement that test_mock_planner be a separate process — the
+peer can serve both roles for self-contained tests.
 
 Also write `robot_controller_test_peer.lua` + `robot_controller_contract.md`
 **before** Phase 2 implementation. Harness defines the contract; service
@@ -149,23 +149,21 @@ be54aa4e  continue.md: robot container design locked, code next session
 - `feedback_chaintree_runtime_fixes.md` — chain-tree gotchas.
 - `feedback_chaintree_verify_event_filter.md` — verify event filter.
 
-## Working tree state
+## Working tree state (post-L6, post-3-layer)
 
-Modified:
-- `comm_ffi.lua` — load_lib fallback chain. Two fixes: (1) absolute
-  fallback so container doesn't depend on cwd, (2) `or ""` so ipairs
-  doesn't short-circuit at index 1 when LIBCOMM_PATH env is unset.
+3-layer container stack landed in `cb1f5bc9` and pushed to origin/master.
 
-New:
-- `containers/robot_base/` (Dockerfile, docker_build.sh, supervisor/)
-- `containers/dongle_base/` (Dockerfile, Makefile.container,
-  docker_build.sh, .dockerignore) — NEW middle layer holding USB
-  protocol + internal bus + virtual-robot framework + master-side Lua
-  + test harness.
-- `containers/lunar_rover-class/` (Dockerfile, Makefile.container,
-  docker_build.sh, config.template.json, class_processes.json,
-  .dockerignore)
-- `containers/.gitignore` (excludes stage/)
+L6 modifications (uncommitted at end of session):
+- `libcomm/drive_base_robot.h` — 7 new opcode #defines + tool_status decoder
+- `libcomm/drive_base_robot.c` — 5 BEGIN_*, GET_TOOL_STATUS,
+  GET_STATION cases in `on_msg_fn` + `drive_base_decode_tool_status`
+- `drive_base_ffi.lua` — new CMD/TOOL_F/TOOL_KIND/STATION_KIND
+  constants + 4 builders + 2 decoders
+- `dongle_hal.lua` — real implementations of `begin_grip / begin_release
+  / begin_dock / begin_charge / begin_tool_move / read_tool_status /
+  station_at_pose`, slot name resolution from physics_config.tools
+- `robot_hal.lua` — pass `dir / physics_config / sim_map` opts through
+  to dongle_hal so the master can resolve slot names
 
-Nothing committed yet. Suggested commit message:
-`containers: 3-layer rover stack (robot_base + dongle_base + lunar_rover-class), paths_only 6/6 green`
+Nothing else changed in the rover dir. Suggested commit message:
+`L6: drive_base tool catalogue (7 wire opcodes), mixed e2e 10/10 green`

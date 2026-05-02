@@ -215,6 +215,19 @@ function hal_mt:_poll_for_completion(h, timeout_ms)
     return C.comm_status(h), nil
 end
 
+-- Slot resolution: number passes through; string looks up in
+-- tool_slot_by_name (built from physics_config.tools at hal:new).
+-- Defined here so methods below can reference it (Lua local
+-- forward references don't work, so resolve_slot must precede its
+-- callers in the file).
+local function resolve_slot(self, slot_or_name)
+    if type(slot_or_name) == "string" then
+        return self.tool_slot_by_name[slot_or_name]
+            or error("dongle_hal: unknown tool slot '" .. slot_or_name .. "'")
+    end
+    return slot_or_name or 0
+end
+
 -- step() is a no-op on the dongle path: physics runs autonomously
 -- inside robot_sim at whatever phys_step cadence drive_base owns.
 -- Matters only on the sim path.
@@ -260,24 +273,24 @@ function hal_mt:read_path_status()
     }
 end
 
--- Tools aren't in the drive_base catalogue yet (paths_only e2e). We
--- return a benign stub so the controller's energy-poll path doesn't
--- crash. Battery comes back from energy_used_total bookkeeping;
--- for full tool support, extend the catalogue with DRV_CMD_GET_TOOL.
-function hal_mt:read_tool_status(_slot)
-    self:_drain()
-    -- Cap battery at the configured initial_j proxy. We don't actually
-    -- have battery_j on the wire today; return a constant high value
-    -- so the controller never enters low-energy abort.
-    local big = 1.0e7
-    return {
-        flags              = 0,
-        kind               = 0,
-        value              = 0.0,
-        target             = 0.0,
-        payload_mass       = 0.0,
-        battery_j          = big,
-        battery_capacity_j = big,
+-- L6 tool catalogue: poll DRV_CMD_GET_TOOL_STATUS over libcomm and
+-- decode the 28-byte response into the same shape physics_ffi returns
+-- on the sim path. resolve_slot accepts numeric slots OR names from
+-- physics_config.tools (e.g. "charge_port" → 2).
+function hal_mt:read_tool_status(slot)
+    local s = resolve_slot(self, slot)
+    local b, n = db.build_slot_only(s)
+    local h, err = ct_comm.submit(self.mcu, db.CMD.GET_TOOL_STATUS, b, n)
+    if h == 0 then
+        error(string.format("dongle_hal: GET_TOOL_STATUS submit failed (err=%d)", err))
+    end
+    local status, ev = self:_poll_for_completion(h, 200)
+    if status ~= R.OK or ev == nil or ev.payload_len ~= 28 then
+        error(string.format("dongle_hal: GET_TOOL_STATUS not ACKed (status=%d)", status))
+    end
+    return db.decode_tool_status(ev) or {
+        flags = 0, kind = 0, value = 0, target = 0,
+        payload_mass = 0, battery_j = 0, battery_capacity_j = 0,
     }
 end
 
@@ -334,6 +347,16 @@ function hal_mt:abort_path()    self:_submit_simple(db.CMD.ABORT)
                                 self._path.last_done_seg_id = 0   -- match abort semantics
                                 end
 
+-- Same as _submit_simple but with a payload buffer + length.
+function hal_mt:_submit_simple_payload(cmd, buf, len)
+    local h, err = ct_comm.submit(self.mcu, cmd, buf, len)
+    if h == 0 then
+        error(string.format("dongle_hal: comm_submit failed (cmd=0x%04x err=%d)",
+                            cmd, err))
+    end
+    self:_poll_for_completion(h, 200)
+end
+
 function hal_mt:is_stopped()
     self:_drain()
     return bit.band(self._path.flags, db.PATH_F.STOPPED) ~= 0
@@ -343,14 +366,51 @@ function hal_mt:queue_depth()       self:_drain(); return self._path.queue_depth
 function hal_mt:active_seg_id()     self:_drain(); return self._path.active_seg_id end
 function hal_mt:last_done_seg_id()  self:_drain(); return self._path.last_done_seg_id end
 
--- Tools — stubs.
-function hal_mt:begin_tool_move(_slot, _target, _speed)
-    error("dongle_hal: begin_tool_move not in v1 catalogue")
+-- L6 tool builders. All ack-only (return code is implicit in ACK vs NAK).
+-- Slot accepts numeric OR name; name resolution mirrors physics_ffi.
+function hal_mt:begin_grip(slot)
+    self:_submit_simple_payload(db.CMD.BEGIN_GRIP,
+                                db.build_slot_only(resolve_slot(self, slot)))
 end
-function hal_mt:begin_grip(_slot)    error("dongle_hal: begin_grip not in v1 catalogue") end
-function hal_mt:begin_release(_slot) error("dongle_hal: begin_release not in v1 catalogue") end
-function hal_mt:begin_dock(_slot)    error("dongle_hal: begin_dock not in v1 catalogue") end
-function hal_mt:begin_charge(_slot)  error("dongle_hal: begin_charge not in v1 catalogue") end
+function hal_mt:begin_release(slot)
+    self:_submit_simple_payload(db.CMD.BEGIN_RELEASE,
+                                db.build_slot_only(resolve_slot(self, slot)))
+end
+function hal_mt:begin_dock(slot)
+    self:_submit_simple_payload(db.CMD.BEGIN_DOCK,
+                                db.build_slot_only(resolve_slot(self, slot)))
+end
+function hal_mt:begin_charge(slot, target_j)
+    self:_submit_simple_payload(db.CMD.BEGIN_CHARGE,
+                                db.build_begin_charge(resolve_slot(self, slot),
+                                                       target_j or 0.0))
+end
+function hal_mt:begin_tool_move(slot, target, speed)
+    self:_submit_simple_payload(db.CMD.TOOL_MOVE,
+                                db.build_tool_move(resolve_slot(self, slot),
+                                                    target, speed or 0.0))
+end
+
+-- Station query — used by recharge worker to check "are we at a charger?".
+-- Returns negative on none, else station index.
+function hal_mt:station_at_pose(kind)
+    local k
+    if type(kind) == "string" then
+        k = self.station_kind_by_name[kind] or 0
+    else
+        k = kind or 0
+    end
+    local b, n = db.build_kind_only(k)
+    local h, err = ct_comm.submit(self.mcu, db.CMD.GET_STATION, b, n)
+    if h == 0 then
+        error(string.format("dongle_hal: GET_STATION submit failed (err=%d)", err))
+    end
+    local status, ev = self:_poll_for_completion(h, 200)
+    if status ~= R.OK or ev == nil or ev.payload_len ~= 4 then
+        error(string.format("dongle_hal: GET_STATION not ACKed (status=%d)", status))
+    end
+    return db.decode_station(ev) or -1
+end
 
 -- ============ CONSTANTS ============
 -- Mirror what physics_ffi exposes so robot_controller doesn't care
@@ -360,11 +420,32 @@ function hal_mt:begin_charge(_slot)  error("dongle_hal: begin_charge not in v1 c
 
 local PATH_F       = { TRACKING = 0x01, STOPPED = 0x02, QUEUE_EMPTY = 0x04,
                        FAULT = 0x08, SEG_DONE = 0x10 }
-local TOOL_F       = {}
-local TOOL_KIND    = {}
-local STATION_KIND = {}
+local TOOL_F       = db.TOOL_F        -- mirror physics_ffi (AT_TARGET, GRASPED, ...)
+local TOOL_KIND    = db.TOOL_KIND
+local STATION_KIND = db.STATION_KIND
 
 -- ============ FACTORY ============
+
+local function load_json(path)
+    local ok, json_util = pcall(require, "json_util")
+    if not ok then return nil end
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local content = f:read("*a"); f:close()
+    local ok2, decoded = pcall(json_util.decode, content)
+    return ok2 and decoded or nil
+end
+
+-- Build name → slot table from physics_config.tools, mirroring what
+-- physics_ffi does in sim mode. Lets WKR_RECHARGE_INIT etc. call
+-- hal:begin_charge("charge_port", ...) on the dongle path too.
+local function build_tool_slot_map(physics_config)
+    local map = {}
+    for _, t in ipairs((physics_config and physics_config.tools) or {}) do
+        if t.name and t.slot then map[t.name] = t.slot end
+    end
+    return map
+end
 
 function M.new(opts)
     opts = opts or {}
@@ -376,6 +457,14 @@ function M.new(opts)
     local dongle_instance = opts.dongle_instance or 1
     local slave_addr      = opts.slave_addr      or 1
     local mcu             = opts.mcu             or 1
+
+    -- Class config lookups for tool/station name resolution.
+    local physics_config = opts.physics_config
+    if not physics_config and opts.dir then
+        physics_config = load_json(opts.dir .. "/physics_config.json")
+    end
+    local tool_slot_by_name = build_tool_slot_map(physics_config)
+    local station_kind_by_name = STATION_KIND
 
     local pkt   = build_one_dongle_packet(dongle_type, dongle_instance,
                                           slave_addr, mcu)
@@ -410,6 +499,8 @@ function M.new(opts)
         TOOL_F       = TOOL_F,
         TOOL_KIND    = TOOL_KIND,
         STATION_KIND = STATION_KIND,
+        tool_slot_by_name = tool_slot_by_name,
+        station_kind_by_name = station_kind_by_name,
     }, hal_mt)
 
     -- No TELEMETRY_ON: libcomm filters unsolicited s2m frames. Master

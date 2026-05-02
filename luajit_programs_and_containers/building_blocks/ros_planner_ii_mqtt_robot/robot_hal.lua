@@ -48,6 +48,12 @@ function M.new(opts)
             dongle_instance = opts.dongle_instance,
             slave_addr      = opts.slave_addr,
             mcu             = opts.mcu,
+            -- L6 tool catalogue: master needs the same tool/station
+            -- name → slot/kind tables physics_ffi builds for sim mode.
+            -- Pass the class config dir so dongle_hal can load them.
+            dir             = opts.dir,
+            physics_config  = opts.physics_config,
+            sim_map         = opts.sim_map,
         })
     end
 

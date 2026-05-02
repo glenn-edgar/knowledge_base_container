@@ -37,19 +37,33 @@ extern "C" {
 
 // ============ CMD/EVT CODES ============
 
-#define DRV_CMD_PUSH_LINE     0x1001u
-#define DRV_CMD_PUSH_SPLINE   0x1002u
-#define DRV_CMD_PUSH_ROTATE   0x1003u
-#define DRV_CMD_STOP          0x1010u
-#define DRV_CMD_RESUME        0x1011u
-#define DRV_CMD_ABORT         0x1012u
-#define DRV_CMD_TELEMETRY_ON  0x1020u    // master enables periodic events
-#define DRV_CMD_TELEMETRY_OFF 0x1021u    // and disables them
-#define DRV_CMD_GET_TELEMETRY 0x1031u    // request-response: master poll (L5 path)
+#define DRV_CMD_PUSH_LINE       0x1001u
+#define DRV_CMD_PUSH_SPLINE     0x1002u
+#define DRV_CMD_PUSH_ROTATE     0x1003u
+#define DRV_CMD_STOP            0x1010u
+#define DRV_CMD_RESUME          0x1011u
+#define DRV_CMD_ABORT           0x1012u
+#define DRV_CMD_TELEMETRY_ON    0x1020u    // master enables periodic events
+#define DRV_CMD_TELEMETRY_OFF   0x1021u    // and disables them
+#define DRV_CMD_GET_TELEMETRY   0x1031u    // request-response: master poll (L5 path)
 
-#define DRV_EVT_TELEMETRY     0x1080u
-#define DRV_EVT_SEG_DONE      0x1081u    // seg_id = master_seq, not libphysics internal
-#define DRV_EVT_FAULT         0x1082u
+// L6 tool catalogue — request-response per command. Master submits;
+// slave dispatches to phys_begin_* and ACKs (return code in payload).
+// Master polls DRV_CMD_GET_TOOL_STATUS to observe completion via
+// TOOL_F_AT_TARGET / TOOL_F_FAULT bits (mirrors phys_tool_status_t).
+#define DRV_CMD_GET_TOOL_STATUS 0x1032u    // payload: u8 slot;
+                                           // resp 28 B (see drive_base_tool_status_t)
+#define DRV_CMD_GET_STATION     0x1033u    // payload: u8 kind;
+                                           // resp 4 B  (i32 station_idx; -1 = none)
+#define DRV_CMD_BEGIN_GRIP      0x1040u    // payload: u8 slot
+#define DRV_CMD_BEGIN_RELEASE   0x1041u    // payload: u8 slot
+#define DRV_CMD_BEGIN_DOCK      0x1042u    // payload: u8 slot
+#define DRV_CMD_BEGIN_CHARGE    0x1043u    // payload: u8 slot, f32 target_j     (5 B)
+#define DRV_CMD_TOOL_MOVE       0x1044u    // payload: u8 slot, f32 target, f32 speed (9 B)
+
+#define DRV_EVT_TELEMETRY       0x1080u
+#define DRV_EVT_SEG_DONE        0x1081u    // seg_id = master_seq, not libphysics internal
+#define DRV_EVT_FAULT           0x1082u
 
 // ============ TUNABLES ============
 // Mirrors the relevant subset of physics_config.json. Single packed
@@ -218,6 +232,22 @@ typedef struct {
 
 int drive_base_decode_seg_done(const bus_msg_t       *m,
                                drive_base_seg_done_t *out);
+
+// Tool status — wire-format mirror of phys_tool_status_t with doubles
+// downcast to floats for bandwidth. 28 B total. Matches the 28-byte
+// payload of GET_TOOL_STATUS responses.
+typedef struct {
+    uint32_t flags;                 // TOOL_F_* (see physics_pipe.h)
+    int32_t  kind;                  // tool kind id
+    float    value;                 // current tool position / fill
+    float    target;                // commanded target
+    float    payload_mass;          // currently grasped payload (kg)
+    float    battery_j;             // current charge (J)
+    float    battery_capacity_j;    // max charge (J)
+} drive_base_tool_status_t;
+
+int drive_base_decode_tool_status(const bus_msg_t          *m,
+                                  drive_base_tool_status_t *out);
 
 #ifdef __cplusplus
 }

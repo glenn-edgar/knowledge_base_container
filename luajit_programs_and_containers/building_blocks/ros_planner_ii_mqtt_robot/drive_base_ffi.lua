@@ -17,15 +17,42 @@ local M = {}
 -- ============ CATALOGUE CODES ============
 
 M.CMD = {
-    PUSH_LINE      = 0x1001,
-    PUSH_SPLINE    = 0x1002,
-    PUSH_ROTATE    = 0x1003,
-    STOP           = 0x1010,
-    RESUME         = 0x1011,
-    ABORT          = 0x1012,
-    TELEMETRY_ON   = 0x1020,
-    TELEMETRY_OFF  = 0x1021,
-    GET_TELEMETRY  = 0x1031,    -- request-response: master poll (L5)
+    PUSH_LINE        = 0x1001,
+    PUSH_SPLINE      = 0x1002,
+    PUSH_ROTATE      = 0x1003,
+    STOP             = 0x1010,
+    RESUME           = 0x1011,
+    ABORT            = 0x1012,
+    TELEMETRY_ON     = 0x1020,
+    TELEMETRY_OFF    = 0x1021,
+    GET_TELEMETRY    = 0x1031,    -- request-response: master poll (L5)
+    GET_TOOL_STATUS  = 0x1032,    -- L6: poll tool slot (resp 28 B)
+    GET_STATION      = 0x1033,    -- L6: poll station_at_pose (resp 4 B)
+    BEGIN_GRIP       = 0x1040,    -- L6: payload u8 slot
+    BEGIN_RELEASE    = 0x1041,    -- L6: payload u8 slot
+    BEGIN_DOCK       = 0x1042,    -- L6: payload u8 slot
+    BEGIN_CHARGE     = 0x1043,    -- L6: payload u8 slot, f32 target_j
+    TOOL_MOVE        = 0x1044,    -- L6: payload u8 slot, f32 target, f32 speed
+}
+
+-- Tool flag bits (mirror physics_pipe.h TOOL_F_*).
+M.TOOL_F = {
+    AT_TARGET = 0x01,
+    GRASPED   = 0x02,
+    RELEASED  = 0x04,
+    DOCKED    = 0x08,
+    CHARGING  = 0x10,
+    FAULT     = 0x80,
+}
+
+-- TOOL_KIND / STATION_KIND mirror physics_ffi values. The IDs are
+-- enumerated in physics_core.c; we use the same numeric encoding.
+M.TOOL_KIND = {
+    arm = 1, gripper = 2, charge_port = 3,
+}
+M.STATION_KIND = {
+    none = 0, charger = 1, load_dock = 2,
+    paint_fixture = 3, assembly_fixture = 4,
 }
 
 M.EVT = {
@@ -125,6 +152,35 @@ function M.build_simple()
     return nil, 0
 end
 
+-- L6 tool builders. Slot is u8; floats are LE f32. Buffer caller-discardable.
+
+function M.build_slot_only(slot)
+    local b = alloc(1)
+    b[0] = bit.band(slot, 0xFF)
+    return b, 1
+end
+
+function M.build_begin_charge(slot, target_j)
+    local b = alloc(5)
+    b[0] = bit.band(slot, 0xFF)
+    put_f32(b, 1, target_j)
+    return b, 5
+end
+
+function M.build_tool_move(slot, target, speed)
+    local b = alloc(9)
+    b[0] = bit.band(slot, 0xFF)
+    put_f32(b, 1, target)
+    put_f32(b, 5, speed)
+    return b, 9
+end
+
+function M.build_kind_only(kind)
+    local b = alloc(1)
+    b[0] = bit.band(kind, 0xFF)
+    return b, 1
+end
+
 -- ============ EVENT DECODERS ============
 -- Take a comm_event_t (from comm_poll) and decode the payload. cmd
 -- is matched against M.EVT.*. Return nil on mismatch.
@@ -159,6 +215,38 @@ function M.decode_seg_done(event)
         seg_id              = get_le_u32(p, 0),  -- master_seq, 0..255 (zero-extended)
         energy_at_complete  = get_f32   (p, 4),
     }
+end
+
+-- L6 GET_TOOL_STATUS response decoder. 28-byte payload mirrors
+-- phys_tool_status_t with doubles downcast to floats. Layout matches
+-- libcomm/drive_base_robot.c GET_TOOL_STATUS handler.
+function M.decode_tool_status(event)
+    if event.cmd ~= M.CMD.GET_TOOL_STATUS or event.payload_len ~= 28 then
+        return nil
+    end
+    local p = event.payload
+    return {
+        flags              = get_le_u32(p,  0),
+        kind               = get_le_u32(p,  4),
+        value              = get_f32   (p,  8),
+        target             = get_f32   (p, 12),
+        payload_mass       = get_f32   (p, 16),
+        battery_j          = get_f32   (p, 20),
+        battery_capacity_j = get_f32   (p, 24),
+    }
+end
+
+-- L6 GET_STATION response decoder. 4-byte payload = i32 station index
+-- (-1 = none).
+function M.decode_station(event)
+    if event.cmd ~= M.CMD.GET_STATION or event.payload_len ~= 4 then
+        return nil
+    end
+    -- get_le_u32 returns unsigned; sign-extend manually since the wire
+    -- value is i32 (and -1 is the "none" sentinel).
+    local u = get_le_u32(event.payload, 0)
+    if u >= 0x80000000 then u = u - 0x100000000 end
+    return u
 end
 
 return M
