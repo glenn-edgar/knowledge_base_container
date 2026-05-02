@@ -224,6 +224,28 @@ function Construct_KB:leave_header_node(label, name)
     end
 end
 
+--- Run `body(self)` between paired add_header_node / leave_header_node
+--- calls. Eliminates the add/leave pairing-hazard bug class. If `body`
+--- raises, the header is still popped before the error propagates, so
+--- the path stack ends in a consistent state. Mirrors the postgres DSL.
+function Construct_KB:with_header(link, name, properties, data, description, body)
+    self:add_header_node(link, name, properties, data, description)
+    local ok, err = pcall(body, self)
+    self:leave_header_node(link, name)
+    if not ok then error(err, 0) end
+end
+
+--- Run `body(self)` with a different working KB selected, restoring
+--- the previous working_kb afterward. Survives errors the same way
+--- as with_header. Mirrors the postgres DSL.
+function Construct_KB:with_kb(kb_name, body)
+    local prior = self.working_kb
+    self:select_kb(kb_name)
+    local ok, err = pcall(body, self)
+    self.working_kb = prior
+    if not ok then error(err, 0) end
+end
+
 --- Add a link node at the current path
 --- @param link_name string  Link name
 function Construct_KB:add_link_node(link_name)
