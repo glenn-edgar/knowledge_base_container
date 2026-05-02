@@ -1,6 +1,121 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-01 EVENING session — Phase B Layer M-1 DONE + overnight soak underway
+## State at end of 2026-05-02 session — Phase B Layer M-2 DONE — namespace migration complete
+
+Phase B Layer M (namespace migration) is **fully done**. M-1 centralized path
+composition; M-2 today flipped the path shape from `system.site.<S>.*` →
+`system.<sys>.site.<S>.*` and renamed `moonbase.alpha.dcs` → `moon_base /
+moon_base_alpha`. Cluster is live on the new shape and 5-min soak is green.
+
+### What landed today (1 commit, 28 files, +375/-115)
+
+| Commit | Scope |
+|---|---|
+| `9c2daee1` | Phase B Layer M-2: rename + system_name segment + KB DSL `path_prefix` (the structural enabling change discovered mid-session) |
+
+**Headline structural change beyond the original M-2 scope.** The KB DSL
+walker emits paths starting at the kb_name; with kb_name = `"system"` it
+produced `system.site.<S>.*` (legacy), bypassing `ndc_paths`. Solution:
+`construct_kb.lua:add_kb()` (postgres + sqlite) gained an optional
+`path_prefix` argument that initializes the path stack to a multi-segment
+root. `build_kb.lua` calls `add_kb("system", "...", { "system", SYSTEM_NAME })`
+so paths now root at `system.<sys>.*` while the logical kb_name stays
+`"system"` — every `WHERE knowledge_base = 'system'` filter in production
+code keeps matching. `check_installation` was updated to compare against the
+remembered prefix instead of the legacy `{ kb_name }` baseline.
+
+Containers also gained an `APP_SYSTEM` env var (parallel to `APP_SITE`).
+node_control's container launcher injects it; the supervisor and platform
+containers (observability + dcs_console) configure `ndc_paths` from it at
+module load. `nginx.conf` adds `env APP_SYSTEM;` in the admin + gateway
+slots.
+
+### Today's rebuild + soak
+
+| Step | Result |
+|---|---|
+| 5 platform images rebuilt (luajit_base, openresty_base, observability, dcs_console, docker_host_broker) | green |
+| First `build_kb.sh` attempt | rows still at legacy shape — discovered DSL walker bypasses `ndc_paths` |
+| `add_kb` `path_prefix` fix + re-build | 4477 rows under `system.moon_base.site.*`, 18 under `system.moon_base.container_definition.*`, **0 rows at legacy `system.site.*`** |
+| `slice_bootstrap.sh` | cpu_01=2014 rows, cpu_02=581 rows (matches Phase A baseline) |
+| `stage_deploy.sh --mode=dev` | runtime symlinks + env.sh preserved |
+| `phase6_preflight.sh` | all checks PASS |
+| Broker re-run with `-e SYSTEM=moon_base -e SITE=moon_base_alpha` | pgwriter connected, healthcheck OK |
+| Boot cpu_01 master + cpu_02 slave | identity log = `system=moon_base site=moon_base_alpha`, exactly 1 dcs.lua per CPU |
+| 5-min soak health check | `system_ready={"value":1}`, both peers ACTIVE under new path shape, heartbeats ~2-3s old, zero SYS_EXCEPTIONs, zero panics in error.log |
+
+### **First action next session — verify soak survived overnight**
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+export PGPASSWORD=$(docker exec pg-vector printenv POSTGRES_PASSWORD)
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+# 1. processes still 1 dcs.lua per CPU?
+pgrep -af "dcs\.lua" | grep -v claude
+
+# 2. peers still ACTIVE under NEW path shape?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data FROM knowledge_base_status \
+   WHERE path::text LIKE '%peer_state%' OR path::text LIKE '%system_ready' \
+   ORDER BY path"
+
+# 3. heartbeat freshness (age_s should be <15s)
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT node_id, extract(epoch from now())-bit_mask/1e9 AS age_s \
+   FROM bit_mask_table WHERE node_id LIKE '%heartbeat%' ORDER BY node_id"
+
+# 4. any SYS_EXCEPTIONs raised overnight?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data->>'last_error' \
+   FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+
+# 5. zero rows at legacy shape (sanity)
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base WHERE path::text LIKE 'system.site.%'"
+# expect: 0
+```
+
+If all-clean: open Layer **O** (observability tree-by-namespace). If any
+check regresses, rollback `9c2daee1`:
+
+```bash
+cd $NDC_BASE
+git revert --no-edit 9c2daee1
+# Then rebuild + reslice + restage + reboot.
+```
+
+### Layer ordering after M-2 (unchanged from prior plan)
+
+```
+M-2 (DONE)  →  short soak  →  O (observability tree-by-namespace)  →  F + A + I  →  N  →  V
+```
+
+### **Next session — Layer O (observability tree-by-namespace)**
+
+Lands BEFORE F so app-container logs (`app_containers.<c>.runtime.*`,
+`app_containers.<c>.KB_LOG.*`) are visible in the tree from day one of app
+onboarding. Single session — backend + frontend live in the same container
+(`platform_containers/observability/container/{log_web,exception_web}`).
+
+**Scope:**
+- Server: extend `log_web/lua/helpers.lua` + `exception_web/lua/helpers.lua`
+  with a tree-build query (`SELECT path, count(*) FROM knowledge_base_stream
+  GROUP BY path` etc.) returning a node tree keyed by ltree segments.
+  Each segment becomes a tree node; leaves are the actual log/exception
+  streams.
+- Client: htmx-driven expand/collapse view per node. Clicking a leaf opens
+  the existing strip-chart / detail pane.
+- Path math now reads `system.<sys>.site.<s>.cpu.<id>.container.<c>.KB_LOG.<sample>`
+  (stable thanks to M-2).
+
+**Checkpoint:** operator can navigate the full KB log/exception namespace as
+a tree.
+
+---
+
+## Historical: end of 2026-05-01 EVENING session — Phase B Layer M-1 DONE
 
 Phase B Layer M (namespace migration) is split into M-1 (path-composition
 centralization, finished tonight) and M-2 (the actual rename, still pending).
@@ -356,7 +471,8 @@ Total: 4–6 sessions for Phase B as scoped above (was 3–5 before O insertion)
 | 2 | Container base + RPC methods (Phase 6.4) | ✅ Done |
 | 3 | **Condense for build (this restructure)** | ✅ DONE 2026-05-01 |
 | 3.5 | Phase B Layer M-1 — path-composition centralization | ✅ DONE 2026-05-01 evening (`bfeb2afb`..`b9175a0e`) |
-| 4 | KB-driven everything (file store, three-tier config, catalog hydration) | 🔲 (M-2 rename next) |
+| 3.6 | Phase B Layer M-2 — namespace rename + system_name segment | ✅ DONE 2026-05-02 (`9c2daee1`) |
+| 4 | KB-driven everything (file store, three-tier config, catalog hydration) | 🔲 (Layer O next, then F+A+I) |
 | 5 | App-container build documentation | 🔲 (gated by Layer O after M-2) |
 | 6 | Log-analysis web UI by KB namespace tree | 🔲 (now scoped as Phase B Layer O — lands BEFORE app port) |
 | 7 | v1 done = soak-node + 30-day adversarial soak | 🔲 |
