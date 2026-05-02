@@ -94,18 +94,20 @@ docker rm -f rover_smoke; pkill -f test_mock_planner.lua
 GET_TOOL_STATUS + GET_STATION). Mixed e2e 10/10 green. Mission-side
 needed zero changes.
 
-### 2. Test harness consolidation (NEXT)
+### 2. Test harness consolidation ✅ DONE 2026-05-02 evening
 
-Extract `planner_test_peer.lua` from test_mock_planner.lua +
-test_random_paths.lua boilerplate. Generic mission-side handshake +
-heartbeat + RPC peer with `:send/:wait_for/:expect_telemetry/:expect_done`
-methods. Each new mixed_* test becomes ~30 lines on top. Also remove
-the requirement that test_mock_planner be a separate process — the
-peer can serve both roles for self-contained tests.
+`planner_test_peer.lua` extracted. mock_planner + test_random_paths
+both refactored as thin wrappers. New `--self-host` flag on
+test_random_paths drives the entire e2e from one process (no separate
+mock_planner needed). Backwards compat preserved.
 
-Also write `robot_controller_test_peer.lua` + `robot_controller_contract.md`
-**before** Phase 2 implementation. Harness defines the contract; service
-implementation is graded against the green harness.
+Self-host paths_only e2e: `cmds=6 ack=6 hb=423 done=6 (6 ok / 0 fail)`.
+Self-host mixed e2e:      `cmds=10 ack=10 hb=670 done=10 (10 ok / 0 fail)`.
+
+Still TODO before Phase 2:
+- `robot_controller_test_peer.lua` + `robot_controller_contract.md`
+  defining the contract for the future Phase-2 service. Harness first,
+  implementation graded against green harness.
 
 ### 3. mkdocs site
 

@@ -73,7 +73,10 @@ cp "$BB_ROOT/knowledge_base/mqtt/libmqtt_pubsub.so" \
    "$STAGE/native_libs/"
 
 # Test harness (mission-side peer + scenario runner). Lives with the
-# base so any class image inherits a runnable harness.
+# base so any class image inherits a runnable harness. The peer is
+# the reusable building block; mock_planner + random_paths are the
+# legacy entry points that both delegate to it.
+cp "$ROVER_SRC/planner_test_peer.lua"  "$STAGE/test_harness/"
 cp "$ROVER_SRC/test_mock_planner.lua"  "$STAGE/test_harness/"
 cp "$ROVER_SRC/test_random_paths.lua"  "$STAGE/test_harness/"
 

@@ -1,25 +1,33 @@
 --[[
-    test_random_paths.lua -- Mimic a planner: publish random command
-    sequences to the robot's RPC topic. Subscribe to stream_bus to print
-    heartbeats + kb_done messages.
+    test_random_paths.lua -- Generates random missions, drives them
+    against a rover, summarises kb_dones.
+
+    After the planner_test_peer extraction, this script is a scenario
+    generator + thin runner. The peer handles the link handshake +
+    heartbeat keep-alive + dispatch + done collection.
+
+    --self-host (default: false): if set, the peer brings the rover live
+                                  itself instead of relying on a
+                                  separately-running test_mock_planner.
 
     Usage:
-       luajit test_random_paths.lua [--robot rover_1] [--site ...]
+       luajit test_random_paths.lua [--robot rover_1]
+                                    [--site moonbase.alpha.surface_ops]
                                     [--host localhost] [--port 1883]
-                                    [--seed 42] [--count 20] [--mode mixed]
+                                    [--seed 42] [--count 20]
+                                    [--mode mixed|paths_only|single_action]
+                                    [--workspace 3.0]
+                                    [--wait 90] [--self-host]
                                     [--verbose]
-
-    --mode  mixed | paths_only | single_action
 ]]
 
-local json_util = require("json_util")
-local pubsub    = require("lib.mqtt_pubsub")
+local planner_test_peer = require("planner_test_peer")
 
 -- ---------- arg parse ----------
 local args = { robot = "rover_1", site = "moonbase.alpha.surface_ops",
                host = "localhost", port = 1883, seed = 1, count = 20,
                mode = "mixed", verbose = false, wait = 90,
-               workspace = 3.0 }
+               workspace = 3.0, self_host = false }
 do
     local i = 1
     while i <= #arg do
@@ -34,6 +42,7 @@ do
         elseif a == "--verbose" then args.verbose = true; i = i + 1
         elseif a == "--wait" then args.wait = tonumber(arg[i+1]); i = i + 2
         elseif a == "--workspace" then args.workspace = tonumber(arg[i+1]); i = i + 2
+        elseif a == "--self-host" then args.self_host = true; i = i + 1
         else
             io.stderr:write("unknown arg: " .. a .. "\n"); os.exit(1)
         end
@@ -42,21 +51,12 @@ end
 
 math.randomseed(args.seed)
 
-local site_path = args.site:gsub("%.", "/")
-local rpc_topic    = site_path .. "/robots/" .. args.robot .. "/rpc"
-local stream_topic = site_path .. "/robots/" .. args.robot .. "/stream_bus"
-
 io.stderr:write(string.format(
     "test_random_paths: robot=%s host=%s:%d seed=%d count=%d mode=%s workspace=%.1fm\n",
     args.robot, args.host, args.port, args.seed, args.count, args.mode, args.workspace))
 
-local ps = pubsub.PubSub.new(args.host, args.port, "test_random_" .. args.seed)
-ps:connect(5000)
-ps:subscribe(stream_topic, 1)
+-- ---------- scenario builders (unchanged from pre-extraction) ----------
 
--- ---------- generators ----------
-
--- Type IDs (mirror command_packets)
 local T = {
     INIT_CHECK      = 1,
     PATH_SPLINE     = 2,
@@ -72,11 +72,7 @@ local T = {
 }
 
 local function rand_range(a, b) return a + math.random() * (b - a) end
-
--- Seed current pose (keep segments continuous)
 local pose = { x = 0, y = 0, h = 0 }
-local seq, test_id = 0, 2000
-
 local commands = {}
 
 local function emit_line(speed)
@@ -101,7 +97,6 @@ local function emit_spline(speed)
     local dy = rand_range(-args.workspace, args.workspace)
     if math.abs(dx) + math.abs(dy) < 0.3 then dx = dx + 1.0 end
     local to_x, to_y = pose.x + dx, pose.y + dy
-    -- bias to_heading toward chord direction so it looks natural
     local chord_h = math.atan2(to_y - pose.y, to_x - pose.x)
     local to_h = chord_h + rand_range(-0.3, 0.3)
     commands[#commands+1] = {
@@ -132,15 +127,10 @@ local function emit_action(kind)
     end
 end
 
--- ---------- build the mission ----------
-
 local function build_mixed()
-    -- init_check first
     commands[#commands+1] = { packet_type = T.INIT_CHECK, params = {}, energy = 50 }
     for i = 1, args.count do
         local r = math.random()
-        -- Prefer splines heavily; line segments with sharp heading changes
-        -- cause corner-cutting that drifts from the harness's pose model.
         if r < 0.20 then emit_line()
         elseif r < 0.80 then emit_spline()
         elseif r < 0.90 then emit_action("idle")
@@ -158,81 +148,44 @@ local function build_paths_only()
     end
 end
 
-local function build_single_action()
-    emit_action("idle")
-end
+local function build_single_action() emit_action("idle") end
 
-if args.mode == "paths_only"   then build_paths_only()
+if     args.mode == "paths_only"    then build_paths_only()
 elseif args.mode == "single_action" then build_single_action()
-else                                 build_mixed()
-end
-
--- Annotate seq/test_id
-for i, c in ipairs(commands) do
-    c.seq = seq; c.test_id = test_id
-    seq = seq + 1; test_id = test_id + 1
+else                                     build_mixed()
 end
 
 io.stderr:write(string.format("  built %d commands\n", #commands))
 
--- ---------- publish all commands (burst) ----------
-for _, c in ipairs(commands) do
-    ps:publish(rpc_topic, json_util.encode(c), 1, false)
-    if args.verbose then
-        io.stderr:write("  -> " .. json_util.encode(c) .. "\n")
+-- ---------- run ----------
+
+local peer = planner_test_peer.new{
+    robot   = args.robot, site = args.site,
+    host    = args.host,  port = args.port,
+    verbose = args.verbose,
+}
+
+if args.self_host then
+    -- Run-as-planner: bring the rover live ourselves. Otherwise assume
+    -- a test_mock_planner is already running on the broker.
+    local ok, err = peer:bring_robot_live(15)
+    if not ok then
+        io.stderr:write("test_random_paths: " .. err .. "\n")
+        peer:close(); os.exit(2)
     end
 end
 
--- ---------- listen for stream responses ----------
-
-local deadline = os.time() + args.wait
-local stats = { ack = 0, heartbeat = 0, kb_done = 0, success = 0, fail = 0 }
-local expected = #commands - 1  -- init_check may or may not return kb_done; we tally actuals
-local seen_done = 0
-
+peer:send_batch(commands)
 io.stderr:write(string.format("  listening %ds for stream events...\n", args.wait))
-while os.time() < deadline do
-    local msgs = ps:poll(200)
-    for _, m in ipairs(msgs) do
-        local ok, ev = pcall(json_util.decode, m.payload)
-        if ok and ev then
-            if ev.type == "ack" then
-                stats.ack = stats.ack + 1
-                if args.verbose then
-                    io.stderr:write(string.format("  ACK seq=%s test=%s\n", tostring(ev.seq), tostring(ev.test_id)))
-                end
-            elseif ev.type == "heartbeat" then
-                stats.heartbeat = stats.heartbeat + 1
-                if args.verbose and stats.heartbeat % 20 == 1 then
-                    io.stderr:write(string.format("  HB phase=%s worker=%s x=%.2f y=%.2f h=%.2f\n",
-                        tostring(ev.phase), tostring(ev.worker),
-                        tonumber(ev.global_x) or 0,
-                        tonumber(ev.global_y) or 0,
-                        tonumber(ev.global_heading) or 0))
-                end
-            elseif ev.type == "kb_done" then
-                stats.kb_done = stats.kb_done + 1
-                seen_done = seen_done + 1
-                if ev.success then stats.success = stats.success + 1 else stats.fail = stats.fail + 1 end
-                io.stderr:write(string.format("  DONE test=%s success=%s dx=%s dy=%s dh=%s energy=%s%s\n",
-                    tostring(ev.test_id), tostring(ev.success),
-                    tostring(ev.delta_x), tostring(ev.delta_y), tostring(ev.delta_heading),
-                    tostring(ev.energy_remaining),
-                    ev.fault_reason and (" fault=" .. ev.fault_reason) or ""))
-            end
-        end
-    end
-    if seen_done >= #commands then break end
-end
+local stats = peer:wait_for_dones(#commands, args.wait)
 
 io.stderr:write(string.format(
     "\nSummary: cmds=%d  ack=%d  hb=%d  done=%d (%d ok / %d fail)\n",
-    #commands, stats.ack, stats.heartbeat, stats.kb_done, stats.success, stats.fail))
+    #commands, stats.ack, stats.hb, stats.done, stats.ok, stats.fail))
 
-pcall(function() ps:disconnect() end)
-pcall(function() ps:destroy() end)
+peer:close()
 
-if stats.kb_done < #commands then
+if stats.done < #commands then
     io.stderr:write("WARN: not all commands completed within wait window\n")
     os.exit(2)
 end
