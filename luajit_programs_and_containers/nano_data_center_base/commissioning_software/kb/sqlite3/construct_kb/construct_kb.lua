@@ -81,16 +81,42 @@ end
 -- ============================================================
 
 --- Add a new knowledge base
---- @param kb_name    string  Knowledge base name
+--- @param kb_name     string  Logical KB name (also stored in the
+---                            `knowledge_base` column on every row).
 --- @param description string? Optional description
-function Construct_KB:add_kb(kb_name, description)
+--- @param path_prefix table?  Optional initial path-stack segments.
+---                            Defaults to { kb_name }; pass
+---                            { "system", "<sys>" } to emit paths under
+---                            `system.<sys>.*` while keeping kb_name
+---                            "system" so existing
+---                            WHERE knowledge_base = 'system' filters
+---                            keep matching.
+function Construct_KB:add_kb(kb_name, description, path_prefix)
     description = description or ""
 
     if self.path[kb_name] then
         error(string.format("Knowledge base %s already exists", kb_name))
     end
 
-    self.path[kb_name] = { kb_name }
+    self.path_prefix = self.path_prefix or {}
+    local function copy_segments(src)
+        local out = {}
+        for i, seg in ipairs(src) do out[i] = seg end
+        return out
+    end
+    if path_prefix ~= nil then
+        assert(type(path_prefix) == "table" and #path_prefix > 0,
+               "path_prefix must be a non-empty array of segment strings")
+        for i, seg in ipairs(path_prefix) do
+            assert(type(seg) == "string" and seg ~= "",
+                   string.format("path_prefix[%d] must be a non-empty string", i))
+        end
+        self.path[kb_name]        = copy_segments(path_prefix)
+        self.path_prefix[kb_name] = copy_segments(path_prefix)
+    else
+        self.path[kb_name]        = { kb_name }
+        self.path_prefix[kb_name] = { kb_name }
+    end
     self.path_values[kb_name] = {}
 
     self._kb:add_kb(kb_name, description)
@@ -213,19 +239,23 @@ function Construct_KB:add_link_mount(link_mount_name, description)
         link_mount_name, description)
 end
 
---- Check that all knowledge bases have been properly closed (path stack = just kb_name)
+--- Check that all knowledge bases have been properly closed (path stack
+--- back to the initial prefix passed to add_kb).
 --- @return boolean  true if check passed
 function Construct_KB:check_installation()
     for kb_name, stack in pairs(self.path) do
-        if #stack ~= 1 then
+        local prefix = self.path_prefix and self.path_prefix[kb_name] or { kb_name }
+        if #stack ~= #prefix then
             error(string.format(
                 "Installation check failed: Path is not empty for knowledge base %s. Path: {%s}",
                 kb_name, join_path(stack)))
         end
-        if stack[1] ~= kb_name then
-            error(string.format(
-                "Installation check failed: Path is not empty for knowledge base %s. Path: {%s}",
-                kb_name, join_path(stack)))
+        for i, seg in ipairs(prefix) do
+            if stack[i] ~= seg then
+                error(string.format(
+                    "Installation check failed: Path root mismatch for knowledge base %s. Path: {%s} expected: {%s}",
+                    kb_name, join_path(stack), join_path(prefix)))
+            end
         end
     end
     return true

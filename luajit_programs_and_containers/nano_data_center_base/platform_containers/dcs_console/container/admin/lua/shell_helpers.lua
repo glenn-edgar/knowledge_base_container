@@ -14,6 +14,13 @@ local pgmoon    = require("pgmoon")
 local cjson     = require("cjson.safe")
 local ndc_paths = require("ndc_paths")
 
+-- Configure ndc_paths at module load (once per worker). Idempotent if
+-- another module already configured to the same system_name.
+do
+  local sysname = os.getenv("APP_SYSTEM") or "moon_base"
+  ndc_paths.configure{ system_name = sysname }
+end
+
 local M = {}
 
 ------------------------------------------------------------------------
@@ -100,7 +107,7 @@ end
 local SITE
 local function site()
   if not SITE then
-    SITE = os.getenv("APP_SITE") or "moonbase.alpha.dcs"
+    SITE = os.getenv("APP_SITE") or "moon_base_alpha"
   end
   return SITE
 end
@@ -313,7 +320,7 @@ end
 
 -- Read a CPU's operational flag (written by node_control once its
 -- assigned containers are healthy). Path:
---   system.site.<S>.cpu.<id>.container.node_control...  -- NO, we use
+--   system.<sys>.site.<S>.cpu.<id>.container.node_control...  -- NO, we use
 -- the process_globals-derived KB_STATUS_FIELD under cpu.<id> if
 -- planted. For v1 we just infer operational from:
 --   heartbeat fresh AND ready_bit set.

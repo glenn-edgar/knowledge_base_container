@@ -20,6 +20,7 @@ import (
 	"github.com/nanodatacenter/docker_host_broker/internal/dockercli"
 	"github.com/nanodatacenter/docker_host_broker/internal/httpapi"
 	"github.com/nanodatacenter/docker_host_broker/internal/natspub"
+	"github.com/nanodatacenter/docker_host_broker/internal/pathkb"
 	"github.com/nanodatacenter/docker_host_broker/internal/pgwriter"
 	"github.com/nanodatacenter/docker_host_broker/internal/probes"
 	"github.com/nanodatacenter/docker_host_broker/internal/state"
@@ -28,6 +29,7 @@ import (
 const brokerVersion = "0.2.0-phase2"
 
 type config struct {
+	systemName       string
 	site             string
 	natsURL          string
 	pgDSN            string
@@ -54,7 +56,8 @@ func loadConfig() config {
 		return def
 	}
 	return config{
-		site:            getenvOrDefault("SITE", "moonbase.alpha"),
+		systemName:      getenvOrDefault("SYSTEM", "moon_base"),
+		site:            getenvOrDefault("SITE", "moon_base_alpha"),
 		natsURL:         getenvOrDefault("NATS_URL", "nats://nats-js-ram:4222"),
 		pgDSN:           os.Getenv("PG_DSN"), // empty disables pg mirror
 		httpAddr:        getenvOrDefault("HTTP_ADDR", "127.0.0.1:9100"),
@@ -70,10 +73,14 @@ func main() {
 	cfg := loadConfig()
 
 	log.Printf("docker-host-broker v%s starting", brokerVersion)
-	log.Printf("  site=%s nats=%s http=%s docker=%s",
-		cfg.site, cfg.natsURL, cfg.httpAddr, cfg.dockerHost)
+	log.Printf("  system=%s site=%s nats=%s http=%s docker=%s",
+		cfg.systemName, cfg.site, cfg.natsURL, cfg.httpAddr, cfg.dockerHost)
 	log.Printf("  cadences (s): containers=%d stats=%d heartbeat=%d",
 		cfg.pollContainersS, cfg.pollStatsS, cfg.heartbeatS)
+
+	if err := pathkb.Configure(cfg.systemName); err != nil {
+		log.Fatalf("pathkb.Configure: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

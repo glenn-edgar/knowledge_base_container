@@ -15,7 +15,7 @@
 -- Run with the cluster up:
 --   POSTGRES_PASSWORD=$(docker exec pg-vector printenv POSTGRES_PASSWORD) \
 --     CONTAINER_NAME=test_app_01 APP_CPU_ID=cpu_01 \
---     APP_SITE=moonbase.alpha.dcs \
+--     APP_SYSTEM=moon_base APP_SITE=moon_base_alpha \
 --     luajit construction/tests/test_container_rpc_client_e2e.lua
 -- =============================================================================
 
@@ -31,8 +31,12 @@ local ndc_paths   = require("ndc_paths")
 
 local NAME    = os.getenv("CONTAINER_NAME") or "test_app_01"
 local CPU_ID  = os.getenv("APP_CPU_ID")     or "cpu_01"
-local SITE    = os.getenv("APP_SITE")       or "moonbase.alpha.dcs"
+local SYSTEM  = os.getenv("APP_SYSTEM")     or "moon_base"
+local SITE    = os.getenv("APP_SITE")       or "moon_base_alpha"
 local PG_PASS = os.getenv("POSTGRES_PASSWORD") or os.getenv("PG_PASSWORD")
+
+ndc_paths.configure{ system_name = SYSTEM }
+
 local STATUS_PATH = ndc_paths.site_status_field_path(
                       SITE, "container_state_" .. NAME)
 
@@ -50,7 +54,8 @@ conn:autocommit(true)
 -- Mimic supervisor context.
 local ctx = {
   env = {
-    CONTAINER_NAME = NAME, APP_CPU_ID = CPU_ID, APP_SITE = SITE,
+    CONTAINER_NAME = NAME, APP_CPU_ID = CPU_ID,
+    APP_SYSTEM = SYSTEM, APP_SITE = SITE,
   },
   connectors = { pg = conn },
   log = function(half, msg)

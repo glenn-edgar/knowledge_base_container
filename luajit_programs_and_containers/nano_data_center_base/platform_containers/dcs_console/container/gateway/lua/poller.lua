@@ -74,13 +74,17 @@ local PG = {
   socket_type = "nginx",
 }
 
-local SITE = os.getenv("APP_SITE") or "moonbase.alpha.dcs"
+-- Configure ndc_paths for this worker. Idempotent if route.lua / etc
+-- have already done it.
+ndc_paths.configure{ system_name = os.getenv("APP_SYSTEM") or "moon_base" }
+
+local SITE = os.getenv("APP_SITE") or "moon_base_alpha"
 
 -- Site-level KB status field path. Mirrors construct_dcs_kb.lua's
--- kb:add_status_field at site scope (path = system.site.<SITE>.
--- KB_STATUS_FIELD.<name>). The schema row (knowledge_base) holds the
--- default {"value":15}; the status row (knowledge_base_status) is
--- empty {} until an operator writes a new value.
+-- kb:add_status_field at site scope (path =
+-- system.<system_name>.site.<SITE>.KB_STATUS_FIELD.<name>). The schema row
+-- (knowledge_base) holds the default {"value":15}; the status row
+-- (knowledge_base_status) is empty {} until an operator writes a new value.
 local POLL_CONFIG_PATH = ndc_paths.site_status_field_path(
   SITE, "gateway_poll_interval_sec")
 

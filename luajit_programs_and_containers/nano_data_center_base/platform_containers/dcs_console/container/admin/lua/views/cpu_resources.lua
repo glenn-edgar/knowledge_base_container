@@ -34,7 +34,7 @@ function M.render(cpu_id)
 
   -- Grab last N samples from the stream table, newest first.
   local path = ndc_paths.cpu_path(
-    os.getenv("APP_SITE") or "moonbase.alpha.dcs", cpu_id,
+    os.getenv("APP_SITE") or "moon_base_alpha", cpu_id,
     "monitor.samples.KB_STREAM_FIELD.samples")
   local rs, qerr = pg:query(string.format([[
     SELECT recorded_at, data

@@ -70,7 +70,8 @@ ensure_broker() {
         -v /proc:/host/proc:ro \
         --network planner-net \
         -p 127.0.0.1:9100:9100 \
-        -e SITE=moonbase.alpha.dcs \
+        -e SYSTEM=moon_base \
+        -e SITE=moon_base_alpha \
         -e NATS_URL=nats://nats-js-ram:4222 \
         -e HTTP_ADDR=0.0.0.0:9100 \
         -e PG_DSN="host=pg-vector port=5432 dbname=knowledge_base user=gedgar password=$pg_pw" \

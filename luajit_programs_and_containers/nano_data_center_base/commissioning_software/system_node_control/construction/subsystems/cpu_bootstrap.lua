@@ -24,6 +24,7 @@ return {
     kb:add_info_node("bootstrap", "config",
       { kind = "bootstrap" },
       {
+        system_name        = ctx.SYSTEM_NAME,
         site               = ctx.SITE,
         cpu_id             = cpu_id,
         is_master          = (cpu_id == ctx.MASTER_CPU) and 1 or 0,

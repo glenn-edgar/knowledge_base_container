@@ -2,8 +2,13 @@
 -- topology.lua -- Per-site placement of container instances onto CPUs.
 --
 -- Operator-edited. Holds:
---   site         : enterprise.<...>.dcs path used as the site KB name and
---                  baked into system.site.<SITE>.cpu.<id>.container.<inst>
+--   system_name  : top-level system identifier; baked into
+--                  system.<SYSTEM_NAME>.site.<SITE>.* paths. The
+--                  system.<sys>.site.<s> shape is what gets federated
+--                  to the cloud (one system → many sites).
+--   site         : site identifier under the system; used as the site
+--                  KB name and baked into
+--                  system.<SYSTEM_NAME>.site.<SITE>.cpu.<id>.container.<inst>
 --   master       : id of the CPU that runs system_control + kv_bridge
 --   pg_connect   : where the construct script connects to load the master KB.
 --                  Bootstrap-only; the runtime KB mirrors this under
@@ -20,8 +25,9 @@
 
 return {
 
-  site   = "moonbase.alpha.dcs",
-  master = "cpu_01",
+  system_name = "moon_base",
+  site        = "moon_base_alpha",
+  master      = "cpu_01",
 
   pg_connect = {
     host    = "localhost",

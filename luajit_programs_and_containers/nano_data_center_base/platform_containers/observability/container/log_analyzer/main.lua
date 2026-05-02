@@ -229,6 +229,13 @@ end
 
 local function main()
   log("starting (Phase 6 — real logic)")
+
+  local app_system = os.getenv("APP_SYSTEM")
+  if not app_system or app_system == "" then
+    error("APP_SYSTEM env var missing -- node_control must inject it at container launch")
+  end
+  ndc_paths.configure{ system_name = app_system }
+
   local conn, cfg = pg_connect()
   log(string.format("connected %s@%s:%s/%s", cfg.user, cfg.host, cfg.port, cfg.db))
 
@@ -302,7 +309,7 @@ local function main()
     -- ~4× of the pg push_sample load from this writer.
     if tick_count % 5 == 0 then
       pcall(kb_log.push_sample, conn,
-        ndc_paths.site_path(os.getenv("APP_SITE") or "moonbase.alpha.dcs",
+        ndc_paths.site_path(os.getenv("APP_SITE") or "moon_base_alpha",
                             "KB_LOG.log_analyzer_heartbeat"),
         os.time())
     end

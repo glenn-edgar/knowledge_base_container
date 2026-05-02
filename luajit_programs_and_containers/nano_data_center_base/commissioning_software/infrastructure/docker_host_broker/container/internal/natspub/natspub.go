@@ -59,7 +59,7 @@ type realPublisher struct {
 }
 
 // Connect dials NATS and returns a Publisher whose subjects are
-// rooted at `system.site.<site>.docker_broker.*`. natsURL is the
+// rooted at `system.<sys>.site.<site>.docker_broker.*`. natsURL is the
 // canonical "nats://host:port" URL.
 func Connect(ctx context.Context, natsURL, site string) (Publisher, error) {
 	opts := []nats.Option{

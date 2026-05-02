@@ -9,7 +9,7 @@
 --
 -- Storage model (mirrors SYS_EXCEPTION but fully dynamic):
 --   * Schema row in `knowledge_base` at path
---     `system.site.<S>.cpu.<cpu>.CONTAINER_REGISTRY.<name>`:
+--     `system.<sys>.site.<S>.cpu.<cpu>.CONTAINER_REGISTRY.<name>`:
 --       knowledge_base = "system"
 --       label          = "CONTAINER_REGISTRY"
 --       name           = <container_name>

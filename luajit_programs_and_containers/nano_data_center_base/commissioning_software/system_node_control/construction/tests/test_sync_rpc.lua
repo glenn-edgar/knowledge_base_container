@@ -57,10 +57,13 @@ local PASSWORD = os.getenv("POSTGRES_PASSWORD") or error("POSTGRES_PASSWORD not 
 -- queue tables only get added by sync_queues.lua subsystem on the
 -- next build_kb run, which the user will do themselves.
 
-local CDT     = require("construct_data_tables")
-local sync_q  = require("kb_sync_queue")
-local defs    = require("cfl_definitions")
-local sync_rpc = require("sync_rpc")
+local CDT       = require("construct_data_tables")
+local sync_q    = require("kb_sync_queue")
+local defs      = require("cfl_definitions")
+local sync_rpc  = require("sync_rpc")
+local ndc_paths = require("ndc_paths")
+
+ndc_paths.configure{ system_name = "moon_base" }
 
 local DATABASE = "knowledge_base"   -- matches sync_rpc.DATABASE
 
@@ -116,7 +119,8 @@ local function make_ctx(cpu_id, is_master, peers, log_fn)
       is_master     = is_master and 1 or 0,
       master_cpu    = "cpu_01",
       peers         = peers,
-      site          = "moonbase.alpha",
+      system_name   = "moon_base",
+      site          = "moon_base_alpha",
     },
     connectors = { pg = conn },
     log = log_fn,

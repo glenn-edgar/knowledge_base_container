@@ -2,27 +2,59 @@
 -- ndc_paths.lua -- Single source of truth for the DCS KB path shape.
 --
 -- Every dcs_host module composes ltree paths through these helpers instead
--- of `string.format("system.site.%s....")`. When the path shape changes
--- (Phase B Layer M phase 2 adds a `system.<system_name>` segment in front),
--- only this module and topology / config wiring change -- callers don't.
+-- of `string.format("system.<sys>.site.%s....")`. When the path shape
+-- changes, only this module and topology / config wiring change -- callers
+-- don't.
 --
--- Stateless and pure: every helper takes `site` (and `cpu_id` / etc) as
--- args. No module-private cfg today. When the system_name segment lands,
--- helpers will read it from a one-time `M.configure{system_name=...}` set
--- during dcs.lua bootstrap.
+-- Stateful: a one-time `M.configure{system_name=...}` MUST be called at
+-- bootstrap before any path emission. site is still passed per-call (a
+-- system contains many sites; processes that span multiple sites would
+-- otherwise need a per-site configure shuffle).
 --
--- Shape today: "system.site.<S>.*"
--- Shape after Layer M phase 2: "system.<sys>.site.<S>.*"
+-- Shape: "system.<system_name>.site.<S>.*"
 -- =============================================================================
 
 local M = {}
+
+local cfg = {
+  system_name = nil,
+}
+
+---------------------------------------------------------------------------
+-- one-time configure (call at bootstrap before any path emission)
+---------------------------------------------------------------------------
+
+function M.configure(opts)
+  opts = opts or {}
+  if not opts.system_name or opts.system_name == "" then
+    error("ndc_paths.configure: system_name required")
+  end
+  if cfg.system_name and cfg.system_name ~= opts.system_name then
+    error(string.format(
+      "ndc_paths.configure: already configured with system_name=%q, " ..
+      "refusing to reconfigure to %q",
+      cfg.system_name, opts.system_name))
+  end
+  cfg.system_name = opts.system_name
+end
+
+function M.system_name()
+  return cfg.system_name
+end
+
+local function require_configured()
+  if not cfg.system_name then
+    error("ndc_paths: not configured (call ndc_paths.configure{system_name=...} at bootstrap)")
+  end
+end
 
 ---------------------------------------------------------------------------
 -- General-purpose composers
 ---------------------------------------------------------------------------
 
 function M.site_root(site)
-  return string.format("system.site.%s", site)
+  require_configured()
+  return string.format("system.%s.site.%s", cfg.system_name, site)
 end
 
 function M.site_path(site, suffix)

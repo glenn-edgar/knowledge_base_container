@@ -104,7 +104,7 @@ function M.build(ctx)
     ------------------------------------------------------------------
 
     R.READ_ENVIRONS = function(_h, _n)
-        local want = { "CONTAINER_NAME", "APP_SITE", "APP_CPU_ID",
+        local want = { "CONTAINER_NAME", "APP_SYSTEM", "APP_SITE", "APP_CPU_ID",
                        "PG_HOST", "PG_PORT", "PG_DB", "PG_USER" }
         local missing = {}
         for _, k in ipairs(want) do
@@ -118,8 +118,9 @@ function M.build(ctx)
             return
         end
         log("ctrl", string.format(
-            "identity: container=%s site=%s cpu=%s",
-            ctx.env.CONTAINER_NAME, ctx.env.APP_SITE, ctx.env.APP_CPU_ID))
+            "identity: container=%s system=%s site=%s cpu=%s",
+            ctx.env.CONTAINER_NAME, ctx.env.APP_SYSTEM,
+            ctx.env.APP_SITE, ctx.env.APP_CPU_ID))
     end
 
     -- LOAD_CONTROLLER_KB is a no-op at runtime; the sqlite db is already
@@ -204,6 +205,7 @@ function M.build(ctx)
         -- Pass everything the app might need; apps pick what they use.
         return {
             CONTAINER_NAME = ctx.env.CONTAINER_NAME,
+            APP_SYSTEM     = ctx.env.APP_SYSTEM,
             APP_SITE       = ctx.env.APP_SITE,
             APP_CPU_ID     = ctx.env.APP_CPU_ID,
             APP_NAME       = app.name,

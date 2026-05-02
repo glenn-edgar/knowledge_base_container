@@ -12,13 +12,13 @@
 -- (Construct_KB; no satellite tables — no runtime state at boot).
 --
 -- bootstrap.db content (per CPU, union of both halves' needs):
---   identity + pg connect : system.site.<S>.cpu.<this>.bootstrap.config
+--   identity + pg connect : system.<sys>.site.<S>.cpu.<this>.bootstrap.config
 --   tree integrity        : site, cpu header rows
 --   master CPU only       : system.container_definition.<infra_def>.* +
---                           system.site.<S>.cpu.<this>.container.<infra_inst>.*
+--                           system.<sys>.site.<S>.cpu.<this>.container.<infra_inst>.*
 --                           (postgres, nats, mosquitto, kv_bridge)
 --   every CPU             : system.container_definition.<app_def>.* +
---                           system.site.<S>.cpu.<this>.container.<app_inst>.*
+--                           system.<sys>.site.<S>.cpu.<this>.container.<app_inst>.*
 --                           (application instances; empty in v1)
 --
 -- After write, file is chmod 0444 (read-only).
@@ -57,8 +57,11 @@ end
 
 local DEFINITIONS = load_lua("catalogs/definitions.lua")
 local TOPOLOGY    = load_lua("catalogs/topology.lua")
-local SITE        = TOPOLOGY.site
+local SYSTEM_NAME = TOPOLOGY.system_name or error("topology.system_name missing")
+local SITE        = TOPOLOGY.site        or error("topology.site missing")
 local PG          = TOPOLOGY.pg_connect
+
+ndc_paths.configure{ system_name = SYSTEM_NAME }
 
 local PASSWORD = os.getenv("POSTGRES_PASSWORD")
 if not PASSWORD then
@@ -114,7 +117,7 @@ local function compute_filters(cpu_id, is_master, all_cpus)
     local def = DEFINITIONS[inst.def]
     if def and include_kinds[def.kind] then
       S(ndc_paths.container_root(SITE, cpu_id, inst.name))
-      S(string.format("system.container_definition.%s", inst.def))
+      S(string.format("system.%s.container_definition.%s", SYSTEM_NAME, inst.def))
     end
   end
 

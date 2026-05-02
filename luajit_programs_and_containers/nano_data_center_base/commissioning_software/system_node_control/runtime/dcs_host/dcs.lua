@@ -131,16 +131,20 @@ end
 -- (consumed by user functions to drive docker.run_from_spec)
 ---------------------------------------------------------------------------
 
-function M.load_build_specs(bdb)
-  local rows = h.sql_query(bdb, [[
+function M.load_build_specs(bdb, system_name)
+  assert(system_name and system_name ~= "",
+         "load_build_specs: system_name required (read from bootstrap.config)")
+  local rows = h.sql_query(bdb, string.format([[
     SELECT path, data FROM knowledge_base
      WHERE label = 'build' AND name = 'spec'
-       AND path LIKE 'system.container_definition.%'
-  ]], {})
+       AND path LIKE 'system.%s.container_definition.%%'
+  ]], system_name), {})
   local specs = {}
+  -- path = system.<sys>.container_definition.<def>.build.spec
+  local pattern = "^system%." .. system_name:gsub("[%-%.]", "%%%1")
+                  .. "%.container_definition%.([^%.]+)%.build%.spec$"
   for _, r in ipairs(rows) do
-    -- path = system.container_definition.<def>.build.spec
-    local def_name = r.path:match("^system%.container_definition%.([^%.]+)%.build%.spec$")
+    local def_name = r.path:match(pattern)
     if def_name then
       specs[def_name] = json.decode(r.data)
     end
@@ -338,12 +342,17 @@ function M.main(args)
   ctx.cfg          = cfg
 
   ctx.log("dcs", "opened " .. bootstrap_path .. " (read-only)")
-  ctx.log("dcs", string.format("identity: site=%s cpu=%s master=%s",
-    cfg.site, cfg.cpu_id, tostring(cfg.is_master == 1)))
+  ctx.log("dcs", string.format("identity: system=%s site=%s cpu=%s master=%s",
+    cfg.system_name, cfg.site, cfg.cpu_id, tostring(cfg.is_master == 1)))
+
+  if not cfg.system_name or cfg.system_name == "" then
+    error("bootstrap.config.system_name missing -- rebuild bootstrap.db with current build_kb")
+  end
+  ndc_paths.configure{ system_name = cfg.system_name }
 
   -- Load build specs once at boot; user functions consume via
   -- ctx.system_control_globals.build_specs[def_name].
-  ctx.system_control_globals.build_specs = M.load_build_specs(bdb)
+  ctx.system_control_globals.build_specs = M.load_build_specs(bdb, cfg.system_name)
   local spec_names = {}
   for name, _ in pairs(ctx.system_control_globals.build_specs) do
     spec_names[#spec_names + 1] = name

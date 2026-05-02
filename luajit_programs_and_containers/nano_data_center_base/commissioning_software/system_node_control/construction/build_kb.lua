@@ -22,7 +22,8 @@
 --   POSTGRES_PASSWORD=... ./build_kb.sh
 -- =============================================================================
 
-local CDT = require("construct_data_tables")
+local CDT       = require("construct_data_tables")
+local ndc_paths = require("ndc_paths")
 
 ---------------------------------------------------------------------------
 -- Locate sibling lua files (catalogs/, subsystems/) regardless of cwd
@@ -50,9 +51,12 @@ end
 local DEFINITIONS = load_lua("catalogs/definitions.lua")
 local TOPOLOGY    = load_lua("catalogs/topology.lua")
 
-local SITE       = TOPOLOGY.site   or error("topology.site missing")
-local MASTER_CPU = TOPOLOGY.master or error("topology.master missing")
-local PG         = TOPOLOGY.pg_connect or error("topology.pg_connect missing")
+local SYSTEM_NAME = TOPOLOGY.system_name or error("topology.system_name missing")
+local SITE        = TOPOLOGY.site        or error("topology.site missing")
+local MASTER_CPU  = TOPOLOGY.master      or error("topology.master missing")
+local PG          = TOPOLOGY.pg_connect  or error("topology.pg_connect missing")
+
+ndc_paths.configure{ system_name = SYSTEM_NAME }
 
 local PASSWORD = os.getenv("POSTGRES_PASSWORD")
 if not PASSWORD then
@@ -297,6 +301,7 @@ end
 
 local ctx = {
   kb                     = kb,
+  SYSTEM_NAME            = SYSTEM_NAME,
   SITE                   = SITE,
   MASTER_CPU             = MASTER_CPU,
   TOPOLOGY               = TOPOLOGY,
@@ -317,7 +322,11 @@ end
 -- Build the "system" KB
 ---------------------------------------------------------------------------
 
-kb:add_kb("system", "Enterprise hardware/container topology")
+-- Path stack starts at { "system", SYSTEM_NAME } so every emitted row's
+-- path is rooted at "system.<sys>.*" while the logical kb_name (and the
+-- knowledge_base DB column) stays "system".
+kb:add_kb("system", "Enterprise hardware/container topology",
+          { "system", SYSTEM_NAME })
 kb:select_kb("system")
 
 -- System-KB-root hooks (emit outside of site/.).
@@ -382,6 +391,7 @@ for _, cpu in pairs(TOPOLOGY.cpus) do
 end
 
 print("=== DCS KB built ===")
+print(string.format("  system    : %s", SYSTEM_NAME))
 print(string.format("  site      : %s", SITE))
 print(string.format("  master    : %s", MASTER_CPU))
 print(string.format("  pg        : %s:%s/%s", PG.host, PG.port, PG.dbname))

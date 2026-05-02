@@ -28,8 +28,10 @@ local sync_q    = require("kb_sync_queue")
 local DBI       = require("DBI")
 local ndc_paths = require("ndc_paths")
 
+ndc_paths.configure{ system_name = "moon_base" }
+
 local DATABASE = "knowledge_base"
-local SITE     = "moonbase.alpha.dcs"
+local SITE     = "moon_base_alpha"
 local CPU_ID   = "cpu_01"
 local NAME     = "test_app_01"
 local INBOX_Q  = "container_inbox_" .. CPU_ID .. "_q"

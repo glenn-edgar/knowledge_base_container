@@ -26,12 +26,13 @@ local builtins = require("cfl_builtins")
 local sm       = require("cfl_state_machine")
 
 local user_functions = require("user_functions")
-local ptime = require("posix_time")
-local pp    = require("process_primitives")
-local h     = require("sqlite3_helpers")
+local ptime     = require("posix_time")
+local pp        = require("process_primitives")
+local h         = require("sqlite3_helpers")
+local ndc_paths = require("ndc_paths")
 
 local ENV_KEYS = {
-    "CONTAINER_NAME", "APP_SITE", "APP_CPU_ID",
+    "CONTAINER_NAME", "APP_SYSTEM", "APP_SITE", "APP_CPU_ID",
     "PG_HOST", "PG_PORT", "PG_DB", "PG_USER", "PG_PASSWORD",
     "NATS_URL", "MQTT_HOST",
 }
@@ -162,8 +163,13 @@ function M.main(args)
     ctx.ctrl_db      = open_controller_db_ro(ctrl_path)
 
     ctx.log("ctrl", "opened controller.db: " .. ctrl_path)
-    ctx.log("ctrl", string.format("identity: container=%s site=%s cpu=%s",
-        ctx.env.CONTAINER_NAME, ctx.env.APP_SITE, ctx.env.APP_CPU_ID))
+    ctx.log("ctrl", string.format("identity: container=%s system=%s site=%s cpu=%s",
+        ctx.env.CONTAINER_NAME, ctx.env.APP_SYSTEM, ctx.env.APP_SITE, ctx.env.APP_CPU_ID))
+
+    if not ctx.env.APP_SYSTEM or ctx.env.APP_SYSTEM == "" then
+        error("APP_SYSTEM env var missing -- node_control must inject it at container launch")
+    end
+    ndc_paths.configure{ system_name = ctx.env.APP_SYSTEM }
 
     -- Block SIGTERM+SIGINT and poll for pending deliveries each tick.
     -- No async callback into Lua (luajit ffi.cast as signal handler is

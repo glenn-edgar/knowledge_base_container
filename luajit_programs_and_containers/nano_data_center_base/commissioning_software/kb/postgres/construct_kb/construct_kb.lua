@@ -66,16 +66,45 @@ function Construct_KB:get_db_objects()
 end
 
 --- Add a new knowledge base.
--- @param kb_name string
+-- @param kb_name string  Logical KB name (also stored in the
+--                        `knowledge_base` column on every row).
 -- @param description string (default "")
-function Construct_KB:add_kb(kb_name, description)
+-- @param path_prefix table (optional)  Initial path-stack segments.
+--                        Defaults to { kb_name } -- single-segment root,
+--                        original behavior. Pass { "system", "<sys>" } to
+--                        emit paths under `system.<sys>.*` while keeping
+--                        the logical kb_name "system" so existing
+--                        WHERE knowledge_base = 'system' filters keep
+--                        matching.
+function Construct_KB:add_kb(kb_name, description, path_prefix)
   description = description or ""
 
   if self.path[kb_name] then
     error("Knowledge base " .. kb_name .. " already exists")
   end
 
-  self.path[kb_name]        = { kb_name }
+  self.path_prefix = self.path_prefix or {}
+  local function copy_segments(src)
+    local out = {}
+    for i, seg in ipairs(src) do out[i] = seg end
+    return out
+  end
+  if path_prefix ~= nil then
+    assert(type(path_prefix) == "table" and #path_prefix > 0,
+           "path_prefix must be a non-empty array of segment strings")
+    for i, seg in ipairs(path_prefix) do
+      assert(type(seg) == "string" and seg ~= "",
+             "path_prefix[" .. i .. "] must be a non-empty string")
+    end
+    -- Two independent copies: one is the live path stack (mutated by
+    -- add_header_node / leave_header_node), the other is the immutable
+    -- baseline that check_installation compares against.
+    self.path[kb_name]        = copy_segments(path_prefix)
+    self.path_prefix[kb_name] = copy_segments(path_prefix)
+  else
+    self.path[kb_name]        = { kb_name }
+    self.path_prefix[kb_name] = { kb_name }
+  end
   self.path_values[kb_name] = {}
 
   KnowledgeBaseManager.add_kb(self, kb_name, description)
@@ -233,19 +262,26 @@ function Construct_KB:add_link_mount(link_mount_name, description)
 end
 
 --- Verify all knowledge bases have been fully unwound.
+-- A KB is "fully unwound" when its path stack contains only the
+-- initial prefix passed to add_kb (default { kb_name } -- legacy
+-- single-segment root; or an explicit path_prefix for multi-segment
+-- roots like { "system", "<sys>" }).
 -- @return true on success
 -- @raise error if any path stack is not clean
 function Construct_KB:check_installation()
   for kb_name, segments in pairs(self.path) do
-    if #segments ~= 1 then
+    local prefix = self.path_prefix and self.path_prefix[kb_name] or { kb_name }
+    if #segments ~= #prefix then
       error(string.format(
         "Installation check failed: Path is not empty for knowledge base %s. Path: {%s}",
         kb_name, join_path(segments)))
     end
-    if segments[1] ~= kb_name then
-      error(string.format(
-        "Installation check failed: Path root mismatch for knowledge base %s. Path: {%s}",
-        kb_name, join_path(segments)))
+    for i, seg in ipairs(prefix) do
+      if segments[i] ~= seg then
+        error(string.format(
+          "Installation check failed: Path root mismatch for knowledge base %s. Path: {%s} expected: {%s}",
+          kb_name, join_path(segments), join_path(prefix)))
+      end
     end
   end
   return true

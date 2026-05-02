@@ -116,7 +116,7 @@ function M.build(ctx)
 
   ----------------------------------------------------------------------
   -- Per-agent SYS_EXCEPTION path resolver. Construct script writes:
-  --   system.site.<S>.cpu.<id>.SYS_EXCEPTION.<exc_name>
+  --   system.<sys>.site.<S>.cpu.<id>.SYS_EXCEPTION.<exc_name>
   -- We inline the prefix from cfg so callers just pass the short name.
   ----------------------------------------------------------------------
   local function exc_path(name)
@@ -1035,6 +1035,7 @@ function M.build(ctx)
     end
     local extra_env = {
       CONTAINER_NAME = asg.name,
+      APP_SYSTEM     = ctx.cfg.system_name,
       APP_SITE       = ctx.cfg.site,
       APP_CPU_ID     = ctx.cfg.cpu_id,
       PG_HOST        = host_pg,
@@ -1504,6 +1505,7 @@ function M.build(ctx)
           end
           local extra_env = {
             CONTAINER_NAME = asg.name,
+            APP_SYSTEM     = ctx.cfg.system_name,
             APP_SITE       = ctx.cfg.site,
             APP_CPU_ID     = ctx.cfg.cpu_id,
             PG_HOST        = host_pg,
@@ -1603,7 +1605,7 @@ function M.build(ctx)
   local DISK_PROBES = { "/", "/var/lib/docker" }
 
   -- Stream slots for this CPU live at:
-  --   system.site.<S>.cpu.<id>.monitor.samples.KB_STREAM_FIELD.samples
+  --   system.<sys>.site.<S>.cpu.<id>.monitor.samples.KB_STREAM_FIELD.samples
   -- The construct_kb library inserts the satellite label (KB_STREAM_FIELD)
   -- as a path component, so the runtime path mirrors the build-time one.
   local function _monitor_stream_path()

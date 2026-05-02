@@ -9,10 +9,10 @@
 //
 // Path scheme — every snapshot under:
 //
-//   system.site.<site>.docker_broker.containers.KB_STATUS_FIELD.snapshot
-//   system.site.<site>.docker_broker.containers.KB_STATUS_FIELD.stats
-//   system.site.<site>.docker_broker.heartbeat.KB_STATUS_FIELD.last
-//   system.site.<site>.docker_broker.host_metrics.KB_STATUS_FIELD.snapshot
+//   system.<sys>.site.<site>.docker_broker.containers.KB_STATUS_FIELD.snapshot
+//   system.<sys>.site.<site>.docker_broker.containers.KB_STATUS_FIELD.stats
+//   system.<sys>.site.<site>.docker_broker.heartbeat.KB_STATUS_FIELD.last
+//   system.<sys>.site.<site>.docker_broker.host_metrics.KB_STATUS_FIELD.snapshot
 //
 // All writes are INSERT ... ON CONFLICT (path) DO UPDATE — self-healing,
 // no construction-time row pre-allocation required.
