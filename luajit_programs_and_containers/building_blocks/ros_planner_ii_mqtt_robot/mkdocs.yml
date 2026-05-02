@@ -77,6 +77,24 @@ nav:
       - Testing: operations/testing.md
       - Debugging: operations/debug.md
       - Status: operations/status.md
+  - Containers:
+      - Overview: containers/index.md
+      - mycorp/robot_base: containers/robot_base.md
+      - mycorp/dongle_base: containers/dongle_base.md
+      - mycorp/lunar_rover-class: containers/lunar_rover-class.md
+      - Adding a new class: containers/adding_a_new_class.md
+  - Testing:
+      - Overview: testing/index.md
+      - Unit tests: testing/unit_tests.md
+      - End-to-end: testing/e2e.md
+      - planner_test_peer: testing/planner_test_peer.md
+      - robot_controller contract harness: testing/robot_controller_contract.md
+  - Porting:
+      - Overview: porting/index.md
+      - New robot class: porting/new_robot_class.md
+      - New hardware target: porting/new_hardware_target.md
+      - Small-Pi deploy (no Docker): porting/small_pi_deploy.md
   - Roadmap:
       - Overview: roadmap/index.md
       - Pipe implementation: roadmap/pipe-implementation.md
+      - Loose ends: loose_ends.md
