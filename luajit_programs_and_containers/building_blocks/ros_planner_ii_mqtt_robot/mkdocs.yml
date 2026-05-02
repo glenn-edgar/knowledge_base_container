@@ -67,6 +67,8 @@ nav:
       - Link lifecycle: protocol/link.md
       - Command packets (RPC): protocol/rpc.md
       - Stream events: protocol/stream.md
+  - Controller (Phase 2):
+      - Contract spec: controller/contract.md
   - Operations:
       - Overview: operations/index.md
       - Build: operations/build.md

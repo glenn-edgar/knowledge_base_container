@@ -79,6 +79,10 @@ cp "$BB_ROOT/knowledge_base/mqtt/libmqtt_pubsub.so" \
 cp "$ROVER_SRC/planner_test_peer.lua"  "$STAGE/test_harness/"
 cp "$ROVER_SRC/test_mock_planner.lua"  "$STAGE/test_harness/"
 cp "$ROVER_SRC/test_random_paths.lua"  "$STAGE/test_harness/"
+# Phase-2 controller contract fixture (pure Lua; usable from inside or
+# outside the container — see docs/controller/contract.md).
+cp "$ROVER_SRC/robot_controller_test_peer.lua"     "$STAGE/test_harness/"
+cp "$ROVER_SRC/test_robot_controller_contract.lua" "$STAGE/test_harness/"
 
 # Container build inputs
 cp "$SCRIPT_DIR/Makefile.container" "$STAGE/Makefile"

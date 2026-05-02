@@ -270,6 +270,20 @@ if [[ $SKIP_UNIT -eq 0 ]]; then
         [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_dongle_catalogue.log"
         FAILURES=$((FAILURES+1))
     fi
+
+    # robot_controller contract harness — pure Lua, no broker / no rover.
+    # Validates the test peer matches docs/controller/contract.md.
+    log "running robot_controller contract test (Phase 2 fixture)"
+    if (cd "$SCRIPT_DIR" && luajit test_robot_controller_contract.lua) \
+       >"$LOG_DIR/test_robot_controller_contract.log" 2>&1; then
+        local_pass=$(grep -c "^  PASS" "$LOG_DIR/test_robot_controller_contract.log" || true)
+        local_fail=$(grep -c "^  FAIL" "$LOG_DIR/test_robot_controller_contract.log" || true)
+        pass "rc_contract: $local_pass passed, $local_fail failed"
+    else
+        fail "robot_controller contract test failed"
+        [[ $VERBOSE -eq 1 ]] && cat "$LOG_DIR/test_robot_controller_contract.log"
+        FAILURES=$((FAILURES+1))
+    fi
 fi
 
 # ---------- step 3+: e2e ----------

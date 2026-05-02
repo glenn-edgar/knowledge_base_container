@@ -104,10 +104,25 @@ mock_planner needed). Backwards compat preserved.
 Self-host paths_only e2e: `cmds=6 ack=6 hb=423 done=6 (6 ok / 0 fail)`.
 Self-host mixed e2e:      `cmds=10 ack=10 hb=670 done=10 (10 ok / 0 fail)`.
 
-Still TODO before Phase 2:
-- `robot_controller_test_peer.lua` + `robot_controller_contract.md`
-  defining the contract for the future Phase-2 service. Harness first,
-  implementation graded against green harness.
+### 3. Phase-2 controller contract ✅ DONE 2026-05-02 evening
+
+`docs/controller/contract.md` locks the verb surface between
+`upward_peer.lua` (rover) and the future `robot_controller` service:
+REGISTER, HEARTBEAT, EXCEPTION, KB_READ, KB_WRITE, SHUTDOWN_NOTICE
+(rover-initiated) plus DRAIN, PAUSE, RESUME, KB_INVALIDATE
+(controller-initiated). Transport-agnostic by design.
+
+`robot_controller_test_peer.lua` is the in-process fixture: synchronous,
+no broker, exposes the contract verbs as Lua methods. Hooks
+(`:on_register`, `:on_kb_read`, ...) let tests override defaults.
+
+`test_robot_controller_contract.lua` self-tests the fixture against
+the spec: 37/37 green via `run_tests.sh --skip-e2e`. Wired into
+dongle_base build context too — class images inherit the harness.
+
+When Phase-2 is implemented, the real upward_peer client gets graded
+against the same fixture; the real service can reuse the handler
+shapes wholesale.
 
 ### 3. mkdocs site
 
