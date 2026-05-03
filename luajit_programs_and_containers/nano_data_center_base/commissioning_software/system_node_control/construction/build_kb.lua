@@ -278,6 +278,7 @@ kb.kb.conn:autocommit(false)
 local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
+  "infrastructure_registry", -- Phase B Layer A-pre: runtime-addressing for infra services
   "readiness_sync",
   "sync_queues",           -- Phase 6.1: pg-backed sync transport + peer_state
   "container_queues",      -- Phase 6.4: pg-backed container-layer RPC + container_state

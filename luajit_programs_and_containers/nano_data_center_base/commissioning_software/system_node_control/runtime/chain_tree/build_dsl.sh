@@ -4,8 +4,10 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CT_LUAJIT="$SCRIPT_DIR/../../../chain_tree_luajit"
-CT_DSL="$CT_LUAJIT/lua_dsl"
+# Path to chain_tree DSL post-restructure (Phase A): the engines were
+# moved under commissioning_software/engines/. Old path
+# (../../../chain_tree_luajit) is gone.
+CT_DSL="$SCRIPT_DIR/../../../engines/chain_tree/lua_dsl"
 
 [[ -d "$CT_DSL" ]] || { echo "missing $CT_DSL" >&2; exit 1; }
 

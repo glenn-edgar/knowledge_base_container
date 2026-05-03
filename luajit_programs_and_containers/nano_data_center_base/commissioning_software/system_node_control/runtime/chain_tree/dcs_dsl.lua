@@ -322,6 +322,19 @@ local function system_control(ct, kb_name)
                     ct:asm_reset()
                 ct:end_column(hb_col)
 
+                -- Layer A-pre: KB-driven infrastructure discovery.
+                -- Master walks the registry headers planted by build_kb's
+                -- infrastructure_registry subsystem, looks up each declared
+                -- service in the broker snapshot, writes runtime addressing
+                -- (host, healthy, last_seen) into pg. App containers (planner
+                -- etc.) consume these rows at startup via infra_discovery.lua.
+                -- 5s cadence matches broker's container-snapshot cadence.
+                local infra_pub_col = ct:define_column("sys_monitor_infra_pub")
+                    ct:asm_one_shot_handler("INFRA_PUBLISH", {})
+                    ct:asm_wait_time(5.0)
+                    ct:asm_reset()
+                ct:end_column(infra_pub_col)
+
                 -- Phase 6.4: container-layer RPC scheduler. Drains
                 -- container_inbox_<cpu_id>_q at 5 Hz, dispatches
                 -- CONTAINER_READY/HEARTBEAT, runs missed-HB scan +

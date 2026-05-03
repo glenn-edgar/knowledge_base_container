@@ -16,11 +16,12 @@ local kbcr   = require("kb_container_registry")
 local kb_asg = require("kb_assignments")
 local kb_log = require("kb_log")
 local ptime  = require("posix_time")  -- sub-second timing for supervision metrics
-local broker_client = require("broker_client")  -- read docker_host_broker state from KB
-local spec_adapter  = require("spec_adapter")   -- catalog spec -> wire-protocol RunSpec
-local sync_rpc      = require("sync_rpc")       -- Phase 6.1 inter-CPU sync
-local container_rpc = require("container_rpc")  -- Phase 6.4 container layer
-local ndc_paths     = require("ndc_paths")       -- KB path composer (Layer M)
+local broker_client   = require("broker_client")    -- read docker_host_broker state from KB
+local spec_adapter    = require("spec_adapter")     -- catalog spec -> wire-protocol RunSpec
+local sync_rpc        = require("sync_rpc")         -- Phase 6.1 inter-CPU sync
+local container_rpc   = require("container_rpc")    -- Phase 6.4 container layer
+local ndc_paths       = require("ndc_paths")         -- KB path composer (Layer M)
+local infra_publisher = require("infra_publisher")  -- Layer A-pre: KB-driven infra discovery
 
 local M = {}
 
@@ -210,6 +211,33 @@ function M.build(ctx)
       ctx.connectors.pg, ctx.cfg.site, ctx.cfg.cpu_id, ts)
     if not ok then
       log("system_control", "heartbeat write FAILED: " .. tostring(err))
+    end
+  end
+
+  -- INFRA_PUBLISH: Layer A-pre. Master-only; no-op on slaves.
+  -- Walks the registry under infrastructure.registry.service.* and writes
+  -- runtime addressing (host, healthy, last_seen) for each declared infra
+  -- service from the broker snapshot. App containers consume these rows
+  -- via /opt/apps/lib/infra_discovery.lua at startup.
+  R.INFRA_PUBLISH = function(_h, _n)
+    if ctx.cfg.is_master ~= 1 then return end
+    if not ctx.connectors.pg then
+      log("system_control", "INFRA_PUBLISH skipped (no pg conn)")
+      return
+    end
+    local results = infra_publisher.publish_once(ctx.connectors.pg, {
+      site   = ctx.cfg.site,
+      logger = function(msg) log("system_control", "INFRA_PUBLISH: " .. msg) end,
+    })
+    if results then
+      -- One-line summary: services seen + healthy count.
+      local total, healthy = 0, 0
+      for _, r in pairs(results) do
+        total = total + 1
+        if r.healthy then healthy = healthy + 1 end
+      end
+      log("system_control", string.format(
+        "INFRA_PUBLISH: %d/%d services healthy", healthy, total))
     end
   end
 

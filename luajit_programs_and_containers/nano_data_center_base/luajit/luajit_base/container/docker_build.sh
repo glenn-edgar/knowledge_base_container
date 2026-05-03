@@ -55,6 +55,14 @@ for f in posix_time.lua pg_connector.lua kb_status.lua kb_stream.lua kb_exceptio
     cp "$DCS_HP/$f" "$SCRIPT_DIR/prebuilt_lua_share/"
 done
 
+# App-side helpers that ship with luajit_base. Source-of-truth lives in
+# app_lib/ (not under prebuilt_lua_share/, which gets wiped at the start
+# of every build). All .lua files are staged into /usr/local/share/lua/5.1/
+# inside the image so app-tier code can `require("...")` them.
+if [[ -d "$SCRIPT_DIR/app_lib" ]]; then
+    cp "$SCRIPT_DIR/app_lib/"*.lua "$SCRIPT_DIR/prebuilt_lua_share/"
+fi
+
 # sqlite3_helpers lives under knowledge_base/sqlite3; the supervisor +
 # bundler both import it via LUA_PATH.
 cp "$NDC_BASE/commissioning_software/kb/sqlite3/construct_kb/sqlite3_helpers.lua" \

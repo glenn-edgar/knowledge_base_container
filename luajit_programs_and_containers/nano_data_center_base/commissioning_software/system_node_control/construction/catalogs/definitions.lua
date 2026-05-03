@@ -73,6 +73,13 @@ return {
   -- Infrastructure (pre-built images; system_control starts/stops)
   ----------------------------------------------------------------------
 
+  -- service_contract on infrastructure defs declares the abstract service
+  -- name + port that system_control's INFRA_PUBLISH state advertises into
+  -- system.<sys>.site.<S>.infrastructure.<service_type>.KB_STATUS_FIELD.*.
+  -- App containers query that path via /opt/apps/lib/infra_discovery.lua
+  -- (no env-injection chain for these endpoints; pg is the only
+  -- rendez-vous point).
+
   postgres = {
     kind          = "infrastructure",
     runtime       = "docker",
@@ -88,6 +95,11 @@ return {
     },
     restart_policy = "always",
     default_cfg    = { db_name = "knowledge_base", user = "gedgar" },
+    service_contract = {
+      service_type = "postgres",
+      port         = 5432,
+      protocol     = "tcp",
+    },
   },
 
   nats = {
@@ -99,6 +111,11 @@ return {
       { host = 9222, cont = 9222 },
     },
     restart_policy = "always",
+    service_contract = {
+      service_type = "nats",
+      port         = 4222,
+      protocol     = "tcp",
+    },
   },
 
   mosquitto = {
@@ -111,6 +128,11 @@ return {
     ports   = { { host = 1883, cont = 1883 },
                 { host = 9001, cont = 9001 } },
     restart_policy = "always",
+    service_contract = {
+      service_type = "mqtt",
+      port         = 1883,
+      protocol     = "tcp",
+    },
   },
 
   kv_bridge = {
@@ -119,6 +141,11 @@ return {
     image   = "nanodatacenter/kv-bridge:latest",
     ports   = { { host = 8080, cont = 8080 } },
     restart_policy = "always",
+    service_contract = {
+      service_type = "kv_bridge",
+      port         = 8080,
+      protocol     = "tcp",
+    },
   },
 
   -- NOTE: system_control + node_control are NOT containers. They run as
