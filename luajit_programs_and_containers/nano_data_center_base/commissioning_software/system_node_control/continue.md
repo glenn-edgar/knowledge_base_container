@@ -1,5 +1,82 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-04 session — Layer A DONE (mission_planner ported)
+
+Layer A landed as four independently revertible holding commits per
+`feedback_holding_commits`. Mission planner now lives at the v3 path
+`nano_data_center_instance/app_containers/mission_planner/` with locked
+manifest/spec/kb_build files; image builds green at
+`nanodatacenter/mission-planner:latest`. Apps-builder framework
+end-to-end smoke green: driver → kb_build emits 11 rows at the locked
+`app_containers.mission_planner_01.spec.manifest.*` shape. Live cluster
+NOT touched yet (Layer I integrates).
+
+| Commit | Slice | Scope |
+|---|---|---|
+| `092d67d7` | **A.1** | git mv container shell from `building_blocks/ros_mission_planner_ii/container/` to `nano_data_center_instance/app_containers/mission_planner/container/`. 6 files, blame preserved, zero edits. |
+| `448d8e2b` | **A.2** | Refactor `kb_query.lua` per Q2.1: deleted v2-only `get_infrastructure`/`get_container_config`/`get_domain`/`get_board*`; simplified `get_site` into ctor args; added `get_app_spec_jsonb`/`get_app_spec_status`; added Q2.2 `FALLBACK_ROBOT_CLASSES` (drive_base entry; engages when `robot_manager_01` spec absent; single-place deletion path). Added 5 app-container path helpers to `ndc_paths.lua` (canonical + 2 gitignored staged copies synced). |
+| `27e96866` | **A.3** | Authored `manifest.lua` (locked status scalars + 7 JSONB blobs) + `container_spec.lua` (validated by Layer F validator) + `kb_build.lua` (uses `add_info_node` for bare-Construct_KB + facade compatibility). Mid-layer design call: kb_build pushes `with_header("spec","manifest",...)` so paths land at `app_containers.<i>.spec.manifest.KB_*FIELD.*`. ndc_paths helpers renamed `app_spec_*` → `app_manifest_*` accordingly. |
+| `8d7872c2` | **A.4** | Renamed `ros_mission_planner_ii` → `mission_planner` in `definitions.lua` + `topology.lua`; image tag → `nanodatacenter/mission-planner:latest`; nginx.conf listen 8080 → 8090 (matches manifest); cosmetic title strings. **Image builds green**, bundler registered planner + planner_ui processes. Standalone container start parses identity, loads chain-tree IR, exits cleanly when PG unreachable (expected for image-level smoke; runtime end-to-end is Layer I/V scope). |
+
+### Mid-layer design decision (recorded in `27e96866` commit body)
+
+The framework as shipped (Layer F) opens scope at `app_containers.<i>` and stops there. The locked manifest design called for sub-paths `spec.*`, `runtime.*`, `placement.*`. Three options considered:
+
+1. Drop `.spec.` from literal paths (abandon design).
+2. **CHOSEN: kb_build pushes its own `with_header("spec","manifest",...)`** — two-segment shape forced by `add_header_node`'s link+name pair contract; "spec" is the namespace marker, "manifest" is the catalog name. Future `spec.tunables` / `spec.placement_hints` coexist.
+3. Extend the framework to push 3 sub-anchors (rejected: framework already shipped green; runtime/placement not written by apps-builder anyway).
+
+`ndc_paths` exposes 3 helpers reflecting this:
+- `app_manifest_status_path(site, container, name)` → `app_containers.<c>.spec.manifest.KB_STATUS_FIELD.<name>`
+- `app_manifest_jsonb_path(site, container, key)`  → `app_containers.<c>.spec.manifest.KB_JSONB_FIELD.<key>`
+- `app_runtime_status_path(site, container, state_name, field)` → `app_containers.<c>.runtime.<state_name>.KB_STATUS_FIELD.<field>`
+
+### What's NOT done in Layer A (deferred to Layer I or later)
+
+- **Apps-builder image + invocation pipeline** — Layer I builds the one-shot apps-builder container, composes framework + per-app kb_build functions at image build, wires it into `build_kb.sh` / `rebuild_and_start.sh`.
+- **Real planner library import** — current `container/planner/main.lua` is still the v2 heartbeat shell. Importing the real `building_blocks/ros_planner_ii/` library (action_server + hub_dsl + local_planner + global_planner + runtime) into `/opt/apps/planner/` is Phase B.2 work; Layer A's checkpoint was "image builds green; not yet started".
+- **node_control reads placement from KB** — Layer N work; current topology.lua-based bootstrap still drives node_control.
+- **Layer V acceptance test** — needs Layer I + N first; mqtt_robot fixture standalone-runs from `building_blocks/` per Q3 lock.
+- **README/runbook references** — `nano_data_center_base/README.md`, `support_procedures/runbooks/commissioning.md`, `platform_containers/observability/continue.md`, `system_node_control/PHASE6_DESIGN.md` still mention `ros_mission_planner_ii_01`. Cosmetic; rolling cleanup in Phase B.2.
+
+### **First action next session — Layer I (apps-builder image + plumbing)**
+
+Layer I assembles the apps-builder one-shot container that:
+1. Composes `apps_builder_framework/` + every app's `kb_build.lua` + `manifest.lua` at image-build time.
+2. Reads the placement table (currently `topology.lua`'s instances; future-N: from KB), iterates each `app_containers.<c>` placement, calls `driver.drive(kb, kb, placements)`.
+3. Exits with non-zero on any kb_build failure (atomic-fail).
+
+Wire it into `rebuild_and_start.sh` (opt-in via `--apps-builder` flag per Phase B locked design — apps-builder rebuild is rare enough to not run on every `--full`). Verify pg row at `app_containers.mission_planner_01.spec.manifest.KB_STATUS_FIELD.version` after a fresh apps-builder run.
+
+```bash
+# Verify after Layer I implementation:
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data
+   FROM knowledge_base
+   WHERE path::text LIKE 'system.moon_base.site.moon_base_alpha.app_containers.mission_planner_01.spec.manifest.%'
+   ORDER BY path"
+# expect: 1 anchor row + 1 spec.manifest header + 9 leaf rows (2 status + 7 jsonb)
+```
+
+Layer ordering after A:
+
+```
+M-2 ✅ → soak ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I → N → V
+                                            ↑ next
+```
+
+Phase B remaining: 2.5 sessions (I, N, V).
+
+### Rollback recipe (any of A.1..A.4)
+
+```bash
+git revert --no-edit <hash>   # each is independently revertible.
+```
+
+Reverting A.4 alone leaves the manifest/kb_build/refactored kb_query landed but restores `ros_mission_planner_ii` as the active container name. Reverting A.2 in isolation is messier (path helpers used by A.3 would orphan); revert A.4→A.3→A.2→A.1 in reverse order if a full rollback is needed.
+
+---
+
 ## State at end of 2026-05-03 session — Layers O / F / A-pre DONE; Layer A planning locked
 
 Three holding commits today, all independently revertible per the
