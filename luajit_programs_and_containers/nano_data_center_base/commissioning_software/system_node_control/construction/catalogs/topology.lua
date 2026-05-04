@@ -131,8 +131,8 @@ return {
       bit_index  = 1,
       properties = { hostname = "localhost", role = "slave" },
       instances = {
-        { name = "ros_mission_planner_ii_01", def = "ros_mission_planner_ii",
-          ports = { planner_ui = 19005 } },
+        { name = "mission_planner_01", def = "mission_planner",
+          ports = { ui = 19005 } },
         { name = "robot_manager_01", def = "robot_manager",
           ports = { manager_ui = 19006 } },
       },

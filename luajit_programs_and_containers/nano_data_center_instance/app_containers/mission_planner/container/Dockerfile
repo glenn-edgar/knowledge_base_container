@@ -1,12 +1,15 @@
-# nanodatacenter/ros-mission-planner-ii -- two-process shell container.
+# nanodatacenter/mission-planner -- two-process container (Phase B Layer A).
 #
 # Processes (supervised children of luajit-base's chain-tree controller):
-#   1. planner    -- lua worker shell (heartbeats only; real planner later)
-#   2. planner_ui -- openresty, internal port 8080, one page
+#   1. planner    -- lua worker shell (heartbeats only; planner library
+#                    integration lands in Phase B.2).
+#   2. planner_ui -- openresty, internal port 8090, placeholder page.
 #
-# Populated later. For now this exists so the gateway tab UI, the
-# container registry path, and node_control's instantiation have a second
-# non-test_app application to exercise.
+# Manifest + container_spec at the package root
+# (../manifest.lua, ../container_spec.lua) -- this Dockerfile builds the
+# runtime image; the apps-builder framework consumes manifest.lua at
+# commission time to write KB rows under
+# system.<sys>.site.<S>.app_containers.mission_planner_01.spec.manifest.*
 
 FROM nanodatacenter/openresty-base:latest
 

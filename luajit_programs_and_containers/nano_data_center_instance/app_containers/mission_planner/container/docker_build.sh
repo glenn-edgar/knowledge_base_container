@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# docker_build.sh -- build the nanodatacenter/ros-mission-planner-ii image.
+# docker_build.sh -- build the nanodatacenter/mission-planner image.
 # Requires nanodatacenter/openresty-base:latest (which requires luajit-base).
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_TAG="${IMAGE_TAG:-nanodatacenter/ros-mission-planner-ii:latest}"
+IMAGE_TAG="${IMAGE_TAG:-nanodatacenter/mission-planner:latest}"
 
 for base in nanodatacenter/luajit-base:latest nanodatacenter/openresty-base:latest; do
     if ! docker image inspect "$base" >/dev/null 2>&1; then

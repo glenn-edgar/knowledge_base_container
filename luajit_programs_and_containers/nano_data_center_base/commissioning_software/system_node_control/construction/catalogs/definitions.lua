@@ -210,19 +210,21 @@ return {
     },
   },
 
-  -- ros_mission_planner_ii: two-process pod (worker + UI). Shell for
-  -- now; real planner logic gets ported in a later session.
-  ros_mission_planner_ii = {
+  -- mission_planner: two-process pod (planner worker + planner_ui).
+  -- Phase B Layer A port; manifest + container_spec live at
+  -- nano_data_center_instance/app_containers/mission_planner/.
+  -- port_spec slot name + internal port mirror that container_spec.lua.
+  mission_planner = {
     kind          = "application",
     runtime       = "docker",
-    image         = "nanodatacenter/ros-mission-planner-ii:latest",
+    image         = "nanodatacenter/mission-planner:latest",
     restart_policy = "unless-stopped",
     port_spec = {
-      planner_ui = {
-        internal    = 8080,
+      ui = {
+        internal    = 8090,
         protocol    = "tcp",
         purpose     = "ui",
-        description = "Mission planner operator UI (shell)",
+        description = "planner_ui HTTP surface",
       },
     },
   },
