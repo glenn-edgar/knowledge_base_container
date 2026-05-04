@@ -1,5 +1,127 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-03 session — Layers O / F / A-pre DONE; Layer A planning locked
+
+Three holding commits today, all independently revertible per the
+holding-commit discipline (`feedback_holding_commits` memory). Cluster
+ACTIVE/ACTIVE on the new namespace; 4/4 infra services advertised
+through KB-driven discovery.
+
+| Commit | Layer | Scope |
+|---|---|---|
+| `226b17c1` | **O** | observability tree control: log_web `/tree` + exception_web `/tree`. Recursive `<details>/<summary>` over the KB ltree namespace; pure CSS. log_web 71 leaves, exception_web 163 leaves. |
+| `9486e8d3` | **F** | apps-builder framework (driver + ctx + spec validator) + 42/42 unit tests. Sqlite construct_kb gained `with_header` / `with_kb` parity with pg. No cluster impact yet. |
+| `2298f0ae` | **A-pre** | KB-driven infra discovery for NATS/MQTT/pg/kv-bridge. `service_contract` block on each infra def; `infrastructure_registry` subsystem pre-allocates schema; system_control's `INFRA_PUBLISH` chain-tree column writes runtime addressing every 5s; `infra_discovery.lua` helper in luajit_base provides `lookup()` / `nats_url()` / `mqtt_addr()`. e2e green from a fresh container. **Bundled fix:** stale `build_dsl.sh` path post-Phase-A restructure. |
+
+### Layer A planning (in progress; spec contents fully decided)
+
+**Mission planner port** — replaces the existing `ros_mission_planner_ii_01`
+shell with a real port under the new framework. Class = `mission_planner`.
+ONE container, TWO supervised processes (planner Lua worker + planner_ui
+OpenResty), running under the standard `luajit_base` supervisor — same
+base every other app uses, no bespoke startup.
+
+**`manifest.lua` LOCKED** (file lives at
+`nano_data_center_instance/app_containers/mission_planner/manifest.lua`,
+mirrored to `app_containers.mission_planner_01.spec.*` by `kb_build.lua`):
+
+| KB row class | Field | Value |
+|---|---|---|
+| KB_STATUS_FIELD | `version` | `"1.0"` |
+| KB_STATUS_FIELD | `class`   | `"mission_planner"` |
+| KB_JSONB_FIELD  | `capabilities`  | `[path_planning, energy_budget, transit, drive_base]` |
+| KB_JSONB_FIELD  | `virtual_nodes` | `[init_check, path_spline, path_line, operation, idle, error_recovery]` |
+| KB_JSONB_FIELD  | `wire_formats`  | `[json, cbor]` |
+| KB_JSONB_FIELD  | `ui_protocol`   | port_internal=`8090`, scheme=`http`, 6 endpoints (landing + submit_mission + list_missions + mission_status + list_robots + blackboard_view) |
+| KB_JSONB_FIELD  | `nats_protocol` | port=`4222`, 6 subjects per audit (mission_submit/status/result/log + robot_status_kv + blackboard_kv) |
+| KB_JSONB_FIELD  | `mqtt_protocol` | port=`1883`, 7 topics per audit (rpc + stream_bus + link + 4 status sub-topics) |
+
+**Storage rationale:** scalars use KB_STATUS_FIELD (single value, queryable
+individually); structured catalogs use KB_JSONB_FIELD (knowledge_base_document
+table) — querying via JSONB ops (`data ? 'energy_budget'` for set membership)
+is cleaner than fanning ~30 fields into individual status rows.
+
+**Locked design choices for the port:**
+- `ui_protocol` is a **first-class peer** of NATS/MQTT — external schedulers /
+  monitors can use HTTP without a NATS client. Six endpoints; every NATS subject
+  has an HTTP equivalent where reasonable (`mission_submit` ↔ POST
+  `/api/missions`).
+- WebSocket / SSE / auth deferred (auth requires sidecar/identity design).
+- `streams = {}` for v1.0 — planner stays NATS-only for runtime state. Adding
+  KB-resident streams later bumps to v1.1 once we know what's worth persisting.
+- Robot classes deferred to future robot_manager port — planner cross-discovers
+  via `WHERE path ~ '*.spec.KB_JSONB_FIELD.robot_classes'` once that lands.
+  For Layer A, planner uses a stop-gap stub (Q2.2 below).
+- All NATS/MQTT broker addressing goes through `infra_discovery.lookup()`
+  (Layer A-pre) — no env-var injection chain for these.
+
+### Open Layer A planning items (resolve before code)
+
+**Q2.1 — `kb_query.lua` strategy.** The existing planner's KB-reader at
+`third_party_containers/ros_planner/lua/kb_query.lua` queries the v2
+namespace; needs path-shape updates for v3 + `app_containers.<c>.spec.*`
+queries. **Recommendation: refactor in place** (~20–30% of file changes —
+SQL/path strings; the JSON-decode helpers, caching dict, error semantics
+all stay).
+
+**Q2.2 — robot classes during the port.** Planner historically read robot
+classes from sqlite (`surface_ops.db`); v3 owner is robot_manager which
+isn't ported yet. Three options:
+  - (i) hardcoded stub list inside the planner (just enough for Layer V)
+  - (ii) bake a `manifest_robots.lua` stop-gap file into the planner image
+        marked TODO-remove-when-robot_manager-ports
+  - (iii) port robot_manager too (probably too much for one Layer)
+
+**Q2.3** — confirm planner_ui ↔ planner_worker stay decoupled (no IPC; both
+read pg + NATS). Audit says yes; just confirming for the record.
+
+**Q3 — Layer V acceptance test.** Minimum viable: a small NATS test client
+publishes a mock mission to `{site}.action_server.missions`, observes
+`{site}.action_server.{robot}.status` KV transition to `submitted` then
+`rejected_no_robot` (no real robot running). Proves: planner accepts
+missions, validates against announced robot capabilities, produces a
+status entry. Full mission completion requires either a robot or a
+robot_sim and is out of Layer V's first-cut scope.
+
+### **First action next session — soak verification + decide Q2.1/Q2.2**
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+# soak verification — 5-min check (per feedback_soak_cadence)
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT data->>'state' FROM knowledge_base_status WHERE path::text LIKE '%peer_state%' ORDER BY path"
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+# infra registry should still be advertising 4/4 healthy
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data FROM knowledge_base_status \
+   WHERE path::text LIKE '%infrastructure.registry.%KB_STATUS_FIELD.healthy' ORDER BY path"
+# tail INFRA_PUBLISH log
+grep "INFRA_PUBLISH:" $DEP/cpu_01/error.log | tail -5
+```
+
+If green: resolve Q2.1 (refactor vs. fresh) + Q2.2 (which stub strategy)
++ Q3 confirm, then start Layer A code.
+
+Rollback recipe (any of today's holding commits): `git revert <hash>` —
+each is independently revertible.
+
+### Layer ordering
+
+```
+M-2 ✅ → soak ✅ → O ✅ → F ✅ → A-pre ✅ → A → I → N → V
+                                        ↑ next
+```
+
+Phase B remaining: 3.5 sessions (A, I together; N standalone; V smoke).
+After Phase B: v3 roadmap step 4 (KB-driven file store, three-tier
+config) onward.
+
+---
+
 ## State at end of 2026-05-02 session — Phase B Layer M-2 DONE — namespace migration complete
 
 Phase B Layer M (namespace migration) is **fully done**. M-1 centralized path
