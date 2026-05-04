@@ -133,4 +133,33 @@ function M.broker_stats_path(site)
   return M.site_path(site, "docker_broker.containers.KB_STATUS_FIELD.stats")
 end
 
+---------------------------------------------------------------------------
+-- App container paths (Phase B Layer A)
+-- Anchor: system.<sys>.site.<S>.app_containers.<container_name>.*
+-- Sub-paths: spec.*    -- manifest, written by apps-builder at commission
+--            runtime.* -- heartbeat + state, written by container at runtime
+---------------------------------------------------------------------------
+
+function M.app_root(site, container_name)
+  return M.site_path(site, "app_containers." .. container_name)
+end
+
+function M.app_path(site, container_name, suffix)
+  local base = M.app_root(site, container_name)
+  if suffix == nil or suffix == "" then return base end
+  return base .. "." .. suffix
+end
+
+function M.app_spec_status_path(site, container_name, name)
+  return M.app_path(site, container_name, "spec.KB_STATUS_FIELD." .. name)
+end
+
+function M.app_spec_jsonb_path(site, container_name, key)
+  return M.app_path(site, container_name, "spec.KB_JSONB_FIELD." .. key)
+end
+
+function M.app_runtime_status_path(site, container_name, name)
+  return M.app_path(site, container_name, "runtime.KB_STATUS_FIELD." .. name)
+end
+
 return M
