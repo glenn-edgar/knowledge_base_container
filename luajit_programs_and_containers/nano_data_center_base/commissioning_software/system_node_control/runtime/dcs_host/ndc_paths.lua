@@ -136,8 +136,16 @@ end
 ---------------------------------------------------------------------------
 -- App container paths (Phase B Layer A)
 -- Anchor: system.<sys>.site.<S>.app_containers.<container_name>.*
--- Sub-paths: spec.*    -- manifest, written by apps-builder at commission
---            runtime.* -- heartbeat + state, written by container at runtime
+-- Sub-paths under each anchor:
+--   spec.manifest.*  -- manifest data, written by apps-builder at commission
+--                       (with_header("spec","manifest",...) in kb_build.lua)
+--   runtime.<name>.* -- runtime state, written by container at startup +
+--                       each tick (heartbeat, host, ui_port, ...)
+--
+-- The two-segment push (spec/manifest, runtime/<state-name>) is forced by
+-- the construct_kb DSL's add_header_node which always pushes link+name
+-- pairs. Treat "spec" + "runtime" as namespace class markers and the
+-- second segment as a name within that namespace.
 ---------------------------------------------------------------------------
 
 function M.app_root(site, container_name)
@@ -150,16 +158,25 @@ function M.app_path(site, container_name, suffix)
   return base .. "." .. suffix
 end
 
-function M.app_spec_status_path(site, container_name, name)
-  return M.app_path(site, container_name, "spec.KB_STATUS_FIELD." .. name)
+--- Path to a status-field row inside the manifest namespace.
+-- Produces: app_containers.<c>.spec.manifest.KB_STATUS_FIELD.<name>
+function M.app_manifest_status_path(site, container_name, name)
+  return M.app_path(site, container_name,
+    "spec.manifest.KB_STATUS_FIELD." .. name)
 end
 
-function M.app_spec_jsonb_path(site, container_name, key)
-  return M.app_path(site, container_name, "spec.KB_JSONB_FIELD." .. key)
+--- Path to a jsonb-field row inside the manifest namespace.
+-- Produces: app_containers.<c>.spec.manifest.KB_JSONB_FIELD.<key>
+function M.app_manifest_jsonb_path(site, container_name, key)
+  return M.app_path(site, container_name,
+    "spec.manifest.KB_JSONB_FIELD." .. key)
 end
 
-function M.app_runtime_status_path(site, container_name, name)
-  return M.app_path(site, container_name, "runtime.KB_STATUS_FIELD." .. name)
+--- Path to a status-field row inside a runtime sub-namespace.
+-- Produces: app_containers.<c>.runtime.<state_name>.KB_STATUS_FIELD.<name>
+function M.app_runtime_status_path(site, container_name, state_name, name)
+  return M.app_path(site, container_name,
+    "runtime." .. state_name .. ".KB_STATUS_FIELD." .. name)
 end
 
 return M

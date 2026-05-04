@@ -132,12 +132,13 @@ end
 -- Generic app_containers spec readers (v3)
 ---------------------------------------------------------------------------
 
---- Read a JSONB blob from another (or this) app's spec namespace.
+--- Read a JSONB blob from another (or this) app's manifest namespace.
+-- Path: app_containers.<container_name>.spec.manifest.KB_JSONB_FIELD.<key>
 -- @param container_name string  the instance_id ("mission_planner_01")
 -- @param key            string  the JSONB field name ("capabilities", ...)
 -- @return decoded value or nil
 function M:get_app_spec_jsonb(container_name, key)
-    local path = paths.app_spec_jsonb_path(self.site, container_name, key)
+    local path = paths.app_manifest_jsonb_path(self.site, container_name, key)
     local rows = self.kb:find_by_pattern(path, "system")
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -145,12 +146,13 @@ function M:get_app_spec_jsonb(container_name, key)
     return nil
 end
 
---- Read a scalar status field from another (or this) app's spec namespace.
+--- Read a scalar status field from another (or this) app's manifest namespace.
+-- Path: app_containers.<container_name>.spec.manifest.KB_STATUS_FIELD.<name>
 -- @param container_name string
 -- @param name           string  the status field name ("version", "class")
 -- @return decoded value or nil
 function M:get_app_spec_status(container_name, name)
-    local path = paths.app_spec_status_path(self.site, container_name, name)
+    local path = paths.app_manifest_status_path(self.site, container_name, name)
     local rows = self.kb:find_by_pattern(path, "system")
     if #rows > 0 then
         return parse_row(rows[1]).data
@@ -240,8 +242,12 @@ end
 ---------------------------------------------------------------------------
 
 function M:get_planner_state()
+    -- runtime.planner.KB_STATUS_FIELD.state -- written by the planner worker
+    -- under the "planner" runtime sub-namespace (state_name="planner",
+    -- field name="state"). Add other runtime sub-namespaces (e.g.
+    -- "ui", "transport") as the planner exposes them.
     local path = paths.app_runtime_status_path(
-        self.site, self.own_instance_id, "planner_state")
+        self.site, self.own_instance_id, "planner", "state")
     local rows = self.kb:find_by_pattern(path, "system")
     if #rows > 0 then
         return parse_row(rows[1]).data
