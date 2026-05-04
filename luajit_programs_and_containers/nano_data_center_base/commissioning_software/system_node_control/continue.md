@@ -57,31 +57,105 @@ is cleaner than fanning ~30 fields into individual status rows.
 
 ### Open Layer A planning items (resolve before code)
 
-**Q2.1 — `kb_query.lua` strategy.** The existing planner's KB-reader at
-`third_party_containers/ros_planner/lua/kb_query.lua` queries the v2
-namespace; needs path-shape updates for v3 + `app_containers.<c>.spec.*`
-queries. **Recommendation: refactor in place** (~20–30% of file changes —
-SQL/path strings; the JSON-decode helpers, caching dict, error semantics
-all stay).
+**Q2.1 — `kb_query.lua` strategy. LOCKED 2026-05-04: refactor in place.**
+Source is `third_party_containers/ros_planner/lua/kb_construct/kb_query.lua`
+(338 lines; the `building_blocks/ros_planner_ii/hub_dsl/...` copy is
+byte-identical and goes away with the planner port). Original estimate
+of "20–30% changes" undersold the work — actual scope is ~50% diff once
+the data-layout shift (scattered per-node rows → JSONB blobs under
+`spec.KB_JSONB_FIELD.*`) is counted, but refactor still beats fresh
+because `parse_row`'s pcall+fallback, the KBM read-only ctor
+(`upload_flag=true`), and the `get_site_config` aggregation contract
+are soak-tested and worth keeping. `git mv` to preserve blame.
 
-**Q2.2 — robot classes during the port.** Planner historically read robot
-classes from sqlite (`surface_ops.db`); v3 owner is robot_manager which
-isn't ported yet. Three options:
-  - (i) hardcoded stub list inside the planner (just enough for Layer V)
-  - (ii) bake a `manifest_robots.lua` stop-gap file into the planner image
-        marked TODO-remove-when-robot_manager-ports
-  - (iii) port robot_manager too (probably too much for one Layer)
+**Concrete plan:**
+- `git mv` source → `nano_data_center_instance/app_containers/mission_planner/lua/kb_query.lua`.
+- **Keep** (~15%): `parse_row`, KBM ctor, `close`, `get_site_config` aggregation skeleton.
+- **Simplify** `get_site()` (lines 78–94): drop depth-0 / domain auto-detect; read `bootstrap.config.system_name` + `bootstrap.config.site` directly.
+- **Delete** three v2-only helpers, no replacement needed:
+  - `get_infrastructure()` (212–225) — superseded by A-pre's `infra_discovery.lookup()`.
+  - `get_container_config()` (230–237) — no equivalent under `app_containers.*`.
+  - `get_domain()` (243–249) — subsystems/domain row obsolete; system_name/site live in bootstrap.config.
+- **Add** generic reader `get_app_spec(container_name, key)` that reads `app_containers.<c>.spec.KB_JSONB_FIELD.<key>` and returns the decoded JSONB blob. Cached.
+- **Rewire surviving getters** through the new shape:
+  - `get_planner_state()` → `app_containers.ros_mission_planner_ii.runtime.planner_state`.
+  - `get_virtual_node*` → `get_app_spec("ros_mission_planner_ii", "virtual_nodes")` (manifest already declares this).
+  - `get_class_*` / `get_robot_infra` / `list_robot_classes` → thin facade over `get_app_spec("robot_manager", "robot_classes")`. Actual source (real spec vs. stub) decided by Q2.2.
+- **Drop** `boards` methods entirely — no v3 owner; re-add when one ports.
+- All path strings go through `ndc_paths` composer; no literals (M-1 discipline).
 
-**Q2.3** — confirm planner_ui ↔ planner_worker stay decoupled (no IPC; both
-read pg + NATS). Audit says yes; just confirming for the record.
+**Q2.2 — robot classes during the port. LOCKED 2026-05-04: option (i) —
+hardcode fallback inside `kb_query.lua`.** A single `FALLBACK_ROBOT_CLASSES`
+constant in the file, engaged only when `get_app_spec("robot_manager",
+"robot_classes")` returns nil. One class entry: `drive_base`, with
+capabilities mirroring the drive-base app catalogue (memory
+`project_drive_base_catalogue`) — not fictional data, a frozen snapshot
+of what robot_manager will eventually publish for drive_base.
 
-**Q3 — Layer V acceptance test.** Minimum viable: a small NATS test client
-publishes a mock mission to `{site}.action_server.missions`, observes
-`{site}.action_server.{robot}.status` KV transition to `submitted` then
-`rejected_no_robot` (no real robot running). Proves: planner accepts
-missions, validates against announced robot capabilities, produces a
-status entry. Full mission completion requires either a robot or a
-robot_sim and is out of Layer V's first-cut scope.
+Rejected (ii) `manifest_robots.lua`: separate file adds build-script
+awareness + multi-place removal for zero functional gain over a constant.
+Rejected (iii) port robot_manager: doubles Layer A scope, out per design.
+
+**Why one class is enough for Layer V:** `rejected_no_robot` is determined
+by the runtime registry being empty (no robot announced via link protocol),
+NOT by class lookup. Stub exists only so `list_robot_classes()` and
+startup logging aren't empty during boot.
+
+**Removal path:** when robot_manager ports under
+`app_containers.robot_manager.spec.KB_JSONB_FIELD.robot_classes`, the real
+path starts succeeding, fallback becomes unreachable, single-place
+deletion in `kb_query.lua`. TODO comment in code names the future path
+verbatim so the link is searchable.
+
+**Q2.3 — planner_ui ↔ planner_worker decoupling. LOCKED 2026-05-04: yes,
+fully decoupled. The two processes are bundled in one container for
+operational convenience only — they have no IPC and no shared state at
+the process level.** Both read pg; both speak NATS. UI is the HTTP
+surface; worker is the runtime engine. Mission submit flow: UI POST
+`/api/missions` → NATS publish to `{site}.action_server.missions` →
+worker consumes → writes status to pg → UI displays via pg read or NATS
+subscription. No localhost reverse-proxy from UI to worker, no Unix
+sockets, no FIFOs, no shared memory, no signal coordination.
+
+**Concrete porting obligation:** the planner port's `nginx.conf` listens
+on its own port (`ui_protocol.port_internal=8090` per manifest) and
+references no other internal port. Future "UI needs worker data" cases
+go through pg or NATS, not a sidecar HTTP call. This keeps the option
+open to split UI into its own container later with zero protocol change
+(both pg and NATS are already discovered via `infra_discovery.lua`).
+
+**Q3 — Layer V acceptance test. LOCKED 2026-05-04: tests BOTH rejection
+and completion paths, using the existing
+`building_blocks/ros_planner_ii_mqtt_robot/` as a Layer V fixture.**
+Robot is KB-independent (config = local JSON file; talks MQTT topics
++ link protocol; no pg reads, no NATS KV consultation), so it runs
+from `building_blocks/` with only `site = "moon_base_alpha"` +
+mqtt_host/port pointing at the v3 broker. No port required.
+
+**Pre-conditions (programmatic, run before NATS scenario):**
+1. pg row exists at `app_containers.ros_mission_planner_ii.spec.KB_STATUS_FIELD.version = "1.0"` AND ≥2 manifest KB_JSONB_FIELD blobs (`capabilities`, `nats_protocol`) decode cleanly. Proves apps-builder ran + manifest landed + spec validator passed.
+2. `app_containers.ros_mission_planner_ii.runtime.heartbeat_at` <10s old. Proves planner_worker is alive and writing the runtime row dcs_console's routing dict consumes.
+3. `GET http://localhost:<ui_port>/` returns 200. Proves planner_ui process started under the supervisor (luajit_base two-process pattern works for this app).
+
+**Phase 1 — rejection (robot offline):**
+- Test client publishes mock mission for class `drive_base` to `{site}.action_server.missions`.
+- Observe status KV: `submitted` → `rejected_no_robot`.
+- Proves: NATS subscribe works, capability lookup finds drive_base via Q2.2 fallback, runtime registry consulted and empty.
+
+**Phase 2 — completion (robot online; the headline integration test):**
+- Start `ros_planner_ii_mqtt_robot` from `building_blocks/` with config: `site=moon_base_alpha`, `mqtt_host`/`mqtt_port` from `infra_discovery.lookup("mqtt_broker")`, `robot_class=drive_base`, capabilities matching the FALLBACK stub.
+- Robot connects → MQTT retained `{site_path}/robots/{id}/status/state` shows `connected=true`.
+- Test client publishes another mission.
+- Observe: `submitted` → `dispatched` → `in_progress` → `completed`.
+- Proves: planner→MQTT→robot dispatch, status state machine progresses, runtime registry populated by link-protocol announce, no v2→v3 behavioral regression.
+
+**Optional (cheap, strong signal):**
+- Rejection-on-unknown-class: submit mission for `nonexistent_class` while robot online. Expected: `unknown_class`, NOT `rejected_no_robot`. Distinguishes the two failure modes.
+
+**Out of scope (defer to Phase B.2 or later):**
+- Manual web-UI testing. Historical surface_ops_ui mission-launcher methodology is not portable to v3 (current `planner_ui` is a placeholder shell). UI smoke goes in a separate layer when real endpoints land.
+- HTTP `POST /api/missions` and the other 5 UI endpoints.
+- Hardware robot, multi-robot contention, energy edge cases (v2 already proved planner internals).
 
 ### **First action next session — soak verification + decide Q2.1/Q2.2**
 
