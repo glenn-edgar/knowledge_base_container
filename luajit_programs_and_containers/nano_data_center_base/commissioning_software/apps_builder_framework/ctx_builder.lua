@@ -13,6 +13,9 @@
 --   cpu           string   the cpu_id this container is assigned to (placement.cpu)
 --   role          string   "active" | "passive" | etc. (placement.role)
 --   spec          table    the validated container_spec table (read-only handle)
+--   manifest      table    optional; the app's manifest.lua data (placement.manifest).
+--                          Apps that publish KB rows from manifest.lua data read it here
+--                          so kb_build doesn't need its own require() lookup logic.
 --   kb            table    scoped writer; scope already at app_containers.<instance_id>
 --   read_kb       table    unscoped reader for cross-app discovery during build
 --
@@ -48,6 +51,7 @@ function M.build(placement, kb, read_kb)
     cpu         = placement.cpu,
     role        = placement.role or "active",
     spec        = placement.spec,
+    manifest    = placement.manifest,        -- optional; nil if app has no manifest.lua
     kb          = kb,
     read_kb     = read_kb,
   }

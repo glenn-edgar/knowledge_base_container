@@ -18,42 +18,59 @@
 -- "spec.placement_hints" can coexist.
 -- =============================================================================
 
--- manifest.lua is loaded from the same package directory. The apps-builder
--- driver sets up package.path to include each app's package root before
--- invoking kb_build, so a plain require works.
-local manifest = require("manifest")
+-- manifest is provided in ctx by the apps-builder subsystem (it loads
+-- each app's manifest.lua via dofile and stores it on the placement
+-- before driver.drive). This avoids package.loaded["manifest"] cache
+-- collisions between multiple apps building in the same process.
 
 return function(ctx)
+    local manifest = ctx.manifest
+    assert(type(manifest) == "table",
+        "mission_planner kb_build: ctx.manifest missing -- " ..
+        "apps-builder subsystem must load manifest.lua before drive()")
+
+    -- Detect facade-vs-bare KB at runtime so this works in both contexts:
+    --   - Construct_Data_Tables facade (production build_kb.sh): use
+    --     add_status_field / add_jsonb_field so satellite tables get
+    --     properly seeded.
+    --   - Bare Construct_KB (framework unit tests): use add_info_node;
+    --     no satellite tables exist in test context.
+    local use_facade = type(ctx.kb.add_status_field) == "function"
+                   and type(ctx.kb.add_jsonb_field)  == "function"
+
+    local function emit_status(name, value)
+        if use_facade then
+            ctx.kb:add_status_field(
+                name, {}, "Manifest scalar: " .. name, { value = value })
+        else
+            ctx.kb:add_info_node(
+                "KB_STATUS_FIELD", name, {}, { value = value },
+                "Manifest scalar: " .. name)
+        end
+    end
+
+    local function emit_jsonb(key, blob)
+        if use_facade then
+            ctx.kb:add_jsonb_field(
+                key, "manifest_blob", "Manifest JSONB: " .. key, blob)
+        else
+            ctx.kb:add_info_node(
+                "KB_JSONB_FIELD", key, { doc_type = "manifest_blob" },
+                blob, "Manifest JSONB: " .. key)
+        end
+    end
+
     -- Sub-header: app_containers.<instance>.spec.manifest
-    --
-    -- Uses add_info_node directly (rather than the facade's add_status_field
-    -- / add_jsonb_field) so this works against both bare Construct_KB (used
-    -- by the framework's unit tests) AND Construct_Data_Tables (used by
-    -- production build_kb.sh). Satellite-table reconciliation is the
-    -- facade's job at check_installation time, NOT kb_build's.
     ctx.kb:with_header("spec", "manifest",
         { class = ctx.app_class, kind = ctx.spec.kind },
         {},
         "Manifest catalog for " .. ctx.instance_id,
         function()
-            -- KB_STATUS_FIELD scalars.
             for name, value in pairs(manifest.status or {}) do
-                ctx.kb:add_info_node(
-                    "KB_STATUS_FIELD",
-                    name,
-                    {},                                              -- properties
-                    { value = value },                               -- data
-                    "Manifest scalar: " .. name)                     -- description
+                emit_status(name, value)
             end
-
-            -- KB_JSONB_FIELD blobs (doc_type carried in properties).
             for key, blob in pairs(manifest.jsonb or {}) do
-                ctx.kb:add_info_node(
-                    "KB_JSONB_FIELD",
-                    key,
-                    { doc_type = "manifest_blob" },                  -- properties
-                    blob,                                            -- data
-                    "Manifest JSONB: " .. key)                       -- description
+                emit_jsonb(key, blob)
             end
         end)
 end

@@ -293,6 +293,10 @@ local SUBSYSTEMS = {
   "container_logs",        -- Task 4: per-container KB_LOGs + seed rules
   "domain_registry",
   "site_local",
+  "apps_builder",          -- Phase B Layer I: per-app manifest -> KB rows
+                           -- (must run last among install_site hooks; it
+                           -- relies on infrastructure_registry already
+                           -- having pre-allocated runtime addressing).
 }
 
 local modules = {}

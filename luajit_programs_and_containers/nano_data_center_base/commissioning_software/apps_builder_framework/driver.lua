@@ -36,10 +36,18 @@ local function path_depth(kb)
   -- and unconditionally pops on the way out), so any mismatch means the
   -- app called add_header_node without a matching leave -- corrupted
   -- state.
-  local stack = kb.path and kb.path[kb.working_kb]
+  --
+  -- The kb may be either a bare Construct_KB (Layer F unit-test usage)
+  -- OR a Construct_Data_Tables facade (production build_kb.lua). The
+  -- facade aliases .path to its inner kb but does NOT mirror
+  -- .working_kb on every select_kb call -- so we fall through to the
+  -- inner kb's working_kb when the outer is unset.
+  local working_kb = kb.working_kb
+  if working_kb == nil and kb.kb then working_kb = kb.kb.working_kb end
+  local stack = kb.path and kb.path[working_kb]
   if type(stack) ~= "table" then
     error("driver: kb has no path stack for working_kb=" ..
-          tostring(kb.working_kb))
+          tostring(working_kb))
   end
   return #stack
 end
