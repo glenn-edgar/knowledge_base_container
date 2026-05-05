@@ -1,6 +1,123 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-05 (latest) — B.2.A.2 DONE (planner lib/ wired)
+## State at end of 2026-05-05 (latest) — B.2.A.3.4 DONE (full planner library tree imports clean)
+
+Most of B.2.A.3 landed today (4 sub-commits) plus A.1, A.2 earlier. The
+planner library tree is now structurally reachable inside
+mission_planner_01: 50+ files, NATS + MQTT FFI vendored, action_server
+chunk loads with `action_server=ok` in main.lua's smoke log. Stopping
+short of A.3.5 because integration revealed an API mismatch worth
+designing properly rather than papering over.
+
+| Commit | Slice | Scope |
+|---|---|---|
+| `54664307` | **A.3.1** | Vendor NATS .so files (libnats + libnats_key_store + libnats_job_queue) into mission_planner image. Decision: per-app `prebuilt_libs/` for now; promote to luajit-base when 2nd NATS app lands. Apt: libcjson1. |
+| `75c5c671` | **A.3.2** | Vendor NATS lua wrappers under `planner/lib/lib/` to preserve upstream `lib.nats_*` require namespace. Skip nats.lua entrypoint (action_server uses key_store + job_queue directly). |
+| `f9cb40cf` | **A.3.3** | Copy 7 remaining runtime/ files; ct_loader_pure + ks_blackboard smoke-load. Extend package.path to reach json_util in image. |
+| `c57a616c` | **A.3.3b** | Vendor MQTT FFI (libmqtt_pubsub + liblua_cbor) + lua wrappers. Apt: libmosquitto1. mqtt_transport smoke-loads. |
+| `1a30c6a0` | **A.3.4** | Bulk import: 49 files. local_planner/lib (3) + global_planner/lib (3) + action_server/lib (2) + hub_dsl/* (30) + KBM (1) + kb_query (1, from package-root lua/). main.lua package.path now spans 8 entries. action_server chunk loads clean. |
+
+### B.2.A so far
+
+| Slice | Status | Commit |
+|---|---|---|
+| B.2.A.1 (skeleton + heartbeat) | ✅ | `e65efba5` |
+| B.2.A.2 (lib/ + first 2 files) | ✅ | `0c69a6fa` |
+| B.2.A.3.1 (.so vendoring) | ✅ | `54664307` |
+| B.2.A.3.2 (NATS lua wrappers) | ✅ | `75c5c671` |
+| B.2.A.3.3 (remaining runtime/) | ✅ | `f9cb40cf` |
+| B.2.A.3.3b (MQTT FFI vendoring) | ✅ | `c57a616c` |
+| B.2.A.3.4 (hub_dsl + action_server) | ✅ | `1a30c6a0` |
+| B.2.A.3.5 (wire NATS subscribe) | BLOCKED on API design | -- |
+| B.2.A.4 (V-heavy Phase 1) | TBD | -- |
+| B.2.A.5 (V-heavy Phase 2) | TBD | -- |
+
+### Blocker discovered in A.3.5 (handoff for next session)
+
+**action_server's constructor expects `db_file = "surface_ops.db"` (a
+sqlite file path) but v3 kb_query's KBM-backed query layer expects a
+`connection_params` table (host/port/dbname/user/password) for pg.**
+The two haven't been reconciled — Layer A.2's kb_query refactor changed
+the data layer but action_server's caller-facing API is still v2-shaped.
+
+**Specifics:**
+- `action_server.new(opts)` requires `opts.db_file` and stores it as
+  `self.db_file`. It then uses `self.db_file` as the FIRST argument to
+  `kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)`
+  (action_server.lua line 80, 257, 338, 878, etc.).
+- v3 kb_query.new(db_file, system_name, site, own_instance_id) — itself
+  recently refactored — passes `db_file` to KBM.new("knowledge_base",
+  db_file, nil, true). But KBM in v3 is `commissioning_software/kb/postgres/construct_kb/knowledge_base_manager.lua`
+  which expects `connection_params` (a TABLE), NOT a string path.
+- So kb_query.new() with a path string would already explode at
+  `KBM.new("knowledge_base", db_file_string, nil, true)` because KBM's
+  assertion is `assert(type(connection_params) == "table", ...)`.
+
+**This isn't a Phase B.2.A.5 wiring problem; it's a Phase B.2.A
+mid-layer design call.** Three options:
+
+1. **Refactor action_server to take connection_params instead of
+   db_file**, propagate the rename through every kb_query.new call site.
+   Largest blast radius (action_server is 1330 lines; ~7 call sites).
+   Cleanest end-state.
+2. **Refactor v3 kb_query.new to accept a string AND look up
+   connection_params from somewhere**. Smaller blast radius. Hides
+   coupling.
+3. **Add a "db_file → connection_params" translation layer** (e.g., a
+   per-container config file that maps a logical name to pg conn
+   params, exposed via a new `kb_query.connect_by_name("knowledge_base")`
+   helper). Most flexible; biggest design surface.
+
+Recommendation: **(1)** plus a tiny pg-config helper so `db_file` arg
+becomes `pg_conn` (a table), constructed once in main.lua from
+infra_discovery.lookup("postgres") + the env vars planner already has.
+
+Estimated effort: 1 session of focused refactor + smoke retest.
+
+### **First action next session — A.3.5 design call**
+
+1. Decide between options 1 / 2 / 3 above.
+2. Implement; smoke = `action_server=ok` AND
+   `srv = action_server.new({pg_conn = ..., site = ..., nats_server = ...})`
+   succeeds (instantiation, not just chunk-load).
+3. Then continue A.3.5 proper: NATS connect + subscribe to
+   `{site}.action_server.missions` + skeleton handler logs the mission
+   JSON. Mock-publish via `nats pub` from host or `docker exec
+   nats-js-ram nats pub ...`.
+
+### Quick start-of-session check (verifies the soak)
+
+```bash
+docker logs mission_planner_01 2>&1 | grep "planner libs loaded" | tail -1
+# expect: ... action_server=ok
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker ps --format '{{.Names}}\t{{.Status}}' | grep mission_planner_01
+
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT (data::jsonb->'value'->>'tick')::int AS tick,
+          extract(epoch from now())*1000 - (data::jsonb->'value'->>'at')::bigint AS age_ms
+   FROM knowledge_base_status
+   WHERE path::text ~ 'mission_planner_01.runtime.heartbeat.KB_STATUS_FIELD.snapshot'"
+
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1 ✅ → A.3.2 ✅ → A.3.3 ✅ → A.3.3b ✅ → A.3.4 ✅ →
+  A.3.5 (blocked on db_file vs pg_conn API design call) → A.4 → A.5 (= V-heavy)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+---
+
+## State at end of 2026-05-05 (later) — B.2.A.2 DONE (planner lib/ wired)
 
 | Commit | Slice | Scope |
 |---|---|---|
