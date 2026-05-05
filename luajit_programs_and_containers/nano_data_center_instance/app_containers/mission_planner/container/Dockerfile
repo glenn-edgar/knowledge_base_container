@@ -13,6 +13,32 @@
 
 FROM nanodatacenter/openresty-base:latest
 
+# libcjson1 is a runtime dep of libnats_job_queue.so (the FFI wrapper
+# parses CBOR/JSON via cJSON). Apt-installed because it's the upstream
+# package on Debian; vendoring the lib alone wouldn't pull in its own
+# shared deps (which apt does manage). Install BEFORE copying the .so's
+# so ldconfig sees them all together.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libcjson1 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Vendor the NATS C client + selected FFI wrappers (Phase B.2.A.3).
+# Sourced from third_party_containers/ros_planner/prebuilt_libs/ at build
+# time. Only key_store + job_queue wrappers are shipped -- action_server
+# uses those, and pubsub had an unsafe ffi.cast async pattern (per the
+# project_phase6_transport memory). Dockerfile creates the SONAME chain
+# (libnats.so -> libnats.so.3.13 -> libnats.so.3.13.0) so ffi.load("nats*")
+# resolves correctly.
+#
+# When a SECOND app needs NATS, promote these libs from per-app vendoring
+# here into luajit-base/prebuilt_libs/ instead.
+COPY prebuilt_libs/libnats.so.3.13.0      /usr/local/lib/
+COPY prebuilt_libs/libnats_key_store.so   /usr/local/lib/
+COPY prebuilt_libs/libnats_job_queue.so   /usr/local/lib/
+RUN ln -sf libnats.so.3.13.0 /usr/local/lib/libnats.so.3.13 && \
+    ln -sf libnats.so.3.13   /usr/local/lib/libnats.so      && \
+    ldconfig
+
 COPY planner/    /opt/apps/planner/
 COPY planner_ui/ /opt/apps/planner_ui/
 
