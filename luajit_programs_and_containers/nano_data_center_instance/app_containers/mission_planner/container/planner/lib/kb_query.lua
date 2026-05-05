@@ -107,6 +107,92 @@ function M:close()
 end
 
 ---------------------------------------------------------------------------
+-- Boards (file_store-backed, content-addressable)
+--
+-- Reads navigation boards from pg's fs_blob/fs_node tables. Boards are
+-- uploaded by the operator-side construction/scripts/upload_board.lua
+-- CLI (writer="commissioning"); planner code reads via doc_get and is
+-- never a writer.
+--
+-- Cache: keyed by sha256 hex (NOT by board name). Once a hash has been
+-- parsed, the in-memory graph is reused for every subsequent fetch of
+-- that hash. Updating a board on disk + re-uploading flips the fs_node
+-- pointer to a new hash; next get_active_board() call sees the cache
+-- miss and re-parses.
+--
+-- Mid-mission revision policy is (1) drain-then-flip: callers capture
+-- the returned sha256_hex when starting a mission and re-check on each
+-- tick. Drift handling is the sequencer's concern (see _check_board_drift
+-- in sequencer.lua).
+---------------------------------------------------------------------------
+
+local function bytes_to_hex(bytes)
+    if not bytes then return nil end
+    local out = {}
+    for i = 1, #bytes do out[#out + 1] = string.format("%02x", bytes:byte(i)) end
+    return table.concat(out)
+end
+
+--- Get the currently active board by name.
+-- @param name string  board name (e.g. "landing_zone")
+-- @return table { graph_data = <parsed JSON>, sha256_hex = <64-char hex>,
+--                 cache_hit = bool } on success, or nil + err on missing/invalid.
+function M:get_active_board(name)
+    assert(type(name) == "string" and name ~= "",
+           "get_active_board: name required")
+
+    local doc_store = require("kb_doc_store")
+    local path = string.format("system.%s.site.%s.boards.%s",
+        self.system_name, self.site, name)
+
+    -- Cheap stat: fetches sha256 + size + mtime, NOT content. Lets us
+    -- cache-hit without paying the bytea decode + JSON parse cost.
+    local stat, serr = doc_store.doc_stat(self.kb.conn, "knowledge_base", path)
+    if not stat then
+        return nil, "board not found: " .. name
+            .. (serr and (" (" .. serr .. ")") or "")
+    end
+    local sha_hex = bytes_to_hex(stat.sha256)
+    if not sha_hex then
+        return nil, "board has no sha256 (fs_node pointer null?): " .. name
+    end
+
+    self._board_cache = self._board_cache or {}
+    local cached = self._board_cache[sha_hex]
+    if cached then
+        return { graph_data = cached, sha256_hex = sha_hex, cache_hit = true }
+    end
+
+    -- Cache miss: full fetch + parse.
+    local row, gerr = doc_store.doc_get(self.kb.conn, "knowledge_base", path)
+    if not row or not row.content then
+        return nil, "doc_get returned no content for " .. path
+            .. (gerr and (" (" .. gerr .. ")") or "")
+    end
+    local dkjson = require("dkjson")
+    local graph, _, perr = dkjson.decode(row.content)
+    if not graph then
+        return nil, "board content not valid JSON: " .. tostring(perr)
+    end
+
+    self._board_cache[sha_hex] = graph
+    return { graph_data = graph, sha256_hex = sha_hex, cache_hit = false }
+end
+
+--- Get just the active sha256_hex for a board (cheap drift-detection
+-- helper for the sequencer's per-tick board_drift check).
+-- @param name string
+-- @return string sha256_hex on success, nil + err on missing.
+function M:get_active_board_sha(name)
+    local doc_store = require("kb_doc_store")
+    local path = string.format("system.%s.site.%s.boards.%s",
+        self.system_name, self.site, name)
+    local stat = doc_store.doc_stat(self.kb.conn, "knowledge_base", path)
+    if not stat then return nil, "board not found: " .. name end
+    return bytes_to_hex(stat.sha256)
+end
+
+---------------------------------------------------------------------------
 -- Helper: parse JSON fields from a row
 ---------------------------------------------------------------------------
 

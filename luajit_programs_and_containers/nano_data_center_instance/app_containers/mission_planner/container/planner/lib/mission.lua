@@ -57,6 +57,8 @@ function M.new(opts)
     self.system_name     = opts.system_name     or error("mission: system_name required (threaded for v3 kb_runtime / kb_query)")
     self.own_instance_id = opts.own_instance_id or error("mission: own_instance_id required (this container's name)")
     self.mission_id      = opts.mission_id      or error("mission: mission_id required (JobQueue job.id or caller-generated)")
+    self.board_name      = opts.board_name      or error("mission: board_name required (for per-action record correlation)")
+    self.board_sha256    = opts.board_sha256    or error("mission: board_sha256 required (file_store hash captured at planner build)")
     self.route_length = opts.route_length or 0
     self.site         = site
     self.nats_server  = nats_server
@@ -79,6 +81,8 @@ function M.new(opts)
         container_name = self.own_instance_id,
         robot_id       = self.robot_id,
         mission_id     = self.mission_id,
+        board_name     = self.board_name,
+        board_sha256   = self.board_sha256,
     })
 
     -- NATS KeyStore (status + abort signaling)

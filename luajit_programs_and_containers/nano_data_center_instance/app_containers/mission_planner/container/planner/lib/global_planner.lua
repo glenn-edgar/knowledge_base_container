@@ -92,7 +92,16 @@ function M.new(opts)
     local own_instance_id = opts.own_instance_id or error("global_planner: own_instance_id required (this container's name)")
 
     local q = kb_query.new(pg_conn, system_name, site, own_instance_id)
-    local board_data = q:get_board(board_name)
+
+    -- v3: boards are file_store-backed (content-addressable). Capture
+    -- the sha256 at planner construction so the sequencer can detect
+    -- mid-mission drift (policy 1 = drain-then-flip; planner stays on
+    -- the captured hash for the duration of this mission).
+    local board, berr = q:get_active_board(board_name)
+    if not board then
+        q:close()
+        error("global_planner: " .. tostring(berr))
+    end
 
     -- Load VN definitions for energy computation
     self.vn_defs = {}
@@ -108,15 +117,19 @@ function M.new(opts)
 
     q:close()
 
-    if not board_data then
-        error("global_planner: board '" .. board_name .. "' not found in KB")
-    end
-
-    self.graph = build_graph(board_data)
-    self.blocked = {}
-    self.board_name = board_name
+    self.graph         = build_graph(board.graph_data)
+    self.blocked       = {}
+    self.board_name    = board_name
+    self.board_sha256  = board.sha256_hex
 
     return self
+end
+
+--- Return the sha256 hex of the board this planner was built against.
+-- Used by action_server to thread into sequencer / mission so per-action
+-- records correlate to the exact board version (drain-then-flip policy).
+function M:get_board_sha256()
+    return self.board_sha256
 end
 
 ---------------------------------------------------------------------------

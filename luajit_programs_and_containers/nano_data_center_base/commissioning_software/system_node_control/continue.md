@@ -1,5 +1,142 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 (latest) — B.2.A.4e DONE (planner-side board read path + hash threading)
+
+A.4e landed as **one holding commit** wiring the planner-side read path
+for file_store-backed boards:
+
+- **`kb_doc_store.lua` vendored** into `planner/lib/` (same pattern as
+  nats_*.lua / mqtt_*.lua vendoring from A.3.x).
+- **`kb_query:get_active_board(name)`** + **`:get_active_board_sha(name)`**:
+  reads `boards.<name>` fs_node pointer, parses JSON, caches by sha256.
+  Cache hits skip the bytea decode + JSON parse cost; misses repopulate.
+  Schema-on-read JSONB; new fields free.
+- **`global_planner.new`** switched from the missing `q:get_board(...)`
+  v2 API to `q:get_active_board(name)`; captures `self.board_sha256`;
+  exposes `:get_board_sha256()` for downstream consumers.
+- **`board_name` + `board_sha256` threaded** action_server → sequencer
+  → mission → kb_runtime opts; kb_runtime auto-injects both into every
+  push_event record so per-action history correlates to the exact board
+  version that was active at mission start.
+- **Sequencer drift-detection hook** `_check_board_drift()` invoked
+  once per action transition (cheaper than per-tick). Under policy (1)
+  drain-then-flip: logs once if drift observed, continues on captured
+  hash. Wiring point for future (3) replan-in-place — the `if current
+  ~= captured` branch becomes a replan trigger instead of a log line.
+
+### A.4e smoke results (2026-05-05 evening)
+
+| Check | Result |
+|---|---|
+| `kb_doc_store.lua` reachable from container's package.path | ✓ |
+| `q:get_active_board("landing_zone_smoke")` returns `{graph_data, sha256_hex, cache_hit}` | ✓ 3 nodes, cache_hit=false |
+| Second call: `cache_hit=true`, same sha256 | ✓ |
+| `q:get_active_board_sha(name)` returns hex matching first fetch | ✓ |
+| `kb_runtime:push_event` auto-injects `board_name` + `board_sha256` | ✓ verified in pg JSONB column |
+| `mission_start` + `action_complete` records both carry the hash | ✓ |
+| Cluster soak: peers ACTIVE / ACTIVE, 0 SYS_EXCEPTIONs, heartbeat fresh | ✓ |
+| jq observer still subscribed; mock mission received cleanly post-rebuild | ✓ |
+
+Smoke board cleaned up post-validation; class registration stays as
+permanent schema. fs_blob/fs_node empty awaiting A.4f's real
+construction-phase board.
+
+### Drift detection — what's wired vs what's deferred
+
+Wired now (policy 1 = drain-then-flip):
+- `sequencer:_check_board_drift()` called once per action transition.
+- `kb_query:get_active_board_sha(name)` is the cheap doc_stat-only probe.
+- Compares to `sequencer.board_sha256` captured at mission start.
+- On mismatch: log once via `io.stderr` with truncated hash prefixes
+  for both sides. `self._drift_logged = true` flag prevents log spam.
+- Mission continues to completion on the captured hash.
+
+Deferred for policy 3 (replan-in-place) graduation:
+- The "log once and continue" branch is the wiring point. To graduate:
+  replace the io.stderr write with a call into global_planner to
+  rebuild the graph against the new hash, then ask sequencer to splice
+  a new route from the current pose to the original target.
+- Mission state already captures the original target via the route +
+  action_offset bookkeeping; no new state shape needed.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1-3.4 ✅ → A.3.5 ✅ → A.3.6 ✅ →
+  A.4a ✅ → A.4b ✅ → A.4c ✅ → A.4d ✅ → A.4e ✅ →
+  A.4f (author construction-phase landing_zone.json + upload + verify) →
+  A.5 Phase 1 (jq observer dispatches; rejection path) →
+  A.5 Phase 2 (mqtt_robot fixture; completion path)
+Then queued:
+  A.6 (map_api_tool — operator UI/CLI for board generation + validation)
+  A.7 (robot_manager — fleet-wide robot registry + class catalog)
+  N+1 (topology + slicer simplify), file-store loader generalization,
+  three-tier config
+```
+
+### **First action next session — A.4f (construction-phase landing_zone)**
+
+Author the representative board JSON:
+- 12-20 nodes (start, multiple waypoints, 2-3 module-placement stops,
+  2 charging stations, target).
+- Mixed nav: line + B-spline edges. B-spline edges should carry control
+  points compatible with the `building_blocks/ros_planner_*` route_builder.
+- Edge weights vary by terrain difficulty.
+- Operational stop nodes have a `params` blob carrying capability hints
+  (`pickup_module_1` → `{operation: "pickup", module: "1"}`).
+
+Steps:
+1. Look at `building_blocks/ros_planner_ii/runtime/` and dsl_tests for
+   any existing v2 board JSON to use as a structural reference.
+2. Hand-author `boards/landing_zone.json` (probably under
+   `nano_data_center_instance/boards/` or similar — pick a stable
+   home now since A.6 map_api_tool will share it).
+3. Upload via `upload_board.lua --name landing_zone`.
+4. Verify via `kb_query:get_active_board("landing_zone")` in-container
+   probe — graph node count, edge count, sha256 stable across re-fetch.
+
+Estimated effort: **1 session** (most of it is JSON authoring; pipeline
+is already smoke-tested at A.4d/A.4e).
+
+### Quick start-of-session check (verifies A.4e still soaks)
+
+```bash
+# kb_doc_store reachable in planner container?
+docker exec mission_planner_01 luajit -e "require('kb_doc_store'); print('OK')"
+
+# kb_query API methods present?
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;' .. package.path
+local q = require('kb_query')
+print('get_active_board:', type(q.get_active_board) == 'function' and 'OK' or 'MISSING')
+print('get_active_board_sha:', type(q.get_active_board_sha) == 'function' and 'OK' or 'MISSING')"
+
+# Cluster soak invariants (unchanged through A.4e):
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_doc_class WHERE namespace::text LIKE '%boards%'"
+```
+
+### Rollback recipe
+
+A.4e revert: `git revert --no-edit <hash>` removes the kb_doc_store
+vendor copy + kb_query board API + global_planner board_sha256
+capture + sequencer drift hook + opts threading. Cluster falls back
+to A.4d state where the file_store class registration exists but no
+runtime code reads it. Pre-allocated kb_stream rows for mission_log
+unaffected. Cluster operationally healthy at the rolled-back state
+because A.5 dispatch isn't wired yet — kb_runtime would still error
+on the new board_name/board_sha256 asserts post-revert; A.4b's earlier
+shape (no board fields) would also need to be restored. Practical
+revert path is reverting BOTH A.4e and the kb_runtime shape change
+together. Easier: roll forward.
+
+---
+
 ## State at end of 2026-05-05 (latest) — B.2.A.4d DONE (file_store boards class + upload tool)
 
 A.4c was a pure smoke validation — file_store driver (`kb_doc_store.lua`)

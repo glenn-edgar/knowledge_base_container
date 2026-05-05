@@ -100,6 +100,8 @@ function M.new(opts)
     assert(type(opts.container_name) == "string" and opts.container_name ~= "", "kb_runtime.new: opts.container_name required")
     assert(type(opts.robot_id) == "string" and opts.robot_id ~= "", "kb_runtime.new: opts.robot_id required")
     assert(type(opts.mission_id) == "string" and opts.mission_id ~= "", "kb_runtime.new: opts.mission_id required (use JobQueue job.id or caller-generated)")
+    assert(type(opts.board_name) == "string" and opts.board_name ~= "", "kb_runtime.new: opts.board_name required (for per-action record correlation)")
+    assert(type(opts.board_sha256) == "string" and opts.board_sha256 ~= "", "kb_runtime.new: opts.board_sha256 required (file_store hash captured at planner build)")
 
     local self = setmetatable({}, M)
     self.site           = opts.site
@@ -107,6 +109,8 @@ function M.new(opts)
     self.container_name = opts.container_name
     self.robot_id       = opts.robot_id
     self.mission_id     = opts.mission_id
+    self.board_name     = opts.board_name
+    self.board_sha256   = opts.board_sha256
 
     -- Direct DBI connect (no KBM facade -- we only do the one SQL push).
     local pg = opts.pg_conn
@@ -150,9 +154,11 @@ function M:push_event(record)
     end
 
     -- Auto-inject identifying fields. Caller can override by passing them.
-    record.robot_id   = record.robot_id   or self.robot_id
-    record.mission_id = record.mission_id or self.mission_id
-    record.timestamp  = record.timestamp  or os.date("!%Y-%m-%dT%H:%M:%SZ")
+    record.robot_id     = record.robot_id     or self.robot_id
+    record.mission_id   = record.mission_id   or self.mission_id
+    record.board_name   = record.board_name   or self.board_name
+    record.board_sha256 = record.board_sha256 or self.board_sha256
+    record.timestamp    = record.timestamp    or os.date("!%Y-%m-%dT%H:%M:%SZ")
 
     local json = dkjson.encode(record)
 

@@ -64,7 +64,7 @@ function M.new(opts)
 
     self.robot_id = opts.robot_id or error("sequencer: robot_id required")
     local pg_conn  = opts.pg_conn  or error("sequencer: pg_conn required")
-    self.pg_conn   = pg_conn
+    self.pg_conn   = pg_conn  -- also used by _check_board_drift
 
     self.tick_usleep         = opts.tick_usleep or 2000
     self.max_ticks_per_action = opts.max_ticks_per_action or 500
@@ -77,6 +77,8 @@ function M.new(opts)
     self.system_name     = opts.system_name     or error("sequencer: system_name required (threaded from action_server opts)")
     self.own_instance_id = opts.own_instance_id or error("sequencer: own_instance_id required (threaded from action_server opts)")
     self.mission_id      = opts.mission_id      or error("sequencer: mission_id required (JobQueue job.id; threaded from action_server)")
+    self.board_name      = opts.board_name      or error("sequencer: board_name required (for drift-detection hook)")
+    self.board_sha256    = opts.board_sha256    or error("sequencer: board_sha256 required (captured by global_planner; pinned for drain-then-flip policy)")
     self.nats_server     = opts.nats_server     or error("sequencer: nats_server required")
 
     -- Robot capabilities: passed from action_server (from link protocol or KB class)
@@ -117,6 +119,8 @@ function M.new(opts)
         system_name     = self.system_name,
         own_instance_id = self.own_instance_id,
         mission_id      = self.mission_id,
+        board_name      = self.board_name,
+        board_sha256    = self.board_sha256,
         nats_server     = self.nats_server,
         route_length    = 0,  -- updated on load_route
         stream_size     = self.stream_size,
@@ -126,7 +130,45 @@ function M.new(opts)
     self.route = nil
     self.action_offset = 0  -- cumulative offset across replans
 
+    -- Drift-detection state. Board hash was captured by global_planner at
+    -- mission build time and pinned via opts.board_sha256. Per tick we
+    -- can cheaply re-stat the fs_node and compare. Under (1) drain-then-
+    -- flip we just log; under future (3) replan-in-place this is the
+    -- wiring point for the replan trigger.
+    self._drift_logged = false  -- one-shot per mission to avoid log spam
+
     return self
+end
+
+---------------------------------------------------------------------------
+-- Board drift detection (mid-mission revision policy hook)
+--
+-- Cheap doc_stat against the active board in pg; compare to the
+-- captured sha256. Under policy (1) drain-then-flip: log once if drift
+-- observed and continue executing on the original board. Future (3)
+-- replan-in-place: replace the log with a replan trigger.
+--
+-- Caller (run loop) invokes once per tick. No-op cost when no drift.
+---------------------------------------------------------------------------
+function M:_check_board_drift()
+    if self._drift_logged then return end  -- already noticed this mission
+    local ok, kb_query = pcall(require, "kb_query")
+    if not ok then return end
+    local ok2, q_or_err = pcall(kb_query.new, self.pg_conn,
+        self.system_name, self.site, self.own_instance_id)
+    if not ok2 then return end
+    local current = q_or_err:get_active_board_sha(self.board_name)
+    q_or_err:close()
+
+    if current and current ~= self.board_sha256 then
+        io.stderr:write(string.format(
+            "sequencer[%s mission=%s]: board drift detected: " ..
+            "captured=%s current=%s -- continuing on captured (policy 1: " ..
+            "drain-then-flip; future replan_in_place would trigger here)\n",
+            self.robot_id, self.mission_id,
+            self.board_sha256:sub(1, 12), current:sub(1, 12)))
+        self._drift_logged = true
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -214,6 +256,11 @@ function M:run()
             }
             break
         end
+
+        -- Drift-detection hook: invoked once per action transition (cheap
+        -- enough; per-tick would be excessive doc_stat traffic). Under
+        -- policy (1) drain-then-flip this just logs once and continues.
+        self:_check_board_drift()
 
         self.mission:action_start(action_index, action,
             self.hub_rt:get_global_pose())

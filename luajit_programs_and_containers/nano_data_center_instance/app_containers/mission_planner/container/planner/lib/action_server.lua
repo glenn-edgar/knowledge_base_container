@@ -351,6 +351,8 @@ function M:_make_mission_coroutine(mission_cmd)
             system_name     = srv.system_name,
             own_instance_id = srv.own_instance_id,
             mission_id      = mission_id,
+            board_name      = board,
+            board_sha256    = planner:get_board_sha256(),
             capabilities    = capabilities,
             tick_usleep     = 0,  -- no sleep — scheduler controls timing
             energy_max       = energy_max,
@@ -965,6 +967,8 @@ function M:execute_mission(mission_cmd)
         system_name     = self.system_name,
         own_instance_id = self.own_instance_id,
         mission_id      = mission_id,
+        board_name      = board,
+        board_sha256    = planner:get_board_sha256(),
         capabilities    = capabilities,
         energy_max       = energy_max,
         energy_remaining = energy_remaining,
