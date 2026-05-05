@@ -46,10 +46,14 @@ local nats_ks         = require("lib.nats_key_store")   -- A.3.2 NATS smoke load
 local nats_jq         = require("lib.nats_job_queue")   -- A.3.2 NATS smoke load
 local ct_loader_pure  = require("ct_loader_pure")       -- A.3.3 chain-tree IR loader
 local ks_blackboard   = require("ks_blackboard")        -- A.3.3 NATS-KV blackboard
+local mqtt_pubsub     = require("lib.mqtt_pubsub")      -- A.3.3b MQTT FFI wrapper
+local lua_cbor        = require("lib.lua_cbor")         -- A.3.3b CBOR FFI wrapper
+local mqtt_transport  = require("mqtt_transport")       -- A.3.3b uses lib.mqtt_pubsub + lib.lua_cbor
 
--- Other A.3.3 runtime files copied but not smoke-required yet:
--- link_client, link_manager, mqtt_transport, mqtt_hub_transport (need MQTT FFI -- A.3.3b)
--- queue_monitor (needs hub_dsl/protocol/event_ids + command_packets -- A.3.4)
+-- queue_monitor still pending (needs hub_dsl/protocol/* -- A.3.4)
+-- link_client + link_manager + mqtt_hub_transport require sibling
+-- transport files; we'll exercise them indirectly through action_server
+-- in A.3.5 rather than smoke-load standalone here.
 
 ---------------------------------------------------------------------------
 -- env
@@ -82,16 +86,16 @@ end
 
 logf("started system=%s site=%s cpu=%s pg=%s:%d/%s",
     APP_SYSTEM, APP_SITE, APP_CPU_ID, PG_HOST, PG_PORT, PG_DB)
-logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_loader=%s ks_bb=%s",
+logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_loader=%s ks_bb=%s mqtt_ps=%s lua_cbor=%s mqtt_tx=%s",
     type(fn_registry.register_functions) == "function" and "ok" or "missing",
     type(kv_writer.new)                  == "function" and "ok" or "missing",
     type(nats_ks.KeyStore)               == "table"    and "ok" or "missing",
     type(nats_jq.JobQueue)               == "table"    and "ok" or "missing",
-    (type(ct_loader_pure)                == "table"
-     or type(ct_loader_pure)             == "function") and "ok" or "missing",
-    (type(ks_blackboard.new)             == "function"
-     or type(ks_blackboard.create)       == "function"
-     or type(ks_blackboard)               == "table")  and "ok" or "missing")
+    (type(ct_loader_pure) == "table" or type(ct_loader_pure) == "function") and "ok" or "missing",
+    (type(ks_blackboard) == "table" or type(ks_blackboard) == "function")   and "ok" or "missing",
+    (type(mqtt_pubsub)   == "table" or type(mqtt_pubsub)   == "function")   and "ok" or "missing",
+    (type(lua_cbor)      == "table" or type(lua_cbor)      == "function")   and "ok" or "missing",
+    (type(mqtt_transport)== "table" or type(mqtt_transport)== "function")   and "ok" or "missing")
 
 ---------------------------------------------------------------------------
 -- pg connect (retry until success; mirrors the dcs_host VERIFY_PG pattern)

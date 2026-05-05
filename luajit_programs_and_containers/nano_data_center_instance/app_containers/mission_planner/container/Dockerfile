@@ -13,28 +13,43 @@
 
 FROM nanodatacenter/openresty-base:latest
 
-# libcjson1 is a runtime dep of libnats_job_queue.so (the FFI wrapper
-# parses CBOR/JSON via cJSON). Apt-installed because it's the upstream
-# package on Debian; vendoring the lib alone wouldn't pull in its own
-# shared deps (which apt does manage). Install BEFORE copying the .so's
-# so ldconfig sees them all together.
+# Apt deps for the FFI wrappers shipped below:
+#   libcjson1     -- runtime dep of libnats_job_queue.so (cJSON parsing)
+#   libmosquitto1 -- runtime dep of libmqtt_pubsub.so (MQTT 3.1.1 client)
+# Vendoring the .so's alone wouldn't pull these in; apt manages their
+# shared deps (libssl3, libcrypto, etc.) properly. Install BEFORE copying
+# the wrapper .so's so ldconfig sees the full graph.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libcjson1 && \
+    apt-get install -y --no-install-recommends libcjson1 libmosquitto1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Vendor the NATS C client + selected FFI wrappers (Phase B.2.A.3).
-# Sourced from third_party_containers/ros_planner/prebuilt_libs/ at build
-# time. Only key_store + job_queue wrappers are shipped -- action_server
-# uses those, and pubsub had an unsafe ffi.cast async pattern (per the
-# project_phase6_transport memory). Dockerfile creates the SONAME chain
-# (libnats.so -> libnats.so.3.13 -> libnats.so.3.13.0) so ffi.load("nats*")
-# resolves correctly.
+# Vendor FFI .so files (Phase B.2.A.3).
+# Sourced from:
+#   - NATS:    third_party_containers/ros_planner/prebuilt_libs/
+#   - MQTT:    nano_data_center_base/commissioning_software/kb/mqtt/
 #
-# When a SECOND app needs NATS, promote these libs from per-app vendoring
-# here into luajit-base/prebuilt_libs/ instead.
+# Vendored per-app (here) for now; promote to luajit-base/prebuilt_libs/
+# when a second app needs them.
+#
+# NATS:
+#   - libnats.so.3.13.0 (official C client)
+#   - libnats_key_store.so + libnats_job_queue.so (FFI wrappers used by
+#     action_server). pubsub/rpc/kb_store/stream wrappers NOT vendored:
+#     pubsub had an unsafe ffi.cast async pattern (project_phase6_transport
+#     memory) and the others aren't used.
+#
+# MQTT:
+#   - libmqtt_pubsub.so (FFI wrapper used by runtime/mqtt_transport.lua,
+#     mqtt_hub_transport.lua via lib.mqtt_pubsub).
+#   - liblua_cbor.so (FFI wrapper used by link_client / link_manager /
+#     mqtt_transport via lib.lua_cbor).
+#
+# Dockerfile recreates the libnats SONAME chain (cp -L flattened it).
 COPY prebuilt_libs/libnats.so.3.13.0      /usr/local/lib/
 COPY prebuilt_libs/libnats_key_store.so   /usr/local/lib/
 COPY prebuilt_libs/libnats_job_queue.so   /usr/local/lib/
+COPY prebuilt_libs/libmqtt_pubsub.so      /usr/local/lib/
+COPY prebuilt_libs/liblua_cbor.so         /usr/local/lib/
 RUN ln -sf libnats.so.3.13.0 /usr/local/lib/libnats.so.3.13 && \
     ln -sf libnats.so.3.13   /usr/local/lib/libnats.so      && \
     ldconfig
