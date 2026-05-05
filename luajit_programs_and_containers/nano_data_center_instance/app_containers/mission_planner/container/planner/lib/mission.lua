@@ -56,6 +56,7 @@ function M.new(opts)
     local nats_server = opts.nats_server  or error("mission: nats_server required")
     self.system_name     = opts.system_name     or error("mission: system_name required (threaded for v3 kb_runtime / kb_query)")
     self.own_instance_id = opts.own_instance_id or error("mission: own_instance_id required (this container's name)")
+    self.mission_id      = opts.mission_id      or error("mission: mission_id required (JobQueue job.id or caller-generated)")
     self.route_length = opts.route_length or 0
     self.site         = site
     self.nats_server  = nats_server
@@ -67,9 +68,18 @@ function M.new(opts)
     self.stream_path = site .. ".robots." .. self.robot_id ..
         ".stream.telemetry"
 
-    -- KB kb_runtime (durable bookends)
+    -- KB kb_runtime (per-action durable persistence into a capped FIFO ring
+    -- under app_containers.<container>.mission_log.actions; cap depth
+    -- declared in mission_planner kb_build via add_stream_field).
     local kb_runtime = require("kb_runtime")
-    self.kb_rt = kb_runtime.new(pg_conn, site, self.robot_id)
+    self.kb_rt = kb_runtime.new({
+        pg_conn        = pg_conn,
+        site           = site,
+        system_name    = self.system_name,
+        container_name = self.own_instance_id,
+        robot_id       = self.robot_id,
+        mission_id     = self.mission_id,
+    })
 
     -- NATS KeyStore (status + abort signaling)
     -- Bucket name derived from site namespace
@@ -168,13 +178,11 @@ function M:start()
     -- Clear previous stream data
     self:_stream_purge()
 
-    -- SQLite: write initial mission status
-    self.kb_rt:merge_status({
-        mission_active   = true,
+    -- pg kb_stream: push mission_start event into action ring
+    self.kb_rt:push_event({
+        type             = "mission_start",
         route_length     = self.route_length,
         actions_complete = 0,
-        started_at       = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-        success          = nil,
     })
 
     -- NATS KeyStore: write live status
@@ -209,16 +217,16 @@ function M:action_start(index, action, pose)
         timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
-    -- SQLite bookend: initial heartbeat for this VN
-    self.kb_rt:write_heartbeat({
-        type          = "action_start",
-        action_index  = index,
-        kb_name       = action.kb_name,
-        global_x      = pose.x or 0,
-        global_y      = pose.y or 0,
-        global_heading = pose.heading or 0,
+    -- pg kb_stream: push action_start event
+    self.kb_rt:push_event({
+        type             = "action_start",
+        action_index     = index,
+        action_total     = self.route_length,
+        kb_name          = action.kb_name,
+        global_x         = pose.x or 0,
+        global_y         = pose.y or 0,
+        global_heading   = pose.heading or 0,
         global_arm_angle = pose.arm_angle or 0,
-        timestamp     = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
     -- NATS KeyStore: update live status
@@ -272,17 +280,17 @@ function M:action_complete(index, action, pose)
         timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
-    -- SQLite bookend: final heartbeat for this VN
-    self.kb_rt:write_heartbeat({
+    -- pg kb_stream: push action_complete event
+    self.kb_rt:push_event({
         type             = "action_complete",
         action_index     = index,
+        action_total     = self.route_length,
         kb_name          = action.kb_name,
         success          = true,
         global_x         = pose.x or 0,
         global_y         = pose.y or 0,
         global_heading   = pose.heading or 0,
         global_arm_angle = pose.arm_angle or 0,
-        timestamp        = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
     -- NATS KeyStore: update live status
@@ -302,14 +310,14 @@ function M:action_failed(index, action, reason)
         timestamp     = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
-    -- SQLite bookend: fault record for this VN
-    self.kb_rt:write_heartbeat({
+    -- pg kb_stream: push action_failed event
+    self.kb_rt:push_event({
         type          = "action_failed",
         action_index  = index,
+        action_total  = self.route_length,
         kb_name       = action.kb_name,
         success       = false,
         fault_reason  = reason,
-        timestamp     = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
     -- NATS KeyStore: update live status
@@ -326,18 +334,19 @@ end
 function M:finish(result)
     local elapsed_ms = math.floor((os.clock() - (self.start_time or os.clock())) * 1000)
 
-    -- SQLite: write final mission status
-    self.kb_rt:merge_status({
-        mission_active   = false,
+    -- pg kb_stream: push mission_finish event
+    self.kb_rt:push_event({
+        type             = "mission_finish",
         success          = result.success,
         actions_complete = result.completed or 0,
-        route_length     = result.total or self.route_length,
+        action_total     = result.total or self.route_length,
         elapsed_ms       = elapsed_ms,
+        heartbeat_count  = self.heartbeat_count,
+        fault            = result.fault,
         final_x          = result.final_pose and result.final_pose.x or 0,
         final_y          = result.final_pose and result.final_pose.y or 0,
         final_heading    = result.final_pose and result.final_pose.heading or 0,
         final_arm_angle  = result.final_pose and result.final_pose.arm_angle or 0,
-        completed_at     = os.date("!%Y-%m-%dT%H:%M:%SZ"),
     })
 
     local event_type = result.success and "mission_complete" or "mission_failed"

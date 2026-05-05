@@ -73,4 +73,35 @@ return function(ctx)
                 emit_jsonb(key, blob)
             end
         end)
+
+    -- Sub-header: app_containers.<instance>.mission_log.actions
+    -- Per-action durable persistence ring. cap=256 events; one ring per
+    -- planner instance (NOT per robot -- robot_id and mission_id live in
+    -- the JSON payload). UI consumers filter by data->>'robot_id' and
+    -- data->>'mission_id'. Schema-on-read JSONB; new fields are free.
+    -- Writer: kb_runtime.lua (planner/hub_dsl/kb_construct/) at every
+    -- mission_start / action_start / action_complete / action_failed /
+    -- mission_finish lifecycle event.
+    if use_facade then
+        ctx.kb:with_header("mission_log", "actions",
+            { kind = "mission_history" }, {},
+            "Per-action mission lifecycle ring (cap=256, JSONB events)",
+            function()
+                ctx.kb:add_stream_field("samples", 256,
+                    "Action history: mission_start / action_start / " ..
+                    "action_complete / action_failed / mission_finish")
+            end)
+    else
+        -- Bare Construct_KB (test context) has no add_stream_field; emit
+        -- a placeholder info node so the structural path exists. Tests
+        -- that exercise kb_runtime supply their own pre-allocation.
+        ctx.kb:with_header("mission_log", "actions",
+            { kind = "mission_history" }, {},
+            "Per-action mission lifecycle ring placeholder",
+            function()
+                ctx.kb:add_info_node("KB_STREAM_FIELD", "samples",
+                    { stream_length = 256 }, {},
+                    "Action history ring (test placeholder)")
+            end)
+    end
 end

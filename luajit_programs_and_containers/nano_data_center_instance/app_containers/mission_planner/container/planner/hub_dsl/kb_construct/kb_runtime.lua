@@ -1,179 +1,186 @@
 --[[
-    kb_runtime.lua -- Runtime KB reader/writer for status + stream tables.
+    kb_runtime.lua -- Per-action durable persistence for mission lifecycle.
 
-    Used by the controller (remote) and hub to update robot state
-    during execution. Separate from kb_query (which is read-only for config).
+    Pushes mission/action events into a capped-FIFO ring at:
+      system.<system>.site.<site>.app_containers.<container>.
+        mission_log.actions.KB_STREAM_FIELD.samples
 
-    NOTE: Robot instances are no longer pre-created in the KB. All writes
-    are best-effort — if the path doesn't exist, writes are silently
-    skipped. Live telemetry flows via NATS KV instead.
+    Cap depth declared at build_kb time via mission_planner's kb_build
+    (add_stream_field("samples", N, ...)). Pre-allocated rows in
+    knowledge_base_stream are updated in oldest-first order on each
+    push -- standard kb_stream circular-buffer pattern.
 
-    Status table: single row per robot, current snapshot
-    Stream table: circular buffer of heartbeat records
+    Records are JSONB. Schema-on-read: any field can be added by future
+    code without migration. The unified record shape used by mission.lua:
 
-    A.3.5 SIGNATURE NOTE: arg 1 is now a pg_conn TABLE (not a sqlite path
-    string) so KBM.new in v3 (pg-only) accepts it. The BODY of this module
-    is still sqlite-coded (self.kb.db, sqlite3_helpers); first mission
-    dispatch will crash at status/stream writes. Porting this body to pg
-    KBM ltree writes is deferred — it gates the V-heavy completion path
-    (B.2.A.5) but not A.3.5's instantiation + NATS-subscribe smoke.
+      {
+        type             = "mission_start" | "action_start" |
+                           "action_complete" | "action_failed" |
+                           "mission_finish",
+        robot_id         = string,        -- auto-injected from constructor
+        mission_id       = string,        -- auto-injected from constructor
+        action_index     = number?,       -- nil for mission events
+        action_total     = number?,       -- nil for mission events
+        kb_name          = string?,       -- nil for mission events
+        success          = boolean?,      -- complete/failed/finish only
+        fault_reason     = string?,       -- failed only
+        fault            = table?,        -- finish only (full fault detail)
+        global_x/y/heading/arm_angle = number?,  -- when pose available
+        elapsed_ms       = number?,       -- finish only
+        timestamp        = string,        -- ISO8601, auto-injected if absent
+        ... (any extra fields the caller passes)
+      }
+
+    This module replaces the v2 sqlite-coded kb_runtime body. The status
+    table semantic (single-row state snapshot via merge_status) is gone:
+    nothing reads it, and live state already flows through NATS KV via
+    mission.lua's :_publish_status path. Action history lives here.
+
+    Robot_id is per-record, NOT per-path: all robots share one ring per
+    planner instance. UI consumers filter by data->>'robot_id'.
 
     Usage:
         local kb_rt = require("kb_runtime")
-        local rt = kb_rt.new(pg_conn, "moonbase.alpha.surface_ops", "rover_1")
-
-        -- Update status (overwrites current snapshot)
-        rt:update_status({
-            active_kb = "init_check",
-            active_worker = "worker_init_check",
-            global_x = 800, global_y = 0, global_heading = 0,
-            connected = true,
+        local rt = kb_rt.new({
+            pg_conn        = { host=..., port=..., dbname=..., user=..., password=... },
+            site           = "moon_base_alpha",
+            system_name    = "moon_base",
+            container_name = "mission_planner_01",
+            robot_id       = "rover_1",
+            mission_id     = "ab017494...",  -- from JobQueue job.id, or caller-generated
         })
 
-        -- Read current status
-        local status = rt:read_status()
-
+        rt:push_event({ type = "mission_start", route_length = 6 })
+        rt:push_event({ type = "action_start", action_index = 1, kb_name = "drive" })
+        ...
         rt:close()
 ]]
 
-local KBM = require("knowledge_base_manager")
-local h = require("sqlite3_helpers")
-local sql_query = h.sql_query
-local sql_exec  = h.sql_exec
-local json      = h.json
+local DBI    = require("DBI")
+local dkjson = require("dkjson")
 
 local M = {}
 M.__index = M
 
-function M.new(pg_conn, site, instance_name, database)
-    assert(type(pg_conn) == "table",
-           "kb_runtime.new: pg_conn must be a table " ..
-           "{host, port, dbname, user, password}")
-    local self = setmetatable({}, M)
-    database = database or "knowledge_base"
-    self.kb = KBM.new(database, pg_conn, true)  -- upload_flag=true (read-only schema)
-    self.db = self.kb.db   -- TODO(A.3.5 deferred): pg KBM has no .db; body still sqlite-coded
-    self.database = database
-    self.site = site
-    self.instance = instance_name
-    self.status_table = database .. "_status"
-    self.stream_table = database .. "_stream"
+---------------------------------------------------------------------------
+-- Internal pg helpers (mirrors dcs_host/kb_stream.lua's direct-SQL push;
+-- avoids the KB_Search dependency so this module stays self-contained).
+---------------------------------------------------------------------------
 
-    -- Pre-compute paths (lowercase namespace convention)
-    self.status_path = site .. ".robots." .. instance_name ..
-        ".status.state"
-    self.connection_path = site .. ".robots." .. instance_name ..
-        ".status.connection"
-    self.stream_path = site .. ".robots." .. instance_name ..
-        ".stream.telemetry"
+local function escape(s) return tostring(s):gsub("'", "''") end
+
+local function exec(conn, sql)
+    local sth, err = conn:prepare(sql)
+    if not sth then return nil, "prepare: " .. tostring(err) end
+    local ok, eerr = sth:execute()
+    if not ok then sth:close(); return nil, "execute: " .. tostring(eerr) end
+    sth:close()
+    return true
+end
+
+local function query_one(conn, sql)
+    local sth, err = conn:prepare(sql)
+    if not sth then return nil, "prepare: " .. tostring(err) end
+    local ok, eerr = sth:execute()
+    if not ok then sth:close(); return nil, "execute: " .. tostring(eerr) end
+    local row = sth:fetch(true)
+    sth:close()
+    return row
+end
+
+---------------------------------------------------------------------------
+-- Constructor
+---------------------------------------------------------------------------
+
+function M.new(opts)
+    assert(type(opts) == "table",          "kb_runtime.new: opts table required")
+    assert(type(opts.pg_conn) == "table",  "kb_runtime.new: opts.pg_conn must be a table")
+    assert(type(opts.site)    == "string" and opts.site    ~= "", "kb_runtime.new: opts.site required")
+    assert(type(opts.system_name)    == "string" and opts.system_name    ~= "", "kb_runtime.new: opts.system_name required")
+    assert(type(opts.container_name) == "string" and opts.container_name ~= "", "kb_runtime.new: opts.container_name required")
+    assert(type(opts.robot_id) == "string" and opts.robot_id ~= "", "kb_runtime.new: opts.robot_id required")
+    assert(type(opts.mission_id) == "string" and opts.mission_id ~= "", "kb_runtime.new: opts.mission_id required (use JobQueue job.id or caller-generated)")
+
+    local self = setmetatable({}, M)
+    self.site           = opts.site
+    self.system_name    = opts.system_name
+    self.container_name = opts.container_name
+    self.robot_id       = opts.robot_id
+    self.mission_id     = opts.mission_id
+
+    -- Direct DBI connect (no KBM facade -- we only do the one SQL push).
+    local pg = opts.pg_conn
+    local conn, err = DBI.Connect("PostgreSQL", pg.dbname, pg.user, pg.password,
+                                  pg.host, tostring(pg.port))
+    if not conn then
+        error("kb_runtime: pg connect failed: " .. tostring(err))
+    end
+    conn:autocommit(true)
+    self.conn = conn
+
+    -- Pre-compute the stream path (per planner instance, not per robot;
+    -- robot_id lives in the JSON payload, not the ltree path).
+    self.event_path = string.format(
+        "system.%s.site.%s.app_containers.%s.mission_log.actions.KB_STREAM_FIELD.samples",
+        opts.system_name, opts.site, opts.container_name)
 
     return self
 end
 
 function M:close()
-    self.kb:disconnect()
+    if self.conn then
+        pcall(function() self.conn:close() end)
+        self.conn = nil
+    end
 end
 
 ---------------------------------------------------------------------------
--- STATUS: read/write current robot state
+-- push_event(record)
+--
+-- Pushes a record into the action-history ring. Auto-injects robot_id,
+-- mission_id, and timestamp if not already in the record. The ring is
+-- pre-allocated at build_kb time; if no slot is found, returns nil+err
+-- (loud failure -- means the kb_build add_stream_field declaration was
+-- forgotten or the build_kb step didn't run).
 ---------------------------------------------------------------------------
 
-function M:read_status()
-    local rows = sql_query(self.db,
-        string.format("SELECT data FROM %s WHERE path = ?", self.status_table),
-        { self.status_path })
-    if #rows > 0 and rows[1].data then
-        local ok, d = pcall(json.decode, rows[1].data)
-        if ok then return d end
+function M:push_event(record)
+    if type(record) ~= "table" then
+        return nil, "push_event: record must be a table"
     end
-    return {}
-end
 
-function M:update_status(state_data)
-    local json_str = json.encode(state_data)
-    sql_exec(self.db, string.format(
-        "UPDATE %s SET data = '%s' WHERE path = '%s'",
-        self.status_table, json_str:gsub("'", "''"), self.status_path))
-end
+    -- Auto-inject identifying fields. Caller can override by passing them.
+    record.robot_id   = record.robot_id   or self.robot_id
+    record.mission_id = record.mission_id or self.mission_id
+    record.timestamp  = record.timestamp  or os.date("!%Y-%m-%dT%H:%M:%SZ")
 
--- Merge fields into existing status (partial update)
-function M:merge_status(fields)
-    local current = self:read_status()
-    for k, v in pairs(fields) do
-        current[k] = v
+    local json = dkjson.encode(record)
+
+    -- Find the oldest row at this path (lowest recorded_at, breaking ties
+    -- by id ASC). Pre-allocated empty rows have valid=FALSE; they sort
+    -- first because their CURRENT_TIMESTAMP at allocation is older than
+    -- any pushed record.
+    local oldest, err = query_one(self.conn, string.format([[
+        SELECT id FROM knowledge_base_stream
+         WHERE path = '%s'::ltree
+         ORDER BY recorded_at ASC, id ASC
+         LIMIT 1
+    ]], escape(self.event_path)))
+    if err then return nil, err end
+    if not oldest then
+        return nil, string.format(
+            "kb_runtime: no slots pre-allocated for path '%s' " ..
+            "-- did mission_planner kb_build add_stream_field run?",
+            self.event_path)
     end
-    self:update_status(current)
-end
 
-function M:read_connection()
-    local rows = sql_query(self.db,
-        string.format("SELECT data FROM %s WHERE path = ?", self.status_table),
-        { self.connection_path })
-    if #rows > 0 and rows[1].data then
-        local ok, d = pcall(json.decode, rows[1].data)
-        if ok then return d end
-    end
-    return {}
-end
-
----------------------------------------------------------------------------
--- STREAM: circular buffer of heartbeat records
----------------------------------------------------------------------------
-
-function M:write_heartbeat(heartbeat_data)
-    -- Find the oldest row (lowest recorded_at) with valid=0, or oldest valid=1
-    -- Update it with new data — circular buffer pattern
-    local rows = sql_query(self.db,
-        string.format([[
-            SELECT id FROM %s
-            WHERE path = ?
-            ORDER BY
-                valid ASC,
-                recorded_at ASC
-            LIMIT 1
-        ]], self.stream_table),
-        { self.stream_path })
-
-    if #rows > 0 then
-        local json_str = json.encode(heartbeat_data)
-        sql_exec(self.db, string.format(
-            "UPDATE %s SET data = '%s', valid = 1, recorded_at = datetime('now') WHERE id = %d",
-            self.stream_table, json_str:gsub("'", "''"), rows[1].id))
-    end
-end
-
-function M:read_heartbeats(count)
-    count = count or 10
-    local rows = sql_query(self.db,
-        string.format([[
-            SELECT data, recorded_at FROM %s
-            WHERE path = ? AND valid = 1
-            ORDER BY recorded_at DESC
-            LIMIT ?
-        ]], self.stream_table),
-        { self.stream_path, count })
-
-    local result = {}
-    for _, row in ipairs(rows) do
-        if row.data then
-            local ok, d = pcall(json.decode, row.data)
-            if ok then
-                d._recorded_at = row.recorded_at
-                result[#result + 1] = d
-            end
-        end
-    end
-    return result
-end
-
--- Get count of valid heartbeat records
-function M:heartbeat_count()
-    local rows = sql_query(self.db,
-        string.format("SELECT COUNT(*) as cnt FROM %s WHERE path = ? AND valid = 1",
-            self.stream_table),
-        { self.stream_path })
-    if #rows > 0 then return rows[1].cnt end
-    return 0
+    return exec(self.conn, string.format([[
+        UPDATE knowledge_base_stream
+           SET data = '%s'::jsonb,
+               recorded_at = NOW(),
+               valid = TRUE
+         WHERE id = %s
+    ]], escape(json), tostring(oldest.id)))
 end
 
 return M

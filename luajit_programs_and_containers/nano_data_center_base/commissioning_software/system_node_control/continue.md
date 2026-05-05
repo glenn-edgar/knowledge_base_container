@@ -1,6 +1,169 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-05 (latest) — B.2.A.4a DONE (kb_query positional args + opts threading)
+## State at end of 2026-05-05 (latest) — B.2.A.4b DONE (per-action persistence via kb_stream)
+
+A.4b landed as **one holding commit** porting kb_runtime.lua's body from
+sqlite to pg-backed kb_stream capped FIFO with JSONB action records.
+Wires through the full chain:
+
+- `mission_planner/kb_build.lua` → declares `mission_log/actions` sub-header + `add_stream_field("samples", 256, ...)` → pre-allocates 256 rows at `app_containers.mission_planner_01.mission_log.actions.KB_STREAM_FIELD.samples`
+- `kb_runtime.lua` → DBI-direct push (mirrors dcs_host/kb_stream.lua's `M.push` pattern, no KBM/KB_Search dependency); single `push_event(record)` API; auto-injects `robot_id`, `mission_id`, `timestamp`
+- `mission.lua` → 5 call sites (`merge_status` ×2 + `write_heartbeat` ×3) collapsed onto `push_event` with explicit `type` discriminators (`mission_start` / `action_start` / `action_complete` / `action_failed` / `mission_finish`)
+- `action_server.lua` → tags `cmd.mission_id = job.id` from JobQueue claim before stashing; threads `mission_id` into both `sequencer_mod.new` call sites with synthetic-id fallback for direct-submit paths
+- `sequencer.lua` → asserts `opts.mission_id`, threads to `mission_mod.new`
+
+**Storage decision**: one ring per planner instance (NOT per robot).
+`robot_id` lives in the JSON payload, not the ltree path — UI consumers
+filter by `data->>'robot_id'`. Cap=256 = ~40-80 missions of history per
+planner. JSONB schema-on-read (new fields free, no migration).
+
+| Slice | Scope |
+|---|---|
+| `(this commit)` | **A.4b** — Per-action persistence: full kb_runtime body rewrite, mission.lua call-site collapse, kb_build stream-field declaration, mission_id threading through action_server → sequencer → mission. ~7 files. |
+
+### A.4b smoke results (2026-05-05 evening, latest)
+
+| Check | Result |
+|---|---|
+| build_kb pre-allocates 256 rows at `mission_log.actions.KB_STREAM_FIELD.samples` | ✓ verified via pg row count |
+| `kb_runtime.new` opens DBI conn cleanly | ✓ |
+| In-container probe: 4 push_event calls (mission_start / action_start / action_complete / mission_finish) all `ok=true` | ✓ |
+| 4 valid + 252 pre-allocated invalid rows after probe | ✓ |
+| JSON predicate query (`data->>'mission_id' = 'probe_mission_001'`) returns full lifecycle in order | ✓ |
+| jq observer log-only handler still subscribed + receives missions | ✓ |
+| heartbeat fresh, peers ACTIVE / ACTIVE, 0 SYS_EXCEPTIONs | ✓ |
+
+### Sample record (UI-style fetch)
+
+```sql
+SELECT data::jsonb->>'type'         AS type,
+       data::jsonb->>'robot_id'     AS robot_id,
+       data::jsonb->>'mission_id'   AS mission_id,
+       data::jsonb->>'action_index' AS action_index,
+       data::jsonb->>'success'      AS success
+  FROM knowledge_base_stream
+ WHERE path::text = 'system.moon_base.site.moon_base_alpha.app_containers.mission_planner_01.mission_log.actions.KB_STREAM_FIELD.samples'
+   AND valid = TRUE
+   AND data::jsonb->>'mission_id' = '<job_id>'
+ ORDER BY recorded_at;
+```
+
+returns:
+```
+mission_start  | rover_X | <mission_id> |   |
+action_start   | rover_X | <mission_id> | 1 |
+action_complete| rover_X | <mission_id> | 1 | true
+...
+mission_finish | rover_X | <mission_id> |   | true
+```
+
+### What's now unblocked
+
+A.4b closes the third (and last) of the three blockers documented at end
+of A.3.5:
+- ✅ kb_query positional args (A.4a)
+- ✅ sequencer:get_site dead path (A.4a)
+- ✅ kb_runtime body sqlite-coded (A.4b)
+
+**Mission DISPATCH path is now structurally sound.** A.5 V-heavy is the
+next logical layer: switch the jq observer's log-only handler over to
+`action_srv:_drain_nats_queue` (or call `action_srv:execute_mission`
+directly), exercise the rejection path (no robot — `submitted` →
+`rejected_no_robot`), then the completion path with the
+`building_blocks/ros_planner_ii_mqtt_robot/` fixture.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1 ✅ → A.3.2 ✅ → A.3.3 ✅ → A.3.3b ✅ → A.3.4 ✅ →
+  A.3.5 ✅ → A.3.6 ✅ → A.4a ✅ → A.4b ✅ →
+  A.5 (= V-heavy: rejection path + completion path with mqtt_robot fixture)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+### **First action next session — A.5 V-heavy**
+
+Two phases:
+
+**Phase 1 — rejection path (~½ session).** Wire jq observer to actually
+dispatch (replace the log-only handler with a call into action_server).
+Submit a mission for a robot class with no live robot:
+```lua
+{"robot_id":"rover_1","class_name":"drive_base","board":"landing_zone"}
+```
+Expected: planner sees no live robot for `rover_1` (link_manager has no
+entry), publishes `state="rejected_no_robot"` to the NATS status key,
+mission_finish event lands in pg with `success=false`. No mqtt_robot
+fixture required.
+
+**Phase 2 — completion path (~½ session).** Start the
+`building_blocks/ros_planner_ii_mqtt_robot/` Linux container as a fake
+robot. It announces via link protocol, takes the dispatched mission,
+produces action results back through the planner pipeline. Expected:
+full action lifecycle in pg (mission_start → action_start ×n →
+action_complete ×n → mission_finish success=true), final pose updated.
+
+**Pre-emptive watch-outs:**
+- Mission DISPATCH may unmask further mismatches in the runtime chain
+  (board lookup, link_manager wiring, mqtt transport handshake). The
+  three named blockers are closed but A.5 may surface secondary ones.
+- The jq observer wiring change is small but invasive: changing from
+  log-only to dispatch means the observer now owns the mission lifecycle.
+  Consider wrapping in pcall so a crash doesn't take down the heartbeat
+  loop. See `feedback_no_soft_faults` though — fault paths are
+  fail-stop; a crash here SHOULD halt until explicit reset, not be
+  swallowed.
+- `list_boards` method is still missing on kb_query (A.4a notes); board
+  lookup will likely need that to be implemented first. Probably 1-2
+  hours of method addition + tests.
+
+### Quick start-of-session check (verifies A.4b still soaks)
+
+```bash
+docker logs mission_planner_01 2>&1 | grep "action_server instantiated" | tail -1
+docker logs mission_planner_01 2>&1 | grep "jq observer subscribed" | tail -1
+
+# Pre-allocated stream still 256?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_stream
+    WHERE path::text ~ 'mission_planner_01.mission_log.actions.*samples'"
+
+# kb_runtime probe (push 4 events to a synthetic mission_id):
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;/opt/apps/planner/?.lua;/opt/apps/planner/hub_dsl/?.lua;/opt/apps/planner/hub_dsl/kb_construct/?.lua;/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua;' .. package.path
+local kb_runtime = require('kb_runtime')
+local pg_conn = { host = os.getenv('PG_HOST'), port = tonumber(os.getenv('PG_PORT')),
+                  dbname = os.getenv('PG_DB'), user = os.getenv('PG_USER'),
+                  password = os.getenv('PG_PASSWORD') }
+local rt = kb_runtime.new({
+    pg_conn=pg_conn, site=os.getenv('APP_SITE'),
+    system_name=os.getenv('APP_SYSTEM'), container_name=os.getenv('CONTAINER_NAME'),
+    robot_id='rover_smoke', mission_id='smoke_'..os.time() })
+local ok, err = rt:push_event({type='mission_start', route_length=2})
+io.stdout:write('push: ok='..tostring(ok)..' err='..tostring(err)..'\n')
+rt:close()"
+# expect: push: ok=true err=nil
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Rollback recipe
+
+A.4b revert: `git revert --no-edit <hash>` — single holding commit, ~7
+files revert atomically. Cluster falls back to A.4a state where
+constructors instantiate cleanly but kb_runtime body crashes on first
+mission. mission_planner_01's mission_log stream stays declared in pg
+(harmless — just unused empty rows). To fully roll back the stream
+declaration, re-run build_kb at the reverted state and the orphan
+kb_build mission_log block disappears.
+
+---
+
+## State at end of 2026-05-05 — B.2.A.4a DONE (kb_query positional args + opts threading)
 
 A.4a landed as **one holding commit** unifying the v3 kb_query positional
 arg shape across action_server / global_planner / sequencer / hub_runtime

@@ -336,7 +336,13 @@ function M:_make_mission_coroutine(mission_cmd)
             return result
         end
 
-        -- Create sequencer with yield-aware tick
+        -- Create sequencer with yield-aware tick. mission_id is the
+        -- JobQueue job.id (set by _drain_nats_queue when claimed). For
+        -- direct in-process :submit callers, fall back to a synthetic id
+        -- composed from robot_id + epoch ms so kb_runtime always has a
+        -- non-empty mission_id assertion target.
+        local mission_id = mission_cmd.mission_id
+            or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
         local seq = sequencer_mod.new({
             robot_id        = robot_id,
             pg_conn         = srv.pg_conn,
@@ -344,6 +350,7 @@ function M:_make_mission_coroutine(mission_cmd)
             site            = srv.site,
             system_name     = srv.system_name,
             own_instance_id = srv.own_instance_id,
+            mission_id      = mission_id,
             capabilities    = capabilities,
             tick_usleep     = 0,  -- no sleep — scheduler controls timing
             energy_max       = energy_max,
@@ -673,6 +680,9 @@ function M:_drain_nats_queue()
         elseif self.missions[cmd.robot_id] and self.missions[cmd.robot_id].state == "active" then
             self._jq:fail_job(job.id, "robot " .. cmd.robot_id .. " already has an active mission")
         else
+            -- Tag the mission_cmd with the JobQueue job id so the sequencer
+            -- can thread it down to kb_runtime as the durable mission_id.
+            cmd.mission_id = job.id
             local co = self:_make_mission_coroutine(cmd)
             self.missions[cmd.robot_id] = {
                 coroutine = co,
@@ -943,6 +953,10 @@ function M:execute_mission(mission_cmd)
         }
     end
 
+    -- Direct (non-NATS) submit path: same fallback shape as the
+    -- coroutine path above.
+    local mission_id = mission_cmd.mission_id
+        or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
     local seq = sequencer_mod.new({
         robot_id        = robot_id,
         pg_conn         = self.pg_conn,
@@ -950,6 +964,7 @@ function M:execute_mission(mission_cmd)
         site            = self.site,
         system_name     = self.system_name,
         own_instance_id = self.own_instance_id,
+        mission_id      = mission_id,
         capabilities    = capabilities,
         energy_max       = energy_max,
         energy_remaining = energy_remaining,

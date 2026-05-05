@@ -76,6 +76,7 @@ function M.new(opts)
     self.site            = opts.site            or error("sequencer: site required")
     self.system_name     = opts.system_name     or error("sequencer: system_name required (threaded from action_server opts)")
     self.own_instance_id = opts.own_instance_id or error("sequencer: own_instance_id required (threaded from action_server opts)")
+    self.mission_id      = opts.mission_id      or error("sequencer: mission_id required (JobQueue job.id; threaded from action_server)")
     self.nats_server     = opts.nats_server     or error("sequencer: nats_server required")
 
     -- Robot capabilities: passed from action_server (from link protocol or KB class)
@@ -115,6 +116,7 @@ function M.new(opts)
         site            = self.site,
         system_name     = self.system_name,
         own_instance_id = self.own_instance_id,
+        mission_id      = self.mission_id,
         nats_server     = self.nats_server,
         route_length    = 0,  -- updated on load_route
         stream_size     = self.stream_size,
