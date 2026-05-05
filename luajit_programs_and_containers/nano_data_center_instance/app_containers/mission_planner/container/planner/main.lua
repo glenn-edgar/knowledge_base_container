@@ -24,15 +24,25 @@ pcall(ffi.cdef, [[
 
 -- Planner package libraries: imported from building_blocks/ros_planner_ii/
 -- starting Phase B.2.A.2. The path stack is:
---   /opt/apps/planner/lib/?.lua    -- runtime/ files (fn_registry, kv_writer, ...)
---   /opt/apps/planner/?.lua        -- vendored upstream sub-trees (action_server,
---                                     hub_dsl) keep their import paths verbatim
+--   /opt/apps/planner/lib/?.lua            -- runtime/ files + action_server,
+--                                             global_planner, sequencer, kb_query, KBM
+--   /opt/apps/planner/?.lua                -- vendored upstream sub-trees (hub_dsl)
+--   /opt/apps/planner/hub_dsl/?.lua        -- hub_dsl top (hub_dsl, build.sh; rare)
+--   /opt/apps/planner/hub_dsl/hub_functions/?.lua  -- hub_control, event_handlers, ...
+--   /opt/apps/planner/hub_dsl/protocol/?.lua       -- event_ids, command_packets, packet_mapper
+--   /opt/apps/planner/hub_dsl/kb_construct/?.lua   -- kb_runtime, kb_exporter, board_builder
+--   /opt/apps/planner/hub_dsl/kb/?.lua             -- common_tree, init_check, idle, etc.
 --   chain_tree/lua_dsl/luajit_pipeline/?.lua
---                                  -- json_util reach for ct_loader_pure
+--                                          -- json_util reach for ct_loader_pure
 -- nats_*.lua wrappers live under lib/lib/ so action_server's
 -- require("lib.nats_key_store") resolves with the standard `?` -> `?/?` substitution.
 package.path = "/opt/apps/planner/lib/?.lua;" ..
                "/opt/apps/planner/?.lua;" ..
+               "/opt/apps/planner/hub_dsl/?.lua;" ..
+               "/opt/apps/planner/hub_dsl/hub_functions/?.lua;" ..
+               "/opt/apps/planner/hub_dsl/protocol/?.lua;" ..
+               "/opt/apps/planner/hub_dsl/kb_construct/?.lua;" ..
+               "/opt/apps/planner/hub_dsl/kb/?.lua;" ..
                "/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua;" ..
                package.path
 
@@ -50,10 +60,13 @@ local mqtt_pubsub     = require("lib.mqtt_pubsub")      -- A.3.3b MQTT FFI wrapp
 local lua_cbor        = require("lib.lua_cbor")         -- A.3.3b CBOR FFI wrapper
 local mqtt_transport  = require("mqtt_transport")       -- A.3.3b uses lib.mqtt_pubsub + lib.lua_cbor
 
--- queue_monitor still pending (needs hub_dsl/protocol/* -- A.3.4)
--- link_client + link_manager + mqtt_hub_transport require sibling
--- transport files; we'll exercise them indirectly through action_server
--- in A.3.5 rather than smoke-load standalone here.
+-- A.3.4: smoke-load action_server + its require chain (kb_query,
+-- global_planner, sequencer, link_manager, mission_builder, etc.).
+-- If action_server's chunk loads without error, the full library import
+-- is reachable. We don't INSTANTIATE it here -- that needs config from
+-- infra_discovery + a NATS server URL, lands in A.3.5.
+local ok_as, action_server = pcall(require, "action_server")
+local action_server_status = ok_as and "ok" or ("FAIL: " .. tostring(action_server))
 
 ---------------------------------------------------------------------------
 -- env
@@ -86,7 +99,7 @@ end
 
 logf("started system=%s site=%s cpu=%s pg=%s:%d/%s",
     APP_SYSTEM, APP_SITE, APP_CPU_ID, PG_HOST, PG_PORT, PG_DB)
-logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_loader=%s ks_bb=%s mqtt_ps=%s lua_cbor=%s mqtt_tx=%s",
+logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_loader=%s ks_bb=%s mqtt_ps=%s lua_cbor=%s mqtt_tx=%s action_server=%s",
     type(fn_registry.register_functions) == "function" and "ok" or "missing",
     type(kv_writer.new)                  == "function" and "ok" or "missing",
     type(nats_ks.KeyStore)               == "table"    and "ok" or "missing",
@@ -95,7 +108,8 @@ logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_
     (type(ks_blackboard) == "table" or type(ks_blackboard) == "function")   and "ok" or "missing",
     (type(mqtt_pubsub)   == "table" or type(mqtt_pubsub)   == "function")   and "ok" or "missing",
     (type(lua_cbor)      == "table" or type(lua_cbor)      == "function")   and "ok" or "missing",
-    (type(mqtt_transport)== "table" or type(mqtt_transport)== "function")   and "ok" or "missing")
+    (type(mqtt_transport)== "table" or type(mqtt_transport)== "function")   and "ok" or "missing",
+    action_server_status)
 
 ---------------------------------------------------------------------------
 -- pg connect (retry until success; mirrors the dcs_host VERIFY_PG pattern)

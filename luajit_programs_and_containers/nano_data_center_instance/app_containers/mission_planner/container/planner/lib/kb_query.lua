@@ -1,0 +1,337 @@
+--[[
+    kb_query.lua -- Knowledge Base query helper for the mission_planner.
+
+    Reads the v3 KB (sqlite-backed bootstrap.db) using KnowledgeBaseManager's
+    ltree queries. Reads the planner's own spec under the v3 anchor:
+
+        system.<sys>.site.<S>.app_containers.<container_name>.spec.KB_*FIELD.*
+
+    All paths are composed via ndc_paths (Phase B Layer M-1 discipline);
+    no string literals here.
+
+    Robot instances are NOT in the KB. Robots register dynamically via
+    the link protocol and announce their class_name. Robot classes
+    themselves are owned by robot_manager (not yet ported); until that
+    lands, FALLBACK_ROBOT_CLASSES below provides drive_base just well
+    enough for Layer V acceptance. The fallback engages only when the
+    v3 path returns nil; the future cross-app read auto-supersedes it.
+
+    Usage:
+        local kb_query = require("kb_query")
+        local q = kb_query.new("bootstrap.db",
+                               "moon_base",          -- system_name
+                               "moon_base_alpha",    -- site
+                               "mission_planner_01") -- own_instance_id
+
+        local caps    = q:get_class_capabilities("drive_base")
+        local classes = q:list_robot_classes()
+        local vns     = q:get_all_virtual_nodes()
+        local blob    = q:get_app_spec_jsonb("mission_planner_01", "capabilities")
+
+        q:close()
+]]
+
+local KBM   = require("knowledge_base_manager")
+local json  = require("sqlite3_helpers").json
+local paths = require("ndc_paths")
+
+local M = {}
+M.__index = M
+
+---------------------------------------------------------------------------
+-- FALLBACK_ROBOT_CLASSES (Q2.2 stop-gap; engages only when robot_manager's
+-- v3 spec is absent). Single drive_base entry mirroring the drive-base
+-- app catalogue capabilities.
+--
+-- TODO: remove when robot_manager ports under
+--       app_containers.robot_manager_01.spec.KB_JSONB_FIELD.robot_classes
+--       (the get_app_spec_jsonb call below will start succeeding and this
+--       constant becomes unreachable).
+---------------------------------------------------------------------------
+
+local FALLBACK_ROBOT_CLASSES = {
+    drive_base = {
+        virtual_nodes    = { "init_check", "path_spline", "path_line",
+                             "transit", "operation", "idle",
+                             "error_recovery" },
+        operation_types  = { "drive", "rotate", "follow_spline" },
+        energy_rate      = 1.0,
+        energy_max       = 10000,
+        energy_infinite  = false,
+        topics           = {
+            rpc          = "rpc",
+            stream_bus   = "stream_bus",
+            link         = "link",
+        },
+        tick_rate_ms     = 100,
+        worker_kbs       = {},
+    },
+}
+
+---------------------------------------------------------------------------
+-- Constructor / teardown
+---------------------------------------------------------------------------
+
+function M.new(db_file, system_name, site, own_instance_id)
+    assert(type(db_file) == "string" and db_file ~= "",
+           "kb_query.new: db_file required")
+    assert(type(system_name) == "string" and system_name ~= "",
+           "kb_query.new: system_name required (was a topology auto-detect in v2)")
+    assert(type(site) == "string" and site ~= "",
+           "kb_query.new: site required")
+    assert(type(own_instance_id) == "string" and own_instance_id ~= "",
+           "kb_query.new: own_instance_id required (this container's name, " ..
+           "e.g. 'mission_planner_01')")
+
+    -- Configure ndc_paths idempotently. The helper rejects conflicting
+    -- system_name re-configures, so this is safe to call from any caller.
+    if not paths.system_name() then
+        paths.configure({ system_name = system_name })
+    end
+
+    local self = setmetatable({}, M)
+    -- KBM.new(table_name, db_path, ltree_extension_path, upload_flag)
+    -- upload_flag=true -> read-only mode (skip table creation).
+    self.kb              = KBM.new("knowledge_base", db_file, nil, true)
+    self.system_name     = system_name
+    self.site            = site
+    self.own_instance_id = own_instance_id
+    return self
+end
+
+function M:close()
+    self.kb:disconnect()
+end
+
+---------------------------------------------------------------------------
+-- Helper: parse JSON fields from a row
+---------------------------------------------------------------------------
+
+local function parse_row(row)
+    local r = {
+        path  = row.path,
+        label = row.label,
+        name  = row.name,
+    }
+    if row.properties and row.properties ~= "" then
+        local ok, p = pcall(json.decode, row.properties)
+        r.properties = ok and p or {}
+    else
+        r.properties = {}
+    end
+    if row.data and row.data ~= "" then
+        local ok, d = pcall(json.decode, row.data)
+        r.data = ok and d or {}
+    else
+        r.data = {}
+    end
+    return r
+end
+
+---------------------------------------------------------------------------
+-- Generic app_containers spec readers (v3)
+---------------------------------------------------------------------------
+
+--- Read a JSONB blob from another (or this) app's manifest namespace.
+-- Path: app_containers.<container_name>.spec.manifest.KB_JSONB_FIELD.<key>
+-- @param container_name string  the instance_id ("mission_planner_01")
+-- @param key            string  the JSONB field name ("capabilities", ...)
+-- @return decoded value or nil
+function M:get_app_spec_jsonb(container_name, key)
+    local path = paths.app_manifest_jsonb_path(self.site, container_name, key)
+    local rows = self.kb:find_by_pattern(path, "system")
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+--- Read a scalar status field from another (or this) app's manifest namespace.
+-- Path: app_containers.<container_name>.spec.manifest.KB_STATUS_FIELD.<name>
+-- @param container_name string
+-- @param name           string  the status field name ("version", "class")
+-- @return decoded value or nil
+function M:get_app_spec_status(container_name, name)
+    local path = paths.app_manifest_status_path(self.site, container_name, name)
+    local rows = self.kb:find_by_pattern(path, "system")
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+---------------------------------------------------------------------------
+-- ROBOT_CLASS (sources: robot_manager spec when ported; FALLBACK until then)
+---------------------------------------------------------------------------
+
+local function load_robot_classes(self)
+    if self._robot_classes then return self._robot_classes end
+    local blob = self:get_app_spec_jsonb("robot_manager_01", "robot_classes")
+    if blob == nil or next(blob) == nil then
+        blob = FALLBACK_ROBOT_CLASSES
+    end
+    self._robot_classes = blob
+    return blob
+end
+
+function M:get_robot_infra(class_name)
+    local classes = load_robot_classes(self)
+    return classes[class_name]
+end
+
+function M:list_robot_classes()
+    local classes = load_robot_classes(self)
+    local names = {}
+    for name in pairs(classes) do
+        names[#names + 1] = name
+    end
+    table.sort(names)
+    return names
+end
+
+---------------------------------------------------------------------------
+-- CLASS-BASED CAPABILITIES (robots register dynamically via link protocol)
+---------------------------------------------------------------------------
+
+function M:get_class_capabilities(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return {} end
+    return infra.virtual_nodes or {}
+end
+
+function M:get_class_operation_types(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return {} end
+    return infra.operation_types or {}
+end
+
+function M:get_class_energy_rate(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
+    return infra.energy_rate or 1.0
+end
+
+function M:get_class_energy_max(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
+    return infra.energy_max
+end
+
+function M:get_class_energy_infinite(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return false end
+    return infra.energy_infinite == true
+end
+
+function M:get_class_config(class_name)
+    local infra = self:get_robot_infra(class_name)
+    if not infra then return nil end
+    return {
+        class_name      = class_name,
+        capabilities    = infra.virtual_nodes or {},
+        energy_max      = infra.energy_max,
+        energy_infinite = infra.energy_infinite == true,
+        topics          = infra.topics,
+        tick_rate_ms    = infra.tick_rate_ms,
+        worker_kbs      = infra.worker_kbs,
+    }
+end
+
+---------------------------------------------------------------------------
+-- PLANNER runtime state (own anchor)
+---------------------------------------------------------------------------
+
+function M:get_planner_state()
+    -- runtime.planner.KB_STATUS_FIELD.state -- written by the planner worker
+    -- under the "planner" runtime sub-namespace (state_name="planner",
+    -- field name="state"). Add other runtime sub-namespaces (e.g.
+    -- "ui", "transport") as the planner exposes them.
+    local path = paths.app_runtime_status_path(
+        self.site, self.own_instance_id, "planner", "state")
+    local rows = self.kb:find_by_pattern(path, "system")
+    if #rows > 0 then
+        return parse_row(rows[1]).data
+    end
+    return nil
+end
+
+---------------------------------------------------------------------------
+-- Virtual node definitions (read from own spec.KB_JSONB_FIELD.virtual_nodes)
+---------------------------------------------------------------------------
+
+local function load_virtual_nodes(self)
+    if self._virtual_nodes ~= nil then return self._virtual_nodes end
+    local blob = self:get_app_spec_jsonb(self.own_instance_id, "virtual_nodes")
+    self._virtual_nodes = blob or {}
+    return self._virtual_nodes
+end
+
+--- Get a single virtual node type definition.
+-- @param vn_name string  e.g. "path_spline"
+-- @return table { packet_type_id, description, json_schema, bitmask, pose_fields }
+function M:get_virtual_node(vn_name)
+    local vns = load_virtual_nodes(self)
+    if type(vns) == "table" then
+        if vns[vn_name] ~= nil then
+            local v = vns[vn_name]
+            if type(v) == "table" then
+                v.name = vn_name
+                return v
+            end
+        end
+        for _, v in ipairs(vns) do
+            if v == vn_name then
+                return { name = vn_name }
+            end
+        end
+    end
+    return nil
+end
+
+--- List all virtual node type names.
+function M:list_virtual_nodes()
+    local vns = load_virtual_nodes(self)
+    local names = {}
+    if type(vns) == "table" then
+        for k, v in pairs(vns) do
+            if type(k) == "string" then
+                names[#names + 1] = k
+            elseif type(v) == "string" then
+                names[#names + 1] = v
+            end
+        end
+    end
+    table.sort(names)
+    return names
+end
+
+--- Get all virtual node definitions as a table keyed by name.
+function M:get_all_virtual_nodes()
+    local names = self:list_virtual_nodes()
+    local result = {}
+    for _, name in ipairs(names) do
+        result[name] = self:get_virtual_node(name)
+    end
+    return result
+end
+
+---------------------------------------------------------------------------
+-- Aggregate site-config snapshot
+---------------------------------------------------------------------------
+
+function M:get_site_config()
+    local classes = self:list_robot_classes()
+    local class_configs = {}
+    for _, name in ipairs(classes) do
+        class_configs[name] = self:get_class_config(name)
+    end
+    return {
+        system_name    = self.system_name,
+        site           = self.site,
+        robot_classes  = class_configs,
+        planner        = self:get_planner_state(),
+        virtual_nodes  = self:get_all_virtual_nodes(),
+    }
+end
+
+return M
