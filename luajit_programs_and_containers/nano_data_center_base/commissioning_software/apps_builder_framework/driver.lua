@@ -9,10 +9,13 @@
 --     3. Opens with_header("app_containers", placement.instance_id, ...)
 --        so any kb method called inside writes under
 --        `system.<sys>.site.<S>.app_containers.<instance_id>.*`.
---     4. Calls placement.kb_build(ctx).
---     5. Verifies the path stack returned to the entry depth (catches
+--     4. Calls placement.kb_build(ctx)  -- per-app spec.* writes.
+--     5. Emits placement.current.KB_STATUS_FIELD.{cpu, role}  -- framework-
+--        owned, derived from the placement table; consumed at runtime by
+--        node_control to decide what to start on each CPU (Phase B Layer N).
+--     6. Verifies the path stack returned to the entry depth (catches
 --        apps that forgot to leave a header). Re-raises if mismatched.
---     6. with_header pops automatically (also on error).
+--     7. with_header pops automatically (also on error).
 --   Atomic failure: any kb_build error propagates; the build aborts and
 --   the calling code is responsible for transaction rollback.
 --
@@ -20,7 +23,7 @@
 -- builds, port allocation, runtime placement). Those are decided by site
 -- config and emitted by node_control / build_kb's existing subsystems.
 -- The driver's only job is invoking each app's kb_build under the right
--- anchor.
+-- anchor and stamping placement assignment.
 -- =============================================================================
 
 local validator   = require("container_spec_validator")
@@ -74,6 +77,42 @@ local function drive_one(kb, read_kb, placement)
   local entry_depth = path_depth(kb)
   local ctx = ctx_builder.build(placement, kb, read_kb)
 
+  -- Detect facade-vs-bare kb the same way mission_planner's kb_build does:
+  -- production build_kb runs against Construct_Data_Tables (facade with
+  -- add_status_field); framework unit tests run against bare Construct_KB
+  -- (no satellite tables, only add_info_node).
+  local use_facade = type(kb.add_status_field) == "function"
+
+  local function emit_placement()
+    -- Sub-header: app_containers.<i>.placement.current
+    -- Two-segment shape mirrors spec.manifest (forced by add_header_node's
+    -- link+name pair contract); "placement" is the namespace marker,
+    -- "current" is the active assignment record. Future "placement.preferred"
+    -- (load-balancer hints) or "placement.history" (audit) can coexist.
+    kb:with_header("placement", "current",
+      { source = "topology", class = placement.app_class },
+      {},
+      "Placement assignment for " .. placement.instance_id,
+      function()
+        if use_facade then
+          kb:add_status_field("cpu", {},
+            "CPU id this app is assigned to (placement source of truth; " ..
+            "node_control reads this to decide what to start)",
+            { value = placement.cpu })
+          kb:add_status_field("role", {},
+            "Placement role (active | passive | ...)",
+            { value = placement.role or "active" })
+        else
+          kb:add_info_node("KB_STATUS_FIELD", "cpu", {},
+            { value = placement.cpu },
+            "CPU id this app is assigned to")
+          kb:add_info_node("KB_STATUS_FIELD", "role", {},
+            { value = placement.role or "active" },
+            "Placement role")
+        end
+      end)
+  end
+
   local body_ok, body_err = pcall(function()
     kb:with_header("app_containers", placement.instance_id,
       { class = placement.app_class, kind = placement.spec.kind },
@@ -85,6 +124,7 @@ local function drive_one(kb, read_kb, placement)
           error(string.format(
             "kb_build returned ok=false: %s", tostring(fn_err)), 0)
         end
+        emit_placement()
       end)
   end)
 

@@ -179,4 +179,20 @@ function M.app_runtime_status_path(site, container_name, state_name, name)
     "runtime." .. state_name .. ".KB_STATUS_FIELD." .. name)
 end
 
+--- Path to the site's app_containers anchor (parent of every app's anchor).
+-- Used by node_control to walk all apps and filter by placement.
+-- Produces: system.<sys>.site.<S>.app_containers
+function M.app_containers_root(site)
+  return M.site_path(site, "app_containers")
+end
+
+--- Path to a status-field row inside the placement namespace.
+-- Produces: app_containers.<c>.placement.current.KB_STATUS_FIELD.<name>
+-- Written by apps_builder_framework's driver at commission. Read by
+-- node_control to learn what to start on this CPU (Phase B Layer N).
+function M.app_placement_status_path(site, container_name, name)
+  return M.app_path(site, container_name,
+    "placement.current.KB_STATUS_FIELD." .. name)
+end
+
 return M

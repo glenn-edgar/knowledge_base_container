@@ -132,15 +132,31 @@ do
 
   local rows = rows_with_path_prefix(kb,
     "system.moon_base.site.moon_base_alpha.app_containers.")
-  -- Each placement emits: 1 anchor header + 1 info_node = 2 rows
-  expect(#rows == 4, "got 4 rows under app_containers (2 headers + 2 fields), saw " .. #rows)
+  -- Each placement emits 5 rows (with_header writes one header row at the
+  -- leaf link.name path; intermediate "placement" segment is implicit):
+  --   1. app_containers.<n>                                (anchor header)
+  --   2. app_containers.<n>.KB_STATUS_FIELD.version        (kb_build_simple)
+  --   3. app_containers.<n>.placement.current              (placement sub-header)
+  --   4. app_containers.<n>.placement.current.KB_STATUS_FIELD.cpu
+  --   5. app_containers.<n>.placement.current.KB_STATUS_FIELD.role
+  expect(#rows == 10, "got 10 rows under app_containers (5 per app x 2), saw " .. #rows)
   local saw_01, saw_02
+  local saw_pl_01, saw_pl_02
+  local saw_role_01, saw_role_02
   for _, r in ipairs(rows) do
     if r.path:match("app_containers%.irrigation_01%.KB_STATUS_FIELD%.version$") then saw_01 = true end
     if r.path:match("app_containers%.irrigation_02%.KB_STATUS_FIELD%.version$") then saw_02 = true end
+    if r.path:match("app_containers%.irrigation_01%.placement%.current%.KB_STATUS_FIELD%.cpu$") then saw_pl_01 = true end
+    if r.path:match("app_containers%.irrigation_02%.placement%.current%.KB_STATUS_FIELD%.cpu$") then saw_pl_02 = true end
+    if r.path:match("app_containers%.irrigation_01%.placement%.current%.KB_STATUS_FIELD%.role$") then saw_role_01 = true end
+    if r.path:match("app_containers%.irrigation_02%.placement%.current%.KB_STATUS_FIELD%.role$") then saw_role_02 = true end
   end
   expect(saw_01, "irrigation_01 version field present")
   expect(saw_02, "irrigation_02 version field present")
+  expect(saw_pl_01, "irrigation_01 placement.current.cpu present")
+  expect(saw_pl_02, "irrigation_02 placement.current.cpu present")
+  expect(saw_role_01, "irrigation_01 placement.current.role present")
+  expect(saw_role_02, "irrigation_02 placement.current.role present")
 
   close_kb(kb)
 end
