@@ -1,5 +1,154 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-04 session — Layer A + Layer I DONE (apps-builder pipeline live)
+
+Layer A (4 commits) plus Layer I (1 commit) plus a continue.md done-state
+commit landed today. End-to-end pipeline is now green: `build_kb.sh` →
+apps_builder subsystem auto-discovers `mission_planner` → driver mirrors
+`manifest.lua` to pg → 11 rows at the locked
+`app_containers.mission_planner_01.spec.manifest.*` shape with correct
+data in `knowledge_base.data`. Framework unit tests still 42/42 green.
+
+| Commit | Layer | Scope |
+|---|---|---|
+| `092d67d7` | A.1 | git mv container shell to v3 home |
+| `448d8e2b` | A.2 | kb_query.lua refactor + ndc_paths app_container helpers |
+| `27e96866` | A.3 | manifest + container_spec + kb_build (sub-namespace decision) |
+| `8d7872c2` | A.4 | catalog rename + image green at `nanodatacenter/mission-planner:latest` |
+| `d8f352c6` | A done | continue.md done-state for Layer A |
+| `a74014ab` | **I** | apps_builder subsystem (in-process, not container) |
+
+### Important: live cluster is FROZEN on pre-A topology
+
+Today's `build_kb.sh` runs wrote new `app_containers.*` rows to the LIVE
+pg-vector. But `slice_bootstrap.sh` was NOT run, so cpu_02's `bootstrap.db`
+still has the OLD topology entry `ros_mission_planner_ii_01 → ros_mission_planner_ii`.
+node_control reads from bootstrap.db, so the cluster keeps the old
+shell container running:
+
+```
+ros_mission_planner_ii_01    nanodatacenter/ros-mission-planner-ii:latest    Up 2 days
+robot_manager_01             nanodatacenter/robot-manager:latest             Up 2 days
+test_app_01, observability_01, dcs_console_01, ...                          Up 29 hours
+```
+
+**This is intentional.** Layer N is what converges the transition
+(node_control reads placement from KB instead of bootstrap.db topology
+list). The cluster will boot the new `mission_planner_01` container
+once Layer N lands and `slice_bootstrap.sh + stage_deploy.sh` re-runs.
+
+### What's in pg right now (verified by `SELECT path FROM knowledge_base WHERE path LIKE 'system.moon_base.site.moon_base_alpha.app_containers.mission_planner_01.%'`)
+
+```
+.../app_containers.mission_planner_01                                        ← anchor
+.../app_containers.mission_planner_01.spec.manifest                          ← spec/manifest header
+.../app_containers.mission_planner_01.spec.manifest.KB_STATUS_FIELD.class    = "mission_planner"
+.../app_containers.mission_planner_01.spec.manifest.KB_STATUS_FIELD.version  = "1.0"
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.capabilities      ← 4 entries
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.virtual_nodes     ← 6 entries
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.wire_formats      ← 2 entries
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.ui_protocol       ← 6 endpoints
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.nats_protocol     ← 6 subjects
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.mqtt_protocol     ← 7 topics
+.../app_containers.mission_planner_01.spec.manifest.KB_JSONB_FIELD.streams           ← []
+```
+
+Note: the `knowledge_base_status` satellite shows empty `{}` for these
+rows — that's by design (satellites are runtime-mutation caches; spec
+data lives in `knowledge_base.data`). See memory
+`feedback_kb_status_satellite_empty.md`.
+
+### **First action next session — Layer N (node_control reads placement from KB)**
+
+Per Phase B layer table (continue.md ~line 558):
+> **N — node_control reads placement from KB**: RECONCILE compares
+> `placement.cpu` against `runtime.cpu`; stop+start on mismatch.
+> Removes per-CPU container list from topology.lua; bootstrap.db slicer
+> simplifies. Cluster boots; node_control on cpu_02 reads placement,
+> finds planner assigned, starts it.
+
+**N's pieces (in implementation order):**
+
+1. **Add `placement.<name>` rows under app_containers** — apps_builder
+   subsystem (or a new `placement` subsystem; TBD) writes
+   `app_containers.<i>.placement.cpu = "cpu_02"` etc. Sourced from
+   topology for now; rewritten by load balancer later.
+
+2. **Audit bootstrap.db per-CPU container list** — what does
+   slice_bootstrap.sh embed beyond container names? If just container
+   names, we can drop the topology.cpus[*].instances list once N
+   reads from KB. If anything else (port allocations, env vars), it
+   needs migrating to `placement.*` KB rows too. Per locked design
+   choices in continue.md: "Audit bootstrap.db per-CPU container list
+   during N1".
+
+3. **node_control's RECONCILE rewires** — current loop reads from a
+   placement table built at supervisor startup; switch to reading
+   `app_containers.<i>.runtime.<state_name>.KB_STATUS_FIELD.cpu` and
+   comparing to `placement.<name>.KB_STATUS_FIELD.cpu`. Stop+start on
+   mismatch.
+
+4. **bootstrap.db slicer simplifies** — remove the per-CPU container
+   list from the slice; per-CPU bootstraps now only need site +
+   system_name + cpu_id + the schema (no container assignments).
+
+5. **Smoke** — boot from scratch (stop cluster → build_kb →
+   slice → stage → start → wait converge); verify on cpu_02 that
+   node_control read placement from KB, found `mission_planner_01`
+   assigned to cpu_02, started the new image, AND stopped the legacy
+   `ros_mission_planner_ii_01` (which is no longer in the placement).
+   Should converge within ~30s.
+
+Compatible-mode discipline (locked Phase B choice): A first (planner
+ports while node_control still reads bootstrap.db), N second. We're at
+the transition. Layer N is the cutover commit. Smaller blast radius
+per checkpoint.
+
+Estimated 1 session for Layer N.
+
+### Then Layer V (acceptance smoke; ½ session)
+
+Per Q3 lock (continue.md lines 132+): rejection + completion paths via
+the existing `building_blocks/ros_planner_ii_mqtt_robot/` fixture.
+Pre-conditions: spec in pg, runtime heartbeat fresh, UI :8090 returns
+200. Phase 1 (rejection no robot) → Phase 2 (start mqtt_robot from
+building_blocks/ with site + mqtt config tweak; observe submitted →
+completed).
+
+### After Phase B (Phase B.2)
+
+Carry-forward items deferred during Layer A:
+- File-store loader (own design surface; sha256 + ltree + class registry)
+- Real planner library import (current container is heartbeat shell;
+  bring in action_server + hub_dsl + local_planner + global_planner from
+  `building_blocks/ros_planner_ii/`)
+- Three-tier config loader
+- README/runbook references still mentioning `ros_mission_planner_ii_01`
+  (cosmetic; rolling cleanup)
+
+### Layer ordering after I
+
+```
+M-2 ✅ → soak ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N → V
+                                                       ↑ next
+```
+
+### Rollback recipe
+
+Layer I revert: `git revert --no-edit a74014ab`. apps_builder subsystem
+disappears from build_kb.lua's SUBSYSTEMS list; ndc_paths app_container
+helpers stay (introduced by A.2); kb_build.lua keeps reading manifest
+from ctx.manifest (broken until reverted; revert A.3 too if needed).
+
+Layer A revert (full): `git revert --no-edit 8d7872c2 27e96866 448d8e2b 092d67d7`
+in newest-first order. Leaves a clean A-pre state.
+
+Note: today's `build_kb.sh` runs wrote rows to live pg. A revert + fresh
+build_kb run cleans them up via construct_kb's reconciliation (deletes
+rows no longer specified).
+
+---
+
 ## State at end of 2026-05-04 session — Layer A DONE (mission_planner ported)
 
 Layer A landed as four independently revertible holding commits per
