@@ -27,10 +27,13 @@ pcall(ffi.cdef, [[
 --   /opt/apps/planner/lib/?.lua    -- runtime/ files (fn_registry, kv_writer, ...)
 --   /opt/apps/planner/?.lua        -- vendored upstream sub-trees (action_server,
 --                                     hub_dsl) keep their import paths verbatim
+--   chain_tree/lua_dsl/luajit_pipeline/?.lua
+--                                  -- json_util reach for ct_loader_pure
 -- nats_*.lua wrappers live under lib/lib/ so action_server's
 -- require("lib.nats_key_store") resolves with the standard `?` -> `?/?` substitution.
 package.path = "/opt/apps/planner/lib/?.lua;" ..
                "/opt/apps/planner/?.lua;" ..
+               "/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua;" ..
                package.path
 
 local pg_connector    = require("pg_connector")
@@ -41,6 +44,12 @@ local fn_registry     = require("fn_registry")          -- runtime/ smoke load
 local kv_writer       = require("kv_writer")            -- runtime/ smoke load
 local nats_ks         = require("lib.nats_key_store")   -- A.3.2 NATS smoke load
 local nats_jq         = require("lib.nats_job_queue")   -- A.3.2 NATS smoke load
+local ct_loader_pure  = require("ct_loader_pure")       -- A.3.3 chain-tree IR loader
+local ks_blackboard   = require("ks_blackboard")        -- A.3.3 NATS-KV blackboard
+
+-- Other A.3.3 runtime files copied but not smoke-required yet:
+-- link_client, link_manager, mqtt_transport, mqtt_hub_transport (need MQTT FFI -- A.3.3b)
+-- queue_monitor (needs hub_dsl/protocol/event_ids + command_packets -- A.3.4)
 
 ---------------------------------------------------------------------------
 -- env
@@ -73,11 +82,16 @@ end
 
 logf("started system=%s site=%s cpu=%s pg=%s:%d/%s",
     APP_SYSTEM, APP_SITE, APP_CPU_ID, PG_HOST, PG_PORT, PG_DB)
-logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s",
+logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s ct_loader=%s ks_bb=%s",
     type(fn_registry.register_functions) == "function" and "ok" or "missing",
     type(kv_writer.new)                  == "function" and "ok" or "missing",
     type(nats_ks.KeyStore)               == "table"    and "ok" or "missing",
-    type(nats_jq.JobQueue)               == "table"    and "ok" or "missing")
+    type(nats_jq.JobQueue)               == "table"    and "ok" or "missing",
+    (type(ct_loader_pure)                == "table"
+     or type(ct_loader_pure)             == "function") and "ok" or "missing",
+    (type(ks_blackboard.new)             == "function"
+     or type(ks_blackboard.create)       == "function"
+     or type(ks_blackboard)               == "table")  and "ok" or "missing")
 
 ---------------------------------------------------------------------------
 -- pg connect (retry until success; mirrors the dcs_host VERIFY_PG pattern)
