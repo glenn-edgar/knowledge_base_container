@@ -1,5 +1,96 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 session — Layer N DONE (placement-driven node_control live)
+
+Layer N landed as two independently-revertible holding commits + a
+continue.md done-state commit (this section). Cluster cold-booted on the
+new placement query path; cpu_02's node_control now reads
+`app_containers.<i>.placement.current.KB_STATUS_FIELD.cpu` from pg
+instead of scanning `cpu.<my>.container.*`. mission_planner_01 picked up
+correctly; legacy `ros_mission_planner_ii_01` removed.
+
+| Commit | Slice | Scope |
+|---|---|---|
+| `ead9fb83` | **N.1** | apps_builder_framework's driver.lua emits `placement.current.{cpu, role}` after each kb_build. ndc_paths gains `app_containers_root()` + `app_placement_status_path()`. 23/23 driver + 23/23 validator tests green; row-count bumped 4 → 10 (5 per app x 2). |
+| `f4b85304` | **N.2** | `kb_assignments.list_node_managed` flipped to placement-driven two-step: query placement.current.cpu = my_cpu, resolve service from `cpu.<my>.container.<i>.service.main` (untouched). Decouples placement from row locality. |
+
+### Smoke results (2026-05-05 17:55Z)
+
+| Check | Result |
+|---|---|
+| `[apps_builder] 1 apps committed` in build_kb | ✓ (mission_planner_01) |
+| Placement rows in pg | `app_containers.mission_planner_01.placement.current.KB_STATUS_FIELD.cpu = "cpu_02"` + `.role = "active"` |
+| slice_bootstrap | cpu_01=2014 rows, cpu_02=581 rows (Phase A baseline preserved) |
+| cpu_02 NODE_READ_OWN_CONFIG | `1 assignment(s) [mission_planner_01]` (was previously empty + crashed-restart loop) |
+| `mission_planner_01` launch | broker run -> d9f906ef5c0a, Up 33s |
+| `ros_mission_planner_ii_01` | absent from `docker ps` (cleanup as part of cutover) |
+| Both peers | ACTIVE; system_ready=1 |
+| Heartbeats | cpu_01=2.8s, cpu_02=4.8s (well under 15s threshold) |
+| Active SYS_EXCEPTIONs | 0 |
+| Errors/panics in error.log | 0 |
+
+### Deferred from continue.md's Layer N spec
+
+continue.md's Layer N also called for **topology restructure** (drop
+application instances from `cpus[*].instances`) and **bootstrap.db
+slicer simplify** (drop per-CPU container list for app-kind). These
+reshape build_kb output and risk breaking the chain-tree's initial KB
+activation; landing them as a follow-up sub-layer (call it **N+1**)
+keeps blast radius per commit small per `feedback_holding_commits`.
+
+Current state: `cpu.<id>.container.<inst>.service.main` is still the
+service-spec source of truth; placement just decides which CPU consults
+which row. Topology still has apps in `cpus[*].instances` so build_kb
+emits the per-CPU container subtrees. Bootstrap.db still includes them.
+node_control reads placement first, then resolves service from the
+per-CPU rows that still exist.
+
+### **First action next session — Layer V (acceptance smoke; ½ session)**
+
+Per Q3 lock (continue.md lines 353-385): tests BOTH rejection and
+completion paths via the existing `building_blocks/ros_planner_ii_mqtt_robot/`
+fixture. Pre-conditions:
+
+1. pg row at `app_containers.mission_planner_01.spec.manifest.KB_STATUS_FIELD.version = "1.0"` ✓ (Layer A verified)
+2. `app_containers.mission_planner_01.runtime.heartbeat_at` <10s old. **TBD: planner port's main.lua is still v2 heartbeat shell — needs runtime.heartbeat_at written under the v3 anchor before Phase 2 below.**
+3. `GET http://localhost:19005/` returns 200 (planner_ui supervisor alive). Verify before Phase 1.
+
+Phase 1 (rejection): publish mock mission for class `drive_base` to
+`{site}.action_server.missions`; observe status KV `submitted` →
+`rejected_no_robot`.
+
+Phase 2 (completion): start `ros_planner_ii_mqtt_robot` from
+`building_blocks/` with `site=moon_base_alpha` + mqtt addressing from
+`infra_discovery.lookup("mqtt_broker")`; submit mission; observe
+`submitted` → `dispatched` → `in_progress` → `completed`.
+
+Optional cheap signal: rejection-on-unknown-class with robot online.
+
+Out of scope (defer Phase B.2): manual web-UI testing, HTTP
+`POST /api/missions`, hardware robot, energy edges.
+
+### Layer ordering
+
+```
+M-2 ✅ → soak ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V
+                                                              ↑ next
+```
+
+Phase B remaining: ½ session for V, plus the deferred N+1 topology /
+slicer simplify (follow-up).
+
+### Rollback recipe
+
+Layer N revert (full): `git revert --no-edit f4b85304 ead9fb83` (newest
+first). N.2 alone reverts node_control to scanning `cpu.<my>.container.*`
+(legacy path; still works because rows still exist). N.1 alone removes
+placement-row emission (harmless extras until N.2's read path needs them).
+
+Note: today's `build_kb.sh` wrote placement rows to live pg. A revert +
+fresh build_kb run cleans them up via construct_kb's reconciliation.
+
+---
+
 ## State at end of 2026-05-04 session — Layer A + Layer I DONE (apps-builder pipeline live)
 
 Layer A (4 commits) plus Layer I (1 commit) plus a continue.md done-state
