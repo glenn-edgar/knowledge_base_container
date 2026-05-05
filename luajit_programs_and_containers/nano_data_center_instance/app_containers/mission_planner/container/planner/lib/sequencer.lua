@@ -52,7 +52,6 @@ ffi.cdef[[
 local json_util   = require("json_util")
 local hub_runtime = require("hub_runtime")
 local mission_mod = require("mission")
-local kb_query    = require("kb_query")
 
 local M = {}
 M.__index = M
@@ -71,16 +70,13 @@ function M.new(opts)
     self.max_ticks_per_action = opts.max_ticks_per_action or 500
     self.stream_size         = opts.stream_size or 200
 
-    -- Site and NATS server from caller
-    local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-    if not opts.site then
-        local kb_q = kb_query.new(pg_conn, "knowledge_base", ltree_path)
-        self.site = kb_q:get_site()
-        kb_q:close()
-    else
-        self.site = opts.site
-    end
-    self.nats_server = opts.nats_server or error("sequencer: nats_server required")
+    -- v3 sequencer requires explicit site / system_name / own_instance_id
+    -- (no kb_q:get_site() autodetect — that helper doesn't exist in v3
+    -- kb_query and the caller, action_server, always supplies these).
+    self.site            = opts.site            or error("sequencer: site required")
+    self.system_name     = opts.system_name     or error("sequencer: system_name required (threaded from action_server opts)")
+    self.own_instance_id = opts.own_instance_id or error("sequencer: own_instance_id required (threaded from action_server opts)")
+    self.nats_server     = opts.nats_server     or error("sequencer: nats_server required")
 
     -- Robot capabilities: passed from action_server (from link protocol or KB class)
     self.capabilities = {}
@@ -102,6 +98,8 @@ function M.new(opts)
         robot_id         = self.robot_id,
         pg_conn          = pg_conn,
         site             = self.site,
+        system_name      = self.system_name,
+        own_instance_id  = self.own_instance_id,
         initial_pose     = opts.initial_pose or
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
         energy_max       = opts.energy_max,
@@ -112,12 +110,14 @@ function M.new(opts)
 
     -- Initialize mission telemetry
     self.mission = mission_mod.new({
-        robot_id     = self.robot_id,
-        pg_conn      = pg_conn,
-        site         = self.site,
-        nats_server  = self.nats_server,
-        route_length = 0,  -- updated on load_route
-        stream_size  = self.stream_size,
+        robot_id        = self.robot_id,
+        pg_conn         = pg_conn,
+        site            = self.site,
+        system_name     = self.system_name,
+        own_instance_id = self.own_instance_id,
+        nats_server     = self.nats_server,
+        route_length    = 0,  -- updated on load_route
+        stream_size     = self.stream_size,
     })
 
     -- Route state

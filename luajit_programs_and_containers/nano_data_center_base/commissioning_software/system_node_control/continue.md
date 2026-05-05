@@ -1,5 +1,152 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 (latest) — B.2.A.4a DONE (kb_query positional args + opts threading)
+
+A.4a landed as **one holding commit** unifying the v3 kb_query positional
+arg shape across action_server / global_planner / sequencer / hub_runtime
+/ mission, threading `system_name` + `own_instance_id` through every
+constructor's opts, and deleting sequencer's dead `kb_q:get_site()`
+fallback (the v3 kb_query has no `get_site` method; v2-only path that
+was never reached because action_server always supplied opts.site).
+
+This was the **mechanical half** of A.4. The remaining half (A.4b) is
+the kb_runtime body port to `kb_stream.push_stream_data` — design locked
+this session: per-action records as JSONB in a capped FIFO ring, one
+stream-field path per robot, cap depth ~64 actions per robot. UI
+consumers fold in later. 1-1.5 sessions of focused work to land.
+
+| Slice | Scope |
+|---|---|
+| `(this commit)` | **A.4a** — Renamed v2-shape `kb_query.new(db_file, "knowledge_base", ltree_path, site)` → v3 `kb_query.new(pg_conn, system_name, site, own_instance_id)` at all 5 live runtime call sites: action_server.lua (3× lines 83/260/884), global_planner.lua:94, hub_runtime.lua:93. Threaded `system_name` + `own_instance_id` through every constructor's opts: action_server.new, global_planner.new, sequencer.new, hub_runtime.new, mission.new. main.lua passes `APP_SYSTEM` and `CONTAINER_NAME` into action_server opts. Deleted sequencer.lua's `if not opts.site then kb_q:get_site() else opts.site end` block (v2-only fallback; v3 kb_query has no get_site method, action_server always supplies opts.site so the branch was dead). 6 files / ~30 edit points (similar pattern to A.3.5 db_file→pg_conn refactor). |
+
+### A.4a smoke results (2026-05-05 evening, latest)
+
+| Check | Result |
+|---|---|
+| `planner libs loaded: ... action_server=ok` | ✓ |
+| `action_server instantiated: nats_server=nats://nats-js-ram:4222` | ✓ |
+| In-container kb_query.new probe: `system_name=moon_base site=moon_base_alpha own=mission_planner_01` | ✓ — v3 signature actually invoked |
+| `jq observer subscribed: bucket=... queue=...` | ✓ |
+| 4th mock mission received cleanly | ✓ id=30310d8d... |
+| heartbeat fresh | ✓ |
+| peers cpu_01 / cpu_02 | ACTIVE / ACTIVE |
+| active SYS_EXCEPTIONs | 0 |
+
+### Pre-existing artifacts (NOT broken by A.4a, NOT in scope)
+
+- **`list_boards` method missing on kb_query**: action_server's constructor pcall calls `q:list_boards()` to discover the initial board node. v3 kb_query doesn't define `list_boards`. The pcall swallows the error silently — this is the *intended* shape for best-effort init. boards table is also empty (0 rows in pg) so even if the method existed, the lookup wouldn't find anything. Both ends will resolve when board-loader / board-registry work lands; not part of A.4 / A.5.
+- **Build-time scripts not migrated**: `hub_dsl/kb_construct/test_kb.lua:34` and `kb_exporter.lua:46` still call v2-shape `kb_query.new(db_file, "knowledge_base", ltree_path)`. These run separately from the container's main loop (they're build-time helpers); migrating them when their code path next executes.
+
+### Three deferred V-heavy blockers — status update
+
+A.4a closed **2 of 3** blockers documented at end of A.3.5:
+
+- ✅ kb_query positional args (this commit)
+- ✅ sequencer:get_site dead path (deleted this commit)
+- ⏳ **kb_runtime body still sqlite-coded** — A.4b's job. Constructor signature is pg-correct (asserts pg_conn table); body uses `self.db = self.kb.db` and `sqlite3_helpers`. First mission DISPATCH still crashes when `kb_rt:merge_status` / `:write_heartbeat` fires.
+
+### **First action next session — A.4b kb_runtime body port to kb_stream**
+
+Per the design lock this session: **per-action persistence requirement
+is real** (will be folded into UI later); use `kb_stream.lua` capped-FIFO
+ring with JSONB payload. The driver lives at
+`building_blocks/knowledge_base/postgres/data_structures/kb_stream.lua`
+(`push_stream_data(path, data)` writes JSON-encoded Lua table into a
+pre-allocated capped ring — cap depth declared at build_kb time via
+`add_stream_field(stream_key, stream_length, description)`).
+
+**Step-by-step:**
+
+1. **Decide entity_key shape.** Two shapes evaluated this session:
+   - (1) per-robot: `...mission_log.<robot_id>.actions.KB_STREAM_FIELD.samples`, cap=64. Survives across missions for that robot. Recommended.
+   - (2) global: `...mission_log.actions.KB_STREAM_FIELD.samples`, cap=large. UI filters by robot_id+mission_id JSON predicate. Loses per-robot retention.
+   Going with (1) unless you say otherwise.
+
+2. **Pick robot list source.** Robots aren't in topology (they register dynamically via link protocol). Two options for build-time stream-field declaration:
+   - Pre-allocate a fixed pool of stream fields by *robot slot* (`rover_01`, `rover_02`, ...) — works if robots have stable IDs.
+   - Lazy-create stream fields at first-mission time (no build_kb declaration; runtime `add_stream_field`). Requires kb_stream to support live add. Probably it does (the framework already calls add_stream_field at commission for static paths; runtime call may work).
+   Investigate at start of A.4b which is supported.
+
+3. **Define JSON payload shape.** Single shape used at all 5 calls in mission.lua:
+   ```lua
+   {
+       mission_id      = job_id,
+       action_index    = i,
+       action_total    = n,
+       capability      = "drive_to" | ...,
+       kb_name         = node_name,
+       phase           = "started" | "complete" | "failed",
+       started_at_ms   = ...,
+       completed_at_ms = ...,         -- nil for "started"
+       elapsed_ms      = ...,
+       energy_used     = ...,
+       fault           = { reason, detail },  -- "failed" only
+       partial_state   = { ... },     -- "failed" only
+   }
+   ```
+   Schema-on-read JSONB; new fields can be added later without migration.
+
+4. **Rewrite kb_runtime.lua body.** Replace `self.db = self.kb.db` and `sqlite3_helpers` references with KBM ltree writes against `knowledge_base_stream` (or whatever pg path the kb_stream driver uses internally). The 5 call sites in mission.lua (`:merge_status` ×2 + `:write_heartbeat` ×3) all push the same shape; kb_runtime can collapse to a single `kb_rt:push_action(record)` API with the shape above, and mission.lua callers compose the record.
+
+5. **Rebuild + smoke.** Submit a mock mission via the existing smoke helper, then read the stream rows back from pg to confirm the action records landed:
+   ```sql
+   SELECT path::text, data
+     FROM knowledge_base_stream
+    WHERE path::text ~ 'mission_log.rover_1.actions.*samples'
+    ORDER BY recorded_at DESC LIMIT 10;
+   ```
+
+**Pre-emptive watch-outs:**
+- The kb_stream `push_stream_data` REQUIRES pre-allocated rows (errors on `No records found for path='...'. Records must be pre-allocated.`). So step 2 (robot list source for build-time declaration) is critical.
+- If lazy add_stream_field at runtime is supported, that's cleanest. If not, a fixed pool of robot slots is the fallback.
+- mission.lua has 5 kb_rt calls; the rewrite either preserves their existing shape (`:merge_status` + `:write_heartbeat`) or collapses to one API. Lower-touch is preserve-shape, but the rewrite's already touching kb_runtime guts so collapsing is fair game.
+- Schema is JSONB at the kb_stream level (per `push_stream_data`'s `dkjson.encode(data)`), so new fields are free.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1 ✅ → A.3.2 ✅ → A.3.3 ✅ → A.3.3b ✅ → A.3.4 ✅ →
+  A.3.5 ✅ → A.3.6 ✅ → A.4a ✅ →
+  A.4b (kb_runtime body port to kb_stream — next session) →
+  A.5 (= V-heavy: rejection path + completion path with mqtt_robot fixture)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+### Quick start-of-session check (verifies A.4a still soaks)
+
+```bash
+docker logs mission_planner_01 2>&1 | grep "action_server instantiated" | tail -1
+docker logs mission_planner_01 2>&1 | grep "jq observer subscribed" | tail -1
+
+# Constructor opts threaded correctly?
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;/opt/apps/planner/?.lua;/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua;' .. package.path
+local kb_query = require('kb_query')
+local pg_conn = { host = os.getenv('PG_HOST'), port = tonumber(os.getenv('PG_PORT')),
+                  dbname = os.getenv('PG_DB'), user = os.getenv('PG_USER'),
+                  password = os.getenv('PG_PASSWORD') }
+local q = kb_query.new(pg_conn, os.getenv('APP_SYSTEM'),
+                       os.getenv('APP_SITE'), os.getenv('CONTAINER_NAME'))
+io.stdout:write('OK system='..q.system_name..' site='..q.site..' own='..q.own_instance_id..'\n')
+q:close()"
+# expect: OK system=moon_base site=moon_base_alpha own=mission_planner_01
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Rollback recipe
+
+A.4a revert: `git revert --no-edit <hash>` — single holding commit, all
+6 lua files + continue.md revert atomically. Cluster falls back to A.3.6
+state (action_server instantiates but constructor pcall masks the
+positional-arg type mismatch; dispatch still blocked on kb_runtime).
+
+---
+
 ## State at end of 2026-05-05 (latest) — B.2.A.3.6 DONE (NATS JobQueue observer green)
 
 A.3.6 landed as **one holding commit** covering the JobQueue log-only

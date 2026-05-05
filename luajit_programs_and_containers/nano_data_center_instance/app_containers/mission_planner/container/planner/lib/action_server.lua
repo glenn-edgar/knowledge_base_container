@@ -54,8 +54,9 @@ function M.new(opts)
            "action_server: pg_conn must be a table {host,port,dbname,user,password}")
     self.hub_json    = opts.hub_json  -- legacy, no longer required
     self.nats_server = opts.nats_server or error("action_server: nats_server required")
-    self.ltree_path  = opts.ltree_path  or "/usr/local/lib/ltree"
-    self.site        = opts.site        or error("action_server: site required")
+    self.site            = opts.site            or error("action_server: site required")
+    self.system_name     = opts.system_name     or error("action_server: system_name required (v3 kb_query positional arg)")
+    self.own_instance_id = opts.own_instance_id or error("action_server: own_instance_id required (this container's name)")
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 
@@ -79,7 +80,7 @@ function M.new(opts)
     -- Discover initial board node (first node in first board — "node 0")
     self._init_node = nil
     pcall(function()
-        local q = kb_query_mod.new(self.pg_conn, "knowledge_base", self.ltree_path, self.site)
+        local q = kb_query_mod.new(self.pg_conn, self.system_name, self.site, self.own_instance_id)
         local boards = q:list_boards()
         if boards[1] then
             local board_data = q:get_board(boards[1])
@@ -256,7 +257,7 @@ function M:_make_mission_coroutine(mission_cmd)
         local energy_rate = 1.0
         local energy_infinite = false
         if class_name then
-            local kb_q = kb_query_mod.new(srv.pg_conn, "knowledge_base", srv.ltree_path, srv.site)
+            local kb_q = kb_query_mod.new(srv.pg_conn, srv.system_name, srv.site, srv.own_instance_id)
             capabilities = kb_q:get_class_capabilities(class_name)
             operation_types = kb_q:get_class_operation_types(class_name)
             energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -267,10 +268,11 @@ function M:_make_mission_coroutine(mission_cmd)
 
         -- Create planner
         local planner = global_planner.new({
-            pg_conn    = srv.pg_conn,
-            board_name = board,
-            ltree_path = srv.ltree_path,
-            site       = srv.site,
+            pg_conn         = srv.pg_conn,
+            board_name      = board,
+            site            = srv.site,
+            system_name     = srv.system_name,
+            own_instance_id = srv.own_instance_id,
         })
 
         -- Build route with operation_types validation and energy budget
@@ -336,12 +338,14 @@ function M:_make_mission_coroutine(mission_cmd)
 
         -- Create sequencer with yield-aware tick
         local seq = sequencer_mod.new({
-            robot_id     = robot_id,
-            pg_conn      = srv.pg_conn,
-            nats_server  = srv.nats_server,
-            site         = srv.site,
-            capabilities = capabilities,
-            tick_usleep  = 0,  -- no sleep — scheduler controls timing
+            robot_id        = robot_id,
+            pg_conn         = srv.pg_conn,
+            nats_server     = srv.nats_server,
+            site            = srv.site,
+            system_name     = srv.system_name,
+            own_instance_id = srv.own_instance_id,
+            capabilities    = capabilities,
+            tick_usleep     = 0,  -- no sleep — scheduler controls timing
             energy_max       = energy_max,
             energy_remaining = energy_remaining,
             mqtt_hub         = srv.mqtt_hub,
@@ -877,7 +881,7 @@ function M:execute_mission(mission_cmd)
     local energy_rate = 1.0
     local energy_infinite = false
     if class_name then
-        local kb_q = kb_query_mod.new(self.pg_conn, "knowledge_base", self.ltree_path, self.site)
+        local kb_q = kb_query_mod.new(self.pg_conn, self.system_name, self.site, self.own_instance_id)
         capabilities = kb_q:get_class_capabilities(class_name)
         operation_types = kb_q:get_class_operation_types(class_name)
         energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -887,9 +891,11 @@ function M:execute_mission(mission_cmd)
     end
 
     local planner = global_planner.new({
-        pg_conn    = self.pg_conn,
-        board_name = board,
-        ltree_path = self.ltree_path,
+        pg_conn         = self.pg_conn,
+        board_name      = board,
+        site            = self.site,
+        system_name     = self.system_name,
+        own_instance_id = self.own_instance_id,
     })
 
     local route, plan_info = mission_builder.build(
@@ -938,11 +944,13 @@ function M:execute_mission(mission_cmd)
     end
 
     local seq = sequencer_mod.new({
-        robot_id     = robot_id,
-        pg_conn      = self.pg_conn,
-        nats_server  = self.nats_server,
-        site         = self.site,
-        capabilities = capabilities,
+        robot_id        = robot_id,
+        pg_conn         = self.pg_conn,
+        nats_server     = self.nats_server,
+        site            = self.site,
+        system_name     = self.system_name,
+        own_instance_id = self.own_instance_id,
+        capabilities    = capabilities,
         energy_max       = energy_max,
         energy_remaining = energy_remaining,
         mqtt_hub         = self.mqtt_hub,

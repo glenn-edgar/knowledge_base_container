@@ -85,12 +85,13 @@ end
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    local pg_conn    = opts.pg_conn    or error("global_planner: pg_conn required")
-    local board_name = opts.board_name or error("global_planner: board_name required")
-    local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-    local site       = opts.site
+    local pg_conn         = opts.pg_conn         or error("global_planner: pg_conn required")
+    local board_name      = opts.board_name      or error("global_planner: board_name required")
+    local site            = opts.site            or error("global_planner: site required")
+    local system_name     = opts.system_name     or error("global_planner: system_name required (v3 kb_query positional arg)")
+    local own_instance_id = opts.own_instance_id or error("global_planner: own_instance_id required (this container's name)")
 
-    local q = kb_query.new(pg_conn, "knowledge_base", ltree_path, site)
+    local q = kb_query.new(pg_conn, system_name, site, own_instance_id)
     local board_data = q:get_board(board_name)
 
     -- Load VN definitions for energy computation

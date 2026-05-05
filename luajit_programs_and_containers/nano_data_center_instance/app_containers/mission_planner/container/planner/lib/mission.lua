@@ -54,9 +54,12 @@ function M.new(opts)
     local pg_conn     = opts.pg_conn      or error("mission: pg_conn required")
     local site        = opts.site         or error("mission: site required")
     local nats_server = opts.nats_server  or error("mission: nats_server required")
+    self.system_name     = opts.system_name     or error("mission: system_name required (threaded for v3 kb_runtime / kb_query)")
+    self.own_instance_id = opts.own_instance_id or error("mission: own_instance_id required (this container's name)")
     self.route_length = opts.route_length or 0
     self.site         = site
     self.nats_server  = nats_server
+    self.pg_conn      = pg_conn
 
     -- Build KB paths (same strings used as NATS keys)
     self.status_path = site .. ".robots." .. self.robot_id ..

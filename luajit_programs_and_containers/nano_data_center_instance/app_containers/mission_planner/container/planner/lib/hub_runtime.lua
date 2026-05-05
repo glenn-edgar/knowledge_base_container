@@ -52,12 +52,16 @@ local seq_counter = 0
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    local robot_id = opts.robot_id or error("hub_runtime: robot_id required")
-    local site     = opts.site     or error("hub_runtime: site required")
+    local robot_id        = opts.robot_id        or error("hub_runtime: robot_id required")
+    local site            = opts.site            or error("hub_runtime: site required")
+    local system_name     = opts.system_name     or error("hub_runtime: system_name required (v3 kb_query positional arg)")
+    local own_instance_id = opts.own_instance_id or error("hub_runtime: own_instance_id required (this container's name)")
     local initial_pose = opts.initial_pose or { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 }
 
-    self.robot_id = robot_id
-    self.site = site
+    self.robot_id        = robot_id
+    self.site            = site
+    self.system_name     = system_name
+    self.own_instance_id = own_instance_id
 
     -- Transport: must be injected
     self.tx = opts.transport or error("hub_runtime: transport required")
@@ -86,8 +90,7 @@ function M.new(opts)
     self.kb_by_name = {} -- kb_name → { name, index, packet_type_id, bitmask, ... }
     if opts.pg_conn then
         local kb_query = require("kb_query")
-        local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-        local q = kb_query.new(opts.pg_conn, "knowledge_base", ltree_path, opts.site)
+        local q = kb_query.new(opts.pg_conn, system_name, site, own_instance_id)
         local all_vns = q:get_all_virtual_nodes()
         q:close()
 
