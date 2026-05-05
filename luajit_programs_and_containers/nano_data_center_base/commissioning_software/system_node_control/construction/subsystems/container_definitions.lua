@@ -31,6 +31,7 @@ return {
             labels         = def.labels         or {},
             restart_policy = def.restart_policy or "no",
             cli_databases  = def.cli_databases  or {},
+            networks       = def.networks       or {},
           },
           "Build + runtime spec")
       end)

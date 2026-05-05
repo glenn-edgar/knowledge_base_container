@@ -1,6 +1,167 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-05 (latest) — B.2.A.3.5 DONE (action_server instantiates against live pg)
+## State at end of 2026-05-05 (latest) — B.2.A.3.6 DONE (NATS JobQueue observer green)
+
+A.3.6 landed as **one holding commit** covering the JobQueue log-only
+observer in main.lua + the planner-net plumbing through the catalog →
+container_definitions subsystem → spec_adapter → docker.lua chain.
+
+End-to-end verified: a `submit_test_mission.lua` invocation inside the
+container produces the log line
+`mission received #1 id=<sha> payload={"robot_id":"rover_1",...}` within
+seconds. Heartbeat keeps ticking, peers ACTIVE, 0 SYS_EXCEPTIONs.
+
+Continue.md's pre-session bullet count was "~½ session, log-only handler,
+mock-publish via `nats pub`". Two surprises (and the second is bigger
+than the first):
+
+1. **JobQueue is KV-backed, not subject pub/sub.** continue.md guessed
+   `subject = APP_SITE..".action_server.missions"` and `nats pub <subject>
+   <json>` for mock-publish — wrong. Real shape: `KeyStore.new({server,
+   bucket = "<site_bucket>_action_server", create_bucket=true})` then
+   `JobQueue.new(ks:handle(), worker_id)`. Submission goes through
+   `jq:submit(payload, queue, priority, retries, timeout)` writing
+   structured Job records into JetStream KV. Standalone `nats pub` would
+   not be picked up. **A submit_test_mission.lua helper is now committed
+   at `planner/scripts/`** for repeatable smoke.
+
+2. **Default-bridge has no DNS for container names.** mission_planner_01
+   was on `bridge` but `nats-js-ram` is on `planner-net`; even though
+   both were nominally on `bridge` too, Docker's default-bridge does NOT
+   service-discover. JQ observer's first connect attempt died with
+   `KeyStore error: connection error`. The infra_discovery KB row says
+   `host=nats-js-ram` but DNS only works on user-defined networks.
+   **Required a four-file plumbing change to land `--network planner-net`
+   for app containers.**
+
+| Slice | Scope |
+|---|---|
+| `(this commit)` | **A.3.6** — main.lua: `nats_ks.KeyStore.new` + `nats_jq.JobQueue.new` log-only observer (worker_id `planner_log_observer`); per-tick `drain_observer()` claims up to 5 jobs, logs payload, completes with `"logged_only"` status. New `planner/scripts/submit_test_mission.lua` for end-to-end smoke. Plumbing: `catalogs/definitions.lua` adds `networks = { "planner-net" }` to mission_planner def; `subsystems/container_definitions.lua` passes `networks` through to build.spec; `spec_adapter.lua` reads `spec.networks[1]` (with `spec.network` legacy fallback) into RunSpec.network; `docker.lua` adds `--network` + `docker network connect` for additional networks (parallel to broker path; both paths now consistent on input shape). Container respawned at 172.18.0.7 (planner-net), DNS resolves `nats-js-ram` → 172.18.0.4. |
+
+### A.3.6 smoke results (2026-05-05 evening, later)
+
+| Check | Result |
+|---|---|
+| `planner libs loaded: ... action_server=ok` | ✓ |
+| `action_server instantiated: nats_server=nats://nats-js-ram:4222` | ✓ |
+| mission_planner_01 on `planner-net` | ✓ 172.18.0.7 |
+| `getent hosts nats-js-ram` from inside | ✓ 172.18.0.4 |
+| `jq observer subscribed: bucket=moon_base_alpha_action_server queue=moon_base_alpha.action_server.missions` | ✓ |
+| `submit_test_mission.lua` returns job_id | ✓ |
+| `mission received #1 id=<sha> payload={...}` log line | ✓ within ~5s of submit |
+| heartbeat ticks during JQ drain | ✓ |
+| peers cpu_01 / cpu_02 | ACTIVE / ACTIVE |
+| active SYS_EXCEPTIONs | 0 |
+
+### Architectural note: which `docker run` path is in force
+
+There are now TWO container-launch code paths in this tree:
+
+- `docker.lua:run_from_spec` — original direct shell-out path. Receives
+  `spec.networks = { ... }` from build.spec and emits `--network <first>`
+  + `docker network connect` for additional. Used for legacy/internal
+  container ops (e.g. `system_control` infra start).
+- `broker_client.run` (Go broker) — newer path used by node_control's
+  `START_ASSIGNED_CONTAINERS` to launch app containers. Receives
+  `network` (singular string) on the wire, set by spec_adapter.lua from
+  `spec.networks[1]`. Broker's `buildCreateConfigs` honors EndpointsConfig
+  + NetworkMode for user-defined nets (was already implemented; this
+  refactor only touched the wire-encoder).
+
+Both paths now consistent on input shape (`networks` plural array on
+catalog/build.spec); they just differ on output (broker takes a single
+string, docker.lua handles multi-net via post-run `network connect`).
+
+### Three V-heavy blockers from A.3.5 still open (unchanged)
+
+A.3.6 was a green-field add and didn't touch dispatch path, so the three
+deferred blockers from A.3.5 remain (kb_runtime sqlite body, kb_query
+positional args, sequencer:get_site dead path). Documented in detail in
+the prior section.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1 ✅ → A.3.2 ✅ → A.3.3 ✅ → A.3.3b ✅ → A.3.4 ✅ →
+  A.3.5 ✅ → A.3.6 ✅ →
+  A.4 (kb_runtime body port + kb_query positional args fix — next session) →
+  A.5 (= V-heavy: rejection path + completion path with mqtt_robot fixture)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+### **First action next session — A.4 (kb_runtime body port + kb_query positional args)**
+
+Unblocks dispatch. Two coupled concerns:
+
+1. **kb_runtime body port (sqlite → pg).** kb_runtime.lua's constructor
+   signature is pg-correct after A.3.5 but the body still uses
+   `self.db = self.kb.db` and `sqlite3_helpers`. Pick:
+   - (a) **NATS-only telemetry**: drop kb_rt entirely from mission.lua;
+     all live telemetry through NATS KV (action_server already does the
+     `_publish_status` pattern). Cheaper, but loses the durable side.
+   - (b) **Full pg port**: rewrite kb_runtime body to KBM ltree writes
+     against `knowledge_base_status` / `knowledge_base_stream`. Larger
+     surface but preserves the three-tier model.
+
+   Recommendation: **(a) NATS-only first** — gets dispatch working,
+   doesn't churn the durable-telemetry design. Promote to (b) only when
+   real telemetry needs durable storage.
+
+2. **kb_query positional args at 5 sites.** v3 signature:
+   `(pg_conn, system_name, site, own_instance_id)`. Current call sites
+   pass v2 shape `(db_file, "knowledge_base", ltree_path, site)`:
+   - action_server.lua:80 (constructor pcall — masks; OK)
+   - action_server.lua:257, 878 (execute_mission — would crash)
+   - global_planner.lua:93 (would crash)
+   - sequencer.lua:77 (dead path; delete)
+   - hub_runtime.lua:90 (only reached when opts.pg_conn truthy at
+     execute_mission time)
+
+   Fix: thread `system_name` + `own_instance_id` through every constructor
+   opts, drop ltree_path arg, update each call site.
+
+Estimated effort: **1 session** (mirrors A.3.5 — ~9 files, similar
+blast radius pattern).
+
+### Quick start-of-session check (verifies A.3.6 still soaks)
+
+```bash
+docker logs mission_planner_01 2>&1 | grep "jq observer subscribed" | tail -1
+# expect: ... bucket=moon_base_alpha_action_server queue=moon_base_alpha.action_server.missions
+
+docker inspect mission_planner_01 --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}={{$v.IPAddress}} {{end}}'
+# expect: planner-net=172.18.0.X
+
+# Submit a mock mission, then check it's logged:
+docker exec mission_planner_01 luajit /opt/apps/planner/scripts/submit_test_mission.lua \
+    '{"robot_id":"rover_1","class_name":"drive_base","board":"landing_zone"}'
+sleep 7
+docker logs mission_planner_01 2>&1 | grep "mission received" | tail -1
+
+# Soak invariants:
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT (data::jsonb->'value'->>'tick')::int, extract(epoch from now())*1000 - (data::jsonb->'value'->>'at')::bigint
+   FROM knowledge_base_status
+   WHERE path::text ~ 'mission_planner_01.runtime.heartbeat.KB_STATUS_FIELD.snapshot'"
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Rollback recipe
+
+A.3.6 revert: `git revert --no-edit <hash>` — single holding commit, all
+6 files revert atomically. Cluster falls back to A.3.5 state where
+action_server instantiates but no jobs are subscribed. mission_planner_01
+would also revert from planner-net to default `bridge` — but since A.3.5
+doesn't actually try to connect to NATS, that's harmless.
+
+---
+
+## State at end of 2026-05-05 — B.2.A.3.5 DONE (action_server instantiates against live pg)
 
 A.3.5 landed as **one holding commit** covering the db_file→pg_conn API
 unification across the planner runtime chain plus a main.lua wiring slice

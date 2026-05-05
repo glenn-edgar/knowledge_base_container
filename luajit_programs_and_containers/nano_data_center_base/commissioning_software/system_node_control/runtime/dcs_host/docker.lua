@@ -20,6 +20,14 @@
 --   volumes        = { { host = "~/Data", cont = "/var/lib/..." }, ... }
 --   labels         = { K = V, ... }
 --   restart_policy = "always" | "no" | "unless-stopped" | ...
+--   networks       = { "planner-net", ... }   -- first becomes --network;
+--                                              -- additional are connected
+--                                              -- post-run via `docker
+--                                              -- network connect`. If
+--                                              -- omitted the default
+--                                              -- bridge is used (which
+--                                              -- does NOT do container-
+--                                              -- name DNS).
 -- =============================================================================
 
 local M = {}
@@ -125,6 +133,16 @@ function M.run_from_spec(name, spec, extra_env)
   parts[#parts + 1] = "--add-host"
   parts[#parts + 1] = shell_escape("host.docker.internal:host-gateway")
 
+  -- Primary network (first entry of spec.networks). Default bridge does
+  -- NOT do DNS for container names; user-defined networks do. Apps that
+  -- need to reach planner-net infra (nats-js-ram, pg-vector, mosquitto,
+  -- kv-bridge) must declare networks = { "planner-net" } in their def.
+  local nets = spec.networks or {}
+  if nets[1] then
+    parts[#parts + 1] = "--network"
+    parts[#parts + 1] = shell_escape(nets[1])
+  end
+
   -- per-spec labels
   for k, v in pairs(spec.labels or {}) do
     parts[#parts + 1] = "--label"
@@ -201,6 +219,19 @@ function M.run_from_spec(name, spec, extra_env)
   if not ok then
     return false, "docker run failed: " .. tostring(out)
   end
+
+  -- Additional networks beyond the primary: docker run only accepts a
+  -- single --network, so secondary attachments come post-run via
+  -- `docker network connect`.
+  for i = 2, #nets do
+    local nc_out, nc_ok = capture("docker network connect "
+        .. shell_escape(nets[i]) .. " " .. shell_escape(name))
+    if not nc_ok then
+      return false, "docker network connect " .. nets[i]
+        .. " failed: " .. tostring(nc_out)
+    end
+  end
+
   return true, out:gsub("%s+$", "")   -- container id
 end
 

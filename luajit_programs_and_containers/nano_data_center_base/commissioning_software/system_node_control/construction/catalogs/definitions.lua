@@ -219,6 +219,12 @@ return {
     runtime       = "docker",
     image         = "nanodatacenter/mission-planner:latest",
     restart_policy = "unless-stopped",
+    -- planner-net for container-name DNS to nats-js-ram, mosquitto-ram-ws_main,
+    -- pg-vector, kv-bridge, docker-host-broker. Default bridge does NOT do
+    -- service discovery; A.3.6 hit this when JobQueue connect to nats-js-ram
+    -- failed. Gateway routes via host.docker.internal:<external_port>, so
+    -- it doesn't need bridge co-residency.
+    networks       = { "planner-net" },
     port_spec = {
       ui = {
         internal    = 8090,

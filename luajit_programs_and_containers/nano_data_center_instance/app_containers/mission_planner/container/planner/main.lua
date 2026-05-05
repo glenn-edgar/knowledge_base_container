@@ -189,6 +189,74 @@ else
 end
 
 ---------------------------------------------------------------------------
+-- A.3.6: JobQueue log-only observer.
+--
+-- Standalone subscribe to the same KV bucket + queue action_server uses
+-- (per its _ensure_nats / _drain_nats_queue convention). We do NOT call
+-- action_srv:serve(); dispatch is gated on the kb_runtime body port +
+-- kb_query positional-arg fix (deferred to A.4 / A.4b).
+--
+-- Per-tick drain up to MAX_JOBS_PER_TICK; log payload, complete with
+-- "logged" status. External submitter contract: a Lua client opens the
+-- same bucket and calls jq:submit(payload_json, queue, priority, retries,
+-- timeout). nats CLI 'pub' won't work -- this is JetStream KV-backed,
+-- not subject pub/sub.
+---------------------------------------------------------------------------
+
+local json_util = require("json_util")
+
+local jq_observer = nil
+if action_srv and nats_info then
+    local nats_url = string.format("nats://%s:%d", nats_info.host, nats_info.port)
+    local site_bucket = APP_SITE:gsub("%.", "_")
+    local ok_jq, err_jq = pcall(function()
+        local ks = nats_ks.KeyStore.new({
+            server        = nats_url,
+            bucket        = site_bucket .. "_action_server",
+            description   = "Action server: status, results, summary, mission log",
+            create_bucket = true,
+            history       = 1,
+            client_name   = "planner_log_observer_ks",
+        })
+        ks:connect()
+        jq_observer = {
+            ks       = ks,
+            jq       = nats_jq.JobQueue.new(ks:handle(), "planner_log_observer"),
+            queue    = APP_SITE .. ".action_server.missions",
+            seen     = 0,
+        }
+    end)
+    if ok_jq and jq_observer then
+        logf("jq observer subscribed: bucket=%s_action_server queue=%s",
+            site_bucket, jq_observer.queue)
+    else
+        logf("jq observer subscribe FAIL: %s", tostring(err_jq))
+        jq_observer = nil
+    end
+end
+
+local MAX_JOBS_PER_TICK = 5
+
+local function drain_observer()
+    if not jq_observer then return end
+    for _ = 1, MAX_JOBS_PER_TICK do
+        local ok_claim, job_or_err = pcall(jq_observer.jq.claim_job,
+            jq_observer.jq, { jq_observer.queue })
+        if not ok_claim then
+            logf("jq claim error: %s", tostring(job_or_err))
+            return
+        end
+        local job = job_or_err
+        if not job then return end
+        jq_observer.seen = jq_observer.seen + 1
+        logf("mission received #%d id=%s payload=%s",
+            jq_observer.seen, job.id, tostring(job.payload_json))
+        pcall(jq_observer.jq.complete_job, jq_observer.jq, job.id,
+            '{"status":"logged_only","note":"A.3.6 observer; dispatch deferred"}')
+    end
+end
+
+---------------------------------------------------------------------------
 -- runtime.heartbeat tick loop
 ---------------------------------------------------------------------------
 
@@ -227,5 +295,6 @@ while true do
     elseif tick == 1 or tick % LOG_EVERY_N == 0 then
         logf("heartbeat tick=%d at=%d", tick, snapshot.at)
     end
+    drain_observer()
     ffi.C.nanosleep(sleep_ts, nil)
 end

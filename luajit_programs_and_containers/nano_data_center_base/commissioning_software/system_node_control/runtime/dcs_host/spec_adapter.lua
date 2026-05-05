@@ -6,7 +6,7 @@
 -- carries Lua-shaped fields:
 --
 --   image, ports[], volumes[], env_defaults{}, env_required[],
---   labels{}, restart_policy, entrypoint[], network?
+--   labels{}, restart_policy, entrypoint[], networks[]?
 --
 -- The broker's wire format flattens this into:
 --
@@ -166,7 +166,12 @@ function M.build_run_spec(name, spec, extra_env)
     volumes        = volumes,
     restart_policy = restart_policy,
     labels         = labels,
-    network        = spec.network or "",
+    -- Catalog convention is plural `networks` array (multiple networks
+    -- supported for future expansion). Broker's Create API only accepts
+    -- one network at create time; first entry wins. Additional networks
+    -- need a follow-up `docker network connect` (not implemented yet).
+    network        = (type(spec.networks) == "table" and spec.networks[1])
+                     or spec.network or "",
     -- Always inject host.docker.internal so app containers can reach
     -- pg/nats on the docker host. Required on Docker Desktop, harmless
     -- on Linux-native (where the gateway alias just points at the host).
