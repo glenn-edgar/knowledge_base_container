@@ -1,5 +1,114 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 (later) — B.2.A.1 DONE (planner runtime skeleton)
+
+After Phase B closed out (Layer V lightweight green earlier today), Phase
+B.2 started with **B.2.A.1: planner runtime skeleton + framework
+runtime.heartbeat pre-allocation** (`e65efba5`). Smoke green:
+mission_planner_01 now writes a `runtime.heartbeat.KB_STATUS_FIELD.snapshot`
+row every 5s carrying `{at, host, cpu, ui_port, tick}`. V-heavy pre-2
+("heartbeat_at <10s old") finally satisfied — was the lockout for
+running the heavy NATS mission test. NATS + MQTT addressing both
+discovered healthy via `infra_discovery.lookup`, ready for B.2.A.2.
+
+| Commit | Slice | Scope |
+|---|---|---|
+| `e65efba5` | **B.2.A.1** | apps_builder_framework's driver.lua now emits `runtime.heartbeat.snapshot` (universal liveness field every app gets); `ndc_paths.app_runtime_heartbeat_path(site, container)` helper; planner main.lua replaces the v2 heartbeat shell with pg-connect + infra_discovery + 5s heartbeat write loop. 25/25 framework driver + 23/23 validator tests green. |
+
+### B.2.A.1 smoke results (2026-05-05 17:20Z)
+
+| Check | Result |
+|---|---|
+| Framework pre-allocation row in pg | ✓ default `{at:0,host:"",cpu:"",ui_port:0}` |
+| Planner pg connect | ✓ first attempt |
+| Planner infra_discovery for nats | ✓ host=nats-js-ram, port=4222, healthy |
+| Planner infra_discovery for mqtt | ✓ host=mosquitto-ram-ws_main, port=1883, healthy |
+| `runtime.heartbeat.snapshot` updates | ✓ tick increasing, age 1.7s |
+| Cluster health post-rebuild | ✓ peers ACTIVE; 0 SYS_EXCEPTIONs; all apps respawned cleanly |
+
+Operational gotcha discovered + fixed during the smoke: **openresty-base
++ luajit-base images had stale staged `ndc_paths.lua` and were missing
+`infra_discovery.lua`** (built before today's helper additions). Image
+rebuild order when staged libs change: `luajit-base` → `openresty-base`
+→ each app image (mission-planner here). Add to runbook.
+
+### **Next session — B.2.A.2: import runtime/ libraries + NATS client**
+
+The planner shell can now write KB rows but has no protocol clients.
+B.2.A.2 brings in the link layer (MQTT-based robot transport) + NATS
+client for receiving missions:
+
+1. **Copy** `building_blocks/ros_planner_ii/runtime/*.lua` (9 files:
+   `link_client`, `link_manager`, `mqtt_transport`, `mqtt_hub_transport`,
+   `kv_writer`, `queue_monitor`, `ks_blackboard`, `ct_loader_pure`,
+   `fn_registry`) into
+   `nano_data_center_instance/app_containers/mission_planner/container/planner/lib/`.
+2. **Add NATS client lib**. Options: (a) pure-lua NATS client (small;
+   ~15KB if available), (b) ffi to `libnats.so` (heavier; needs system
+   package). Decide first; v2 cluster used MQTT-only for telemetry per
+   `feedback_telemetry_routing` memory but NATS for action_server
+   per the manifest's `nats_protocol` declaration. Likely already in
+   building_blocks somewhere — `grep -rln "nats" building_blocks/ros_planner_ii/`.
+3. **Bundler**: docker_build.sh uses `bundle_controller`; verify the
+   chain-tree IR and per-process manifests still compile after files
+   land in lib/.
+4. **Wire** NATS connect (in main.lua's startup, after infra_discovery)
+   + skeleton subscription to `{site}.action_server.missions` with a
+   no-op handler that just logs the mission JSON. Validates connect
+   path; mission state machine waits for B.2.A.3.
+
+Estimated time: 1–2 hours of focused work, depending on whether NATS
+client lib is already in building_blocks or needs vendoring.
+
+### Remaining B.2.A slices (after B.2.A.2)
+
+- **B.2.A.3**: import `action_server/lib/{action_server,mission_builder}.lua`
+  + `hub_dsl/*` (30 files; chain-tree IR for mission state machine
+  compiles to `hub.json`). Wire action_server's NATS handler. ~1 session.
+- **B.2.A.4**: V-heavy Phase 1 (rejection). Test client publishes mock
+  mission for class drive_base; observe `submitted` → `rejected_no_robot`.
+  ~½ session.
+- **B.2.A.5**: V-heavy Phase 2 (completion). Start mqtt_robot fixture
+  from building_blocks; observe full pipeline. ~½ session.
+
+Total Phase B.2.A budget: 3–4 sessions remaining after B.2.A.1.
+
+### Quick start-of-session check (verifies B.2.A.1 still soaks)
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker ps --format '{{.Names}}\t{{.Status}}' | grep mission_planner_01
+
+# planner heartbeat freshness (should be <10s)
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT (data::jsonb->'value'->>'tick')::int AS tick,
+          extract(epoch from now())*1000 - (data::jsonb->'value'->>'at')::bigint AS age_ms
+   FROM knowledge_base_status
+   WHERE path::text ~ 'mission_planner_01.runtime.heartbeat.KB_STATUS_FIELD.snapshot'"
+
+# peers ACTIVE + zero exceptions
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data->>'state' FROM knowledge_base_status \
+   WHERE path::text LIKE '%peer_state%' ORDER BY path"
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  B.2.A.1 ✅ -> B.2.A.2 (next) -> B.2.A.3 -> B.2.A.4 -> B.2.A.5 (= V-heavy)
+Then queued: N+1 (topology + slicer), file-store loader, three-tier config
+```
+
+---
+
 ## State at end of 2026-05-05 session — Phase B CODE-COMPLETE (Layer V lightweight green)
 
 Layer V landed in lightweight form per the layer table at line 859
