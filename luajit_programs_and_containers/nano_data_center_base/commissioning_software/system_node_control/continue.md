@@ -1,5 +1,98 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 (latest) — B.2.A.2 DONE (planner lib/ wired)
+
+| Commit | Slice | Scope |
+|---|---|---|
+| `0c69a6fa` | **B.2.A.2** | `/opt/apps/planner/lib/` namespace via `package.path`; first 2 no-dep runtime libs (`fn_registry.lua`, `kv_writer.lua`) imported from `building_blocks/ros_planner_ii/runtime/`. main.lua logs `planner libs loaded: fn_registry=ok kv_writer=ok` at startup. Heartbeat snapshot still updating each tick. |
+
+Validated the LUA_PATH plumbing for the planner package. Other runtime
+files (`link_*`, `mqtt_*`, `ks_blackboard`, `ct_loader_pure`,
+`queue_monitor`) need the FFI dep chain (libmqtt_pubsub.so,
+libnats_key_store.so, json_util resolution) and land together in A.3.
+
+### **Next session — B.2.A.3: action_server + hub_dsl + NATS .so vendoring**
+
+This is the **biggest** B.2 slice, genuinely 1.5-2 hours focused work.
+Hard architectural decision in step 1; defer-no-further. Landing it as
+ONE commit (per `feedback_holding_commits` "one layer = one commit")
+because the parts are coupled (action_server ↔ NATS ↔ hub_dsl).
+
+**Step-by-step:**
+
+1. **Decide where NATS .so files live.** Current state: `building_blocks/knowledge_base/nats/` has `libnats_pubsub.so`, `libnats_kb_store.so`, etc. Mission-planner needs `libnats.so*`, `libnats_key_store.so`, `libnats_job_queue.so` (action_server uses KV + JobQueue, NOT pubsub per `project_phase6_transport` memory's note about pubsub being unsafe). Three placement options:
+
+   | Option | Pros | Cons |
+   |---|---|---|
+   | (a) `luajit_base/prebuilt_libs/` | Reusable across all apps | +10MB to base image; affects everyone |
+   | (b) `mission_planner/container/lib/` | Targeted; only planner ships NATS | Duplicate when next NATS app lands |
+   | (c) `openresty_base/prebuilt_libs/` | Half-way; only OpenResty-derived apps | Awkward layering; openresty-base shouldn't know about NATS |
+
+   **Recommendation: (b) for now**, promote to (a) when a second NATS-using app lands. mission_planner/container/Dockerfile gets a COPY for the 7 .so files.
+
+2. **Copy remaining runtime/ libs** (7 files: `link_client`, `link_manager`, `mqtt_transport`, `mqtt_hub_transport`, `ks_blackboard`, `queue_monitor`, `ct_loader_pure`) into `planner/lib/`. Resolve `json_util` require — either symlink/copy or extend package.path to `/usr/local/share/lua/5.1/chain_tree/lua_dsl/luajit_pipeline/?.lua` (already in image).
+
+3. **Vendor NATS lua wrappers**: `nats_key_store.lua` + `nats_job_queue.lua` + `nats.lua` (entrypoint) from `nano_data_center_base/commissioning_software/kb/nats/lib/` into `planner/lib/`. Skip pubsub/rpc/stream — action_server doesn't use them.
+
+4. **Copy hub_dsl/* (30 files)** into `planner/`. The hub_dsl directory has its own structure (kb_construct/, hub_functions/, kb/, protocol/). Decide whether to vendor verbatim or restructure. Default: vendor verbatim under `planner/hub_dsl/` to keep it disposable. Build script `hub_dsl/build.sh` produces `hub.json` (chain-tree IR); commit the IR alongside the source so app boot doesn't need to compile.
+
+5. **Copy action_server/lib/{action_server,mission_builder}.lua** into `planner/lib/`. action_server is 38KB — read it carefully for require()s before wiring.
+
+6. **Wire main.lua**: after pg + infra_discovery, instantiate action_server with `nats_server = "nats://" .. infra.nats.host .. ":" .. infra.nats.port`, call `:start()` (or whatever its main loop entry is), then enter the heartbeat tick loop concurrently.
+
+7. **Smoke**: planner connects to NATS jetstream + sets up KV bucket; mock-publish a mission via `nats pub` CLI; observe logs show the mission JSON received.
+
+**Pre-emptive watch-outs:**
+- `feedback_luajit_signal_safety`: nats_pubsub.lua's ffi.cast async callback PANICs. Action_server uses key_store + job_queue (not pubsub) — likely safe but verify before committing.
+- `project_phase6_transport`: NATS deferred at v3 6.4 due to that signal-safety issue. Re-evaluate whether KV+JQ are clean.
+- Multi-arch: `prebuilt_libs/` files might need both linux/amd64 and linux/arm64 builds depending on Docker Desktop platform (WSL2 = amd64; Pi target = arm64).
+
+### Quick start-of-session check (verifies B.2.A.2 still soaks)
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker ps --format '{{.Names}}\t{{.Status}}' | grep mission_planner_01
+
+# planner libs loaded log line on each container start
+docker logs mission_planner_01 2>&1 | grep "planner libs loaded" | tail -1
+
+# heartbeat freshness
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT (data::jsonb->'value'->>'tick')::int AS tick,
+          extract(epoch from now())*1000 - (data::jsonb->'value'->>'at')::bigint AS age_ms
+   FROM knowledge_base_status
+   WHERE path::text ~ 'mission_planner_01.runtime.heartbeat.KB_STATUS_FIELD.snapshot'"
+
+# peers + zero exceptions
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data->>'state' FROM knowledge_base_status \
+   WHERE path::text LIKE '%peer_state%' ORDER BY path"
+```
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  B.2.A.1 ✅ -> B.2.A.2 ✅ -> B.2.A.3 (next, BIG) -> B.2.A.4 -> B.2.A.5 (= V-heavy)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+### B.2.A so far
+
+| Slice | Status | Commit |
+|---|---|---|
+| B.2.A.1 (skeleton + heartbeat) | ✅ | `e65efba5` |
+| B.2.A.2 (lib/ + first 2 files) | ✅ | `0c69a6fa` |
+| B.2.A.3 (action_server + hub_dsl + NATS) | NEXT | -- |
+| B.2.A.4 (V-heavy Phase 1) | TBD | -- |
+| B.2.A.5 (V-heavy Phase 2) | TBD | -- |
+
+---
+
 ## State at end of 2026-05-05 (later) — B.2.A.1 DONE (planner runtime skeleton)
 
 After Phase B closed out (Layer V lightweight green earlier today), Phase
