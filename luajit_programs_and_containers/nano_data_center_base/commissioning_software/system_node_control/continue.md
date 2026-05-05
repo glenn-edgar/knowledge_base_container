@@ -1,5 +1,123 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 session — Phase B CODE-COMPLETE (Layer V lightweight green)
+
+Layer V landed in lightweight form per the layer table at line 859
+("Boot from scratch; verify anchor populated; verify UI proxied; verify
+cross-discovery query works"). The heavy Q3-locked mission lifecycle
+test (NATS rejection + completion paths) requires the real planner
+runtime; mission_planner_01's `container/planner/main.lua` is still the
+v2 heartbeat shell, so that test is **deferred to Phase B.2** with the
+"Real planner library import" work-item. Phase B layer ordering now
+reads M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅.
+
+### Layer V smoke results (2026-05-05 17:55Z)
+
+| Check | Result |
+|---|---|
+| **Pre-1** spec.manifest.version=1.0 + class=mission_planner in pg | ✓ |
+| **Pre-2** runtime.heartbeat_at < 10s old | ✗ (planner shell does not write runtime.* — feature owned by real planner; Phase B.2) |
+| **Pre-3** GET http://localhost:19005/ direct | HTTP 200 |
+| **V.1** anchor populated (manifest + placement rows in pg) | ✓ verified by N-smoke; 11 manifest rows + 2 placement rows |
+| **V.2** UI proxied via dcs_console gateway | ✓ landing lists `mission_planner_01/ui`; `GET /ui/mission_planner_01/ui/` → HTTP 200, 0 redirects. Routes via CONTAINER_REGISTRY (written by node_control's REGISTER), cleanly decoupled from the runtime.* gap. |
+| **V.3** cross-discovery KB query | ✓ `data::jsonb @> '["drive_base"]'::jsonb` containment query finds mission_planner_01; wider sibling-app join (manifest class + capabilities + nats port + placement.cpu) returns one row with all four fields. |
+
+### What "Phase B code-complete" means
+
+Phase B's structural work is done:
+- Namespace migration (M-1, M-2) ✅
+- Apps-builder framework (F) ✅
+- KB-driven infra discovery (A-pre) ✅
+- Mission planner ported under v3 anchor (A) ✅
+- Apps-builder pipeline live (I) ✅
+- Placement-driven node_control (N) ✅
+- Anchor-populated + UI-proxied + cross-discovery verified (V) ✅
+
+What's pending is **Phase B.2** content:
+- Real planner library import (action_server + hub_dsl + local_planner +
+  global_planner + runtime) into `container/planner/`. Current shell
+  ticks but doesn't subscribe to NATS or write runtime.* rows.
+- Heavy NATS mission test (Q3 lock at lines 353-385): rejection path
+  with no robot, then completion path via the
+  `building_blocks/ros_planner_ii_mqtt_robot/` fixture. Re-runnable as
+  the lockedQ3 acceptance once the real planner is in place.
+- File-store loader (own design surface; sha256 + ltree + class registry)
+- Three-tier config loader
+- README/runbook references still mentioning `ros_mission_planner_ii_01`
+  (cosmetic; rolling cleanup)
+
+### Deferred N+1 sub-layer (still queued)
+
+continue.md's original Layer N spec also called for **topology
+restructure** (drop application instances from `cpus[*].instances`) and
+**bootstrap.db slicer simplify** (drop per-CPU container list for
+app-kind). Held off because they reshape build_kb output and risk
+breaking the chain-tree's initial KB activation. Land as a follow-up
+"N+1" sub-layer once placement-driven boot has soaked.
+
+### **First action next session — pick from Phase B.2**
+
+Top three candidates (rough effort estimate in parens):
+
+1. **Real planner library import** (1.5–2 sessions) — biggest unlock; gates
+   the Q3-locked NATS mission test. Touches `container/planner/main.lua`
+   bring-up, NATS subscribe wiring, runtime.* row writes, action_server
+   integration. Once green, queue Q3 mission test as V-heavy.
+2. **N+1 topology restructure + bootstrap slicer simplify** (½ session) —
+   smaller; closes the placement-rewire loop architecturally. Drops app
+   instances from `cpus[*].instances`, simplifies bootstrap.db. Low risk
+   if soak across overnight stays clean.
+3. **File-store loader** (1 session) — independent design surface;
+   sha256 blobs + ltree paths + class registry. Schema exists in pg per
+   `project_file_store` memory; runtime loader pending.
+
+Recommend **(1)** first — biggest application-side payoff and unblocks
+the heavy V test that was originally scoped for this session.
+
+### Quick start-of-session check
+
+```bash
+export NDC_BASE=/home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base
+DEP=$NDC_BASE/commissioning_software/system_node_control/deployment
+
+# 1. processes still 1 dcs.lua per CPU?
+pgrep -af "dcs\.lua" | grep -v claude
+
+# 2. peer states ACTIVE + system_ready=1?
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT path::text, data FROM knowledge_base_status \
+   WHERE path::text LIKE '%peer_state%' OR path::text LIKE '%system_ready' \
+   ORDER BY path"
+
+# 3. mission_planner_01 still up + reachable through gateway?
+docker ps --format '{{.Names}}\t{{.Status}}' | grep mission_planner_01
+curl -s -o /dev/null -w "gateway HTTP %{http_code}\n" --max-time 5 \
+  http://localhost:19003/ui/mission_planner_01/ui/
+
+# 4. zero active SYS_EXCEPTIONs
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Layer ordering
+
+```
+Phase B: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2: real planner port (1.5–2s) → V-heavy NATS test (½s)
+            file-store loader (1s) → three-tier config (½s)
+            N+1 topology + slicer simplify (½s)
+v3 step 4 onward (gated on Phase B.2 completion)
+```
+
+### Layer V rollback (cosmetic only)
+
+Layer V landed no source changes — verification only. No rollback needed.
+The Layer N commits (`ead9fb83`, `f4b85304`) cover the actual code that
+makes V pass; revert those if cluster regresses.
+
+---
+
 ## State at end of 2026-05-05 session — Layer N DONE (placement-driven node_control live)
 
 Layer N landed as two independently-revertible holding commits + a
