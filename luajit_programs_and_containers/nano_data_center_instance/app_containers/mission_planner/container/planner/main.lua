@@ -22,16 +22,25 @@ pcall(ffi.cdef, [[
     int nanosleep(const ts_t *req, ts_t *rem);
 ]])
 
--- Planner package libraries: imported from building_blocks/ros_planner_ii/runtime/
--- in Phase B.2.A.2 (more files land in A.3 with action_server + hub_dsl).
-package.path = "/opt/apps/planner/lib/?.lua;" .. package.path
+-- Planner package libraries: imported from building_blocks/ros_planner_ii/
+-- starting Phase B.2.A.2. The path stack is:
+--   /opt/apps/planner/lib/?.lua    -- runtime/ files (fn_registry, kv_writer, ...)
+--   /opt/apps/planner/?.lua        -- vendored upstream sub-trees (action_server,
+--                                     hub_dsl) keep their import paths verbatim
+-- nats_*.lua wrappers live under lib/lib/ so action_server's
+-- require("lib.nats_key_store") resolves with the standard `?` -> `?/?` substitution.
+package.path = "/opt/apps/planner/lib/?.lua;" ..
+               "/opt/apps/planner/?.lua;" ..
+               package.path
 
 local pg_connector    = require("pg_connector")
 local infra_discovery = require("infra_discovery")
 local kb_status       = require("kb_status")
 local ndc_paths       = require("ndc_paths")
-local fn_registry     = require("fn_registry")  -- planner lib smoke load
-local kv_writer       = require("kv_writer")    -- planner lib smoke load
+local fn_registry     = require("fn_registry")          -- runtime/ smoke load
+local kv_writer       = require("kv_writer")            -- runtime/ smoke load
+local nats_ks         = require("lib.nats_key_store")   -- A.3.2 NATS smoke load
+local nats_jq         = require("lib.nats_job_queue")   -- A.3.2 NATS smoke load
 
 ---------------------------------------------------------------------------
 -- env
@@ -64,9 +73,11 @@ end
 
 logf("started system=%s site=%s cpu=%s pg=%s:%d/%s",
     APP_SYSTEM, APP_SITE, APP_CPU_ID, PG_HOST, PG_PORT, PG_DB)
-logf("planner libs loaded: fn_registry=%s kv_writer=%s",
+logf("planner libs loaded: fn_registry=%s kv_writer=%s nats_ks=%s nats_jq=%s",
     type(fn_registry.register_functions) == "function" and "ok" or "missing",
-    type(kv_writer.new) == "function"                  and "ok" or "missing")
+    type(kv_writer.new)                  == "function" and "ok" or "missing",
+    type(nats_ks.KeyStore)               == "table"    and "ok" or "missing",
+    type(nats_jq.JobQueue)               == "table"    and "ok" or "missing")
 
 ---------------------------------------------------------------------------
 -- pg connect (retry until success; mirrors the dcs_host VERIFY_PG pattern)
