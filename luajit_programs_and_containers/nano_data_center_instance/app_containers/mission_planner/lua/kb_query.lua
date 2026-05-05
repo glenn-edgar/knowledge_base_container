@@ -1,8 +1,8 @@
 --[[
     kb_query.lua -- Knowledge Base query helper for the mission_planner.
 
-    Reads the v3 KB (sqlite-backed bootstrap.db) using KnowledgeBaseManager's
-    ltree queries. Reads the planner's own spec under the v3 anchor:
+    Reads the v3 KB (Postgres-backed) via KnowledgeBaseManager's ltree
+    queries. Reads the planner's own spec under the v3 anchor:
 
         system.<sys>.site.<S>.app_containers.<container_name>.spec.KB_*FIELD.*
 
@@ -18,7 +18,9 @@
 
     Usage:
         local kb_query = require("kb_query")
-        local q = kb_query.new("bootstrap.db",
+        local pg_conn = { host="pg-vector", port=5432, dbname="knowledge_base",
+                          user="gedgar",    password=os.getenv("PG_PASSWORD") }
+        local q = kb_query.new(pg_conn,
                                "moon_base",          -- system_name
                                "moon_base_alpha",    -- site
                                "mission_planner_01") -- own_instance_id
@@ -72,9 +74,10 @@ local FALLBACK_ROBOT_CLASSES = {
 -- Constructor / teardown
 ---------------------------------------------------------------------------
 
-function M.new(db_file, system_name, site, own_instance_id)
-    assert(type(db_file) == "string" and db_file ~= "",
-           "kb_query.new: db_file required")
+function M.new(pg_conn, system_name, site, own_instance_id)
+    assert(type(pg_conn) == "table",
+           "kb_query.new: pg_conn must be a table " ..
+           "{host, port, dbname, user, password}")
     assert(type(system_name) == "string" and system_name ~= "",
            "kb_query.new: system_name required (was a topology auto-detect in v2)")
     assert(type(site) == "string" and site ~= "",
@@ -90,9 +93,9 @@ function M.new(db_file, system_name, site, own_instance_id)
     end
 
     local self = setmetatable({}, M)
-    -- KBM.new(table_name, db_path, ltree_extension_path, upload_flag)
+    -- KBM.new(table_name, connection_params, upload_flag)
     -- upload_flag=true -> read-only mode (skip table creation).
-    self.kb              = KBM.new("knowledge_base", db_file, nil, true)
+    self.kb              = KBM.new("knowledge_base", pg_conn, true)
     self.system_name     = system_name
     self.site            = site
     self.own_instance_id = own_instance_id

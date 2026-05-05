@@ -9,8 +9,8 @@
         local sequencer = require("sequencer")
 
         local seq = sequencer.new({
-            robot_id  = "rover_1",
-            db_file   = "surface_ops.db",
+            robot_id = "rover_1",
+            pg_conn  = { host=..., port=..., dbname=..., user=..., password=... },
         })
 
         seq:load_route({
@@ -64,8 +64,8 @@ function M.new(opts)
     local self = setmetatable({}, M)
 
     self.robot_id = opts.robot_id or error("sequencer: robot_id required")
-    local db_file  = opts.db_file  or error("sequencer: db_file required")
-    self.db_file   = db_file
+    local pg_conn  = opts.pg_conn  or error("sequencer: pg_conn required")
+    self.pg_conn   = pg_conn
 
     self.tick_usleep         = opts.tick_usleep or 2000
     self.max_ticks_per_action = opts.max_ticks_per_action or 500
@@ -74,7 +74,7 @@ function M.new(opts)
     -- Site and NATS server from caller
     local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
     if not opts.site then
-        local kb_q = kb_query.new(db_file, "knowledge_base", ltree_path)
+        local kb_q = kb_query.new(pg_conn, "knowledge_base", ltree_path)
         self.site = kb_q:get_site()
         kb_q:close()
     else
@@ -100,7 +100,7 @@ function M.new(opts)
     -- Initialize hub runtime (state machine, no ChainTree)
     self.hub_rt = hub_runtime.new({
         robot_id         = self.robot_id,
-        db_file          = db_file,
+        pg_conn          = pg_conn,
         site             = self.site,
         initial_pose     = opts.initial_pose or
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
@@ -113,7 +113,7 @@ function M.new(opts)
     -- Initialize mission telemetry
     self.mission = mission_mod.new({
         robot_id     = self.robot_id,
-        db_file      = db_file,
+        pg_conn      = pg_conn,
         site         = self.site,
         nats_server  = self.nats_server,
         route_length = 0,  -- updated on load_route

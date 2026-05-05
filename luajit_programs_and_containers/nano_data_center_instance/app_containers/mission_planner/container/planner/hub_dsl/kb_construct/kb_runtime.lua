@@ -5,15 +5,22 @@
     during execution. Separate from kb_query (which is read-only for config).
 
     NOTE: Robot instances are no longer pre-created in the KB. All writes
-    are best-effort — if the path doesn't exist in SQLite, writes are
-    silently skipped. Live telemetry flows via NATS KV instead.
+    are best-effort — if the path doesn't exist, writes are silently
+    skipped. Live telemetry flows via NATS KV instead.
 
     Status table: single row per robot, current snapshot
     Stream table: circular buffer of heartbeat records
 
+    A.3.5 SIGNATURE NOTE: arg 1 is now a pg_conn TABLE (not a sqlite path
+    string) so KBM.new in v3 (pg-only) accepts it. The BODY of this module
+    is still sqlite-coded (self.kb.db, sqlite3_helpers); first mission
+    dispatch will crash at status/stream writes. Porting this body to pg
+    KBM ltree writes is deferred — it gates the V-heavy completion path
+    (B.2.A.5) but not A.3.5's instantiation + NATS-subscribe smoke.
+
     Usage:
         local kb_rt = require("kb_runtime")
-        local rt = kb_rt.new("surface_ops.db", "moonbase.alpha.surface_ops", "rover_1")
+        local rt = kb_rt.new(pg_conn, "moonbase.alpha.surface_ops", "rover_1")
 
         -- Update status (overwrites current snapshot)
         rt:update_status({
@@ -38,11 +45,14 @@ local json      = h.json
 local M = {}
 M.__index = M
 
-function M.new(db_file, site, instance_name, database)
+function M.new(pg_conn, site, instance_name, database)
+    assert(type(pg_conn) == "table",
+           "kb_runtime.new: pg_conn must be a table " ..
+           "{host, port, dbname, user, password}")
     local self = setmetatable({}, M)
     database = database or "knowledge_base"
-    self.kb = KBM.new(database, db_file, nil, true)  -- upload_flag=true (read-only schema)
-    self.db = self.kb.db
+    self.kb = KBM.new(database, pg_conn, true)  -- upload_flag=true (read-only schema)
+    self.db = self.kb.db   -- TODO(A.3.5 deferred): pg KBM has no .db; body still sqlite-coded
     self.database = database
     self.site = site
     self.instance = instance_name

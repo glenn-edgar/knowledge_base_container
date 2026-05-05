@@ -84,10 +84,10 @@ function M.new(opts)
     -- Load VN definitions from KB
     self.vn_defs = {}    -- kb_name → { packet_type_id, json_schema, bitmask, pose_fields }
     self.kb_by_name = {} -- kb_name → { name, index, packet_type_id, bitmask, ... }
-    if opts.db_file then
+    if opts.pg_conn then
         local kb_query = require("kb_query")
         local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
-        local q = kb_query.new(opts.db_file, "knowledge_base", ltree_path, opts.site)
+        local q = kb_query.new(opts.pg_conn, "knowledge_base", ltree_path, opts.site)
         local all_vns = q:get_all_virtual_nodes()
         q:close()
 

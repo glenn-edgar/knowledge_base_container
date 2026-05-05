@@ -7,20 +7,24 @@
         Uses the same slot/meta pattern as nats_stream.StreamBuffer so external
         consumers can read with StreamBuffer from a separate process.
 
-    Durable records go to SQLite via kb_runtime:
+    Durable records go to KB via kb_runtime:
       - First heartbeat per virtual node (VN started)
       - Final heartbeat per virtual node (VN completed/failed)
       - Final mission status
 
-    NATS subjects/keys match SQLite KB paths from DSL tree:
+    NATS subjects/keys match KB paths from DSL tree:
       status:    {site}.robots.{robot_id}.status.state
       stream:    {site}.robots.{robot_id}.stream.telemetry
+
+    A.3.5 NOTE: kb_runtime body is still sqlite-coded; the durable-bookend
+    calls (merge_status, write_heartbeat) will crash on first dispatch.
+    That blocks B.2.A.5 V-heavy completion path, not A.3.5 instantiation.
 
     Usage:
         local mission = require("mission")
         local m = mission.new({
             robot_id     = "rover_1",
-            db_file      = "surface_ops.db",
+            pg_conn      = { host=..., port=..., dbname=..., user=..., password=... },
             site         = "moonbase.alpha.surface_ops",
             nats_server  = "nats://127.0.0.1:4222",
             route_length = 18,
@@ -47,7 +51,7 @@ function M.new(opts)
     local self = setmetatable({}, M)
 
     self.robot_id     = opts.robot_id     or error("mission: robot_id required")
-    local db_file     = opts.db_file      or error("mission: db_file required")
+    local pg_conn     = opts.pg_conn      or error("mission: pg_conn required")
     local site        = opts.site         or error("mission: site required")
     local nats_server = opts.nats_server  or error("mission: nats_server required")
     self.route_length = opts.route_length or 0
@@ -60,9 +64,9 @@ function M.new(opts)
     self.stream_path = site .. ".robots." .. self.robot_id ..
         ".stream.telemetry"
 
-    -- SQLite kb_runtime (durable bookends)
+    -- KB kb_runtime (durable bookends)
     local kb_runtime = require("kb_runtime")
-    self.kb_rt = kb_runtime.new(db_file, site, self.robot_id)
+    self.kb_rt = kb_runtime.new(pg_conn, site, self.robot_id)
 
     -- NATS KeyStore (status + abort signaling)
     -- Bucket name derived from site namespace

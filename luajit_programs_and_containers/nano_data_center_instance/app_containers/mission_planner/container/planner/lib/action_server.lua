@@ -12,7 +12,7 @@
     Usage (server mode):
         local action_server = require("action_server")
         local srv = action_server.new({
-            db_file  = "surface_ops.db",
+            pg_conn = { host=..., port=..., dbname=..., user=..., password=... },
             hub_json = "hub_dsl/hub.json",
         })
 
@@ -49,7 +49,9 @@ M.__index = M
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    self.db_file     = opts.db_file     or error("action_server: db_file required")
+    self.pg_conn     = opts.pg_conn     or error("action_server: pg_conn required")
+    assert(type(self.pg_conn) == "table",
+           "action_server: pg_conn must be a table {host,port,dbname,user,password}")
     self.hub_json    = opts.hub_json  -- legacy, no longer required
     self.nats_server = opts.nats_server or error("action_server: nats_server required")
     self.ltree_path  = opts.ltree_path  or "/usr/local/lib/ltree"
@@ -77,7 +79,7 @@ function M.new(opts)
     -- Discover initial board node (first node in first board — "node 0")
     self._init_node = nil
     pcall(function()
-        local q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+        local q = kb_query_mod.new(self.pg_conn, "knowledge_base", self.ltree_path, self.site)
         local boards = q:list_boards()
         if boards[1] then
             local board_data = q:get_board(boards[1])
@@ -254,7 +256,7 @@ function M:_make_mission_coroutine(mission_cmd)
         local energy_rate = 1.0
         local energy_infinite = false
         if class_name then
-            local kb_q = kb_query_mod.new(srv.db_file, "knowledge_base", srv.ltree_path, srv.site)
+            local kb_q = kb_query_mod.new(srv.pg_conn, "knowledge_base", srv.ltree_path, srv.site)
             capabilities = kb_q:get_class_capabilities(class_name)
             operation_types = kb_q:get_class_operation_types(class_name)
             energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -265,7 +267,7 @@ function M:_make_mission_coroutine(mission_cmd)
 
         -- Create planner
         local planner = global_planner.new({
-            db_file    = srv.db_file,
+            pg_conn    = srv.pg_conn,
             board_name = board,
             ltree_path = srv.ltree_path,
             site       = srv.site,
@@ -335,7 +337,7 @@ function M:_make_mission_coroutine(mission_cmd)
         -- Create sequencer with yield-aware tick
         local seq = sequencer_mod.new({
             robot_id     = robot_id,
-            db_file      = srv.db_file,
+            pg_conn      = srv.pg_conn,
             nats_server  = srv.nats_server,
             site         = srv.site,
             capabilities = capabilities,
@@ -875,7 +877,7 @@ function M:execute_mission(mission_cmd)
     local energy_rate = 1.0
     local energy_infinite = false
     if class_name then
-        local kb_q = kb_query_mod.new(self.db_file, "knowledge_base", self.ltree_path, self.site)
+        local kb_q = kb_query_mod.new(self.pg_conn, "knowledge_base", self.ltree_path, self.site)
         capabilities = kb_q:get_class_capabilities(class_name)
         operation_types = kb_q:get_class_operation_types(class_name)
         energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -885,7 +887,7 @@ function M:execute_mission(mission_cmd)
     end
 
     local planner = global_planner.new({
-        db_file    = self.db_file,
+        pg_conn    = self.pg_conn,
         board_name = board,
         ltree_path = self.ltree_path,
     })
@@ -937,7 +939,7 @@ function M:execute_mission(mission_cmd)
 
     local seq = sequencer_mod.new({
         robot_id     = robot_id,
-        db_file      = self.db_file,
+        pg_conn      = self.pg_conn,
         nats_server  = self.nats_server,
         site         = self.site,
         capabilities = capabilities,

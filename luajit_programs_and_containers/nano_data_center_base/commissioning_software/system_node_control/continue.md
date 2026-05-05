@@ -1,6 +1,186 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-05 (latest) — B.2.A.3.4 DONE (full planner library tree imports clean)
+## State at end of 2026-05-05 (latest) — B.2.A.3.5 DONE (action_server instantiates against live pg)
+
+A.3.5 landed as **one holding commit** covering the db_file→pg_conn API
+unification across the planner runtime chain plus a main.lua wiring slice
+that actually instantiates action_server post-infra-discovery. Smoke
+green: container logs `action_server instantiated:
+nats_server=nats://nats-js-ram:4222`, heartbeat fresh, peers ACTIVE, zero
+SYS_EXCEPTIONs.
+
+Continue.md's pre-session handoff anticipated "~7 call sites, 1 session"
+for the refactor — actual scope was **9 files / ~25 edit points** because
+the parameter flowed through 5 runtime constructors (action_server →
+global_planner / sequencer → hub_runtime / mission → kb_runtime). Plus
+kb_runtime's positional-arg signature change (string→table at slot 1).
+Still one session of focused work; just bigger blast radius than
+continue.md's bullet-count suggested.
+
+| Slice | Scope |
+|---|---|
+| `(this commit)` | **A.3.5** — Renamed `db_file` (string, sqlite path) → `pg_conn` (table, pg conn params) at action_server, global_planner, sequencer, hub_runtime, mission opts; kb_runtime first positional arg same change. kb_query.new signature updated (both architectural twin + container-vendored copy). Latent bug fixed: kb_query was calling `KBM.new(...,nil,true)` with `true` at slot 4 — KBM's signature is 3-arg, slot 4 was silently ignored, meaning kb_query was creating tables on every connect (now `KBM.new(...,true)` at slot 3). main.lua builds pg_conn from PG_HOST/PORT/DB/USER/PASSWORD env, instantiates action_server with `{pg_conn, site, nats_server}` after NATS infra_discovery. Image rebuilt 193MB, respawned via `docker rm -f` + node_control reconcile (~5s). |
+
+### A.3.5 smoke results (2026-05-05 evening)
+
+| Check | Result |
+|---|---|
+| `planner libs loaded: ... action_server=ok` | ✓ (was already green from A.3.4) |
+| `infra nats host=nats-js-ram port=4222 healthy=true age=4s` | ✓ |
+| `infra mqtt host=mosquitto-ram-ws_main port=1883 healthy=true age=4s` | ✓ |
+| **`action_server instantiated: nats_server=nats://nats-js-ram:4222`** | ✓ ← A.3.5 milestone |
+| heartbeat tick=8 age=477ms | ✓ |
+| peer states cpu_01/cpu_02 | ACTIVE / ACTIVE |
+| active SYS_EXCEPTIONs | 0 |
+
+### Three deferred V-heavy blockers discovered during A.3.5
+
+A.3.5 made `action_server.new()` instantiate clean. **Mission DISPATCH
+still hits multiple landmines** — none affect A.3.5's instantiation +
+NATS-subscribe smoke, all gate B.2.A.5 V-heavy completion path.
+Documented here so the next session doesn't re-derive them.
+
+1. **kb_runtime.lua body still sqlite-coded.** Constructor signature is
+   pg-correct after A.3.5 (assert table + 3-arg KBM call), but the body
+   uses `self.db = self.kb.db` and `sqlite3_helpers` — pg KBM has neither.
+   First mission dispatch crashes at `kb_rt:merge_status` /
+   `kb_rt:write_heartbeat` (called from mission.lua's start/action_start/
+   action_complete/action_failed/finish). Either rewrite to use KBM ltree
+   writes against pg `knowledge_base_status` / `knowledge_base_stream`
+   tables, or drop kb_rt entirely from mission.lua and go fully NATS-only
+   for telemetry (the comment at top of mission.lua already declares
+   "Live telemetry flows through NATS JetStream KV ... Durable records go
+   to SQLite via kb_runtime" — the durable side is the only thing
+   broken).
+
+2. **kb_query positional args are v2-shaped at all 5 call sites.** v3
+   kb_query.new signature is `(pg_conn, system_name, site, own_instance_id)`
+   but every upstream caller passes the v2 shape `(db_file,
+   "knowledge_base", ltree_path, site)`:
+   - action_server.lua:80 (constructor pcall — silent fail OK)
+   - action_server.lua:257, 878 (execute_mission — would crash)
+   - global_planner.lua:93 (mission planning — would crash)
+   - sequencer.lua:77 (only reached when opts.site is nil; dead in
+     current chain because action_server always provides site)
+   - hub_runtime.lua:90 (only reached when opts.pg_conn truthy +
+     constructor invoked; dead at A.3.5 instantiation since
+     hub_runtime is constructed by sequencer at execute_mission time)
+
+   The constructor pcall at action_server.lua:80 masks this — it's why
+   instantiation succeeded today. The two unwrapped calls in
+   execute_mission would fail loudly. Fix: thread system_name +
+   own_instance_id through every constructor opts, drop ltree_path
+   (not needed by pg KBM), update each call site.
+
+3. **sequencer.lua:77 calls `q:get_site()` which v3 kb_query doesn't
+   define.** Dead path (action_server always passes opts.site so the
+   `if not opts.site` branch never fires) but worth deleting on the next
+   sweep through sequencer to avoid surprise during a future refactor.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1 ✅ → A.3.2 ✅ → A.3.3 ✅ → A.3.3b ✅ → A.3.4 ✅ →
+  A.3.5 ✅ →
+  A.3.6 (NATS subscribe + skeleton handler — next session) →
+  A.4 → A.5 (= V-heavy, gated on kb_runtime body port + kb_query call-args fix)
+Then queued: N+1 (topology + slicer simplify), file-store loader, three-tier config
+```
+
+### **First action next session — A.3.6 NATS subscribe + skeleton handler (~½ session)**
+
+`action_srv` already exists in main.lua (post-A.3.5). Goal: subscribe to
+`{site}.action_server.missions` via the JobQueue API and log the mission
+JSON. **Do NOT actually dispatch** — that hits the kb_runtime landmine.
+
+**Step-by-step:**
+
+1. **Read action_server.lua's existing serve loop** to understand how it
+   normally subscribes via JobQueue (lines around `M:serve` /
+   `M:_consume_jobs` — needs to be located). Decide whether to:
+   (a) call `action_srv:serve()` and let it do its own subscribe + dispatch
+   (will crash at first mission), OR
+   (b) subscribe via a minimal `nats_jq.JobQueue.new` directly in main.lua
+   with a custom log-only handler. Cleaner; doesn't fight the action_server
+   internals.
+
+   Recommendation: **(b)** — main.lua owns the subscribe, log-only handler
+   ack's the message, action_server stays uninstantiated for serve.
+   Touches no library code; pure additive ~30 lines.
+
+2. **Construct a minimal JobQueue:**
+   ```lua
+   local jq = nats_jq.JobQueue.new({
+       server      = nats_url,
+       stream      = "action_server_missions",  -- TBD; check upstream JobQueue defaults
+       subject     = APP_SITE .. ".action_server.missions",
+       client_name = "planner_jq_" .. CONTAINER_NAME,
+   })
+   jq:connect()
+   ```
+
+3. **Run a tick loop** that does a non-blocking `jq:claim(timeout_ms)`
+   (or whatever the API is — read `nats_job_queue.lua` first). On
+   message: `logf("mission received: %s", payload_json)`, then ack
+   (`jq:complete(job)` or similar — TBD).
+
+4. **Mock-publish from host:**
+   ```bash
+   docker exec nats-js-ram nats pub \
+       moon_base_alpha.action_server.missions \
+       '{"robot_id":"rover_1","class_name":"drive_base","board":"landing_zone"}'
+   ```
+
+5. **Acceptance:** container log shows `mission received: {"robot_id":...}`
+   within 1-2 seconds of publish; container doesn't crash; heartbeat keeps
+   ticking.
+
+**Pre-emptive watch-outs:**
+- JobQueue API surface unread — read `lib/lib/nats_job_queue.lua` before
+  writing the wrapper code. Don't guess method names.
+- JetStream stream may need to be created before subscribe (JobQueue
+  might do this on `connect()`; might not). Check the upstream `KeyStore`
+  pattern in nats_key_store.lua for the `create_bucket=true` analogue.
+- Co-existence with the heartbeat loop: jq:claim with a short timeout
+  inside the existing `while true` loop, OR a coroutine. Probably simplest
+  to interleave with a 100-200ms claim timeout per heartbeat tick.
+- per `feedback_luajit_signal_safety`: JobQueue uses libnats sync sub
+  (poll-based, not async callback) per the upstream design that A.3.1
+  vendored — should be safe. Verify.
+
+### Quick start-of-session check (verifies A.3.5 still soaks)
+
+```bash
+docker logs mission_planner_01 2>&1 | grep "action_server instantiated" | tail -1
+# expect: ... nats_server=nats://nats-js-ram:4222
+
+pgrep -af "dcs\.lua" | grep -v claude
+docker ps --format '{{.Names}}\t{{.Status}}' | grep mission_planner_01
+
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT (data::jsonb->'value'->>'tick')::int AS tick,
+          extract(epoch from now())*1000 - (data::jsonb->'value'->>'at')::bigint AS age_ms
+   FROM knowledge_base_status
+   WHERE path::text ~ 'mission_planner_01.runtime.heartbeat.KB_STATUS_FIELD.snapshot'"
+
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status \
+   WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Rollback recipe
+
+A.3.5 revert: `git revert --no-edit <hash>` — single holding commit, all
+9 files revert atomically. Cluster falls back to A.3.4 state where
+action_server chunk-loads but doesn't instantiate. Cluster soak survives
+the revert because the heartbeat tick loop is independent of action_server
+instantiation.
+
+---
+
+## State at end of 2026-05-05 — B.2.A.3.4 DONE (full planner library tree imports clean)
 
 Most of B.2.A.3 landed today (4 sub-commits) plus A.1, A.2 earlier. The
 planner library tree is now structurally reachable inside

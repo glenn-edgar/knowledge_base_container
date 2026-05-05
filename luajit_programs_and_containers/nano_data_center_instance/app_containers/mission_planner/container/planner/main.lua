@@ -62,9 +62,9 @@ local mqtt_transport  = require("mqtt_transport")       -- A.3.3b uses lib.mqtt_
 
 -- A.3.4: smoke-load action_server + its require chain (kb_query,
 -- global_planner, sequencer, link_manager, mission_builder, etc.).
--- If action_server's chunk loads without error, the full library import
--- is reachable. We don't INSTANTIATE it here -- that needs config from
--- infra_discovery + a NATS server URL, lands in A.3.5.
+-- A.3.5: instantiate action_server with pg_conn (table) + site + nats_server.
+-- See main loop further down for the instantiation step (after pg connect
+-- and NATS infra discovery).
 local ok_as, action_server = pcall(require, "action_server")
 local action_server_status = ok_as and "ok" or ("FAIL: " .. tostring(action_server))
 
@@ -153,8 +153,40 @@ local function discover(service_type)
     return r
 end
 
-discover("nats")
+local nats_info = discover("nats")
 discover("mqtt")
+
+---------------------------------------------------------------------------
+-- A.3.5: instantiate action_server (smoke). Mission dispatch is gated on
+-- the kb_runtime body port (deferred for V-heavy completion path).
+---------------------------------------------------------------------------
+
+local pg_conn = {
+    host     = PG_HOST,
+    port     = PG_PORT,
+    dbname   = PG_DB,
+    user     = PG_USER,
+    password = PG_PASSWORD,
+}
+
+local action_srv = nil
+if ok_as and nats_info then
+    local nats_url = string.format("nats://%s:%d", nats_info.host, nats_info.port)
+    local ok_inst, srv_or_err = pcall(action_server.new, {
+        pg_conn     = pg_conn,
+        site        = APP_SITE,
+        nats_server = nats_url,
+    })
+    if ok_inst then
+        action_srv = srv_or_err
+        logf("action_server instantiated: nats_server=%s", nats_url)
+    else
+        logf("action_server instantiate FAIL: %s", tostring(srv_or_err))
+    end
+else
+    logf("action_server instantiate SKIP: ok_as=%s nats_info=%s",
+        tostring(ok_as), tostring(nats_info ~= nil))
+end
 
 ---------------------------------------------------------------------------
 -- runtime.heartbeat tick loop

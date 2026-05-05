@@ -11,7 +11,7 @@
     Usage:
         local gp = require("global_planner")
         local planner = gp.new({
-            db_file    = "surface_ops.db",
+            pg_conn    = { host=..., port=..., dbname=..., user=..., password=... },
             board_name = "landing_zone",
         })
 
@@ -85,12 +85,12 @@ end
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    local db_file    = opts.db_file    or error("global_planner: db_file required")
+    local pg_conn    = opts.pg_conn    or error("global_planner: pg_conn required")
     local board_name = opts.board_name or error("global_planner: board_name required")
     local ltree_path = opts.ltree_path or "/usr/local/lib/ltree"
     local site       = opts.site
 
-    local q = kb_query.new(db_file, "knowledge_base", ltree_path, site)
+    local q = kb_query.new(pg_conn, "knowledge_base", ltree_path, site)
     local board_data = q:get_board(board_name)
 
     -- Load VN definitions for energy computation
