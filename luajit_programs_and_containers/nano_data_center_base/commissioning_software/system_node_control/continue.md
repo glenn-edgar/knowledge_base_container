@@ -1,5 +1,143 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-05 (latest) — B.2.A.4d DONE (file_store boards class + upload tool)
+
+A.4c was a pure smoke validation — file_store driver (`kb_doc_store.lua`)
++ schema (`knowledge_base_fs_blob`, `_fs_node`, `_doc_class`) all healthy
+under live pg, framework facade `Construct_Data_Tables:add_doc_class`
+already wired. **No commit for A.4c** (no code change needed).
+
+A.4d landed as **one holding commit**:
+
+- **`construction/subsystems/boards.lua`** (new): registers a
+  `commissioning_only` doc-class at site root namespace
+  `system.<sys>.site.<S>.boards`. Site-wide on purpose: the physical
+  world is shared across every planner instance.
+- **`construction/scripts/upload_board.lua`** (new): operator CLI. Reads
+  a JSON file, validates parses, computes sha256 (via `sha256sum`),
+  calls `doc_put` with `writer="commissioning"`, writes an audit row
+  at `boards.<name>.KB_STATUS_FIELD.last_upload` with the hash + uploader
+  + timestamp. All in one pg transaction.
+- **`build_kb.lua`** SUBSYSTEMS list updated to include `"boards"` after
+  `"site_scalars"` and before `"infrastructure_registry"`.
+
+### A.4d smoke results (2026-05-05 evening)
+
+| Check | Result |
+|---|---|
+| `boards` class registered (`commissioning_only`, `application/json`) | ✓ via build_kb |
+| `upload_board.lua` accepts `--system / --site / --name / --file` | ✓ |
+| 582-byte board JSON uploaded → `fs_blob` row + `fs_node` pointer + audit row | ✓ |
+| Content readable as UTF8 → JSONB; structure preserved (3 nodes) | ✓ |
+| Re-upload of same file is idempotent (sha256 dedup; still 1 blob row) | ✓ |
+| Cluster soak post-rebuild: peers ACTIVE / ACTIVE, 0 SYS_EXCEPTIONs | ✓ |
+
+**Smoke artifact cleaned up** — class registration stays (it's permanent
+schema), but the test board's `fs_blob` + `fs_node` + audit rows were
+deleted post-validation. pg fs_blob/fs_node now empty awaiting A.4f's
+real construction-phase board.
+
+### Architectural decisions locked this session
+
+- **Storage = file_store-backed (option b)**. Boards live in pg as
+  content-addressable blobs; sha256 keyed; site-wide namespace; not
+  per-planner-instance. Robots aren't consumers — only mission planners
+  are, and they may be on remote nodes, so pg distribution is the
+  natural fit.
+- **Mid-mission revision policy = (1) drain-then-flip for now, design
+  for (3) replan-in-place later**. Mission state will capture the hash
+  at start (lands in A.4e). Sequencer drift detection is a no-op hook
+  under (1), wired during A.4e for future (3) graduation without a
+  rewrite.
+- **First board = construction-phase representative** (12-20 nodes,
+  multi-stop with pickup_module_1 / drop_module_1 / charging_station,
+  mixed nav line + B-spline, terrain-varying weights). Lands in A.4f
+  to exercise storage at realistic scale.
+- **map_api_tool + robot_manager = queued layers** (A.6 + A.7), NOT
+  woven into A.5. They're real but separate; A.5's holding-commit
+  discipline cleaner without them.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1-3.4 ✅ → A.3.5 ✅ → A.3.6 ✅ →
+  A.4a ✅ → A.4b ✅ → A.4c ✅ (smoke, no commit) → A.4d ✅ →
+  A.4e (kb_query:get_active_board API + hash capture in mission state — next session) →
+  A.4f (author construction-phase landing_zone.json + upload + verify) →
+  A.5 Phase 1 (jq observer dispatches; rejection path) →
+  A.5 Phase 2 (mqtt_robot fixture; completion path)
+Then queued:
+  A.6 (map_api_tool — operator UI/CLI for board generation + validation)
+  A.7 (robot_manager — fleet-wide robot registry + class catalog)
+  N+1 (topology + slicer simplify), file-store loader generalization,
+  three-tier config
+```
+
+### **First action next session — A.4e (kb_query:get_active_board)**
+
+Adds the planner-side read path. Three sub-steps:
+
+1. **`kb_query:get_active_board(name)`** — reads `boards.<name>` fs_node
+   pointer (via `kb_doc_store.doc_get`), parses content as JSON, returns
+   `{ graph_data, sha256_hex }`. Caches by sha256 in an in-memory map so
+   subsequent calls for the same hash skip the fetch. Replaces the
+   missing `list_boards`/`get_board` slot that A.5 Phase 1 needs.
+
+2. **Mission state captures hash at start**. mission.lua's `:start()`
+   pushes a `mission_start` event with `board_sha256 = <hex>` so every
+   downstream `push_event` record is correlatable to the exact board
+   version. Also stored on `self.board_sha256` for the (3) replan-in-place
+   drift detector wiring.
+
+3. **Sequencer drift-detection hook** (no-op under (1), wired for (3)).
+   Add `_check_board_drift()` method called once per tick (cheap: read
+   `fs_node.sha256` for the active board, compare to `self.board_sha256`).
+   Under policy (1): just log if different. Under future (3): trigger
+   replan. This way the (3) graduation is a single-method change, not
+   a structural rewrite.
+
+Pre-emptive watch-outs:
+- `kb_doc_store.doc_get` requires the planner to have access to
+  `kb_doc_store.lua` in its container. Currently lives in
+  `building_blocks/knowledge_base/postgres/data_structures/`. May need
+  to vendor into planner image (similar to how nats_*.lua + mqtt_*
+  were vendored in A.3.x). ~1 file copy, not a heavy lift.
+- `dkjson` is already available in container (used by kb_runtime).
+- Cache invalidation: drift detector handles it. Cache key = sha256.
+
+Estimated effort: **½ session**.
+
+### Quick start-of-session check (verifies A.4d still soaks)
+
+```bash
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT namespace::text, writer FROM knowledge_base_doc_class WHERE namespace::text LIKE '%boards%';"
+# expect: system.moon_base.site.moon_base_alpha.boards | commissioning_only
+
+# upload tool exists + chmod +x:
+ls -l /home/gedgar/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control/construction/scripts/upload_board.lua
+
+# Cluster soak invariants (unchanged through A.4d):
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+```
+
+### Rollback recipe
+
+A.4d revert: `git revert --no-edit <hash>` removes the boards subsystem
+and upload tool. The class registration row in pg's
+`knowledge_base_doc_class` survives the revert (it was inserted at
+build_kb time, not by source). Re-running build_kb after revert leaves
+the class row in place but the boards subsystem is gone — operator can
+manually `DELETE FROM knowledge_base_doc_class WHERE namespace LIKE
+'%boards%'` if a clean state is desired. Cluster operationally
+unaffected (no runtime code uses boards yet — A.4e/A.4f land that).
+
+---
+
 ## State at end of 2026-05-05 (latest) — B.2.A.4b DONE (per-action persistence via kb_stream)
 
 A.4b landed as **one holding commit** porting kb_runtime.lua's body from

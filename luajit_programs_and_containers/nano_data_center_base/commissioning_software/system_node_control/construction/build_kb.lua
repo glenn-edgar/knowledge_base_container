@@ -278,6 +278,7 @@ kb.kb.conn:autocommit(false)
 local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
+  "boards",                  -- Phase B.2 A.4: file_store class registration for nav boards
   "infrastructure_registry", -- Phase B Layer A-pre: runtime-addressing for infra services
   "readiness_sync",
   "sync_queues",           -- Phase 6.1: pg-backed sync transport + peer_state
