@@ -195,4 +195,15 @@ function M.app_placement_status_path(site, container_name, name)
     "placement.current.KB_STATUS_FIELD." .. name)
 end
 
+--- Path to the runtime liveness snapshot.
+-- Produces: app_containers.<c>.runtime.heartbeat.KB_STATUS_FIELD.snapshot
+-- Pre-allocated by apps_builder_framework at commission with empty defaults;
+-- the running container UPDATEs it each tick with
+-- { at = unix_ms, host = container_dns, cpu = APP_CPU_ID, ui_port = N }.
+-- Consumers: dcs_console liveness probe, observability tree.
+function M.app_runtime_heartbeat_path(site, container_name)
+  return M.app_path(site, container_name,
+    "runtime.heartbeat.KB_STATUS_FIELD.snapshot")
+end
+
 return M

@@ -13,9 +13,14 @@
 --     5. Emits placement.current.KB_STATUS_FIELD.{cpu, role}  -- framework-
 --        owned, derived from the placement table; consumed at runtime by
 --        node_control to decide what to start on each CPU (Phase B Layer N).
---     6. Verifies the path stack returned to the entry depth (catches
+--     6. Pre-allocates runtime.heartbeat.KB_STATUS_FIELD.snapshot with
+--        empty defaults; the container UPDATEs this row each tick at
+--        runtime so observability + dcs_console + a future runtime.cpu
+--        drift detector can see liveness uniformly across all apps
+--        (Phase B.2).
+--     7. Verifies the path stack returned to the entry depth (catches
 --        apps that forgot to leave a header). Re-raises if mismatched.
---     7. with_header pops automatically (also on error).
+--     8. with_header pops automatically (also on error).
 --   Atomic failure: any kb_build error propagates; the build aborts and
 --   the calling code is responsible for transaction rollback.
 --
@@ -113,6 +118,31 @@ local function drive_one(kb, read_kb, placement)
       end)
   end
 
+  local function emit_runtime_skeleton()
+    -- Sub-header: app_containers.<i>.runtime.heartbeat
+    -- Pre-allocates the runtime liveness snapshot every app must update at
+    -- startup + each tick. Single status field "snapshot" (JSON-shaped):
+    --   { at = unix_ms, host = container_dns, cpu = APP_CPU_ID, ui_port = N }
+    -- App-side updater: kb_status.set_status_data(pg, path, {value = {...}})
+    -- Consumers: dcs_console liveness probe; observability tree;
+    -- node_control runtime.cpu vs placement.cpu drift detection (future).
+    -- App-specific runtime sub-namespaces (runtime.metrics, runtime.connections)
+    -- are added by the app's own kb_build under runtime.* if it needs them.
+    kb:with_header("runtime", "heartbeat", { kind = "runtime" }, {},
+      "Runtime liveness snapshot (container fills each tick)",
+      function()
+        local default = { at = 0, host = "", cpu = "", ui_port = 0 }
+        if use_facade then
+          kb:add_status_field("snapshot", {},
+            "App runtime snapshot updated each tick by the container",
+            default)
+        else
+          kb:add_info_node("KB_STATUS_FIELD", "snapshot", {},
+            default, "App runtime snapshot")
+        end
+      end)
+  end
+
   local body_ok, body_err = pcall(function()
     kb:with_header("app_containers", placement.instance_id,
       { class = placement.app_class, kind = placement.spec.kind },
@@ -125,6 +155,7 @@ local function drive_one(kb, read_kb, placement)
             "kb_build returned ok=false: %s", tostring(fn_err)), 0)
         end
         emit_placement()
+        emit_runtime_skeleton()
       end)
   end)
 
