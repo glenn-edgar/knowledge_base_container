@@ -1,5 +1,185 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-06 (latest) — B.2.A.5 Phase 2a DONE (mock MQTT robot fixture + smoke harness)
+
+A.5 Phase 2a landed as **one holding commit** providing the
+robot-side fixture needed to validate the planner's dispatch path
+end-to-end. Not a full v3 robot port (that's queued behind A.7
+robot_manager) — just the minimum needed to ack mission commands so
+the planner observes a successful happy-path round-trip.
+
+- **`construction/scripts/mock_mqtt_robot_lib.lua`** — pure logic:
+  topic computation (site dots → slashes), ack / kb_done JSON
+  factories matching the `hub_runtime` stream_bus consumer's
+  `{type ∈ {ack, heartbeat, kb_done}}` contract, and a `LinkState`
+  state machine implementing the planner's three-way handshake
+  (`init` → `registering` → `live` → `disconnected`).
+- **`construction/scripts/mock_mqtt_robot.lua`** — binary entry
+  point. Connects to MQTT via `lib.mqtt_pubsub` (the same FFI
+  binding the planner uses), subscribes to
+  `<site>/robots/<id>/rpc` + `<site>/robots/<id>/planner/+`,
+  performs the link handshake on startup, then instant-acks every
+  RPC command. Periodic robot-side heartbeats every 10s.
+  Decrements `energy_remaining` by `cmd.distance` on each path
+  action so the planner observes a moving energy budget. SIGINT
+  publishes a clean `link_disconnect` before exiting.
+- **`construction/tests/test_mock_mqtt_robot.lua`** — host-side
+  smoke. 38 assertions: topic conventions; ack / kb_done success /
+  kb_done failure shapes; full handshake state-machine walk
+  (init → registering via bridge_ack reply → live via
+  bridge_heartbeat → disconnected); idempotent re-ack; unknown
+  verbs return nil. Runs in <100ms with no MQTT broker.
+
+### A.5 Phase 2a smoke results (2026-05-06)
+
+Host-side (assistant-run, no live cluster mutation):
+
+| Check | Result |
+|---|---|
+| Lua parse: `mock_mqtt_robot.lua`, `mock_mqtt_robot_lib.lua` | PARSES ✓ |
+| Topic computation: 6 standard + 1 dotted-site case | ✓ |
+| ack factory: type / seq / status / timestamp | ✓ |
+| kb_done success: success=true, seq+test_id forwarded, zero delta-pose | ✓ |
+| kb_done failure: success=false, fault_reason, energy_remaining | ✓ |
+| LinkState: init / registering / live / disconnected transitions | ✓ |
+| LinkState: bridge_ack reply is link_confirm with wire_format=json + capabilities | ✓ |
+| LinkState: duplicate bridge_ack is idempotent (no reply) | ✓ |
+| LinkState: unknown verbs return nil | ✓ |
+| `test_mock_mqtt_robot.lua` summary: 38 passed, 0 failed | ✓ |
+
+**Live MQTT round-trip is the user-driven step next session** — see
+"First action next session" below.
+
+### Architectural decisions locked this session
+
+- **A.5 Phase 2a is a host-runnable script, not a container.** It
+  lives under `construction/scripts/`, which is the laptop tools
+  directory per CLAUDE.md. Using `LD_LIBRARY_PATH` to point at the
+  prebuilt `libmqtt_pubsub.so` (in
+  `nano_data_center_base/commissioning_software/kb/mqtt/`) so the
+  same FFI binding the planner container uses works on the host.
+- **No physics, no movement, no operation simulation.** Every
+  command gets `success: true` immediately. Energy decrements by
+  the action's reported `distance`. This is the minimum to confirm
+  dispatch round-trip; A.5 Phase 2b (containerization) and any
+  realistic robot behavior is queued behind cluster smoke
+  validation of A.4f + A.5 Phase 1.
+- **Pure logic factored into `mock_mqtt_robot_lib.lua`.** The
+  binary entry point is a thin runner; everything else lives in
+  the lib so unit-style tests can require it without standing up
+  MQTT or loading the C library.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1-3.4 ✅ → A.3.5 ✅ → A.3.6 ✅ →
+  A.4a ✅ → A.4b ✅ → A.4c ✅ → A.4d ✅ → A.4e ✅ → A.4f ✅ →
+  A.5 Phase 1 ✅ → A.5 Phase 2a ✅ →
+  A.5 Phase 2b (containerize the mock so node_control brings it up
+                alongside mission_planner — design to follow once
+                user-side cluster smoke confirms 2a works live)
+Then queued:
+  A.6 (map_api_tool — operator UI/CLI for board generation + validation)
+  A.7 (robot_manager — fleet-wide robot registry + class catalog;
+       full v3 port of the v2 mqtt_robot is part of this)
+  N+1 (topology + slicer simplify), file-store loader generalization,
+  three-tier config
+```
+
+### **First action next session — user-driven cluster bring-up**
+
+All four steps below are user-driven cluster mutations:
+
+1. **Rebuild `mission_planner` image.** Picks up A.4f route_builder
+   segment exploder + A.4f schema_version guard + A.5 Phase 1
+   classify + push_rejection + late-complete. One image rebuild
+   covers all three layers. Per
+   `feedback_image_rebuild_order.md`: only the planner app needs
+   rebuilding (no `prebuilt_lua_share/` change).
+
+2. **Upload the landing_zone board:**
+   ```bash
+   PG_PASSWORD="$POSTGRES_PASSWORD" \
+     construction/scripts/upload_board.lua \
+     --system moon_base --site moon_base_alpha \
+     --name landing_zone \
+     --file ../../nano_data_center_instance/configurations/moon_base_alpha/file_scripts/boards/landing_zone.json
+   ```
+
+3. **Start the mock robot** in another terminal:
+   ```bash
+   LD_LIBRARY_PATH=$(realpath ../../nano_data_center_base/commissioning_software/kb/mqtt) \
+     construction/scripts/mock_mqtt_robot.lua \
+     --robot rover_1 --site moon_base_alpha --host localhost
+   ```
+   Watch for `→ link_announce`, `→ link state=registering (sent reply)`,
+   `→ link state=live`. After the planner heartbeat fires (~10s),
+   the mock should be visible to the planner as live.
+
+4. **Submit a synthetic happy-path mission** via JobQueue:
+   - Start node = `lander_pad`, single stop at `mining_zone_b`,
+     `bookend = true`.
+   - Watch the mock's stderr: a stream of
+     `← rpc kb=path_spline seq=N test_id=N → ack+kb_done energy=...`
+     entries, one per pairwise polyline segment of each edge in
+     the route.
+   - Watch `mission_planner_01` logs: mission progresses through
+     each action, `state=executing` → `state=completed`, `success=true`.
+   - Confirm `kb_stream` has `mission_start` + N × `action_complete`
+     records, all carrying `board_sha256` from A.4e wiring.
+
+5. **Submit a synthetic rejection mission** to verify A.5 Phase 1:
+   - Mission targeting `transit_build_n` (a transit-only node).
+   - Expect: `fail_job(reason="transit_node_stops")` from the JQ
+     side, `mission_rejected` record in `kb_stream` with the same
+     reason.
+
+   Repeat for board_not_found (use a non-existent board name) and
+   insufficient_energy (a long route with `--energy 100` on the
+   mock).
+
+If steps 1-5 all pass, **A.5 Phase 2b** can land: containerize the
+mock as `nano_data_center_instance/app_containers/mock_robot/` so
+node_control brings it up automatically. Estimated ~1 session.
+
+### Quick start-of-session check (verifies A.5 Phase 2a still soaks)
+
+```bash
+# 0. Host-side smoke (no live cluster needed):
+luajit construction/tests/test_mock_mqtt_robot.lua
+# expect: SUMMARY: 38 passed, 0 failed
+
+# 1. Mock script + lib parse cleanly:
+luajit -e "loadfile('construction/scripts/mock_mqtt_robot.lua') and print('OK')"
+luajit -e "loadfile('construction/scripts/mock_mqtt_robot_lib.lua') and print('OK')"
+
+# 2. mqtt_pubsub.so reachable from the kb/mqtt path?
+ls -la ../../kb/mqtt/libmqtt_pubsub.so 2>/dev/null || \
+  ls -la ../../nano_data_center_base/commissioning_software/kb/mqtt/libmqtt_pubsub.so
+
+# 3. After steps 1-3 above are run by user — confirm planner sees rover_1 live:
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;' .. package.path
+-- (probe a link_manager state via NATS KV — depends on planner internal API)
+" 2>&1 | head -5
+```
+
+### Rollback recipe
+
+A.5 Phase 2a revert: `git revert --no-edit <hash>` removes
+`mock_mqtt_robot.lua`, `mock_mqtt_robot_lib.lua`, and
+`test_mock_mqtt_robot.lua`. **No runtime dependencies** — the mock
+is a pure tool, not part of any container. Revert is risk-free.
+
+If the mock turns out to make wrong assumptions about the planner
+contract once you run live smoke, the fix is editing
+`mock_mqtt_robot_lib.lua` (factories or LinkState verbs) and
+re-running the smoke harness — no rollback needed.
+
+---
+
 ## State at end of 2026-05-06 (latest) — B.2.A.5 Phase 1 DONE (rejection-path classification + late-complete JobQueue ack + kb_stream rejection events)
 
 A.5 Phase 1 landed as **one holding commit** wiring the dispatch-side
