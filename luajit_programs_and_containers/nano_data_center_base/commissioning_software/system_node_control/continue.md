@@ -1,6 +1,136 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-06 (latest) — B.2.A.5 Phase 2a DONE (mock MQTT robot fixture + smoke harness)
+## State at end of 2026-05-06 (evening) — DESIGN PIVOT: v2 board DSL + visualizer
+
+After landing A.4f / A.5 Phase 1 / A.5 Phase 2a as code (commits below
+under earlier sections), the user revised the plan. Rather than
+incrementally layering more code on top of the v1 board format, the
+remaining session was a design discussion for **two new tools**:
+
+1. **An offline DSL compiler** — `tool dsl.lua out.json`. Operator
+   writes a board in a procedural LuaJIT DSL; tool emits validated
+   v2 JSON ready for `upload_board.lua`.
+2. **A matplotlib visualizer** — read-only inspection of an emitted
+   `out.json`, two-level drill-down (topology ↔ path detail).
+
+v1 work (A.4f) **stays** as a `schema_version=1` legacy / fixture
+path. The schema_version guard catches v2 uploads against v1 readers.
+v2 boards from the new tool will be `schema_version=2`.
+
+### What was decided this session (skeleton level)
+
+**Visualizer (fully locked).** matplotlib + TkAgg through WSLg.
+Single tool, click-driven, interactive only — no PNG / SVG save.
+Click edge → swap to L2 path detail. Click node → in-canvas modal
+popup. `Esc` dismisses popup or returns L2 → L1.
+
+**DSL — locked decisions:**
+
+| Decision | Lock |
+|---|---|
+| Tool invocation | `tool dsl.lua out.json` (compiler) |
+| Host language | LuaJIT |
+| Module name | `board_dsl` (fully independent of CDT or other DSLs) |
+| API style | Procedural, namespace-scoped |
+| Helper calls | Mandatory typed function calls per kind; raw tables rejected |
+| Validation timing | Deferred to `b:build()` with line-number-aware errors |
+| Coordinates inside paths | Relative to edge's from-node; compiler resolves absolute |
+| Region declaration | At `board_dsl.new{}`, immutable thereafter |
+| Region shape | Arbitrary simple polygon, implicit close |
+| Region containment | Every coord validated; out-of-bounds = compile error |
+| Path tree | board → edges → top-paths → sub-paths (recursive) |
+| Top paths | Pseudo-class templates (containers like `recharge`); NOT wire units |
+| Top-level id whitelist | Project-level via `b:declare_action_group{}` |
+| Templates | Both inline + imported initially; contracts to imports-only later |
+| Wire boundary | Leaf actions (one `cmd_*_t` packet per leaf) |
+| Robot capabilities | = leaf-action ids |
+| Capability check | Board union (compile time) + robot subset (plan time) |
+| Union population | `declare_capabilities{}` AND/OR `import_capabilities("class_name")` |
+| Drive packet | New `cmd_drive_t` collapses spline/line/wall into one packet with internal sub-segment list |
+| Sub-segment kinds | `straight_line`, `spline`, `wall_follow`, `line_follow` |
+| `wall_follow` shape | Wraps a base primitive (`straight_line`/`spline` child) + signed offset (`+`/`-` selects side) |
+
+**Wire-layer implication:** the A.4f route_builder will need a
+rewrite once the drive packet ships — bundle the polyline into one
+`cmd_drive_t` per drive leaf rather than exploding into N pairwise
+packets. **Not in scope for the next session — build out the DSL
+first, the wire change follows when the v2 robot back-fit lands.**
+
+### **First action next session — NODE PROPERTIES**
+
+**Open structural question that blocks the rest of the DSL design:**
+what attributes does a node carry?
+
+Concrete question to answer:
+
+- `name` (unique id within the board) — clearly required
+- `x, y` (coords; validated against region) — clearly required
+- `type` / role / kind — but with the new pseudo-class model, what
+  does node `type` mean? Does `type = "recharge"` automatically
+  bind a default `recharge` template to this node? Or is `type`
+  purely descriptive and templates are bound at edge-path level?
+- Default operation params — does the node carry the canonical
+  params for an associated operation, or do path templates carry
+  them?
+- Capability hints — does a node declare which leaf actions are
+  "expected to happen here" so the DSL can warn if an edge to/from
+  this node uses something else?
+- Marker references — does a node optionally point to a marker
+  (e.g. a charging-station node references the wall marker that
+  defines its cell geometry)?
+- Anything else (operator-facing label, icon override, description)?
+
+The DSL needs node attributes locked **before** edges become
+authorable — edges reference nodes by name, and the compile-time
+region check has to know what coords to validate. Likely path:
+start with `name + x + y` as the minimum required, then walk
+through optional attributes one at a time the same way we walked
+through `wall_follow`.
+
+After node properties: **marker structure attributes**, then
+**robot-class capability source** for the import path.
+
+### Quick start-of-session check (for the design discussion to resume cleanly)
+
+```bash
+# 1. Today's three code commits intact:
+git log --oneline -3
+# expect:
+#   37cd8cb0 B.2.A.5 Phase 2a: minimal mock MQTT robot + smoke harness
+#   5100a554 B.2.A.5 Phase 1: rejection-path classification + late-complete JobQueue ack + kb_stream rejection events
+#   89ceb81b B.2.A.4f: board format spec + landing_zone artifact + route_builder segment exploder
+
+# 2. Host-side smoke for what was shipped today still green:
+luajit construction/tests/test_a5_phase1.lua          # 17 passed
+luajit construction/tests/test_mock_mqtt_robot.lua    # 38 passed
+
+# 3. matplotlib + WSLg still working:
+python3 -c "import matplotlib; print('backend=' + matplotlib.get_backend())"
+# expect: backend=tkagg
+
+# 4. Live cluster bring-up smoke for A.4f / A.5 Phase 1 / A.5 Phase 2a
+#    is STILL queued (rebuild planner image + upload landing_zone +
+#    run mock + submit happy-path / rejection missions). User-driven.
+#    Not a blocker for tomorrow's design discussion — design can
+#    proceed without those. If cluster smoke surfaces issues, the
+#    code can be patched independently of the DSL design work.
+```
+
+### Rollback recipe
+
+No code landed in this design session. Pure conversation. Nothing to
+revert. The new memory entry
+(`project_v2_board_dsl_design.md`) and this section of `continue.md`
+are the durable artifacts.
+
+If the design direction itself turns out to be wrong, three earlier
+commits (A.4f / A.5 Phase 1 / A.5 Phase 2a) are independent of the
+v2 DSL and revert separately per their own rollback recipes
+(below).
+
+---
+
+## State at end of 2026-05-06 (afternoon) — B.2.A.5 Phase 2a DONE (mock MQTT robot fixture + smoke harness)
 
 A.5 Phase 2a landed as **one holding commit** providing the
 robot-side fixture needed to validate the planner's dispatch path
