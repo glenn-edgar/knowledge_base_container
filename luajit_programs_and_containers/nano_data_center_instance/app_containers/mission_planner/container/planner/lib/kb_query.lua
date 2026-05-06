@@ -175,6 +175,18 @@ function M:get_active_board(name)
         return nil, "board content not valid JSON: " .. tostring(perr)
     end
 
+    -- Schema-version guard: refuse boards whose declared shape this reader
+    -- does not understand (e.g. a v2 board with sub-paths uploaded against
+    -- a v1 planner). Missing schema_version is treated as v1 for backward
+    -- compatibility with pre-A.4f boards. See BOARD_FORMAT.md.
+    local sv = graph.schema_version
+    if sv ~= nil and sv ~= 1 then
+        return nil, string.format(
+            "board schema_version=%s not supported by this reader (expected 1); "
+            .. "upgrade the planner or downgrade the board",
+            tostring(sv))
+    end
+
     self._board_cache[sha_hex] = graph
     return { graph_data = graph, sha256_hex = sha_hex, cache_hit = false }
 end

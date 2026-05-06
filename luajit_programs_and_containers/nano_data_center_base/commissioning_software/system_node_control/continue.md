@@ -1,5 +1,206 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-06 (latest) — B.2.A.4f DONE (board format spec + landing_zone artifact + route_builder segment exploder + schema-version guard)
+
+A.4f landed as **one holding commit** completing the board pipeline
+end-to-end and reconciling the v3 planner output shape with the
+existing MQTT-robot wire format. Five files in this checkpoint:
+
+- **`construction/subsystems/BOARD_FORMAT.md`** — narrative spec for
+  the board JSON. v1 reference + v2 reserved (sub-paths, markers) +
+  comment conventions (`description` per element; `_comment`
+  free-form) + nav-to-wire mapping table + GPS/local-ENU coordinate
+  system rules. **This is the contract for the offline production
+  authoring tool.**
+- **`construction/subsystems/board.schema.json`** — JSON Schema
+  draft-07. v1 strict; v2 fields permissive so v2 files lint cleanly.
+  Run before upload: `ajv validate -s board.schema.json -d
+  landing_zone.json`.
+- **`construction/scripts/build_landing_zone.lua`** — generator
+  emitting the canonical fixture. 15 nodes (start, gate, 5 transits,
+  2 charging, 2 inspection, 3 module-stops, target), 18 edges
+  including 2 painted-line follow + 3 hand-authored curved approaches,
+  weights varying 100–1500 by terrain difficulty.
+- **`nano_data_center_instance/configurations/moon_base_alpha/file_scripts/boards/landing_zone.json`** —
+  generated artifact ready for `upload_board.lua --name landing_zone`.
+  10293 bytes; schema_version=1; markers=[].
+- **`route_builder.lua`** — **wire-shape fix**. Now emits ONE action
+  per pairwise polyline segment (matching `cmd_path_spline_t /
+  cmd_path_line_t / cmd_path_wall_t`) instead of one action per
+  logical edge. Each path_spline action carries
+  `{from_x, from_y, to_x, to_y, speed, distance, segment_index,
+  total_segments}`; path_line drops the segment fields; path_wall
+  carries `wall_standoff` if the edge defines one. The v3
+  "removed from_x" design choice was reverted along with this — it
+  was incompatible with the existing robot wire format.
+- **`kb_query.lua`** — schema_version guard. v2 board against v1
+  reader fails loudly (`return nil, err` from `get_active_board`)
+  instead of silently planning bad routes. Missing field treated
+  as v1 for backward compat with pre-A.4f boards.
+
+### A.4f smoke results (2026-05-06)
+
+Generator + format-side smoke (assistant-run, JSON validation only):
+
+| Check | Result |
+|---|---|
+| `build_landing_zone.lua` runs clean (host luajit) | ✓ |
+| Generated JSON parses (dkjson.decode) | ✓ |
+| schema_version=1, nodes=15, edges=18, markers=0 | ✓ |
+| Hand-authored `transit_build_n→construction_bay` path correctly anchored at endpoints (800,1400 first; 800,1600 last) | ✓ |
+| Two `path_line` edges present (`survey_point_1→transit_build_w`, `charging_station_a→charging_station_b`) | ✓ |
+| All node types covered by `ui.node_styles` registry | ✓ |
+| route_builder unit-style probe: 4-pt polyline → 3 segment actions, distances 267/266/267, seg=1/3/2/3/3/3 | ✓ |
+| route_builder path_line action: no `segment_index` key (matches `cmd_path_line_t`) | ✓ |
+| route_builder bookend: `init_check` first, `idle` last, energies from vn_defs | ✓ |
+
+**Cluster-side smoke (user runs next session before any A.5 work):**
+see "Quick start-of-session check" below. Critical because the
+route_builder change affects every mission dispatched.
+
+### Architectural decisions locked this session
+
+- **Robot wire = contract.** Future planner changes adapt to the
+  existing `cmd_path_*_t` shape rather than asking the robot to
+  decode new schemas. The path-exploder lives in
+  `route_builder.lua` (planner side), not on the wire.
+- **One edge per node-pair, always.** v2 sub-paths decompose a
+  single edge into typed legs (drive_straight / drive_spline /
+  follow_wall / follow_line) — they do NOT introduce multiple
+  edges between the same nodes. Dijkstra still sees one edge with
+  one weight.
+- **Boards live in `nano_data_center_instance/configurations/<site>/file_scripts/boards/`.**
+  Matches the instance README's "file_scripts = file-store seed"
+  convention. Source-of-truth Lua tables live alongside the
+  generator under `construction/scripts/` (laptop side per
+  CLAUDE.md decision table).
+- **Comments via `description` (per element) + `_comment` (free-form).**
+  Both are JSON fields, both ignored by every reader. Map UI may
+  surface `description` as tooltip text.
+- **Schema_version is the future fork point.** v1 readers refuse
+  v2 files loudly. v2 sub-paths and lat/lon-native nodes are the
+  two breaking changes already anticipated.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1-3.4 ✅ → A.3.5 ✅ → A.3.6 ✅ →
+  A.4a ✅ → A.4b ✅ → A.4c ✅ → A.4d ✅ → A.4e ✅ → A.4f ✅ →
+  A.5 Phase 1 (jq observer dispatches; rejection path) →
+  A.5 Phase 2 (mqtt_robot fixture; completion path)
+Then queued:
+  A.6 (map_api_tool — operator UI/CLI for board generation + validation)
+  A.7 (robot_manager — fleet-wide robot registry + class catalog)
+  N+1 (topology + slicer simplify), file-store loader generalization,
+  three-tier config
+```
+
+### **First action next session — A.5 Phase 1 (jq observer dispatches)**
+
+A.4f finishes the planner's READ side: action_server reads the active
+board, builds a route via global_planner + route_builder, the route is
+shaped to match the robot wire format. **A.5 Phase 1 wires the
+DISPATCH side**: jq observer pulls a mission off the JobQueue and
+hands it to action_server.handle_mission, which now produces a
+sequencer-ready route and either accepts or rejects.
+
+Steps:
+1. Upload landing_zone.json into pg via
+   `upload_board.lua --system moon_base --site moon_base_alpha --name landing_zone --file <artifact_path>`
+   (operator-side step before any mission can plan).
+2. Verify in-container that
+   `q:get_active_board("landing_zone")` returns a board with
+   `schema_version=1`, 15 nodes, 18 edges.
+3. Wire `action_server.handle_mission(mission_cmd)` → rejection path:
+   missing start/stops, transit-only stop, unsupported operation,
+   no-route-found. Each error case publishes a rejection record via
+   the existing kb_stream + jq result-publish path.
+4. Run a synthetic happy-path mission end-to-end: jq submit →
+   observer pickup → planner builds route → route segments logged
+   to kb_stream with board_sha256 attached (A.4e wiring already
+   handles the threading).
+
+Estimated effort: **1 session**, gated on A.4f smoke result confirming
+the live cluster picks up the rebuilt planner image.
+
+### Quick start-of-session check (verifies A.4f still soaks)
+
+```bash
+# 0. Format spec + schema present
+test -f construction/subsystems/BOARD_FORMAT.md && echo "spec OK"
+test -f construction/subsystems/board.schema.json && echo "schema OK"
+
+# 1. Generated artifact present + parses
+luajit -e "
+local f = assert(io.open('../../nano_data_center_instance/configurations/moon_base_alpha/file_scripts/boards/landing_zone.json','rb'))
+local b = require('dkjson').decode(f:read('*a')); f:close()
+print('schema_version='..b.schema_version..' nodes='..#b.nodes..' edges='..#b.edges)
+"
+# expect: schema_version=1 nodes=15 edges=18
+
+# 2. Upload landing_zone into the live cluster (FIRST TIME only; idempotent on re-run)
+PG_PASSWORD="$POSTGRES_PASSWORD" \
+  construction/scripts/upload_board.lua \
+    --system moon_base --site moon_base_alpha \
+    --name landing_zone \
+    --file ../../nano_data_center_instance/configurations/moon_base_alpha/file_scripts/boards/landing_zone.json
+# expect: uploaded board=landing_zone namespace=system.moon_base.site.moon_base_alpha.boards sha256=<hex>
+
+# 3. Planner reads it
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;' .. package.path
+local q = require('kb_query').new({host='pg-vector', port=5432, dbname='knowledge_base',
+  user='gedgar', password=os.getenv('PG_PASSWORD')}, 'moon_base', 'moon_base_alpha', 'mission_planner_01')
+local b, e = q:get_active_board('landing_zone')
+print(b and ('OK schema='..b.graph_data.schema_version..' sha='..b.sha256_hex:sub(1,12)) or ('ERR: '..tostring(e)))
+"
+# expect: OK schema=1 sha=<12 hex chars>
+
+# 4. route_builder produces segment-shaped actions
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;' .. package.path
+local rb = require('route_builder')
+local g = { nodes={a={x=0,y=0},b={x=400,y=0}},
+            adj={a={{to='b',nav='path_spline',speed=100,weight=400,
+                     path={0,0, 200,0, 400,0}}}, b={}} }
+local r = rb.build({'a','b'}, g, {})
+print('actions='..#r..' first.from_x='..r[1].params.from_x..' first.distance='..r[1].params.distance)
+"
+# expect: actions=2 first.from_x=0 first.distance=200
+
+# 5. Cluster soak invariants (unchanged through A.4f):
+pgrep -af "dcs\.lua" | grep -v claude
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+# expect: 0
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_fs_node WHERE path::text ~ 'boards.landing_zone'"
+# expect: 1 (after step 2 upload)
+```
+
+### Rollback recipe
+
+A.4f revert: `git revert --no-edit <hash>` removes the board format
+spec, schema, generator, artifact, route_builder rewrite, and the
+schema_version guard. Cluster falls back to A.4e state where the
+planner can read a board but `route_builder` emits the v3-shape
+actions (`{speed, path}`) — which the existing MQTT robot's
+`cmd_path_*_t` decoders won't accept. **The pre-A.4f state is
+operationally healthy ONLY because A.5 dispatch isn't wired yet.**
+Once A.5 lands, reverting A.4f without also reverting A.5 will
+break every mission. Treat A.4f as a forward-only checkpoint.
+
+A narrower rollback (revert only `route_builder.lua` and keep the
+format work) returns the planner to "reads boards correctly, emits
+v3-shape actions" — useful for bisecting if a robot-side issue
+turns out to be in the new segment-emission path. The format spec,
+schema, generator, artifact, and schema_version guard have no
+runtime effect at A.4e and can stay.
+
+---
+
 ## State at end of 2026-05-05 (latest) — B.2.A.4e DONE (planner-side board read path + hash threading)
 
 A.4e landed as **one holding commit** wiring the planner-side read path

@@ -1,0 +1,247 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://nanodatacenter.local/schemas/board.schema.json",
+  "title": "Navigation board",
+  "description": "Virtual-node graph consumed by the mission planner. Stored in the file_store under system.<sys>.site.<S>.boards.<name>. See BOARD_FORMAT.md for the full contract.",
+  "type": "object",
+  "required": ["schema_version", "metadata", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "enum": [1],
+      "description": "v1. v2 (sub-paths, lat/lon-native nodes) bumps this; v1 readers refuse a higher version."
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["name", "coordinate_system"],
+      "additionalProperties": true,
+      "properties": {
+        "name":        { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "author":      { "type": "string" },
+        "created_at":  { "type": "string", "format": "date-time" },
+        "coordinate_system": {
+          "type": "object",
+          "required": ["frame", "units"],
+          "additionalProperties": true,
+          "properties": {
+            "frame": {
+              "type": "string",
+              "enum": ["local_enu"],
+              "description": "Only local_enu is supported in v1. Planner distance math is Euclidean and incorrect for raw lat/lon."
+            },
+            "units": {
+              "type": "string",
+              "enum": ["mm", "m"]
+            },
+            "origin": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "lat":   { "type": "number", "minimum": -90,  "maximum": 90 },
+                "lon":   { "type": "number", "minimum": -180, "maximum": 180 },
+                "alt_m": { "type": "number" }
+              }
+            },
+            "heading_offset_deg": { "type": "number" }
+          }
+        },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "x_min": { "type": "number" },
+            "x_max": { "type": "number" },
+            "y_min": { "type": "number" },
+            "y_max": { "type": "number" }
+          }
+        },
+        "_comment": { "$ref": "#/definitions/comment_field" }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "node_styles": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/style_entry" }
+        },
+        "edge_styles": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/style_entry" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 2,
+      "items":  { "$ref": "#/definitions/node" }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 1,
+      "items":  { "$ref": "#/definitions/edge" }
+    },
+    "markers": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/marker" },
+      "description": "v2 reserved. Empty array (or omitted) in v1."
+    },
+    "_comment": { "$ref": "#/definitions/comment_field" }
+  },
+
+  "definitions": {
+
+    "comment_field": {
+      "description": "Free-form authoring note. Ignored by every reader.",
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string" } }
+      ]
+    },
+
+    "style_entry": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "icon":   { "type": "string" },
+        "color":  { "type": "string" },
+        "label":  { "type": "string" },
+        "size":   { "type": "string" },
+        "stroke": { "type": "string" },
+        "width":  { "type": "number" }
+      }
+    },
+
+    "node": {
+      "type": "object",
+      "required": ["name", "x", "y", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name":        { "type": "string", "minLength": 1 },
+        "x":           { "type": "number" },
+        "y":           { "type": "number" },
+        "type":        { "type": "string", "minLength": 1 },
+        "params":      { "type": "object", "additionalProperties": true },
+        "description": { "type": "string" },
+        "ui": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "icon":  { "type": "string" },
+            "color": { "type": "string" },
+            "label": { "type": "string" }
+          }
+        },
+        "_comment": { "$ref": "#/definitions/comment_field" }
+      }
+    },
+
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "weight"],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "description": "v1 edge: single nav + flat path",
+          "required": ["nav", "speed", "path"],
+          "not": { "required": ["subpaths"] }
+        },
+        {
+          "description": "v2 edge: composite traversal (schema_version must be >= 2 to actually use this)",
+          "required": ["subpaths"],
+          "not": { "required": ["nav", "path"] }
+        }
+      ],
+      "properties": {
+        "from":   { "type": "string", "minLength": 1 },
+        "to":     { "type": "string", "minLength": 1 },
+        "nav":    { "type": "string", "enum": ["path_spline", "path_line", "path_wall"] },
+        "speed":  { "type": "number", "exclusiveMinimum": 0 },
+        "weight": { "type": "number", "exclusiveMinimum": 0 },
+        "path": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "type": "number" },
+          "description": "Flat array [x0,y0, x1,y1, ..., xn,yn]. Length must be even and >= 4. Must start at nodes[from].{x,y} and end at nodes[to].{x,y}."
+        },
+        "wall_standoff": {
+          "type": "number",
+          "description": "Optional, only meaningful for nav=path_wall."
+        },
+        "subpaths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/subpath" },
+          "description": "v2 reserved."
+        },
+        "description": { "type": "string" },
+        "_comment":    { "$ref": "#/definitions/comment_field" }
+      }
+    },
+
+    "subpath": {
+      "description": "v2 sub-path leg. Schema retained here so v2 files lint cleanly under this same schema.",
+      "type": "object",
+      "required": ["nav", "speed", "points"],
+      "additionalProperties": true,
+      "properties": {
+        "nav":   { "type": "string", "enum": ["path_spline", "path_line", "path_wall"] },
+        "speed": { "type": "number", "exclusiveMinimum": 0 },
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "number" }
+          }
+        },
+        "wall_standoff":    { "type": "number" },
+        "wall_marker_ref":  { "type": "string" },
+        "line_marker_ref":  { "type": "string" },
+        "description":      { "type": "string" },
+        "_comment":         { "$ref": "#/definitions/comment_field" }
+      }
+    },
+
+    "marker": {
+      "description": "v2 reserved.",
+      "type": "object",
+      "required": ["id", "type", "geometry"],
+      "additionalProperties": true,
+      "properties": {
+        "id":   { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["wall", "beacon", "painted_line"] },
+        "geometry": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": true,
+          "properties": {
+            "kind": { "type": "string", "enum": ["polyline", "point"] },
+            "points": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": { "type": "number" }
+              }
+            },
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          }
+        },
+        "ui": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "description": { "type": "string" },
+        "_comment":    { "$ref": "#/definitions/comment_field" }
+      }
+    }
+  }
+}
