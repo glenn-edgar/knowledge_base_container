@@ -1,5 +1,202 @@
 # Nanodatacenter DCS — Continuation Plan
 
+## State at end of 2026-05-06 (latest) — B.2.A.5 Phase 1 DONE (rejection-path classification + late-complete JobQueue ack + kb_stream rejection events)
+
+A.5 Phase 1 landed as **one holding commit** wiring the dispatch-side
+plumbing on top of A.4f. Three logical changes across two files plus a
+host-side smoke harness:
+
+- **`kb_runtime.lua`** — added module-level `push_rejection(opts)`. Same
+  KB_STREAM_FIELD path as `push_event`; sets `type = "mission_rejected"`;
+  doesn't require a `kb_runtime` instance (so it works in board-load
+  failure paths where there is no `board_sha256` yet). Required opts are
+  validated up-front (loud failure on missing keys); optional fields
+  (`board_sha256`, `unsupported`, `energy_required`, etc.) are forwarded
+  verbatim into the JSONB record.
+- **`action_server.lua` — board-error classification (Q3 design call).**
+  `global_planner.new` is now wrapped in `pcall`; the error string is
+  pattern-matched into a stable rejection reason
+  (`board_not_found` / `board_schema_unsupported` / `board_load_failed`)
+  rather than crashing the coroutine. Exposed as
+  `M.classify_board_error` for unit-style smoke testing.
+- **`action_server.lua` — late-complete JobQueue ack (Q1 design call).**
+  `_drain_nats_queue` now steps the mission coroutine **once** before
+  deciding `fail_job` vs `complete_job`. Four-way verdict:
+  - errored coroutine → `fail_job("planning_error: ...")`
+  - dead-failure (synchronous rejection) → `fail_job("<reason>: <detail>")`
+  - dead-success (no-op mission) → `complete_job({"status":"completed_immediately"})`
+  - suspended (planning succeeded; mission executing) → `complete_job({"status":"started"})`
+  This makes the JobQueue verdict a faithful answer to "did the planner
+  accept this mission?" without subscribers having to chain through NATS
+  KV status to find out.
+- **`action_server.lua` — kb_stream rejection events (Q2 design call).**
+  Every rejection branch (`board_*`, `transit_node_stops`,
+  `unsupported_operation`, `no_path_found`, `no_stops`,
+  `insufficient_energy`) now emits a `mission_rejected` record into the
+  per-action stream via `kb_runtime.push_rejection`. Calls are pcall'd
+  so a transient pg hiccup never takes down the rejection path. The
+  audit trail now covers planning-time rejections, not just execution
+  events.
+- **`construction/tests/test_a5_phase1.lua`** — host-side smoke. 17
+  assertions covering all 8 classify cases, push_rejection's required-
+  opts contract, and the four late-complete verdict branches via
+  simulated coroutines. Runs in <100ms with `luajit
+  construction/tests/test_a5_phase1.lua`.
+
+### A.5 Phase 1 smoke results (2026-05-06)
+
+Host-side (assistant-run, no live cluster mutation):
+
+| Check | Result |
+|---|---|
+| Lua parse: `action_server.lua`, `kb_runtime.lua`  | PARSES ✓ |
+| `M.classify_board_error` covers all 5 canonical error patterns + nil/empty fallbacks (8 cases) | ✓ |
+| `M.classify_board_error` exposed for testing | ✓ |
+| `kb_runtime.push_rejection` validates required opts loudly | ✓ |
+| Late-complete verdict: errored / dead-fail / dead-success / suspended | ✓ all four |
+| `test_a5_phase1.lua` summary: 17 passed, 0 failed | ✓ |
+
+**Live cluster smoke is the user-driven step next session** — it
+requires the planner image rebuild (which also picks up A.4f's
+route_builder + schema_version guard) and a `landing_zone.json`
+upload via `upload_board.lua`. See "Quick start-of-session check"
+below for the exact sequence.
+
+### Architectural decisions locked this session
+
+- **Q1: late-complete JobQueue ack.** JobQueue verdict reflects
+  planner acceptance, not just receipt. `complete_job` happens only
+  after the planning phase yields. Synchronous rejections call
+  `fail_job` with the classified reason. Aligns with what JobQueue
+  callers actually want to know.
+- **Q2: kb_stream rejections via `push_rejection`.** Rejection
+  records share the same per-action ring as execution events;
+  consumers filter by `data->>'type' = 'mission_rejected'`. No
+  separate stream / table — keeps the audit query story simple.
+  Pcall'd at the call site to fail-soft.
+- **Q3: board-error classification by message pattern.** Wrapping
+  in `pcall` and pattern-matching the kb_query / global_planner
+  error strings is cheaper than refactoring the
+  `error()`-throwing global_planner.new contract. Exposed as
+  `M.classify_board_error` so it stays unit-testable as the
+  message strings evolve.
+
+### Layer ordering
+
+```
+Phase B done: M-2 ✅ → O ✅ → F ✅ → A-pre ✅ → A ✅ → I ✅ → N ✅ → V ✅
+Phase B.2 in progress:
+  A.1 ✅ → A.2 ✅ → A.3.1-3.4 ✅ → A.3.5 ✅ → A.3.6 ✅ →
+  A.4a ✅ → A.4b ✅ → A.4c ✅ → A.4d ✅ → A.4e ✅ → A.4f ✅ →
+  A.5 Phase 1 ✅ →
+  A.5 Phase 2 (mqtt_robot fixture; happy-path completion via real wire packets)
+Then queued:
+  A.6 (map_api_tool — operator UI/CLI for board generation + validation)
+  A.7 (robot_manager — fleet-wide robot registry + class catalog)
+  N+1 (topology + slicer simplify), file-store loader generalization,
+  three-tier config
+```
+
+### **First action next session — operator-side cluster bring-up**
+
+Prerequisites for A.5 Phase 2 (mqtt_robot happy-path) — these are all
+user-driven cluster mutations:
+
+1. **Rebuild the mission_planner image** so it picks up:
+   - A.4f route_builder segment exploder (wire-shape compat)
+   - A.4f kb_query schema_version guard
+   - A.5 Phase 1 classify + push_rejection + late-complete
+
+   Per `feedback_image_rebuild_order.md`: only the planner app needs
+   rebuilding (no `prebuilt_lua_share/` change). The build script
+   stages from the in-tree planner copy.
+
+2. **Upload landing_zone.json**:
+   ```
+   PG_PASSWORD="$POSTGRES_PASSWORD" \
+     construction/scripts/upload_board.lua \
+     --system moon_base --site moon_base_alpha \
+     --name landing_zone \
+     --file ../../nano_data_center_instance/configurations/moon_base_alpha/file_scripts/boards/landing_zone.json
+   ```
+
+3. **Verify in-container** that the rebuilt planner reads the board
+   and `route_builder` produces segment-shaped actions:
+   ```
+   docker exec mission_planner_01 luajit -e "..."  # see start-of-session check
+   ```
+
+4. **Submit a synthetic rejection mission** via JobQueue
+   (e.g. mission targeting a transit-only node) and verify:
+   - `fail_job` was called with reason="transit_node_stops" detail
+   - kb_stream has a `mission_rejected` record with the matching reason
+   - NATS KV status channel has `state="failed", reason="..."`
+
+5. **Submit a synthetic happy-path mission** (lander_pad → mining_zone_b)
+   and observe segment-shaped wire packets going out via MQTT to a
+   mock or real robot. This is A.5 Phase 2's actual scope.
+
+Estimated effort (if the cluster is in good shape): rebuild ~5 min,
+upload + verify ~5 min, A.5 Phase 2 ~1 session.
+
+### Quick start-of-session check (verifies A.5 Phase 1 still soaks)
+
+```bash
+# 0. Host-side smoke (no live cluster needed):
+luajit construction/tests/test_a5_phase1.lua
+# expect: SUMMARY: 17 passed, 0 failed
+
+# 1. Verify the on-disk action_server.lua has the new symbols:
+grep -c "function M.classify_board_error\|push_rejection\|completed_immediately" \
+  ../../../nano_data_center_instance/app_containers/mission_planner/container/planner/lib/action_server.lua
+# expect: 4 or higher
+
+# 2. Verify push_rejection is exported from kb_runtime:
+grep -c "function M.push_rejection" \
+  ../../../nano_data_center_instance/app_containers/mission_planner/container/planner/hub_dsl/kb_construct/kb_runtime.lua
+# expect: 1
+
+# 3. After image rebuild + upload:  classify hits the right reason in-container
+docker exec mission_planner_01 luajit -e "
+package.path = '/opt/apps/planner/lib/?.lua;' .. package.path
+local M = require('action_server')
+print(M.classify_board_error('global_planner: board not found: foo'))
+print(M.classify_board_error('global_planner: board schema_version=2 not supported'))
+"
+# expect:  board_not_found  board_schema_unsupported
+
+# 4. Cluster soak invariants (unchanged through A.5 Phase 1):
+pgrep -af "dcs\.lua" | grep -v claude  # may be empty by design (containerized)
+docker exec pg-vector psql -U gedgar -d knowledge_base -tAc \
+  "SELECT count(*) FROM knowledge_base_status WHERE path::text ~ 'SYS_EXCEPTION' AND (data->>'status')::boolean = true"
+# expect: 0
+```
+
+### Rollback recipe
+
+A.5 Phase 1 revert: `git revert --no-edit <hash>` removes:
+
+- `kb_runtime.push_rejection` module function
+- `action_server.classify_board_error` + the pcall wrapper around
+  `global_planner.new`
+- The push_rejection calls in each rejection branch
+- The late-complete restructure of `_drain_nats_queue`
+- The smoke harness
+
+Cluster falls back to A.4f state where:
+- `global_planner.new` errors on board failure (coroutine dies; main
+  loop catches as generic "error" reason)
+- `complete_job({"status":"started"})` is called regardless of
+  planning outcome
+- Rejection events don't land in kb_stream
+
+The cluster is operationally healthy at the rolled-back state — A.5
+Phase 1 doesn't add wire dependencies, just observability and
+classification. A.5 Phase 2 (when it lands) will depend on the late-
+complete behavior, so revert *both* phases together if needed.
+
+---
+
 ## State at end of 2026-05-06 (latest) — B.2.A.4f DONE (board format spec + landing_zone artifact + route_builder segment exploder + schema-version guard)
 
 A.4f landed as **one holding commit** completing the board pipeline

@@ -37,11 +37,35 @@ local global_planner  = require("global_planner")
 local sequencer_mod   = require("sequencer")
 local mission_builder = require("mission_builder")
 local kb_query_mod    = require("kb_query")
+local kb_runtime      = require("kb_runtime")
 local link_manager_mod = require("link_manager")
 local kv_writer_mod    = require("kv_writer")
 
 local M = {}
 M.__index = M
+
+---------------------------------------------------------------------------
+-- Classify an error string from global_planner.new into a stable rejection
+-- reason code. Pattern-matches the message text so the result fault.reason
+-- is meaningful to JobQueue callers and kb_stream consumers without their
+-- needing to parse free-form strings. Exposed on M for smoke testing.
+---------------------------------------------------------------------------
+function M.classify_board_error(err_str)
+    err_str = tostring(err_str or "")
+    if err_str:find("board not found", 1, true) then
+        return "board_not_found"
+    end
+    if err_str:find("schema_version=", 1, true) then
+        return "board_schema_unsupported"
+    end
+    if err_str:find("doc_get returned no content", 1, true) or
+       err_str:find("not valid JSON", 1, true) or
+       err_str:find("fs_node pointer null", 1, true) then
+        return "board_load_failed"
+    end
+    return "board_load_failed"
+end
+local classify_board_error = M.classify_board_error
 
 ---------------------------------------------------------------------------
 -- Constructor
@@ -266,14 +290,50 @@ function M:_make_mission_coroutine(mission_cmd)
             kb_q:close()
         end
 
-        -- Create planner
-        local planner = global_planner.new({
+        -- Create planner. Wrapped in pcall so board_not_found /
+        -- board_schema_unsupported / board_load_failed surface as
+        -- specific rejection reasons rather than a generic
+        -- coroutine-died exception.
+        local mission_id_for_reject =
+            mission_cmd.mission_id
+            or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
+
+        local ok_planner, planner_or_err = pcall(global_planner.new, {
             pg_conn         = srv.pg_conn,
             board_name      = board,
             site            = srv.site,
             system_name     = srv.system_name,
             own_instance_id = srv.own_instance_id,
         })
+        if not ok_planner then
+            local err_str = tostring(planner_or_err)
+            local reason  = classify_board_error(err_str)
+            result = {
+                success = false,
+                fault   = { reason = reason, detail = err_str },
+                replans = 0,
+            }
+            srv:_publish_status(robot_id, {
+                state  = "failed",
+                error  = err_str,
+                reason = reason,
+            })
+            -- Durable rejection record (fail-soft: never let kb_stream
+            -- pg hiccup take down the mission rejection path).
+            pcall(kb_runtime.push_rejection, {
+                pg_conn        = srv.pg_conn,
+                system_name    = srv.system_name,
+                site           = srv.site,
+                container_name = srv.own_instance_id,
+                robot_id       = robot_id,
+                mission_id     = mission_id_for_reject,
+                board_name     = board,
+                reason         = reason,
+                detail         = err_str,
+            })
+            return result
+        end
+        local planner = planner_or_err
 
         -- Build route with operation_types validation and energy budget
         local route, plan_info = mission_builder.build(
@@ -283,16 +343,37 @@ function M:_make_mission_coroutine(mission_cmd)
             if plan_info.unsupported then
                 error_detail = error_detail .. ": " .. table.concat(plan_info.unsupported, "; ")
             end
+            -- Surface the specific mission_builder error as the rejection
+            -- reason ("transit_node_stops" / "unsupported_operation" /
+            -- "no_path_found" / "no_stops") so consumers don't have to
+            -- parse the free-form detail string.
+            local reason = plan_info.error or "planning_failed"
+            if reason:find("^no path") then reason = "no_path_found" end
+            if reason == "no stops in mission" then reason = "no_stops" end
             result = {
                 success     = false,
-                fault       = { reason = "planning_failed", detail = error_detail },
+                fault       = { reason = reason, detail = error_detail },
                 replans     = 0,
                 unsupported = plan_info.unsupported,
             }
             srv:_publish_status(robot_id, {
                 state = "failed",
                 error = error_detail,
+                reason = reason,
                 unsupported = plan_info.unsupported,
+            })
+            pcall(kb_runtime.push_rejection, {
+                pg_conn        = srv.pg_conn,
+                system_name    = srv.system_name,
+                site           = srv.site,
+                container_name = srv.own_instance_id,
+                robot_id       = robot_id,
+                mission_id     = mission_id_for_reject,
+                board_name     = board,
+                board_sha256   = planner:get_board_sha256(),
+                reason         = reason,
+                detail         = error_detail,
+                unsupported    = plan_info.unsupported,
             })
             planner:close()
             return result
@@ -329,6 +410,21 @@ function M:_make_mission_coroutine(mission_cmd)
             srv:_publish_status(robot_id, {
                 state = "failed",
                 error = detail,
+                reason = "insufficient_energy",
+                energy_required  = plan_info.total_cost,
+                energy_remaining = energy_remaining,
+            })
+            pcall(kb_runtime.push_rejection, {
+                pg_conn          = srv.pg_conn,
+                system_name      = srv.system_name,
+                site             = srv.site,
+                container_name   = srv.own_instance_id,
+                robot_id         = robot_id,
+                mission_id       = mission_id_for_reject,
+                board_name       = board,
+                board_sha256     = planner:get_board_sha256(),
+                reason           = "insufficient_energy",
+                detail           = detail,
                 energy_required  = plan_info.total_cost,
                 energy_remaining = energy_remaining,
             })
@@ -686,16 +782,68 @@ function M:_drain_nats_queue()
             -- can thread it down to kb_runtime as the durable mission_id.
             cmd.mission_id = job.id
             local co = self:_make_mission_coroutine(cmd)
-            self.missions[cmd.robot_id] = {
-                coroutine = co,
-                result    = nil,
-                state     = "active",
-                board     = cmd.board,
-                job_id    = job.id,
-            }
-            self.mission_count = self.mission_count + 1
-            self._jq:complete_job(job.id, '{"status":"started"}')
-            self:_publish_summary()
+
+            -- Late-complete JobQueue ack: step the coroutine ONCE so we
+            -- can distinguish "planning failed and the mission rejected
+            -- itself synchronously" from "planning succeeded and the
+            -- mission is now executing (yielded)". This makes the
+            -- JobQueue verdict a faithful signal of whether the planner
+            -- accepted the mission.
+            local resume_ok, first_yield = coroutine.resume(co)
+            local co_status = coroutine.status(co)
+
+            if not resume_ok then
+                -- Coroutine threw during planning (e.g. unhandled pg
+                -- error). Rare; classify_board_error pcalls cover the
+                -- expected cases. fail_job + record the body for ops.
+                self._jq:fail_job(job.id,
+                    "planning_error: " .. tostring(first_yield))
+                -- Mission never enters self.missions; nothing to track.
+            elseif co_status == "dead" then
+                -- Coroutine ran to completion without yielding. Either
+                -- a synchronous rejection (fault.reason set) or a
+                -- successful empty-route mission (rare). Treat fault
+                -- as fail_job; treat success as complete_job.
+                local res = first_yield
+                if res and res.success == false then
+                    local reason = (res.fault and res.fault.reason) or "planning_failed"
+                    local detail = (res.fault and res.fault.detail) or "no detail"
+                    self._jq:fail_job(job.id, reason .. ": " .. tostring(detail))
+                else
+                    self._jq:complete_job(job.id,
+                        '{"status":"completed_immediately"}')
+                end
+                -- Track the mission as done so get_results / mission_log
+                -- publishing pick it up in the main loop.
+                self.missions[cmd.robot_id] = {
+                    coroutine = co,
+                    result    = res,
+                    state     = "done",
+                    board     = cmd.board,
+                    job_id    = job.id,
+                }
+                self.mission_count = self.mission_count + 1
+                self:_publish_summary()
+                -- Publish mission_log here (since main loop only handles
+                -- the active→done transition; this mission was already
+                -- done at first resume).
+                self:_publish_mission_log(cmd.robot_id, res or
+                    { success = false, fault = { reason = "unknown" } },
+                    cmd.board)
+            else
+                -- Suspended (yielded) → planning succeeded; mission is
+                -- now in execution. complete_job is the right ack.
+                self._jq:complete_job(job.id, '{"status":"started"}')
+                self.missions[cmd.robot_id] = {
+                    coroutine = co,
+                    result    = nil,
+                    state     = "active",
+                    board     = cmd.board,
+                    job_id    = job.id,
+                }
+                self.mission_count = self.mission_count + 1
+                self:_publish_summary()
+            end
         end
     end
 end
