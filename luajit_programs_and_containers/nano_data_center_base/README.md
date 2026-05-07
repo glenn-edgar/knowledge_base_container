@@ -110,3 +110,13 @@ Plus 5 DCS-managed containers up: `test_app_01`, `observability_01`,
   repo when site/instance separation is enforced.
 - `support_procedures/runbooks/commissioning.md` is queued but unwritten —
   three modes to document: first-time, subsequent boot, re-commission.
+
+## Deferred designs
+
+- **`transducer.md`** — LuaJIT transducer pipeline (`logxform`) for log/event
+  streams (anomalisa parity: welford → zscore, bucket → spike). Considered
+  and **rejected 2026-05-07**: only one concrete pipeline in flight, so the
+  ~14-xform surface area isn't yet justified. Spec is preserved verbatim with
+  revive triggers and sequencing in the document header. Revisit when a
+  second pipeline appears that would share stages, when replay-based anomaly
+  debugging becomes a workflow, or when the bare-MCU C port becomes a real target.
