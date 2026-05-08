@@ -191,8 +191,8 @@ M.type_names = {
 -- start_pos for the first). speed defaults to default_speed if omitted.
 -- direction defaults to "forward".
 --
--- Sub-segment shapes (C1 ships 3 simple kinds; C2 adds wall_follow +
--- line_follow composites):
+-- Sub-segment shapes (5 kinds; simple = straight_line / spline / rotate
+-- from C1, composite = wall_follow / line_follow from C2):
 --
 --   straight_line: { kind = "straight_line",
 --                    end_pos = {x,y},
@@ -215,16 +215,46 @@ M.type_names = {
 --                  -- direction field (rotation sense is signed by
 --                  -- start->end heading delta).
 --
+--   wall_follow:   { kind = "wall_follow",
+--                    base = { kind = "straight_line"|"spline",
+--                             end_pos = {x,y},
+--                             end_heading = float (iff kind=spline) },
+--                    offset = float,
+--                    speed = float | nil,
+--                    direction = "forward" | "reverse" | nil }
+--                  -- offset signed: sign = side, |offset| = wall distance.
+--                  -- speed/direction live on outer composite, NOT base.
+--                  -- Composites cannot nest; rotate cannot be a base.
+--
+--   line_follow:   { kind = "line_follow",
+--                    base = { kind = "straight_line"|"spline",
+--                             end_pos = {x,y},
+--                             end_heading = float (iff kind=spline) },
+--                    speed = float | nil,
+--                    direction = "forward" | "reverse" | nil }
+--                  -- Tracks centerline; no offset (use wall_follow if
+--                  -- you want offset). Sensor selection is robot config.
+--
 -- Per-PACKET completion (not per-segment): a 5-segment cmd_drive_t
 -- produces ONE ACK after all 5 finish. Lock-step is at packet boundary.
 
 M.DIRECTIONS = { forward = true, reverse = true }
 
--- The set of valid sub-segment kinds. C2 adds wall_follow + line_follow.
+-- The set of valid sub-segment kinds.
 M.SUB_SEG_KINDS = {
   straight_line = true,
   spline        = true,
   rotate        = true,
+  wall_follow   = true,   -- C2: composite (base + signed offset)
+  line_follow   = true,   -- C2: composite (base; no offset)
+}
+
+-- Bases allowed inside a composite sub-segment. Composites cannot nest
+-- (no wall_follow inside a wall_follow base), and rotate cannot be a
+-- base (you do not "follow a wall" while rotating in place).
+M.COMPOSITE_BASE_KINDS = {
+  straight_line = true,
+  spline        = true,
 }
 
 -- Per-kind validators. Each returns (true) on success; raises on failure
@@ -280,6 +310,18 @@ local SUB_SEG_ALLOWED = {
   spline        = { end_pos = true, end_heading = true,
                     speed = true, direction = true },
   rotate        = { end_heading = true, speed = true },
+  wall_follow   = { base = true, offset = true,
+                    speed = true, direction = true },
+  line_follow   = { base = true,
+                    speed = true, direction = true },
+}
+
+-- Allowed fields inside a composite's `base`. Narrower than the
+-- corresponding sub-segment's own allowed-set: speed + direction live
+-- on the outer composite, not on base.
+local COMPOSITE_BASE_ALLOWED = {
+  straight_line = { kind = true, end_pos = true },
+  spline        = { kind = true, end_pos = true, end_heading = true },
 }
 
 local function check_unknown_fields(path, seg, kind)
@@ -313,11 +355,61 @@ local function validate_rotate(path, seg)
   check_unknown_fields(path, seg, "rotate")
 end
 
--- Dispatch table -- C2 extends this with composites; C3 leaves it alone.
+-- Validate a composite `base` table. Stricter than a top-level
+-- sub-segment: no speed, no direction, no nested composites.
+local function validate_base(path, base)
+  if type(base) ~= "table" then
+    err(path, string.format("base required (table; got %s)", type(base)))
+  end
+  local kind = base.kind
+  if type(kind) ~= "string" or kind == "" then
+    err(path, "base.kind required (non-empty string)")
+  end
+  if not M.COMPOSITE_BASE_KINDS[kind] then
+    err(path, string.format(
+      "base.kind=%q not allowed (must be straight_line or spline)", kind))
+  end
+  check_pos2(path, base.end_pos, "end_pos")
+  if kind == "spline" then
+    check_number(path .. ".base", base.end_heading, "end_heading")
+  elseif base.end_heading ~= nil then
+    err(path, string.format(
+      "base.end_heading not allowed when base.kind=%s", kind))
+  end
+  local allowed = COMPOSITE_BASE_ALLOWED[kind]
+  for k, _ in pairs(base) do
+    if not allowed[k] then
+      err(path, string.format(
+        "unknown field %q on base (kind=%s)", tostring(k), kind))
+    end
+  end
+end
+
+local function validate_wall_follow(path, seg)
+  validate_base(path .. ".base", seg.base)
+  check_number(path, seg.offset, "offset")
+  check_optional_speed(path, seg.speed)
+  check_optional_direction(path, seg.direction)
+  check_unknown_fields(path, seg, "wall_follow")
+end
+
+local function validate_line_follow(path, seg)
+  validate_base(path .. ".base", seg.base)
+  if seg.offset ~= nil then
+    err(path, "offset not allowed on line_follow (use wall_follow if you want offset)")
+  end
+  check_optional_speed(path, seg.speed)
+  check_optional_direction(path, seg.direction)
+  check_unknown_fields(path, seg, "line_follow")
+end
+
+-- Dispatch table.
 M._SUB_SEG_VALIDATORS = {
   straight_line = validate_straight_line,
   spline        = validate_spline,
   rotate        = validate_rotate,
+  wall_follow   = validate_wall_follow,
+  line_follow   = validate_line_follow,
 }
 
 -- Validate a single sub-segment. Used by validate_drive() and reusable
