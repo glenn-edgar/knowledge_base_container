@@ -277,7 +277,16 @@ function M:send_drive_packet(packet)
     end
     local enc = encoder_module()
     local bytes = enc.encode_drive(packet)
-    self.tx:send_rpc(bytes)
+    -- Prefer send_rpc_raw when the transport has it (mqtt_hub_transport
+    -- adapter does, mqtt_transport.local_side doesn't need it because
+    -- its send_rpc is already a raw passthrough). send_rpc_raw bypasses
+    -- the wire_format auto-CBOR-wrap that would double-encode our
+    -- already-CBOR bytes.
+    if self.tx.send_rpc_raw then
+        self.tx:send_rpc_raw(bytes)
+    else
+        self.tx:send_rpc(bytes)
+    end
     self.drive_state = STATE_DRIVE_WAIT_ACK
     self.pending_drive_packet_id = packet.packet_id
     self.pending_drive_deadline  = os.time() + DRIVE_ACK_TIMEOUT

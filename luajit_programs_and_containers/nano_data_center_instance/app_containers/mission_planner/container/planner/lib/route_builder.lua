@@ -350,4 +350,71 @@ function M.build_drive_packets(node_path, graph, opts)
   return packets
 end
 
+---------------------------------------------------------------------------
+-- Phase 5 C3b: route entries with kind discriminator
+---------------------------------------------------------------------------
+
+-- build_v2 wraps build_drive_packets() output as kind-discriminated
+-- route entries that the action_server dispatch loop can consume
+-- directly. The entry shape is:
+--
+--   { kind = "drive_packet", packet = <cmd_drive_t>, energy = N, leg_idx = i }
+--
+-- Legacy entries (built by M.build) have no `kind` field and carry
+-- `kb_name + params`; the dispatch loop treats absent `kind` as legacy.
+-- This lets a single mission's route mix legacy bookends (init_check /
+-- idle / per-stop operation VNs) with drive-packet nav entries.
+--
+-- Energy per drive-packet entry is the sum of the legacy per-segment
+-- energies for the same edge, computed identically (distance *
+-- energy_factor * energy_rate, then floored), so the energy budget
+-- check matches between v1 and v2 dispatch.
+--
+-- @param node_path  same as build_drive_packets
+-- @param graph      same as build_drive_packets
+-- @param opts       same as build_drive_packets, PLUS:
+--   energy_rate     number; default 1.0 (matches M.build)
+--   vn_defs         table; per-kb_name energy_factor (from KB)
+-- @return entries   array of { kind="drive_packet", packet, energy }
+function M.build_v2(node_path, graph, opts)
+  opts = opts or {}
+  local energy_rate = opts.energy_rate or 1.0
+  local vn_defs = opts.vn_defs or {}
+
+  local packets = M.build_drive_packets(node_path, graph, opts)
+
+  -- Compute per-edge energy by summing the polyline-segment costs;
+  -- mirrors M.build's per-segment energy formula so the v2 budget
+  -- equals the v1 budget for the same path.
+  local entries = {}
+  for i, pkt in ipairs(packets) do
+    local from_name = node_path[i]
+    local to_name   = node_path[i + 1]
+    local edge      = find_edge(graph.adj, from_name, to_name)
+    -- find_edge returned non-nil already (build_drive_packets would
+    -- have errored otherwise); pull energy_factor and the polyline.
+    local kb_name = edge.nav or "path_spline"
+    local def     = vn_defs[kb_name] or {}
+    local factor  = def.energy_factor or 1.0
+    local pts     = edge.path
+
+    local energy_total = 0
+    for j = 1, #pts - 2, 2 do
+      local dx = pts[j + 2] - pts[j]
+      local dy = pts[j + 3] - pts[j + 1]
+      local dist = math.sqrt(dx * dx + dy * dy)
+      energy_total = energy_total
+        + math.floor(dist * factor * energy_rate + 0.5)
+    end
+
+    entries[#entries + 1] = {
+      kind   = "drive_packet",
+      packet = pkt,
+      energy = energy_total,
+    }
+  end
+
+  return entries
+end
+
 return M

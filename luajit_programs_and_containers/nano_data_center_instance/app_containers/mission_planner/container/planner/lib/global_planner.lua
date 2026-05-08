@@ -186,6 +186,52 @@ function M:replan(current_node, goal_node, opts)
     return self:plan(current_node, goal_node, opts)
 end
 
+--- Phase 5 C3b: plan a leg as drive-packet route entries.
+-- Returns the same node-path / cost / energy info as plan(), but the
+-- route entries are kind-discriminated drive_packet entries (one per
+-- polyline edge) instead of legacy per-segment cmd_path_*_t entries.
+-- @param start_node       string
+-- @param goal_node        string
+-- @param opts             { initial_heading, packet_id_start,
+--                          mission_id, default_speed }
+-- @return entries  array of { kind="drive_packet", packet, energy }
+-- @return info     { path, cost, segments, energy }
+function M:plan_v2(start_node, goal_node, opts)
+    if not self.graph.nodes[start_node] then
+        return nil, { error = "unknown start node: " .. start_node }
+    end
+    if not self.graph.nodes[goal_node] then
+        return nil, { error = "unknown goal node: " .. goal_node }
+    end
+
+    local path, cost = dijkstra.shortest_path(
+        self.graph.adj, start_node, goal_node, self.blocked)
+
+    if not path then
+        return nil, { path = nil, cost = math.huge, segments = 0,
+                      error = "no path found" }
+    end
+
+    local rb_opts = {}
+    if opts then for k, v in pairs(opts) do rb_opts[k] = v end end
+    rb_opts.vn_defs = self.vn_defs
+    if not rb_opts.energy_rate then rb_opts.energy_rate = 1.0 end
+
+    local entries = route_builder.build_v2(path, self.graph, rb_opts)
+
+    local total_energy = 0
+    for _, entry in ipairs(entries) do
+        total_energy = total_energy + (entry.energy or 0)
+    end
+
+    return entries, {
+        path     = path,
+        cost     = cost,
+        segments = #entries,
+        energy   = total_energy,
+    }
+end
+
 ---------------------------------------------------------------------------
 -- Blocked edge management
 ---------------------------------------------------------------------------

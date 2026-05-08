@@ -84,6 +84,18 @@ function M.new(opts)
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 
+    -- Phase 5 C3b feature flag: when set, mission_builder emits
+    -- drive_packet entries for nav legs (one packet per polyline edge,
+    -- per-packet ACK matching). Bookends + per-stop operation entries
+    -- still go through the legacy activate_kb path. The flag flips at
+    -- container startup; mid-flight changes are not supported.
+    -- Sources (any truthy ⇒ on): opts.use_drive_v2, env PLANNER_DRIVE_V2
+    -- Until the C5 cut-over, default is OFF so legacy missions keep
+    -- working byte-identically.
+    local env_flag = os.getenv("PLANNER_DRIVE_V2")
+    self.use_drive_v2 = (opts.use_drive_v2 == true)
+                     or env_flag == "1" or env_flag == "true"
+
     -- MQTT transport (optional — for MQTT-first architecture)
     self.mqtt_hub  = opts.mqtt_hub
     -- Active missions: { robot_id = { coroutine, result, state } }
@@ -335,7 +347,11 @@ function M:_make_mission_coroutine(mission_cmd)
         end
         local planner = planner_or_err
 
-        -- Build route with operation_types validation and energy budget
+        -- Build route with operation_types validation and energy budget.
+        -- Inject the server-level v2 flag if mission_cmd didn't carry one.
+        if mission_cmd.use_drive_v2 == nil then
+            mission_cmd.use_drive_v2 = srv.use_drive_v2
+        end
         local route, plan_info = mission_builder.build(
             mission_cmd, planner, operation_types, energy_rate)
         if not route then
@@ -563,82 +579,166 @@ function M:_run_with_yield(seq, robot_id, plan_info)
 
     for i, action in ipairs(route) do
         local action_index = seq.action_offset + i
-        local kb_name = action.kb_name
 
-        -- Build action JSON
-        local action_json = {}
-        if action.params then
-            for k, v in pairs(action.params) do
-                action_json[k] = v
-            end
-        end
-        action_json.test_id   = action_index
-        action_json.next_test = (i < #route) and (action_index + 1) or 0
-
-        bb.current_test_json = json_util.encode(action_json)
-        local activated = hub_rt:activate_kb(kb_name)
-        if not activated then
-            fault = { reason = "kb_not_found", action_index = action_index, kb_name = kb_name }
-            break
-        end
-
-        mission:action_start(action_index, action, hub_rt:get_global_pose())
-
-        -- Tick loop with yields
-        local action_complete = false
-        local max_ticks = seq.max_ticks_per_action
-        for tick = 1, max_ticks do
-            hub_rt:tick()
-
-            if tick % 10 == 0 then
-                mission:heartbeat(action_index, kb_name, hub_rt:get_global_pose())
-            end
-
-            if hub_rt:kb_is_complete(kb_name) then
-                action_complete = true
-                hub_rt:deactivate_kb(kb_name)
-                break
-            end
-
-            if mission:is_abort_requested() or
-               (self.missions[robot_id] and self.missions[robot_id].cancel_requested) then
-                hub_rt:deactivate_kb(kb_name)
-                fault = { reason = "cancelled", action_index = action_index, kb_name = kb_name }
-                break
-            end
-
-            -- Yield to scheduler instead of sleeping
-            coroutine.yield()
-        end
-
-        if fault then
-            mission:action_failed(action_index, action, fault.reason)
-            break
-        end
-
-        if action_complete then
-            local pose = hub_rt:get_global_pose()
-            local success = bb.kb_done_success
-            if success == true then
-                mission:action_complete(action_index, action, pose)
-                completed = completed + 1
-
-                -- Update robot position if this action completed a navigation leg
-                local dest = action_to_dest[action_index]
-                if dest and self.link_mgr then
-                    self.link_mgr:write_position(robot_id, dest)
-                end
-            else
-                fault = { reason = bb.fault_reason or "kb_done_failed",
-                          action_index = action_index, kb_name = kb_name }
+        if action.kind == "drive_packet" then
+            -- Phase 5 C3b: drive-packet dispatch (one ACK per packet,
+            -- one done per packet, no per-segment KB activation).
+            local packet = action.packet
+            -- send_drive_packet validates eagerly and errors on a
+            -- duplicate-in-flight; both surface as the action's fault.
+            local ok_send, err = pcall(hub_rt.send_drive_packet, hub_rt, packet)
+            if not ok_send then
+                fault = { reason = "drive_send_failed",
+                          action_index = action_index,
+                          kb_name      = "drive_packet",
+                          detail       = tostring(err) }
                 mission:action_failed(action_index, action, fault.reason)
                 break
             end
+
+            mission:action_start(action_index, action, hub_rt:get_global_pose())
+
+            local action_complete = false
+            local max_ticks = seq.max_ticks_per_action
+            for tick = 1, max_ticks do
+                hub_rt:tick()
+
+                if tick % 10 == 0 then
+                    mission:heartbeat(action_index, "drive_packet",
+                        hub_rt:get_global_pose())
+                end
+
+                if hub_rt:drive_is_complete() then
+                    action_complete = true
+                    break
+                end
+
+                if mission:is_abort_requested() or
+                   (self.missions[robot_id] and self.missions[robot_id].cancel_requested) then
+                    fault = { reason = "cancelled",
+                              action_index = action_index,
+                              kb_name      = "drive_packet" }
+                    break
+                end
+
+                coroutine.yield()
+            end
+
+            if fault then
+                mission:action_failed(action_index, action, fault.reason)
+                hub_rt:drive_clear()
+                break
+            end
+
+            if action_complete then
+                local s, _, drive_fault = hub_rt:drive_state_get()
+                local pose = hub_rt:get_global_pose()
+                if s == "drive_done" then
+                    mission:action_complete(action_index, action, pose)
+                    completed = completed + 1
+
+                    local dest = action_to_dest[action_index]
+                    if dest and self.link_mgr then
+                        self.link_mgr:write_position(robot_id, dest)
+                    end
+                    hub_rt:drive_clear()
+                else
+                    -- drive_error
+                    fault = { reason       = drive_fault or "drive_error",
+                              action_index = action_index,
+                              kb_name      = "drive_packet" }
+                    mission:action_failed(action_index, action, fault.reason)
+                    hub_rt:drive_clear()
+                    break
+                end
+            else
+                fault = { reason       = "timeout",
+                          action_index = action_index,
+                          kb_name      = "drive_packet" }
+                mission:action_failed(action_index, action, fault.reason)
+                hub_rt:drive_clear()
+                break
+            end
+
         else
-            hub_rt:deactivate_kb(kb_name)
-            fault = { reason = "timeout", action_index = action_index, kb_name = kb_name }
-            mission:action_failed(action_index, action, fault.reason)
-            break
+            -- Legacy activate_kb dispatch (unchanged).
+            local kb_name = action.kb_name
+
+            -- Build action JSON
+            local action_json = {}
+            if action.params then
+                for k, v in pairs(action.params) do
+                    action_json[k] = v
+                end
+            end
+            action_json.test_id   = action_index
+            action_json.next_test = (i < #route) and (action_index + 1) or 0
+
+            bb.current_test_json = json_util.encode(action_json)
+            local activated = hub_rt:activate_kb(kb_name)
+            if not activated then
+                fault = { reason = "kb_not_found", action_index = action_index, kb_name = kb_name }
+                break
+            end
+
+            mission:action_start(action_index, action, hub_rt:get_global_pose())
+
+            -- Tick loop with yields
+            local action_complete = false
+            local max_ticks = seq.max_ticks_per_action
+            for tick = 1, max_ticks do
+                hub_rt:tick()
+
+                if tick % 10 == 0 then
+                    mission:heartbeat(action_index, kb_name, hub_rt:get_global_pose())
+                end
+
+                if hub_rt:kb_is_complete(kb_name) then
+                    action_complete = true
+                    hub_rt:deactivate_kb(kb_name)
+                    break
+                end
+
+                if mission:is_abort_requested() or
+                   (self.missions[robot_id] and self.missions[robot_id].cancel_requested) then
+                    hub_rt:deactivate_kb(kb_name)
+                    fault = { reason = "cancelled", action_index = action_index, kb_name = kb_name }
+                    break
+                end
+
+                -- Yield to scheduler instead of sleeping
+                coroutine.yield()
+            end
+
+            if fault then
+                mission:action_failed(action_index, action, fault.reason)
+                break
+            end
+
+            if action_complete then
+                local pose = hub_rt:get_global_pose()
+                local success = bb.kb_done_success
+                if success == true then
+                    mission:action_complete(action_index, action, pose)
+                    completed = completed + 1
+
+                    -- Update robot position if this action completed a navigation leg
+                    local dest = action_to_dest[action_index]
+                    if dest and self.link_mgr then
+                        self.link_mgr:write_position(robot_id, dest)
+                    end
+                else
+                    fault = { reason = bb.fault_reason or "kb_done_failed",
+                              action_index = action_index, kb_name = kb_name }
+                    mission:action_failed(action_index, action, fault.reason)
+                    break
+                end
+            else
+                hub_rt:deactivate_kb(kb_name)
+                fault = { reason = "timeout", action_index = action_index, kb_name = kb_name }
+                mission:action_failed(action_index, action, fault.reason)
+                break
+            end
         end
     end
 
@@ -1058,6 +1158,9 @@ function M:execute_mission(mission_cmd)
         own_instance_id = self.own_instance_id,
     })
 
+    if mission_cmd.use_drive_v2 == nil then
+        mission_cmd.use_drive_v2 = self.use_drive_v2
+    end
     local route, plan_info = mission_builder.build(
         mission_cmd, planner, operation_types, energy_rate)
     if not route then

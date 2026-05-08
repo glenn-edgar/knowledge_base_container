@@ -198,6 +198,21 @@ function M:send_rpc(robot_id, json_str)
 end
 
 ---------------------------------------------------------------------------
+-- Raw publish: caller-supplied bytes go on the wire as-is.
+--
+-- Used by the Phase 5 drive-packet path: encoder.encode_drive() already
+-- produces CBOR bytes, so passing them through send_rpc would
+-- double-encode them when the per-robot wire_format is "cbor".
+-- send_rpc_raw bypasses wire_format conversion entirely.
+---------------------------------------------------------------------------
+
+function M:send_rpc_raw(robot_id, bytes)
+    local topic = self.site_path .. "/robots/" .. robot_id .. "/rpc"
+    self.ps:publish(topic, bytes, 1, false)
+    return "ok"
+end
+
+---------------------------------------------------------------------------
 -- Publish to planner/ control topics (ack, heartbeat, disconnect)
 ---------------------------------------------------------------------------
 
@@ -237,6 +252,12 @@ function M:robot_transport(robot_id)
 
     function tx:send_rpc(json_str)
         return hub:send_rpc(robot_id, json_str)
+    end
+
+    -- Phase 5 drive-packet path: caller has already CBOR-encoded the
+    -- payload; bypass wire_format conversion to avoid double-encoding.
+    function tx:send_rpc_raw(bytes)
+        return hub:send_rpc_raw(robot_id, bytes)
     end
 
     function tx:recv_stream()
