@@ -48,9 +48,10 @@ end
 -- Inputs
 ---------------------------------------------------------------------------
 
-local DEFINITIONS = load_lua("catalogs/definitions.lua")
-local TOPOLOGY    = load_lua("catalogs/topology.lua")
-local ACTIONS     = load_lua("catalogs/actions.lua")
+local DEFINITIONS   = load_lua("catalogs/definitions.lua")
+local TOPOLOGY      = load_lua("catalogs/topology.lua")
+local ACTIONS       = load_lua("catalogs/actions.lua")
+local ROBOT_CLASSES = load_lua("catalogs/robot_classes.lua")
 
 local SYSTEM_NAME = TOPOLOGY.system_name or error("topology.system_name missing")
 local SITE        = TOPOLOGY.site        or error("topology.site missing")
@@ -284,6 +285,12 @@ local SUBSYSTEMS = {
                              --   (must precede infrastructure_registry + robot_classes;
                              --    they validate action_id references against this catalog).
   "infrastructure_registry", -- Phase B Layer A-pre: runtime-addressing for infra services
+                             --   Phase B.2 Planner Phase 1 C2: also emits
+                             --   active-node def vocabulary + validates
+                             --   robot_virtual_action keys vs action_catalog.
+  "robot_classes",           -- Phase B.2 Planner Phase 1 C3: site-wide robot
+                             --   class catalog; capabilities validated vs
+                             --   action_catalog at build time.
   "readiness_sync",
   "sync_queues",           -- Phase 6.1: pg-backed sync transport + peer_state
   "container_queues",      -- Phase 6.4: pg-backed container-layer RPC + container_state
@@ -317,6 +324,7 @@ local ctx = {
   TOPOLOGY               = TOPOLOGY,
   DEFINITIONS            = DEFINITIONS,
   ACTIONS                = ACTIONS,
+  ROBOT_CLASSES          = ROBOT_CLASSES,
   CPU_COUNT              = CPU_COUNT,
   resolve_instance_ports = resolve_instance_ports,
 }
