@@ -50,6 +50,7 @@ end
 
 local DEFINITIONS = load_lua("catalogs/definitions.lua")
 local TOPOLOGY    = load_lua("catalogs/topology.lua")
+local ACTIONS     = load_lua("catalogs/actions.lua")
 
 local SYSTEM_NAME = TOPOLOGY.system_name or error("topology.system_name missing")
 local SITE        = TOPOLOGY.site        or error("topology.site missing")
@@ -279,6 +280,9 @@ local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
   "boards",                  -- Phase B.2 A.4: file_store class registration for nav boards
+  "action_catalog",          -- Phase B.2 Planner Phase 1: site-wide virtual-action catalog
+                             --   (must precede infrastructure_registry + robot_classes;
+                             --    they validate action_id references against this catalog).
   "infrastructure_registry", -- Phase B Layer A-pre: runtime-addressing for infra services
   "readiness_sync",
   "sync_queues",           -- Phase 6.1: pg-backed sync transport + peer_state
@@ -312,6 +316,7 @@ local ctx = {
   MASTER_CPU             = MASTER_CPU,
   TOPOLOGY               = TOPOLOGY,
   DEFINITIONS            = DEFINITIONS,
+  ACTIONS                = ACTIONS,
   CPU_COUNT              = CPU_COUNT,
   resolve_instance_ports = resolve_instance_ports,
 }
