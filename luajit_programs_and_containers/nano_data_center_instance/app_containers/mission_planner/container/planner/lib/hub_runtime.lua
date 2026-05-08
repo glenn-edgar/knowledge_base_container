@@ -29,6 +29,15 @@ local json_util   = require("json_util")
 local hub_control = require("hub_control")
 local event_ids   = require("event_ids")
 
+-- Phase 5 C2 lazy require: the new drive-packet path lives under
+-- hub_dsl/protocol/encoder.lua. Lazy so existing callers don't need the
+-- protocol dir on package.path until the new path is exercised.
+local _encoder
+local function encoder_module()
+    if not _encoder then _encoder = require("encoder") end
+    return _encoder
+end
+
 local M = {}
 M.__index = M
 
@@ -204,6 +213,38 @@ function M:deactivate_kb(kb_name)
         self.active_kb = nil
         self.bb.active_kb = ""
     end
+end
+
+---------------------------------------------------------------------------
+-- Phase 5 C2: cmd_drive_t emit (CBOR wire path)
+---------------------------------------------------------------------------
+
+-- Send a single cmd_drive_t packet to the robot.
+--
+-- The packet must already be built (e.g. via
+-- route_builder.build_drive_packets()). encode_drive() validates the
+-- shape eagerly, so a malformed packet errors here with a stack trace
+-- at the build/send site -- not deep in the wire codec.
+--
+-- The transport's send_rpc accepts a Lua string of arbitrary bytes;
+-- we pass the CBOR bytes directly. Per-robot wire_format on the
+-- mqtt_hub_transport path will be reconciled in C3 (dispatch
+-- integration) so that the new path is not double-encoded.
+--
+-- Caller is responsible for ACK matching on packet_id; this method
+-- does NOT touch action_state or seq_counter (legacy KB state machine
+-- is unrelated to the new per-packet completion contract).
+--
+-- @param packet  cmd_drive_t Lua table (passes
+--                command_packets.validate_drive)
+-- @return packet_id integer; copied from packet.packet_id for caller
+--                convenience (so the caller can stash the id for ACK
+--                matching without re-reading the packet).
+function M:send_drive_packet(packet)
+    local enc = encoder_module()
+    local bytes = enc.encode_drive(packet)
+    self.tx:send_rpc(bytes)
+    return packet.packet_id
 end
 
 ---------------------------------------------------------------------------
