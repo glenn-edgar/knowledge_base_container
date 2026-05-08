@@ -501,4 +501,86 @@ function M.validate_drive(packet)
   return true
 end
 
+-- =========================================================================
+-- Phase 2 C3: cmd_activate_action_t (virtual-action invocation)
+-- =========================================================================
+--
+-- Wire shape (CBOR-encoded Lua table):
+--   {
+--     packet_type    = M.TYPE_ACTIVATE_ACTION,
+--     packet_id      = uint32,
+--     mission_id     = uint32 | nil,
+--     action_id      = string (matches an entry in the action catalog),
+--     active_node_id = string (instance id; e.g. "dock_3"),
+--     topics = {
+--       cmd    = string,   -- pre-rendered (planner has filled both
+--       status = string,   --   {dock_id} and {robot_id} placeholders)
+--     },
+--     params = table | nil, -- opaque per-action payload; the action
+--                           -- catalog's parameter_schema validates shape
+--                           -- at DSL compile time, NOT here
+--   }
+--
+-- The robot consumes this packet by switching its arbiter to service
+-- mode, subscribing to topics.cmd, publishing on topics.status, and
+-- handing dock-controlled command flow to the dock's MQTT exchange.
+-- See project_planner_active_node_contract.md "Robot is the bridge".
+
+local function check_string(path, v, name)
+  if type(v) ~= "string" or v == "" then
+    err(path, string.format("%s required (non-empty string; got %s)",
+      name, type(v)))
+  end
+end
+
+function M.validate_activate_action(packet)
+  if type(packet) ~= "table" then
+    err("cmd_activate_action", string.format(
+      "packet must be table (got %s)", type(packet)))
+  end
+  if packet.packet_type ~= M.TYPE_ACTIVATE_ACTION then
+    err("cmd_activate_action", string.format(
+      "packet_type must be %d (TYPE_ACTIVATE_ACTION); got %s",
+      M.TYPE_ACTIVATE_ACTION, tostring(packet.packet_type)))
+  end
+  check_number("cmd_activate_action", packet.packet_id, "packet_id")
+  if packet.mission_id ~= nil then
+    check_number("cmd_activate_action", packet.mission_id, "mission_id")
+  end
+
+  check_string("cmd_activate_action", packet.action_id, "action_id")
+  check_string("cmd_activate_action", packet.active_node_id, "active_node_id")
+
+  local t = packet.topics
+  if type(t) ~= "table" then
+    err("cmd_activate_action", string.format(
+      "topics required (table {cmd,status}; got %s)", type(t)))
+  end
+  check_string("cmd_activate_action.topics", t.cmd, "cmd")
+  check_string("cmd_activate_action.topics", t.status, "status")
+  for k, _ in pairs(t) do
+    if k ~= "cmd" and k ~= "status" then
+      err("cmd_activate_action.topics", "unknown field " .. tostring(k))
+    end
+  end
+
+  -- params is opaque (catalog validates shape at DSL time). Just type-check.
+  if packet.params ~= nil and type(packet.params) ~= "table" then
+    err("cmd_activate_action", string.format(
+      "params must be table when present (got %s)", type(packet.params)))
+  end
+
+  local ALLOWED = {
+    packet_type = true, packet_id = true, mission_id = true,
+    action_id = true, active_node_id = true, topics = true, params = true,
+  }
+  for k, _ in pairs(packet) do
+    if not ALLOWED[k] then
+      err("cmd_activate_action", "unknown top-level field " .. tostring(k))
+    end
+  end
+
+  return true
+end
+
 return M
