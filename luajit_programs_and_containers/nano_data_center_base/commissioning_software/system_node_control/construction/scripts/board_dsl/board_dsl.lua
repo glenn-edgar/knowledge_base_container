@@ -380,9 +380,10 @@ function M.new(opts)
   self.nodes_by_name = {}    -- name -> node ref
   self.edges        = {}    -- list
   self.edges_seen   = {}    -- "from\tto" -> declared_at, for dup-detect
-  self.capabilities = {}    -- list (preserves order)
-  self.caps_seen    = {}    -- action_id -> declared_at
-  self.declared_at  = where
+  self.capabilities       = {}  -- list (preserves order)
+  self.caps_seen          = {}  -- action_id -> declared_at OR "<imported from class X>"
+  self.capability_imports = {}  -- list of { class_name, declared_at }
+  self.declared_at        = where
   return self
 end
 
@@ -530,6 +531,22 @@ function Board:declare_capabilities(spec)
   end
 end
 
+-- Records intent to import the capability list of a robot CLASS from KB.
+-- Resolved at b:build({kb_conn = ...}) time; needs a KB conn.
+-- Without a kb_conn at build, an unresolved import errors out (so the
+-- DSL author knows the offline build is incomplete).
+function Board:import_capabilities(class_name)
+  local where = caller_loc()
+  if type(class_name) ~= "string" or class_name == "" then
+    error(string.format(
+      "%s: import_capabilities requires a class_name string (got %s)",
+      where, type(class_name)), 0)
+  end
+  self.capability_imports[#self.capability_imports + 1] = {
+    class_name = class_name, declared_at = where,
+  }
+end
+
 ------------------------------------------------------------------------
 -- build (validate + emit canonical table)
 ------------------------------------------------------------------------
@@ -571,14 +588,161 @@ local function fold_path(edge_path)
   return out
 end
 
+------------------------------------------------------------------------
+-- KB query helpers (C3)
+------------------------------------------------------------------------
+-- Conn must support :prepare(sql) -> stmt with stmt:execute() and
+-- stmt:fetch(true) returning a row table. Matches DBI-Postgres and
+-- the test's mock conn shape.
+--
+-- All queries use parameterless SQL with the path/name escaped via
+-- single-quote doubling; this is the existing repo idiom (see
+-- kb_status.lua, kb_doc_store.lua). No user-supplied input ever
+-- reaches these helpers without going through the DSL constructor
+-- whitelist first, so injection surface is the DSL author who is
+-- already trusted to write Lua that runs locally.
+
+local function pg_escape(s)
+  return (s:gsub("'", "''"))
+end
+
+local function kb_row_at(conn, path)
+  local sql = string.format(
+    "SELECT data::text AS data FROM knowledge_base WHERE path = '%s'::ltree LIMIT 1",
+    pg_escape(path))
+  local sth, perr = conn:prepare(sql)
+  if not sth then
+    return nil, "prepare failed for " .. path .. ": " .. tostring(perr)
+  end
+  local ok, eerr = sth:execute()
+  if not ok then sth:close()
+    return nil, "execute failed for " .. path .. ": " .. tostring(eerr)
+  end
+  local row = sth:fetch(true)
+  sth:close()
+  return row  -- nil if no row exists
+end
+
+local function kb_path_exists(conn, path)
+  local sql = string.format(
+    "SELECT 1 AS x FROM knowledge_base WHERE path = '%s'::ltree LIMIT 1",
+    pg_escape(path))
+  local sth, perr = conn:prepare(sql)
+  if not sth then
+    error("prepare failed: " .. tostring(perr), 0)
+  end
+  local ok, eerr = sth:execute()
+  if not ok then sth:close()
+    error("execute failed: " .. tostring(eerr), 0)
+  end
+  local row = sth:fetch(true)
+  sth:close()
+  return row ~= nil
+end
+
+-- Decode a JSON column value coming back from pg. The mock test conn
+-- can store either a Lua table directly or a JSON string; live pg
+-- always returns a string from data::text.
+local dkjson  -- lazy-loaded so structural-only build() doesn't need it
+local function decode_json_data(raw)
+  if type(raw) == "table" then return raw end
+  if type(raw) ~= "string" then
+    error("decode_json_data: unexpected type " .. type(raw), 0)
+  end
+  if not dkjson then dkjson = require("dkjson") end
+  local d, _, err = dkjson.decode(raw)
+  if not d then error("JSON decode failed: " .. tostring(err), 0) end
+  return d
+end
+
+------------------------------------------------------------------------
+-- KB-driven validators (C3)
+------------------------------------------------------------------------
+
+local function path_action_catalog(system_name, site, action_id)
+  return string.format(
+    "system.%s.site.%s.actions.catalog.action.%s",
+    system_name, site, action_id)
+end
+
+local function path_class_catalog(system_name, site, class_name)
+  return string.format(
+    "system.%s.site.%s.robot_classes.catalog.class.%s",
+    system_name, site, class_name)
+end
+
+-- Validate an activate leaf's params against the catalog's parameter_schema.
+-- parameter_schema is a flat map field_name -> wire_type ("string" / "int"
+-- / "float" / "bool"). DSL-side check enforces:
+--   - every required field in schema is present in params
+--   - every field in params is named in schema (no extras)
+--   - wire types match
+local TYPE_CHECKS = {
+  string = function(v) return type(v) == "string" end,
+  int    = function(v) return type(v) == "number" and v == math.floor(v) end,
+  float  = function(v) return type(v) == "number" end,
+  bool   = function(v) return type(v) == "boolean" end,
+}
+
+local function validate_params_shape(where, params, schema, action_id)
+  params = params or {}
+  schema = schema or {}
+  for field, wire_type in pairs(schema) do
+    if params[field] == nil then
+      error(string.format(
+        "%s: activate{ action_id=%q } missing required param %q (catalog wants %s)",
+        where, action_id, field, wire_type), 0)
+    end
+    local checker = TYPE_CHECKS[wire_type]
+    if not checker then
+      error(string.format(
+        "%s: activate{ action_id=%q } catalog parameter_schema.%s has unknown wire_type %q",
+        where, action_id, field, tostring(wire_type)), 0)
+    end
+    if not checker(params[field]) then
+      error(string.format(
+        "%s: activate{ action_id=%q } param %s wrong type (catalog wants %s; got %s)",
+        where, action_id, field, wire_type, type(params[field])), 0)
+    end
+  end
+  for field, _ in pairs(params) do
+    if schema[field] == nil then
+      error(string.format(
+        "%s: activate{ action_id=%q } passes unknown param %q (not in catalog)",
+        where, action_id, field), 0)
+    end
+  end
+end
+
+------------------------------------------------------------------------
+-- build()
+------------------------------------------------------------------------
+
 -- Returns the canonical board table ready for JSON serialization.
 -- Raises on any validation failure.
+--
+-- opts (all optional, but kb_conn unlocks the four KB-driven checks):
+--   kb_conn      conn supporting :prepare/:execute/:fetch(true)
+--   system_name  required if kb_conn provided
+--   site_name    required if kb_conn provided
+--
+-- Without kb_conn, structural + capability-union checks run, but
+-- KB-driven checks (kb_ref existence, action_id catalog, params shape,
+-- active-node action presence) are SKIPPED. Unresolved
+-- capability_imports cause an error -- offline builds with imports
+-- are incomplete.
 function Board:build(opts)
   opts = opts or {}
-  -- KB-connected validation (4 build-time checks per architectural
-  -- memo) lands in C3. Structural + capability-union here.
+  local kb   = opts.kb_conn
+  local sys  = opts.system_name
+  local site = opts.site_name
 
-  -- Edge endpoint existence (deferred from add_edge so forward refs work).
+  if kb and (not sys or not site) then
+    error("build({kb_conn=...}) requires system_name and site_name too", 0)
+  end
+
+  -- ---------------- structural (C1+C2) ----------------
+
   for _, edge in ipairs(self.edges) do
     if not self.nodes_by_name[edge.from] then
       error(string.format(
@@ -592,11 +756,46 @@ function Board:build(opts)
     end
   end
 
-  -- Capability union check: every action_id used in any activate leaf
-  -- must appear in declared (or imported -- C3) capabilities.
+  -- ---------------- import_capabilities resolution ----------------
+
+  if #self.capability_imports > 0 then
+    if not kb then
+      local first = self.capability_imports[1]
+      error(string.format(
+        "%s: b:import_capabilities(%q) requires KB at build time " ..
+        "(call build({kb_conn=..., system_name=..., site_name=...}))",
+        first.declared_at, first.class_name), 0)
+    end
+    for _, imp in ipairs(self.capability_imports) do
+      local p = path_class_catalog(sys, site, imp.class_name)
+      local row = kb_row_at(kb, p)
+      if not row then
+        error(string.format(
+          "%s: import_capabilities(%q): class not found in KB at %s",
+          imp.declared_at, imp.class_name, p), 0)
+      end
+      local data = decode_json_data(row.data)
+      local caps = data.capabilities
+      if type(caps) ~= "table" then
+        error(string.format(
+          "%s: import_capabilities(%q): KB row at %s has no capabilities list",
+          imp.declared_at, imp.class_name, p), 0)
+      end
+      for _, action_id in ipairs(caps) do
+        if not self.caps_seen[action_id] then
+          self.capabilities[#self.capabilities + 1] = action_id
+          self.caps_seen[action_id] = string.format(
+            "<imported from class %q at %s>", imp.class_name, imp.declared_at)
+        end
+      end
+    end
+  end
+
+  -- ---------------- capability union check ----------------
+
   for _, edge in ipairs(self.edges) do
     if edge.path then
-      for i, leaf in ipairs(edge.path) do
+      for _, leaf in ipairs(edge.path) do
         if leaf.__tag == "activate" then
           if not self.caps_seen[leaf.action_id] then
             error(string.format(
@@ -609,7 +808,69 @@ function Board:build(opts)
     end
   end
 
-  -- Build canonical edge representation with folded path tree.
+  -- ---------------- KB-driven checks ----------------
+
+  if kb then
+    -- Cache action_id -> parameter_schema lookups so the same activate
+    -- across many edges only hits pg once.
+    local schema_cache = {}
+    local function action_schema(action_id, where)
+      if schema_cache[action_id] ~= nil then
+        return schema_cache[action_id]
+      end
+      local p = path_action_catalog(sys, site, action_id)
+      local row = kb_row_at(kb, p)
+      if not row then
+        error(string.format(
+          "%s: activate{ action_id=%q } not found in action catalog at %s",
+          where, action_id, p), 0)
+      end
+      local data = decode_json_data(row.data)
+      schema_cache[action_id] = data.parameter_schema or {}
+      return schema_cache[action_id]
+    end
+
+    -- Check 1: every node.kb_ref points to an existing KB row.
+    for _, n in ipairs(self.nodes) do
+      if n.kb_ref then
+        if not kb_path_exists(kb, n.kb_ref) then
+          error(string.format(
+            "%s: node %q kb_ref does not resolve in KB: %s",
+            n.declared_at, n.name, n.kb_ref), 0)
+        end
+      end
+    end
+
+    -- Checks 2, 3, 4: per-activate leaf.
+    for _, edge in ipairs(self.edges) do
+      if edge.path then
+        for _, leaf in ipairs(edge.path) do
+          if leaf.__tag == "activate" then
+            -- Check 2: action_id in catalog.
+            local schema = action_schema(leaf.action_id, leaf.declared_at)
+            -- Check 3: params shape matches schema.
+            validate_params_shape(leaf.declared_at, leaf.params, schema,
+              leaf.action_id)
+            -- Check 4: action_id present in the active-node's
+            -- robot_virtual_action dict (only checkable if the activate
+            -- leaf carries a kb_ref).
+            if leaf.kb_ref then
+              local p = leaf.kb_ref .. ".action." .. leaf.action_id
+              if not kb_path_exists(kb, p) then
+                error(string.format(
+                  "%s: activate{ action_id=%q, kb_ref=%q }: action not " ..
+                  "advertised by active-node def (no row at %s)",
+                  leaf.declared_at, leaf.action_id, leaf.kb_ref, p), 0)
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- ---------------- emit canonical table ----------------
+
   local out_edges = {}
   for i, e in ipairs(self.edges) do
     out_edges[i] = { from = e.from, to = e.to,
