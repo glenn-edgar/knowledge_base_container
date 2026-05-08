@@ -41,16 +41,32 @@ end
 local M = {}
 M.__index = M
 
--- Action state machine states
+-- Action state machine states (legacy activate_kb path)
 local STATE_IDLE      = "idle"
 local STATE_WAIT_ACK  = "wait_ack"
 local STATE_ACTIVE    = "active"
 local STATE_DONE      = "done"
 local STATE_ERROR     = "error"
 
+-- Drive-packet state machine (Phase 5 cmd_drive_t wire path).
+-- Parallel to action_state above and keyed on packet_id (per-packet
+-- completion contract: one ACK + one done per cmd_drive_t, not per
+-- sub-segment). Kept separate from legacy state so the two paths can
+-- coexist during the C5 cut-over.
+local STATE_DRIVE_IDLE     = "drive_idle"
+local STATE_DRIVE_WAIT_ACK = "drive_wait_ack"
+local STATE_DRIVE_ACTIVE   = "drive_active"
+local STATE_DRIVE_DONE     = "drive_done"
+local STATE_DRIVE_ERROR    = "drive_error"
+
 -- Timeouts (wall-clock seconds)
 local ACK_TIMEOUT     = 5
 local KB_DONE_TIMEOUT = 10
+-- Drive-done can exceed KB_DONE_TIMEOUT because one cmd_drive_t bundles
+-- a whole edge polyline (could be many meters). 60s is a placeholder
+-- ceiling; per-packet timeout sourced from edge metadata in C3b.
+local DRIVE_ACK_TIMEOUT  = 5
+local DRIVE_DONE_TIMEOUT = 60
 
 -- Sequence counter
 local seq_counter = 0
@@ -128,11 +144,17 @@ function M.new(opts)
     -- Per-instance pose tracking
     self.hub_control = hub_control.new(initial_pose)
 
-    -- Action state machine
+    -- Action state machine (legacy)
     self.action_state = STATE_IDLE
     self.active_kb    = nil
     self.ack_deadline = nil
     self.kb_done_deadline = nil
+
+    -- Drive-packet state machine (Phase 5)
+    self.drive_state = STATE_DRIVE_IDLE
+    self.pending_drive_packet_id = nil
+    self.pending_drive_deadline  = nil
+    self.last_drive_fault = nil
 
     -- Status publishing via kv-bridge (MQTT → NATS KV, non-blocking)
     local site_bucket = site:gsub("%.", "_")
@@ -216,35 +238,129 @@ function M:deactivate_kb(kb_name)
 end
 
 ---------------------------------------------------------------------------
--- Phase 5 C2: cmd_drive_t emit (CBOR wire path)
+-- Phase 5 C2 + C3a: cmd_drive_t emit + per-packet ACK/done state machine
 ---------------------------------------------------------------------------
 
--- Send a single cmd_drive_t packet to the robot.
+-- Send a single cmd_drive_t packet AND start tracking its ACK/done.
 --
 -- The packet must already be built (e.g. via
 -- route_builder.build_drive_packets()). encode_drive() validates the
 -- shape eagerly, so a malformed packet errors here with a stack trace
 -- at the build/send site -- not deep in the wire codec.
 --
--- The transport's send_rpc accepts a Lua string of arbitrary bytes;
--- we pass the CBOR bytes directly. Per-robot wire_format on the
--- mqtt_hub_transport path will be reconciled in C3 (dispatch
--- integration) so that the new path is not double-encoded.
+-- State transitions (drive_state):
+--   on send:        any-terminal -> drive_wait_ack
+--   on drive_ack:   drive_wait_ack -> drive_active   (or drive_error)
+--   on drive_done:  drive_active   -> drive_done     (or drive_error)
+--   on timeout:     wait_ack/active -> drive_error
 --
--- Caller is responsible for ACK matching on packet_id; this method
--- does NOT touch action_state or seq_counter (legacy KB state machine
--- is unrelated to the new per-packet completion contract).
+-- "Terminal" here means drive_idle / drive_done / drive_error: send is
+-- only legal between packets. Calling while a packet is in flight is a
+-- programmer error (the action_server dispatch loop in C3b ensures
+-- one-at-a-time before C5 cut-over).
 --
--- @param packet  cmd_drive_t Lua table (passes
---                command_packets.validate_drive)
--- @return packet_id integer; copied from packet.packet_id for caller
---                convenience (so the caller can stash the id for ACK
---                matching without re-reading the packet).
+-- Routing of incoming ACK/done messages into on_drive_ack/on_drive_done
+-- is the caller's responsibility for now -- the wire format for those
+-- messages is finalized in Phase 3 (robot side). Until then, tests
+-- drive the state machine through the public API directly.
+--
+-- @param packet  cmd_drive_t Lua table (passes validate_drive)
+-- @return packet_id integer (copied from packet.packet_id for caller
+--                convenience).
 function M:send_drive_packet(packet)
+    if self.drive_state ~= STATE_DRIVE_IDLE
+       and self.drive_state ~= STATE_DRIVE_DONE
+       and self.drive_state ~= STATE_DRIVE_ERROR then
+        error("hub_runtime: drive packet already in flight (state="
+            .. tostring(self.drive_state) .. ", pending_id="
+            .. tostring(self.pending_drive_packet_id) .. ")")
+    end
     local enc = encoder_module()
     local bytes = enc.encode_drive(packet)
     self.tx:send_rpc(bytes)
+    self.drive_state = STATE_DRIVE_WAIT_ACK
+    self.pending_drive_packet_id = packet.packet_id
+    self.pending_drive_deadline  = os.time() + DRIVE_ACK_TIMEOUT
+    self.last_drive_fault = nil
     return packet.packet_id
+end
+
+-- Process a drive_ack matched on packet_id.
+-- @param packet_id  integer from the ack message
+-- @param status     "ok" | other (other => transition to drive_error)
+-- @return true if the ACK was applied, false if it was ignored
+--         (wrong state or wrong packet_id -- common during transient
+--         re-acks or stale messages, NOT an error)
+function M:on_drive_ack(packet_id, status)
+    if self.drive_state ~= STATE_DRIVE_WAIT_ACK then return false end
+    if packet_id ~= self.pending_drive_packet_id then return false end
+    if status ~= "ok" then
+        self.drive_state = STATE_DRIVE_ERROR
+        self.last_drive_fault = "drive_ack_status=" .. tostring(status)
+        self.pending_drive_deadline = nil
+        return true
+    end
+    self.drive_state = STATE_DRIVE_ACTIVE
+    self.pending_drive_deadline = os.time() + DRIVE_DONE_TIMEOUT
+    return true
+end
+
+-- Process a drive_done matched on packet_id.
+-- @param packet_id     integer from the done message
+-- @param success       boolean
+-- @param fault_reason  optional string when success=false
+-- @return true if applied, false if ignored
+function M:on_drive_done(packet_id, success, fault_reason)
+    if self.drive_state ~= STATE_DRIVE_ACTIVE
+       and self.drive_state ~= STATE_DRIVE_WAIT_ACK then return false end
+    if packet_id ~= self.pending_drive_packet_id then return false end
+    self.pending_drive_deadline = nil
+    if success then
+        self.drive_state = STATE_DRIVE_DONE
+    else
+        self.drive_state = STATE_DRIVE_ERROR
+        self.last_drive_fault = fault_reason or "drive_done_unspecified"
+    end
+    return true
+end
+
+-- Wall-clock timeout check; called from M:tick().
+function M:_check_drive_timeouts()
+    if not self.pending_drive_deadline then return end
+    if os.time() < self.pending_drive_deadline then return end
+
+    if self.drive_state == STATE_DRIVE_WAIT_ACK then
+        self.last_drive_fault = "drive_ack_timeout"
+        self.drive_state = STATE_DRIVE_ERROR
+    elseif self.drive_state == STATE_DRIVE_ACTIVE then
+        self.last_drive_fault = "drive_done_timeout"
+        self.drive_state = STATE_DRIVE_ERROR
+    end
+    self.pending_drive_deadline = nil
+end
+
+-- Caller polls completion. Mirrors kb_is_complete for the legacy path.
+function M:drive_is_complete()
+    return self.drive_state == STATE_DRIVE_DONE
+        or self.drive_state == STATE_DRIVE_ERROR
+end
+
+-- Inspect drive state for ACK matching, debug, and dispatch glue.
+function M:drive_state_get()
+    return self.drive_state,
+           self.pending_drive_packet_id,
+           self.last_drive_fault
+end
+
+-- Reset to drive_idle. Caller invokes between packets to release the
+-- send_drive_packet guard. Required between successful packets too --
+-- there is no auto-clear, so a stale drive_done doesn't masquerade as
+-- the start of the next packet's window.
+function M:drive_clear()
+    self.drive_state = STATE_DRIVE_IDLE
+    self.pending_drive_packet_id = nil
+    self.pending_drive_deadline = nil
+    self.last_drive_fault = nil
 end
 
 ---------------------------------------------------------------------------
@@ -260,8 +376,9 @@ function M:tick()
     -- Drain inbound transport → process stream messages
     self:_process_stream()
 
-    -- Check timeouts
+    -- Check timeouts (legacy + drive)
     self:_check_timeouts()
+    self:_check_drive_timeouts()
 
     -- Publish robot status
     self._tick_count = self._tick_count + 1

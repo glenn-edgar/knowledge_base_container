@@ -1,17 +1,30 @@
 #!/usr/bin/env luajit
 -- =============================================================================
--- test_hub_runtime_send_drive.lua -- Phase 5 C2 acceptance for
--- hub_runtime:send_drive_packet().
+-- test_hub_runtime_send_drive.lua -- Phase 5 C2 + C3a acceptance for
+-- hub_runtime:send_drive_packet() AND its drive-packet state machine.
 --
--- Coverage:
+-- Coverage (C2):
 --   - happy: build a valid cmd_drive_t via route_builder + ship via
 --     hub_runtime:send_drive_packet -> stub transport receives bytes
 --     that round-trip via encoder.decode_drive to the same packet
 --   - return value is packet.packet_id
---   - multiple sends -> one tx publish per call, monotonic packet_id
+--   - sequenced sends (with drive_clear between) ship monotonic packet_ids
 --   - mutation: invalid packet (corrupted packet_type) -> validate_drive
 --     errors at send time, transport NOT called
 --   - mutation: missing required field -> errors before tx
+--
+-- Coverage (C3a):
+--   - on_drive_ack("ok") transitions wait_ack -> active
+--   - on_drive_done(success=true) transitions active -> done
+--   - on_drive_done(success=false) transitions active -> error,
+--     last_drive_fault populated
+--   - on_drive_ack with non-ok status transitions wait_ack -> error
+--   - mismatched packet_id is ignored (returns false), state unchanged
+--   - duplicate-send guard: send_drive_packet errors when state is
+--     wait_ack or active, succeeds again only after drive_clear / done
+--     / error
+--   - tick() -> _check_drive_timeouts: wait_ack past deadline -> error,
+--     active past deadline -> error
 --
 -- Required env at run:
 --   LD_LIBRARY_PATH=<prebuilt_libs> for liblua_cbor.so
@@ -150,6 +163,9 @@ do
   local hub = make_hub_rt(tx)
 
   local rid1 = hub:send_drive_packet(pkts[1])
+  -- Between packets the caller must clear state (or drive through
+  -- ack+done). drive_clear is sufficient for this happy-path test.
+  hub:drive_clear()
   local rid2 = hub:send_drive_packet(pkts[2])
 
   ok("first send returned packet_id 100", rid1 == 100)
@@ -240,6 +256,233 @@ do
     hub:send_drive_packet(bad)
   end, "packet_id")
   ok("transport NOT called on missing packet_id", #tx.sent == 0)
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: drive_state initial value + after send ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local s, pid, fault = hub:drive_state_get()
+  ok("initial drive_state = drive_idle", s == "drive_idle")
+  ok("initial pending_drive_packet_id is nil", pid == nil)
+  ok("initial last_drive_fault is nil", fault == nil)
+  ok("drive_is_complete() false initially", hub:drive_is_complete() == false)
+
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 50 })
+  hub:send_drive_packet(pkts[1])
+
+  s, pid, fault = hub:drive_state_get()
+  ok("after send: drive_state = drive_wait_ack", s == "drive_wait_ack")
+  ok("after send: pending_drive_packet_id = 50", pid == 50)
+  ok("after send: last_drive_fault still nil", fault == nil)
+  ok("after send: drive_is_complete() false", hub:drive_is_complete() == false)
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: ack 'ok' transitions wait_ack -> active ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 1 })
+  hub:send_drive_packet(pkts[1])
+
+  local applied = hub:on_drive_ack(1, "ok")
+  ok("on_drive_ack returned true (matched)", applied)
+  local s = hub:drive_state_get()
+  ok("state = drive_active", s == "drive_active")
+  ok("not yet complete", hub:drive_is_complete() == false)
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: done(success=true) transitions active -> done ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 7 })
+  hub:send_drive_packet(pkts[1])
+  hub:on_drive_ack(7, "ok")
+
+  local applied = hub:on_drive_done(7, true, nil)
+  ok("on_drive_done returned true", applied)
+  local s, _, fault = hub:drive_state_get()
+  ok("state = drive_done", s == "drive_done")
+  ok("last_drive_fault is nil on success", fault == nil)
+  ok("drive_is_complete() true", hub:drive_is_complete())
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: done(success=false) transitions active -> error ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 11 })
+  hub:send_drive_packet(pkts[1])
+  hub:on_drive_ack(11, "ok")
+
+  local applied = hub:on_drive_done(11, false, "wall_lost")
+  ok("on_drive_done returned true", applied)
+  local s, _, fault = hub:drive_state_get()
+  ok("state = drive_error", s == "drive_error")
+  ok("last_drive_fault preserves reason", fault == "wall_lost")
+  ok("drive_is_complete() true on error", hub:drive_is_complete())
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: ack with non-ok status -> error ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 22 })
+  hub:send_drive_packet(pkts[1])
+
+  local applied = hub:on_drive_ack(22, "rejected")
+  ok("on_drive_ack returned true", applied)
+  local s, _, fault = hub:drive_state_get()
+  ok("state = drive_error", s == "drive_error")
+  ok("fault carries status",
+     fault == "drive_ack_status=rejected", "got " .. tostring(fault))
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: mismatched packet_id ignored ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 100 })
+  hub:send_drive_packet(pkts[1])
+
+  ok("ack for wrong packet_id returns false",
+     hub:on_drive_ack(999, "ok") == false)
+  ok("state unchanged after wrong-id ack",
+     hub:drive_state_get() == "drive_wait_ack")
+
+  ok("done for wrong packet_id returns false",
+     hub:on_drive_done(999, true, nil) == false)
+  ok("state still wait_ack after wrong-id done",
+     hub:drive_state_get() == "drive_wait_ack")
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: duplicate-send guard ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 200 })
+  hub:send_drive_packet(pkts[1])
+
+  expect_error("send while wait_ack errors", function()
+    hub:send_drive_packet(pkts[1])
+  end, "already in flight")
+
+  hub:on_drive_ack(200, "ok")
+  expect_error("send while active errors", function()
+    hub:send_drive_packet(pkts[1])
+  end, "already in flight")
+
+  -- After done, send is allowed again (state moves to wait_ack)
+  hub:on_drive_done(200, true, nil)
+  -- different packet_id this time
+  pkts[1].packet_id = 201
+  local rid = hub:send_drive_packet(pkts[1])
+  ok("send after done reuses transport", rid == 201)
+
+  -- After error, send is also allowed (drive_clear not strictly
+  -- required, but mirrored behavior).
+  hub:drive_clear()
+  hub:send_drive_packet(pkts[1])  -- back into wait_ack
+  hub:on_drive_ack(201, "rejected")  -- drives to error
+  pkts[1].packet_id = 202
+  ok("send after error allowed", pcall(hub.send_drive_packet, hub, pkts[1]))
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: drive_clear resets state ==")
+------------------------------------------------------------------------
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 300 })
+  hub:send_drive_packet(pkts[1])
+  hub:on_drive_ack(300, "ok")
+  hub:on_drive_done(300, true, nil)
+
+  hub:drive_clear()
+  local s, pid, fault = hub:drive_state_get()
+  ok("drive_clear -> drive_idle", s == "drive_idle")
+  ok("drive_clear -> packet_id nil", pid == nil)
+  ok("drive_clear -> fault nil", fault == nil)
+end
+
+------------------------------------------------------------------------
+print()
+print("== C3a: timeout via tick() -> _check_drive_timeouts ==")
+------------------------------------------------------------------------
+
+do
+  -- We can't wait 5s in a unit test; force the deadline by reaching
+  -- into the instance and rewinding pending_drive_deadline. This is
+  -- white-box but the only way to exercise the timeout path without
+  -- a clock-injecting refactor.
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 400 })
+  hub:send_drive_packet(pkts[1])
+  hub.pending_drive_deadline = os.time() - 1   -- already expired
+
+  hub:tick()   -- runs _check_drive_timeouts
+  local s, _, fault = hub:drive_state_get()
+  ok("tick after expiry: state = drive_error", s == "drive_error")
+  ok("ack timeout fault recorded",
+     fault == "drive_ack_timeout", "got " .. tostring(fault))
+end
+
+do
+  local tx = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local pkts = rb.build_drive_packets({"n1", "n2"}, FIXTURE_GRAPH,
+    { packet_id_start = 500 })
+  hub:send_drive_packet(pkts[1])
+  hub:on_drive_ack(500, "ok")    -- now in drive_active
+  hub.pending_drive_deadline = os.time() - 1
+
+  hub:tick()
+  local s, _, fault = hub:drive_state_get()
+  ok("active timeout: state = drive_error", s == "drive_error")
+  ok("done timeout fault recorded",
+     fault == "drive_done_timeout", "got " .. tostring(fault))
 end
 
 ------------------------------------------------------------------------
