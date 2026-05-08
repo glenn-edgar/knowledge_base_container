@@ -102,7 +102,9 @@ if ok_build then
   ok("dock_3 has kb_ref",    out.nodes[3].kb_ref ~= nil)
   ok("transit_a no kb_ref",  out.nodes[2].kb_ref == nil)
   ok("region copied (4 pts)", #out.region == 4)
-  ok("path_tree placeholder for C2", out.path_tree == nil)
+  -- Edges have a `path` field (nil for C1-style edges with no path
+  -- = {...} declared); C2 fills in the folded path tree.
+  ok("edge[1].path nil (C1-style)", out.edges[1].path == nil)
 end
 
 ------------------------------------------------------------------------
@@ -184,12 +186,19 @@ expect_error("edge to undeclared node", function()
   b:build()
 end, "is not a declared node")
 
-expect_error("edge unknown field (path = {} early)", function()
+expect_error("edge with empty path = {} rejected", function()
   local b = fresh_board()
   b:add_node{ name = "n1", x = 1, y = 1 }
   b:add_node{ name = "n2", x = 2, y = 2 }
   b:add_edge{ from = "n1", to = "n2", path = {} }
-end, "path = {...} support lands in C2")
+end, "is empty -- omit the field")
+
+expect_error("edge with bonus_field rejected", function()
+  local b = fresh_board()
+  b:add_node{ name = "n1", x = 1, y = 1 }
+  b:add_node{ name = "n2", x = 2, y = 2 }
+  b:add_edge{ from = "n1", to = "n2", bonus = 1 }
+end, "unknown field")
 
 ------------------------------------------------------------------------
 print()
