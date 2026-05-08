@@ -76,6 +76,9 @@ function M.new(opts)
     self.site            = opts.site            or error("sequencer: site required")
     self.system_name     = opts.system_name     or error("sequencer: system_name required (threaded from action_server opts)")
     self.own_instance_id = opts.own_instance_id or error("sequencer: own_instance_id required (threaded from action_server opts)")
+    -- Phase 5 C4: tenant identifier; defaults to own_instance_id when
+    -- caller didn't supply one (single-tenant deployments).
+    self.planner_namespace = opts.planner_namespace or self.own_instance_id
     self.mission_id      = opts.mission_id      or error("sequencer: mission_id required (JobQueue job.id; threaded from action_server)")
     self.board_name      = opts.board_name      or error("sequencer: board_name required (for drift-detection hook)")
     self.board_sha256    = opts.board_sha256    or error("sequencer: board_sha256 required (captured by global_planner; pinned for drain-then-flip policy)")
@@ -98,17 +101,18 @@ function M.new(opts)
 
     -- Initialize hub runtime (state machine, no ChainTree)
     self.hub_rt = hub_runtime.new({
-        robot_id         = self.robot_id,
-        pg_conn          = pg_conn,
-        site             = self.site,
-        system_name      = self.system_name,
-        own_instance_id  = self.own_instance_id,
-        initial_pose     = opts.initial_pose or
+        robot_id          = self.robot_id,
+        pg_conn           = pg_conn,
+        site              = self.site,
+        system_name       = self.system_name,
+        own_instance_id   = self.own_instance_id,
+        planner_namespace = self.planner_namespace,
+        initial_pose      = opts.initial_pose or
             { x = 0, y = 0, z = 0, heading = 0, arm_angle = 0 },
-        energy_max       = opts.energy_max,
-        energy_remaining = opts.energy_remaining,
-        transport        = transport,
-        mqtt_hub         = self.mqtt_hub,
+        energy_max        = opts.energy_max,
+        energy_remaining  = opts.energy_remaining,
+        transport         = transport,
+        mqtt_hub          = self.mqtt_hub,
     })
 
     -- Initialize mission telemetry

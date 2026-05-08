@@ -172,12 +172,15 @@ local pg_conn = {
 local action_srv = nil
 if ok_as and nats_info then
     local nats_url = string.format("nats://%s:%d", nats_info.host, nats_info.port)
+    -- Phase 5 C4: pass planner_namespace from env if set; otherwise
+    -- action_server falls back to own_instance_id (single-tenant).
     local ok_inst, srv_or_err = pcall(action_server.new, {
-        pg_conn         = pg_conn,
-        site            = APP_SITE,
-        system_name     = APP_SYSTEM,
-        own_instance_id = CONTAINER_NAME,
-        nats_server     = nats_url,
+        pg_conn           = pg_conn,
+        site              = APP_SITE,
+        system_name       = APP_SYSTEM,
+        own_instance_id   = CONTAINER_NAME,
+        nats_server       = nats_url,
+        planner_namespace = os.getenv("PLANNER_NAMESPACE"),
     })
     if ok_inst then
         action_srv = srv_or_err

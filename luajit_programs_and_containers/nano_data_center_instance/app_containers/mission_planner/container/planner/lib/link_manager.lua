@@ -58,6 +58,11 @@ function M.new(mqtt_hub, kv_writer, site, opts)
         mqtt_hub  = mqtt_hub,
         kv_writer = kv_writer,
         site      = site,
+        -- Phase 5 C4: tenant identifier. Future per-tenant filtering
+        -- (only register robots whose KB row says they belong to this
+        -- planner_namespace) lands with Phase 6/7 fixtures. For now
+        -- it's threaded but stored only.
+        planner_namespace = opts.planner_namespace,
         -- Per-robot state
         robots = {},
         -- Planner heartbeat timer and sequence
@@ -70,6 +75,11 @@ function M.new(mqtt_hub, kv_writer, site, opts)
         -- Callback for any link state change (live, offline, stale)
         on_link_change = opts.on_link_change,
     }, M)
+end
+
+--- Phase 5 C4: tenant identifier this link_manager is scoped to.
+function M:get_planner_namespace()
+    return self.planner_namespace
 end
 
 ---------------------------------------------------------------------------

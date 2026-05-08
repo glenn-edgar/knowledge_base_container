@@ -74,7 +74,14 @@ local FALLBACK_ROBOT_CLASSES = {
 -- Constructor / teardown
 ---------------------------------------------------------------------------
 
-function M.new(pg_conn, system_name, site, own_instance_id)
+-- @param planner_namespace  optional 5th arg (Phase 5 C4). Tenant
+--   identifier scoping which boards / robots / virtual nodes this
+--   planner instance owns. Defaults to own_instance_id when not
+--   provided so the single-tenant call sites keep working unchanged.
+--   Multi-tenant query scoping (the consumer of this field) lands
+--   with Phase 6/7 fixtures; for now it's threaded through but only
+--   stored.
+function M.new(pg_conn, system_name, site, own_instance_id, planner_namespace)
     assert(type(pg_conn) == "table",
            "kb_query.new: pg_conn must be a table " ..
            "{host, port, dbname, user, password}")
@@ -95,10 +102,11 @@ function M.new(pg_conn, system_name, site, own_instance_id)
     local self = setmetatable({}, M)
     -- KBM.new(table_name, connection_params, upload_flag)
     -- upload_flag=true -> read-only mode (skip table creation).
-    self.kb              = KBM.new("knowledge_base", pg_conn, true)
-    self.system_name     = system_name
-    self.site            = site
-    self.own_instance_id = own_instance_id
+    self.kb                = KBM.new("knowledge_base", pg_conn, true)
+    self.system_name       = system_name
+    self.site              = site
+    self.own_instance_id   = own_instance_id
+    self.planner_namespace = planner_namespace or own_instance_id
     return self
 end
 
@@ -341,6 +349,13 @@ end
 ---------------------------------------------------------------------------
 -- PLANNER runtime state (own anchor)
 ---------------------------------------------------------------------------
+
+--- Phase 5 C4: tenant identifier this kb_query is scoped to.
+-- Defaults to own_instance_id when caller didn't supply one. Future
+-- query methods (get_my_robots, list_my_boards) will scope by this.
+function M:get_planner_namespace()
+    return self.planner_namespace
+end
 
 function M:get_planner_state()
     -- runtime.planner.KB_STATUS_FIELD.state -- written by the planner worker

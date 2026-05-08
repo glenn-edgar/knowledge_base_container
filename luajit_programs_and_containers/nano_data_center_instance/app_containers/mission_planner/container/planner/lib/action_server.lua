@@ -96,6 +96,18 @@ function M.new(opts)
     self.use_drive_v2 = (opts.use_drive_v2 == true)
                      or env_flag == "1" or env_flag == "true"
 
+    -- Phase 5 C4: tenant identifier (planner_namespace). Multiple
+    -- planner instances may run on one site; this field scopes which
+    -- boards / robots / virtual nodes belong to this instance. Threaded
+    -- through to kb_query (5th positional arg) and link_manager (opts)
+    -- below. Defaults to own_instance_id when not supplied so existing
+    -- single-tenant deployments behave unchanged.
+    -- Sources (priority order): opts.planner_namespace, env
+    -- PLANNER_NAMESPACE, fallback to own_instance_id.
+    self.planner_namespace = opts.planner_namespace
+                          or os.getenv("PLANNER_NAMESPACE")
+                          or self.own_instance_id
+
     -- MQTT transport (optional — for MQTT-first architecture)
     self.mqtt_hub  = opts.mqtt_hub
     -- Active missions: { robot_id = { coroutine, result, state } }
@@ -116,7 +128,8 @@ function M.new(opts)
     -- Discover initial board node (first node in first board — "node 0")
     self._init_node = nil
     pcall(function()
-        local q = kb_query_mod.new(self.pg_conn, self.system_name, self.site, self.own_instance_id)
+        local q = kb_query_mod.new(self.pg_conn, self.system_name,
+            self.site, self.own_instance_id, self.planner_namespace)
         local boards = q:list_boards()
         if boards[1] then
             local board_data = q:get_board(boards[1])
@@ -132,6 +145,7 @@ function M.new(opts)
         local kv_writer = opts.kv_writer or kv_writer_mod.new()
         self._link_kv_writer = kv_writer
         self.link_mgr = link_manager_mod.new(self.mqtt_hub, kv_writer, self.site, {
+            planner_namespace = self.planner_namespace,
             on_link_exception = function(robot_id, reason)
                 self:_cancel_mission(robot_id, reason)
             end,
@@ -243,6 +257,12 @@ end
 -- Status queries
 ---------------------------------------------------------------------------
 
+--- Phase 5 C4: tenant identifier this action_server is scoped to.
+-- Defaults to own_instance_id when no opt / env var supplied.
+function M:get_planner_namespace()
+    return self.planner_namespace
+end
+
 function M:get_mission_status(robot_id)
     self:_ensure_nats()
     local val = self._ks:get(self.site .. ".action_server." .. robot_id .. ".status")
@@ -293,7 +313,8 @@ function M:_make_mission_coroutine(mission_cmd)
         local energy_rate = 1.0
         local energy_infinite = false
         if class_name then
-            local kb_q = kb_query_mod.new(srv.pg_conn, srv.system_name, srv.site, srv.own_instance_id)
+            local kb_q = kb_query_mod.new(srv.pg_conn, srv.system_name,
+                srv.site, srv.own_instance_id, srv.planner_namespace)
             capabilities = kb_q:get_class_capabilities(class_name)
             operation_types = kb_q:get_class_operation_types(class_name)
             energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -456,20 +477,21 @@ function M:_make_mission_coroutine(mission_cmd)
         local mission_id = mission_cmd.mission_id
             or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
         local seq = sequencer_mod.new({
-            robot_id        = robot_id,
-            pg_conn         = srv.pg_conn,
-            nats_server     = srv.nats_server,
-            site            = srv.site,
-            system_name     = srv.system_name,
-            own_instance_id = srv.own_instance_id,
-            mission_id      = mission_id,
-            board_name      = board,
-            board_sha256    = planner:get_board_sha256(),
-            capabilities    = capabilities,
-            tick_usleep     = 0,  -- no sleep — scheduler controls timing
-            energy_max       = energy_max,
-            energy_remaining = energy_remaining,
-            mqtt_hub         = srv.mqtt_hub,
+            robot_id          = robot_id,
+            pg_conn           = srv.pg_conn,
+            nats_server       = srv.nats_server,
+            site              = srv.site,
+            system_name       = srv.system_name,
+            own_instance_id   = srv.own_instance_id,
+            planner_namespace = srv.planner_namespace,
+            mission_id        = mission_id,
+            board_name        = board,
+            board_sha256      = planner:get_board_sha256(),
+            capabilities      = capabilities,
+            tick_usleep       = 0,  -- no sleep — scheduler controls timing
+            energy_max        = energy_max,
+            energy_remaining  = energy_remaining,
+            mqtt_hub          = srv.mqtt_hub,
         })
 
         srv:_publish_status(robot_id, {
@@ -1141,7 +1163,8 @@ function M:execute_mission(mission_cmd)
     local energy_rate = 1.0
     local energy_infinite = false
     if class_name then
-        local kb_q = kb_query_mod.new(self.pg_conn, self.system_name, self.site, self.own_instance_id)
+        local kb_q = kb_query_mod.new(self.pg_conn, self.system_name,
+            self.site, self.own_instance_id, self.planner_namespace)
         capabilities = kb_q:get_class_capabilities(class_name)
         operation_types = kb_q:get_class_operation_types(class_name)
         energy_max = kb_q:get_class_energy_max(class_name) or 0
@@ -1211,20 +1234,21 @@ function M:execute_mission(mission_cmd)
     local mission_id = mission_cmd.mission_id
         or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
     local seq = sequencer_mod.new({
-        robot_id        = robot_id,
-        pg_conn         = self.pg_conn,
-        nats_server     = self.nats_server,
-        site            = self.site,
-        system_name     = self.system_name,
-        own_instance_id = self.own_instance_id,
-        mission_id      = mission_id,
-        board_name      = board,
-        board_sha256    = planner:get_board_sha256(),
-        capabilities    = capabilities,
-        energy_max       = energy_max,
-        energy_remaining = energy_remaining,
-        mqtt_hub         = self.mqtt_hub,
-        kv_writer        = self.kv_writer,
+        robot_id          = robot_id,
+        pg_conn           = self.pg_conn,
+        nats_server       = self.nats_server,
+        site              = self.site,
+        system_name       = self.system_name,
+        own_instance_id   = self.own_instance_id,
+        planner_namespace = self.planner_namespace,
+        mission_id        = mission_id,
+        board_name        = board,
+        board_sha256      = planner:get_board_sha256(),
+        capabilities      = capabilities,
+        energy_max        = energy_max,
+        energy_remaining  = energy_remaining,
+        mqtt_hub          = self.mqtt_hub,
+        kv_writer         = self.kv_writer,
     })
 
     print(string.format("Mission: %s on %s, %d stops, %d actions (cost=%d, energy=%d/%d)",
