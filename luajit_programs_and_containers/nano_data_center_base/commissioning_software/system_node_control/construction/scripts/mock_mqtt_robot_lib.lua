@@ -82,6 +82,44 @@ function M.make_kb_done_failure(cmd, fault_reason, energy_remaining)
 end
 
 ---------------------------------------------------------------------------
+-- Phase 5 drive-packet wire path (cmd_drive_t).
+--
+-- Simulator response factories: per-packet ACK + per-packet completion
+-- keyed on packet_id. The planner's hub_runtime drive-packet state
+-- machine consumes these via _process_stream when type matches
+-- "drive_ack" or "drive_done".
+--
+-- Wire format choice: response is JSON (symmetric with legacy ack /
+-- kb_done responses; the asymmetry is intentional -- only the OUTBOUND
+-- command direction is CBOR for the new path. mqtt_hub_transport's
+-- per-robot wire_format applies to outbound only).
+---------------------------------------------------------------------------
+
+function M.make_drive_ack(packet_id, status)
+    return dkjson.encode({
+        type      = "drive_ack",
+        packet_id = packet_id,
+        status    = status or "ok",
+        ts        = iso_now(),
+    })
+end
+
+function M.make_drive_done(packet_id, success, fault_reason, delta_pose)
+    delta_pose = delta_pose or {}
+    return dkjson.encode({
+        type            = "drive_done",
+        packet_id       = packet_id,
+        success         = success and true or false,
+        fault_reason    = (not success) and (fault_reason or "synthetic_fault") or nil,
+        delta_x         = delta_pose.x         or 0,
+        delta_y         = delta_pose.y         or 0,
+        delta_heading   = delta_pose.heading   or 0,
+        delta_arm_angle = delta_pose.arm_angle or 0,
+        ts              = iso_now(),
+    })
+end
+
+---------------------------------------------------------------------------
 -- Link-handshake state machine
 --
 -- States:  init → registering → live → disconnected

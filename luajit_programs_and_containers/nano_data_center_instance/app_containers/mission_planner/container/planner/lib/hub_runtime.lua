@@ -419,6 +419,22 @@ function M:_process_stream()
             self:_on_heartbeat(msg)
         elseif msg_type == "kb_done" then
             self:_on_kb_done(msg)
+        elseif msg_type == "drive_ack" then
+            -- Phase 3a: route per-packet ACK into the drive state
+            -- machine. Mismatched packet_id is silently ignored
+            -- (returns false from on_drive_ack); stale messages are
+            -- normal in pubsub.
+            self:on_drive_ack(msg.packet_id, msg.status)
+        elseif msg_type == "drive_done" then
+            -- Phase 3a: route per-packet completion. Update hub_control
+            -- pose with the delta carried by the simulator (mirrors
+            -- legacy _on_kb_done's apply_delta_pose).
+            if msg.delta_x or msg.delta_y or msg.delta_heading
+               or msg.delta_arm_angle then
+                self.hub_control:apply_delta_pose(self.bb, msg)
+            end
+            self:on_drive_done(msg.packet_id, msg.success,
+                msg.fault_reason)
         end
 
         ::continue::
