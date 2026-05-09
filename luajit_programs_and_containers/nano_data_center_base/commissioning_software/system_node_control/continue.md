@@ -1,92 +1,99 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-10 — Cluster smoke GREEN. Pipeline validated end-to-end.
+## State at end of 2026-05-10 EOD
 
-Four commits this session on top of yesterday evening's 5. **29 commits
-ahead of origin/master**, **647 host-side tests green** (db test +1
-for resolver regression guard).
+**33 commits ahead of origin/master**, **743 host-side tests green**.
 
-**Cluster smoke (5 min) GREEN 2026-05-10 evening:**
-- container rebuilt + recreated with this session's image
-- heartbeat tick 1 → 60 over 295s = 5.00s/tick (on_tick wall-time gating verified)
-- 2 missions submitted via /api/submit_mission → drained → fail-stopped
-  cleanly with `board_not_found` (no boards in file_store; expected)
-- /api/missions / /api/mission/<robot> returned correct envelopes
-- validation paths green (400 / 405)
-- ZERO error/warn lines in 5 min of container logs
-- **One bug surfaced + patched mid-smoke**: pgmoon over cosocket needs
-  nginx `resolver` directive; without it `/api/boards` returned 503
-  with "no resolver defined to resolve host.docker.internal". Fixed
-  in nginx.conf; regression-guarded in `test_planner_ui_db.lua`. New
-  feedback memory: `feedback_openresty_cosocket_resolver.md`.
+Eight commits this session:
 
-This session's commits:
-- `15769083` **5b C5** — mission launcher (FFI direct enqueue)
-- `1e6fe410` **5b C6** — mission status overlay (FFI direct status reads + 2s polling)
-- (this-session) **Worker hookup** — main.lua now drives
-  `action_server:serve({drain_nats=true, on_tick=heartbeat})`. Old
-  log-only `drain_observer` removed; `on_tick` callback added to
-  action_server:serve as the heartbeat hook. Heartbeat-only fallback
-  preserved for degraded mode (NATS unreachable). +20 new
-  worker-hookup tests.
+| # | Commit | Phase | What |
+|---|---|---|---|
+| 1 | `15769083` | 5b C5 | mission launcher (FFI direct enqueue) |
+| 2 | `1e6fe410` | 5b C6 | mission status overlay (FFI direct + 2s polling) |
+| 3 | `0049c6bf` | Worker hookup | main.lua drives action_server:serve + on_tick heartbeat |
+| 4 | `64dff82f` | Cluster fix | nginx resolver directive (surfaced by 5-min smoke) |
+| 5 | `c0189fe4` | 7 C1 | migration script (drop+rebuild prep) |
+| 6 | `0425194e` | 7 C2 | kb_build per-tenant paths + validator REJECT catalog |
+| 7 | `2d2c197f` | 7 C3 | action_server per-tenant NATS bucket + key/subject |
+| 8 | `38897e8b` | 7 C4 | planner_ui per-tenant scoping (submit + status + db) |
+| 9 | (this session) | ROBSIM C1 | robots.lua kb_build subsystem + ctx.ROBOTS enumeration; closes the robot-model gap from a constructive direction (data layer first; container + cluster smoke land in C2/C3) |
 
-### What this means operationally
+Plus the locked 8-question Phase 7 design (`project_phase7_multitenant_design.md`).
 
-The four planner_ui surfaces shipped today now have live data sources:
+## Honest assessment for tomorrow (push-back, not rubber-stamp)
 
-| UI piece | Backed by | Was previously |
+Three things I want flagged before tomorrow's plan locks:
+
+### 1. The running cluster is 4 commits stale.
+
+`mission_planner_01` was rebuilt + restarted today for the 5b C5/C6/hookup smoke
+(commit `64dff82f` resolver fix included). Phase 7 C1-C4 (commits `c0189fe4`,
+`0425194e`, `2d2c197f`, `38897e8b`) **are not running on the cluster**. We
+have great host-side test coverage, but per the 5b smoke pattern (host green
+→ cluster surfaced resolver gap), validation in the cluster matters
+disproportionately.
+
+**Recommendation**: Step A tomorrow = rebuild + restart + 5-min smoke against
+C1-C4, BEFORE landing C5. If anything surfaces, fix in place; only then
+proceed to C5. Compounding more code on top of unvalidated code is the kind
+of band-aid pattern `feedback_no_band_aid_over_architecture.md` warns
+against.
+
+### 2. C5 (gateway routing) in isolation is theatrical.
+
+The design memo's C5 says "gateway per-tenant routing" — but the cluster
+has ONE planner instance (`mission_planner_01`). Routing by tenant when
+there's one tenant is config that does nothing observable. The Phase 7
+test scenarios in the plan memo all assume planner_A vs planner_B —
+two tenants.
+
+**Recommendation**: bundle C5 + "add `mission_planner_02` to topology with
+`planner_namespace = 'tunnel_ops'`" into one commit. Then the gateway
+routing has something real to route to, and the C6 cluster smoke can
+exercise the six scenarios from the plan memo (cross-tenant rejection,
+both planners using the same shared dock, isolation, etc).
+
+### 3. The robot model gap is bigger than my C3 TODO suggests.
+
+Phase 7 schema places robots at `system.<sys>.site.<S>.planner.<ns>.robots.<id>`.
+Today: zero robot rows in the KB, no `robots.lua` subsystem in
+`construction/subsystems/`, no robot publisher, no robot UI consumer. The
+launcher accepts any `robot_id` string; the worker fails on
+`board_not_found` before robot validation fires (5b smoke proved this).
+
+So Phase 7 ships the *capacity* for tenant-scoped robot ownership but
+doesn't *test* it. That's fine as a v1, but it means the migration script
+wipes nothing on the robot side (because nothing exists), the validator's
+REJECT catalog has no real cross-tenant robot ref to reject, and C6 smoke
+will only cover "two planners with empty robot fleets."
+
+**Recommendation**: defer a `robots.lua` subsystem + a minimal robot
+publisher to a sibling phase (call it Phase 7.5 or "robot model"). It's
+real work, not just an adjustment to existing code. Don't sneak it into
+C5 just to have something to test.
+
+## Tomorrow's recommended sequence
+
+| Step | What | Outcome |
 |---|---|---|
-| Board picker / SVG topology / drill-down | pgmoon → file_store boards | already live |
-| "Submit mission" launcher | FFI → JobQueue | enqueued to dead-letter |
-| Mission status cards / detail | FFI → KV summary + per-robot keys | always empty |
-| /health, /__info__ | static | already live |
+| A | Rebuild `nanodatacenter/mission-planner:latest` + restart `mission_planner_01` (per recipe below). Run a 5-min smoke validating C1-C4 doesn't break the existing single-tenant flow. Migration script: don't apply yet — current cluster has only smoke artifacts in the deprecated bucket; new container will create the new per-tenant bucket on first publish; old bucket can age out manually. | Validates C1-C4 in cluster. Catches any cluster-only gaps. |
+| B | Bundled C5: add `mission_planner_02` to topology (`planner_namespace = "tunnel_ops"`, ports `ui = 19009`), gateway adds `/planner/<ns>/*` routing to both planner_uis. Includes its tests. | Two-tenant cluster ready. |
+| C | C6 cluster smoke: launch missions in both planners; verify isolation (planner_A's mission only visible in planner_A's UI); verify cross-tenant kb_ref rejection at compile time using a fixture board. | Phase 7 e2e validation. |
+| D | After C5+C6 green: rewrite continue.md again, decide between (1) Phase 7+ robot model, (2) matplotlib viewer, (3) node-properties authoring, or (4) pause. | Honest re-prioritization. |
 
-Until this commit, the launcher's enqueued missions sat unconsumed
-because `main.lua` had only a "log-only observer" that claimed jobs
-and immediately marked them `logged_only` without dispatching. After
-the hookup, action_server's coroutine scheduler runs the missions and
-publishes status keys that the C6 panel can read.
+If you want to deviate from this sequence:
+- **Skip A** (rebuild+smoke) → faster but riskier; if Phase 7 introduces a cluster bug, it surfaces later mixed with whatever C5 adds. Not recommended.
+- **Skip B's bundling** (do C5 alone) → C5 ships as config nobody exercises; C6 needs a second planner anyway and has to add it then. Pointless detour.
+- **Tackle robot model first** → real work; 1+ session. Defers Phase 7 close-out. Worth doing if "tenant ownership of robots" is the actual operator value, not "tenant ownership of boards."
 
-### Design — locked across C5 + C6 + worker hookup
-
-**Option-4 FFI pattern (planner_ui side):** planner_ui's nginx
-FFI-loads the planner worker's NATS wrappers directly. Same container,
-same `/usr/local/lib/`, same `ldconfig` graph. Works for both submit
-(JobQueue) and read (KeyStore) paths. Cost is a brief synchronous
-worker freeze per call (~1-5ms localhost NATS).
-
-**on_tick hook (worker side):** `action_server:serve(opts)` now
-accepts `opts.on_tick = function(cycle_idx)` — fires once per
-scheduler cycle, before link/drain/resume work. Errors caught via
-pcall so a transient pg blip in a heartbeat handler doesn't take
-down mission execution. main.lua passes a closure that wall-time-
-gates the heartbeat to once every 5s regardless of action_server's
-2-50ms tick rate.
-
-### Architectural references
+## Architectural references
 
 1. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_active_node_contract.md` — the architecture
-2. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_implementation_plan.md` — phased plan (5b 6/6 + worker hookup done)
+2. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_implementation_plan.md` — phased plan (Phase 7 C1-C4 done; C5+C6 next)
 3. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_team_scope.md` — scope boundary
-4. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_v2_board_dsl_design.md` — DSL skeleton
+4. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_phase7_multitenant_design.md` — full 8-Q Phase 7 spec + C1-C4 status
 
-### All recent commits (yesterday + today)
-
-| Commit | Phase | What |
-|---|---|---|
-| `2aa36b4d` | 3a C1 | drive-packet round-trip via simulator |
-| `c2823ab4` | 5 C5 prep | mission+simulator integration test |
-| `a4108970` | 5 C5 prep | mission_builder.rebuild forwards use_drive_v2 |
-| `538c6fec` | 5 C5 main | drive_v2 default + PLANNER_LEGACY_NAV escape hatch |
-| `4bcef7d5` | 5b C1 | planner_ui chassis |
-| `bc8026f1` | 5b C2 | read API |
-| `a959f616` | 5b C3 | SVG L1 topology |
-| `b2cc4051` | 5b C4 | SVG L2 drill + popup |
-| `15769083` | 5b C5 | mission launcher (FFI direct enqueue) |
-| `1e6fe410` | 5b C6 | mission status overlay (FFI direct + 2s polling) |
-| (this-session) | Worker hookup | main.lua drives action_server:serve + on_tick |
-
-### Aggregate test counts (host-side)
+## Aggregate test counts (host-side)
 
 | Phase | Tests passing |
 |---|---|
@@ -94,105 +101,47 @@ gates the heartbeat to once every 5s regardless of action_server's
 | Phase 2 (drive packet round-trip) | 39/39 |
 | Phase 4 (board DSL C1-C4) | 125/125 |
 | Phase 5 C1 route_builder | 29/29 |
-| Phase 5 C2 + C3a hub_runtime ACK | 54/54 |
+| Phase 5 C2+C3a hub_runtime ACK | 54/54 |
 | Phase 5 C3b drive_v2 dispatch | 34/34 |
 | Phase 5 C4 namespace + C5 default flip | 20/20 |
 | Phase 3a C1 simulator round-trip | 34/34 |
 | Phase 5 C5 prep mission+simulator integration | 28/28 |
-| Phase 5b C1 planner_ui chassis | 19/19 |
-| Phase 5b C2 db | 32/32 |
+| Phase 5b C1 chassis | 19/19 |
+| Phase 5b C2 db (now per-tenant) | 34/34 |
 | Phase 5b C3+C4+C5+C6 renderer | 137/137 |
-| Phase 5b C5 submit_mission | 50/50 |
-| Phase 5b C6 status | 44/44 |
-| **Worker hookup (this session)** | **20/20** |
-| **Total** | **646/646 host-side** |
+| Phase 5b C5 submit_mission (now per-tenant) | 51/51 |
+| Phase 5b C6 status (now per-tenant) | 45/45 |
+| Worker hookup | 20/20 |
+| Phase 7 C1 migration script | 38/38 |
+| Phase 7 C2 board_dsl validator + boards.lua | 28/28 |
+| Phase 7 C3 action_server | 27/27 |
+| **Total** | **743/743 host-side** |
 
-### Cluster smoke — STILL queued (now covers full pipeline)
-
-Per `feedback_user_driven_testing.md`, you run; I analyze.
-
-```bash
-# 1. Build planner container with today's code.
-cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_instance/app_containers/mission_planner
-./build.sh
-
-# 2. Bring up planner with default config.
-docker compose up mission_planner_01
-
-# 3. Watch planner stderr -- should see:
-#    "entering action_server:serve(drain_nats=true) -- mission ..."
-#    NOT the old "logged_only" drain_observer messages.
-docker logs -f mission_planner_01 | grep -E 'serve|heartbeat'
-
-# 4. Open planner_ui in a browser at port 8090. Verify each:
-#    a-f. as before (board picker, L1, L2, popup, Esc, etc.)
-#    g.   launch a mission via the launcher -> green toast "queued: <id>"
-#    h.   status panel populates within 2s with the running mission card
-#    i.   click the card -> per-robot detail expands
-#    j.   when mission completes, status shows complete + result detail
-#    k.   tab away + back -> polling resumes
-#
-#    KEY DIFFERENCE FROM YESTERDAY: status panel now shows real data
-#    (not perpetually empty).
-
-# 5. NATS-KV inspection:
-docker exec mission_planner_01 nats kv ls
-docker exec mission_planner_01 nats kv watch <site>_action_server '$KV.<bucket>.>'
-# expect: summary + <robot>.status keys updating; on completion, .result key
-
-# 6. Drive-v2 wire-format check on MQTT side:
-mosquitto_sub -h <mqtt_host> -t 'moonbase/+/+/robots/+/rpc' -v &
-# launch mission via UI -> CBOR payloads, ONE per polyline edge.
-
-# 7. Rollback test: stop, set PLANNER_LEGACY_NAV=1, restart, resubmit.
-
-# 8. Heartbeat continuity: confirm runtime.heartbeat row updates every
-#    5s in pg even while a mission runs (on_tick wall-time gating).
-psql -c "SELECT path, kb_status_field FROM knowledge_base
-         WHERE path::text LIKE '%runtime.heartbeat%' LIMIT 5;"
-```
-
-### Remaining planner work
-
-| Phase | Status | Sub-commits | Dependencies |
-|---|---|---|---|
-| Phase 7 design session (8 questions) | ✅ **LOCKED 2026-05-10** | — | See `project_phase7_multitenant_design.md` |
-| Phase 7 C1 — migration script | ✅ **DONE 2026-05-10** | `c0189fe4` | dry-run validated on live cluster |
-| Phase 7 C2 — kb_build per-tenant paths + validator | ✅ **DONE 2026-05-10** | `0425194e` | 28 new tests; existing c3 fixed to pass planner_namespace |
-| Phase 7 C3 — action_server.lua bucket+key changes | ✅ **DONE 2026-05-10** | `2d2c197f` | 27 new tests; per-tenant `_action_server_prefix` injected into every publisher / claim_job / submit_nats |
-| Phase 7 C4 — planner_ui submit/status/db per-tenant | ✅ **DONE 2026-05-10** | this session | submit + status + db per-tenant scoping; PLANNER_NAMESPACE required (clear fail-fast error). +3 tests in existing planner_ui suite. 743 host-side tests. |
-| Phase 7 C5 — gateway per-tenant routing | queued | ~1 | C4 |
-| Phase 7 C6 — Phase 7 cluster smoke | queued (user-driven) | smoke | C5 |
-| 5 C5 follow-up (delete legacy nav code) | UNGATED — smoke green; safe to land | ~2-3 | none |
-| Open items per user direction (matplotlib viewer, node-properties authoring) | queued post-Phase-7 | tbd | tbd |
-
-That's it. After today, the planner team's wire-out + UI + worker
-backend is end-to-end functional. Multi-tenant (Phase 7) is the only
-substantive remaining planner-team work; the cluster smoke + 5 C5
-follow-up legacy-delete is mostly cleanup.
-
-### Quick start tomorrow
+## Quick start tomorrow
 
 ```bash
 cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control
 
-git log --oneline -15
+git log --oneline -10
 git status
 
-# Re-run host-side smoke (~30s total)
+# Re-run host-side smoke (~30s total, all should be green)
 luajit construction/tests/test_planner_phase1_catalog.lua            # 20/20
 luajit construction/tests/board_dsl/test_board_dsl_c1.lua            # 36/36
 luajit construction/tests/board_dsl/test_board_dsl_c2.lua            # 42/42
 luajit construction/tests/board_dsl/test_board_dsl_c3.lua            # 16/16
 luajit construction/tests/board_dsl/test_board_dsl_c4.lua            # 31/31
+luajit construction/tests/board_dsl/test_board_dsl_c5_phase7.lua     # 28/28
 luajit construction/tests/test_route_builder_drive_packets.lua       # 29/29
 luajit construction/tests/test_drive_v2_dispatch.lua                 # 34/34
 luajit construction/tests/test_planner_namespace_threading.lua       # 20/20
 luajit construction/tests/test_planner_ui_chassis.lua                # 19/19
-luajit construction/tests/test_planner_ui_db.lua                     # 32/32
+luajit construction/tests/test_planner_ui_db.lua                     # 34/34
 luajit construction/tests/test_planner_ui_renderer.lua               # 137/137
-luajit construction/tests/test_planner_ui_submit_mission.lua         # 50/50
-luajit construction/tests/test_planner_ui_status.lua                 # 44/44
+luajit construction/tests/test_planner_ui_submit_mission.lua         # 51/51
+luajit construction/tests/test_planner_ui_status.lua                 # 45/45
+luajit construction/tests/test_migrate_phase7_script.lua             # 38/38
+luajit construction/tests/test_action_server_phase7.lua              # 27/27
 
 PLANNER=../../../nano_data_center_instance/app_containers/mission_planner
 LD_LIBRARY_PATH="$(realpath $PLANNER/container/prebuilt_libs)" \
@@ -209,54 +158,155 @@ LD_LIBRARY_PATH="$(realpath ../prebuilt_libs)" \
   luajit hub_dsl/protocol/test_drive_packet.lua                      # 39/39
 ```
 
-### Operating-mode reminders
-
-- **Commit style**: title like "B.2 Planner Phase X: ...", body with
-  bulleted file-level changes, test counts, design rationale. Trailer:
-  `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
-- **One layer = one commit** per `feedback_holding_commits.md`.
-- **No-soft-faults** rule: every fault halts until explicit reset.
-  (UI submit/status errors are NOT control-system faults — return
-  4xx/5xx and let the operator retry.)
-- **User runs cluster tests**; assistant analyzes pasted logs.
-- **Test isolation**: don't run anything that drops/recreates pg tables against the live cluster.
-- **planner_ui handlers use pgmoon for pg, direct FFI for NATS** (option 4).
-- **Module env-check pattern**: check APP_SITE BEFORE
-  `require("cjson.safe")` so a host shell without cjson doesn't crash
-  on early-exit paths.
-- **action_server:serve on_tick contract**: fires once per cycle,
-  errors caught by pcall, sees the cycle index. Use for heartbeats /
-  watchdogs that must share the scheduler thread without blocking it.
-
-### Rollback recipes
+## Step A — cluster rebuild + smoke recipe
 
 ```bash
-# Undo this session's last commit (worker hookup)
-git reset --hard HEAD~1
+# 1. Rebuild image with all 8 of today's commits
+cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_instance/app_containers/mission_planner/container
+bash ./docker_build.sh
 
-# Undo all 3 of this session's commits (5b C5 + C6 + hookup)
-git reset --hard b2cc4051   # back to "5b C4"
+# 2. Restart mission_planner_01. Note: orchestrator (system_control / node_control)
+#    is NOT running today; recreating manually with full env shape (matches
+#    what node_control would inject, captured from earlier today's smoke).
+docker rm -f mission_planner_01
+docker run -d --name mission_planner_01 \
+  --network planner-net --restart unless-stopped \
+  -p 19005:8090 \
+  -e APP_SYSTEM=moon_base \
+  -e APP_SITE=moon_base_alpha \
+  -e APP_CPU_ID=cpu_02 \
+  -e CONTAINER_NAME=mission_planner_01 \
+  -e PG_HOST=host.docker.internal -e PG_PORT=5432 \
+  -e PG_DB=knowledge_base -e PG_USER=gedgar -e PG_PASSWORD=ready2go \
+  -e NATS_URL=nats://nats-js-ram:4222 \
+  -l nanodatacenter=true \
+  nanodatacenter/mission-planner:latest
 
-# Undo all of yesterday + today's commits (back to morning baseline)
-git reset --hard 41e1e367
+# 3. Watch boot logs for the new "entering action_server:serve" line
+sleep 5
+docker logs --tail 30 mission_planner_01
 
-# Inspect commits
-git show HEAD --stat        # this session: worker hookup
-git show 1e6fe410 --stat    # 5b C6 status overlay
-git show 15769083 --stat    # 5b C5 launcher
+# 4. Hit endpoints. /api/boards SHOULD return empty (zero boards in pg);
+#    /api/missions SHOULD return empty envelope (no per-tenant bucket
+#    exists yet); /api/active_nodes SHOULD work (infrastructure shared).
+curl -s http://localhost:19005/health
+curl -s http://localhost:19005/api/boards         # expect: {count:0, boards:{}}
+curl -s http://localhost:19005/api/missions       # expect: empty envelope
+curl -s http://localhost:19005/api/active_nodes
+
+# 5. Submit a test mission. SHOULD create the per-tenant bucket
+#    moon_base_alpha_planner_mission_planner_01_action_server
+#    (with mission_planner_01 default namespace).
+curl -s -X POST http://localhost:19005/api/submit_mission \
+  -H "Content-Type: application/json" \
+  -d '{"robot_id":"rover_1","board":"landing_zone",
+       "source":"a","target":"b"}'
+# expect: 200 with job_id; queue field shows
+#   "moon_base_alpha.planner.mission_planner_01.action_server.missions"
+
+# 6. Verify the new per-tenant bucket exists in NATS
+docker run --rm --network planner-net natsio/nats-box:latest \
+  nats --server nats://nats-js-ram:4222 kv ls
+# Expect to see: moon_base_alpha_planner_mission_planner_01_action_server
+# Old buckets (moon_base_alpha_action_server, _mission_log) may still exist
+# from yesterday's smoke -- they're orphaned, can be left or manually deleted.
+
+# 7. Re-poll missions; should now show rover_1 with state=failed +
+#    board_not_found (no boards uploaded; expected).
+curl -s http://localhost:19005/api/missions
+curl -s http://localhost:19005/api/mission/rover_1
+
+# 8. Heartbeat continuity check: confirm runtime.heartbeat row updates
+PGPASSWORD=ready2go psql -h localhost -U gedgar -d knowledge_base -c \
+  "SELECT data FROM knowledge_base_status WHERE path::text LIKE '%mission_planner_01%heartbeat%snapshot%';"
 ```
 
-### Known issues / parking lot
+If anything in steps 4-8 surprises, paste logs back and I'll analyze.
 
-- Phase 4 C5 visualizer Python smoke needs matplotlib on the host.
-- Pre-existing: mission_builder.rebuild's 4th arg current_heading silently dropped. Out of scope.
-- Per-tenant query SCOPING in kb_query / link_manager not yet wired — only the field is threaded. Lands with Phase 7.
-- planner_ui's lazy NATS singletons don't reconnect on NATS restart. Add reconnect handling if observed in cluster smoke.
-- C6 polling unauthenticated — any HTTP access to port 8090 can poll. Acceptable today (gateway-mediated). Auth lands with Phase 7.
-- Worker hookup was tested host-side via the on_tick contract test (with a fake action_server instance). The full submit→drain→coroutine→publish_status→list_missions chain is ONLY exercised by cluster smoke; the host environment can't host a real NATS easily.
+## Step B — design notes for the bundled C5
+
+```
+construction/catalogs/topology.lua  (modify)
+  cpu_02.instances += {
+    name = "mission_planner_02",
+    def  = "mission_planner",
+    planner_namespace = "tunnel_ops",   -- NEW topology field, optional;
+                                        -- defaults to instance name
+    ports = { ui = 19009 },             -- distinct from mp_01's 19005
+  }
+  Note: build_kb.lua already enumerates planners from topology
+  (ctx.PLANNERS), so this single topology change automatically extends
+  boards.lua's iteration to register a doc_class for tunnel_ops too.
+
+dcs_console/admin's gateway / planner_ui routing  (modify wherever the
+gateway hosts planner_ui today; survey first)
+  - Per-tenant route: /planner/<ns>/* -> planner_ui_<ns> upstream
+  - Mapping table: namespace -> upstream container/port
+  - No auth check (per Q6)
+
+Tests:
+  - test_topology_planners.lua: assert ctx.PLANNERS has 2 entries with
+    expected names + namespaces
+  - test_gateway_phase7.lua: structural check on the new route block
+
+Cluster smoke (C6) immediately follows:
+  - Bring up mission_planner_02 (manual docker run mirroring mp_01)
+  - Hit /planner/mission_planner_01/api/missions and
+    /planner/tunnel_ops/api/missions
+  - Submit mission to mp_01 -> verify ONLY appears in mp_01's UI
+  - Submit mission to mp_02 with kb_ref into mp_01's namespace ->
+    expect compile-time REJECT case 1
+```
+
+## Operating-mode reminders
+
+- **Commit style**: title like "B.2 Planner Phase X: ...", body with bulleted file-level changes, test counts, design rationale. Trailer: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
+- **One layer = one commit** per `feedback_holding_commits.md`. C5 = gateway routing + topology change is ONE layer (they belong together).
+- **No-soft-faults** rule: every fault halts until explicit reset. UI submit/status errors return 4xx/5xx and let the operator retry — this is the right behavior.
+- **No application auth** per `feedback_no_application_auth.md`. Gateway routing is just a route map, not an auth boundary.
+- **planner_ui module env-check pattern**: APP_SITE / PLANNER_NAMESPACE checked BEFORE `require("cjson.safe")` so host shells without cjson don't crash on early-exit paths.
+- **Cluster smoke is user-driven** per `feedback_user_driven_testing.md` — but you authorized me to run it once today for the 5b layer. Default back to user-driven for tomorrow unless you say otherwise.
+- **Test isolation**: don't run anything that drops/recreates pg tables against the live cluster (`feedback_test_db_isolation.md`).
+
+## Rollback recipes
+
+```bash
+# Undo Phase 7 C4 only
+git reset --hard HEAD~1
+
+# Undo all 4 Phase 7 commits (back to "cluster smoke fix" baseline)
+git reset --hard 64dff82f
+
+# Undo all 8 of this session's commits
+git reset --hard b2cc4051   # back to 5b C4
+
+# Inspect commits
+git show HEAD --stat        # this session: Phase 7 C4
+git show 38897e8b --stat    # 7 C4
+git show 2d2c197f --stat    # 7 C3
+git show 0425194e --stat    # 7 C2
+git show c0189fe4 --stat    # 7 C1
+git show 64dff82f --stat    # nginx resolver fix
+git show 0049c6bf --stat    # worker hookup
+git show 1e6fe410 --stat    # 5b C6
+git show 15769083 --stat    # 5b C5
+```
+
+## Known issues / parking lot
+
+- **Cluster running stale code** (pre-Phase-7 + with the resolver fix from C5/C6/hookup smoke). Step A tomorrow is the rebuild.
+- **No robot publisher / robot model.** Schema places robots at `planner.<ns>.robots.<id>` but no producer writes them. Phase 7 doesn't actually exercise tenant-scoped robot ownership. Sibling phase ("robot model") should land robots.lua subsystem + minimal publisher.
+- **`_read_robot_energy` in action_server.lua still uses site-level bucket** (TODO marker). No-op today (no robot publisher); blocks future robot-energy dashboard.
+- **No second planner instance in topology yet.** C5 should change that to give Phase 7 real exercise.
+- **Phase 4 C5 visualizer Python smoke** needs matplotlib in WSL venv. Parking-lot.
+- **Node-properties authoring** flagged in `project_v2_board_dsl_design.md` — DSL author convenience; not in any current plan.
+- **Pre-existing**: `mission_builder.rebuild`'s 4th arg `current_heading` silently dropped; out of scope.
+- **5 C5 follow-up**: delete legacy nav code paths. UNGATED (cluster smoke green for the 5b stack 2026-05-09 evening). Can land any time; ~2-3 small commits.
+- **planner_ui's lazy NATS singletons** don't reconnect on NATS restart. Add reconnect handling if observed in cluster smoke.
+- **Old NATS-KV buckets from yesterday** (`moon_base_alpha_action_server`, `_mission_log`) are orphaned. After cluster rebuild they're not used; can be manually deleted via `nats kv del` or left to age out.
 
 ---
 
-*continue.md rewritten 2026-05-10 (this-session, after worker hookup
-ship). Earlier 2026-05-09 / 2026-05-10 morning content available via
-`git log -p -- continue.md`.*
+*continue.md rewritten 2026-05-10 EOD. Eight commits this session + Phase 7
+design locked + Phase 7 C1-C4 shipped. Earlier 2026-05-09/10 morning content
+available via `git log -p -- continue.md` if needed.*

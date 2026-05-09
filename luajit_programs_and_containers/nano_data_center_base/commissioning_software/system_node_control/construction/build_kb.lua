@@ -281,6 +281,10 @@ local SUBSYSTEMS = {
   "container_definitions",
   "site_scalars",
   "boards",                  -- Phase B.2 A.4: file_store class registration for nav boards
+  "robots",                  -- Phase 7 robot-sim layer: per-tenant robot KB rows
+                             --   under planner.<ns>.robots.<robot_id>. Reads
+                             --   ctx.ROBOTS (enumerated from topology
+                             --   instances with def="robot_sim").
   "action_catalog",          -- Phase B.2 Planner Phase 1: site-wide virtual-action catalog
                              --   (must precede infrastructure_registry + robot_classes;
                              --    they validate action_id references against this catalog).
@@ -333,6 +337,31 @@ for _, cpu in pairs(TOPOLOGY.cpus or {}) do
   end
 end
 
+-- Phase 7 robot-sim layer: enumerate robot_sim instances. Robot
+-- identity (id, owning planner namespace, capabilities) lives in
+-- the instance's params table so a single topology line declares
+-- both the container AND the per-tenant robot KB row.
+local ROBOTS = {}
+for _, cpu in pairs(TOPOLOGY.cpus or {}) do
+  for _, inst in ipairs(cpu.instances or {}) do
+    if inst.def == "robot_sim" then
+      local p = inst.params or {}
+      ROBOTS[#ROBOTS + 1] = {
+        container_name    = inst.name,
+        robot_id          = p.robot_id or
+          error(string.format(
+            "topology: robot_sim instance %q missing params.robot_id",
+            inst.name)),
+        planner_namespace = p.planner_namespace or
+          error(string.format(
+            "topology: robot_sim instance %q missing params.planner_namespace",
+            inst.name)),
+        capabilities      = p.capabilities or {},
+      }
+    end
+  end
+end
+
 local ctx = {
   kb                     = kb,
   SYSTEM_NAME            = SYSTEM_NAME,
@@ -344,6 +373,7 @@ local ctx = {
   ROBOT_CLASSES          = ROBOT_CLASSES,
   CPU_COUNT              = CPU_COUNT,
   PLANNERS               = PLANNERS,         -- Phase 7: per-tenant subsystems iterate this
+  ROBOTS                 = ROBOTS,           -- Phase 7 robot-sim layer
   resolve_instance_ports = resolve_instance_ports,
 }
 
