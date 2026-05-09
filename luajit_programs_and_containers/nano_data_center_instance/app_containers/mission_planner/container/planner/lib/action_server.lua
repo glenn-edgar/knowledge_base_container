@@ -84,17 +84,34 @@ function M.new(opts)
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 
-    -- Phase 5 C3b feature flag: when set, mission_builder emits
-    -- drive_packet entries for nav legs (one packet per polyline edge,
-    -- per-packet ACK matching). Bookends + per-stop operation entries
-    -- still go through the legacy activate_kb path. The flag flips at
-    -- container startup; mid-flight changes are not supported.
-    -- Sources (any truthy ⇒ on): opts.use_drive_v2, env PLANNER_DRIVE_V2
-    -- Until the C5 cut-over, default is OFF so legacy missions keep
-    -- working byte-identically.
-    local env_flag = os.getenv("PLANNER_DRIVE_V2")
-    self.use_drive_v2 = (opts.use_drive_v2 == true)
-                     or env_flag == "1" or env_flag == "true"
+    -- Phase 5 C5 (default flip): drive_v2 is now the default for nav
+    -- legs. mission_builder emits drive_packet entries for nav (one
+    -- packet per polyline edge, per-packet ACK matching). Bookends +
+    -- per-stop operation entries still go through the legacy
+    -- activate_kb path -- their migration is a separate decision.
+    --
+    -- Resolution priority (first non-nil wins):
+    --   1. opts.use_drive_v2          explicit override (true OR false)
+    --   2. PLANNER_LEGACY_NAV env=1   forces legacy (escape hatch)
+    --   3. PLANNER_DRIVE_V2 env=1     C3b-era opt-in (kept for compat)
+    --   4. default                    drive_v2 ON
+    --
+    -- Escape hatch is here so cluster validation can revert without a
+    -- redeploy. Once production is confirmed on drive_v2, both the
+    -- escape hatch and the legacy nav code paths are deleted.
+    if opts.use_drive_v2 ~= nil then
+        self.use_drive_v2 = (opts.use_drive_v2 == true)
+    else
+        local env_legacy = os.getenv("PLANNER_LEGACY_NAV")
+        if env_legacy == "1" or env_legacy == "true" then
+            self.use_drive_v2 = false
+        else
+            -- env PLANNER_DRIVE_V2 is now redundant (default-on) but
+            -- kept as an explicit confirmation knob for ops who set
+            -- it explicitly during the C3b rollout.
+            self.use_drive_v2 = true
+        end
+    end
 
     -- Phase 5 C4: tenant identifier (planner_namespace). Multiple
     -- planner instances may run on one site; this field scopes which

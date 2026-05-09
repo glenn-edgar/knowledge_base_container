@@ -264,5 +264,83 @@ end
 
 ------------------------------------------------------------------------
 print()
+print("== Phase 5 C5: action_server use_drive_v2 default + escape hatch ==")
+------------------------------------------------------------------------
+
+do
+  local action_server = require("action_server")
+
+  local function clear_drive_envs()
+    local ok_ffi, ffi = pcall(require, "ffi")
+    if ok_ffi then
+      pcall(ffi.cdef, "int unsetenv(const char *name);")
+      pcall(ffi.C.unsetenv, "PLANNER_DRIVE_V2")
+      pcall(ffi.C.unsetenv, "PLANNER_LEGACY_NAV")
+    end
+  end
+  local function set_env(name, val)
+    local ok_ffi, ffi = pcall(require, "ffi")
+    if ok_ffi then
+      pcall(ffi.cdef, "int setenv(const char *name, const char *value, int overwrite);")
+      pcall(ffi.C.setenv, name, val, 1)
+    end
+  end
+
+  local function build(extra)
+    local opts = {
+      pg_conn         = { host = "h", port = 1, dbname = "x",
+                          user = "y", password = "z" },
+      site            = "moonbase.alpha.surface_ops",
+      system_name     = "ros_planner_ii",
+      own_instance_id = "mission_planner_01",
+      nats_server     = "nats://localhost:4222",
+    }
+    if extra then for k, v in pairs(extra) do opts[k] = v end end
+    return action_server.new(opts)
+  end
+
+  -- Default (no opt, no env): drive_v2 ON
+  clear_drive_envs()
+  local s1 = build()
+  ok("default (no opt, no env): use_drive_v2 = true",
+     s1.use_drive_v2 == true)
+
+  -- Explicit opt false: explicit override beats default
+  clear_drive_envs()
+  local s2 = build({ use_drive_v2 = false })
+  ok("opts.use_drive_v2 = false explicitly disables",
+     s2.use_drive_v2 == false)
+
+  -- Explicit opt true: matches default but verifies the explicit path
+  clear_drive_envs()
+  local s3 = build({ use_drive_v2 = true })
+  ok("opts.use_drive_v2 = true explicitly enables",
+     s3.use_drive_v2 == true)
+
+  -- PLANNER_LEGACY_NAV env=1 (escape hatch): forces legacy when no opt
+  clear_drive_envs()
+  set_env("PLANNER_LEGACY_NAV", "1")
+  local s4 = build()
+  ok("PLANNER_LEGACY_NAV=1 (no opt) -> use_drive_v2 = false",
+     s4.use_drive_v2 == false)
+
+  -- Opt overrides env (priority order honored)
+  clear_drive_envs()
+  set_env("PLANNER_LEGACY_NAV", "1")
+  local s5 = build({ use_drive_v2 = true })
+  ok("opts.use_drive_v2=true beats PLANNER_LEGACY_NAV=1",
+     s5.use_drive_v2 == true)
+
+  -- Opt false beats env unset
+  clear_drive_envs()
+  local s6 = build({ use_drive_v2 = false })
+  ok("opts.use_drive_v2=false beats env-default-on",
+     s6.use_drive_v2 == false)
+
+  clear_drive_envs()
+end
+
+------------------------------------------------------------------------
+print()
 print(string.format("SUMMARY: %d passed, %d failed", pass, fail))
 os.exit(fail > 0 and 1 or 0)

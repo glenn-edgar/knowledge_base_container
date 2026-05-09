@@ -39,7 +39,25 @@ ffi.cdef[[
         cmd_header_t header;
     } cmd_init_check_t;
 
-    /* path_spline: follow spline path between virtual nodes */
+    /* DEPRECATED (Phase 5 C5): the per-segment cmd_path_*_t legacy nav
+     * packets are superseded by cmd_drive_t (TYPE_DRIVE) which bundles
+     * a whole edge polyline with chained sub-segments and per-packet
+     * ACK matching. Default action_server config now emits cmd_drive_t.
+     *
+     * These types remain in place because:
+     *   - existing live KB rows reference them via packet_ctype
+     *     (hub_dsl/kb/path_*.lua); deletion requires a coordinated
+     *     KB schema migration
+     *   - cluster validation of the new path is queued (user-driven);
+     *     opts.use_drive_v2=false / PLANNER_LEGACY_NAV=1 escape hatch
+     *     still needs them functional for emergency rollback
+     *
+     * Removal lands after cluster validation confirms drive_v2 in
+     * production. Same applies to TYPE_PATH_* constants, type_names
+     * entries, and route_builder.M.build below.
+     */
+
+    /* path_spline: follow spline path between virtual nodes (DEPRECATED) */
     typedef struct {
         cmd_header_t header;
         float        from_x, from_y;
@@ -50,7 +68,7 @@ ffi.cdef[[
         uint16_t     total_segments;
     } cmd_path_spline_t;
 
-    /* path_line: line follow between virtual nodes */
+    /* path_line: line follow between virtual nodes (DEPRECATED) */
     typedef struct {
         cmd_header_t header;
         float        from_x, from_y;
@@ -59,7 +77,7 @@ ffi.cdef[[
         float        distance;
     } cmd_path_line_t;
 
-    /* path_wall: wall ride between virtual nodes */
+    /* path_wall: wall ride between virtual nodes (DEPRECATED) */
     typedef struct {
         cmd_header_t header;
         float        from_x, from_y;
@@ -69,7 +87,7 @@ ffi.cdef[[
         float        wall_standoff;
     } cmd_path_wall_t;
 
-    /* path_rotate: turn in place to heading */
+    /* path_rotate: turn in place to heading (DEPRECATED) */
     typedef struct {
         cmd_header_t header;
         float        from_heading;

@@ -110,7 +110,13 @@ end
 -- Route builder
 ---------------------------------------------------------------------------
 
---- Build a route from a node path.
+--- DEPRECATED (Phase 5 C5): legacy per-segment route builder.
+-- Default mission_builder.build now calls planner:plan_v2 instead, which
+-- routes through M.build_v2 (one cmd_drive_t per edge polyline). This
+-- function remains for the PLANNER_LEGACY_NAV=1 / opts.use_drive_v2=false
+-- escape hatch during cluster validation. Removed in the C5 follow-up
+-- once production is confirmed on drive_v2.
+--
 -- @param node_path  array of node name strings
 -- @param graph      { nodes = {name={x,y}}, adj = {name={{to=,nav=,speed=,weight=,path=,wall_standoff=?}}} }
 -- @param opts       optional table:
