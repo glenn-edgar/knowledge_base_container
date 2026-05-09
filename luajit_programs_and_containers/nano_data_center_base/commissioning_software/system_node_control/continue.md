@@ -1,52 +1,58 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-10 — 5b C5 SHIPPED. Phase 5b is 5/6 done.
+## State at end of 2026-05-10 — PHASE 5b COMPLETE (6/6).
 
-One commit this session on top of yesterday evening's 5 (afternoon+evening
-of 2026-05-09). **26 commits ahead of origin/master**, **557 host-side
-tests green**.
+Two commits this session on top of yesterday evening's 5. **27 commits
+ahead of origin/master**, **626 host-side tests green**.
 
-This session's commit:
-- (this-session) **5b C5** — mission launcher: planner_ui submits
-  missions to NATS JobQueue via direct FFI to libnats_job_queue
-  (option 4 of the design question — see "Design decision" below).
-  Touches `planner_ui/lua/submit.lua`, `lua/api_submit_mission.lua`,
-  `conf/nginx.conf`, `lua/shell_page.lua`, `assets/map_render.js`,
-  `assets/planner_ui.css`. **+50 new submit-handler tests, +37 added
-  to renderer test (was 75 → 112).**
+This session's commits:
+- `15769083` **5b C5** — mission launcher: planner_ui submits missions
+  to NATS JobQueue via direct FFI to libnats_job_queue (option 4 of
+  the design question — same container as worker, ldconfig'd .so).
+  3 new files + 6 modified. +50 new submit tests + 37 added to
+  renderer (was 75 → 112).
+- (this-session) **5b C6** — mission status overlay: polls
+  `/api/missions` every 2s (paused while tab hidden), renders cards in
+  `#status-region`, click a card for per-robot detail
+  (`/api/mission/<robot>`). Same option-4 pattern but for *reads*:
+  direct FFI to libnats_key_store. 4 new files + 4 modified. +44 new
+  status tests + 25 added to renderer (was 112 → 137).
 
-### Design decision — 5b C5 enqueue path = option 4 (FFI direct)
+### Design — Phase 5b option-4 pattern (locked across C5 + C6)
 
-The 4 options from yesterday's continue.md plus a 4th surfaced today:
+planner_ui's nginx FFI-loads the planner worker's NATS wrappers
+directly. Same container, same `/usr/local/lib/`, same `ldconfig`
+graph. Reasons:
+- option 1 (resty NATS over cosocket): not vendored — multi-day add
+- option 2 (HTTP-to-worker): main.lua's 5s blocking nanosleep loop
+  has no poll structure today
+- option 3 (kv-bridge MQTT): mqtt_pubsub absent from openresty_base
+  lualib (verified `ls` 2026-05-10)
 
-| # | Option | Verdict |
-|---|---|---|
-| 1 | pure-Lua resty NATS over cosocket | Rejected — not vendored. Multi-day add to openresty_base. |
-| 2 | HTTP-to-worker via unix socket | Rejected — main.lua's 5s blocking nanosleep loop has no poll structure today. |
-| 3 | kv-bridge MQTT pattern | Rejected — `mqtt_pubsub` not in openresty_base lualib (verified `ls` 2026-05-10). |
-| 4 | **planner_ui FFI-loads libnats_job_queue.so directly** | **Chosen.** Same container as planner worker; .so already in /usr/local/lib/ + ldconfig'd; lib/nats_*.lua wrappers reachable via extended `lua_package_path`. |
+Cost: each FFI call briefly blocks the nginx worker (~1-5ms on
+localhost NATS). For a single-operator admin UI on a 2s polling
+cadence this is fine. Each module owns its own KS singleton (lazy
+init on first call) so connection cost is paid once per worker.
 
-Cost of option 4: `jq:submit()` is a synchronous FFI call, briefly
-blocks the nginx worker (~1-5ms on localhost NATS). Acceptable for a
-single-operator admin UI. Lazy KS+JQ singleton means only the FIRST
-submit pays the connect cost (~10-50ms); subsequent submits are
-publish-only.
+### Open architectural concern (not 5b-blocking)
 
-**Separate concern raised by today's survey, not blocking C5:**
-`main.lua` (planner worker) ships a 5s tick that **never calls
-`action_server.serve()`** — meaning the mission-execution drain isn't
-wired in production yet. Whatever the launcher enqueues sits in
-NATS-KV until 3b runtime hookup happens. That's a Phase 3b/runtime
-follow-up, NOT a C5 blocker.
+`main.lua` (planner worker) ships a 5s nanosleep tick that **never
+calls `action_server.serve()`**. So the launcher's submitted missions
+sit in NATS-KV with no consumer, and C6's status panel will show
+"no missions in flight" forever in production. The hookup is
+straightforward — call `action_server:serve({drain_nats=true})` from
+main.lua's tick loop and replace `nanosleep` with the action_server
+scheduler's own tick (2-50ms). Tracked in remaining-work table below
+as "Worker hookup".
 
 ### Architectural references
 
 1. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_active_node_contract.md` — the architecture
-2. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_implementation_plan.md` — the phased plan
-3. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_team_scope.md` — scope boundary (planner team vs separate programs)
+2. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_implementation_plan.md` — the phased plan (now Phase 5b 6/6 done)
+3. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_team_scope.md` — scope boundary
 4. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_v2_board_dsl_design.md` — DSL skeleton
 
-### Yesterday's commits (afternoon + evening of 2026-05-09)
+### All recent commits (yesterday + today)
 
 | Commit | Phase | What |
 |---|---|---|
@@ -58,10 +64,8 @@ follow-up, NOT a C5 blocker.
 | `bc8026f1` | 5b C2 | read API (/api/boards, /api/board/<name>, /api/active_nodes) |
 | `a959f616` | 5b C3 | SVG L1 topology renderer (vanilla JS) |
 | `b2cc4051` | 5b C4 | SVG L2 drill-down + node popup + Esc handler |
-
-(Yesterday morning landed 6 commits: `75c6fa74` `efa69339` `c5c495c0`
-`9814f78f` `426daccf` `41e1e367` covering Phase 5 C1-C4 + flaky-test
-fix.)
+| `15769083` | 5b C5 | mission launcher (FFI direct enqueue) |
+| (this-session) | 5b C6 | mission status overlay + 2s polling |
 
 ### Aggregate test counts (host-side)
 
@@ -78,11 +82,12 @@ fix.)
 | Phase 5 C5 prep mission+simulator integration | 28/28 |
 | Phase 5b C1 planner_ui chassis | 19/19 |
 | Phase 5b C2 db (boards / board / active_nodes) | 32/32 |
-| Phase 5b C3+C4+C5 renderer (SVG L1+L2 + popup + Esc + launcher) | 112/112 |
-| **Phase 5b C5 submit_mission (this session)** | **50/50** |
-| **Total** | **557/557 host-side** |
+| Phase 5b C3+C4+C5+C6 renderer (SVG L1+L2 + popup + Esc + launcher + status) | 137/137 |
+| Phase 5b C5 submit_mission | 50/50 |
+| **Phase 5b C6 status (this session)** | **44/44** |
+| **Total** | **626/626 host-side** |
 
-### Cluster smoke — STILL queued (now covers C2+C3+C4+C5)
+### Cluster smoke — STILL queued (now covers C2+C3+C4+C5+C6)
 
 Per `feedback_user_driven_testing.md`, you run; I analyze.
 
@@ -97,36 +102,37 @@ docker compose up mission_planner_01
 # 3. Subscribe to the rpc topic to observe drive_v2 wire format.
 mosquitto_sub -h <mqtt_host> -t 'moonbase/+/+/robots/+/rpc' -v &
 
-# 4. Submit a mission via the *launcher* (NEW C5 path) -- open the
-#    planner_ui in a browser at port 8090 (or wherever node_control
-#    exposes it):
-#    - pick a board from the header dropdown
-#    - type a robot id in the "robot:" field
-#    - click "Pick source & target", then click two nodes
-#    - click "Submit mission"
-#    - expect a green toast "queued: <job_id>"
-#
-#    Behind the scenes: POST /api/submit_mission -> direct FFI to
-#    libnats_job_queue -> NATS KV bucket <site>_action_server.
-#
-#    OR via the existing CLI for comparison:
-docker exec mission_planner_01 luajit /opt/apps/planner/scripts/submit_test_mission.lua \
-  --robot rover_1 --board landing_zone --start lander_pad --stop habitat_site
+# 4. Open planner_ui in a browser at port 8090 (or whatever
+#    node_control exposes). Verify each:
+#    a. board picker populates
+#    b. select a board -> SVG topology renders (L1)
+#    c. click a node -> properties popup
+#    d. press Esc -> popup closes
+#    e. click an edge -> L2 drill-down with colored leaves
+#    f. press Esc -> back to L1
+#    g. type robot id, click "Pick source & target", click two nodes,
+#       click "Submit mission" -> green toast "queued: <job_id>"
+#    h. mission status panel polls every 2s; shows "no missions in
+#       flight" until the worker hookup lands; shows the launched
+#       mission cards once the hookup IS in place
+#    i. switch to another tab; come back -> polling resumes
 
-# 5. Subscribe to the NATS KV bucket to confirm the launcher's job
-#    landed:
-docker exec mission_planner_01 nats kv ls
-docker exec mission_planner_01 nats kv watch <site>_action_server '$KV.<bucket>.>'
-
-# 6. Hit planner_ui chassis at port 8090:
-curl http://<host>:8090/ | head            # shell loads
-curl http://<host>:8090/api/boards         # boards list
-curl http://<host>:8090/api/board/landing_zone | head   # one board
-curl http://<host>:8090/api/active_nodes   # active nodes
+# 5. API smoke (also exercises the new endpoints):
+curl http://<host>:8090/                                          # shell
+curl http://<host>:8090/health                                    # JSON
+curl http://<host>:8090/api/boards                                # list
+curl http://<host>:8090/api/board/landing_zone | head             # one
+curl http://<host>:8090/api/active_nodes                          # list
 curl -X POST http://<host>:8090/api/submit_mission \
   -H "Content-Type: application/json" \
   -d '{"robot_id":"rover_1","board":"landing_zone",
        "source":"lander_pad","target":"habitat_site"}'
+curl http://<host>:8090/api/missions                              # NEW
+curl http://<host>:8090/api/mission/rover_1                       # NEW
+
+# 6. NATS-KV inspection (confirm launcher's job + status flow):
+docker exec mission_planner_01 nats kv ls
+docker exec mission_planner_01 nats kv watch <site>_action_server '$KV.<bucket>.>'
 
 # 7. Drive-v2 wire-format check: outbound RPC payloads should be CBOR
 #    (binary), not JSON. ONE publish per polyline edge, not N-1.
@@ -139,40 +145,59 @@ curl -X POST http://<host>:8090/api/submit_mission \
 
 | Phase | Status | Sub-commits | Dependencies |
 |---|---|---|---|
-| 5b C6 (mission status overlay) | not started; ~1 sub-commit | 1 | depends on action_server publishing status keys; htmx polling pattern |
+| **Worker hookup** (call action_server.serve from main.lua) | **NEXT** | 1-2 | none — pure planner runtime change. Without this the launcher enqueues + C6 status polling are wired to a queue/buckets nobody writes to in production. |
 | 5 C5 follow-up (delete legacy nav code) | gated on cluster smoke | ~2-3 | needs cluster smoke green |
 | 7 (multi-planner) | not started | ~3-4 | depends on KB schema decision (deferred) |
-| Worker hookup (call action_server.serve from main.lua) | not yet | 1 | needed before the launcher's enqueued jobs actually drive a robot. Phase 3b/runtime concern, not 5b. |
 
-**Suggested order:** 5b C6 status overlay next (extends today's chassis;
-independent of cluster smoke). After cluster smoke green, 5 C5 follow-up
-can land in parallel.
+**Suggested order:** Worker hookup next. It's the smallest unblocking
+change that turns the now-complete UI into a useful operator tool —
+without it, every screen in 5b is showing fake/empty data. After that,
+cluster smoke + 5 C5 follow-up legacy delete.
 
-### 5b C6 design notes (next session)
+### Worker hookup (next session) — design notes
 
-Status-overlay panel inside `#status-region`. Polls
-`action_server`'s NATS-KV status bucket and renders per-mission cards.
+`main.lua`'s current shape (lines 282-305):
+```lua
+while running do
+  kb_status:set_status_data(...)        -- heartbeat
+  drain_observer()                       -- claim up to 5 jobs/tick
+  C.nanosleep(...)                       -- 5s
+end
+```
 
-**Driver:** same as C5 — direct FFI to `lib/nats_key_store` (NOT
-job_queue) for KV reads. KeyStore.get is a synchronous call;
-acceptable on a 2-3s polling cadence for a single-operator UI. Same
-"option 4" rationale.
+`drain_observer` calls `JobQueue:claim_job` directly but does NOT
+hand jobs to action_server's coroutine scheduler. Result: jobs are
+claimed and discarded.
 
-**Endpoints (proposed):**
-- `GET /api/missions` → array of `{robot_id, state, current_packet,
-  last_heartbeat_ts, current_action_node?}`. Reads
-  `<site>_action_server` KV bucket; filters keys matching
-  `mission.<robot_id>.status`.
-- `GET /api/mission/<robot_id>` → full mission state (timeline of
-  packets, ACK status per packet, action results).
+The right shape is to instantiate action_server at startup and call
+`action_server:serve({drain_nats=true, ...})` instead of the manual
+loop. action_server's internal scheduler (lib/action_server.lua lines
+834-889) already implements:
+- `_drain_nats_queue()` per cycle (claim + start mission coroutine)
+- 2-50ms tick (`tick_usleep` or idle 50ms)
+- coroutine resume per active mission
+- status publish via `_publish_status` per state transition
 
-**Polling cadence:** start with 2s; htmx `hx-trigger="every 2s"`
-swap into `#status-region`. Move to SSE if cadence becomes a
-bottleneck.
+So `main.lua` becomes:
+```lua
+local action_server = require("lib.action_server").new({...})
+local kb_handle, ks_handle, ... = wire_dependencies()
+running = action_server:serve({
+  drain_nats = true,
+  on_tick    = function() kb_status:set_status_data(...) end,
+  -- existing heartbeat + signal handling preserved as on_tick hooks
+})
+```
 
-**Test approach:** stub the KS via the same `package.preload` /
-opts-injection pattern used in `test_planner_ui_submit_mission.lua`.
-Verify the SQL-like KV-key prefix, parse + envelope, error paths.
+Risk: medium. Need to thread the kb_status / signal handling that
+main.lua owns into action_server's scheduler. action_server already
+has hooks for this (it's the production design); main.lua just
+hasn't been migrated to use them.
+
+Test approach: extend `test_mission_simulator_integration.lua` to
+exercise the full pipeline end-to-end (submit → drain → coroutine
+resume → packet emit → ack → done → publish_status → list_missions
+returns the result).
 
 ### Quick start tomorrow
 
@@ -180,10 +205,10 @@ Verify the SQL-like KV-key prefix, parse + envelope, error paths.
 cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control
 
 # Verify state
-git log --oneline -15             # this session's 1 + yesterday's 5 + prior
-git status                        # only continue.md modified (after this session's commit)
+git log --oneline -15
+git status
 
-# Re-run host-side smoke (~20s total)
+# Re-run host-side smoke (~25s total)
 luajit construction/tests/test_planner_phase1_catalog.lua            # 20/20
 luajit construction/tests/board_dsl/test_board_dsl_c1.lua            # 36/36
 luajit construction/tests/board_dsl/test_board_dsl_c2.lua            # 42/42
@@ -194,8 +219,9 @@ luajit construction/tests/test_drive_v2_dispatch.lua                 # 34/34
 luajit construction/tests/test_planner_namespace_threading.lua       # 20/20
 luajit construction/tests/test_planner_ui_chassis.lua                # 19/19
 luajit construction/tests/test_planner_ui_db.lua                     # 32/32
-luajit construction/tests/test_planner_ui_renderer.lua               # 112/112
+luajit construction/tests/test_planner_ui_renderer.lua               # 137/137
 luajit construction/tests/test_planner_ui_submit_mission.lua         # 50/50
+luajit construction/tests/test_planner_ui_status.lua                 # 44/44
 
 PLANNER=../../../nano_data_center_instance/app_containers/mission_planner
 LD_LIBRARY_PATH="$(realpath $PLANNER/container/prebuilt_libs)" \
@@ -212,47 +238,51 @@ LD_LIBRARY_PATH="$(realpath ../prebuilt_libs)" \
 
 ### Operating-mode reminders
 
-- **Commit style**: title like "B.2 Planner Phase 5b C6: ...", body
-  with bulleted file-level changes, test counts, design rationale.
-  Trailer: `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
+- **Commit style**: title like "B.2 Planner Phase X: ...", body with
+  bulleted file-level changes, test counts, design rationale. Trailer:
+  `Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>`.
 - **One layer = one commit** per `feedback_holding_commits.md`.
 - **No-soft-faults** rule: every fault halts until explicit reset.
-  (UI submit errors are NOT control-system faults — return 4xx/5xx and
-  let the operator retry; this is the right behavior.)
+  (UI submit/status errors are NOT control-system faults — return
+  4xx/5xx and let the operator retry.)
 - **User runs cluster tests**; assistant analyzes pasted logs (`feedback_user_driven_testing.md`).
 - **Test isolation**: don't run anything that drops/recreates pg tables against the live cluster (`feedback_test_db_isolation.md`).
-- **planner_ui handlers use pgmoon** (cosocket) for pg, **direct FFI** for NATS (option 4). Two parallel worlds.
+- **planner_ui handlers use pgmoon for pg, direct FFI for NATS** (option 4). Two parallel worlds.
+- **planner_ui module env-check pattern**: check APP_SITE BEFORE
+  `require("cjson.safe")` so a host shell without cjson doesn't crash
+  on early-exit paths during testing. (Burned this in submit.lua's
+  initial test cycle and the C6 status module.)
 
 ### Rollback recipes
 
 ```bash
-# Undo this session's last commit (5b C5 launcher)
+# Undo this session's last commit (5b C6)
 git reset --hard HEAD~1
 
-# Undo all 6 of yesterday + today's commits (back to morning baseline)
-git reset --hard 41e1e367   # back to "C4 planner_namespace threading"
+# Undo BOTH of this session's commits (5b C5 + C6)
+git reset --hard b2cc4051   # back to "5b C4 SVG L2 drill"
 
-# Undo all 12 of yesterday morning + afternoon + evening + today's commits
-git reset --hard 365d0727
+# Undo all of yesterday + today's commits (back to morning baseline)
+git reset --hard 41e1e367
 
 # Inspect commits
-git show HEAD --stat        # this session: 5b C5 launcher
+git show HEAD --stat        # this session: 5b C6 status overlay
+git show 15769083 --stat    # 5b C5 launcher
 git show b2cc4051 --stat    # 5b C4
-git show a959f616 --stat    # 5b C3
-git show bc8026f1 --stat    # 5b C2
 git show 4bcef7d5 --stat    # 5b C1 chassis
-git show 538c6fec --stat    # 5 C5 main default flip
 ```
 
 ### Known issues / parking lot
 
 - Phase 4 C5 visualizer Python smoke needs matplotlib on the host — not currently installed in the WSL venv.
-- Pre-existing: `mission_builder.rebuild`'s 4th arg `current_heading` is silently dropped (`build()` has no start_heading parameter). Documented in mission_builder.lua. Out of scope.
+- Pre-existing: `mission_builder.rebuild`'s 4th arg `current_heading` is silently dropped. Out of scope.
 - Per-tenant query SCOPING in kb_query / link_manager (which boards a planner sees) is not yet wired — only the field is threaded. Lands with Phase 7 KB schema decision.
-- **`main.lua` does NOT call `action_server.serve()`** — the planner worker drains nothing today. Launcher enqueues land in NATS-KV but no consumer. Hookup is Phase 3b/runtime; tracked above as "Worker hookup".
-- The planner_ui submit handler creates a NATS KeyStore on first use and reuses it for the worker's lifetime (lazy singleton). If the NATS server is restarted while planner_ui is up, the cached connection may go stale; today's behavior is whatever libnats does on a stale connection. Add reconnect handling in C6 if observed in cluster smoke.
+- **`main.lua` does NOT call `action_server.serve()`** — see "Worker hookup" above. Highest-priority remaining work.
+- planner_ui's lazy NATS singletons (one for KS reads in status.lua, one for KS+JQ writes in submit.lua) don't reconnect if the NATS server restarts mid-session. Add reconnect handling if observed in cluster smoke. Today's behavior is whatever libnats does on a stale connection.
+- C6 polling is unauthenticated — anyone with HTTP access to port 8090 can poll the dashboard. Acceptable today (all access is gateway-mediated). Auth lands with Phase 7 multi-tenant scoping.
 
 ---
 
-*continue.md rewritten 2026-05-10 (this-session). Earlier 2026-05-09
-content available via `git log -p -- continue.md` if needed.*
+*continue.md rewritten 2026-05-10 (this-session, after 5b C6 ship).
+Earlier 2026-05-09 / 2026-05-10 morning content available via
+`git log -p -- continue.md` if needed.*

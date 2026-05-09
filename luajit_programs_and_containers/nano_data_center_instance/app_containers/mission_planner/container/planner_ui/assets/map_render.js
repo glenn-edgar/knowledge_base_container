@@ -1,4 +1,4 @@
-// planner_ui :: map renderer (Phase 5b C3 + C4 + C5).
+// planner_ui :: map renderer + launcher + status overlay (Phase 5b C3-C6).
 //
 // Two-level interactive view, mirroring construction/scripts/board_dsl/
 // visualizer.py:
@@ -653,6 +653,200 @@
         }
     }
 
+    // -- Status overlay (Phase 5b C6) -----------------------------------
+    //
+    // Polls /api/missions every 2s into #status-region. Click a card to
+    // expand into per-robot detail (/api/mission/<robot>). Polling
+    // pauses while the tab is hidden so an unattended browser doesn't
+    // hammer the planner with no user benefit.
+
+    const STATUS_POLL_MS = 2000;
+
+    const statusState = {
+        intervalId: null,
+        inFlight: false,
+        consecutiveErrors: 0,
+        expanded: null,        // robot_id whose detail panel is open
+    };
+
+    function relativeTimeStr(isoTs) {
+        if (!isoTs) return "—";
+        const t = Date.parse(isoTs);
+        if (isNaN(t)) return isoTs;
+        const dsec = Math.max(0, Math.round((Date.now() - t) / 1000));
+        if (dsec < 60)  return dsec + "s ago";
+        if (dsec < 3600) return Math.floor(dsec / 60) + "m ago";
+        return Math.floor(dsec / 3600) + "h ago";
+    }
+
+    function renderMissionCards(payload) {
+        const region = document.getElementById("status-region");
+        if (!region) return;
+        // Preserve the <h2> if present; replace everything below it.
+        let host = document.getElementById("mission-list");
+        if (!host) {
+            // First render: drop the placeholder, build the list host.
+            const placeholder = region.querySelector(".placeholder");
+            if (placeholder) placeholder.remove();
+            host = document.createElement("div");
+            host.id = "mission-list";
+            region.appendChild(host);
+            const meta = document.createElement("p");
+            meta.id = "status-meta";
+            meta.className = "status-meta";
+            region.appendChild(meta);
+        }
+        host.innerHTML = "";
+
+        const meta = document.getElementById("status-meta");
+        if (meta) {
+            meta.textContent = "as of " + relativeTimeStr(payload.timestamp) +
+                "   (" + (payload.active_missions || 0) + " active, " +
+                (payload.registered_robots || []).length + " registered)";
+        }
+
+        if (!payload.missions || payload.missions.length === 0) {
+            const empty = document.createElement("p");
+            empty.className = "status-empty";
+            empty.textContent = "no missions in flight.";
+            host.appendChild(empty);
+            return;
+        }
+
+        for (const m of payload.missions) {
+            const card = document.createElement("div");
+            card.className = "status-card";
+            card.dataset.robotId = m.robot_id;
+            const head = document.createElement("div");
+            head.className = "status-card-head";
+            const robot = document.createElement("strong");
+            robot.textContent = m.robot_id;
+            head.appendChild(robot);
+            const badge = document.createElement("span");
+            badge.className = "status-state status-state-" + (m.state || "unknown");
+            badge.textContent = m.state || "unknown";
+            head.appendChild(badge);
+            card.appendChild(head);
+            if (m.board) {
+                const sub = document.createElement("div");
+                sub.className = "status-board";
+                sub.textContent = "board: " + m.board;
+                card.appendChild(sub);
+            }
+            card.addEventListener("click", function () {
+                showMissionDetail(m.robot_id, card);
+            });
+            host.appendChild(card);
+            // If this card was the expanded one, rebuild its detail.
+            if (statusState.expanded === m.robot_id) {
+                showMissionDetail(m.robot_id, card);
+            }
+        }
+    }
+
+    async function showMissionDetail(robotId, anchorCard) {
+        // Tear down any existing expansion first so only one is open.
+        const old = document.getElementById("mission-detail");
+        if (old) old.remove();
+        if (statusState.expanded === robotId && !anchorCard) {
+            statusState.expanded = null;
+            return;
+        }
+        statusState.expanded = robotId;
+        const detail = document.createElement("div");
+        detail.id = "mission-detail";
+        detail.className = "mission-detail";
+        detail.textContent = "loading...";
+        if (anchorCard) anchorCard.appendChild(detail);
+        try {
+            const r = await fetch("/api/mission/" + encodeURIComponent(robotId));
+            let data;
+            try { data = await r.json(); } catch (_) { data = {}; }
+            if (!r.ok) {
+                detail.textContent = "error: " + (data.error || ("HTTP " + r.status));
+                return;
+            }
+            detail.innerHTML = "";
+            const dl = document.createElement("dl");
+            const status = data.status || {};
+            const result = data.result;
+            for (const [k, v] of Object.entries(status)) {
+                if (k === "robot_id") continue;
+                const dt = document.createElement("dt"); dt.textContent = k;
+                const dd = document.createElement("dd");
+                dd.textContent = (typeof v === "object")
+                    ? JSON.stringify(v) : String(v);
+                dl.appendChild(dt); dl.appendChild(dd);
+            }
+            detail.appendChild(dl);
+            if (result) {
+                const h = document.createElement("h4");
+                h.textContent = "result";
+                detail.appendChild(h);
+                const dl2 = document.createElement("dl");
+                for (const [k, v] of Object.entries(result)) {
+                    const dt = document.createElement("dt"); dt.textContent = k;
+                    const dd = document.createElement("dd");
+                    dd.textContent = (typeof v === "object")
+                        ? JSON.stringify(v) : String(v);
+                    dl2.appendChild(dt); dl2.appendChild(dd);
+                }
+                detail.appendChild(dl2);
+            }
+        } catch (e) {
+            detail.textContent = "fetch failed: " + (e.message || e);
+        }
+    }
+
+    async function pollStatus() {
+        if (statusState.inFlight) return;
+        statusState.inFlight = true;
+        try {
+            const r = await fetch("/api/missions");
+            let data;
+            try { data = await r.json(); } catch (_) { data = {}; }
+            if (!r.ok) {
+                statusState.consecutiveErrors++;
+                // Render an error sliver but keep last-known cards.
+                const meta = document.getElementById("status-meta");
+                if (meta) {
+                    meta.textContent = "status error: " +
+                        (data.error || ("HTTP " + r.status)) +
+                        " (errors: " + statusState.consecutiveErrors + ")";
+                }
+                return;
+            }
+            statusState.consecutiveErrors = 0;
+            renderMissionCards(data);
+        } catch (e) {
+            statusState.consecutiveErrors++;
+            const meta = document.getElementById("status-meta");
+            if (meta) {
+                meta.textContent = "fetch failed: " + (e.message || e);
+            }
+        } finally {
+            statusState.inFlight = false;
+        }
+    }
+
+    function startStatusPolling() {
+        stopStatusPolling();
+        pollStatus();
+        statusState.intervalId = setInterval(pollStatus, STATUS_POLL_MS);
+    }
+
+    function stopStatusPolling() {
+        if (statusState.intervalId) {
+            clearInterval(statusState.intervalId);
+            statusState.intervalId = null;
+        }
+    }
+
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) stopStatusPolling();
+        else                 startStatusPolling();
+    });
+
     function wireLauncher() {
         const modeBtn = document.getElementById("launcher-mode-btn");
         if (modeBtn) {
@@ -713,6 +907,7 @@
 
     async function init() {
         wireLauncher();
+        startStatusPolling();
         try {
             const boards = await loadBoards();
             state.boards = boards;
@@ -746,6 +941,13 @@
             pickNode: pickNode,
             setLauncherMode: setLauncherMode,
             clearLauncherSelection: clearLauncherSelection,
+            // C6 status overlay hooks
+            statusState: statusState,
+            relativeTimeStr: relativeTimeStr,
+            renderMissionCards: renderMissionCards,
+            startStatusPolling: startStatusPolling,
+            stopStatusPolling: stopStatusPolling,
+            STATUS_POLL_MS: STATUS_POLL_MS,
         };
     }
 })();

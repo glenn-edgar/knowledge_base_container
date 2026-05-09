@@ -242,6 +242,107 @@ body.launcher-mode-active #map-svg .node-active {
     stroke-width: 0.12;
 }
 
+/* ---- mission status cards (Phase 5b C6) --------------------------- */
+
+#status-region {
+    grid-row: 2;
+}
+
+.status-meta {
+    color: var(--text-dim);
+    font-size: 0.8em;
+    margin: 0 0 0.6em 0;
+}
+
+.status-empty {
+    color: var(--text-dim);
+    font-style: italic;
+    margin: 0.3em 0;
+}
+
+.status-card {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0.5em 0.7em;
+    margin-bottom: 0.5em;
+    cursor: pointer;
+    transition: border-color 0.1s;
+}
+
+.status-card:hover {
+    border-color: var(--accent);
+}
+
+.status-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5em;
+}
+
+.status-card-head strong {
+    color: var(--text-em);
+    font-size: 0.95em;
+}
+
+.status-state {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.1em 0.5em;
+    border-radius: 2px;
+    color: var(--bg);
+    background: var(--text-dim);
+}
+
+.status-state-active,
+.status-state-running   { background: var(--success); }
+.status-state-planning  { background: var(--info); }
+.status-state-complete,
+.status-state-completed { background: var(--accent); color: var(--bg); }
+.status-state-failed,
+.status-state-error     { background: var(--error); color: var(--bg); }
+.status-state-cancelled { background: var(--text-dim); }
+
+.status-board {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    margin-top: 0.3em;
+}
+
+.mission-detail {
+    margin-top: 0.6em;
+    padding-top: 0.5em;
+    border-top: 1px dashed var(--border);
+    color: var(--text);
+    font-size: 0.85em;
+}
+
+.mission-detail dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 7em 1fr;
+    gap: 0.2em 0.6em;
+}
+
+.mission-detail dt {
+    color: var(--text-dim);
+}
+
+.mission-detail dd {
+    margin: 0;
+    word-break: break-all;
+}
+
+.mission-detail h4 {
+    margin: 0.7em 0 0.3em 0;
+    color: var(--text-em);
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
 /* ---- SVG L1 (topology) -------------------------------------------- */
 
 #map-svg {

@@ -1,7 +1,8 @@
 #!/usr/bin/env luajit
 -- =============================================================================
--- test_planner_ui_renderer.lua -- Phase 5b C3 / C4 / C5 acceptance for
--- the SVG L1 renderer + L2 drill-down + popup + launcher (vanilla JS).
+-- test_planner_ui_renderer.lua -- Phase 5b C3 / C4 / C5 / C6 acceptance
+-- for the SVG L1 renderer + L2 drill-down + popup + launcher + status
+-- overlay (vanilla JS).
 --
 -- The JS runs in a browser; we can't exercise the SVG output host-side
 -- without a JS engine. This test verifies:
@@ -75,6 +76,9 @@ if js_content then
     "submitMission", "wireLauncher",
     "refreshLauncherSelectionDisplay", "setLauncherHint",
     "setLauncherToast",
+    -- C6 status overlay additions
+    "pollStatus", "renderMissionCards", "showMissionDetail",
+    "startStatusPolling", "stopStatusPolling", "relativeTimeStr",
   }) do
     ok("function " .. fn .. " present",
        js_content:find("function " .. fn, 1, true) ~= nil
@@ -132,6 +136,29 @@ if js_content then
   -- C5: Esc handler also exits launcher mode
   ok("Esc exits launcher mode (setLauncherMode(false))",
      js_content:find("setLauncherMode(false)", 1, true) ~= nil)
+
+  -- C6: status polling shape
+  ok("STATUS_POLL_MS constant defined",
+     js_content:find("STATUS_POLL_MS", 1, true) ~= nil)
+  ok("STATUS_POLL_MS = 2000 (2s cadence)",
+     js_content:find("STATUS_POLL_MS = 2000", 1, true) ~= nil)
+  ok("statusState in-flight guard",
+     js_content:find("statusState", 1, true) ~= nil and
+     js_content:find("inFlight", 1, true) ~= nil)
+  ok("polls /api/missions",
+     js_content:find("/api/missions", 1, true) ~= nil)
+  ok("fetches /api/mission/<robot> on detail",
+     js_content:find('/api/mission/" + encodeURIComponent', 1, true)
+     ~= nil)
+  ok("visibilitychange handler pauses polling",
+     js_content:find("visibilitychange", 1, true) ~= nil and
+     js_content:find("document.hidden", 1, true) ~= nil)
+  ok("setInterval used for polling",
+     js_content:find("setInterval", 1, true) ~= nil)
+  ok("clearInterval on stop",
+     js_content:find("clearInterval", 1, true) ~= nil)
+  ok("startStatusPolling called from init",
+     js_content:find("startStatusPolling()", 1, true) ~= nil)
 
   -- SVG element types referenced (the renderer creates these)
   for _, elt in ipairs({ '"polygon"', '"line"', '"circle"',
@@ -192,6 +219,17 @@ if css_content then
   end
   ok("launcher-mode-active body cursor cue present",
      css_content:find("launcher-mode-active", 1, true) ~= nil)
+
+  -- C6: mission status selectors
+  for _, sel in ipairs({
+    ".status-card", ".status-card-head", ".status-state",
+    ".status-board", ".status-meta", ".status-empty",
+    ".mission-detail", ".status-state-active",
+    ".status-state-failed", ".status-state-complete",
+  }) do
+    ok("selector " .. sel .. " present",
+       css_content:find(sel, 1, true) ~= nil)
+  end
 
   -- Color variables defined for the theme
   for _, v in ipairs({ "--bg", "--text", "--accent", "--passive",
