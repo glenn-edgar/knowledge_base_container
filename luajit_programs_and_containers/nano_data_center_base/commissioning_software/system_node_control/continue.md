@@ -156,9 +156,15 @@ psql -c "SELECT path, kb_status_field FROM knowledge_base
 
 | Phase | Status | Sub-commits | Dependencies |
 |---|---|---|---|
-| 5 C5 follow-up (delete legacy nav code) | **UNGATED** — smoke green; safe to land | ~2-3 | none |
-| 7 (multi-planner) | next per user direction | ~3-4 | depends on KB schema decision (still deferred — design session needed) |
-| Open items per user direction (matplotlib viewer, node-properties authoring) | queued post-step-7 | tbd | tbd |
+| Phase 7 design session (8 questions) | ✅ **LOCKED 2026-05-10** | — | See `project_phase7_multitenant_design.md` |
+| Phase 7 C1 — migration script | ✅ **DONE 2026-05-10** | this session | dry-run validated on live cluster |
+| Phase 7 C2 — kb_build per-tenant paths + validator | next | ~1 | C1 |
+| Phase 7 C3 — action_server.lua bucket+key changes | queued | ~1 | C2 |
+| Phase 7 C4 — planner_ui submit/status/db per-tenant | queued | ~1 | C3 |
+| Phase 7 C5 — gateway per-tenant routing | queued | ~1 | C4 |
+| Phase 7 C6 — Phase 7 cluster smoke | queued (user-driven) | smoke | C5 |
+| 5 C5 follow-up (delete legacy nav code) | UNGATED — smoke green; safe to land | ~2-3 | none |
+| Open items per user direction (matplotlib viewer, node-properties authoring) | queued post-Phase-7 | tbd | tbd |
 
 That's it. After today, the planner team's wire-out + UI + worker
 backend is end-to-end functional. Multi-tenant (Phase 7) is the only
