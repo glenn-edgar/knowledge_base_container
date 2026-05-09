@@ -1,12 +1,13 @@
--- planner_ui :: shell page (Phase 5b C1).
+-- planner_ui :: shell page (Phase 5b C3).
 --
--- Server-rendered shell. Placeholder content; the SVG map renderer
--- lands in 5b C3 (location swap inside #map-region) and the mission
--- status overlay lands in 5b C6 (#status-region).
+-- Server-rendered shell. C1 had inline placeholder content; C3 hooks
+-- the SVG L1 renderer (assets/map_render.js) which fetches /api/boards
+-- on load, populates a board picker in the header, and renders into
+-- #map-region on selection.
 --
--- Layout follows the dcs_console pattern: header with identity, two
--- empty regions sized for their future contents, htmx loaded so later
--- fragments can swap into the regions without a full reload.
+-- htmx is intentionally NOT loaded yet -- vanilla JS is sufficient
+-- for L1 rendering. htmx returns in 5b C4 (drill-down fragment swaps)
+-- and 5b C6 (mission status overlay polling).
 
 local render = require("render")
 local ctx    = render.context()
@@ -18,26 +19,7 @@ ngx.say(string.format([[<!doctype html>
 <head>
 <meta charset="utf-8">
 <title>planner_ui :: %s</title>
-<script src="/assets/htmx.min.js" defer></script>
-<style>
-:root { color-scheme: dark; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-       monospace; background: #111; color: #ddd; }
-header { background: #1a1a1a; border-bottom: 1px solid #333;
-         padding: 0.6em 1em; display: flex; gap: 2em; align-items: baseline; }
-header h1 { margin: 0; font-size: 1.05em; color: #fff; font-weight: 600; }
-header .id { color: #888; font-size: 0.9em; }
-header .id strong { color: #ccc; font-weight: 500; }
-main { display: grid; grid-template-columns: 1fr 320px; gap: 1px;
-       background: #222; min-height: calc(100vh - 3em); }
-#map-region, #status-region { background: #181818; padding: 1em;
-                              overflow: auto; }
-#map-region .placeholder, #status-region .placeholder {
-    color: #666; font-style: italic; }
-#status-region h2 { font-size: 0.95em; color: #aaa; margin: 0 0 0.5em 0;
-                    font-weight: 500; text-transform: uppercase;
-                    letter-spacing: 0.05em; }
-</style>
+<link rel="stylesheet" href="/assets/planner_ui.css">
 </head>
 <body>
 <header>
@@ -45,11 +27,12 @@ main { display: grid; grid-template-columns: 1fr 320px; gap: 1px;
   <span class="id">tenant <strong>%s</strong> &middot;
        container <strong>%s</strong> &middot;
        site <strong>%s</strong></span>
+  <!-- board picker is appended here by map_render.js once /api/boards
+       has loaded -->
 </header>
 <main>
   <section id="map-region">
-    <p class="placeholder">map renderer lands in 5b C3
-       (boards loaded from file_store, scoped to planner_namespace).</p>
+    <p class="loading">loading board list...</p>
   </section>
   <aside id="status-region">
     <h2>Mission Status</h2>
@@ -57,6 +40,7 @@ main { display: grid; grid-template-columns: 1fr 320px; gap: 1px;
        (poll action_server NATS keys; htmx swap on update).</p>
   </aside>
 </main>
+<script src="/assets/map_render.js" defer></script>
 </body>
 </html>
 ]], h(ctx.planner_namespace), h(ctx.planner_namespace),

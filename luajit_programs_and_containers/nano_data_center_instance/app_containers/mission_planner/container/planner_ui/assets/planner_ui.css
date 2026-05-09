@@ -1,0 +1,164 @@
+/* planner_ui :: shared styles (Phase 5b C3).
+ *
+ * Used by shell_page.lua's L1 topology view + future drill-down
+ * (5b C4) and overlays (5b C5/C6). Dark theme matches dcs_console
+ * for visual consistency across operator tooling.
+ */
+
+:root {
+    color-scheme: dark;
+    --bg:        #111;
+    --bg-2:      #181818;
+    --bg-3:      #222;
+    --border:    #333;
+    --text:      #ddd;
+    --text-dim:  #888;
+    --text-em:   #fff;
+    --accent:    #4a9eff;
+    --error:     #ff5c5c;
+    --passive:   #5a8a8a;   /* passive nodes: muted teal circles */
+    --active:    #d4a04a;   /* active nodes: amber squares (with kb_ref) */
+    --edge:      #555;      /* topology edges */
+    --region:    #2a2a3a;   /* region polygon fill */
+    --region-stroke: #4a4a5a;
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+    background: var(--bg);
+    color: var(--text);
+}
+
+header {
+    background: #1a1a1a;
+    border-bottom: 1px solid var(--border);
+    padding: 0.6em 1em;
+    display: flex;
+    gap: 2em;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.05em;
+    color: var(--text-em);
+    font-weight: 600;
+}
+
+header .id {
+    color: var(--text-dim);
+    font-size: 0.9em;
+}
+
+header .id strong {
+    color: #ccc;
+    font-weight: 500;
+}
+
+header .board-picker {
+    margin-left: auto;
+    display: flex;
+    gap: 0.5em;
+    align-items: baseline;
+}
+
+header .board-picker label {
+    color: var(--text-dim);
+    font-size: 0.9em;
+}
+
+header .board-picker select {
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.3em 0.6em;
+    font: inherit;
+    border-radius: 3px;
+}
+
+main {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 1px;
+    background: var(--bg-3);
+    min-height: calc(100vh - 3em);
+}
+
+#map-region, #status-region {
+    background: var(--bg-2);
+    padding: 1em;
+    overflow: auto;
+}
+
+#map-region .placeholder, #status-region .placeholder {
+    color: #666;
+    font-style: italic;
+}
+
+#status-region h2 {
+    font-size: 0.95em;
+    color: #aaa;
+    margin: 0 0 0.5em 0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ---- SVG L1 (topology) -------------------------------------------- */
+
+#map-svg {
+    width: 100%;
+    height: calc(100vh - 5em);
+    background: #0a0a0a;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+}
+
+#map-svg .region {
+    fill: var(--region);
+    stroke: var(--region-stroke);
+    stroke-width: 1;
+    opacity: 0.5;
+}
+
+#map-svg .edge {
+    stroke: var(--edge);
+    stroke-width: 1.5;
+    fill: none;
+}
+
+#map-svg .node-passive {
+    fill: var(--passive);
+    stroke: #fff;
+    stroke-width: 0.5;
+}
+
+#map-svg .node-active {
+    fill: var(--active);
+    stroke: #fff;
+    stroke-width: 0.5;
+}
+
+#map-svg .node-label {
+    fill: var(--text);
+    font-size: 11px;
+    font-family: monospace;
+    pointer-events: none;
+}
+
+/* ---- error / loading ---------------------------------------------- */
+
+.error {
+    color: var(--error);
+    background: rgba(255, 92, 92, 0.1);
+    border: 1px solid var(--error);
+    padding: 0.5em 1em;
+    border-radius: 3px;
+}
+
+.loading {
+    color: var(--text-dim);
+    font-style: italic;
+}
