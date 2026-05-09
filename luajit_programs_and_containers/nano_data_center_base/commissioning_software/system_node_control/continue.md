@@ -158,8 +158,8 @@ psql -c "SELECT path, kb_status_field FROM knowledge_base
 |---|---|---|---|
 | Phase 7 design session (8 questions) | ✅ **LOCKED 2026-05-10** | — | See `project_phase7_multitenant_design.md` |
 | Phase 7 C1 — migration script | ✅ **DONE 2026-05-10** | `c0189fe4` | dry-run validated on live cluster |
-| Phase 7 C2 — kb_build per-tenant paths + validator | ✅ **DONE 2026-05-10** | this session | 28 new tests; existing c3 fixed to pass planner_namespace |
-| Phase 7 C3 — action_server.lua bucket+key changes | queued | ~1 | C2 |
+| Phase 7 C2 — kb_build per-tenant paths + validator | ✅ **DONE 2026-05-10** | `0425194e` | 28 new tests; existing c3 fixed to pass planner_namespace |
+| Phase 7 C3 — action_server.lua bucket+key changes | ✅ **DONE 2026-05-10** | this session | 27 new tests; per-tenant `_action_server_prefix` injected into every publisher / claim_job / submit_nats |
 | Phase 7 C4 — planner_ui submit/status/db per-tenant | queued | ~1 | C3 |
 | Phase 7 C5 — gateway per-tenant routing | queued | ~1 | C4 |
 | Phase 7 C6 — Phase 7 cluster smoke | queued (user-driven) | smoke | C5 |

@@ -204,11 +204,29 @@ function M:_ensure_nats()
     local ks_lib = require("lib.nats_key_store")
     local jq_lib = require("lib.nats_job_queue")
 
+    -- Phase 7: per-tenant NATS resources. NATS bucket names disallow
+    -- dots so both site and namespace get dots->underscores. Subjects
+    -- and KV keys keep the dotted form (matches the KB ltree path
+    -- scheme `system.<sys>.site.<S>.planner.<ns>.action_server.*`,
+    -- minus the `system.<sys>.` prefix which is implicit per site).
     local site_bucket = self.site:gsub("%.", "_")
+    local ns_bucket   = self.planner_namespace:gsub("%.", "_")
+    local bucket_action_server = string.format(
+        "%s_planner_%s_action_server", site_bucket, ns_bucket)
+    local bucket_mission_log = string.format(
+        "%s_planner_%s_mission_log", site_bucket, ns_bucket)
+
+    -- Cache the subject/key prefix for this tenant; every
+    -- _publish_*/get/claim helper reads from here.
+    self._action_server_prefix = string.format(
+        "%s.planner.%s.action_server", self.site, self.planner_namespace)
+
     self._ks = ks_lib.KeyStore.new({
         server        = self.nats_server,
-        bucket        = site_bucket .. "_action_server",
-        description   = "Action server: status, results, summary, mission log",
+        bucket        = bucket_action_server,
+        description   = string.format(
+            "Action server (tenant '%s'): status, results, summary, mission log",
+            self.planner_namespace),
         create_bucket = true,
         history       = 1,
         client_name   = "action_server",
@@ -218,8 +236,10 @@ function M:_ensure_nats()
     -- Separate bucket for mission log (higher history for rolling log)
     self._log_ks = ks_lib.KeyStore.new({
         server        = self.nats_server,
-        bucket        = site_bucket .. "_mission_log",
-        description   = "Rolling mission log: last 50 missions",
+        bucket        = bucket_mission_log,
+        description   = string.format(
+            "Rolling mission log (tenant '%s'): last 50 missions",
+            self.planner_namespace),
         create_bucket = true,
         history       = 50,
         client_name   = "action_server_log",
@@ -267,7 +287,7 @@ end
 function M:submit_nats(mission_cmd)
     self:_ensure_nats()
     local payload = json_util.encode(mission_cmd)
-    return self._jq:submit(payload, self.site .. ".action_server.missions", 5, 1, 600)
+    return self._jq:submit(payload, self._action_server_prefix .. ".missions", 5, 1, 600)
 end
 
 ---------------------------------------------------------------------------
@@ -282,7 +302,7 @@ end
 
 function M:get_mission_status(robot_id)
     self:_ensure_nats()
-    local val = self._ks:get(self.site .. ".action_server." .. robot_id .. ".status")
+    local val = self._ks:get(self._action_server_prefix .. "." .. robot_id .. ".status")
     if val then
         local ok, decoded = pcall(json_util.decode, val)
         if ok then return decoded end
@@ -292,7 +312,7 @@ end
 
 function M:get_mission_result(robot_id)
     self:_ensure_nats()
-    local val = self._ks:get(self.site .. ".action_server." .. robot_id .. ".result")
+    local val = self._ks:get(self._action_server_prefix .. "." .. robot_id .. ".result")
     if val then
         local ok, decoded = pcall(json_util.decode, val)
         if ok then return decoded end
@@ -931,7 +951,7 @@ function M:_drain_nats_queue()
     self:_ensure_nats()
     -- Claim up to 5 jobs per cycle
     for _ = 1, 5 do
-        local job = self._jq:claim_job({self.site .. ".action_server.missions"})
+        local job = self._jq:claim_job({self._action_server_prefix .. ".missions"})
         if not job then break end
 
         local ok, cmd = pcall(json_util.decode, job.payload_json)
@@ -1019,12 +1039,17 @@ function M:_publish_status(robot_id, data)
         self:_ensure_nats()
         data.robot_id  = robot_id
         data.timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        self._ks:put(self.site .. ".action_server." .. robot_id .. ".status",
+        self._ks:put(self._action_server_prefix .. "." .. robot_id .. ".status",
             json_util.encode(data))
     end)
 end
 
 function M:_read_robot_energy(robot_id)
+    -- TODO Phase 7 follow-up: when robot_status bucket migrates to the
+    -- per-tenant scheme (planner.<ns>.robots.<id>.status.energy), update
+    -- both the bucket name and key here to mirror _action_server_prefix.
+    -- Today no robot rows live in pg yet (per Phase 7 design memo) so
+    -- this code path is a no-op until a per-robot publisher exists.
     local ok, result = pcall(function()
         self:_ensure_nats()
         local ks_lib = require("lib.nats_key_store")
@@ -1052,7 +1077,7 @@ end
 function M:_publish_result(robot_id, result)
     pcall(function()
         self:_ensure_nats()
-        self._ks:put(self.site .. ".action_server." .. robot_id .. ".result",
+        self._ks:put(self._action_server_prefix .. "." .. robot_id .. ".result",
             json_util.encode({
                 success    = result.success,
                 completed  = result.completed,
@@ -1081,7 +1106,7 @@ function M:_publish_summary()
         if self.link_mgr then
             registered = self.link_mgr:list_live()
         end
-        self._ks:put(self.site .. ".action_server.summary",
+        self._ks:put(self._action_server_prefix .. ".summary",
             json_util.encode({
                 active_missions   = self.mission_count,
                 missions          = robots,
@@ -1161,7 +1186,7 @@ function M:_publish_mission_log(robot_id, result, board)
                 kb_name      = result.fault.kb_name,
             }
         end
-        self._log_ks:put(self.site .. ".action_server.mission_log",
+        self._log_ks:put(self._action_server_prefix .. ".mission_log",
             json_util.encode({
                 robot_id         = robot_id,
                 board            = board or "",
