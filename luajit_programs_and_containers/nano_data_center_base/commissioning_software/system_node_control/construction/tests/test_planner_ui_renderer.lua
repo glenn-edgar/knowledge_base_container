@@ -60,12 +60,15 @@ if js_content then
   ok("references /api/board/<name>",
      js_content:find('/api/board/" + encodeURIComponent', 1, true) ~= nil)
 
-  -- Expected function/identifier surface (these names are what a
-  -- maintainer would grep for first; renaming requires a deliberate
-  -- cross-file update)
+  -- Expected function/identifier surface (C3 baseline + C4 additions).
+  -- These names are what a maintainer would grep for first; renaming
+  -- requires a deliberate cross-file update.
   for _, fn in ipairs({
     "loadBoards", "loadBoard", "renderBoard", "renderRegion",
     "renderEdges", "renderNodes", "buildPicker", "bboxOfBoard", "init",
+    -- C4 additions
+    "hermitePoints", "renderSegment", "renderL2",
+    "showNodePopup", "closePopup", "popupOpen",
   }) do
     ok("function " .. fn .. " present",
        js_content:find("function " .. fn, 1, true) ~= nil
@@ -73,6 +76,23 @@ if js_content then
        or js_content:find(fn .. ":", 1, true) ~= nil
        or js_content:find(fn .. "%(", 1) ~= nil)
   end
+
+  -- C4: leaf-kind colors mirror visualizer.py
+  for _, kind in ipairs({
+    "straight_line", "spline", "rotate",
+    "wall_follow", "line_follow", "activate",
+  }) do
+    ok("LEAF_COLORS includes " .. kind,
+       js_content:find(kind .. ":", 1, true) ~= nil)
+  end
+
+  -- C4: Esc key handler + state machine markers
+  ok('Esc handler present (key === "Escape")',
+     js_content:find('"Escape"', 1, true) ~= nil)
+  ok("state.currentView referenced",
+     js_content:find("currentView", 1, true) ~= nil)
+  ok("state.currentEdgeIdx referenced",
+     js_content:find("currentEdgeIdx", 1, true) ~= nil)
 
   -- SVG element types referenced (the renderer creates these)
   for _, elt in ipairs({ '"polygon"', '"line"', '"circle"',
@@ -96,6 +116,24 @@ if css_content then
   for _, sel in ipairs({
     "#map-svg", ".region", ".edge", ".node-passive", ".node-active",
     ".node-label", ".board-picker", ".error", ".loading",
+  }) do
+    ok("selector " .. sel .. " present",
+       css_content:find(sel, 1, true) ~= nil)
+  end
+
+  -- C4: leaf-kind classes (one per kind)
+  for _, kind in ipairs({
+    "straight_line", "spline", "rotate",
+    "wall_follow", "line_follow", "activate",
+  }) do
+    ok("CSS class .leaf-" .. kind .. " present",
+       css_content:find(".leaf-" .. kind, 1, true) ~= nil)
+  end
+
+  -- C4: L2 + popup selectors
+  for _, sel in ipairs({
+    ".l2-bar", ".back-button", ".l2-title", ".l2-endpoint",
+    ".popup-overlay", ".popup", ".popup-close", ".edge-hit",
   }) do
     ok("selector " .. sel .. " present",
        css_content:find(sel, 1, true) ~= nil)

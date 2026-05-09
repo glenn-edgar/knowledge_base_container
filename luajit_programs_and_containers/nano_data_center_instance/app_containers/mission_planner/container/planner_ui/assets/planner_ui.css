@@ -148,6 +148,162 @@ main {
     pointer-events: none;
 }
 
+/* ---- L1 edge hit target (Phase 5b C4) ----------------------------- */
+
+#map-svg .edge-hit {
+    stroke: transparent;
+    stroke-width: 1.5;        /* wide invisible click target */
+    fill: none;
+    cursor: pointer;
+    pointer-events: stroke;
+}
+
+#map-svg .edge-hit:hover ~ .edge,
+#map-svg .edge-hit:hover {
+    stroke: var(--accent) !important;
+}
+
+#map-svg .node-passive,
+#map-svg .node-active {
+    cursor: pointer;
+}
+
+/* ---- L2 (Phase 5b C4) --------------------------------------------- */
+
+.l2-bar {
+    display: flex;
+    gap: 1em;
+    align-items: baseline;
+    padding: 0.4em 0.5em 0.6em;
+    color: var(--text-dim);
+    font-size: 0.9em;
+}
+
+.back-button {
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.25em 0.7em;
+    font: inherit;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.back-button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.l2-title {
+    color: var(--text-em);
+    font-weight: 500;
+}
+
+#map-svg .l2-endpoint {
+    fill: #fff;
+    stroke: #444;
+    stroke-width: 0.05;
+}
+
+/* Leaf-kind classes -- color comes from inline style attribute set by
+ * map_render.js (mirror of visualizer.py COLORS); the class supplies
+ * the line-style + width. */
+
+#map-svg .leaf-straight_line,
+#map-svg .leaf-spline,
+#map-svg .leaf-rotate-tangent {
+    stroke-width: 0.15;
+    fill: none;
+}
+
+#map-svg .leaf-wall_follow,
+#map-svg .leaf-line_follow {
+    stroke-width: 0.15;
+    fill: none;
+    stroke-dasharray: 0.4 0.2;   /* dashed: composite/base distinction */
+}
+
+#map-svg .leaf-rotate {
+    stroke: #000;
+    stroke-width: 0.05;
+}
+
+#map-svg .leaf-activate {
+    stroke-width: 0.12;
+}
+
+#map-svg .leaf-activate-label {
+    fill: var(--text);
+    font-size: 0.4px;
+    font-family: monospace;
+    pointer-events: none;
+}
+
+/* ---- node properties popup (Phase 5b C4) -------------------------- */
+
+.popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.popup {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1em 1.5em;
+    min-width: 260px;
+    max-width: 480px;
+    color: var(--text);
+    position: relative;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.popup h3 {
+    margin: 0 0 0.6em 0;
+    color: var(--text-em);
+    font-size: 1em;
+}
+
+.popup dl {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 8em 1fr;
+    gap: 0.3em 1em;
+}
+
+.popup dt {
+    color: var(--text-dim);
+    font-size: 0.9em;
+}
+
+.popup dd {
+    margin: 0;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.popup-close {
+    position: absolute;
+    top: 0.3em;
+    right: 0.5em;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.4em;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.1em 0.3em;
+}
+
+.popup-close:hover {
+    color: var(--text-em);
+}
+
 /* ---- error / loading ---------------------------------------------- */
 
 .error {
