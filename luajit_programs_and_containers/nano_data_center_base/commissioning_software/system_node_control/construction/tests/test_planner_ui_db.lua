@@ -97,15 +97,24 @@ print("== db.boards_namespace ==")
 
 do
   clear_pg_envs()
+  clear_env("PLANNER_NAMESPACE")
   local ns, err = db.boards_namespace()
   ok("missing env -> nil + err", ns == nil and err ~= nil,
      "got ns=" .. tostring(ns) .. " err=" .. tostring(err))
 
+  -- APP_SYSTEM/APP_SITE present but PLANNER_NAMESPACE missing -> err
   set_env("APP_SYSTEM", "ros_planner_ii")
   set_env("APP_SITE",   "moonbase.alpha.surface_ops")
+  ns, err = db.boards_namespace()
+  ok("APP_* set but PLANNER_NAMESPACE missing -> err",
+     ns == nil and err and err:find("PLANNER_NAMESPACE"),
+     "got ns=" .. tostring(ns) .. " err=" .. tostring(err))
+
+  set_env("PLANNER_NAMESPACE", "mission_planner_01")
   local ns2 = db.boards_namespace()
-  ok("env set -> namespace string",
-     ns2 == "system.ros_planner_ii.site.moonbase.alpha.surface_ops.boards",
+  ok("env set -> namespace string includes planner.<ns>",
+     ns2 == "system.ros_planner_ii.site.moonbase.alpha.surface_ops" ..
+            ".planner.mission_planner_01.boards",
      "got " .. tostring(ns2))
 end
 
@@ -152,10 +161,12 @@ do
      STUB.last_sql:find("kind = 'file'", 1, true) ~= nil)
   ok("SQL hex-encodes sha256",
      STUB.last_sql:find("encode(b.sha256, 'hex')", 1, true) ~= nil)
-  ok("SQL embeds the boards namespace",
+  ok("SQL embeds the boards namespace (with planner.<ns>)",
      STUB.last_sql:find(
-       "system.ros_planner_ii.site.moonbase.alpha.surface_ops.boards",
-       1, true) ~= nil)
+       "system.ros_planner_ii.site.moonbase.alpha.surface_ops" ..
+       ".planner.mission_planner_01.boards",
+       1, true) ~= nil,
+     "SQL: " .. (STUB.last_sql or "(nil)"):sub(1, 300))
 end
 
 do
@@ -219,11 +230,12 @@ do
   ok("get_board returned sha256_hex",
      sha == "deadbeef", "got " .. tostring(sha))
 
-  ok("SQL targets the specific board path",
+  ok("SQL targets the specific board path (with planner.<ns>)",
      STUB.last_sql:find(
-       "system.ros_planner_ii.site.moonbase.alpha.surface_ops.boards.landing_zone",
+       "system.ros_planner_ii.site.moonbase.alpha.surface_ops" ..
+       ".planner.mission_planner_01.boards.landing_zone",
        1, true) ~= nil,
-     "SQL: " .. (STUB.last_sql or "(nil)"):sub(1, 200))
+     "SQL: " .. (STUB.last_sql or "(nil)"):sub(1, 300))
 end
 
 do

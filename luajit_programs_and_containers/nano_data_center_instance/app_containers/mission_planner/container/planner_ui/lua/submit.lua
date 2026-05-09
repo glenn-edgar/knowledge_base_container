@@ -79,10 +79,11 @@ function M.build_mission(input)
   }
 end
 
--- The queue action_server claims from. Must match
--- action_server.lua's submit_nats / _drain_nats_queue expectations.
-function M.queue_name(site)
-  return site .. ".action_server.missions"
+-- The queue action_server claims from. Must match action_server.lua's
+-- submit_nats / _drain_nats_queue expectations. Phase 7 (per-tenant):
+-- subject is `<site>.planner.<ns>.action_server.missions`.
+function M.queue_name(site, ns)
+  return string.format("%s.planner.%s.action_server.missions", site, ns)
 end
 
 ------------------------------------------------------------------------
@@ -99,13 +100,21 @@ local function ensure_jq(opts)
   local jq_lib    = opts.jq_lib    or require("lib.nats_job_queue")
   local site      = opts.site
   local nats_url  = opts.nats_url
+  local ns        = opts.planner_namespace
   local worker_id = opts.worker_id or "planner_ui"
 
+  -- Phase 7: per-tenant bucket. NATS bucket names disallow dots so
+  -- both site and namespace are normalized; matches action_server.lua's
+  -- _ensure_nats convention exactly.
   local site_bucket = site:gsub("%.", "_")
+  local ns_bucket   = ns:gsub("%.", "_")
+  local bucket_name = string.format(
+    "%s_planner_%s_action_server", site_bucket, ns_bucket)
   local k = ks_lib.KeyStore.new({
     server        = nats_url,
-    bucket        = site_bucket .. "_action_server",
-    description   = "planner_ui mission submit",
+    bucket        = bucket_name,
+    description   = string.format(
+      "planner_ui mission submit (tenant '%s')", ns),
     create_bucket = true,
     history       = 1,
     client_name   = worker_id,
@@ -128,29 +137,36 @@ end
 -- this function does not re-validate.
 --
 -- opts test shim:
---   ks_lib, jq_lib  -- replace the FFI modules
---   cjson           -- replace cjson.safe (dotted reload)
---   site            -- override APP_SITE
---   nats_url        -- override NATS_URL
---   worker_id       -- override default "planner_ui"
+--   ks_lib, jq_lib       -- replace the FFI modules
+--   cjson                -- replace cjson.safe (dotted reload)
+--   site                 -- override APP_SITE
+--   nats_url             -- override NATS_URL
+--   planner_namespace    -- override PLANNER_NAMESPACE (Phase 7)
+--   worker_id            -- override default "planner_ui"
 function M.do_submit(input, opts)
   opts = opts or {}
-  local cjson    = opts.cjson    or require("cjson.safe")
-  local site     = opts.site     or os.getenv("APP_SITE") or ""
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://127.0.0.1:4222"
+  -- Env / opt checks BEFORE require("cjson.safe") so a host shell
+  -- without cjson doesn't crash on early-exit paths during testing
+  -- (per feedback_openresty_cosocket_resolver.md / submit.lua history).
+  local site = opts.site or os.getenv("APP_SITE") or ""
   if site == "" then return nil, "APP_SITE not set" end
+  local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
+  if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
+  local cjson    = opts.cjson    or require("cjson.safe")
+  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://127.0.0.1:4222"
 
   local mission = M.build_mission(input)
   local payload = cjson.encode(mission)
   if not payload then return nil, "failed to encode mission as JSON" end
 
-  opts.site     = site
-  opts.nats_url = nats_url
+  opts.site              = site
+  opts.nats_url          = nats_url
+  opts.planner_namespace = ns
   local jq, jerr = ensure_jq(opts)
   if not jq then return nil, jerr end
 
   local id_ok, job_id_or_err = pcall(function()
-    return jq:submit(payload, M.queue_name(site), 5, 1, 600)
+    return jq:submit(payload, M.queue_name(site, ns), 5, 1, 600)
   end)
   if not id_ok then
     return nil, "submit: " .. tostring(job_id_or_err)

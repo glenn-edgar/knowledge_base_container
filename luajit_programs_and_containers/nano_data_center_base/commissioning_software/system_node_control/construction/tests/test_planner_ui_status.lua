@@ -105,14 +105,15 @@ print("== status.summary_key / status_key / result_key ==")
 ------------------------------------------------------------------------
 
 do
-  ok("summary key shape",
-     status.summary_key("siteA") == "siteA.action_server.summary")
-  ok("status key shape",
-     status.status_key("siteA", "rover_1") ==
-     "siteA.action_server.rover_1.status")
-  ok("result key shape",
-     status.result_key("siteA", "rover_1") ==
-     "siteA.action_server.rover_1.result")
+  ok("summary key shape (with planner.<ns>)",
+     status.summary_key("siteA", "tA") ==
+     "siteA.planner.tA.action_server.summary")
+  ok("status key shape (with planner.<ns>)",
+     status.status_key("siteA", "tA", "rover_1") ==
+     "siteA.planner.tA.action_server.rover_1.status")
+  ok("result key shape (with planner.<ns>)",
+     status.result_key("siteA", "tA", "rover_1") ==
+     "siteA.planner.tA.action_server.rover_1.result")
 end
 
 ------------------------------------------------------------------------
@@ -123,16 +124,30 @@ print("== status.list_missions ==")
 do
   status._reset()
   clear_env("APP_SITE")
+  clear_env("PLANNER_NAMESPACE")
   local r, err = status.list_missions()
   ok("missing APP_SITE rejected",
      r == nil and err and err:find("APP_SITE not set"), err)
+
+  -- APP_SITE present but PLANNER_NAMESPACE missing -> error (Phase 7).
+  -- Pass a cjson stub so the host doesn't crash on require("cjson.safe")
+  -- before the env-check fires.
+  status._reset()
+  set_env("APP_SITE", "siteA")
+  local stub_ks_lib, stub_cjs = make_stubs({})
+  r, err = status.list_missions({
+    ks_lib = stub_ks_lib, cjson = stub_cjs, nats_url = "nats://x",
+  })
+  ok("missing PLANNER_NAMESPACE rejected (Phase 7)",
+     r == nil and err and err:find("PLANNER_NAMESPACE not set"), err)
+  clear_env("APP_SITE")
 
   -- empty bucket: summary key missing -> empty-but-shaped envelope
   status._reset()
   local ks_lib, cjs, trace = make_stubs({})  -- empty kv
   local payload, e = status.list_missions({
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("empty bucket -> envelope returned (no error)", payload ~= nil, e)
   ok("envelope.missions is empty array",
@@ -140,16 +155,18 @@ do
   ok("envelope.active_missions = 0",
      payload.active_missions == 0)
   ok("envelope.timestamp is nil", payload.timestamp == nil)
-  ok("KS opts: bucket = <site>_action_server",
+  ok("KS opts: bucket = <site>_planner_<ns>_action_server",
      trace.last_ks_opts and trace.last_ks_opts.bucket ==
-     "siteA_action_server")
+     "siteA_planner_tA_action_server",
+     "got " .. tostring(trace.last_ks_opts and trace.last_ks_opts.bucket))
   ok("KS opts: create_bucket = false (read-only client)",
      trace.last_ks_opts and trace.last_ks_opts.create_bucket == false)
   ok("KS opts: worker_id default = planner_ui_status",
      trace.last_ks_opts and trace.last_ks_opts.client_name ==
      "planner_ui_status")
-  ok("KS:get called with summary key",
-     trace.get_calls[1] == "siteA.action_server.summary")
+  ok("KS:get called with per-tenant summary key",
+     trace.get_calls[1] == "siteA.planner.tA.action_server.summary",
+     trace.get_calls[1])
 
   -- populated summary
   status._reset()
@@ -163,12 +180,12 @@ do
     timestamp = "2026-05-10T12:00:00Z",
   }
   ks_lib, cjs, trace = make_stubs({
-    kv = { ["siteA.action_server.summary"] = "JSON:summary" },
+    kv = { ["siteA.planner.tA.action_server.summary"] = "JSON:summary" },
     decoded = { ["JSON:summary"] = fake_summary },
   })
   payload = status.list_missions({
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("populated summary -> 2 missions", #payload.missions == 2)
   ok("missions sorted by robot_id alpha (rover_1 first)",
@@ -187,12 +204,12 @@ do
   -- decode failure
   status._reset()
   ks_lib, cjs, trace = make_stubs({
-    kv = { ["siteA.action_server.summary"] = "garbage" },
+    kv = { ["siteA.planner.tA.action_server.summary"] = "garbage" },
     -- no `decoded` entry; cjson.decode returns nil + err
   })
   r, err = status.list_missions({
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("decode failure -> error",
      r == nil and err and err:find("decode summary"), err)
@@ -202,7 +219,7 @@ do
   ks_lib, cjs = make_stubs({ connect_err = "nats unreachable" })
   r, err = status.list_missions({
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("ks connect failure -> error",
      r == nil and err and err:find("ks connect"), err)
@@ -217,7 +234,8 @@ do
   status._reset()
   local ks_lib, cjs, trace = make_stubs({})
   local opts = { ks_lib = ks_lib, cjson = cjs,
-                 site = "siteA", nats_url = "nats://x" }
+                 site = "siteA", planner_namespace = "tA",
+                 nats_url = "nats://x" }
   status.list_missions(opts)
   status.list_missions(opts)
   status.list_missions(opts)
@@ -264,7 +282,7 @@ do
   local ks_lib, cjs, trace = make_stubs({ kv = {} })
   local detail = status.get_mission("rover_1", {
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("both keys missing -> detail returned (handler maps to 404)",
      detail ~= nil)
@@ -272,8 +290,8 @@ do
   ok("result field nil",  detail and detail.result == nil)
   ok("two get calls (status then result)",
      #trace.get_calls == 2 and
-     trace.get_calls[1] == "siteA.action_server.rover_1.status" and
-     trace.get_calls[2] == "siteA.action_server.rover_1.result")
+     trace.get_calls[1] == "siteA.planner.tA.action_server.rover_1.status" and
+     trace.get_calls[2] == "siteA.planner.tA.action_server.rover_1.result")
 
   -- status present, result missing (mission still running)
   status._reset()
@@ -281,12 +299,12 @@ do
                         robot_id = "rover_1",
                         timestamp = "2026-05-10T12:00:01Z" }
   ks_lib, cjs, trace = make_stubs({
-    kv = { ["siteA.action_server.rover_1.status"] = "JSON:status" },
+    kv = { ["siteA.planner.tA.action_server.rover_1.status"] = "JSON:status" },
     decoded = { ["JSON:status"] = fake_status },
   })
   detail = status.get_mission("rover_1", {
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("status present -> field decoded",
      detail and detail.status and detail.status.state == "active")
@@ -300,14 +318,14 @@ do
                          elapsed_ms = 4321 }
   ks_lib, cjs, trace = make_stubs({
     kv = {
-      ["siteA.action_server.rover_1.status"] = "JSON:s2",
-      ["siteA.action_server.rover_1.result"] = "JSON:r1",
+      ["siteA.planner.tA.action_server.rover_1.status"] = "JSON:s2",
+      ["siteA.planner.tA.action_server.rover_1.result"] = "JSON:r1",
     },
     decoded = { ["JSON:s2"] = fake_status2, ["JSON:r1"] = fake_result },
   })
   detail = status.get_mission("rover_1", {
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("status decoded",
      detail and detail.status and detail.status.state == "complete")
@@ -318,14 +336,15 @@ do
   -- decode failure
   status._reset()
   ks_lib, cjs, _ = make_stubs({
-    kv = { ["siteA.action_server.rover_1.status"] = "garbage" },
+    kv = { ["siteA.planner.tA.action_server.rover_1.status"] = "garbage" },
   })
   local r, err = status.get_mission("rover_1", {
     ks_lib = ks_lib, cjson = cjs,
-    site = "siteA", nats_url = "nats://x",
+    site = "siteA", planner_namespace = "tA", nats_url = "nats://x",
   })
   ok("status decode failure -> error",
-     r == nil and err and err:find("decode siteA.action_server"), err)
+     r == nil and err and err:find("decode siteA%.planner%.tA%.action_server"),
+     err)
 end
 
 ------------------------------------------------------------------------

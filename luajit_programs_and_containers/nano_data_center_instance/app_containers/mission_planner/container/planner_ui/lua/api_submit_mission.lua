@@ -47,5 +47,6 @@ end
 
 api.ok({
   job_id = job_id,
-  queue  = submit.queue_name(os.getenv("APP_SITE") or ""),
+  queue  = submit.queue_name(os.getenv("APP_SITE") or "",
+                             os.getenv("PLANNER_NAMESPACE") or ""),
 })

@@ -35,16 +35,28 @@ function M.connect()
   return pg
 end
 
--- Boards live at  system.<system>.site.<site>.boards.<name>
--- as fs_node rows. Build the namespace prefix from env vars so the
--- handler doesn't have to.
+-- Boards live at  system.<system>.site.<site>.planner.<ns>.boards.<name>
+-- as fs_node rows. Phase 7 (per-tenant): the planner.<ns> segment
+-- scopes the dashboard to this planner instance's board catalog.
+-- Each mission_planner container's PLANNER_NAMESPACE env (declared
+-- in nginx.conf, defaults to the planner instance name on the
+-- planner-worker side) drives the subtree filter.
+--
+-- Active nodes (list_active_nodes below) stay UNCHANGED at the site-
+-- level infrastructure.registry path because shared resources are
+-- accessible to every tenant per Q4 of
+-- project_phase7_multitenant_design.md.
 local function boards_namespace()
-  local sys  = os.getenv("APP_SYSTEM") or ""
-  local site = os.getenv("APP_SITE")   or ""
+  local sys  = os.getenv("APP_SYSTEM")        or ""
+  local site = os.getenv("APP_SITE")          or ""
+  local ns   = os.getenv("PLANNER_NAMESPACE") or ""
   if sys == "" or site == "" then
     return nil, "APP_SYSTEM / APP_SITE not set"
   end
-  return string.format("system.%s.site.%s.boards", sys, site)
+  if ns == "" then
+    return nil, "PLANNER_NAMESPACE not set"
+  end
+  return string.format("system.%s.site.%s.planner.%s.boards", sys, site, ns)
 end
 M.boards_namespace = boards_namespace
 

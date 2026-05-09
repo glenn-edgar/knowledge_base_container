@@ -178,11 +178,12 @@ print("== submit.queue_name ==")
 ------------------------------------------------------------------------
 
 do
-  ok("simple site",
-     submit.queue_name("moonbase") == "moonbase.action_server.missions")
-  ok("dotted site",
-     submit.queue_name("ros_planner_ii.moonbase.alpha") ==
-     "ros_planner_ii.moonbase.alpha.action_server.missions")
+  ok("simple site + ns",
+     submit.queue_name("moonbase", "tenant_a") ==
+     "moonbase.planner.tenant_a.action_server.missions")
+  ok("dotted site + ns",
+     submit.queue_name("ros_planner_ii.moonbase.alpha", "tunnel_ops") ==
+     "ros_planner_ii.moonbase.alpha.planner.tunnel_ops.action_server.missions")
 end
 
 ------------------------------------------------------------------------
@@ -193,6 +194,7 @@ print("== submit.do_submit: env + happy path ==")
 do
   submit._reset()
   clear_env("APP_SITE")
+  clear_env("PLANNER_NAMESPACE")
   local input = { robot_id = "rover_1", board = "landing_zone",
                   source = "a", target = "b" }
   local ks_lib, jq_lib, cjs, trace = make_stubs()
@@ -202,12 +204,24 @@ do
   ok("missing APP_SITE rejected",
      id == nil and err and err:find("APP_SITE not set"), err)
 
+  -- APP_SITE present but PLANNER_NAMESPACE missing -> error (Phase 7)
+  submit._reset()
+  ks_lib, jq_lib, cjs, trace = make_stubs()
+  id, err = submit.do_submit(input, {
+    ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
+    site = "ros_planner_ii.moonbase.alpha", nats_url = "nats://x",
+  })
+  ok("missing PLANNER_NAMESPACE rejected (Phase 7)",
+     id == nil and err and err:find("PLANNER_NAMESPACE not set"), err)
+
   -- Happy path
   submit._reset()
   ks_lib, jq_lib, cjs, trace = make_stubs()
   id, err = submit.do_submit(input, {
     ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
-    site = "ros_planner_ii.moonbase.alpha", nats_url = "nats://stub:4222",
+    site = "ros_planner_ii.moonbase.alpha",
+    planner_namespace = "tunnel_ops",
+    nats_url = "nats://stub:4222",
   })
   ok("happy path returns job_id",   id == "JOB_FAKE_001", err)
   ok("ks_lib.KeyStore.new called",  trace.ks_new_calls == 1)
@@ -215,9 +229,9 @@ do
   ok("KeyStore opts carry NATS url",
      trace.last_ks_opts and
      trace.last_ks_opts.server == "nats://stub:4222")
-  ok("KeyStore bucket name normalizes dots to underscores",
+  ok("KeyStore bucket name = <site>_planner_<ns>_action_server",
      trace.last_ks_opts and trace.last_ks_opts.bucket ==
-     "ros_planner_ii_moonbase_alpha_action_server",
+     "ros_planner_ii_moonbase_alpha_planner_tunnel_ops_action_server",
      "got " .. tostring(trace.last_ks_opts and trace.last_ks_opts.bucket))
   ok("KeyStore create_bucket=true",
      trace.last_ks_opts and trace.last_ks_opts.create_bucket == true)
@@ -228,9 +242,9 @@ do
   local call = trace.submit_calls[1]
   ok("submit payload is JSON-encoded mission",
      call and call.payload == "ENCODED:rover_1", call and call.payload)
-  ok("submit queue is <site>.action_server.missions",
+  ok("submit queue is <site>.planner.<ns>.action_server.missions",
      call and call.queue ==
-     "ros_planner_ii.moonbase.alpha.action_server.missions",
+     "ros_planner_ii.moonbase.alpha.planner.tunnel_ops.action_server.missions",
      call and call.queue)
   ok("submit priority = 5",     call and call.priority == 5)
   ok("submit max_retries = 1",  call and call.max_retries == 1)
@@ -246,7 +260,8 @@ do
   submit._reset()
   local ks_lib, jq_lib, cjs, trace = make_stubs()
   local opts = { ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
-                 site = "siteX", nats_url = "nats://x" }
+                 site = "siteX", planner_namespace = "tA",
+                 nats_url = "nats://x" }
   local input = { robot_id = "r1", board = "b1", source = "s", target = "t" }
   submit.do_submit(input, opts)
   submit.do_submit(input, opts)
@@ -271,7 +286,7 @@ do
   local id, err = submit.do_submit(
     { robot_id = "r", board = "b", source = "s", target = "t" },
     { ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
-      site = "siteX", nats_url = "nats://x" })
+      site = "siteX", planner_namespace = "tA", nats_url = "nats://x" })
   ok("ks connect failure -> error",
      id == nil and err and err:find("ks connect"), err)
 
@@ -280,7 +295,7 @@ do
   id, err = submit.do_submit(
     { robot_id = "r", board = "b", source = "s", target = "t" },
     { ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
-      site = "siteX", nats_url = "nats://x" })
+      site = "siteX", planner_namespace = "tA", nats_url = "nats://x" })
   ok("jq:submit raise -> error",
      id == nil and err and err:find("submit:") and err:find("nats unreachable"),
      err)
@@ -290,7 +305,7 @@ do
   id, err = submit.do_submit(
     { robot_id = "r", board = "b", source = "s", target = "t" },
     { ks_lib = ks_lib, jq_lib = jq_lib, cjson = cjs,
-      site = "siteX", nats_url = "nats://x" })
+      site = "siteX", planner_namespace = "tA", nats_url = "nats://x" })
   ok("cjson encode failure -> error",
      id == nil and err and err:find("encode"), err)
 end
