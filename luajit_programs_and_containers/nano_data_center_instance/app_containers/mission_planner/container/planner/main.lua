@@ -1,19 +1,25 @@
 #!/usr/bin/env luajit
 -- =============================================================================
--- planner/main.lua -- Phase B.2.A.1 runtime skeleton.
+-- planner/main.lua -- planner worker entry point.
 --
--- Connects to pg, looks up NATS + MQTT addressing through infra_discovery,
--- and updates the runtime.heartbeat snapshot row every TICK_SLEEP_S
--- seconds. NO NATS subscription, NO mission processing yet -- those land
--- in B.2.A.2 (runtime libraries) and B.2.A.3 (action_server + hub_dsl).
+-- Phase 5b worker hookup (2026-05-10): the loop now drives
+-- action_server:serve({drain_nats=true, on_tick=heartbeat}). Missions
+-- enqueued by planner_ui (or any external client) into the NATS
+-- JobQueue at <site>.action_server.missions are claimed, dispatched
+-- as coroutines, and produce status keys that planner_ui's C6
+-- dashboard polls. The on_tick callback handles the runtime.heartbeat
+-- pg row + pg reconnect on failure -- separation kept inside main.lua.
 --
--- Path written each tick:
+-- Heartbeat path (snapshot row pre-allocated by apps_builder at
+-- commission; this loop only UPDATEs):
 --   system.<sys>.site.<S>.app_containers.<name>.runtime.heartbeat.
 --     KB_STATUS_FIELD.snapshot
 -- = { value = { at = unix_ms, host, cpu, ui_port, tick } }
 --
--- Pre-allocated by apps_builder_framework's driver.lua at commission;
--- this loop only UPDATEs.
+-- Fallback: when action_server fails to instantiate (e.g., NATS
+-- unreachable at startup), the loop degrades to heartbeat-only so
+-- node_control's HTTP watchdog still sees the container as live.
+-- The degraded loop continues to log + restart-on-pg-failure.
 -- =============================================================================
 
 local ffi = require("ffi")
@@ -60,11 +66,10 @@ local mqtt_pubsub     = require("lib.mqtt_pubsub")      -- A.3.3b MQTT FFI wrapp
 local lua_cbor        = require("lib.lua_cbor")         -- A.3.3b CBOR FFI wrapper
 local mqtt_transport  = require("mqtt_transport")       -- A.3.3b uses lib.mqtt_pubsub + lib.lua_cbor
 
--- A.3.4: smoke-load action_server + its require chain (kb_query,
--- global_planner, sequencer, link_manager, mission_builder, etc.).
--- A.3.5: instantiate action_server with pg_conn (table) + site + nats_server.
--- See main loop further down for the instantiation step (after pg connect
--- and NATS infra discovery).
+-- action_server + its require chain (kb_query, global_planner,
+-- sequencer, link_manager, mission_builder, ...). Instantiated below
+-- after pg connect + NATS infra discovery; serve() drives the main
+-- loop in the action-server-available branch (Phase 5b worker hookup).
 local ok_as, action_server = pcall(require, "action_server")
 local action_server_status = ok_as and "ok" or ("FAIL: " .. tostring(action_server))
 
@@ -157,8 +162,10 @@ local nats_info = discover("nats")
 discover("mqtt")
 
 ---------------------------------------------------------------------------
--- A.3.5: instantiate action_server (smoke). Mission dispatch is gated on
--- the kb_runtime body port (deferred for V-heavy completion path).
+-- action_server instantiation. Phase 5b worker hookup turned dispatch
+-- ON: serve() is now called below. Failure here drops the worker into
+-- heartbeat-only fallback (NATS / pg may come back; supervisor handles
+-- harder failures).
 ---------------------------------------------------------------------------
 
 local pg_conn = {
@@ -194,75 +201,11 @@ else
 end
 
 ---------------------------------------------------------------------------
--- A.3.6: JobQueue log-only observer.
---
--- Standalone subscribe to the same KV bucket + queue action_server uses
--- (per its _ensure_nats / _drain_nats_queue convention). We do NOT call
--- action_srv:serve(); dispatch is gated on the kb_runtime body port +
--- kb_query positional-arg fix (deferred to A.4 / A.4b).
---
--- Per-tick drain up to MAX_JOBS_PER_TICK; log payload, complete with
--- "logged" status. External submitter contract: a Lua client opens the
--- same bucket and calls jq:submit(payload_json, queue, priority, retries,
--- timeout). nats CLI 'pub' won't work -- this is JetStream KV-backed,
--- not subject pub/sub.
----------------------------------------------------------------------------
-
-local json_util = require("json_util")
-
-local jq_observer = nil
-if action_srv and nats_info then
-    local nats_url = string.format("nats://%s:%d", nats_info.host, nats_info.port)
-    local site_bucket = APP_SITE:gsub("%.", "_")
-    local ok_jq, err_jq = pcall(function()
-        local ks = nats_ks.KeyStore.new({
-            server        = nats_url,
-            bucket        = site_bucket .. "_action_server",
-            description   = "Action server: status, results, summary, mission log",
-            create_bucket = true,
-            history       = 1,
-            client_name   = "planner_log_observer_ks",
-        })
-        ks:connect()
-        jq_observer = {
-            ks       = ks,
-            jq       = nats_jq.JobQueue.new(ks:handle(), "planner_log_observer"),
-            queue    = APP_SITE .. ".action_server.missions",
-            seen     = 0,
-        }
-    end)
-    if ok_jq and jq_observer then
-        logf("jq observer subscribed: bucket=%s_action_server queue=%s",
-            site_bucket, jq_observer.queue)
-    else
-        logf("jq observer subscribe FAIL: %s", tostring(err_jq))
-        jq_observer = nil
-    end
-end
-
-local MAX_JOBS_PER_TICK = 5
-
-local function drain_observer()
-    if not jq_observer then return end
-    for _ = 1, MAX_JOBS_PER_TICK do
-        local ok_claim, job_or_err = pcall(jq_observer.jq.claim_job,
-            jq_observer.jq, { jq_observer.queue })
-        if not ok_claim then
-            logf("jq claim error: %s", tostring(job_or_err))
-            return
-        end
-        local job = job_or_err
-        if not job then return end
-        jq_observer.seen = jq_observer.seen + 1
-        logf("mission received #%d id=%s payload=%s",
-            jq_observer.seen, job.id, tostring(job.payload_json))
-        pcall(jq_observer.jq.complete_job, jq_observer.jq, job.id,
-            '{"status":"logged_only","note":"A.3.6 observer; dispatch deferred"}')
-    end
-end
-
----------------------------------------------------------------------------
--- runtime.heartbeat tick loop
+-- runtime.heartbeat -- closure shared between the action_server-driven
+-- loop and the heartbeat-only fallback. Wall-time gated so it fires
+-- every TICK_SLEEP_S seconds regardless of the surrounding tick rate
+-- (action_server's scheduler runs at 2-50ms per cycle when missions
+-- are active; main.lua's old loop ran at 5s).
 ---------------------------------------------------------------------------
 
 local hb_path = ndc_paths.app_runtime_heartbeat_path(APP_SITE, CONTAINER_NAME)
@@ -271,22 +214,18 @@ logf("heartbeat path = %s", hb_path)
 local TICK_SLEEP_S = 5
 local LOG_EVERY_N  = 12   -- one log line per minute (5s * 12)
 
-local sleep_ts = ffi.new("ts_t"); sleep_ts.tv_sec = TICK_SLEEP_S
+local function now_ms() return os.time() * 1000 end
 
-local function now_ms()
-    -- coarse second-resolution; sufficient for liveness staleness checks
-    return os.time() * 1000
-end
+local hb_state = { tick = 0, last_at = 0 }
 
-local tick = 0
-while true do
-    tick = tick + 1
+local function fire_heartbeat()
+    hb_state.tick = hb_state.tick + 1
     local snapshot = {
         at      = now_ms(),
         host    = CONTAINER_NAME,
         cpu     = APP_CPU_ID,
-        ui_port = 0,             -- TODO B.2.A.2+: surface external ui port
-        tick    = tick,
+        ui_port = 0,             -- TODO: surface external ui port
+        tick    = hb_state.tick,
     }
     local ok, err = kb_status.set_status_data(pg, hb_path,
         { value = snapshot })
@@ -297,9 +236,44 @@ while true do
             pcall(function() pg:close() end)
             pg = connect_pg_until_ready()
         end
-    elseif tick == 1 or tick % LOG_EVERY_N == 0 then
-        logf("heartbeat tick=%d at=%d", tick, snapshot.at)
+    elseif hb_state.tick == 1 or hb_state.tick % LOG_EVERY_N == 0 then
+        logf("heartbeat tick=%d at=%d", hb_state.tick, snapshot.at)
     end
-    drain_observer()
-    ffi.C.nanosleep(sleep_ts, nil)
+    hb_state.last_at = os.time()
+end
+
+local function on_tick(_cycle_idx)
+    -- action_server's scheduler calls this every 2-50ms; gate to
+    -- TICK_SLEEP_S wall-time so we don't hammer pg.
+    if os.time() - hb_state.last_at >= TICK_SLEEP_S then
+        fire_heartbeat()
+    end
+end
+
+---------------------------------------------------------------------------
+-- Main entry: drive action_server:serve, or fall back to heartbeat-only.
+---------------------------------------------------------------------------
+
+if action_srv then
+    fire_heartbeat()    -- one immediate heartbeat so the row updates
+                        -- before the first 5s wall-time gate fires
+    logf("entering action_server:serve(drain_nats=true) -- mission " ..
+         "dispatch live; on_tick heartbeat every %ds", TICK_SLEEP_S)
+    action_srv:serve({
+        drain_nats = true,
+        on_tick    = on_tick,
+    })
+    -- serve() returns only on shutdown / error in the loop body.
+    logf("action_server:serve() returned -- worker exiting")
+else
+    -- Degraded mode: NATS unreachable or action_server failed to
+    -- instantiate at startup. Keep the heartbeat row fresh so
+    -- node_control's HTTP watchdog still considers us live; the
+    -- container will be restarted by the supervisor if pg goes too.
+    logf("action_server unavailable -- entering heartbeat-only fallback")
+    local sleep_ts = ffi.new("ts_t"); sleep_ts.tv_sec = TICK_SLEEP_S
+    while true do
+        fire_heartbeat()
+        ffi.C.nanosleep(sleep_ts, nil)
+    end
 end

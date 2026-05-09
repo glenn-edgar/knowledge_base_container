@@ -804,11 +804,22 @@ end
 ---------------------------------------------------------------------------
 
 --- Run all pending and queued missions concurrently via coroutines.
--- @param opts  optional: { drain_nats = bool, max_cycles = number }
+-- @param opts  optional: {
+--                drain_nats = bool,
+--                max_cycles = number,
+--                on_tick    = function(cycle_idx)  -- per-cycle hook
+--              }
+-- on_tick fires once per scheduler cycle, BEFORE link_mgr/drain/resume,
+-- and receives the 1-based cycle index. Use for heartbeats, watchdogs,
+-- or anything that needs to share the scheduler thread without blocking
+-- it. The hook is called inside pcall; errors are logged via print and
+-- do not stop the loop (so a transient pg blip in a heartbeat handler
+-- doesn't take down mission execution).
 function M:serve(opts)
     opts = opts or {}
     local drain_nats  = opts.drain_nats
     local max_cycles  = opts.max_cycles  -- nil = run until all done
+    local on_tick     = opts.on_tick
 
     -- Launch coroutines for pending missions
     for _, cmd in ipairs(self.pending) do
@@ -832,6 +843,20 @@ function M:serve(opts)
     -- When drain_nats is true, keep running even with 0 missions (persistent server).
     -- Otherwise exit when all missions complete.
     while self.mission_count > 0 or drain_nats do
+        cycles = cycles + 1
+
+        -- Per-cycle host hook (heartbeats, watchdogs). Errors are
+        -- caught so a transient pg blip can't take down mission
+        -- execution; the hook owner is responsible for its own
+        -- recovery (e.g., reconnecting pg).
+        if on_tick then
+            local hook_ok, hook_err = pcall(on_tick, cycles)
+            if not hook_ok then
+                print(string.format("on_tick error (cycle %d): %s",
+                    cycles, tostring(hook_err)))
+            end
+        end
+
         -- Tick link manager (processes link messages via mqtt_hub poll_and_route)
         if self.link_mgr then
             self.link_mgr:tick()
@@ -882,10 +907,7 @@ function M:serve(opts)
             ffi.C.usleep(50000)  -- 50ms idle poll
         end
 
-        if max_cycles then
-            cycles = cycles + 1
-            if cycles >= max_cycles then break end
-        end
+        if max_cycles and cycles >= max_cycles then break end
     end
 end
 
