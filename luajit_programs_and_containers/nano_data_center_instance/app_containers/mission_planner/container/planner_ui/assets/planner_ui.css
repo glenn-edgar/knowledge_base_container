@@ -21,6 +21,10 @@
     --edge:      #555;      /* topology edges */
     --region:    #2a2a3a;   /* region polygon fill */
     --region-stroke: #4a4a5a;
+    --source:    #4ad27a;   /* picked source node (5b C5) */
+    --target:    #4a9eff;   /* picked target node (5b C5) */
+    --success:   #4ad27a;
+    --info:      #88aaff;
 }
 
 body {
@@ -80,13 +84,21 @@ header .board-picker select {
 
 main {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: auto 1fr;
     gap: 1px;
     background: var(--bg-3);
     min-height: calc(100vh - 3em);
 }
 
-#map-region, #status-region {
+#map-region {
+    grid-row: 1 / span 2;
+    background: var(--bg-2);
+    padding: 1em;
+    overflow: auto;
+}
+
+#launcher-bar, #status-region {
     background: var(--bg-2);
     padding: 1em;
     overflow: auto;
@@ -97,13 +109,137 @@ main {
     font-style: italic;
 }
 
-#status-region h2 {
+#status-region h2,
+#launcher-bar h2 {
     font-size: 0.95em;
     color: #aaa;
     margin: 0 0 0.5em 0;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+/* ---- launcher bar (Phase 5b C5) ----------------------------------- */
+
+#launcher-bar .launcher-row {
+    display: flex;
+    gap: 0.5em;
+    align-items: baseline;
+    margin-bottom: 0.6em;
+}
+
+#launcher-bar label {
+    color: var(--text-dim);
+    font-size: 0.9em;
+    min-width: 3.5em;
+}
+
+#launcher-bar input[type="text"] {
+    flex: 1;
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.3em 0.5em;
+    font: inherit;
+    border-radius: 3px;
+}
+
+#launcher-mode-btn,
+#submit-mission-btn {
+    width: 100%;
+    background: var(--bg-3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 0.5em 0.8em;
+    font: inherit;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-bottom: 0.5em;
+}
+
+#launcher-mode-btn:hover,
+#submit-mission-btn:not(:disabled):hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+#launcher-mode-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+}
+
+#submit-mission-btn:disabled {
+    color: var(--text-dim);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.launcher-hint {
+    color: var(--text-dim);
+    font-size: 0.85em;
+    margin: 0.3em 0 0.7em 0;
+    line-height: 1.35;
+}
+
+.launcher-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2em;
+    font-size: 0.9em;
+    margin-bottom: 0.7em;
+    padding: 0.4em 0.6em;
+    background: var(--bg-3);
+    border-radius: 3px;
+    color: var(--text-dim);
+}
+
+.launcher-selection .src strong { color: var(--source); }
+.launcher-selection .dst strong { color: var(--target); }
+
+.launcher-toast {
+    margin-top: 0.5em;
+    font-size: 0.85em;
+    min-height: 1.2em;
+    padding: 0.3em 0.5em;
+    border-radius: 3px;
+}
+
+.launcher-toast.success {
+    color: var(--success);
+    background: rgba(74, 210, 122, 0.1);
+}
+
+.launcher-toast.info {
+    color: var(--info);
+    background: rgba(136, 170, 255, 0.08);
+}
+
+.launcher-toast.error {
+    color: var(--error);
+    background: rgba(255, 92, 92, 0.1);
+}
+
+/* Cursor cue while in launcher mode -- helps the operator see they
+ * are picking a node, not just inspecting it. */
+body.launcher-mode-active #map-svg .node-passive,
+body.launcher-mode-active #map-svg .node-active {
+    cursor: crosshair;
+}
+
+/* Source / target highlight on the picked nodes. Bumped stroke +
+ * the brand color make them obvious at a glance even before C6
+ * paints the route preview. */
+#map-svg .node-source {
+    fill: var(--source) !important;
+    stroke: #fff;
+    stroke-width: 0.12;
+}
+
+#map-svg .node-target {
+    fill: var(--target) !important;
+    stroke: #fff;
+    stroke-width: 0.12;
 }
 
 /* ---- SVG L1 (topology) -------------------------------------------- */

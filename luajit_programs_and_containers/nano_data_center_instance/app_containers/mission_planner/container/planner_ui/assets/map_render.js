@@ -1,11 +1,12 @@
-// planner_ui :: map renderer (Phase 5b C3 + C4).
+// planner_ui :: map renderer (Phase 5b C3 + C4 + C5).
 //
 // Two-level interactive view, mirroring construction/scripts/board_dsl/
 // visualizer.py:
 //
 //   L1 (topology)   region polygon, nodes (passive=circle, active=square),
 //                   straight-line edges. Click an edge -> L2.
-//                   Click a node -> properties popup.
+//                   Click a node -> properties popup, OR (in launch
+//                   mode) sets that node as source then target.
 //
 //   L2 (path detail) the chosen edge's path tree, with sub-segments
 //                   rendered in geometric order, color-coded by leaf
@@ -13,10 +14,14 @@
 //                   the current pose. Back button returns to L1.
 //
 // Interactions:
-//   click edge       L1 -> L2 for that edge
-//   click node       L1: pop up a panel with node properties
-//   Esc              dismiss popup; if no popup, L2 -> L1; if neither,
-//                    no-op
+//   click edge        L1 -> L2 for that edge
+//   click node        L1 launch off: properties popup
+//                     L1 launch on:  pick source then target
+//   "Pick source &
+//    target" button   toggle launch mode
+//   "Submit mission"  POST /api/submit_mission with {robot_id, board,
+//                     source, target}
+//   Esc               popup ? close : launch ? exit launch : L2 ? L1
 //
 // Splines use Hermite reconstruction with tangent magnitude = chord/3
 // (matches physics_core.c's Bezier reconstruction + visualizer.py).
@@ -38,10 +43,23 @@
 
     // -- View state -----------------------------------------------------
     const state = {
-        boards: [],          // /api/boards result
-        currentBoard: null,  // currently-selected board JSON
-        currentView: "L1",   // "L1" or "L2"
-        currentEdgeIdx: -1,  // edge index when in L2
+        boards: [],           // /api/boards result
+        currentBoard: null,   // currently-selected board JSON
+        currentBoardName: "", // name string the picker resolved to
+        currentView: "L1",    // "L1" or "L2"
+        currentEdgeIdx: -1,   // edge index when in L2
+    };
+
+    // -- Launcher state (Phase 5b C5) -----------------------------------
+    // mode      : true while clicking nodes selects source/target
+    // pickRole  : "source" or "target" -- which one the next click sets
+    // source    : node name picked first; null until set
+    // target    : node name picked second; null until set
+    const launcher = {
+        mode: false,
+        pickRole: "source",
+        source: null,
+        target: null,
     };
 
     // -- DOM helpers ----------------------------------------------------
@@ -178,17 +196,27 @@
         if (!board.nodes) return;
         for (const n of board.nodes) {
             const isActive = !!(n.kb_ref && n.kb_ref !== "");
+            // Base class + launcher selection class so CSS can paint
+            // source / target distinctly without the JS knowing colors.
+            let cls = isActive ? "node-active" : "node-passive";
+            if (n.name && n.name === launcher.source) cls += " node-source";
+            else if (n.name && n.name === launcher.target) cls += " node-target";
+
             const node = isActive
                 ? svg("rect", {
                     x: n.x - 0.3, y: n.y - 0.3, width: 0.6, height: 0.6,
-                    class: "node-active",
+                    class: cls,
                 })
                 : svg("circle", {
-                    cx: n.x, cy: n.y, r: 0.3, class: "node-passive",
+                    cx: n.x, cy: n.y, r: 0.3, class: cls,
                 });
             node.addEventListener("click", function (ev) {
                 ev.stopPropagation();
-                showNodePopup(n);
+                if (launcher.mode) {
+                    pickNode(n);
+                } else {
+                    showNodePopup(n);
+                }
             });
             svgRoot.appendChild(node);
 
@@ -487,10 +515,163 @@
             closePopup();
             return;
         }
+        if (launcher.mode) {
+            setLauncherMode(false);
+            clearLauncherSelection();
+            return;
+        }
         if (state.currentView === "L2" && state.currentBoard) {
             renderBoard(state.currentBoard);
         }
     });
+
+    // -- Launcher (Phase 5b C5) -----------------------------------------
+    //
+    // State machine: idle -> picking_source -> picking_target -> ready.
+    // pickRole is the role the next node-click will fill. Esc or
+    // toggling "Pick source & target" off resets to idle.
+
+    function setLauncherHint(msg) {
+        const el = document.getElementById("launcher-hint");
+        if (el) el.textContent = msg;
+    }
+
+    function setLauncherToast(msg, kind) {
+        const el = document.getElementById("launcher-toast");
+        if (!el) return;
+        el.textContent = msg || "";
+        el.className = "launcher-toast" + (kind ? " " + kind : "");
+    }
+
+    function refreshLauncherSelectionDisplay() {
+        const s = document.getElementById("launcher-source");
+        const t = document.getElementById("launcher-target");
+        if (s) s.textContent = launcher.source || "—";
+        if (t) t.textContent = launcher.target || "—";
+        const submit = document.getElementById("submit-mission-btn");
+        if (submit) {
+            const robot = (document.getElementById("robot-input") || {}).value;
+            submit.disabled = !(launcher.source && launcher.target &&
+                                robot && robot.trim().length > 0);
+        }
+    }
+
+    function clearLauncherSelection() {
+        launcher.source = null;
+        launcher.target = null;
+        launcher.pickRole = "source";
+        refreshLauncherSelectionDisplay();
+        if (state.currentBoard && state.currentView === "L1") {
+            renderBoard(state.currentBoard);
+        }
+    }
+
+    function setLauncherMode(on) {
+        launcher.mode = !!on;
+        const btn = document.getElementById("launcher-mode-btn");
+        if (btn) {
+            btn.textContent = on
+                ? "Cancel selection"
+                : "Pick source & target";
+            btn.classList.toggle("active", on);
+        }
+        document.body.classList.toggle("launcher-mode-active", on);
+        if (on) {
+            launcher.pickRole = launcher.source ? "target" : "source";
+            setLauncherHint("click a node to pick the " +
+                            launcher.pickRole + ".");
+        } else {
+            setLauncherHint(
+                'enter robot id, then click "Pick source & target" ' +
+                "and tap two nodes on the map.");
+        }
+    }
+
+    function pickNode(n) {
+        if (!n || !n.name) return;
+        if (launcher.pickRole === "source") {
+            launcher.source = n.name;
+            // If target was equal, clear it (must differ).
+            if (launcher.target === n.name) launcher.target = null;
+            launcher.pickRole = "target";
+            setLauncherHint("source: " + n.name +
+                            " — now pick the target.");
+        } else {
+            if (n.name === launcher.source) {
+                setLauncherHint("source and target must differ — " +
+                                "pick a different node.");
+                return;
+            }
+            launcher.target = n.name;
+            setLauncherHint("source: " + launcher.source +
+                            ", target: " + launcher.target +
+                            " — ready to submit.");
+        }
+        refreshLauncherSelectionDisplay();
+        if (state.currentBoard && state.currentView === "L1") {
+            renderBoard(state.currentBoard);
+        }
+    }
+
+    async function submitMission() {
+        const robotEl = document.getElementById("robot-input");
+        const robot = robotEl ? robotEl.value.trim() : "";
+        if (!robot) {
+            setLauncherToast("robot id required", "error"); return;
+        }
+        if (!launcher.source || !launcher.target) {
+            setLauncherToast("pick source and target first", "error");
+            return;
+        }
+        if (!state.currentBoardName) {
+            setLauncherToast("no board selected", "error"); return;
+        }
+        const body = JSON.stringify({
+            robot_id: robot,
+            board:    state.currentBoardName,
+            source:   launcher.source,
+            target:   launcher.target,
+        });
+        setLauncherToast("submitting...", "info");
+        try {
+            const r = await fetch("/api/submit_mission", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: body,
+            });
+            let data;
+            try { data = await r.json(); } catch (_) { data = {}; }
+            if (!r.ok) {
+                throw new Error(data.error || ("HTTP " + r.status));
+            }
+            setLauncherToast("queued: " + (data.job_id || "(unknown id)"),
+                             "success");
+            clearLauncherSelection();
+            setLauncherMode(false);
+        } catch (e) {
+            setLauncherToast("submit failed: " + (e.message || e), "error");
+        }
+    }
+
+    function wireLauncher() {
+        const modeBtn = document.getElementById("launcher-mode-btn");
+        if (modeBtn) {
+            modeBtn.addEventListener("click", function () {
+                setLauncherMode(!launcher.mode);
+            });
+        }
+        const submitBtn = document.getElementById("submit-mission-btn");
+        if (submitBtn) {
+            submitBtn.addEventListener("click", submitMission);
+        }
+        const robotInput = document.getElementById("robot-input");
+        if (robotInput) {
+            // Submit gating depends on robot non-empty too.
+            robotInput.addEventListener("input",
+                refreshLauncherSelectionDisplay);
+        }
+        refreshLauncherSelectionDisplay();
+    }
 
     // -- Wiring ---------------------------------------------------------
 
@@ -517,6 +698,9 @@
         }
         sel.addEventListener("change", async function () {
             if (!sel.value) return;
+            // Switching board invalidates any active selection.
+            clearLauncherSelection();
+            state.currentBoardName = sel.value;
             showLoading("loading board " + sel.value + "...");
             try {
                 const board = await loadBoard(sel.value);
@@ -528,6 +712,7 @@
     }
 
     async function init() {
+        wireLauncher();
         try {
             const boards = await loadBoards();
             state.boards = boards;
@@ -555,6 +740,12 @@
             bboxOfBoard: bboxOfBoard,
             hermitePoints: hermitePoints,
             LEAF_COLORS: LEAF_COLORS,
+            // C5 launcher hooks (state is mutable; tests should treat
+            // this as read-only inspection).
+            launcher: launcher,
+            pickNode: pickNode,
+            setLauncherMode: setLauncherMode,
+            clearLauncherSelection: clearLauncherSelection,
         };
     }
 })();

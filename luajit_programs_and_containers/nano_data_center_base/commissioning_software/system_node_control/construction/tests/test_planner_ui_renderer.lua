@@ -1,20 +1,21 @@
 #!/usr/bin/env luajit
 -- =============================================================================
--- test_planner_ui_renderer.lua -- Phase 5b C3 acceptance for the SVG
--- L1 renderer (vanilla JS + CSS).
+-- test_planner_ui_renderer.lua -- Phase 5b C3 / C4 / C5 acceptance for
+-- the SVG L1 renderer + L2 drill-down + popup + launcher (vanilla JS).
 --
 -- The JS runs in a browser; we can't exercise the SVG output host-side
 -- without a JS engine. This test verifies:
 --   - asset files exist and are non-empty
 --   - the JS contains the expected exported behavior surface (function
---     names + API endpoint strings) so a refactor that drops a hook
---     is caught
+--     names + API endpoint strings + state shape) so a refactor that
+--     drops a hook is caught
 --   - the CSS contains the expected selectors so styling regressions
 --     are caught at the file level
---   - shell_page.lua references both assets
+--   - shell_page.lua references both assets and the launcher elements
 --
 -- Browser-side behavior verified by the cluster smoke (load planner_ui
--- in a browser, observe board picker, pick board, see SVG render).
+-- in a browser, observe board picker, pick board, see SVG render,
+-- click "Pick source & target", click two nodes, type robot, submit).
 -- =============================================================================
 
 local SCRIPT_DIR = arg[0]:match("(.*/)") or "./"
@@ -69,6 +70,11 @@ if js_content then
     -- C4 additions
     "hermitePoints", "renderSegment", "renderL2",
     "showNodePopup", "closePopup", "popupOpen",
+    -- C5 launcher additions
+    "pickNode", "setLauncherMode", "clearLauncherSelection",
+    "submitMission", "wireLauncher",
+    "refreshLauncherSelectionDisplay", "setLauncherHint",
+    "setLauncherToast",
   }) do
     ok("function " .. fn .. " present",
        js_content:find("function " .. fn, 1, true) ~= nil
@@ -93,6 +99,39 @@ if js_content then
      js_content:find("currentView", 1, true) ~= nil)
   ok("state.currentEdgeIdx referenced",
      js_content:find("currentEdgeIdx", 1, true) ~= nil)
+
+  -- C5: launcher state shape
+  ok("launcher.mode in state",
+     js_content:find("launcher.mode", 1, true) ~= nil
+     or js_content:find("mode: false", 1, true) ~= nil)
+  ok("launcher.pickRole in state",
+     js_content:find("pickRole", 1, true) ~= nil)
+  ok("launcher.source / launcher.target tracked",
+     js_content:find("launcher.source", 1, true) ~= nil and
+     js_content:find("launcher.target", 1, true) ~= nil)
+
+  -- C5: state.currentBoardName threaded through picker change
+  ok("state.currentBoardName threaded",
+     js_content:find("currentBoardName", 1, true) ~= nil)
+
+  -- C5: POST /api/submit_mission target endpoint
+  ok("POSTs to /api/submit_mission",
+     js_content:find("/api/submit_mission", 1, true) ~= nil)
+  ok('uses fetch method "POST"',
+     js_content:find('method: "POST"', 1, true) ~= nil
+     or js_content:find("method:'POST'", 1, true) ~= nil)
+  ok("Content-Type: application/json sent",
+     js_content:find("application/json", 1, true) ~= nil)
+
+  -- C5: source/target highlight class plumbing
+  ok("node-source class applied",
+     js_content:find("node-source", 1, true) ~= nil)
+  ok("node-target class applied",
+     js_content:find("node-target", 1, true) ~= nil)
+
+  -- C5: Esc handler also exits launcher mode
+  ok("Esc exits launcher mode (setLauncherMode(false))",
+     js_content:find("setLauncherMode(false)", 1, true) ~= nil)
 
   -- SVG element types referenced (the renderer creates these)
   for _, elt in ipairs({ '"polygon"', '"line"', '"circle"',
@@ -139,9 +178,26 @@ if css_content then
        css_content:find(sel, 1, true) ~= nil)
   end
 
+  -- C5: launcher selectors. Some elements (robot-input, launcher-hint,
+  -- launcher-toast) are styled by class / descendant selectors rather
+  -- than by ID -- check the selectors that actually appear.
+  for _, sel in ipairs({
+    "#launcher-bar", "#launcher-mode-btn", "#submit-mission-btn",
+    ".launcher-row", ".launcher-hint", ".launcher-selection",
+    ".launcher-toast", ".launcher-toast.success",
+    ".launcher-toast.error", ".node-source", ".node-target",
+  }) do
+    ok("selector " .. sel .. " present",
+       css_content:find(sel, 1, true) ~= nil)
+  end
+  ok("launcher-mode-active body cursor cue present",
+     css_content:find("launcher-mode-active", 1, true) ~= nil)
+
   -- Color variables defined for the theme
   for _, v in ipairs({ "--bg", "--text", "--accent", "--passive",
-                        "--active", "--edge", "--region" }) do
+                        "--active", "--edge", "--region",
+                        -- C5
+                        "--source", "--target" }) do
     ok("CSS var " .. v .. " defined",
        css_content:find(v .. ":", 1, true) ~= nil)
   end
@@ -163,6 +219,18 @@ if shell then
      shell:find('id="map-region"', 1, true) ~= nil)
   ok("shell has #status-region container",
      shell:find('id="status-region"', 1, true) ~= nil)
+
+  -- C5: launcher elements injected by shell_page.lua
+  ok("shell has #launcher-bar (C5)",
+     shell:find('id="launcher%-bar"') ~= nil)
+  ok("shell has #robot-input (C5)",
+     shell:find('id="robot%-input"') ~= nil)
+  ok("shell has #launcher-mode-btn (C5)",
+     shell:find('id="launcher%-mode%-btn"') ~= nil)
+  ok("shell has #submit-mission-btn (C5)",
+     shell:find('id="submit%-mission%-btn"') ~= nil)
+  ok("submit button starts disabled",
+     shell:find('disabled', 1, true) ~= nil)
 
   -- Should NOT have a giant inline <style> block any more (CSS
   -- moved to external file). Heuristic: <style> presence + > 200
