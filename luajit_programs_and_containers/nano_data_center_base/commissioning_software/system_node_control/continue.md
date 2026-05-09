@@ -53,38 +53,80 @@ routing has something real to route to, and the C6 cluster smoke can
 exercise the six scenarios from the plan memo (cross-tenant rejection,
 both planners using the same shared dock, isolation, etc).
 
-### 3. The robot model gap is bigger than my C3 TODO suggests.
+### 3. The robot model gap is bigger than my C3 TODO suggests. **(ADDRESSED via ROBSIM layer — see below)**
 
 Phase 7 schema places robots at `system.<sys>.site.<S>.planner.<ns>.robots.<id>`.
-Today: zero robot rows in the KB, no `robots.lua` subsystem in
-`construction/subsystems/`, no robot publisher, no robot UI consumer. The
-launcher accepts any `robot_id` string; the worker fails on
-`board_not_found` before robot validation fires (5b smoke proved this).
+Was true at EOD: zero robot rows in the KB, no `robots.lua` subsystem, no
+robot publisher, no robot UI consumer. Launcher accepted any `robot_id`
+string; worker failed on `board_not_found` before robot validation fired.
 
-So Phase 7 ships the *capacity* for tenant-scoped robot ownership but
-doesn't *test* it. That's fine as a v1, but it means the migration script
-wipes nothing on the robot side (because nothing exists), the validator's
-REJECT catalog has no real cross-tenant robot ref to reject, and C6 smoke
-will only cover "two planners with empty robot fleets."
+**Resolution**: rather than ship Phase 7 with the gap, user opted to fill
+it with a small simulator that doubles as the foundation for porting
+the existing `ros_planner_ii_mqtt_robot` container. Ships in 3 layers:
+- ROBSIM C1 ✅ DONE (`017b9a39`): robots.lua kb_build subsystem +
+  ctx.ROBOTS enumeration. Per-tenant robot rows under
+  planner.<ns>.robots.<id>. +37 tests = 780 host-side.
+- ROBSIM C2 queued: robot_sim container (Dockerfile + main.lua with
+  URLP link + drive echo + activate echo + heartbeat); reuses
+  mock_mqtt_robot_lib.lua (Phase 3a C1) protocol logic.
+- ROBSIM C3 queued: cluster smoke validating launcher → planner →
+  robot_sim → kb_done flow.
 
-**Recommendation**: defer a `robots.lua` subsystem + a minimal robot
-publisher to a sibling phase (call it Phase 7.5 or "robot model"). It's
-real work, not just an adjustment to existing code. Don't sneak it into
-C5 just to have something to test.
+## Tomorrow's recommended sequence (REVISED after EOD push-back discussion + ROBSIM C1 ship)
 
-## Tomorrow's recommended sequence
+Push-backs locked:
+- #1 → Position Y: rebuild before C6, not before C5 (host tests reliable for path renames)
+- #2 → Position 3: C5 = topology change ONLY (gateway already multi-tenant-capable; survey verified all 5 chain links)
+- #3 → ADDRESSED: building ROBSIM layer to fill the robot-data gap
 
 | Step | What | Outcome |
 |---|---|---|
-| A | Rebuild `nanodatacenter/mission-planner:latest` + restart `mission_planner_01` (per recipe below). Run a 5-min smoke validating C1-C4 doesn't break the existing single-tenant flow. Migration script: don't apply yet — current cluster has only smoke artifacts in the deprecated bucket; new container will create the new per-tenant bucket on first publish; old bucket can age out manually. | Validates C1-C4 in cluster. Catches any cluster-only gaps. |
-| B | Bundled C5: add `mission_planner_02` to topology (`planner_namespace = "tunnel_ops"`, ports `ui = 19009`), gateway adds `/planner/<ns>/*` routing to both planner_uis. Includes its tests. | Two-tenant cluster ready. |
-| C | C6 cluster smoke: launch missions in both planners; verify isolation (planner_A's mission only visible in planner_A's UI); verify cross-tenant kb_ref rejection at compile time using a fixture board. | Phase 7 e2e validation. |
-| D | After C5+C6 green: rewrite continue.md again, decide between (1) Phase 7+ robot model, (2) matplotlib viewer, (3) node-properties authoring, or (4) pause. | Honest re-prioritization. |
+| A | **ROBSIM C2**: `robot_sim` def in `catalogs/definitions.lua` + `app_containers/robot_sim/` package (Dockerfile + manifest + container_spec + kb_build) + `robot_sim/main.lua` with URLP link_announce + drive echo + activate echo + heartbeat. Reuse `mock_mqtt_robot_lib.lua` from Phase 3a C1 for the protocol logic. Topology adds `robot_sim_rover_1` instance. | Container exists; one robot declared. |
+| B | **ROBSIM C3**: cluster smoke. Bring up orchestrator (start.sh per recipe), let it reconcile mp_01 to new image + spawn robot_sim_rover_1; submit a mission via the launcher; verify drive packets emit, robot acks, kb_done fires, mission_log updates. | Robot pipeline e2e validated. Phase 7 C1-C4 also validated as a side-effect. |
+| C | **Phase 7 C5**: add `mission_planner_02` to topology (planner_namespace = "tunnel_ops"). Per-tenant data partitioning gets real exercise with two planners + at least one robot per tenant (declare a second `robot_sim_rover_2` for tunnel_ops or share rover_1 — design call). | Two-tenant cluster live. |
+| D | **Phase 7 C6**: cluster smoke for two-tenant scenarios from plan memo. Validate isolation (planner_A's mission invisible to planner_B's UI), cross-tenant kb_ref rejection at compile time via a fixture board. | Phase 7 e2e validated with real robot data. |
+| E | After A-D green: decide between (1) matplotlib viewer, (2) node-properties authoring, (3) port the simulator's protocol layer into the real `ros_planner_ii_mqtt_robot` container, (4) pause. | Honest re-prioritization. |
 
-If you want to deviate from this sequence:
-- **Skip A** (rebuild+smoke) → faster but riskier; if Phase 7 introduces a cluster bug, it surfaces later mixed with whatever C5 adds. Not recommended.
-- **Skip B's bundling** (do C5 alone) → C5 ships as config nobody exercises; C6 needs a second planner anyway and has to add it then. Pointless detour.
-- **Tackle robot model first** → real work; 1+ session. Defers Phase 7 close-out. Worth doing if "tenant ownership of robots" is the actual operator value, not "tenant ownership of boards."
+**Key operational facts** (from EOD survey, baked into Step B above):
+
+- **Orchestrator is NOT running on host today** (`ps aux | grep dcs.lua` empty). Containers survive on docker `restart=unless-stopped`. To run reconcile properly, start `./deployment/cpu_01/start.sh &` + `./deployment/cpu_02/start.sh &`. Each is a watchdog around `dcs.lua`.
+- **Topology change → must re-slice bootstrap.db.** `bootstrap.db` is read-only after generation; `build.specs` dict loaded once at dcs.lua boot. Adding mp_02 OR robot_sim_rover_1 to topology requires `bash construction/slice_bootstrap.sh` THEN restart orchestrator (stop.sh + start.sh).
+- **No image-staleness detection** in node_control's RECONCILE — checks "is container running by name" only. After `docker_build.sh` rebuilds `:latest`, mp_01 keeps running stale until explicit `docker stop mission_planner_01`. Then RECONCILE picks it up from the new image.
+
+So Step B's exact recipe:
+```bash
+# 1. Rebuild mission-planner image with C1-C4 + ROBSIM changes
+cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_instance/app_containers/mission_planner/container && bash ./docker_build.sh
+
+# 2. Build robot_sim image (after C2 lands)
+cd ../../robot_sim/container && bash ./docker_build.sh
+
+# 3. Run kb_build to update master pg with new app_containers manifest
+cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control/construction
+luajit build_kb.lua
+
+# 4. Re-slice bootstrap.db so dcs.lua sees the new instance
+bash slice_bootstrap.sh
+
+# 5. Restart orchestrator (stop if running, then start fresh)
+cd ../deployment/cpu_01 && ./stop.sh && ./start.sh &
+cd ../cpu_02 && ./stop.sh && ./start.sh &
+
+# 6. Force mp_01 to roll forward to new image
+docker stop mission_planner_01
+# RECONCILE re-spawns from :latest within ~10s
+
+# 7. Verify both planner + robot_sim alive
+docker ps | grep -E 'mission_planner|robot_sim'
+ps aux | grep dcs.lua
+
+# 8. Submit a test mission and watch the full flow
+curl -X POST http://localhost:19005/api/submit_mission \
+  -H "Content-Type: application/json" \
+  -d '{"robot_id":"rover_1","board":"landing_zone","source":"a","target":"b"}'
+# Expect: HTTP 200, then robot_sim logs show drive packets received,
+# acks sent; mission_log shows drive_done; status shows complete
+```
 
 ## Architectural references
 
