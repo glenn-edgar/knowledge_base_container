@@ -736,9 +736,15 @@ function Board:build(opts)
   local kb   = opts.kb_conn
   local sys  = opts.system_name
   local site = opts.site_name
+  local own_ns = opts.planner_namespace   -- Phase 7: tenant scope for kb_ref validation
 
   if kb and (not sys or not site) then
     error("build({kb_conn=...}) requires system_name and site_name too", 0)
+  end
+  if kb and (not own_ns or own_ns == "") then
+    error("build({kb_conn=...}) requires planner_namespace (Phase 7 " ..
+          "multi-tenant: every kb_ref is validated against the " ..
+          "owning tenant's subtree)", 0)
   end
 
   -- ---------------- structural (C1+C2) ----------------
@@ -811,6 +817,64 @@ function Board:build(opts)
   -- ---------------- KB-driven checks ----------------
 
   if kb then
+    -- Phase 7: tenant-aware kb_ref allow-list. Per
+    -- project_phase7_multitenant_design.md Q4+Q8, a board may only
+    -- reference rows in the OWN tenant's subtree or in the shared
+    -- infrastructure.registry subtree. Cross-tenant refs and refs
+    -- into orchestration infra are rejected at compile time.
+    local site_root  = string.format("system.%s.site.%s",  sys, site)
+    local own_prefix = string.format("%s.planner.%s.",     site_root, own_ns)
+    local infra_pfx  = site_root .. ".infrastructure.registry."
+    local app_pfx    = site_root .. ".app_containers."
+    local cpu_pfx    = site_root .. ".cpu."
+    -- Pre-compile a lazy match for "any other planner.<other>." prefix
+    -- so we can produce a specific cross-tenant error.
+    local function is_other_tenant(ref)
+      local site_planner_pfx = site_root .. ".planner."
+      if ref:sub(1, #site_planner_pfx) ~= site_planner_pfx then
+        return false, nil
+      end
+      if ref:sub(1, #own_prefix) == own_prefix then
+        return false, nil  -- own tenant
+      end
+      -- Extract the other tenant name (segment between "planner." and next ".")
+      local rest = ref:sub(#site_planner_pfx + 1)
+      local other = rest:match("^([^%.]+)")
+      return true, other
+    end
+    local function validate_kb_ref(ref, where, what)
+      -- Allow: own tenant subtree
+      if ref:sub(1, #own_prefix) == own_prefix then return end
+      -- Allow: shared infrastructure.registry subtree
+      if ref:sub(1, #infra_pfx) == infra_pfx then return end
+      -- Reject case 1: cross-tenant
+      local cross, other_ns = is_other_tenant(ref)
+      if cross then
+        error(string.format(
+          "%s: %s kb_ref '%s' is in tenant '%s' (this board is in " ..
+          "tenant '%s'); cross-tenant references are not allowed. " ..
+          "Move the resource to your tenant or to " ..
+          "infrastructure.registry.<class>.",
+          where, what, ref, tostring(other_ns), own_ns), 0)
+      end
+      -- Reject case 2: orchestration infra
+      if ref:sub(1, #app_pfx) == app_pfx
+         or ref:sub(1, #cpu_pfx) == cpu_pfx then
+        error(string.format(
+          "%s: %s kb_ref '%s' targets orchestration infrastructure; " ..
+          "only application resources are referenceable. Allowed " ..
+          "prefixes: 'system.%s.site.%s.planner.%s.*' (own tenant), " ..
+          "'system.%s.site.%s.infrastructure.registry.*' (shared).",
+          where, what, ref, sys, site, own_ns, sys, site), 0)
+      end
+      -- Reject case 3: anything else
+      error(string.format(
+        "%s: %s kb_ref '%s' does not match any allowed prefix. " ..
+        "Allowed: 'system.%s.site.%s.planner.%s.*' (own tenant) or " ..
+        "'system.%s.site.%s.infrastructure.registry.*' (shared).",
+        where, what, ref, sys, site, own_ns, sys, site), 0)
+    end
+
     -- Cache action_id -> parameter_schema lookups so the same activate
     -- across many edges only hits pg once.
     local schema_cache = {}
@@ -830,9 +894,12 @@ function Board:build(opts)
       return schema_cache[action_id]
     end
 
-    -- Check 1: every node.kb_ref points to an existing KB row.
+    -- Check 1: every node.kb_ref (a) is in an allowed tenant subtree
+    -- (Phase 7 validate_kb_ref) and (b) points to an existing KB row.
     for _, n in ipairs(self.nodes) do
       if n.kb_ref then
+        validate_kb_ref(n.kb_ref, n.declared_at,
+                        string.format("node %q", n.name))
         if not kb_path_exists(kb, n.kb_ref) then
           error(string.format(
             "%s: node %q kb_ref does not resolve in KB: %s",
@@ -853,8 +920,12 @@ function Board:build(opts)
               leaf.action_id)
             -- Check 4: action_id present in the active-node's
             -- robot_virtual_action dict (only checkable if the activate
-            -- leaf carries a kb_ref).
+            -- leaf carries a kb_ref). Phase 7: also tenant-validate
+            -- the kb_ref before existence check.
             if leaf.kb_ref then
+              validate_kb_ref(leaf.kb_ref, leaf.declared_at,
+                              string.format("activate{ action_id=%q }",
+                                            leaf.action_id))
               local p = leaf.kb_ref .. ".action." .. leaf.action_id
               if not kb_path_exists(kb, p) then
                 error(string.format(

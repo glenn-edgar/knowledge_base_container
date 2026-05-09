@@ -316,6 +316,23 @@ for _, name in ipairs(SUBSYSTEMS) do
   modules[name] = load_lua("subsystems/" .. name .. ".lua")
 end
 
+-- Phase 7: enumerate mission_planner instances across all CPUs. Each
+-- instance is a tenant; default planner_namespace = instance name
+-- (matches action_server.lua's `or own_instance_id` fallback). An
+-- operator can override with an explicit `planner_namespace` field on
+-- the topology entry once we want friendlier names like "surface_ops".
+local PLANNERS = {}
+for _, cpu in pairs(TOPOLOGY.cpus or {}) do
+  for _, inst in ipairs(cpu.instances or {}) do
+    if inst.def == "mission_planner" then
+      PLANNERS[#PLANNERS + 1] = {
+        name      = inst.name,
+        namespace = inst.planner_namespace or inst.name,
+      }
+    end
+  end
+end
+
 local ctx = {
   kb                     = kb,
   SYSTEM_NAME            = SYSTEM_NAME,
@@ -326,6 +343,7 @@ local ctx = {
   ACTIONS                = ACTIONS,
   ROBOT_CLASSES          = ROBOT_CLASSES,
   CPU_COUNT              = CPU_COUNT,
+  PLANNERS               = PLANNERS,         -- Phase 7: per-tenant subsystems iterate this
   resolve_instance_ports = resolve_instance_ports,
 }
 

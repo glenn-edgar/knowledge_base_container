@@ -139,7 +139,8 @@ do
     },
   }
   local good, out = pcall(b.build, b,
-    { kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+    { kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE,
+      planner_namespace = "test_planner" })
   ok("build with KB succeeded", good, good and "" or tostring(out))
   ok("emitted 2 leaves", good and #out.edges[1].path == 2)
 end
@@ -161,7 +162,8 @@ do
     },
   }
   local good, out = pcall(b.build, b,
-    { kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+    { kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE,
+      planner_namespace = "test_planner" })
   ok("build with import_capabilities succeeded", good,
      good and "" or tostring(out))
   -- the imported caps should now appear in the canonical capabilities list
@@ -185,7 +187,7 @@ end, "requires KB at build time")
 expect_error("import_capabilities for unknown class", function()
   local b = fresh_with_dock()
   b:import_capabilities("ghost_class")
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "class not found in KB")
 
 ------------------------------------------------------------------------
@@ -200,7 +202,7 @@ expect_error("node.kb_ref not in KB", function()
   b:add_node{ name = "n2", x = 5, y = 5,
               kb_ref = "system.moon_base.site.alpha.infrastructure.registry.active_node_def.ghost_dock" }
   b:add_edge{ from = "n1", to = "n2" }
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "kb_ref does not resolve")
 
 ------------------------------------------------------------------------
@@ -214,7 +216,7 @@ expect_error("activate.action_id not in catalog", function()
     from = "lander_pad", to = "dock_3",
     path = { bd.activate{ action_id = "fake_action", kb_ref = DOCK_REF } },
   }
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "not found in action catalog")
 
 ------------------------------------------------------------------------
@@ -229,7 +231,7 @@ expect_error("params missing required field", function()
     path = { bd.activate{ action_id = "recharge", kb_ref = DOCK_REF,
                           params = {} } },
   }
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "missing required param")
 
 expect_error("params wrong type", function()
@@ -239,7 +241,7 @@ expect_error("params wrong type", function()
     path = { bd.activate{ action_id = "recharge", kb_ref = DOCK_REF,
                           params = { target_soc = "85%" } } },  -- string not float
   }
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "wrong type")
 
 expect_error("params extra field", function()
@@ -249,7 +251,7 @@ expect_error("params extra field", function()
     path = { bd.activate{ action_id = "recharge", kb_ref = DOCK_REF,
                           params = { target_soc = 0.85, bonus = 1 } } },
   }
-  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(fixture_rows), system_name = SYS, site_name = SITE, planner_namespace = "test_planner" })
 end, "unknown param")
 
 ------------------------------------------------------------------------
@@ -269,7 +271,8 @@ expect_error("action not advertised by active node", function()
     from = "lander_pad", to = "dock_3",
     path = { bd.activate{ action_id = "dock_in", kb_ref = DOCK_REF } },
   }
-  b:build({ kb_conn = make_kb(trimmed), system_name = SYS, site_name = SITE })
+  b:build({ kb_conn = make_kb(trimmed), system_name = SYS, site_name = SITE,
+            planner_namespace = "test_planner" })
 end, "not advertised by active-node def")
 
 ------------------------------------------------------------------------
@@ -293,7 +296,8 @@ do
   }
   local log = {}
   local good = pcall(b.build, b,
-    { kb_conn = make_kb(fixture_rows, log), system_name = SYS, site_name = SITE })
+    { kb_conn = make_kb(fixture_rows, log), system_name = SYS, site_name = SITE,
+      planner_namespace = "test_planner" })
   ok("multi-edge same-action build succeeded", good)
   -- Count queries that hit the action-catalog row.
   local catalog_path = p_action("recharge")

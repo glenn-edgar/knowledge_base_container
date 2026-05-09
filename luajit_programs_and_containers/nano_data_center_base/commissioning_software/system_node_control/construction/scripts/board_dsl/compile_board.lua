@@ -4,14 +4,20 @@
 --
 -- Usage:
 --   compile_board.lua --board <path-to-dsl.lua> --system <sys> --site <S>
+--                     --planner-namespace <ns>  (or env PLANNER_NAMESPACE)
 --                     [--out <path>]   [--name <board_name>]
 --                     [--no-kb]        [--upload]
 --                     [--pg-host <h>] [--pg-port <p>] [--pg-db <db>] [--pg-user <u>]
 --
 -- Required:
---   --board     path to operator-authored board.lua
---   --system    system name (e.g. moon_base) -- used for KB lookups + upload
---   --site      site name (e.g. alpha)        -- used for KB lookups + upload
+--   --board               path to operator-authored board.lua
+--   --system              system name (e.g. moon_base) -- KB lookups + upload
+--   --site                site name (e.g. alpha)        -- KB lookups + upload
+--   --planner-namespace   Phase 7: tenant the board belongs to (e.g.
+--                         mission_planner_01 / surface_ops). Required
+--                         in KB-validating mode; the validator scopes
+--                         every kb_ref against this tenant's subtree.
+--                         Falls back to env PLANNER_NAMESPACE.
 --
 -- Defaults:
 --   --out       <board file's basename>.json next to the .lua
@@ -37,6 +43,7 @@ end
 local function usage()
   io.stderr:write([[
 Usage: compile_board.lua --board <path> --system <sys> --site <S>
+                         --planner-namespace <ns>  (or env PLANNER_NAMESPACE)
                          [--out <path>] [--name <board_name>]
                          [--no-kb] [--upload]
                          [--pg-host <h>] [--pg-port <p>]
@@ -54,22 +61,34 @@ local opts = { pg_port = "5432", pg_db = "knowledge_base", pg_user = "gedgar" }
 local i = 1
 while i <= #arg do
   local k, v = arg[i], arg[i + 1]
-  if     k == "--board"   then opts.board   = v; i = i + 2
-  elseif k == "--system"  then opts.system  = v; i = i + 2
-  elseif k == "--site"    then opts.site    = v; i = i + 2
-  elseif k == "--out"     then opts.out     = v; i = i + 2
-  elseif k == "--name"    then opts.name    = v; i = i + 2
-  elseif k == "--no-kb"   then opts.no_kb   = true; i = i + 1
-  elseif k == "--upload"  then opts.upload  = true; i = i + 1
-  elseif k == "--pg-host" then opts.pg_host = v; i = i + 2
-  elseif k == "--pg-port" then opts.pg_port = v; i = i + 2
-  elseif k == "--pg-db"   then opts.pg_db   = v; i = i + 2
-  elseif k == "--pg-user" then opts.pg_user = v; i = i + 2
+  if     k == "--board"             then opts.board   = v; i = i + 2
+  elseif k == "--system"            then opts.system  = v; i = i + 2
+  elseif k == "--site"              then opts.site    = v; i = i + 2
+  elseif k == "--planner-namespace" then opts.planner_namespace = v; i = i + 2
+  elseif k == "--out"               then opts.out     = v; i = i + 2
+  elseif k == "--name"              then opts.name    = v; i = i + 2
+  elseif k == "--no-kb"             then opts.no_kb   = true; i = i + 1
+  elseif k == "--upload"            then opts.upload  = true; i = i + 1
+  elseif k == "--pg-host"           then opts.pg_host = v; i = i + 2
+  elseif k == "--pg-port"           then opts.pg_port = v; i = i + 2
+  elseif k == "--pg-db"             then opts.pg_db   = v; i = i + 2
+  elseif k == "--pg-user"           then opts.pg_user = v; i = i + 2
   elseif k == "--help" or k == "-h" then usage()
   else die("unknown arg: " .. tostring(k)) end
 end
 
+-- Phase 7: planner_namespace is required for KB-validating compile.
+-- Env var fallback so docker-compose / shell-export workflows don't
+-- need to repeat the flag.
+opts.planner_namespace = opts.planner_namespace
+                       or os.getenv("PLANNER_NAMESPACE")
+
 if not (opts.board and opts.system and opts.site) then usage() end
+if not opts.no_kb and (not opts.planner_namespace or opts.planner_namespace == "") then
+  die("--planner-namespace required (or env PLANNER_NAMESPACE) " ..
+      "in KB-validating mode; pass --no-kb for offline structural " ..
+      "checks only")
+end
 
 opts.pg_host = opts.pg_host or os.getenv("PG_HOST") or "localhost"
 opts.pg_password = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
@@ -139,9 +158,10 @@ if not opts.no_kb then
       opts.pg_db, opts.pg_host, opts.pg_port),
     opts.pg_user, opts.pg_password)
   if not pg then die("pg connect: " .. tostring(err)) end
-  build_opts.kb_conn     = pg
-  build_opts.system_name = opts.system
-  build_opts.site_name   = opts.site
+  build_opts.kb_conn          = pg
+  build_opts.system_name      = opts.system
+  build_opts.site_name        = opts.site
+  build_opts.planner_namespace = opts.planner_namespace
 end
 
 io.stdout:write(string.format(
