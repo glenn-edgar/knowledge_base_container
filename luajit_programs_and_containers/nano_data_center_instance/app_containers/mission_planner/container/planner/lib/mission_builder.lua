@@ -280,13 +280,24 @@ end
 -- @param remaining_stops  array of stop tables (subset of original mission)
 -- @param planner          global_planner instance (may have blocked edges)
 -- @param current_node     string: nearest node to fault position
--- @param current_heading  number: robot's current heading
+-- @param current_heading  number: robot's current heading. PRE-EXISTING:
+--                         this arg is currently NOT consumed (build()
+--                         has no start_heading parameter). Both action_server
+--                         call sites pass it; documented here so a future
+--                         fix that threads heading through doesn't have to
+--                         touch the signature again.
+-- @param use_drive_v2     bool (Phase 5 C5 fix): forwards the original
+--                         mission's use_drive_v2 flag into the synthetic
+--                         mission_cmd. Required so replans after C5
+--                         cut-over still emit drive_packet entries
+--                         instead of silently falling back to legacy.
 -- @return route, plan_info (same as build)
-function M.rebuild(remaining_stops, planner, current_node)
+function M.rebuild(remaining_stops, planner, current_node, current_heading, use_drive_v2)
     return M.build({
-        start   = current_node,
-        stops   = remaining_stops,
-        bookend = false,  -- no bookend on replan (mission already started)
+        start        = current_node,
+        stops        = remaining_stops,
+        bookend      = false,  -- no bookend on replan (mission already started)
+        use_drive_v2 = use_drive_v2,
     }, planner)
 end
 

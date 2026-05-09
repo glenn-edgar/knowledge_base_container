@@ -400,43 +400,69 @@ end
 
 ------------------------------------------------------------------------
 print()
-print("== rebuild() gap probe (documents known C3b follow-up) ==")
+print("== rebuild() use_drive_v2 forwarding ==")
 ------------------------------------------------------------------------
 
+local function count_kinds(route)
+  local drive, legacy_nav = 0, 0
+  for _, e in ipairs(route) do
+    if e.kind == "drive_packet" then
+      drive = drive + 1
+    elseif e.kb_name == "path_spline" or e.kb_name == "path_line"
+        or e.kb_name == "path_wall" then
+      legacy_nav = legacy_nav + 1
+    end
+  end
+  return drive, legacy_nav
+end
+
 do
-  -- mission_builder.rebuild constructs a synthetic mission_cmd internally
-  -- and calls build() with bookend=false. It does NOT forward
-  -- use_drive_v2 from the original mission. After C5 cut-over (when
-  -- legacy is removed), this would silently produce a route the
-  -- dispatch loop can't process. Test documents the gap; fix lands in
-  -- the next sub-commit.
+  -- Default (no use_drive_v2 supplied): rebuild stays legacy. Backward
+  -- compat for any caller that didn't opt in.
   local planner = make_stub_planner(FIXTURE_GRAPH, {
     ["n1>n3"] = { "n1", "n2", "n3" },
   })
   local rebuilt = mission_builder.rebuild(
     { { node = "n3" } }, planner, "n1")
-  -- Count drive_packet entries in the rebuilt route.
-  local drive_count, legacy_nav_count = 0, 0
-  for _, e in ipairs(rebuilt) do
-    if e.kind == "drive_packet" then
-      drive_count = drive_count + 1
-    elseif e.kb_name == "path_spline" or e.kb_name == "path_line"
-        or e.kb_name == "path_wall" then
-      legacy_nav_count = legacy_nav_count + 1
-    end
-  end
+  local drive, legacy = count_kinds(rebuilt)
+  ok("rebuild default (no flag): 0 drive_packet entries", drive == 0,
+     "got " .. drive)
+  ok("rebuild default (no flag): legacy nav entries present", legacy == 4,
+     "got " .. legacy)
+end
 
-  -- DOCUMENT current behavior: rebuild is legacy-only.
-  ok("rebuild produces 0 drive_packet entries (legacy-only today)",
-     drive_count == 0,
-     "got " .. drive_count)
-  ok("rebuild produces legacy nav entries (4 segments for fixture polylines)",
-     legacy_nav_count == 4,
-     "got " .. legacy_nav_count)
-  -- This is the bug: after C5 cut-over, rebuild() must respect
-  -- use_drive_v2. Either the caller must inject it before invoking
-  -- rebuild, or rebuild's signature must grow a use_drive_v2 arg.
-  -- Filed for the next C5 sub-commit.
+do
+  -- WITH use_drive_v2=true forwarded: rebuild produces drive_packet
+  -- entries (the fix landed in this commit; pre-fix this assertion
+  -- would have been "drive == 0").
+  local planner = make_stub_planner(FIXTURE_GRAPH, {
+    ["n1>n3"] = { "n1", "n2", "n3" },
+  })
+  local rebuilt = mission_builder.rebuild(
+    { { node = "n3" } }, planner, "n1", 0, true)
+  local drive, legacy = count_kinds(rebuilt)
+  ok("rebuild with use_drive_v2=true: 2 drive_packet entries (one per edge)",
+     drive == 2, "got " .. drive)
+  ok("rebuild with use_drive_v2=true: 0 legacy nav entries",
+     legacy == 0, "got " .. legacy)
+end
+
+do
+  -- Replan-walk integration: build, fault on packet 1, "rebuild" with
+  -- the forwarded flag, walk the rebuilt route. Verifies the dispatch
+  -- chain handles a replanned route end-to-end.
+  local planner = make_stub_planner(FIXTURE_GRAPH, {
+    ["n1>n3"] = { "n1", "n2", "n3" },
+  })
+  local rebuilt = mission_builder.rebuild(
+    { { node = "n3" } }, planner, "n1", 0, true)
+
+  local tx  = make_stub_tx()
+  local hub = make_hub_rt(tx)
+  local s   = walk_route(rebuilt, hub, tx)
+  ok("replan dispatched 2 packets",  s.dispatched == 2)
+  ok("replan completed 2 packets",   s.completed == 2)
+  ok("replan: 0 faults",             #s.faults == 0)
 end
 
 ------------------------------------------------------------------------

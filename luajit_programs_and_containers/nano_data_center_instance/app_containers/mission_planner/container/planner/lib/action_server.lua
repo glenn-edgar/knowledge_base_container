@@ -525,7 +525,8 @@ function M:_make_mission_coroutine(mission_cmd)
             srv:_block_fault_edge(planner, result, plan_info)
 
             local new_route, new_info = mission_builder.rebuild(
-                remaining, planner, current_node, result.final_pose.heading)
+                remaining, planner, current_node, result.final_pose.heading,
+                mission_cmd.use_drive_v2)
             if not new_route then
                 result.success = false
                 result.fault.detail = "replan failed"
@@ -1267,7 +1268,8 @@ function M:execute_mission(mission_cmd)
         if #remaining == 0 then break end
         self:_block_fault_edge(planner, result, plan_info)
         local new_route, new_info = mission_builder.rebuild(
-            remaining, planner, current_node, result.final_pose.heading)
+            remaining, planner, current_node, result.final_pose.heading,
+            mission_cmd.use_drive_v2)
         if not new_route then
             result.success = false
             result.fault.detail = "replan failed"
