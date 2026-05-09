@@ -281,6 +281,21 @@ do
     ok(name .. " parses cleanly",
        chunk ~= nil, err and tostring(err) or "")
   end
+
+  -- Cluster-smoke regression guard (2026-05-10): pgmoon over the
+  -- OpenResty cosocket needs an nginx `resolver` directive to
+  -- resolve hostnames like host.docker.internal / pg-vector. Without
+  -- it, every /api/* endpoint returns 503 with "no resolver defined".
+  -- Stub-based tests don't catch this -- it surfaces only on a real
+  -- container boot. Assert the directive is present so the
+  -- regression can't slip again.
+  local f = io.open(PUI .. "/conf/nginx.conf", "rb")
+  local nginx_conf = f and f:read("*a") or ""
+  if f then f:close() end
+  ok("nginx.conf has `resolver` directive (cluster-smoke regression)",
+     nginx_conf:find("resolver%s+%d", 1, false) ~= nil
+     or nginx_conf:find("resolver 127.0.0.11", 1, true) ~= nil,
+     "missing -- pgmoon cosocket connect will 503 on hostnames")
 end
 
 ------------------------------------------------------------------------

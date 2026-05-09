@@ -1,9 +1,24 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-10 — Worker hookup SHIPPED. Pipeline end-to-end live.
+## State at end of 2026-05-10 — Cluster smoke GREEN. Pipeline validated end-to-end.
 
-Three commits this session on top of yesterday evening's 5. **28 commits
-ahead of origin/master**, **646 host-side tests green**.
+Four commits this session on top of yesterday evening's 5. **29 commits
+ahead of origin/master**, **647 host-side tests green** (db test +1
+for resolver regression guard).
+
+**Cluster smoke (5 min) GREEN 2026-05-10 evening:**
+- container rebuilt + recreated with this session's image
+- heartbeat tick 1 → 60 over 295s = 5.00s/tick (on_tick wall-time gating verified)
+- 2 missions submitted via /api/submit_mission → drained → fail-stopped
+  cleanly with `board_not_found` (no boards in file_store; expected)
+- /api/missions / /api/mission/<robot> returned correct envelopes
+- validation paths green (400 / 405)
+- ZERO error/warn lines in 5 min of container logs
+- **One bug surfaced + patched mid-smoke**: pgmoon over cosocket needs
+  nginx `resolver` directive; without it `/api/boards` returned 503
+  with "no resolver defined to resolve host.docker.internal". Fixed
+  in nginx.conf; regression-guarded in `test_planner_ui_db.lua`. New
+  feedback memory: `feedback_openresty_cosocket_resolver.md`.
 
 This session's commits:
 - `15769083` **5b C5** — mission launcher (FFI direct enqueue)
@@ -141,8 +156,9 @@ psql -c "SELECT path, kb_status_field FROM knowledge_base
 
 | Phase | Status | Sub-commits | Dependencies |
 |---|---|---|---|
-| 5 C5 follow-up (delete legacy nav code) | gated on cluster smoke | ~2-3 | needs cluster smoke green |
-| 7 (multi-planner) | not started | ~3-4 | depends on KB schema decision (deferred) |
+| 5 C5 follow-up (delete legacy nav code) | **UNGATED** — smoke green; safe to land | ~2-3 | none |
+| 7 (multi-planner) | next per user direction | ~3-4 | depends on KB schema decision (still deferred — design session needed) |
+| Open items per user direction (matplotlib viewer, node-properties authoring) | queued post-step-7 | tbd | tbd |
 
 That's it. After today, the planner team's wire-out + UI + worker
 backend is end-to-end functional. Multi-tenant (Phase 7) is the only
