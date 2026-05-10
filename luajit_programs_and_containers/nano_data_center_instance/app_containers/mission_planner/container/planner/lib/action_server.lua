@@ -926,8 +926,13 @@ function M:serve(opts)
             end
         end
 
-        -- Idle: poll MQTT for link messages even when no missions active
-        if self.mission_count == 0 and self.mqtt_hub then
+        -- Always poll MQTT for link messages each cycle. Previously
+        -- gated on `mission_count == 0`, but mission_count is monotonic
+        -- (incremented on every claim, never decremented) -- a single
+        -- failed claim permanently silenced link_announce reception
+        -- because robots only announce once at boot. Polling every
+        -- cycle is cheap (1ms timeout) and link traffic is sparse.
+        if self.mqtt_hub then
             self.mqtt_hub:poll_and_route(1)
         end
 
