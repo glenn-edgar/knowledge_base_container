@@ -103,7 +103,8 @@ function M.list_missions(opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://127.0.0.1:4222"
+  -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
+  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)
@@ -171,7 +172,8 @@ function M.get_mission(robot_id, opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://127.0.0.1:4222"
+  -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
+  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)

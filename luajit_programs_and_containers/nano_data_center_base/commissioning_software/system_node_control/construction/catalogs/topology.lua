@@ -132,7 +132,17 @@ return {
       properties = { hostname = "localhost", role = "slave" },
       instances = {
         { name = "mission_planner_01", def = "mission_planner",
-          ports = { ui = 19005 } },
+          ports = { ui = 19005 },
+          -- Phase 7: planner instance's tenant identity. Defaults to
+          -- the instance name (per action_server's fallback) if not
+          -- declared, but planner_ui's submit/status/db modules
+          -- strictly require PLANNER_NAMESPACE env -- so we declare
+          -- explicitly to flow it through the orchestrator's
+          -- params->env injection chain (apps_builder + driver +
+          -- kb_assignments + launch_assignment).
+          params = {
+            planner_namespace = "mission_planner_01",
+          } },
         { name = "robot_manager_01", def = "robot_manager",
           ports = { manager_ui = 19006 } },
         -- Phase 7 ROBSIM: one simulated robot owned by mission_planner_01.

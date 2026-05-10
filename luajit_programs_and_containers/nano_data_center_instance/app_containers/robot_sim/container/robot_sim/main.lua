@@ -68,7 +68,11 @@ local CONTAINER_NAME    = env("CONTAINER_NAME")
 local APP_SITE          = env("APP_SITE")
 local ROBOT_ID          = env("ROBOT_ID")
 local PLANNER_NAMESPACE = env("PLANNER_NAMESPACE")
-local MQTT_HOST         = env("MQTT_HOST")
+-- MQTT_HOST defaults to the cluster's broker hostname on planner-net.
+-- A real robot port would use infra_discovery (like the planner does)
+-- to resolve this from pg; the simulator hardcodes the convention since
+-- it always co-resides with the planner cluster on planner-net.
+local MQTT_HOST         = env_or("MQTT_HOST", "mosquitto-ram-ws_main")
 local MQTT_PORT         = tonumber(env_or("MQTT_PORT", "1883"))
 local ROBOT_CLASS       = env_or("ROBOT_CLASS", "lunar_rover")
 local ENERGY_MAX        = tonumber(env_or("ENERGY_MAX", "10000"))
@@ -77,7 +81,9 @@ local HB_PERIOD_S       = tonumber(env_or("HB_PERIOD_S", "10"))
 assert(APP_SITE          ~= "", "APP_SITE env missing")
 assert(ROBOT_ID          ~= "", "ROBOT_ID env missing")
 assert(PLANNER_NAMESPACE ~= "", "PLANNER_NAMESPACE env missing")
-assert(MQTT_HOST         ~= "", "MQTT_HOST env missing")
+-- MQTT_HOST has a cluster-default; only fail if the override-via-env
+-- gave us empty (env_or returns the default if unset OR empty).
+assert(MQTT_HOST         ~= "", "MQTT_HOST env empty (cleared override?)")
 assert(MQTT_PORT         ~= nil, "MQTT_PORT env missing or invalid")
 
 local function logf(fmt, ...)

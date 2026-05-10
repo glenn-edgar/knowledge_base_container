@@ -159,7 +159,7 @@ local function discover(service_type)
 end
 
 local nats_info = discover("nats")
-discover("mqtt")
+local mqtt_info = discover("mqtt")
 
 ---------------------------------------------------------------------------
 -- action_server instantiation. Phase 5b worker hookup turned dispatch
@@ -176,6 +176,34 @@ local pg_conn = {
     password = PG_PASSWORD,
 }
 
+-- Gap-5 fix (post-ROBSIM C3 smoke 2026-05-10): instantiate mqtt_hub
+-- and pass to action_server. Without this, action_server doesn't create
+-- link_manager (the `if self.mqtt_hub` gate at action_server.lua:161
+-- short-circuits), so robot link_announce messages arrive at the broker
+-- but are never delivered to the link bridge -- robots stay state=init,
+-- planner stays state=planning. Discovered ROBSIM C3 smoke; fixed here.
+local mqtt_hub = nil
+if ok_as and mqtt_info then
+    local mqtt_tx = require("mqtt_hub_transport")
+    local hub_ok, hub_or_err = pcall(mqtt_tx.new,
+        mqtt_info.host, mqtt_info.port, APP_SITE)
+    if hub_ok then
+        mqtt_hub = hub_or_err
+        local conn_ok, cerr = pcall(function() mqtt_hub:connect() end)
+        if conn_ok then
+            logf("mqtt_hub connected: %s:%d site=%s",
+                mqtt_info.host, mqtt_info.port, APP_SITE)
+        else
+            logf("mqtt_hub connect FAIL: %s -- link bridge disabled",
+                tostring(cerr))
+            mqtt_hub = nil
+        end
+    else
+        logf("mqtt_hub_transport.new FAIL: %s -- link bridge disabled",
+            tostring(hub_or_err))
+    end
+end
+
 local action_srv = nil
 if ok_as and nats_info then
     local nats_url = string.format("nats://%s:%d", nats_info.host, nats_info.port)
@@ -188,10 +216,12 @@ if ok_as and nats_info then
         own_instance_id   = CONTAINER_NAME,
         nats_server       = nats_url,
         planner_namespace = os.getenv("PLANNER_NAMESPACE"),
+        mqtt_hub          = mqtt_hub,
     })
     if ok_inst then
         action_srv = srv_or_err
-        logf("action_server instantiated: nats_server=%s", nats_url)
+        logf("action_server instantiated: nats=%s mqtt_hub=%s",
+            nats_url, mqtt_hub and "wired" or "nil (link bridge disabled)")
     else
         logf("action_server instantiate FAIL: %s", tostring(srv_or_err))
     end

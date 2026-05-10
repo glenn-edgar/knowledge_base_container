@@ -1073,6 +1073,24 @@ function M.build(ctx)
       PG_PASSWORD    = os.getenv("PG_PASSWORD")
                        or os.getenv("POSTGRES_PASSWORD") or "",
     }
+    -- Gap-1 fix (post-ROBSIM C3 smoke 2026-05-10): lift per-instance
+    -- topology params into env vars. Convention: uppercase keys, scalar
+    -- values only (env vars are strings; tables / lists are skipped).
+    -- Source: kb_assignments.lua's LEFT JOIN on
+    -- spec.params.KB_JSONB_FIELD.params (asg.params is the decoded blob).
+    -- Without this, robot_sim's env_required {ROBOT_ID, PLANNER_NAMESPACE,
+    -- MQTT_HOST, MQTT_PORT} from container_spec.lua isn't satisfied; the
+    -- supervisor's app_run errors out with "ROBOT_ID env missing" until
+    -- the operator hand-injects via `docker run -e` (the workaround used
+    -- during ROBSIM C3 smoke).
+    if asg.params and type(asg.params) == "table" then
+      for k, v in pairs(asg.params) do
+        local t = type(v)
+        if t == "string" or t == "number" or t == "boolean" then
+          extra_env[tostring(k):upper()] = tostring(v)
+        end
+      end
+    end
     -- Catalog spec -> wire-protocol RunSpec. Resolves env_required from
     -- os.getenv, expands ~ in volume paths, normalizes ports.
     local run_spec, sa_err = spec_adapter.build_run_spec(asg.name, merged, extra_env)

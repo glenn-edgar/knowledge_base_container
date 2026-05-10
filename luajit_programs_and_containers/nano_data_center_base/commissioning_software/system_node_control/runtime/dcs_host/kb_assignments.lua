@@ -83,16 +83,23 @@ end
 function M.list_node_managed(conn, site, cpu_id)
   -- Step 1: which app instances are placed on this CPU?
   local app_root = escape_sql(ndc_paths.app_containers_root(site))
+  -- Gap-1 fix (post-ROBSIM C3 smoke 2026-05-10): LEFT JOIN
+  -- spec.params.KB_JSONB_FIELD.params so the per-instance topology
+  -- params (robot_id, planner_namespace, etc.) flow to launch_assignment
+  -- where they get lifted into the docker run env.
   local placement_sql = string.format([[
     SELECT
-      ac.name       AS instance_id,
-      pc_cpu.data   AS cpu_data,
-      pc_role.data  AS role_data
+      ac.name         AS instance_id,
+      pc_cpu.data     AS cpu_data,
+      pc_role.data    AS role_data,
+      pc_params.data  AS params_data
     FROM knowledge_base ac
     JOIN knowledge_base pc_cpu
       ON pc_cpu.path = ac.path || 'placement.current.KB_STATUS_FIELD.cpu'::ltree
     LEFT JOIN knowledge_base pc_role
       ON pc_role.path = ac.path || 'placement.current.KB_STATUS_FIELD.role'::ltree
+    LEFT JOIN knowledge_base pc_params
+      ON pc_params.path = ac.path || 'spec.params.KB_JSONB_FIELD.params'::ltree
     WHERE ac.knowledge_base = 'system'
       AND ac.label          = 'app_containers'
       AND ac.path <@ '%s'::ltree
@@ -102,12 +109,16 @@ function M.list_node_managed(conn, site, cpu_id)
   local placement_rows, perr = fetch_all(conn, placement_sql)
   if not placement_rows then return nil, "placement query: " .. tostring(perr) end
 
-  local placed = {}  -- [instance_id] = role
+  local placed = {}  -- [instance_id] = { role = ..., params = {...} }
   for _, r in ipairs(placement_rows) do
     local cpu_d  = decode_json(r.cpu_data)
     if tostring(cpu_d.value) == cpu_id then
-      local role_d = decode_json(r.role_data)
-      placed[tostring(r.instance_id)] = tostring(role_d.value or "active")
+      local role_d   = decode_json(r.role_data)
+      local params_d = decode_json(r.params_data)
+      placed[tostring(r.instance_id)] = {
+        role   = tostring(role_d.value or "active"),
+        params = params_d or {},
+      }
     end
   end
 
@@ -140,7 +151,7 @@ function M.list_node_managed(conn, site, cpu_id)
   for _, r in ipairs(rows) do by_name[tostring(r.name)] = r end
 
   local out = {}
-  for instance_id, _role in pairs(placed) do
+  for instance_id, p in pairs(placed) do
     local r = by_name[instance_id]
     if r then
       local props   = decode_json(r.props)
@@ -154,6 +165,11 @@ function M.list_node_managed(conn, site, cpu_id)
           definition = props.definition,
           managed_by = props.managed_by,
           service    = service,   -- { host, ports = [...], cfg }
+          -- Gap-1 fix: per-instance topology params (may be empty
+          -- table). launch_assignment lifts scalar values into the
+          -- container's docker run env (uppercase keys; tables/lists
+          -- skipped since env vars are strings).
+          params     = p.params or {},
         }
       end
     end

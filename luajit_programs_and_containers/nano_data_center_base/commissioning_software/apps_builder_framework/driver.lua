@@ -143,6 +143,35 @@ local function drive_one(kb, read_kb, placement)
       end)
   end
 
+  -- Gap-1 fix (post-ROBSIM C3 smoke 2026-05-10): emit per-instance
+  -- topology params as a KB jsonb blob so node_control's launcher
+  -- (kb_assignments.lua + user_functions.lua) can read them at
+  -- container-spawn time and inject as env vars (uppercase keys,
+  -- scalar values only). Skipped when placement has no params.
+  -- Path: app_containers.<inst>.spec.params.KB_JSONB_FIELD.params
+  local function emit_spec_params()
+    if not placement.params or not next(placement.params) then return end
+    kb:with_header("spec", "params",
+      { kind = "placement_params", class = placement.app_class },
+      {},
+      "Topology instance params for " .. placement.instance_id,
+      function()
+        if use_facade then
+          kb:add_jsonb_field("params", "placement_params",
+            "Per-instance topology params (robot_id, " ..
+            "planner_namespace, capabilities, ...) -- node_control's " ..
+            "launch_assignment lifts scalar values into the container's " ..
+            "docker run env (uppercase keys).",
+            placement.params)
+        else
+          kb:add_info_node("KB_JSONB_FIELD", "params",
+            { doc_type = "placement_params" },
+            placement.params,
+            "Per-instance topology params")
+        end
+      end)
+  end
+
   local body_ok, body_err = pcall(function()
     kb:with_header("app_containers", placement.instance_id,
       { class = placement.app_class, kind = placement.spec.kind },
@@ -155,6 +184,7 @@ local function drive_one(kb, read_kb, placement)
             "kb_build returned ok=false: %s", tostring(fn_err)), 0)
         end
         emit_placement()
+        emit_spec_params()
         emit_runtime_skeleton()
       end)
   end)

@@ -247,6 +247,17 @@ function M:_ensure_nats()
     self._log_ks:connect()
 
     self._jq = jq_lib.JobQueue.new(self._ks:handle(), "action_server")
+
+    -- Late-bind kv_writer's ks: link_manager's kv_writer was constructed
+    -- in M.new (before _ensure_nats), so its self.ks was nil. Now that
+    -- _ks exists, attach it so kv_writer:tick() can actually write KV
+    -- keys. Without this, the first tick after a robot link goes "live"
+    -- crashes the serve loop with "attempt to index field 'ks'
+    -- (a nil value)" at kv_writer.lua:71. Surfaced ROBSIM C3
+    -- gap-5/follow-on smoke 2026-05-10.
+    if self._link_kv_writer and not self._link_kv_writer.ks then
+        self._link_kv_writer.ks = self._ks
+    end
 end
 
 ---------------------------------------------------------------------------

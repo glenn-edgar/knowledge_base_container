@@ -98,6 +98,11 @@ return {
               spec        = cs,
               manifest    = mf,
               kb_build    = kb_fn,
+              -- Gap-1 fix (post-ROBSIM C3 smoke 2026-05-10): carry
+              -- topology params forward so emit_spec_params (below)
+              -- can write them as a KB blob that node_control's
+              -- launcher reads at container-spawn time.
+              params      = inst.params,
             }
           else
             -- Not a fatal error: an "application" def may legitimately
@@ -136,6 +141,9 @@ return {
         count, #placements, err))
     end
     print(string.format("  [apps_builder] %d apps committed", count))
+    -- Gap-1 fix: per-instance topology params emit happens inside
+    -- driver.drive's app_containers scope (driver.lua emit_spec_params).
+    -- The placement.params field added above is what driver reads.
   end,
 
 }

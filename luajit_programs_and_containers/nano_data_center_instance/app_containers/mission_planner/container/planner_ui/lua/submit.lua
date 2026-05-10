@@ -153,7 +153,11 @@ function M.do_submit(input, opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://127.0.0.1:4222"
+  -- Default to cluster's NATS hostname on planner-net. Real architectural
+  -- fix is infra_discovery from pg (like the planner worker does); this
+  -- default unblocks cluster smoke until that wiring lands. Same pattern
+  -- as robot_sim/main.lua's MQTT_HOST default.
+  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
 
   local mission = M.build_mission(input)
   local payload = cjson.encode(mission)
