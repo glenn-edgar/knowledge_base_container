@@ -1,122 +1,106 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-10 EOD #3 — Phase 7 multi-tenant GREEN end-to-end
+## State at end of 2026-05-10 EOD #4 — Parking lot drained (5/6 items shipped)
 
-**48 commits ahead of origin/master** after this session's three commits.
-**Phase 7 A→F sequence complete.** Multi-tenant isolation validated in a
-live cluster: two planners (`mission_planner_01` namespace, `tunnel_ops`
-namespace) each own one robot, submit missions in parallel, both
-complete with `success=true, replans=0` — no cross-tenant leak.
-Matplotlib viewer dropped. Per-L2-segment click-popup shipped.
+**53 commits ahead of origin/master** after this session's five commits.
+Parking lot from EOD #3 (7 items → 6 after dropping #5 per active-hub
+boundary correction) is now at **1 remaining**: a documentation TODO
+for `mission_builder.rebuild`'s silently-dropped `current_heading`
+arg, which needs a contract decision before the fix lands.
 
-## This session's commits (3 implementation)
+## This session's commits (5 implementation)
 
-| # | Commit | What |
+| # | Commit | Item |
 |---|---|---|
-| 1 | `26687181` | gap-12 Step C: 4 multi-tenant bugs fixed — build_kb PLANNERS namespace, link_manager allowed_robots filter, mqtt_hub per-tenant client_id, global_planner threading. 296 host tests green; cluster smoke parallel two-tenant green. |
-| 2 | `571dc605` | Step D: drop matplotlib visualizer.py + test_visualizer_smoke.py + stale comment in renderer test. 137/137 renderer tests still green. |
-| 3 | `b31833af` | Step E: per-L2-segment click-popup. `<g class="leaf-group">` wrapper + `showSegmentPopup()` dispatch by leaf kind. Renderer tests +20 → 157/157. Total host regression: 453 green. |
+| 1 | `33ecc833` | **P3 #5** — gate `test_mission_simulator_integration` on `liblua_cbor.so`. Probes the bare-name `ffi.load` up front; on bare hosts (no `LD_LIBRARY_PATH`) prints `SKIPPED` and exits 0. Sweep stays green; with `LD_LIBRARY_PATH` set, still passes 26/26. |
+| 2 | `d89314ac` | **P1 #3** — fix `/api/missions active_missions` overcount. `mission_count` was incremented on the synchronous-fail path in `_drain_nats_queue` (mission created in `state="done"`) without a matching decrement. Now the immediate-done branch doesn't inc; `/api/missions` returns to 0 after every sync-fail and after every active→done transition. |
+| 3 | `71bc37dd` | **P1 #4** — delete legacy nav code (5 C5 follow-up). Removed `route_builder.M.build`, `global_planner.M:plan` + `M:replan`, `mission_builder` `use_drive_v2` conditionals, `mission_builder.rebuild`'s 5th arg, `action_server.use_drive_v2` + `PLANNER_LEGACY_NAV` env hatch, and all forwarding. **-316 lines.** Tests updated; dual-tenant cluster smoke success=true. |
+| 4 | `37f2a749` | **P1 #1** — MQTT auto-reconnect + robot_sim init-state retry. `mqtt_hub_transport`: initial connect failures no longer throw; `_ensure_connected` retries with 1s→30s exponential backoff and re-subscribes on success; `_safe_publish` pcall-wraps every send. `robot_sim/main.lua`: re-publishes `link_announce` every 5s while `state=init` so a robot doesn't sit stuck if the first announce got no ack. Verified by bouncing the broker — both planners reconnected, fresh missions completed. |
+| 5 | `10b32840` | **P1 #2** — `planner_ui` infra_discovery for `NATS_URL`. New `infra_lookup.lua` (pgmoon flavor of `app_lib/infra_discovery.lua`). `submit.lua` + `status.lua` now resolve `NATS_URL` via opts → pg-registry → env → hardcoded default. Verified via openresty error log: `infra_lookup: NATS via registry -> nats://nats-js-ram:4222`. |
 
-## Gap progression — final
+## End-state of the parking lot
 
-| Gap | Status | Note |
+### Closed this session (5)
+
+- ~~P1 #1: MQTT broker reconnect + robot_sim stuck-in-init~~ → `37f2a749`
+- ~~P1 #2: planner_ui NATS_URL hardcoding~~ → `10b32840`
+- ~~P1 #3: `active_missions` overcount~~ → `d89314ac`
+- ~~P1 #4: 5 C5 legacy nav deletion~~ → `71bc37dd`
+- ~~P3 #5: `test_mission_simulator_integration` FFI failure~~ → `33ecc833`
+
+### Closed prior sessions
+
+- ~~Phase 4 C5 matplotlib visualizer dependency~~ (Step D, 2026-05-10 EOD#3)
+
+### Still open
+
+- **P3 #6** — `mission_builder.rebuild`'s 4th arg `current_heading` is currently NOT consumed (build() has no `start_heading` parameter). Wiring it through would change the replan's first-leg geometry. **Needs a contract decision** before the fix lands (does a replanned leg start from the robot's current heading or from `initial_heading=0`?). Doc TODO already in code; tracking here for visibility.
+
+### Cross-program notes (not on planner's plate)
+
+- The **active-hub program** owns the DSL that declares each hub's location + board-icon type + comments. The planner only sees opaque `kb_ref` strings and dereferences at map-UI render time. Filed in `project_planner_active_node_contract.md` — separate team / program.
+
+## End-state validation
+
+### Tests
+
+| Suite | Count | Status |
 |---|---|---|
-| 12a — build_kb reads inst.planner_namespace (always nil) | ✅ Fixed (`26687181`) | Should be `inst.params.planner_namespace`. Worked accidentally for `mission_planner_01` because namespace == inst.name; second tenant exposed it. |
-| 12b — link_manager has no tenant filter | ✅ Fixed (`26687181`) | mqtt_hub subscribes site-wide; every planner saw every robot. Added kb_query.list_tenant_robots + allowed_robots set threaded through action_server. Foreign robots dropped silently. 14 new unit tests. |
-| 12c — MQTT client_id collision | ✅ Fixed (`26687181`) | Both planners used `planner_<site>` → second connection kicked out the first (rc=7). Now `planner_<site>_<ns>`. |
-| 12d — global_planner threading | ✅ Fixed (`26687181`) | `kb_query.new(...)` was called without `planner_namespace`, fell back to `own_instance_id`, looked at the wrong boards subtree → "board not found" for any tenant where ns != container name. |
-| Audit — action_server pcall mask | ✅ Closed (Step C) | Original `q:list_boards()` call has been silently failing forever (kb_query has no `list_boards` method). _init_node has been nil the whole time; link_manager.on_link_change just skips write_position. Diagnosed via pcall-error logging, then the boards probe was split into its own pcall so the new robots query stays independent. |
-| Step D | ✅ Done (`571dc605`) | Visualizer removed. |
-| Step E | ✅ Done (`b31833af`) | Click any L2 leaf → properties popup. |
+| `test_planner_ui_submit_mission` | 51 | green |
+| `test_planner_ui_status` | 45 | green |
+| `test_action_server_phase7` | 27 | green |
+| `test_robot_sim_package` | 87 | green |
+| `test_mock_mqtt_robot` | 38 | green |
+| `test_drive_v2_dispatch` | 30 | green (was 34; -4 legacy-energy assertions retired with the code) |
+| `test_link_manager_tenant_filter` | 14 | green |
+| `test_planner_ui_renderer` | 157 | green |
+| **Total host** | **449** | green |
+| `test_mission_simulator_integration` | 26 + 1 SKIP path | green with `LD_LIBRARY_PATH`; clean skip without |
 
-## End-state of Phase 7 validation
+### Cluster
 
-| Stage | Validated |
-|---|---|
-| Two tenants (mission_planner_01 + tunnel_ops) co-exist on cpu_02 | ✅ |
-| Each planner enumerates only its own robots (KB query) | ✅ |
-| Each planner registers only its own robot via MQTT (link filter) | ✅ |
-| Foreign robot announces silently dropped (one-line log + no state alloc) | ✅ |
-| Per-tenant NATS buckets: `KV_<site>_planner_<ns>_action_server` + `_mission_log` | ✅ |
-| Per-tenant board rows in `fs_node` under `planner.<ns>.boards.*` | ✅ |
-| Per-tenant `/api/missions` only lists own missions/robots | ✅ |
-| Per-tenant `/api/submit_mission` queues under per-tenant subject | ✅ |
-| Per-tenant MQTT client_id prevents broker kick-out | ✅ |
-| Parallel mission completion: rover_1 + rover_2 both `success=true replans=0` | ✅ |
-| Per-leaf properties popup in L2 view | ✅ (Step E) |
-| Drop matplotlib viewer | ✅ (Step D) |
+- Dual-tenant Phase 7 cluster: both `mission_planner_01` (ns=`mission_planner_01`) and `mission_planner_02` (ns=`tunnel_ops`) submit + complete missions in parallel with `success=true replans=0`.
+- Stress test (broker bounce): planners reconnect with 1→2→4→8s backoff, fresh missions succeed.
+- Active-mission counter accurate (=0 after both sync-fail and normal completion).
+- `infra_lookup` confirmed preferred over env via openresty access log.
 
-## Re-prioritized parking lot (Step F)
+### Operational
 
-Priority groupings: **P1 = next session candidates** · **P2 = real-robot
-gating** · **P3 = polish, no current blocker**.
-
-### P1 — visible operational gaps
-
-1. **MQTT broker reconnect / robot stuck-in-init.** Two related stability gaps surfaced today:
-   - `mqtt_hub_transport` doesn't auto-reconnect on rc=7 disconnect (we hit this when the two planners collided; fixed the collision, but a genuine broker hiccup would still permanently disconnect a planner).
-   - `robot_sim` doesn't retry `link_announce` if the first one gets no ack within a window; robot stays in `state=init` until container restart. Hit during the Step C debug cycle.
-   Both should add a bounded-retry + reconnect timer. Estimate: 1 commit, mostly mqtt_pubsub plumbing.
-
-2. **planner_ui NATS_URL / MQTT_HOST hardcoding.** Should use `infra_discovery` (parallel to planner worker) instead of env-injected defaults. Right architectural fix per the Phase 6 design. Lifts MQTT_HOST for robot_sim at the same time. Estimate: 1 commit per service that hardcodes.
-
-3. **`active_missions` field on `/api/missions` overcounts.** `mission_count` is monotonic; never decremented on done/error. Cosmetic only (state column on each card is correct); the count is wrong on the dashboard until planner restart. Estimate: 1 small commit in action_server's mission lifecycle.
-
-### P2 — gated on real robot
-
-4. **5 C5 follow-up: delete legacy nav code.** Default-flip was done 2026-05-09; the legacy code path is unreachable in production once cluster validation is signed off on real hardware. Not blocking anything; just code hygiene.
-
-5. **Node-properties authoring** (per `project_v2_board_dsl_design.md`). DSL skeleton landed; per-node property surface is the next slice. Real boards will need it before real-robot field trials.
-
-### P3 — diagnostic / cleanup
-
-6. **`test_mission_simulator_integration.lua` host-side FFI failure.** Pre-existing — errors on `encoder.lua_cbor` FFI load on host. Not a regression. Could be fixed by gating the test on `FFI_AVAILABLE`. Estimate: ~10 lines.
-
-7. **`mission_builder.rebuild`'s 4th arg `current_heading` silently dropped.** Pre-existing. Out of scope for Phase 7. Document the contract before fixing so we don't paper over a real intent.
-
-### Closed today (do not re-open)
-
-- ~~Phase 4 C5 visualizer Python smoke needs matplotlib in WSL venv~~ — resolved by Step D (file deleted).
+- 53 commits ahead of `origin/master`.
+- Image rebuilds: `nanodatacenter/mission-planner:latest` + `nanodatacenter/robot-sim:latest` both at this session's SHAs.
+- Cluster state at handoff:
+  - `mission_planner_01` (UI 19005, ns=`mission_planner_01`) ↔ `robot_sim_rover_1`
+  - `mission_planner_02` (UI 19009, ns=`tunnel_ops`)         ↔ `robot_sim_rover_2`
+  - All infra containers (`pg-vector`, `nats-js-ram`, `mosquitto-ram-ws_main`, `kv-bridge`, `docker-host-broker`) up.
 
 ## Recommended next session
 
-The cluster is healthy, two tenants are running, all four parking-lot
-P1 items would land in 1–2 commits each. Two reasonable starting points:
+The Phase 7 surface is essentially done; the major code path (planner
+worker + ui + robot_sim) is well-tested and clean. Reasonable next
+moves, roughly in order of value:
 
-**Option A (stability)** — P1 #1 + #3. Address the rc=7 and
-stuck-in-init gaps we discovered today, plus fix the cosmetic
-`active_missions` overcount. ~2 commits. Doesn't unlock new
-capability but burns down the recent debugging-tax footprint.
+**Option A — Phase 8 / multi-planner integration.** Per
+`project_planner_implementation_plan.md` row 48: "not started; ~3-4
+sub-commits, uses 3a simulator as fixture." Now that the multi-tenant
+isolation works, the next architectural slice is making *multiple
+planners coordinate* (e.g., one planner handing a robot off to another
+tenant's planner). Design first, then implement.
 
-**Option B (architecture)** — P1 #2. Migrate planner_ui +
-robot_sim from hardcoded env to `infra_discovery`. ~2 commits.
-Pays off later when we move off `host.docker.internal` defaults
-(e.g. multi-host real cluster).
+**Option B — Active-hub program kickoff.** Per the
+cross-program note above, the active-hub team will need a DSL that
+exposes hub identity through to the planner's L2 map renderer. If
+that team has bandwidth this would unblock real-board onboarding.
 
-**Option C (Phase 8 boundary)** — Start the next phase of the
-locked plan in `project_planner_implementation_plan.md`:
-8 (multi-planner integration), or pivot to a new application
-phase (per `project_v3_platform_roadmap.md` step list).
-
-## Operational state of the cluster (end of session)
-
-- Orchestrator alive (cpu_01 + cpu_02 dcs.lua).
-- **TWO planners** on cpu_02 with distinct namespaces:
-  - `mission_planner_01` (UI port 19005, namespace="mission_planner_01")
-  - `mission_planner_02` (UI port 19009, namespace="tunnel_ops")
-- **TWO robots** on cpu_02:
-  - `robot_sim_rover_1` (owned by mission_planner_01)
-  - `robot_sim_rover_2` (owned by tunnel_ops)
-- mission_planner image: built this session at the Step C SHA.
-- Per-tenant pg + NATS rows verified populated.
-- Two final mission round-trips this session, both `state=completed, success=true, replans=0`.
+**Option C — Operational cleanup.** P3 #6 (`current_heading` contract
+decision + fix) is the only thing left in the parking lot. Decide
+the contract, write a regression test, ship. ~1 commit.
 
 ## Quick start tomorrow
 
 ```bash
 cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control
 
-# Verify session commits + nothing got lost
+# Verify session commits
 git log --oneline -10
 
 # Cluster state
@@ -131,25 +115,21 @@ curl -sS -X POST -H 'Content-Type: application/json' \
     -d '{"robot_id":"rover_2","board":"landing_zone","source":"lander_pad","target":"habitat_site"}' \
     http://localhost:19009/api/submit_mission &
 wait
-sleep 10
+sleep 8
 curl -s http://localhost:19005/api/mission/rover_1 | jq
 curl -s http://localhost:19009/api/mission/rover_2 | jq
 # Expect: both state=completed, success=true, replans=0
 
-# Per-tenant isolation snapshot
-curl -s http://localhost:19005/api/missions | jq '{robots: .registered_robots, missions: [.missions[].robot_id]}'
-curl -s http://localhost:19009/api/missions | jq '{robots: .registered_robots, missions: [.missions[].robot_id]}'
-
-# Host-side regression sweep
+# Host regression sweep (449 tests)
 for t in test_planner_ui_submit_mission test_planner_ui_status \
          test_action_server_phase7 test_robot_sim_package test_mock_mqtt_robot \
          test_drive_v2_dispatch test_link_manager_tenant_filter \
          test_planner_ui_renderer; do
     luajit construction/tests/$t.lua | tail -2
 done
-# Expect: 51 + 45 + 27 + 87 + 38 + 34 + 14 + 157 = 453 green
-
-# THEN pick from "Recommended next session" above.
+# Optional with LD_LIBRARY_PATH for the FFI-gated test (26 more):
+LD_LIBRARY_PATH=$(pwd)/../kb/mqtt \
+    luajit construction/tests/test_mission_simulator_integration.lua | tail -2
 ```
 
 ## Architectural references
@@ -162,40 +142,41 @@ done
 
 ## Operating-mode reminders
 
-- **Testing delegation for THIS phase** (locked 2026-05-10): assistant runs cluster smoke; scope ends after Phase 7 + ROBSIM signed off. As of this session, **Phase 7 is signed off** — future stability/feature work reverts to the default (user-driven) testing mode unless explicitly re-locked.
+- **Phase 7 + ROBSIM signed off**. Assistant-runs-cluster-smoke scope from EOD #3 effectively continued through this session for the parking-lot cleanup, but the next session should treat live-cluster testing as user-driven again unless explicitly re-locked.
 - **No application auth** per `feedback_no_application_auth.md`.
 - **One layer = one commit** per `feedback_holding_commits.md`.
 - **No-soft-faults** rule for control-system fault paths.
 - **Bare "yes" means accept the recommendation** per `feedback_yes_means_accept.md`.
-- **`io.stderr:write+flush` not `print()`** for diagnostics in containerized LuaJIT processes (`feedback_luajit_stdio_buffering.md`).
-- **`deployment/<cpu>/stop.sh` not `pkill -f`** (`feedback_pkill_pid_match.md`).
-- **`build_kb.sh` wipes file_store** — after every rebuild, re-upload boards before any mission submit.
-- **`stage_deploy.sh` after `slice_bootstrap.sh`** — the slicer wipes per-CPU dirs; the stager re-symlinks runtime/ + seeds env.sh.
+- **`io.stderr:write+flush` not `print()`** for diagnostics in containerized LuaJIT processes.
+- **`deployment/<cpu>/stop.sh` not `pkill -f`** for dcs.lua processes.
+- **`build_kb.sh` wipes file_store** — re-upload boards after every rebuild before any mission submit.
+- **`stage_deploy.sh` after `slice_bootstrap.sh`** — slicer wipes per-CPU dirs; stager re-symlinks runtime/ + seeds env.sh.
 
 ## Rollback recipes
 
 ```bash
-# Undo this session (back to 632ea8a3 EOD #2 wrap)
-git reset --hard 632ea8a3
+# Undo this session (back to 41759edf EOD #3 wrap)
+git reset --hard 41759edf
 
-# Undo only Step E (keep C + D)
-git reset --hard 571dc605
+# Undo only P1 #2 (infra_discovery)
+git reset --hard 37f2a749
 
-# Undo only Step D (keep C)
-git reset --hard 26687181
+# Undo only P1 #1 (MQTT reconnect)
+git reset --hard 71bc37dd
 
-# Undo only Step C
-git reset --hard 632ea8a3
+# Undo only P1 #4 (legacy nav deletion)
+git reset --hard d89314ac
+
+# Undo only P1 #3 (active_missions fix)
+git reset --hard 33ecc833
+
+# Undo only P3 #5 (FFI gate)
+git reset --hard 41759edf
 
 # Inspect this session's commits
-git log --oneline 632ea8a3..HEAD
-git show b31833af --stat   # Step E
-git show 571dc605 --stat   # Step D
-git show 26687181 --stat   # Step C
+git log --oneline 41759edf..HEAD
 ```
-
-## Known issues / parking lot — see "Re-prioritized parking lot (Step F)" above.
 
 ---
 
-*continue.md rewritten 2026-05-10 EOD #3 (after Step C multi-tenant + Step D viewer drop + Step E click-popup ship). Phase 7 A→F sequence COMPLETE. Two-tenant cluster validated end-to-end. 48 commits ahead of origin/master.*
+*continue.md rewritten 2026-05-10 EOD #4 (after parking-lot drain: 5 of 6 items shipped; 1 remaining P3 needs contract decision). Phase 7 A→F complete + post-cleanup. 53 commits ahead of origin/master.*
