@@ -33,17 +33,17 @@ local M = {}
 
 --- Build a flat route from a multi-stop mission.
 -- @param mission_cmd      table: mission command with start, stops, bookend.
---                         Phase 5 C3b: when mission_cmd.use_drive_v2 is
---                         true (or set globally on action_server), nav
---                         legs are emitted as drive_packet entries
---                         instead of legacy per-segment actions.
---                         Bookends + per-stop operation entries stay
---                         legacy regardless of the flag.
+--                         Nav legs are emitted as drive_packet entries
+--                         (one packet per polyline edge). Bookends
+--                         (init_check, idle) and per-stop operation
+--                         entries use the legacy {kb_name, params, energy}
+--                         shape — action_server's dispatch branches on
+--                         entry.kind so both shapes coexist in one route.
 -- @param planner          global_planner instance (already loaded with board)
 -- @param operation_types  optional array of operation type strings the robot supports
 -- @param energy_rate      optional number: robot's energy per unit distance (default 1.0)
--- @return route           array of legacy {kb_name, params, energy} entries
---                         and/or drive_packet {kind, packet, energy} entries
+-- @return route           array of {kb_name, ...} bookend/op entries +
+--                         {kind="drive_packet", packet, energy} nav entries
 -- @return plan_info       leg details for replan, or {error=string}
 function M.build(mission_cmd, planner, operation_types, energy_rate)
     local stops = mission_cmd.stops or error("mission_builder: stops required")
@@ -106,7 +106,6 @@ function M.build(mission_cmd, planner, operation_types, energy_rate)
     local total_cost = 0
     local total_energy = 0
     energy_rate = energy_rate or 1.0
-    local use_drive_v2 = mission_cmd.use_drive_v2 == true
 
     -- Drive-packet path needs monotonic packet_ids spanning ALL legs of
     -- the mission (one ack contract per packet, ids must not collide).
@@ -155,18 +154,12 @@ function M.build(mission_cmd, planner, operation_types, energy_rate)
         local leg_path, leg_cost
 
         if current_node ~= goal_node then
-            local nav_route, nav_info
-            if use_drive_v2 then
-                nav_route, nav_info = planner:plan_v2(current_node, goal_node, {
-                    energy_rate     = energy_rate,
-                    initial_heading = drive_heading,
-                    packet_id_start = drive_packet_id,
-                    mission_id      = mission_id,
-                })
-            else
-                nav_route, nav_info = planner:plan(current_node, goal_node,
-                    { energy_rate = energy_rate })
-            end
+            local nav_route, nav_info = planner:plan_v2(current_node, goal_node, {
+                energy_rate     = energy_rate,
+                initial_heading = drive_heading,
+                packet_id_start = drive_packet_id,
+                mission_id      = mission_id,
+            })
 
             if not nav_route then
                 return nil, {
@@ -176,42 +169,27 @@ function M.build(mission_cmd, planner, operation_types, energy_rate)
                 }
             end
 
-            -- Append nav entries to flat route. v1 entries are legacy
-            -- {kb_name, params, energy}; v2 entries are
-            -- {kind="drive_packet", packet, energy}. Both shapes go in
-            -- the same flat array; dispatch branches on `kind`.
+            -- Append nav entries to flat route. Each entry is
+            -- {kind="drive_packet", packet, energy}; bookend / operation
+            -- entries below use {kb_name, params, energy}. Both shapes
+            -- coexist; action_server's dispatch branches on entry.kind.
             for _, entry in ipairs(nav_route) do
                 route[#route + 1] = entry
                 total_energy = total_energy + (entry.energy or 0)
             end
 
-            -- Update drive-path cursor (v2 only): packet_id advances by
-            -- the number of edges (one packet per edge); heading
-            -- advances to the last packet's last sub-segment heading
-            -- so the NEXT leg's first packet picks up correctly.
-            if use_drive_v2 then
-                drive_packet_id = drive_packet_id + #nav_route
-                local last_pkt = nav_route[#nav_route].packet
-                local last_seg = last_pkt.segments[#last_pkt.segments]
-                if last_seg.kind == "spline" then
-                    drive_heading = last_seg.end_heading
-                else
-                    -- straight_line / wall_follow / line_follow: heading
-                    -- = packet's last segment own direction. The packet
-                    -- already encodes start_pos at edge entry; we
-                    -- approximate end heading from the last segment's
-                    -- end_pos vs. the edge's penultimate point. For the
-                    -- test fixtures and route_builder.build_v2 path,
-                    -- straight_line.end_pos suffices because each leg
-                    -- chains start_pos = previous packet's last
-                    -- end_pos. Keep the heading drive-builder computed.
-                    -- (build_drive_packets stamped it via internal
-                    -- chain; if we need stricter equality with the
-                    -- planner's record, add an end_heading field there
-                    -- in a follow-up.)
-                    drive_heading = drive_heading
-                end
+            -- Update drive-path cursor: packet_id advances by the number
+            -- of edges (one packet per edge); heading advances so the
+            -- NEXT leg's first packet picks up correctly.
+            drive_packet_id = drive_packet_id + #nav_route
+            local last_pkt = nav_route[#nav_route].packet
+            local last_seg = last_pkt.segments[#last_pkt.segments]
+            if last_seg.kind == "spline" then
+                drive_heading = last_seg.end_heading
             end
+            -- For non-spline final segments the drive_heading stays as
+            -- build_drive_packets stamped it; route_builder.build_v2's
+            -- internal chain keeps that consistent across legs.
 
             leg_path = nav_info.path
             leg_cost = nav_info.cost
@@ -288,22 +266,15 @@ end
 -- @param current_node     string: nearest node to fault position
 -- @param current_heading  number: robot's current heading. PRE-EXISTING:
 --                         this arg is currently NOT consumed (build()
---                         has no start_heading parameter). Both action_server
---                         call sites pass it; documented here so a future
---                         fix that threads heading through doesn't have to
---                         touch the signature again.
--- @param use_drive_v2     bool (Phase 5 C5 fix): forwards the original
---                         mission's use_drive_v2 flag into the synthetic
---                         mission_cmd. Required so replans after C5
---                         cut-over still emit drive_packet entries
---                         instead of silently falling back to legacy.
+--                         has no start_heading parameter). Documented
+--                         here so a future fix that threads heading
+--                         through doesn't have to touch the signature.
 -- @return route, plan_info (same as build)
-function M.rebuild(remaining_stops, planner, current_node, current_heading, use_drive_v2)
+function M.rebuild(remaining_stops, planner, current_node, current_heading)
     return M.build({
-        start        = current_node,
-        stops        = remaining_stops,
-        bookend      = false,  -- no bookend on replan (mission already started)
-        use_drive_v2 = use_drive_v2,
+        start   = current_node,
+        stops   = remaining_stops,
+        bookend = false,  -- no bookend on replan (mission already started)
     }, planner)
 end
 

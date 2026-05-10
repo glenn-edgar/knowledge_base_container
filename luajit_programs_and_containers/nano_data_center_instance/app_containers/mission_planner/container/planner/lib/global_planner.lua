@@ -15,12 +15,12 @@
             board_name = "landing_zone",
         })
 
-        local route, info = planner:plan("lander_pad", "mining_zone_b",
-            { bookend = true })
+        local entries, info = planner:plan_v2("lander_pad", "mining_zone_b",
+            { initial_heading = 0, packet_id_start = 1 })
 
-        -- On fault: replan
+        -- On fault: mark the broken edge + re-plan_v2 from current pose.
         planner:mark_blocked("habitat_site", "charging_station")
-        local new_route = planner:replan("habitat_site", "mining_zone_b",
+        local new_entries = planner:plan_v2("habitat_site", "mining_zone_b",
             { initial_heading = 90 })
 
         planner:close()
@@ -143,60 +143,7 @@ end
 -- Planning
 ---------------------------------------------------------------------------
 
---- Plan a route from start_node to goal_node.
--- @param start_node  string
--- @param goal_node   string
--- @param opts        optional: { bookend=bool, initial_heading=number }
--- @return route      array for sequencer:load_route(), or nil
--- @return info       { path=array, cost=number, segments=number }
-function M:plan(start_node, goal_node, opts)
-    if not self.graph.nodes[start_node] then
-        return nil, { error = "unknown start node: " .. start_node }
-    end
-    if not self.graph.nodes[goal_node] then
-        return nil, { error = "unknown goal node: " .. goal_node }
-    end
-
-    local path, cost = dijkstra.shortest_path(
-        self.graph.adj, start_node, goal_node, self.blocked)
-
-    if not path then
-        return nil, { path = nil, cost = math.huge, segments = 0,
-                      error = "no path found" }
-    end
-
-    -- Merge energy config into route_builder opts
-    local rb_opts = {}
-    if opts then for k, v in pairs(opts) do rb_opts[k] = v end end
-    rb_opts.vn_defs = self.vn_defs
-    if not rb_opts.energy_rate then rb_opts.energy_rate = 1.0 end
-
-    local route = route_builder.build(path, self.graph, rb_opts)
-
-    -- Sum route energy
-    local total_energy = 0
-    for _, action in ipairs(route) do
-        total_energy = total_energy + (action.energy or 0)
-    end
-
-    return route, {
-        path     = path,
-        cost     = cost,
-        segments = #route,
-        energy   = total_energy,
-    }
-end
-
---- Replan from current_node to goal_node, respecting blocked edges.
--- Semantically identical to plan() but distinct for caller clarity.
-function M:replan(current_node, goal_node, opts)
-    return self:plan(current_node, goal_node, opts)
-end
-
---- Phase 5 C3b: plan a leg as drive-packet route entries.
--- Returns the same node-path / cost / energy info as plan(), but the
--- route entries are kind-discriminated drive_packet entries (one per
--- polyline edge) instead of legacy per-segment cmd_path_*_t entries.
+--- Plan a leg as drive-packet route entries.
 -- @param start_node       string
 -- @param goal_node        string
 -- @param opts             { initial_heading, packet_id_start,

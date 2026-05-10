@@ -131,17 +131,6 @@ local function make_stub_planner(graph, path_lookup)
     is_transit       = function(self, _) return false end,
     get_node_type    = function(self, _) return nil end,
     get_node_params  = function(self, _) return {} end,
-    plan = function(self, from, to, opts)
-      local path = path_lookup[from .. ">" .. to]
-      if not path then
-        return nil, { error = "no path found", path = nil, cost = math.huge, segments = 0 }
-      end
-      local rb_opts = {}
-      if opts then for k, v in pairs(opts) do rb_opts[k] = v end end
-      rb_opts.vn_defs = self.vn_defs
-      local route = rb.build(path, self.graph, rb_opts)
-      return route, { path = path, cost = #path - 1, segments = #route }
-    end,
     plan_v2 = function(self, from, to, opts)
       local path = path_lookup[from .. ">" .. to]
       if not path then
@@ -423,7 +412,7 @@ end
 
 ------------------------------------------------------------------------
 print()
-print("== rebuild() use_drive_v2 forwarding ==")
+print("== rebuild() emits drive_packets (drive_v2 is the only path) ==")
 ------------------------------------------------------------------------
 
 local function count_kinds(route)
@@ -440,45 +429,29 @@ local function count_kinds(route)
 end
 
 do
-  -- Default (no use_drive_v2 supplied): rebuild stays legacy. Backward
-  -- compat for any caller that didn't opt in.
+  -- Post-C5 cleanup: rebuild always emits drive_packets; the
+  -- use_drive_v2 flag was deleted (drive_v2 is the only nav path).
   local planner = make_stub_planner(FIXTURE_GRAPH, {
     ["n1>n3"] = { "n1", "n2", "n3" },
   })
   local rebuilt = mission_builder.rebuild(
     { { node = "n3" } }, planner, "n1")
   local drive, legacy = count_kinds(rebuilt)
-  ok("rebuild default (no flag): 0 drive_packet entries", drive == 0,
-     "got " .. drive)
-  ok("rebuild default (no flag): legacy nav entries present", legacy == 4,
-     "got " .. legacy)
-end
-
-do
-  -- WITH use_drive_v2=true forwarded: rebuild produces drive_packet
-  -- entries (the fix landed in this commit; pre-fix this assertion
-  -- would have been "drive == 0").
-  local planner = make_stub_planner(FIXTURE_GRAPH, {
-    ["n1>n3"] = { "n1", "n2", "n3" },
-  })
-  local rebuilt = mission_builder.rebuild(
-    { { node = "n3" } }, planner, "n1", 0, true)
-  local drive, legacy = count_kinds(rebuilt)
-  ok("rebuild with use_drive_v2=true: 2 drive_packet entries (one per edge)",
+  ok("rebuild: 2 drive_packet entries (one per edge)",
      drive == 2, "got " .. drive)
-  ok("rebuild with use_drive_v2=true: 0 legacy nav entries",
+  ok("rebuild: 0 legacy nav entries",
      legacy == 0, "got " .. legacy)
 end
 
 do
-  -- Replan-walk integration: build, fault on packet 1, "rebuild" with
-  -- the forwarded flag, walk the rebuilt route. Verifies the dispatch
-  -- chain handles a replanned route end-to-end.
+  -- Replan-walk integration: build, fault on packet 1, rebuild, walk
+  -- the rebuilt route. Verifies the dispatch chain handles a replanned
+  -- route end-to-end.
   local planner = make_stub_planner(FIXTURE_GRAPH, {
     ["n1>n3"] = { "n1", "n2", "n3" },
   })
   local rebuilt = mission_builder.rebuild(
-    { { node = "n3" } }, planner, "n1", 0, true)
+    { { node = "n3" } }, planner, "n1")
 
   local tx  = make_stub_tx()
   local hub = make_hub_rt(tx)

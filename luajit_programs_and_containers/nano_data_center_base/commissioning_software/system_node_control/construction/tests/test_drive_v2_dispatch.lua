@@ -1,30 +1,27 @@
 #!/usr/bin/env luajit
 -- =============================================================================
--- test_drive_v2_dispatch.lua -- Phase 5 C3b acceptance for the v2 route
--- shape and mission_builder use_drive_v2 flag.
+-- test_drive_v2_dispatch.lua -- drive-packet route shape + mission_builder
+-- dispatch (post-C5 cleanup: drive_v2 is the only nav path).
 --
 -- Coverage:
 --   route_builder.build_v2:
 --     - returns kind="drive_packet" entries, one per polyline edge
 --     - each entry's .packet is the same as build_drive_packets output
---     - per-entry energy matches per-polyline-segment energy sum from
---       legacy build (so v1 and v2 budget agree on the same path)
 --     - empty polyline / unsupported nav -> errors propagate from
 --       build_drive_packets
 --
---   mission_builder use_drive_v2:
---     - opt off (default): legacy entries with kb_name + params
---     - opt on: nav legs become drive_packet entries; bookends
---       (init_check / idle) and per-stop operation entries STAY legacy
---     - packet_id is monotonic across legs (one packet per edge,
---       no collisions across leg boundaries)
+--   mission_builder.build:
+--     - nav legs become drive_packet entries; bookends (init_check /
+--       idle) and per-stop operation entries stay {kb_name, params}
+--     - packet_id is monotonic across legs (no collisions)
 --     - mission_id from mission_cmd flows through to every packet
---     - replan-friendly: rebuild() preserves use_drive_v2 (since
---       rebuild calls build with the same flag forwarded via
---       mission_cmd-shaped arg)
+--   mission_builder.rebuild:
+--     - synthetic mission_cmd (start + stops, no bookend) emits the
+--       drive_packet path; rebuild's signature no longer carries a
+--       use_drive_v2 flag (deleted in the C5 follow-up).
 --
--- The tests use a lightweight stub planner that exposes plan/plan_v2
--- and graph access without needing pg_conn or KB connectivity.
+-- Uses a lightweight stub planner that exposes plan_v2 + graph access
+-- without needing pg_conn or KB connectivity.
 -- =============================================================================
 
 local SCRIPT_DIR = arg[0]:match("(.*/)") or "./"
@@ -95,7 +92,7 @@ end
 
 ------------------------------------------------------------------------
 print()
-print("== route_builder.build_v2: energy matches legacy build sum ==")
+print("== route_builder.build_v2: per-entry energy non-negative ==")
 ------------------------------------------------------------------------
 
 do
@@ -105,19 +102,13 @@ do
   }
   local opts = { energy_rate = 0.5, vn_defs = vn_defs, packet_id_start = 1 }
 
-  local v1 = rb.build({"n1", "n2", "n3"}, FIXTURE_GRAPH, opts)
-  -- Sum legacy per-segment energy by leg. n1->n2 has 3 segments,
-  -- n2->n3 has 1 segment.
-  local v1_e1 = (v1[1].energy or 0) + (v1[2].energy or 0) + (v1[3].energy or 0)
-  local v1_e2 = (v1[4].energy or 0)
-
   local v2 = rb.build_v2({"n1", "n2", "n3"}, FIXTURE_GRAPH, opts)
-  ok("v2 leg-1 energy == v1 sum-of-3-segments",
-     v2[1].energy == v1_e1,
-     string.format("v2=%d v1_sum=%d", v2[1].energy, v1_e1))
-  ok("v2 leg-2 energy == v1 single segment",
-     v2[2].energy == v1_e2,
-     string.format("v2=%d v1=%d", v2[2].energy, v1_e2))
+  ok("v2 leg-1 energy is a number >= 0",
+     type(v2[1].energy) == "number" and v2[1].energy >= 0,
+     "got " .. tostring(v2[1].energy))
+  ok("v2 leg-2 energy is a number >= 0",
+     type(v2[2].energy) == "number" and v2[2].energy >= 0,
+     "got " .. tostring(v2[2].energy))
 end
 
 ------------------------------------------------------------------------
@@ -140,7 +131,7 @@ end, "no edge from")
 
 ------------------------------------------------------------------------
 -- Stub planner: minimum surface mission_builder needs.
--- Wraps build / build_v2 directly with a fixed graph + path.
+-- Wraps build_v2 directly with a fixed graph + path.
 ------------------------------------------------------------------------
 local function make_stub_planner(graph, path_lookup)
   return {
@@ -153,17 +144,6 @@ local function make_stub_planner(graph, path_lookup)
     is_transit       = function(self, _) return false end,
     get_node_type    = function(self, _) return nil end,
     get_node_params  = function(self, _) return {} end,
-    plan = function(self, from, to, opts)
-      local path = path_lookup[from .. ">" .. to]
-      if not path then
-        return nil, { error = "no path found", path = nil, cost = math.huge, segments = 0 }
-      end
-      local rb_opts = {}
-      if opts then for k, v in pairs(opts) do rb_opts[k] = v end end
-      rb_opts.vn_defs = self.vn_defs
-      local route = rb.build(path, self.graph, rb_opts)
-      return route, { path = path, cost = #path - 1, segments = #route }
-    end,
     plan_v2 = function(self, from, to, opts)
       local path = path_lookup[from .. ">" .. to]
       if not path then
@@ -180,7 +160,7 @@ end
 
 ------------------------------------------------------------------------
 print()
-print("== mission_builder: use_drive_v2 = false (default, legacy) ==")
+print("== mission_builder: drive_v2 default (no flag, no legacy) ==")
 ------------------------------------------------------------------------
 
 do
@@ -188,52 +168,27 @@ do
     ["n1>n3"] = { "n1", "n2", "n3" },
   })
   local mission_cmd = {
-    start = "n1",
-    stops = { { node = "n3" } },
+    start      = "n1",
+    stops      = { { node = "n3" } },
+    mission_id = 99,
   }
   local route, info = mission_builder.build(mission_cmd, planner, nil, 1.0)
-  ok("legacy: route built", route ~= nil)
-  -- Legacy: init_check + 3 segs (n1->n2 polyline) + 1 seg (n2->n3) + idle = 6
-  ok("legacy: route length = 6", #route == 6, "got " .. #route)
-  ok("legacy: route[1] kb_name = init_check",
-     route[1].kb_name == "init_check")
-  ok("legacy: route[2..5] are nav, kind=nil",
-     route[2].kind == nil and route[5].kind == nil)
-  ok("legacy: route[6] kb_name = idle", route[6].kb_name == "idle")
-end
-
-------------------------------------------------------------------------
-print()
-print("== mission_builder: use_drive_v2 = true ==")
-------------------------------------------------------------------------
-
-do
-  local planner = make_stub_planner(FIXTURE_GRAPH, {
-    ["n1>n3"] = { "n1", "n2", "n3" },
-  })
-  local mission_cmd = {
-    start         = "n1",
-    stops         = { { node = "n3" } },
-    use_drive_v2  = true,
-    mission_id    = 99,
-  }
-  local route, info = mission_builder.build(mission_cmd, planner, nil, 1.0)
-  ok("v2: route built", route ~= nil)
-  -- v2: init_check + 2 drive_packet entries (one per edge) + idle = 4
-  ok("v2: route length = 4", #route == 4, "got " .. #route)
-  ok("v2: bookend init_check still legacy",
+  ok("route built", route ~= nil)
+  -- init_check + 2 drive_packet entries (one per edge) + idle = 4
+  ok("route length = 4", #route == 4, "got " .. #route)
+  ok("bookend init_check kb_name shape (no kind)",
      route[1].kb_name == "init_check" and route[1].kind == nil)
-  ok("v2: nav entry 1 kind = drive_packet",
+  ok("nav entry 1 kind = drive_packet",
      route[2].kind == "drive_packet")
-  ok("v2: nav entry 1 packet packet_id = 1",
+  ok("nav entry 1 packet packet_id = 1",
      route[2].packet and route[2].packet.packet_id == 1)
-  ok("v2: nav entry 1 packet mission_id = 99",
+  ok("nav entry 1 packet mission_id = 99",
      route[2].packet.mission_id == 99)
-  ok("v2: nav entry 2 kind = drive_packet",
+  ok("nav entry 2 kind = drive_packet",
      route[3].kind == "drive_packet")
-  ok("v2: nav entry 2 packet packet_id = 2 (monotonic)",
+  ok("nav entry 2 packet packet_id = 2 (monotonic)",
      route[3].packet.packet_id == 2)
-  ok("v2: bookend idle still legacy",
+  ok("bookend idle kb_name shape (no kind)",
      route[4].kb_name == "idle" and route[4].kind == nil)
 end
 
@@ -250,15 +205,14 @@ do
     start = "n1",
     stops = { { node = "n3", action = "deliver_part",
                 params = { arm = -45 } } },
-    use_drive_v2 = true,
   }
   local route = mission_builder.build(mission_cmd, planner,
     { "deliver_part" }, 1.0)
   -- init_check + 2 drive_packets + operation + idle = 5
-  ok("v2 + op: route length = 5", #route == 5, "got " .. #route)
-  ok("v2 + op: operation entry stays legacy",
+  ok("drive + op: route length = 5", #route == 5, "got " .. #route)
+  ok("drive + op: operation entry uses kb_name shape",
      route[4].kb_name == "operation" and route[4].kind == nil)
-  ok("v2 + op: operation_type plumbed",
+  ok("drive + op: operation_type plumbed",
      route[4].params.operation_type == "deliver_part")
 end
 
@@ -276,7 +230,6 @@ do
   local mission_cmd = {
     start = "n1",
     stops = { { node = "n2" }, { node = "n3" } },
-    use_drive_v2 = true,
   }
   local route = mission_builder.build(mission_cmd, planner, nil, 1.0)
   -- init_check + leg1(1 drive) + leg2(1 drive) + idle = 4
@@ -295,27 +248,28 @@ end
 
 ------------------------------------------------------------------------
 print()
-print("== mission_builder: rebuild forwards use_drive_v2 ==")
+print("== mission_builder: rebuild emits drive_packets ==")
 ------------------------------------------------------------------------
 
 do
-  -- M.rebuild internally constructs a mission_cmd and calls build;
-  -- the use_drive_v2 flag must NOT persist in rebuild's synthetic cmd
-  -- (rebuild defaults to legacy bookend=false; use_drive_v2 is not a
-  -- mission-level state, it's a SERVER-level flag injected per build).
-  -- This test documents that behavior rather than asserts cross-leg
-  -- chaining, which is action_server's job.
+  -- rebuild constructs a synthetic mission_cmd (start + stops + bookend=false)
+  -- and calls build, which always uses drive_v2 post-C5 cleanup. Verify
+  -- the replanned route contains drive_packet entries (no flag arg).
   local planner = make_stub_planner(FIXTURE_GRAPH, {
     ["n1>n3"] = { "n1", "n2", "n3" },
   })
   local route = mission_builder.rebuild(
     { { node = "n3" } }, planner, "n1")
-  -- rebuild defaults use_drive_v2 to nil/false
-  ok("rebuild: defaults to legacy when no flag supplied",
-     route[1].kb_name == "init_check" or route[1].kind == nil)
-  -- Verify bookend=false: no init_check / idle wrappers
-  -- (mission_builder.rebuild passes bookend=false but the build()
-  -- function unconditionally appends init_check/idle. Document that.)
+  ok("rebuild: route built", route ~= nil)
+  -- build()'s init_check is unconditional (bookend=false only suppresses
+  -- the idle terminator). Two edges → 2 drive_packets + init_check = 3.
+  ok("rebuild: at least one drive_packet entry",
+     (function()
+        for _, e in ipairs(route) do
+          if e.kind == "drive_packet" then return true end
+        end
+        return false
+     end)())
 end
 
 ------------------------------------------------------------------------

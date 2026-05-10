@@ -84,34 +84,13 @@ function M.new(opts)
     self.max_replans = opts.max_replans or 3
     self.tick_usleep = opts.tick_usleep or 2000
 
-    -- Phase 5 C5 (default flip): drive_v2 is now the default for nav
-    -- legs. mission_builder emits drive_packet entries for nav (one
-    -- packet per polyline edge, per-packet ACK matching). Bookends +
-    -- per-stop operation entries still go through the legacy
-    -- activate_kb path -- their migration is a separate decision.
-    --
-    -- Resolution priority (first non-nil wins):
-    --   1. opts.use_drive_v2          explicit override (true OR false)
-    --   2. PLANNER_LEGACY_NAV env=1   forces legacy (escape hatch)
-    --   3. PLANNER_DRIVE_V2 env=1     C3b-era opt-in (kept for compat)
-    --   4. default                    drive_v2 ON
-    --
-    -- Escape hatch is here so cluster validation can revert without a
-    -- redeploy. Once production is confirmed on drive_v2, both the
-    -- escape hatch and the legacy nav code paths are deleted.
-    if opts.use_drive_v2 ~= nil then
-        self.use_drive_v2 = (opts.use_drive_v2 == true)
-    else
-        local env_legacy = os.getenv("PLANNER_LEGACY_NAV")
-        if env_legacy == "1" or env_legacy == "true" then
-            self.use_drive_v2 = false
-        else
-            -- env PLANNER_DRIVE_V2 is now redundant (default-on) but
-            -- kept as an explicit confirmation knob for ops who set
-            -- it explicitly during the C3b rollout.
-            self.use_drive_v2 = true
-        end
-    end
+    -- drive_v2 is the only nav path. mission_builder emits drive_packet
+    -- entries for nav (one packet per polyline edge, per-packet ACK
+    -- matching). Bookends + per-stop operation entries still use the
+    -- legacy {kb_name, params} shape; action_server's dispatch branches
+    -- on entry.kind so both coexist in one route. The PLANNER_LEGACY_NAV
+    -- env hatch + opts.use_drive_v2 flag were removed in the C5
+    -- follow-up cleanup once cluster validation confirmed drive_v2 safe.
 
     -- Phase 5 C4: tenant identifier (planner_namespace). Multiple
     -- planner instances may run on one site; this field scopes which
@@ -452,10 +431,6 @@ function M:_make_mission_coroutine(mission_cmd)
         local planner = planner_or_err
 
         -- Build route with operation_types validation and energy budget.
-        -- Inject the server-level v2 flag if mission_cmd didn't carry one.
-        if mission_cmd.use_drive_v2 == nil then
-            mission_cmd.use_drive_v2 = srv.use_drive_v2
-        end
         local route, plan_info = mission_builder.build(
             mission_cmd, planner, operation_types, energy_rate)
         if not route then
@@ -608,8 +583,7 @@ function M:_make_mission_coroutine(mission_cmd)
             srv:_block_fault_edge(planner, result, plan_info)
 
             local new_route, new_info = mission_builder.rebuild(
-                remaining, planner, current_node, result.final_pose.heading,
-                mission_cmd.use_drive_v2)
+                remaining, planner, current_node, result.final_pose.heading)
             if not new_route then
                 result.success = false
                 result.fault.detail = "replan failed"
@@ -1312,9 +1286,6 @@ function M:execute_mission(mission_cmd)
         planner_namespace = self.planner_namespace,
     })
 
-    if mission_cmd.use_drive_v2 == nil then
-        mission_cmd.use_drive_v2 = self.use_drive_v2
-    end
     local route, plan_info = mission_builder.build(
         mission_cmd, planner, operation_types, energy_rate)
     if not route then
@@ -1398,8 +1369,7 @@ function M:execute_mission(mission_cmd)
         if #remaining == 0 then break end
         self:_block_fault_edge(planner, result, plan_info)
         local new_route, new_info = mission_builder.rebuild(
-            remaining, planner, current_node, result.final_pose.heading,
-            mission_cmd.use_drive_v2)
+            remaining, planner, current_node, result.final_pose.heading)
         if not new_route then
             result.success = false
             result.fault.detail = "replan failed"
