@@ -31,7 +31,8 @@
 --     known C3b follow-up.
 --
 -- Required env at run:
---   LD_LIBRARY_PATH=<prebuilt_libs> for liblua_cbor.so
+--   liblua_cbor.so must be loadable. If the host doesn't have it on
+--   LD_LIBRARY_PATH the test skips cleanly (exit 0) — gated below.
 -- =============================================================================
 
 local SCRIPT_DIR = arg[0]:match("(.*/)") or "./"
@@ -50,6 +51,28 @@ package.path = PLANNER   .. "/lib/?.lua;"
             .. LUA_SHARE .. "/?.lua;"
             .. LUA_SHARE .. "/chain_tree/lua_dsl/luajit_pipeline/?.lua;"
             .. package.path
+
+-- Gate: liblua_cbor.so must be on the OS linker search path. The test
+-- was originally written assuming an operator-set LD_LIBRARY_PATH; on
+-- bare hosts the dlopen at lua_cbor.lua:17 errors at require-time which
+-- the regression sweep then mis-classifies as a test failure. Probe the
+-- bare-name load up-front and skip cleanly if it doesn't resolve.
+do
+    local ok_ffi, ffi = pcall(require, "ffi")
+    if not ok_ffi then
+        print("=== test_mission_simulator_integration: SKIPPED ===")
+        print("  reason: ffi unavailable")
+        os.exit(0)
+    end
+    local ok_so, so_err = pcall(ffi.load, "lua_cbor")
+    if not ok_so then
+        print("=== test_mission_simulator_integration: SKIPPED ===")
+        print("  reason: liblua_cbor.so not on linker search path")
+        print("  detail: " .. tostring(so_err))
+        print("  fix: LD_LIBRARY_PATH=<dir-containing-liblua_cbor.so> luajit " .. (arg[0] or "this test"))
+        os.exit(0)
+    end
+end
 
 local hub_runtime     = require("hub_runtime")
 local rb              = require("route_builder")
