@@ -135,6 +135,17 @@ return {
           ports = { ui = 19005 } },
         { name = "robot_manager_01", def = "robot_manager",
           ports = { manager_ui = 19006 } },
+        -- Phase 7 ROBSIM: one simulated robot owned by mission_planner_01.
+        -- params drives both the per-tenant KB row (planner.<ns>.robots.<id>)
+        -- emitted by the robots subsystem AND the container's runtime env
+        -- (apps_builder injects ROBOT_ID + PLANNER_NAMESPACE etc).
+        { name = "robot_sim_rover_1", def = "robot_sim",
+          ports = {},   -- headless; no external port
+          params = {
+            robot_id          = "rover_1",
+            planner_namespace = "mission_planner_01",
+            capabilities      = { "recharge", "dock_in", "dock_out" },
+          } },
       },
     },
 

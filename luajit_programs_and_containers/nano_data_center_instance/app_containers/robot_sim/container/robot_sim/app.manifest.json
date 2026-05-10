@@ -1,0 +1,7 @@
+{
+    "name": "robot_sim",
+    "argv": ["luajit", "/opt/apps/robot_sim/main.lua"],
+    "start_order": 10,
+    "restart_policy": "always",
+    "kb_path": ""
+}

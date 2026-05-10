@@ -16,7 +16,9 @@ Eight commits this session:
 | 6 | `0425194e` | 7 C2 | kb_build per-tenant paths + validator REJECT catalog |
 | 7 | `2d2c197f` | 7 C3 | action_server per-tenant NATS bucket + key/subject |
 | 8 | `38897e8b` | 7 C4 | planner_ui per-tenant scoping (submit + status + db) |
-| 9 | (this session) | ROBSIM C1 | robots.lua kb_build subsystem + ctx.ROBOTS enumeration; closes the robot-model gap from a constructive direction (data layer first; container + cluster smoke land in C2/C3) |
+| 9 | `017b9a39` | ROBSIM C1 | robots.lua kb_build subsystem + ctx.ROBOTS enumeration |
+| 10 | `4020bd46` | docs | EOD wrap (push-backs locked, ROBSIM C1, tomorrow's revised recipe) |
+| 11 | (this session) | ROBSIM C2 | robot_sim app_containers package (manifest+container_spec+kb_build+Dockerfile+main.lua); definitions.lua adds robot_sim def; topology.lua adds robot_sim_rover_1 instance; vendored libmqtt_pubsub.so + mock_mqtt_robot_lib.lua; +84 tests = 864 host-side |
 
 Plus the locked 8-question Phase 7 design (`project_phase7_multitenant_design.md`).
 

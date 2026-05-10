@@ -235,6 +235,38 @@ return {
     },
   },
 
+  -- robot_sim: Phase 7 ROBSIM layer. Single-process container that
+  -- simulates a robot for end-to-end testing of the planner pipeline.
+  -- Connects to MQTT (mosquitto-ram-ws_main on planner-net), performs
+  -- the URLP link handshake to register with the planner, and echoes
+  -- ack + kb_done for every RPC command (drive packets + activate
+  -- actions). No physics, no movement, no per-action validation -
+  -- the planner sees the robot complete every action successfully.
+  --
+  -- Code shape mirrors construction/scripts/mock_mqtt_robot.lua but
+  -- container-fitted (env-driven instead of CLI args, no signal
+  -- handler -- docker manages lifecycle, no --once mode).
+  --
+  -- Per-instance robot identity (robot_id, planner_namespace,
+  -- capabilities) flows through topology instance params. The robots
+  -- subsystem (commit ROBSIM C1) emits a per-tenant KB row at
+  -- system.<sys>.site.<S>.planner.<ns>.robots.<robot_id>.
+  --
+  -- No port_spec: robot_sim has no UI surface (no operator console,
+  -- no /health endpoint). node_control's reconcile loop watches it
+  -- by container name only (no HTTP watchdog).
+  robot_sim = {
+    kind          = "application",
+    runtime       = "docker",
+    image         = "nanodatacenter/robot-sim:latest",
+    restart_policy = "unless-stopped",
+    -- planner-net for DNS to mosquitto-ram-ws_main + nats-js-ram +
+    -- pg-vector. Same network as mission_planner so the robot can
+    -- reach the planner's MQTT broker by hostname.
+    networks       = { "planner-net" },
+    -- No port_spec: single-process headless container.
+  },
+
   -- robot_manager: two-process pod (worker + UI). Shell for now; real
   -- fleet-manager logic fills this in alongside ros_fleet_manager later.
   robot_manager = {
