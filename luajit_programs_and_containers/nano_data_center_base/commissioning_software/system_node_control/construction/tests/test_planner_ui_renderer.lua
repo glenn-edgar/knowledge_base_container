@@ -87,7 +87,7 @@ if js_content then
        or js_content:find(fn .. "%(", 1) ~= nil)
   end
 
-  -- C4: leaf-kind colors mirror visualizer.py
+  -- C4: leaf-kind colors are part of the board_dsl rendering convention
   for _, kind in ipairs({
     "straight_line", "spline", "rotate",
     "wall_follow", "line_follow", "activate",
