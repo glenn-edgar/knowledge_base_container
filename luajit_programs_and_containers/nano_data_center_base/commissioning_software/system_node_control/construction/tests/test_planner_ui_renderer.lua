@@ -160,6 +160,53 @@ if js_content then
   ok("startStatusPolling called from init",
      js_content:find("startStatusPolling()", 1, true) ~= nil)
 
+  -- Step E: per-leaf click popup
+  ok("showSegmentPopup function present",
+     js_content:find("function showSegmentPopup", 1, true) ~= nil)
+  ok("showSegmentPopup exported for tests",
+     js_content:find("showSegmentPopup: showSegmentPopup", 1, true) ~= nil)
+  ok("leaf-group SVG wrapper used",
+     js_content:find("leaf-group", 1, true) ~= nil)
+  ok("data-leaf-idx attribute on leaf groups",
+     js_content:find("data-leaf-idx", 1, true) ~= nil)
+  ok("cursor:pointer applied to leaf group",
+     js_content:find("cursor = \"pointer\"", 1, true) ~= nil
+     or js_content:find('cursor: "pointer"', 1, true) ~= nil)
+  ok("leaf group has click listener",
+     js_content:find('lg.addEventListener("click"', 1, true) ~= nil)
+  ok("showSegmentPopup receives seg + leafIdx + chain",
+     js_content:find("showSegmentPopup(seg, leafIdx, ", 1, true) ~= nil)
+  ok("renderL2 loop indexes leaves (i passed to renderSegment)",
+     js_content:find("renderSegment(g, path[i], pose.x, pose.y, pose.heading, i)", 1, true) ~= nil)
+  ok("segment-popup-overlay id used by closePopup",
+     js_content:find("segment-popup-overlay", 1, true) ~= nil)
+  -- popupOpen + closePopup handle both node and segment overlays
+  ok("closePopup removes node-popup-overlay",
+     js_content:find('document.getElementById("node-popup-overlay")', 1, true)
+     ~= nil)
+  ok("closePopup removes segment-popup-overlay",
+     js_content:find('document.getElementById("segment-popup-overlay")', 1, true)
+     ~= nil)
+  -- Per-leaf-kind fields rendered in the popup body
+  ok("popup renders end_pos for straight_line/spline",
+     js_content:find('row("end_pos"', 1, true) ~= nil)
+  ok("popup renders end_heading for spline/rotate",
+     js_content:find('row("end_heading"', 1, true) ~= nil)
+  ok("popup renders base.kind for wall_follow/line_follow",
+     js_content:find('row("base.kind"', 1, true) ~= nil)
+  ok("popup renders offset for wall_follow/line_follow",
+     js_content:find('row("offset"', 1, true) ~= nil)
+  ok("popup renders action_id for activate",
+     js_content:find('row("action_id"', 1, true) ~= nil)
+  ok("popup renders kb_ref for activate",
+     js_content:find('row("kb_ref"', 1, true) ~= nil)
+  ok("popup renders params for activate",
+     js_content:find('row("params"', 1, true) ~= nil)
+  ok("popup renders start_pos from chain",
+     js_content:find('row("start_pos"', 1, true) ~= nil)
+  ok("popup renders start_heading from chain",
+     js_content:find('row("start_heading"', 1, true) ~= nil)
+
   -- SVG element types referenced (the renderer creates these)
   for _, elt in ipairs({ '"polygon"', '"line"', '"circle"',
                           '"rect"', '"text"', '"svg"', '"g"' }) do

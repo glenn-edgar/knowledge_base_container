@@ -263,9 +263,29 @@
     // next segment to chain off. wall_follow / line_follow render the
     // BASE primitive geometry as a dashed line in the leaf's color
     // (the offset/centerline tracking is robot behavior, not geometry).
-    function renderSegment(g, seg, sx, sy, sh) {
+    //
+    // Step E: each leaf's primitives are wrapped in a clickable <g> so
+    // operators can drill into per-segment properties. The click target
+    // is the whole group; showSegmentPopup renders kind-specific fields
+    // (start_pos/end_pos/end_heading for the geometry kinds, action_id
+    // + params for activate, base.kind + offset for wall/line_follow).
+    function renderSegment(g, seg, sx, sy, sh, leafIdx) {
         const k = seg.kind;
         const color = LEAF_COLORS[k] || "#aaa";
+
+        // Group all primitives for this leaf — single click target.
+        // start_pos cached for the popup since renderSegment is the
+        // only place that knows the chained pose.
+        const lg = svg("g", {
+            class: "leaf-group leaf-group-" + k,
+            "data-leaf-idx": String(leafIdx == null ? -1 : leafIdx),
+        });
+        lg.style.cursor = "pointer";
+        lg.addEventListener("click", function (ev) {
+            ev.stopPropagation();
+            showSegmentPopup(seg, leafIdx, { start_x: sx, start_y: sy,
+                                              start_heading: sh });
+        });
 
         if (k === "straight_line") {
             const ep = seg.end_pos;
@@ -274,7 +294,8 @@
                 class: "leaf-straight_line",
                 style: "stroke:" + color,
             });
-            g.appendChild(ln);
+            lg.appendChild(ln);
+            g.appendChild(lg);
             return { x: ep.x, y: ep.y, heading: Math.atan2(ep.y - sy, ep.x - sx) };
         }
 
@@ -284,29 +305,31 @@
             const pts = hermitePoints(sx, sy, ep.x, ep.y, sh, eh);
             const d = pts.map((p, i) =>
                 (i === 0 ? "M " : "L ") + p.x + " " + p.y).join(" ");
-            g.appendChild(svg("path", {
+            lg.appendChild(svg("path", {
                 d: d, class: "leaf-spline",
                 style: "stroke:" + color,
             }));
+            g.appendChild(lg);
             return { x: ep.x, y: ep.y, heading: eh };
         }
 
         if (k === "rotate") {
             const eh = seg.end_heading;
             // Star marker at current pose (uses a small filled circle
-            // for SVG simplicity; visualizer.py uses matplotlib '*').
-            g.appendChild(svg("circle", {
+            // for SVG simplicity).
+            lg.appendChild(svg("circle", {
                 cx: sx, cy: sy, r: 0.25,
                 class: "leaf-rotate",
                 style: "fill:" + color,
             }));
             // Tangent indicator showing new heading.
             const dx = Math.cos(eh) * 0.4, dy = Math.sin(eh) * 0.4;
-            g.appendChild(svg("line", {
+            lg.appendChild(svg("line", {
                 x1: sx, y1: sy, x2: sx + dx, y2: sy + dy,
                 class: "leaf-rotate-tangent",
                 style: "stroke:" + color,
             }));
+            g.appendChild(lg);
             return { x: sx, y: sy, heading: eh };
         }
 
@@ -314,11 +337,12 @@
             const base = seg.base;
             if (base.kind === "straight_line") {
                 const ep = base.end_pos;
-                g.appendChild(svg("line", {
+                lg.appendChild(svg("line", {
                     x1: sx, y1: sy, x2: ep.x, y2: ep.y,
                     class: "leaf-" + k,
                     style: "stroke:" + color,
                 }));
+                g.appendChild(lg);
                 return { x: ep.x, y: ep.y,
                          heading: Math.atan2(ep.y - sy, ep.x - sx) };
             } else {
@@ -328,10 +352,11 @@
                 const pts = hermitePoints(sx, sy, ep.x, ep.y, sh, eh);
                 const d = pts.map((p, i) =>
                     (i === 0 ? "M " : "L ") + p.x + " " + p.y).join(" ");
-                g.appendChild(svg("path", {
+                lg.appendChild(svg("path", {
                     d: d, class: "leaf-" + k,
                     style: "stroke:" + color,
                 }));
+                g.appendChild(lg);
                 return { x: ep.x, y: ep.y, heading: eh };
             }
         }
@@ -339,18 +364,11 @@
         if (k === "activate") {
             // Hollow diamond at current pose.
             const r = 0.35;
-            const points = [
-                sx + ",", (sy + r),
-                ",", (sx + r), ",", sy,
-                ",", sx, ",", (sy - r),
-                ",", (sx - r), ",", sy,
-            ].join("");
-            // Build polygon as proper points string.
             const pStr = sx + "," + (sy + r) + " " +
                          (sx + r) + "," + sy + " " +
                          sx + "," + (sy - r) + " " +
                          (sx - r) + "," + sy;
-            g.appendChild(svg("polygon", {
+            lg.appendChild(svg("polygon", {
                 points: pStr,
                 class: "leaf-activate",
                 style: "fill:none;stroke:" + color,
@@ -361,14 +379,16 @@
                 class: "leaf-activate-label",
             });
             lab.textContent = seg.action_id || "(activate)";
-            g.appendChild(lab);
+            lg.appendChild(lab);
+            g.appendChild(lg);
             return { x: sx, y: sy, heading: sh };
         }
 
         // Unknown kind: render a placeholder circle with the kind name.
-        g.appendChild(svg("circle", {
+        lg.appendChild(svg("circle", {
             cx: sx, cy: sy, r: 0.2, fill: "#888",
         }));
+        g.appendChild(lg);
         return { x: sx, y: sy, heading: sh };
     }
 
@@ -444,10 +464,12 @@
             }));
         }
 
-        // Walk the leaves in geometric order.
+        // Walk the leaves in geometric order. Pass leaf index for the
+        // Step E click-popup data-leaf-idx attribute + popup heading.
         let pose = { x: fromNode.x, y: fromNode.y, heading: 0 };
-        for (const leaf of (edge.path || [])) {
-            pose = renderSegment(g, leaf, pose.x, pose.y, pose.heading);
+        const path = edge.path || [];
+        for (let i = 0; i < path.length; i++) {
+            pose = renderSegment(g, path[i], pose.x, pose.y, pose.heading, i);
         }
 
         root.appendChild(g);
@@ -498,13 +520,102 @@
         document.body.appendChild(overlay);
     }
 
+    // -- Per-leaf properties popup (Step E) -----------------------------
+    //
+    // Click any leaf segment in L2 to drill into its declared properties.
+    // Mirrors showNodePopup's overlay shape; per-kind dispatcher selects
+    // which fields to render:
+    //
+    //   straight_line / spline   → start_pos, end_pos, end_heading
+    //   rotate                   → end_heading (+ tangent magnitude visible
+    //                              in the rendered indicator)
+    //   wall_follow / line_follow→ base.kind + offset + base end_pos/heading
+    //   activate                 → action_id, kb_ref, params
+    //
+    // chain = { start_x, start_y, start_heading } captured by renderSegment
+    // (the leaf's input pose, which the leaf's properties don't carry on
+    // their own).
+    function showSegmentPopup(seg, leafIdx, chain) {
+        closePopup();
+
+        const overlay = document.createElement("div");
+        overlay.id = "segment-popup-overlay";
+        overlay.className = "popup-overlay";
+        overlay.addEventListener("click", function (e) {
+            if (e.target === overlay) closePopup();
+        });
+
+        const popup = document.createElement("div");
+        popup.className = "popup";
+
+        const close = document.createElement("button");
+        close.className = "popup-close";
+        close.setAttribute("aria-label", "close");
+        close.textContent = "×";
+        close.addEventListener("click", closePopup);
+        popup.appendChild(close);
+
+        const h = document.createElement("h3");
+        const idxStr = leafIdx == null ? "?" : String(leafIdx);
+        h.textContent = "leaf #" + idxStr + " — " + (seg.kind || "(unknown)");
+        popup.appendChild(h);
+
+        const dl = document.createElement("dl");
+        function row(k, v) {
+            if (v === undefined || v === null || v === "") return;
+            const dt = document.createElement("dt"); dt.textContent = k;
+            const dd = document.createElement("dd");
+            dd.textContent = (typeof v === "object")
+                ? JSON.stringify(v) : String(v);
+            dl.appendChild(dt); dl.appendChild(dd);
+        }
+        function posStr(p) {
+            if (!p) return "";
+            return "(" + p.x + ", " + p.y + ")";
+        }
+
+        const k = seg.kind;
+
+        if (chain) {
+            row("start_pos", posStr({ x: chain.start_x, y: chain.start_y }));
+            row("start_heading", chain.start_heading);
+        }
+
+        if (k === "straight_line" || k === "spline") {
+            row("end_pos", posStr(seg.end_pos));
+            if (k === "spline") row("end_heading", seg.end_heading);
+        } else if (k === "rotate") {
+            row("end_heading", seg.end_heading);
+        } else if (k === "wall_follow" || k === "line_follow") {
+            if (seg.base) {
+                row("base.kind", seg.base.kind);
+                row("base.end_pos", posStr(seg.base.end_pos));
+                if (seg.base.kind === "spline") {
+                    row("base.end_heading", seg.base.end_heading);
+                }
+            }
+            row("offset", seg.offset);
+        } else if (k === "activate") {
+            row("action_id", seg.action_id);
+            row("kb_ref", seg.kb_ref);
+            row("params", seg.params);
+        }
+
+        popup.appendChild(dl);
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+    }
+
     function closePopup() {
-        const ov = document.getElementById("node-popup-overlay");
-        if (ov) ov.remove();
+        const ov1 = document.getElementById("node-popup-overlay");
+        if (ov1) ov1.remove();
+        const ov2 = document.getElementById("segment-popup-overlay");
+        if (ov2) ov2.remove();
     }
 
     function popupOpen() {
-        return document.getElementById("node-popup-overlay") !== null;
+        return document.getElementById("node-popup-overlay") !== null
+            || document.getElementById("segment-popup-overlay") !== null;
     }
 
     // -- Esc handler ----------------------------------------------------
@@ -948,6 +1059,8 @@
             startStatusPolling: startStatusPolling,
             stopStatusPolling: stopStatusPolling,
             STATUS_POLL_MS: STATUS_POLL_MS,
+            // Step E: per-leaf click popup
+            showSegmentPopup: showSegmentPopup,
         };
     }
 })();
