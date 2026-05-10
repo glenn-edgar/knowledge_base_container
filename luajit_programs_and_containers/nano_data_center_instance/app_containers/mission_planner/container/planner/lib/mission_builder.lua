@@ -261,16 +261,15 @@ end
 
 --- Rebuild a route for remaining stops after a fault.
 -- Used during replanning: starts from current_node instead of original start.
+-- Heading is NOT passed: per the locked contract (2026-05-10) the robot
+-- is responsible for its own heading. The planner only knows the
+-- node-graph topology + the leg's start_pos at packet emission time;
+-- the robot reconciles its actual heading against that at execute time.
 -- @param remaining_stops  array of stop tables (subset of original mission)
 -- @param planner          global_planner instance (may have blocked edges)
 -- @param current_node     string: nearest node to fault position
--- @param current_heading  number: robot's current heading. PRE-EXISTING:
---                         this arg is currently NOT consumed (build()
---                         has no start_heading parameter). Documented
---                         here so a future fix that threads heading
---                         through doesn't have to touch the signature.
 -- @return route, plan_info (same as build)
-function M.rebuild(remaining_stops, planner, current_node, current_heading)
+function M.rebuild(remaining_stops, planner, current_node)
     return M.build({
         start   = current_node,
         stops   = remaining_stops,
