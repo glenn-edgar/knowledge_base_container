@@ -148,10 +148,14 @@ end
 function M:get_active_board(name)
     assert(type(name) == "string" and name ~= "",
            "get_active_board: name required")
+    assert(self.planner_namespace and self.planner_namespace ~= "",
+           "get_active_board: planner_namespace required (Phase 7 per-tenant boards)")
 
     local doc_store = require("kb_doc_store")
-    local path = string.format("system.%s.site.%s.boards.%s",
-        self.system_name, self.site, name)
+    -- Phase 7: per-tenant board path (matches boards.lua subsystem +
+    -- compile_board.lua's --planner-namespace flag).
+    local path = string.format("system.%s.site.%s.planner.%s.boards.%s",
+        self.system_name, self.site, self.planner_namespace, name)
 
     -- Cheap stat: fetches sha256 + size + mtime, NOT content. Lets us
     -- cache-hit without paying the bytea decode + JSON parse cost.
@@ -204,9 +208,12 @@ end
 -- @param name string
 -- @return string sha256_hex on success, nil + err on missing.
 function M:get_active_board_sha(name)
+    assert(self.planner_namespace and self.planner_namespace ~= "",
+           "get_active_board_sha: planner_namespace required (Phase 7)")
     local doc_store = require("kb_doc_store")
-    local path = string.format("system.%s.site.%s.boards.%s",
-        self.system_name, self.site, name)
+    -- Phase 7: per-tenant board path (matches get_active_board above).
+    local path = string.format("system.%s.site.%s.planner.%s.boards.%s",
+        self.system_name, self.site, self.planner_namespace, name)
     local stat = doc_store.doc_stat(self.kb.conn, "knowledge_base", path)
     if not stat then return nil, "board not found: " .. name end
     return bytes_to_hex(stat.sha256)

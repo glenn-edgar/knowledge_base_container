@@ -18,7 +18,8 @@ Eight commits this session:
 | 8 | `38897e8b` | 7 C4 | planner_ui per-tenant scoping (submit + status + db) |
 | 9 | `017b9a39` | ROBSIM C1 | robots.lua kb_build subsystem + ctx.ROBOTS enumeration |
 | 10 | `4020bd46` | docs | EOD wrap (push-backs locked, ROBSIM C1, tomorrow's revised recipe) |
-| 11 | (this session) | ROBSIM C2 | robot_sim app_containers package (manifest+container_spec+kb_build+Dockerfile+main.lua); definitions.lua adds robot_sim def; topology.lua adds robot_sim_rover_1 instance; vendored libmqtt_pubsub.so + mock_mqtt_robot_lib.lua; +84 tests = 864 host-side |
+| 11 | `953bcfa5` | ROBSIM C2 | robot_sim app_containers package (manifest+container_spec+kb_build+Dockerfile+main.lua); definitions.lua adds robot_sim def; topology.lua adds robot_sim_rover_1 instance; vendored libmqtt_pubsub.so + mock_mqtt_robot_lib.lua; +84 tests = 864 host-side |
+| 12 | (this session) | ROBSIM C3 | cluster smoke: rebuild + restart, partially green; surfaced 4 gaps. Mid-smoke fixes to upload_board.lua + kb_query.lua per-tenant paths committed here. Full RPC echo blocked by pre-existing KBM `find_by_pattern` API gap (NOT Phase 7). |
 
 Plus the locked 8-question Phase 7 design (`project_phase7_multitenant_design.md`).
 

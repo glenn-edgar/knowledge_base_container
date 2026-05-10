@@ -46,9 +46,11 @@ end
 local function usage()
     io.stderr:write([[
 Usage: upload_board.lua --system <sys> --site <S> --name <board_name> --file <path.json>
+                       --planner-namespace <ns>  (or env PLANNER_NAMESPACE)
                        [--pg-host <h>] [--pg-port <p>] [--pg-db <db>] [--pg-user <u>]
 Environment fallback:
-  PG_HOST, PG_PORT, PG_DB, PG_USER, PG_PASSWORD (or POSTGRES_PASSWORD)
+  PG_HOST, PG_PORT, PG_DB, PG_USER, PG_PASSWORD (or POSTGRES_PASSWORD),
+  PLANNER_NAMESPACE
 ]])
     os.exit(2)
 end
@@ -57,19 +59,25 @@ local opts = { pg_port = "5432", pg_db = "knowledge_base", pg_user = "gedgar" }
 local i = 1
 while i <= #arg do
     local k, v = arg[i], arg[i + 1]
-    if     k == "--system"  then opts.system  = v; i = i + 2
-    elseif k == "--site"    then opts.site    = v; i = i + 2
-    elseif k == "--name"    then opts.name    = v; i = i + 2
-    elseif k == "--file"    then opts.file    = v; i = i + 2
-    elseif k == "--pg-host" then opts.pg_host = v; i = i + 2
-    elseif k == "--pg-port" then opts.pg_port = v; i = i + 2
-    elseif k == "--pg-db"   then opts.pg_db   = v; i = i + 2
-    elseif k == "--pg-user" then opts.pg_user = v; i = i + 2
+    if     k == "--system"            then opts.system  = v; i = i + 2
+    elseif k == "--site"              then opts.site    = v; i = i + 2
+    elseif k == "--name"              then opts.name    = v; i = i + 2
+    elseif k == "--file"              then opts.file    = v; i = i + 2
+    elseif k == "--planner-namespace" then opts.planner_namespace = v; i = i + 2
+    elseif k == "--pg-host"           then opts.pg_host = v; i = i + 2
+    elseif k == "--pg-port"           then opts.pg_port = v; i = i + 2
+    elseif k == "--pg-db"             then opts.pg_db   = v; i = i + 2
+    elseif k == "--pg-user"           then opts.pg_user = v; i = i + 2
     elseif k == "--help" or k == "-h" then usage()
     else die("unknown arg: " .. tostring(k)) end
 end
 
-if not (opts.system and opts.site and opts.name and opts.file) then usage() end
+-- Phase 7: planner_namespace required (boards are now per-tenant).
+opts.planner_namespace = opts.planner_namespace
+                       or os.getenv("PLANNER_NAMESPACE")
+
+if not (opts.system and opts.site and opts.name and opts.file
+        and opts.planner_namespace) then usage() end
 
 opts.pg_host     = opts.pg_host     or os.getenv("PG_HOST")     or "localhost"
 opts.pg_password = os.getenv("PG_PASSWORD") or os.getenv("POSTGRES_PASSWORD")
@@ -126,7 +134,10 @@ local pg, err = DBI.Connect("PostgreSQL", opts.pg_db, opts.pg_user,
 if not pg then die("pg connect: " .. tostring(err)) end
 pg:autocommit(false)
 
-local class_ns = string.format("system.%s.site.%s.boards", opts.system, opts.site)
+-- Phase 7: per-tenant boards path. Class registered by boards subsystem
+-- as system.<sys>.site.<S>.planner.<ns>.boards.
+local class_ns = string.format("system.%s.site.%s.planner.%s.boards",
+    opts.system, opts.site, opts.planner_namespace)
 local board_path = class_ns .. "." .. opts.name
 
 -- Confirm class is registered (build_kb must have run with the boards subsystem).
