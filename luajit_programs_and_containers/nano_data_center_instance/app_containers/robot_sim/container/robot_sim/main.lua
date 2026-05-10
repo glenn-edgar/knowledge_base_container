@@ -57,6 +57,12 @@ package.path = "/opt/apps/robot_sim/lib/?.lua;" ..
 local lib    = require("mock_mqtt_robot_lib")
 local dkjson = require("dkjson")
 local pubsub = require("lib.mqtt_pubsub")
+-- lua_cbor FFI binding for v2 drive packets. The planner emits
+-- cmd_drive_t as raw CBOR bytes (encoder.encode_drive); robot_sim
+-- decodes CBOR → JSON string then runs the normal dkjson.decode on
+-- the result so the ack/kb_done path is identical for JSON and
+-- CBOR-origin packets.
+local cbor   = require("lua_cbor")
 
 ---------------------------------------------------------------------------
 -- env
@@ -153,32 +159,47 @@ while true do
     for _, m in ipairs(msgs or {}) do
         if m.topic == topics.rpc then
             rpc_count = rpc_count + 1
+            -- Decode payload: JSON (legacy activate_kb / init_check)
+            -- OR CBOR (v2 cmd_drive_t). Try JSON first; on failure
+            -- fall back to CBOR-decode-to-JSON then JSON-parse.
             local ok, cmd = pcall(dkjson.decode, m.payload)
-            if ok and cmd then
-                -- Step 1: ack the command (synchronous receipt)
-                ps:publish(topics.stream_bus, lib.make_ack(cmd), 1, false)
-
-                -- Step 2: simulate execution (drain energy proportional
-                -- to advertised distance, if any -- mock_mqtt_robot.lua
-                -- convention)
-                if cmd.distance then
-                    link.energy_remaining = math.max(0,
-                        link.energy_remaining - math.floor(cmd.distance + 0.5))
+            if not (ok and type(cmd) == "table") then
+                local cok, cjson = pcall(cbor.decode, m.payload)
+                if cok and cjson then
+                    ok, cmd = pcall(dkjson.decode, cjson)
                 end
-
-                -- Step 3: kb_done with success=true (blind echo).
-                -- Real robot would dispatch on cmd.packet_type:
-                --   - cmd_drive_t  -> drive segments via physics_core
-                --   - cmd_activate -> connect to dock, run SOP, etc.
-                -- Sim treats them all the same.
-                ps:publish(topics.stream_bus,
-                    lib.make_kb_done_success(cmd, link.energy_remaining),
-                    1, false)
-
-                logf("<- rpc kb=%s seq=%s test_id=%s -> ack+kb_done energy=%d",
-                    tostring(cmd.kb_name or cmd.packet_type),
-                    tostring(cmd.seq), tostring(cmd.test_id),
-                    link.energy_remaining)
+            end
+            if ok and cmd then
+                -- Drive packets (cmd_drive_t, packet_type=30) follow a
+                -- different ack/done contract than legacy commands:
+                -- hub_runtime expects type="drive_ack" + "drive_done"
+                -- keyed by packet_id, not "ack" + "kb_done" keyed by
+                -- seq. Dispatch on packet_type so both paths work in
+                -- one blind-echo loop.
+                local is_drive = (cmd.packet_type == 30)
+                if is_drive then
+                    ps:publish(topics.stream_bus,
+                        lib.make_drive_ack(cmd.packet_id, "ok"), 1, false)
+                    ps:publish(topics.stream_bus,
+                        lib.make_drive_done(cmd.packet_id, true, nil, nil),
+                        1, false)
+                    logf("<- rpc drive packet_id=%s segs=%s -> drive_ack+drive_done",
+                        tostring(cmd.packet_id),
+                        tostring(cmd.segments and #cmd.segments))
+                else
+                    ps:publish(topics.stream_bus, lib.make_ack(cmd), 1, false)
+                    if cmd.distance then
+                        link.energy_remaining = math.max(0,
+                            link.energy_remaining - math.floor(cmd.distance + 0.5))
+                    end
+                    ps:publish(topics.stream_bus,
+                        lib.make_kb_done_success(cmd, link.energy_remaining),
+                        1, false)
+                    logf("<- rpc kb=%s seq=%s test_id=%s -> ack+kb_done energy=%d",
+                        tostring(cmd.kb_name or cmd.packet_type),
+                        tostring(cmd.seq), tostring(cmd.test_id),
+                        link.energy_remaining)
+                end
             else
                 logf("<- rpc UNDECODABLE (%d bytes)", #m.payload)
             end

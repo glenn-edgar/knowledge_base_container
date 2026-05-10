@@ -24,9 +24,13 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libmosquitto1 && \
     rm -rf /var/lib/apt/lists/*
 
-# Vendor FFI .so file (sourced from mission_planner's prebuilt_libs;
-# same MQTT wrapper used across MQTT-speaking containers).
+# Vendor FFI .so files (sourced from mission_planner's prebuilt_libs;
+# shared codecs across the planner-and-robot pair):
+#   libmqtt_pubsub.so -- MQTT pub/sub wrapper
+#   liblua_cbor.so    -- CBOR codec, needed to decode v2 drive packets
+#                        that the planner sends as raw CBOR bytes.
 COPY prebuilt_libs/libmqtt_pubsub.so /usr/local/lib/
+COPY prebuilt_libs/liblua_cbor.so    /usr/local/lib/
 RUN ldconfig
 
 # Copy the simulator source tree.
