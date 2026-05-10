@@ -220,6 +220,43 @@ function M:get_active_board_sha(name)
 end
 
 ---------------------------------------------------------------------------
+-- Helper: single-row exact-path lookup via raw SQL.
+--
+-- Phase 7 gap-4 fix (2026-05-10, surfaced by ROBSIM C3 cluster smoke):
+-- the Postgres port of KnowledgeBaseManager is write-only by design --
+-- only add_kb / add_node / add_link / add_link_mount exist. Read methods
+-- (find_by_pattern, find_descendants) live only on the SQLite3 KBM and
+-- were never ported. Three callers below (get_app_spec_jsonb,
+-- get_app_spec_status, get_planner_state) were trying to call
+-- self.kb:find_by_pattern -- always crashed at runtime with
+-- "attempt to call method 'find_by_pattern' (a nil value)".
+--
+-- All three callers pass CONCRETE PATHS, not patterns. The fix is a
+-- single-row lookup against the knowledge_base table (filtered by the
+-- kb-name column + ltree path equality). Mirrors the kb_doc_store
+-- prepare/execute/fetch pattern already used at lines 162, 179, 217
+-- above for board fs_node / fs_blob queries.
+---------------------------------------------------------------------------
+
+local function pg_escape(s) return tostring(s):gsub("'", "''") end
+
+local function fetch_row_by_path(conn, kb_name, path)
+    local sql = string.format(
+        "SELECT path::text AS path, label, name, " ..
+        "properties::text AS properties, data::text AS data " ..
+        "FROM knowledge_base " ..
+        "WHERE knowledge_base = '%s' AND path = '%s'::ltree LIMIT 1",
+        pg_escape(kb_name), pg_escape(path))
+    local sth, perr = conn:prepare(sql)
+    if not sth then return nil, "prepare: " .. tostring(perr) end
+    local ok, eerr = sth:execute()
+    if not ok then sth:close(); return nil, "execute: " .. tostring(eerr) end
+    local row = sth:fetch(true)
+    sth:close()
+    return row
+end
+
+---------------------------------------------------------------------------
 -- Helper: parse JSON fields from a row
 ---------------------------------------------------------------------------
 
@@ -255,10 +292,8 @@ end
 -- @return decoded value or nil
 function M:get_app_spec_jsonb(container_name, key)
     local path = paths.app_manifest_jsonb_path(self.site, container_name, key)
-    local rows = self.kb:find_by_pattern(path, "system")
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
+    local row = fetch_row_by_path(self.kb.conn, "system", path)
+    if row then return parse_row(row).data end
     return nil
 end
 
@@ -269,10 +304,8 @@ end
 -- @return decoded value or nil
 function M:get_app_spec_status(container_name, name)
     local path = paths.app_manifest_status_path(self.site, container_name, name)
-    local rows = self.kb:find_by_pattern(path, "system")
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
+    local row = fetch_row_by_path(self.kb.conn, "system", path)
+    if row then return parse_row(row).data end
     return nil
 end
 
@@ -371,10 +404,8 @@ function M:get_planner_state()
     -- "ui", "transport") as the planner exposes them.
     local path = paths.app_runtime_status_path(
         self.site, self.own_instance_id, "planner", "state")
-    local rows = self.kb:find_by_pattern(path, "system")
-    if #rows > 0 then
-        return parse_row(rows[1]).data
-    end
+    local row = fetch_row_by_path(self.kb.conn, "system", path)
+    if row then return parse_row(row).data end
     return nil
 end
 

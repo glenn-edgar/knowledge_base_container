@@ -19,7 +19,8 @@ Eight commits this session:
 | 9 | `017b9a39` | ROBSIM C1 | robots.lua kb_build subsystem + ctx.ROBOTS enumeration |
 | 10 | `4020bd46` | docs | EOD wrap (push-backs locked, ROBSIM C1, tomorrow's revised recipe) |
 | 11 | `953bcfa5` | ROBSIM C2 | robot_sim app_containers package (manifest+container_spec+kb_build+Dockerfile+main.lua); definitions.lua adds robot_sim def; topology.lua adds robot_sim_rover_1 instance; vendored libmqtt_pubsub.so + mock_mqtt_robot_lib.lua; +84 tests = 864 host-side |
-| 12 | (this session) | ROBSIM C3 | cluster smoke: rebuild + restart, partially green; surfaced 4 gaps. Mid-smoke fixes to upload_board.lua + kb_query.lua per-tenant paths committed here. Full RPC echo blocked by pre-existing KBM `find_by_pattern` API gap (NOT Phase 7). |
+| 12 | `33fe03c9` | ROBSIM C3 | cluster smoke: rebuild + restart, partially green; surfaced 4 gaps. Mid-smoke fixes to upload_board.lua + kb_query.lua per-tenant paths. Full RPC echo blocked by pre-existing KBM `find_by_pattern` API gap. |
+| 13 | (this session) | gap-4 fix | KBM `find_by_pattern` callers in kb_query.lua rewritten to use raw SQL exact-path lookup (Postgres KBM is write-only by design; read methods never ported from SQLite3 version). Mission now reaches `state=planning` (was `board_load_failed`). Surfaces gap 5: planner link_manager doesn't bridge robot_sim's link_announce — robot stuck `state=init`. |
 
 Plus the locked 8-question Phase 7 design (`project_phase7_multitenant_design.md`).
 
