@@ -25,6 +25,11 @@
 
 local M = {}
 
+-- Treat empty-string env values as unset. The supervisor's app_env()
+-- (luajit_base/.../user_functions.lua) injects NATS_URL="" when the
+-- container env doesn't carry one, and Lua's `or` chain stops at "".
+local function nonempty(s) return (s and s ~= "") and s or nil end
+
 -- Worker-lifetime singletons. The KeyStore + JobQueue pair owns a
 -- libnats connection; reusing it across requests avoids per-click
 -- connect overhead (which would dominate the FFI cost).
@@ -157,7 +162,7 @@ function M.do_submit(input, opts)
   -- fix is infra_discovery from pg (like the planner worker does); this
   -- default unblocks cluster smoke until that wiring lands. Same pattern
   -- as robot_sim/main.lua's MQTT_HOST default.
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
+  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
 
   local mission = M.build_mission(input)
   local payload = cjson.encode(mission)

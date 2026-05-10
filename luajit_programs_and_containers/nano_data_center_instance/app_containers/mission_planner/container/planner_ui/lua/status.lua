@@ -21,6 +21,11 @@
 
 local M = {}
 
+-- Treat empty-string env values as unset. The supervisor's app_env()
+-- (luajit_base/.../user_functions.lua) injects NATS_URL="" when the
+-- container env doesn't carry one, and Lua's `or` chain stops at "".
+local function nonempty(s) return (s and s ~= "") and s or nil end
+
 -- Worker-lifetime singleton. Separate from submit.lua's KS+JQ pair --
 -- two connections per nginx worker; cheaper than passing a handle
 -- around and avoids coupling the two modules.
@@ -104,7 +109,7 @@ function M.list_missions(opts)
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
   -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
+  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)
@@ -173,7 +178,7 @@ function M.get_mission(robot_id, opts)
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
   -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
-  local nats_url = opts.nats_url or os.getenv("NATS_URL") or "nats://nats-js-ram:4222"
+  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)
