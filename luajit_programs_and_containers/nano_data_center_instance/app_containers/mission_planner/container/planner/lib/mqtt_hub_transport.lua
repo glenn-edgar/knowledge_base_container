@@ -71,30 +71,124 @@ function M:connect()
         and ("_" .. self.namespace:gsub("[^%w]", "_"))
         or ""
     local client_id = "planner_" .. (self.site:gsub("%.", "_")) .. ns_suffix
+    -- Cache for reconnect.
+    self._client_id = client_id
+
+    -- Reconnect backoff state. Polling helpers call _ensure_connected
+    -- before any broker I/O; on a confirmed disconnect (rc=7 from a
+    -- broker reset, peer kickout, or vpnkit hiccup) we re-dial with
+    -- exponential backoff 1s→30s and re-subscribe on success. Initialized
+    -- BEFORE the first connect attempt so an initial failure still
+    -- enters the same backoff machinery.
+    self._reconnect_backoff_s    = 1
+    self._reconnect_backoff_max  = 30
+    self._next_reconnect_at      = 0
+
     self.ps = pubsub.PubSub.new(self.host, self.port, client_id)
     -- Connect may return asynchronously on some platforms (WSL2 containers)
     local ok, err = pcall(self.ps.connect, self.ps, 5000)
     if not ok then
-        -- Async connect — wait for it to establish
+        -- Async connect — wait briefly for it to establish
         for _ = 1, 50 do
             if self.ps:is_connected() then break end
             ffi.C.usleep(100000)  -- 100ms
         end
-        if not self.ps:is_connected() then
-            error("mqtt_hub_transport: connect failed: " .. tostring(err))
-        end
+    end
+    if not self.ps:is_connected() then
+        -- Initial connect failed. Don't throw — leave the planner with
+        -- mqtt_hub wired so action_server can still bind link_manager;
+        -- _ensure_connected on the next poll will retry. Log so ops can
+        -- see the broker was unreachable at boot.
+        io.stderr:write(string.format(
+            "mqtt_hub_transport: initial connect failed (%s); " ..
+            "will retry on first poll\n", tostring(err)))
+        io.stderr:flush()
+        return
     end
 
-    -- Subscribe to all robot streams, status, and link protocol
-    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/stream_bus", 1)
-    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/status/#", 1)
-    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/link", 1)
+    self:_subscribe_all()
 
     -- Drain stale retained messages (limited attempts to avoid infinite loop)
     for _ = 1, 20 do
         local stale = self.ps:poll(50)
         if #stale == 0 then break end
     end
+end
+
+function M:_subscribe_all()
+    -- Subscribe to all robot streams, status, and link protocol.
+    -- Idempotent: safe to call after reconnect; the broker re-applies
+    -- the wildcard subscriptions for the same client_id.
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/stream_bus", 1)
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/status/#", 1)
+    pcall(self.ps.subscribe, self.ps, self.site_path .. "/robots/+/link", 1)
+end
+
+--- Re-establish the broker connection if it's gone. Idempotent.
+-- Returns true if the connection is good (either was already connected,
+-- or reconnect succeeded just now); false if the connection is still
+-- down and we're inside the backoff window. Callers should treat
+-- "false" as "skip this poll cycle, try again next tick".
+function M:_ensure_connected()
+    if self.ps and self.ps:is_connected() then
+        -- Healthy — reset backoff so the next outage starts at 1s.
+        if self._reconnect_backoff_s ~= 1 then
+            self._reconnect_backoff_s = 1
+        end
+        return true
+    end
+
+    local now_s = os.time()
+    if now_s < (self._next_reconnect_at or 0) then
+        return false   -- inside backoff window
+    end
+
+    -- The pubsub handle may not exist yet (initial connect failed at
+    -- M:connect time; we deferred giving up so this poll path can
+    -- recover when the broker comes back). Re-create it lazily.
+    if not self.ps then
+        local ok_new, err_new = pcall(function()
+            local pubsub = require("lib.mqtt_pubsub")
+            self.ps = pubsub.PubSub.new(self.host, self.port, self._client_id)
+        end)
+        if not ok_new then
+            local backoff = self._reconnect_backoff_s or 1
+            self._next_reconnect_at = now_s + backoff
+            self._reconnect_backoff_s = math.min(
+                backoff * 2, self._reconnect_backoff_max or 30)
+            io.stderr:write(string.format(
+                "mqtt_hub_transport: PubSub.new failed (%s), retry in %ds\n",
+                tostring(err_new), backoff))
+            io.stderr:flush()
+            return false
+        end
+    end
+
+    -- Try to (re)connect. pubsub:connect is synchronous on the happy
+    -- path and may throw on failure; pcall it so a transient broker
+    -- outage doesn't kill the planner's serve loop.
+    local ok = pcall(function()
+        self.ps:connect(5000)
+    end)
+    if ok and self.ps:is_connected() then
+        io.stderr:write(string.format(
+            "mqtt_hub_transport: connected (client_id=%s)\n",
+            tostring(self._client_id)))
+        io.stderr:flush()
+        self:_subscribe_all()
+        self._reconnect_backoff_s = 1
+        return true
+    end
+
+    -- Failed — exponential backoff up to _reconnect_backoff_max.
+    local backoff = self._reconnect_backoff_s or 1
+    self._next_reconnect_at = now_s + backoff
+    self._reconnect_backoff_s = math.min(
+        backoff * 2, self._reconnect_backoff_max or 30)
+    io.stderr:write(string.format(
+        "mqtt_hub_transport: reconnect failed, retry in %ds\n", backoff))
+    io.stderr:flush()
+    return false
 end
 
 ---------------------------------------------------------------------------
@@ -120,6 +214,7 @@ end
 
 function M:poll(timeout_ms)
     timeout_ms = timeout_ms or 1
+    if not self:_ensure_connected() then return {} end
     local msgs = self.ps:poll(timeout_ms)
     local result = {}
 
@@ -192,6 +287,24 @@ end
 -- Send RPC command to a specific robot
 ---------------------------------------------------------------------------
 
+-- Safe-publish helper: pcall around publish + an is_connected gate so
+-- the planner doesn't crash when the broker is briefly gone. Drops the
+-- message silently; the poll loop's _ensure_connected handles reconnect
+-- + re-subscribe, and the protocol re-sends (link heartbeats, ack
+-- retries from the robot's announce loop) cover the gap.
+function M:_safe_publish(topic, payload, qos, retain)
+    if not self.ps or not self.ps:is_connected() then return false end
+    local ok, err = pcall(self.ps.publish, self.ps, topic, payload,
+        qos or 1, retain == true)
+    if not ok then
+        io.stderr:write(string.format(
+            "mqtt_hub_transport: publish failed on %s: %s\n",
+            tostring(topic), tostring(err)))
+        io.stderr:flush()
+    end
+    return ok
+end
+
 function M:send_rpc(robot_id, json_str)
     local wire = json_str
     local fmt = self.wire_formats[robot_id]
@@ -207,7 +320,7 @@ function M:send_rpc(robot_id, json_str)
         end
     end
     local topic = self.site_path .. "/robots/" .. robot_id .. "/rpc"
-    self.ps:publish(topic, wire, 1, false)
+    self:_safe_publish(topic, wire, 1, false)
     return "ok"
 end
 
@@ -222,7 +335,7 @@ end
 
 function M:send_rpc_raw(robot_id, bytes)
     local topic = self.site_path .. "/robots/" .. robot_id .. "/rpc"
-    self.ps:publish(topic, bytes, 1, false)
+    self:_safe_publish(topic, bytes, 1, false)
     return "ok"
 end
 
@@ -232,17 +345,17 @@ end
 
 function M:send_planner_ack(robot_id, json_str)
     local topic = self.site_path .. "/robots/" .. robot_id .. "/planner/ack"
-    self.ps:publish(topic, json_str, 1, false)
+    self:_safe_publish(topic, json_str, 1, false)
 end
 
 function M:send_planner_heartbeat(robot_id, json_str)
     local topic = self.site_path .. "/robots/" .. robot_id .. "/planner/heartbeat"
-    self.ps:publish(topic, json_str, 1, false)
+    self:_safe_publish(topic, json_str, 1, false)
 end
 
 function M:send_planner_disconnect(robot_id, json_str)
     local topic = self.site_path .. "/robots/" .. robot_id .. "/planner/disconnect"
-    self.ps:publish(topic, json_str, 1, false)
+    self:_safe_publish(topic, json_str, 1, false)
 end
 
 ---------------------------------------------------------------------------

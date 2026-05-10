@@ -142,6 +142,12 @@ logf("subscribed: %s  %s", topics.rpc, topics.planner_glob)
 
 -- Initial link_announce. State machine handles re-announce on planner
 -- heartbeat loss (LinkState.on_planner_verb tracks this internally).
+-- Also: if the first announce never gets an ack (broker hiccup, planner
+-- still spinning up, MQTT client_id collision earlier in the session),
+-- the main loop retries every INIT_REANNOUNCE_PERIOD_S to recover
+-- without requiring a container restart.
+local INIT_REANNOUNCE_PERIOD_S = 5
+local last_announce_at = os.time()
 ps:publish(topics.link_out, link:make_announce(), 1, false)
 logf("-> link_announce")
 
@@ -235,7 +241,22 @@ while true do
     local lost = link:check_planner_alive(now)
     if lost then
         ps:publish(topics.link_out, lost.send_payload, 1, false)
+        last_announce_at = now
         logf("planner_lost -> re-announce (state=%s)", lost.transitioned_to)
+    end
+
+    -- Init-state retry: if the first link_announce never got an ack
+    -- (broker reset, planner not ready, client_id collision in an
+    -- earlier window), re-announce every INIT_REANNOUNCE_PERIOD_S so
+    -- the robot doesn't sit in state=init forever. check_planner_alive
+    -- only fires after last_planner_msg has been set at least once; this
+    -- branch covers the bootstrap gap before that.
+    if link.state == "init"
+       and now - last_announce_at >= INIT_REANNOUNCE_PERIOD_S then
+        ps:publish(topics.link_out, link:make_announce(), 1, false)
+        last_announce_at = now
+        logf("init_retry -> re-announce (no ack within %ds)",
+             INIT_REANNOUNCE_PERIOD_S)
     end
 
     -- Periodic idle summary so docker logs show this is alive even
