@@ -106,14 +106,16 @@ luajit construction/tests/test_robots_subsystem.lua                  # 37/37
 # (and the others — see earlier continue.md for full list)
 ```
 
-## Tomorrow's recommended sequence
+## Tomorrow's locked sequence (2026-05-10 EOD discussion)
 
 | Step | What | Outcome |
 |---|---|---|
-| A | Investigate gap 6 (openresty + libnats FFI). Start with the env-vs-subprocess distinction (recipe above), then init_by_lua_block preload, then the rest of the hypotheses. | Either gap 6 fixed OR architectural pivot back to HTTP-to-worker (option 2 from Phase 7 Q3 design). |
-| B | If gap 6 fixed: full pipeline smoke via /api/submit_mission. Verify drive packets flow + robot RPC echo + kb_done arrives + mission_log updates. | Phase 7 + ROBSIM end-to-end validated. |
-| C | If gap 6 fixed: also verify the C5/C6 path (add mission_planner_02 to topology with planner_namespace="tunnel_ops" — gap 1 chain handles env injection now). Two-tenant cluster smoke. | Phase 7 multi-tenant fully validated. |
-| D | After C green: matplotlib viewer, node-properties authoring, or pause. | Honest re-prioritization. |
+| A | **Gap 6 investigation + fix**. Start with env-vs-subprocess distinction (recipe in Outstanding Gaps section above), then init_by_lua_block preload, then the rest of the hypotheses. **Fork point after first hour or two**: if gap 6 is a hard openresty+libnats limit, pivot to option-2 (HTTP-to-worker) from yesterday's Phase 7 Q3 design — that's a real rework (~1 day) but architecturally clean. | Either gap 6 fixed OR option-2 fallback locked. |
+| B | Once A green: full pipeline smoke via `/api/submit_mission`. Verify drive packets flow → robot RPC echo → kb_done arrives → mission_log updates. | Phase 7 + ROBSIM end-to-end validated. |
+| C | Once B green: validate the multi-tenant path (add `mission_planner_02` to topology with `planner_namespace="tunnel_ops"` — gap-1 chain now handles env injection automatically). Two-tenant cluster smoke. | Phase 7 multi-tenant fully validated. |
+| D | **Drop matplotlib viewer.** Small cleanup commit:<br>- Delete `construction/scripts/board_dsl/visualizer.py`<br>- Delete `construction/tests/board_dsl/test_visualizer_smoke.py`<br>- Update `project_planner_implementation_plan.md` Phase 4 status: "matplotlib viewer dropped 2026-05-11; browser SVG (5b C3-C6) is the production viewer"<br>- Remove from continue.md known-issues + parking lot<br>**Locked 2026-05-10 EOD**: no Python matplotlib viewer in this codebase going forward. Operators read maps via the browser UI. | Cleaner repo. |
+| E | **Map UI tweak: per-L2-segment click-popup (option b).** Currently L2 (`map_render.js renderSegment`) renders each path leaf (straight_line / spline / rotate / wall_follow / line_follow / activate) as a static colored geometry. Add a click handler per leaf that pops up a properties panel for that segment (mirror the `showNodePopup` pattern from 5b C4):<br>- straight_line / spline → start_pos, end_pos, end_heading<br>- rotate → end_heading + tangent indicator<br>- wall_follow / line_follow → base kind + offset<br>- activate → action_id, kb_ref, params<br>Tests follow the existing renderer-test grep pattern (asserts `showSegmentPopup` function exists, click handler attached, leaf-specific fields rendered).<br>**Locked 2026-05-10 EOD as Step E** (option b confirmed; goes at the end after pipeline validation). | Operator can inspect any segment in L2. |
+| F | After E green: pause; pick parking-lot items per priority. | Honest re-prioritization. |
 
 ## Architectural references
 
