@@ -1,19 +1,25 @@
 # Nanodatacenter DCS — Continuation Plan
 
-## State at end of 2026-05-10 evening — Phase 7 + ROBSIM substantially live; gap 6 blocks full smoke
+## State at end of 2026-05-10 evening (revised) — Phase 7 gap-6 + gap-8 fixed; Step B blocked on gap-9
 
-**~38-40 commits ahead of origin/master** (commit count grows with this session's wrap commit), comprehensive cluster validation, **5 of 6 surfaced gaps fixed**, full robot link bridge + params injection chain working, **planner_ui's openresty NATS connect remains as gap 6 for next session**.
+**~42 commits ahead of origin/master** after this session's two fixes. Two gaps fixed and committed (`a3bb0bfa`, `f567a1df`); one gap mitigated tactically (gap 7 — board re-uploaded, root cause unknown); one new gap surfaced and diagnosed but not fixed (gap 9 — heartbeat-period mismatch). Step B golden-path smoke still blocked.
 
-## Today's commits (5 implementation + 2 doc + 1 wrap = 8 commits)
+## This session's commits (2 implementation + this wrap)
 
 | # | Commit | What |
 |---|---|---|
-| 1 | `017b9a39` | ROBSIM C1 — robots.lua subsystem + ctx.ROBOTS |
-| 2 | `4020bd46` | docs: previous EOD wrap |
-| 3 | `953bcfa5` | ROBSIM C2 — robot_sim container package |
-| 4 | `33fe03c9` | ROBSIM C3 cluster smoke + per-tenant fixes (upload_board + kb_query paths) |
-| 5 | `a0855393` | gap-4 fix — kb_query find_by_pattern → raw SQL via KBM.conn |
-| 6 | (this session) | gap-1+5+kv_writer+NATS_URL + smoke writeup commit |
+| 1 | `a3bb0bfa` | gap-6 fix: planner_ui empty-string NATS_URL fallback trap (3 sites in submit.lua + status.lua) |
+| 2 | `f567a1df` | gap-8 fix: action_server always polls MQTT in idle path (drop mission_count gate) |
+| 3 | (this wrap) | docs(continue.md): revised after gap 6+8 ship; gap 7+9 documented |
+
+## Today's gap progression
+
+| Gap | Status | Note |
+|---|---|---|
+| 6 — openresty NATS_URL empty-string trap | ✅ Fixed | Lua `""` is truthy; `or "..."` chain stopped at empty. `nonempty()` helper. Planner worker untouched (uses infra_discovery from pg). 51+45 host-side tests still green. |
+| 7 — `knowledge_base_fs_node` empty | ⚠️ Mitigated | Re-uploaded landing_zone via `upload_board.lua --planner-namespace mission_planner_01` (sha256=f4fb8645…). Root cause of original wipe NOT investigated — possible test isolation issue (cf. `feedback_test_db_isolation.md`) or build_kb without follow-up upload. |
+| 8 — action_server idle MQTT poll dead | ✅ Fixed | `action_server.lua:930` gated `mqtt_hub:poll_and_route` on `mission_count == 0`, but mission_count is monotonic (only incremented). After 1st failed claim, link traffic never delivered. Fix: poll unconditionally. |
+| 9 — heartbeat period mismatch | ❌ Diagnosed | Robot `HB_PERIOD_S=10`; planner stale at `HEARTBEAT_INTERVAL=2 × HEARTBEAT_MISS_LIMIT=3 = 6s` (logs say 7s, presumably +1s tick slack). Link bounces live → stale → offline → registering → live → … indefinitely. Mission stuck in `state="planning"`. |
 
 ## End-state of pipeline validation
 
@@ -21,108 +27,74 @@
 |---|---|
 | Launcher → per-tenant queue | ✅ |
 | Worker drains per-tenant bucket | ✅ |
-| Per-tenant board upload + read | ✅ (fixed mid-smoke commit 4) |
-| Worker board lookup via per-tenant path | ✅ (gap 3 fix commit 4) |
-| Mission ingest + planning starts | ✅ (gap 4 fix commit 5) |
-| Orchestrator launches both planner + robot_sim with proper env | ✅ (gap 1 fix this session) |
-| Planner mqtt_hub instantiated + wired to action_server | ✅ (gap 5 fix this session) |
-| Planner → robot link_bridge_ack flow (`LINK: rover_1 → registering → live (caps=6)`) | ✅ |
-| action_server kv_writer ticks without crashing | ✅ (kv_writer late-bind this session) |
-| planner_ui /api/submit_mission via NATS KeyStore from openresty | ❌ **gap 6** |
-| Robot RPC echo end-to-end | ⏸ blocked by gap 6 in the test path |
+| Per-tenant board upload + read | ✅ |
+| Worker board lookup via per-tenant path | ✅ |
+| Mission ingest + planning starts | ✅ (gap 7 mitigation) |
+| Orchestrator launches both planner + robot_sim with proper env | ✅ |
+| Planner mqtt_hub instantiated + wired to action_server | ✅ |
+| planner_ui /api/submit_mission via NATS KeyStore from openresty | ✅ (gap 6 fix) |
+| action_server kv_writer ticks without crashing | ✅ |
+| Planner ↔ robot link handshake (`LINK: rover_1 → live`) | ✅ (gap 8 fix) |
+| Link stability past first heartbeat window | ❌ **gap 9** |
+| Mission state advances `planning → executing` | ❌ blocked by gap 9 |
+| Drive packets → robot RPC echo → mission_log update | ❌ blocked by gap 9 |
 
-## Outstanding gap for next session
+## Tomorrow's revised sequence
 
-### **Gap 6: planner_ui openresty handler can't open NATS KeyStore**
-
-**Symptom**: `/api/submit_mission` and `/api/missions` both return `500 ks connect: nats_key_store.lua:172: KeyStore error: connection error`.
-
-**What we know rules things OUT:**
-- ✅ NATS server (nats-js-ram) is running and reachable from inside mp_01 container
-- ✅ libnats FFI library works — direct test from mp_01's `/usr/local/openresty/luajit/bin/luajit -e "..."` returned `connected!`
-- ✅ Same library, same server, same network all working from the planner WORKER process (`LINK: rover_1 → live` happens, which requires _ensure_nats to have succeeded)
-- ✅ DNS resolves (`getent hosts nats-js-ram` → 172.18.0.6)
-- ✅ Image is fresh (verified Image SHA + grep'd new code IS present)
-
-**What's specific to the failure path**: openresty nginx worker → planner_ui's submit.lua `ensure_jq` → ks_lib.KeyStore.new → k:connect() → fails. STANDALONE luajit doing the EXACT same call from the same container succeeds.
-
-**Hypotheses to investigate**:
-- openresty's cosocket/FFI sandbox has some restriction on libnats's blocking C client
-- per-request package.loaded reload causes the FFI library state to re-init and fail subsequent connects (would require module init to not be idempotent)
-- libnats's threading interacts badly with openresty's worker model
-- A required env (NATS_URL? libnats config dir?) is in the planner worker's env but not propagated to openresty workers (openresty `env` directive in nginx.conf strips by default — but I declared `env NATS_URL;` already)
-
-**Next-session recipe to investigate gap 6**:
-1. Check what `env NATS_URL;` actually exposes to nginx workers (run `docker exec mission_planner_01 cat /proc/$(pgrep -f openresty)/environ | tr '\\0' '\\n' | grep NATS`).
-2. Try connecting from openresty handler context via raw bash test that exec's a luajit -e — if THAT fails, it's the openresty process env vs subprocess env distinction.
-3. If it's an FFI module-state issue: try preloading lib.nats_key_store at nginx init_by_lua_block (forces single-process-lifetime FFI init, not per-request).
-4. As a workaround for full pipeline validation: bypass planner_ui's submit; build a CLI submit_test_mission.lua that runs in the worker's process context (where NATS works) and submits via JobQueue directly.
-
-**Why this is gap 6 and not "Phase 7 done"**: Phase 7's whole architecture is "planner_ui submits via FFI direct to NATS JobQueue" (option 4 from yesterday's design). If that path doesn't work in production openresty, Phase 7's option-4 design is broken. Either fix gap 6, or revisit the option-4 vs option-2 (HTTP-to-worker) decision.
+| Step | What | Outcome |
+|---|---|---|
+| A | **Gap 9 fix**. Constants live in `nano_data_center_instance/app_containers/mission_planner/container/planner/lib/link_manager.lua` lines 49-53 (`HEARTBEAT_INTERVAL=2`, `HEARTBEAT_MISS_LIMIT=3`, `STALE_TO_OFFLINE_TIMEOUT=15`, `REGISTRATION_TIMEOUT=10`, `PLANNER_HB_INTERVAL=3`) and robot's `HB_PERIOD_S=10` env-defaulted in `nano_data_center_instance/app_containers/robot_sim/container/robot_sim/main.lua:79`. **Recommended**: lower robot HB to 3s (matches `PLANNER_HB_INTERVAL`) AND raise miss limit to 5 (so 6×2=12s tolerates a docker-desktop hiccup). Or expose HB_PERIOD_S via env injection from supervisor's app_env — this is a robot-side spawn env, currently using main.lua's `tonumber(env_or("HB_PERIOD_S", "10"))`. **Trace before changing**: was 10s ever validated to work, or did the original smoke just happen to fit inside one heartbeat-miss window? Check git log on `link_manager.lua` for tuning history. | Stable link past first 30s; mission can dispatch. |
+| B | Once A green: full pipeline smoke via `/api/submit_mission`. Verify `planning → executing → completed`, drive packets → robot RPC echo → kb_done arrives → mission_log updates. | Phase 7 + ROBSIM end-to-end validated. |
+| B.1 | **Gap 7 root cause** before going multi-tenant. Run smoke twice in a row, verify fs_node survives. Inspect every script that touches `knowledge_base_fs_node` (TRUNCATE / DELETE / DROP). Check `migrate_phase7.sh`, `build_kb.lua`, every `test_*.lua` that uses pg. The risk: gap 7 re-fires when we add tenant 2, wiping tenant 1's boards mid-test. | Either confirmed-safe OR test isolation patch shipped. |
+| C | Validate the multi-tenant path. Add `mission_planner_02` to topology with `planner_namespace="tunnel_ops"`. Two-tenant cluster smoke. Per-tenant bucket isolation: tenant-2 missions don't see tenant-1's NATS keys; tenant-2 board upload doesn't shadow tenant-1's. | Phase 7 multi-tenant fully validated. |
+| D | **Drop matplotlib viewer** (per locked decision 2026-05-10):<br>- Delete `construction/scripts/board_dsl/visualizer.py`<br>- Delete `construction/tests/board_dsl/test_visualizer_smoke.py`<br>- Update `project_planner_implementation_plan.md` Phase 4 status<br>- Remove from continue.md known-issues + parking lot | Cleaner repo. |
+| E | **Map UI tweak: per-L2-segment click-popup (option b).** Add click handler per leaf in `map_render.js renderSegment` that pops up properties panel (mirrors `showNodePopup` from 5b C4). Per-leaf fields:<br>- straight_line / spline → start_pos, end_pos, end_heading<br>- rotate → end_heading + tangent indicator<br>- wall_follow / line_follow → base kind + offset<br>- activate → action_id, kb_ref, params<br>Tests: renderer-test grep pattern, asserts `showSegmentPopup` exists, click handler attached, leaf-specific fields rendered. | Operator can inspect any segment in L2. |
+| F | After E green: pause; pick parking-lot items per priority. | Honest re-prioritization. |
 
 ## Operational state of the cluster
 
-- Orchestrator IS running (was started during this session). `ps aux | grep dcs.lua` shows 4 processes (2 watchdog + 2 dcs.lua per-CPU).
-- mission_planner_01 + robot_sim_rover_1 are both alive on planner-net (orchestrator-managed, auto-spawned by RECONCILE).
-- Per-tenant pg rows present: `app_containers.<inst>.spec.params`, `planner.mission_planner_01.robots.catalog.robot.rover_1`, etc.
-- landing_zone board uploaded to per-tenant path; `/api/board/landing_zone` returns it correctly.
-- robot link is `live` per planner logs.
-- mp_01's planner worker is in serve loop; can drain NATS; ticks heartbeat every 5s.
-
-## Tests at end of session
-
-All 22 host-side tests still green (no test additions for gap-1/5 fixes — they're cluster-validated only):
-- 13 standalone tests (sum: 545)
-- 5 board_dsl tests (sum: 153)
-- 4 FFI-dependent tests (sum: 136)
-
-**Total: 864 host-side tests** (no change from morning since these fixes are cluster-only).
+- Orchestrator IS running (both cpu_01 + cpu_02 dcs.lua processes alive since this morning).
+- mission_planner_01 + robot_sim_rover_1 alive on planner-net (orchestrator-managed).
+- mission_planner image is the gap-8-fixed build; SHA `b6c45d51…`.
+- robot_sim image unchanged.
+- Per-tenant pg rows present. landing_zone board uploaded to per-tenant path (sha256 f4fb8645…); `/api/board/landing_zone` returns it. `/api/missions` works. `/api/submit_mission` accepts and returns job_ids.
+- Planner heartbeat ticks. Action_server claims missions. Link handshake completes but bounces (gap 9).
+- mission_count is currently inflated (failed claims accumulate). After tomorrow morning's planner restart, it'll be 0 again.
 
 ## Quick start tomorrow
 
 ```bash
 cd ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_base/commissioning_software/system_node_control
 
-git log --oneline -10
+git log --oneline -5
 git status
 
 # Verify orchestrator still alive
 ps aux | grep dcs.lua | grep -v grep
 
-# Verify containers still alive
+# Verify containers + their image SHAs
 docker ps | grep -E 'mission_planner|robot_sim'
+docker inspect mission_planner_01 --format '{{.Image}}'   # should match latest build SHA
 
-# Check link bridge
-docker logs mission_planner_01 2>&1 | grep "LINK:" | tail
-# Expected: "LINK: rover_1 → live (wire=json, caps=6)"
+# Verify gap-6 + gap-8 fixes in code
+grep -n nonempty ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_instance/app_containers/mission_planner/container/planner_ui/lua/submit.lua
+grep -n "Always poll MQTT" ~/knowledge_base_assembly/luajit_programs_and_containers/nano_data_center_instance/app_containers/mission_planner/container/planner/lib/action_server.lua
 
-# Re-run host-side smoke
-luajit construction/tests/test_planner_phase1_catalog.lua            # 20/20
-luajit construction/tests/test_planner_ui_submit_mission.lua         # 51/51
-luajit construction/tests/test_planner_ui_status.lua                 # 45/45
-luajit construction/tests/test_action_server_phase7.lua              # 27/27
-luajit construction/tests/test_robot_sim_package.lua                 # 84/84
-luajit construction/tests/test_robots_subsystem.lua                  # 37/37
-# (and the others — see earlier continue.md for full list)
+# Confirm gap 9 still bites (link bounces)
+docker logs mission_planner_01 --since 60s | grep "LINK:" | tail -10
+
+# Re-run host-side tests
+luajit construction/tests/test_planner_ui_submit_mission.lua   # 51/51
+luajit construction/tests/test_planner_ui_status.lua           # 45/45
+luajit construction/tests/test_action_server_phase7.lua        # 27/27
 ```
-
-## Tomorrow's locked sequence (2026-05-10 EOD discussion)
-
-| Step | What | Outcome |
-|---|---|---|
-| A | **Gap 6 investigation + fix**. Start with env-vs-subprocess distinction (recipe in Outstanding Gaps section above), then init_by_lua_block preload, then the rest of the hypotheses. **Fork point after first hour or two**: if gap 6 is a hard openresty+libnats limit, pivot to option-2 (HTTP-to-worker) from yesterday's Phase 7 Q3 design — that's a real rework (~1 day) but architecturally clean. | Either gap 6 fixed OR option-2 fallback locked. |
-| B | Once A green: full pipeline smoke via `/api/submit_mission`. Verify drive packets flow → robot RPC echo → kb_done arrives → mission_log updates. | Phase 7 + ROBSIM end-to-end validated. |
-| C | Once B green: validate the multi-tenant path (add `mission_planner_02` to topology with `planner_namespace="tunnel_ops"` — gap-1 chain now handles env injection automatically). Two-tenant cluster smoke. | Phase 7 multi-tenant fully validated. |
-| D | **Drop matplotlib viewer.** Small cleanup commit:<br>- Delete `construction/scripts/board_dsl/visualizer.py`<br>- Delete `construction/tests/board_dsl/test_visualizer_smoke.py`<br>- Update `project_planner_implementation_plan.md` Phase 4 status: "matplotlib viewer dropped 2026-05-11; browser SVG (5b C3-C6) is the production viewer"<br>- Remove from continue.md known-issues + parking lot<br>**Locked 2026-05-10 EOD**: no Python matplotlib viewer in this codebase going forward. Operators read maps via the browser UI. | Cleaner repo. |
-| E | **Map UI tweak: per-L2-segment click-popup (option b).** Currently L2 (`map_render.js renderSegment`) renders each path leaf (straight_line / spline / rotate / wall_follow / line_follow / activate) as a static colored geometry. Add a click handler per leaf that pops up a properties panel for that segment (mirror the `showNodePopup` pattern from 5b C4):<br>- straight_line / spline → start_pos, end_pos, end_heading<br>- rotate → end_heading + tangent indicator<br>- wall_follow / line_follow → base kind + offset<br>- activate → action_id, kb_ref, params<br>Tests follow the existing renderer-test grep pattern (asserts `showSegmentPopup` function exists, click handler attached, leaf-specific fields rendered).<br>**Locked 2026-05-10 EOD as Step E** (option b confirmed; goes at the end after pipeline validation). | Operator can inspect any segment in L2. |
-| F | After E green: pause; pick parking-lot items per priority. | Honest re-prioritization. |
 
 ## Architectural references
 
 1. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_active_node_contract.md`
 2. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_implementation_plan.md`
 3. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_planner_team_scope.md`
-4. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_phase7_multitenant_design.md` (read full Outstanding gaps section for gap 6 context)
+4. `~/.claude/projects/-home-gedgar-knowledge-base-assembly/memory/project_phase7_multitenant_design.md`
 
 ## Operating-mode reminders
 
@@ -135,23 +107,32 @@ luajit construction/tests/test_robots_subsystem.lua                  # 37/37
 ## Rollback recipes
 
 ```bash
-# Undo all of today's morning + afternoon work (back to yesterday's EOD)
-git reset --hard 4020bd46
+# Undo this session (back to "lock tomorrow's sequence" commit)
+git reset --hard a548fffd
 
-# Inspect today's commits
-git log --oneline 4020bd46..HEAD
-git show HEAD --stat
+# Undo only gap-8 (keep gap-6)
+git reset --hard a3bb0bfa
+
+# Undo only gap-6 (return to "gaps 1+5+kv_writer")
+git reset --hard fffd10b8
+
+# Inspect this session's commits
+git log --oneline a548fffd..HEAD
+git show f567a1df --stat
+git show a3bb0bfa --stat
 ```
 
-## Known issues / parking lot (other than gap 6)
+## Known issues / parking lot (not in tomorrow's sequence)
 
-- Phase 4 C5 visualizer Python smoke needs matplotlib in WSL venv. Parking lot.
+- Phase 4 C5 visualizer Python smoke needs matplotlib in WSL venv. → resolved by Step D.
 - Node-properties authoring (per `project_v2_board_dsl_design.md`). Parking lot.
-- pre-existing: mission_builder.rebuild's 4th arg current_heading silently dropped. Out of scope.
+- pre-existing: `mission_builder.rebuild`'s 4th arg `current_heading` silently dropped. Out of scope.
 - 5 C5 follow-up (delete legacy nav code) — UNGATED but deprioritized.
-- planner_ui's lazy NATS singletons don't reconnect on NATS restart. Gap 6 makes this moot for now.
-- Planner_ui's NATS_URL default is hardcoded to "nats://nats-js-ram:4222" (matches MQTT_HOST default in robot_sim/main.lua). Real fix: use infra_discovery from pg. Parking lot.
+- planner_ui's lazy NATS singletons don't reconnect on NATS restart.
+- planner_ui's NATS_URL default is hardcoded to "nats://nats-js-ram:4222" (matches MQTT_HOST default in robot_sim/main.lua). **Right architectural fix**: use `infra_discovery` from pg (parallel to planner worker's main.lua:150). Parking lot — would land alongside lifting `MQTT_HOST` for robot_sim too.
+- Gap 7 root cause still open. Mitigation works for now (re-upload), but a wipe-on-restart bug somewhere in the test or build path will fire again. → Step B.1 in tomorrow's sequence.
+- mission_count is monotonic. Done/error missions never decrement it. Not a correctness issue post-gap-8, but `/api/missions` `active_missions` field overcounts. Cosmetic for the dashboard. Add a fix when revisiting action_server's mission lifecycle.
 
 ---
 
-*continue.md rewritten 2026-05-10 evening (after gap-1+5+kv_writer fixes ship + gap-6 surface). 5 fixed gaps + 1 outstanding. Pipeline working end-to-end on the worker side; planner_ui NATS access is the holdout.*
+*continue.md rewritten 2026-05-10 EOD (after gap-6 + gap-8 ship + gap-7 mitigation + gap-9 diagnosed). 2 fixed, 1 mitigated, 1 outstanding. Pipeline working through link handshake; link stability is the holdout.*
