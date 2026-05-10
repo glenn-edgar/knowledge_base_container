@@ -45,9 +45,13 @@ local json_util = require("json_util")
 local M = {}
 M.__index = M
 
--- Protocol constants
-local HEARTBEAT_MISS_LIMIT     = 3      -- consecutive misses → stale
-local HEARTBEAT_INTERVAL       = 2      -- seconds (robot sends this often)
+-- Protocol constants.
+-- Contract: HEARTBEAT_INTERVAL must match the robot's HB_PERIOD_S
+-- (robot_sim/main.lua) or robots will be marked stale during the natural
+-- gap between heartbeats. Stale window = INTERVAL × MISS_LIMIT = 15s,
+-- chosen to absorb docker-desktop / WSL2 vpnkit hiccups.
+local HEARTBEAT_MISS_LIMIT     = 5      -- consecutive misses → stale (15s window @ 3s)
+local HEARTBEAT_INTERVAL       = 3      -- seconds (robot sends this often)
 local STALE_TO_OFFLINE_TIMEOUT = 15     -- seconds
 local REGISTRATION_TIMEOUT     = 10     -- seconds
 local PLANNER_HB_INTERVAL     = 3      -- seconds (planner sends to each robot)

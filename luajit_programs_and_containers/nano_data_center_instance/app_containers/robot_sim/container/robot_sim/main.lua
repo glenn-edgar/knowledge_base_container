@@ -26,7 +26,8 @@
 -- Optional env:
 --   ROBOT_CLASS       defaults "lunar_rover"
 --   ENERGY_MAX        defaults 10000
---   HB_PERIOD_S       defaults 10
+--   HB_PERIOD_S       defaults 3 (must match planner link_manager.lua's
+--                     HEARTBEAT_INTERVAL or the link will bounce stale)
 --
 -- Reusable protocol logic lives in lib/mock_mqtt_robot_lib.lua (LinkState
 -- state machine + ack/kb_done/drive_ack/drive_done JSON factories).
@@ -76,7 +77,7 @@ local MQTT_HOST         = env_or("MQTT_HOST", "mosquitto-ram-ws_main")
 local MQTT_PORT         = tonumber(env_or("MQTT_PORT", "1883"))
 local ROBOT_CLASS       = env_or("ROBOT_CLASS", "lunar_rover")
 local ENERGY_MAX        = tonumber(env_or("ENERGY_MAX", "10000"))
-local HB_PERIOD_S       = tonumber(env_or("HB_PERIOD_S", "10"))
+local HB_PERIOD_S       = tonumber(env_or("HB_PERIOD_S", "3"))
 
 assert(APP_SITE          ~= "", "APP_SITE env missing")
 assert(ROBOT_ID          ~= "", "ROBOT_ID env missing")
