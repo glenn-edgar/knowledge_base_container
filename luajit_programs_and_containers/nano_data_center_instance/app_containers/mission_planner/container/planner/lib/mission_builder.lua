@@ -114,7 +114,13 @@ function M.build(mission_cmd, planner, operation_types, energy_rate)
     -- previous left off.
     local drive_packet_id = mission_cmd.packet_id_start or 1
     local drive_heading   = mission_cmd.initial_heading or 0
-    local mission_id      = mission_cmd.mission_id
+    -- cmd_drive's optional mission_id is uint32 (wire format). The
+    -- string mission_cmd.mission_id (JobQueue job.id) belongs to the
+    -- durability layer, not the on-wire packet. Only forward when
+    -- numeric; otherwise leave nil and let the packet validator accept
+    -- the absence of the field.
+    local mission_id      = type(mission_cmd.mission_id) == "number"
+        and mission_cmd.mission_id or nil
 
     -- Get operation energy cost from VN defs
     local op_energy_cost = 0

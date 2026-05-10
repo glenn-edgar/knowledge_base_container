@@ -145,6 +145,10 @@ function LinkState.new(robot_id, class_name, capabilities, energy_max,
         energy_max       = energy_max or 10000,
         energy_remaining = energy_remaining or energy_max or 10000,
         state            = "init",
+        -- Planner-liveness tracking. Mirrors link_client.lua's
+        -- PLANNER_HB_INTERVAL=3s × PLANNER_HB_MISS_LIMIT=3 = 9s window.
+        -- Set on every planner_ack / planner_hb; checked by tick().
+        last_planner_msg = 0,
     }, LinkState)
 end
 
@@ -202,6 +206,7 @@ function LinkState:on_planner_verb(topic, payload)
     if not ok or not msg then return nil end
 
     if verb == "ack" and msg.type == "link_bridge_ack" then
+        self.last_planner_msg = os.time()
         if self.state == "init" then
             self.state = "registering"
             return { transitioned_to = "registering",
@@ -211,6 +216,7 @@ function LinkState:on_planner_verb(topic, payload)
             return { transitioned_to = "registering" }
         end
     elseif verb == "heartbeat" and msg.type == "link_bridge_heartbeat" then
+        self.last_planner_msg = os.time()
         if self.state == "registering" then
             self.state = "live"
             return { transitioned_to = "live" }
@@ -221,6 +227,38 @@ function LinkState:on_planner_verb(topic, payload)
         return { transitioned_to = "disconnected" }
     end
     return nil
+end
+
+--- Planner-liveness check. If the planner has gone silent for longer
+--- than the miss window (default 9s), reset state to "init" so the
+--- main loop re-announces. Matches link_client.lua's contract.
+-- @param now      current wall-clock seconds (os.time())
+-- @return outcome   nil if planner still healthy;
+--                   { transitioned_to = "init",
+--                     send_topic = "link_out",
+--                     send_payload = <link_announce> }
+--                   if planner-lost was just detected and a fresh
+--                   announce should be published.
+function LinkState:check_planner_alive(now, miss_window_s)
+    miss_window_s = miss_window_s or 9   -- 3 × PLANNER_HB_INTERVAL(3s)
+    -- Only meaningful once we've heard from the planner at least
+    -- once; before then last_planner_msg=0 and the announce loop in
+    -- main.lua is the right driver.
+    if self.last_planner_msg == 0 then return nil end
+    if self.state ~= "live" and self.state ~= "registering" then
+        return nil
+    end
+    if now - self.last_planner_msg <= miss_window_s then return nil end
+
+    -- Planner lost. Reset and produce a fresh announce.
+    self.state = "init"
+    self.last_planner_msg = 0
+    return {
+        transitioned_to = "init",
+        send_topic = "link_out",
+        send_payload = self:make_announce(),
+        planner_lost = true,
+    }
 end
 
 return M

@@ -994,6 +994,11 @@ function M:_drain_nats_queue()
                 -- Coroutine threw during planning (e.g. unhandled pg
                 -- error). Rare; classify_board_error pcalls cover the
                 -- expected cases. fail_job + record the body for ops.
+                io.stderr:write(string.format(
+                    "ACTION_SERVER: planning_error for %s job=%s: %s\n",
+                    tostring(cmd.robot_id), tostring(job.id),
+                    tostring(first_yield)))
+                io.stderr:flush()
                 self._jq:fail_job(job.id,
                     "planning_error: " .. tostring(first_yield))
                 -- Mission never enters self.missions; nothing to track.
@@ -1006,6 +1011,11 @@ function M:_drain_nats_queue()
                 if res and res.success == false then
                     local reason = (res.fault and res.fault.reason) or "planning_failed"
                     local detail = (res.fault and res.fault.detail) or "no detail"
+                    io.stderr:write(string.format(
+                        "ACTION_SERVER: synchronous_fail %s job=%s reason=%s detail=%s\n",
+                        tostring(cmd.robot_id), tostring(job.id),
+                        tostring(reason), tostring(detail)))
+                    io.stderr:flush()
                     self._jq:fail_job(job.id, reason .. ": " .. tostring(detail))
                 else
                     self._jq:complete_job(job.id,

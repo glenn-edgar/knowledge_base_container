@@ -205,6 +205,18 @@ while true do
         last_robot_hb = now
     end
 
+    -- Planner-loss detection: if planner went silent (e.g. its
+    -- container restarted) the robot must re-announce so the fresh
+    -- link_manager builds a state record for us. Without this the
+    -- robot stays "live" in its own view forever and the planner has
+    -- no record of the robot, making missions fail with
+    -- "insufficient_energy" (link_mgr:is_live returns false).
+    local lost = link:check_planner_alive(now)
+    if lost then
+        ps:publish(topics.link_out, lost.send_payload, 1, false)
+        logf("planner_lost -> re-announce (state=%s)", lost.transitioned_to)
+    end
+
     -- Periodic idle summary so docker logs show this is alive even
     -- when nothing is happening
     if now - last_summary_at >= poll_log_interval then

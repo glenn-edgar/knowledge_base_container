@@ -75,12 +75,15 @@ end
 -- The launcher submits a single source -> target leg today; the stops
 -- list carries just the target. Multi-stop missions are a future UI
 -- enhancement (chained click sequence).
+--
+-- stops[i] must be {node=...} table (mission_builder.lua:144 requires
+-- stop.node). Passing a bare string surfaces as "missing node" error.
 function M.build_mission(input)
   return {
     robot_id = input.robot_id,
     board    = input.board,
     start    = input.source,
-    stops    = { input.target },
+    stops    = { { node = input.target } },
   }
 end
 

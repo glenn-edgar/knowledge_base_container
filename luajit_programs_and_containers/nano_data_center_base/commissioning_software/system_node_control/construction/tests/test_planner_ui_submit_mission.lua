@@ -167,8 +167,10 @@ do
   ok("robot_id mirrored", m.robot_id == "rover_1")
   ok("board mirrored",    m.board    == "landing_zone")
   ok("source -> start",   m.start    == "lander_pad")
-  ok("target -> stops[1]",
-     type(m.stops) == "table" and m.stops[1] == "habitat_site"
+  ok("target -> stops[1].node",
+     type(m.stops) == "table"
+     and type(m.stops[1]) == "table"
+     and m.stops[1].node == "habitat_site"
      and #m.stops == 1)
 end
 

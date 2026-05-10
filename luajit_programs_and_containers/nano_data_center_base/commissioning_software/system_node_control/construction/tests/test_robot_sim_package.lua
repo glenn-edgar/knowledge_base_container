@@ -230,17 +230,21 @@ do
 
   local src = read_file(INSTANCE .. "/container/robot_sim/main.lua")
   if src then
-    -- Required env reads (APP_SITE, ROBOT_ID, PLANNER_NAMESPACE,
-    -- MQTT_HOST: required, no default, fail-fast). MQTT_PORT has
-    -- a default of 1883 so it's read via env_or, not env, with
-    -- a slightly different assert message.
+    -- Required env reads. APP_SITE / ROBOT_ID / PLANNER_NAMESPACE
+    -- have no defaults and fail-fast with "env missing". MQTT_HOST
+    -- is read via env_or with a cluster default
+    -- ("mosquitto-ram-ws_main"); the assert catches an explicit-empty
+    -- override only ("env empty (cleared override?)").
     for _, var in ipairs({
-      "APP_SITE", "ROBOT_ID", "PLANNER_NAMESPACE", "MQTT_HOST",
+      "APP_SITE", "ROBOT_ID", "PLANNER_NAMESPACE",
     }) do
       ok("reads + asserts required env " .. var,
          src:find("env%(\"" .. var .. "\"%)") ~= nil
          and src:find(var .. " env missing", 1, true) ~= nil)
     end
+    ok("reads MQTT_HOST via env_or (cluster default + empty-override guard)",
+       src:find('env_or%("MQTT_HOST"', 1, false) ~= nil
+       and src:find("MQTT_HOST env empty %(cleared override%?%)") ~= nil)
     ok("reads MQTT_PORT (with default + numeric assert)",
        src:find('env_or%("MQTT_PORT"', 1, false) ~= nil
        and src:find("MQTT_PORT env missing or invalid", 1, true) ~= nil)
