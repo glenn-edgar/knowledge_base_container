@@ -961,12 +961,12 @@ function M:serve(opts)
             end
         end
 
-        -- Always poll MQTT for link messages each cycle. Previously
-        -- gated on `mission_count == 0`, but mission_count is monotonic
-        -- (incremented on every claim, never decremented) -- a single
-        -- failed claim permanently silenced link_announce reception
-        -- because robots only announce once at boot. Polling every
-        -- cycle is cheap (1ms timeout) and link traffic is sparse.
+        -- Always poll MQTT for link messages each cycle. mission_count
+        -- is now accurate (synchronous_fail path no longer inflates it)
+        -- but polling every cycle stays the right call: link traffic is
+        -- sparse, 1ms timeout is cheap, and gating on mission_count would
+        -- silence link_announce reception when no missions are running --
+        -- which is exactly when fresh robots need to register.
         if self.mqtt_hub then
             self.mqtt_hub:poll_and_route(1)
         end
@@ -1057,7 +1057,12 @@ function M:_drain_nats_queue()
                         '{"status":"completed_immediately"}')
                 end
                 -- Track the mission as done so get_results / mission_log
-                -- publishing pick it up in the main loop.
+                -- publishing pick it up in the main loop. Do NOT inc
+                -- mission_count: the mission was never active. The
+                -- active→done decrement on line 957 only fires for
+                -- missions that started "active", so an INC here had
+                -- no matching DEC and was the source of the
+                -- /api/missions active_missions overcount.
                 self.missions[cmd.robot_id] = {
                     coroutine = co,
                     result    = res,
@@ -1065,7 +1070,6 @@ function M:_drain_nats_queue()
                     board     = cmd.board,
                     job_id    = job.id,
                 }
-                self.mission_count = self.mission_count + 1
                 self:_publish_summary()
                 -- Publish mission_log here (since main loop only handles
                 -- the active→done transition; this mission was already
