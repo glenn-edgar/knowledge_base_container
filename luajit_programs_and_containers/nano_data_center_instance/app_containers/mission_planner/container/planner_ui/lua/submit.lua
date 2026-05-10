@@ -161,11 +161,24 @@ function M.do_submit(input, opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  -- Default to cluster's NATS hostname on planner-net. Real architectural
-  -- fix is infra_discovery from pg (like the planner worker does); this
-  -- default unblocks cluster smoke until that wiring lands. Same pattern
-  -- as robot_sim/main.lua's MQTT_HOST default.
-  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
+  -- Resolution order for the NATS URL:
+  --   1. opts.nats_url           (test shim)
+  --   2. infra_discovery via pg  (matches planner worker; pg-rendez-vous)
+  --   3. NATS_URL env            (operational override)
+  --   4. cluster planner-net default
+  -- Each stage falls through silently on failure so a broken pg or a
+  -- registry row that hasn't been written yet doesn't take down submit.
+  local nats_url = opts.nats_url
+  if not nats_url then
+    local ok_il, infra_lookup = pcall(require, "infra_lookup")
+    local ok_db, db           = pcall(require, "db")
+    if ok_il and ok_db then
+      local u = infra_lookup.nats_url(db, { require_healthy = false })
+      if u then nats_url = u end
+    end
+  end
+  nats_url = nats_url or nonempty(os.getenv("NATS_URL"))
+                     or "nats://nats-js-ram:4222"
 
   local mission = M.build_mission(input)
   local payload = cjson.encode(mission)

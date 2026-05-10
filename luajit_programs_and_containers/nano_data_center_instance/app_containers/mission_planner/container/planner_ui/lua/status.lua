@@ -108,8 +108,20 @@ function M.list_missions(opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
-  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
+  -- Resolution order matches submit.lua: opts → infra_discovery via pg →
+  -- env → hardcoded planner-net default. Each stage falls through
+  -- silently so a stale registry or unreachable pg doesn't 5xx the page.
+  local nats_url = opts.nats_url
+  if not nats_url then
+    local ok_il, infra_lookup = pcall(require, "infra_lookup")
+    local ok_db, db           = pcall(require, "db")
+    if ok_il and ok_db then
+      local u = infra_lookup.nats_url(db, { require_healthy = false })
+      if u then nats_url = u end
+    end
+  end
+  nats_url = nats_url or nonempty(os.getenv("NATS_URL"))
+                     or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)
@@ -177,8 +189,20 @@ function M.get_mission(robot_id, opts)
   local ns = opts.planner_namespace or os.getenv("PLANNER_NAMESPACE") or ""
   if ns == "" then return nil, "PLANNER_NAMESPACE not set" end
   local cjson    = opts.cjson    or require("cjson.safe")
-  -- Default to cluster's NATS hostname on planner-net (same as submit.lua).
-  local nats_url = opts.nats_url or nonempty(os.getenv("NATS_URL")) or "nats://nats-js-ram:4222"
+  -- Resolution order matches submit.lua: opts → infra_discovery via pg →
+  -- env → hardcoded planner-net default. Each stage falls through
+  -- silently so a stale registry or unreachable pg doesn't 5xx the page.
+  local nats_url = opts.nats_url
+  if not nats_url then
+    local ok_il, infra_lookup = pcall(require, "infra_lookup")
+    local ok_db, db           = pcall(require, "db")
+    if ok_il and ok_db then
+      local u = infra_lookup.nats_url(db, { require_healthy = false })
+      if u then nats_url = u end
+    end
+  end
+  nats_url = nats_url or nonempty(os.getenv("NATS_URL"))
+                     or "nats://nats-js-ram:4222"
 
   opts.site = site; opts.nats_url = nats_url; opts.planner_namespace = ns
   local ks, kerr = ensure_ks(opts)
