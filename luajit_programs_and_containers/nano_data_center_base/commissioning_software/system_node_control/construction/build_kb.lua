@@ -329,9 +329,10 @@ local PLANNERS = {}
 for _, cpu in pairs(TOPOLOGY.cpus or {}) do
   for _, inst in ipairs(cpu.instances or {}) do
     if inst.def == "mission_planner" then
+      local p = inst.params or {}
       PLANNERS[#PLANNERS + 1] = {
         name      = inst.name,
-        namespace = inst.planner_namespace or inst.name,
+        namespace = p.planner_namespace or inst.name,
       }
     end
   end

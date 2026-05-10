@@ -62,11 +62,16 @@ function M.new(mqtt_hub, kv_writer, site, opts)
         mqtt_hub  = mqtt_hub,
         kv_writer = kv_writer,
         site      = site,
-        -- Phase 5 C4: tenant identifier. Future per-tenant filtering
-        -- (only register robots whose KB row says they belong to this
-        -- planner_namespace) lands with Phase 6/7 fixtures. For now
-        -- it's threaded but stored only.
+        -- Phase 5 C4 / Phase 7: tenant identifier + allowed-robots filter.
+        -- mqtt_hub subscribes to <site>/robots/+/... (site-wide); for
+        -- multi-tenant deployments more than one planner shares those
+        -- topics, so each link_manager filters inbound messages to robots
+        -- declared under its own planner.<ns>.robots.catalog.* KB subtree.
+        -- allowed_robots is a string-set { [robot_id] = true } or nil
+        -- (nil = no filtering, accept any robot — single-tenant fallback).
         planner_namespace = opts.planner_namespace,
+        allowed_robots    = opts.allowed_robots,
+        _drop_seen        = {},   -- one-line per-rid log throttle
         -- Per-robot state
         robots = {},
         -- Planner heartbeat timer and sequence
@@ -84,6 +89,24 @@ end
 --- Phase 5 C4: tenant identifier this link_manager is scoped to.
 function M:get_planner_namespace()
     return self.planner_namespace
+end
+
+-- Phase 7: tenant filter. Returns true if `robot_id` belongs to this
+-- planner's tenant (or no filter is configured). On the first reject
+-- per robot_id, emits a one-line debug note so a misconfigured topology
+-- (robot points at planner_namespace X but is published on this
+-- planner Y's MQTT topics) is visible without flooding logs every 3s.
+function M:_owns_robot(robot_id)
+    if not self.allowed_robots then return true end   -- single-tenant
+    if self.allowed_robots[robot_id] then return true end
+    if not self._drop_seen[robot_id] then
+        self._drop_seen[robot_id] = true
+        io.stderr:write(string.format(
+            "LINK: %s not in tenant %q -- dropping link traffic\n",
+            robot_id, tostring(self.planner_namespace)))
+        io.stderr:flush()
+    end
+    return false
 end
 
 ---------------------------------------------------------------------------
@@ -158,6 +181,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:on_announce(robot_id, payload)
+    if not self:_owns_robot(robot_id) then return end
     local r = get_robot(self, robot_id)
 
     local ok, data = pcall(json_util.decode, payload)
@@ -206,6 +230,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:on_heartbeat(robot_id, payload)
+    if not self:_owns_robot(robot_id) then return end
     local r = get_robot(self, robot_id)
 
     local ok, data = pcall(json_util.decode, payload)
@@ -227,6 +252,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:on_confirm(robot_id, payload)
+    if not self:_owns_robot(robot_id) then return end
     local r = get_robot(self, robot_id)
 
     local ok, data = pcall(json_util.decode, payload)
@@ -263,6 +289,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:on_disconnect(robot_id, payload)
+    if not self:_owns_robot(robot_id) then return end
     local r = self.robots[robot_id]
     if not r then return end
 

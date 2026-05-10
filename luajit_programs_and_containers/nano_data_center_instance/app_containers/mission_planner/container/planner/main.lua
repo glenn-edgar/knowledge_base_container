@@ -185,8 +185,13 @@ local pg_conn = {
 local mqtt_hub = nil
 if ok_as and mqtt_info then
     local mqtt_tx = require("mqtt_hub_transport")
+    -- Phase 7 multi-tenant: pass planner_namespace so the MQTT client_id
+    -- is unique across planners on a shared broker. Falls back to
+    -- CONTAINER_NAME if PLANNER_NAMESPACE env isn't set.
+    local hub_ns = os.getenv("PLANNER_NAMESPACE")
+    if not hub_ns or hub_ns == "" then hub_ns = CONTAINER_NAME end
     local hub_ok, hub_or_err = pcall(mqtt_tx.new,
-        mqtt_info.host, mqtt_info.port, APP_SITE)
+        mqtt_info.host, mqtt_info.port, APP_SITE, { namespace = hub_ns })
     if hub_ok then
         mqtt_hub = hub_or_err
         local conn_ok, cerr = pcall(function() mqtt_hub:connect() end)

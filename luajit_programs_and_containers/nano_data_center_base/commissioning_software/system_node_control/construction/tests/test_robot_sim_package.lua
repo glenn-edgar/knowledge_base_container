@@ -323,14 +323,19 @@ print("== ctx.ROBOTS now non-empty when topology loaded ==")
 
 do
   -- Load topology fresh, exercise the same enumeration build_kb.lua
-  -- does, confirm robot_sim_rover_1 surfaces with the right shape.
+  -- does, confirm robot_sim instances surface with the right shape.
+  -- Phase 7 Step C: topology now declares two tenants
+  -- (mission_planner_01 + tunnel_ops); the enumeration should index
+  -- both by robot_id with their declared planner_namespace.
   local topo = dofile(SNC_BASE .. "catalogs/topology.lua")
-  local ROBOTS = {}
+  local by_id = {}
+  local count = 0
   for _, cpu in pairs(topo.cpus or {}) do
     for _, inst in ipairs(cpu.instances or {}) do
       if inst.def == "robot_sim" then
         local p = inst.params or {}
-        ROBOTS[#ROBOTS + 1] = {
+        count = count + 1
+        by_id[p.robot_id] = {
           container_name    = inst.name,
           robot_id          = p.robot_id,
           planner_namespace = p.planner_namespace,
@@ -339,16 +344,29 @@ do
       end
     end
   end
-  ok("ctx.ROBOTS enumerates exactly 1 robot from current topology",
-     #ROBOTS == 1, "got " .. #ROBOTS)
-  if ROBOTS[1] then
-    ok("enumerated robot_id = rover_1", ROBOTS[1].robot_id == "rover_1")
-    ok("enumerated planner_namespace = mission_planner_01",
-       ROBOTS[1].planner_namespace == "mission_planner_01")
-    ok("enumerated container_name = robot_sim_rover_1",
-       ROBOTS[1].container_name == "robot_sim_rover_1")
-    ok("enumerated capabilities >= 1",
-       #ROBOTS[1].capabilities >= 1)
+  ok("ctx.ROBOTS enumerates >= 1 robot from current topology",
+     count >= 1, "got " .. count)
+
+  local r1 = by_id["rover_1"]
+  ok("rover_1 present", r1 ~= nil)
+  if r1 then
+    ok("rover_1.planner_namespace = mission_planner_01",
+       r1.planner_namespace == "mission_planner_01")
+    ok("rover_1.container_name = robot_sim_rover_1",
+       r1.container_name == "robot_sim_rover_1")
+    ok("rover_1.capabilities >= 1", #r1.capabilities >= 1)
+  end
+
+  -- Phase 7 Step C peer robot under tunnel_ops tenant. If a future
+  -- topology drops rover_2 / tunnel_ops these assertions become
+  -- the canary that we lost multi-tenant fixtures.
+  local r2 = by_id["rover_2"]
+  ok("rover_2 present (Step C multi-tenant)", r2 ~= nil)
+  if r2 then
+    ok("rover_2.planner_namespace = tunnel_ops",
+       r2.planner_namespace == "tunnel_ops")
+    ok("rover_2.container_name = robot_sim_rover_2",
+       r2.container_name == "robot_sim_rover_2")
   end
 end
 

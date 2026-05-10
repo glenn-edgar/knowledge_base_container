@@ -143,15 +143,48 @@ function M.new(opts)
     self._yield = function() end
 
     -- Discover initial board node (first node in first board — "node 0")
+    -- + Phase 7 multi-tenant: enumerate the robot_ids this tenant owns so
+    -- link_manager can drop link messages from robots that belong to a
+    -- different planner. Both queries reuse the same kb_query instance.
+    -- Phase 7 multi-tenant: enumerate the robot_ids this tenant owns so
+    -- link_manager can drop link messages from robots that belong to a
+    -- different planner. Standalone pcall (the board-discovery block
+    -- below is independent so a failure on either side doesn't take out
+    -- the other).
     self._init_node = nil
+    self.allowed_robots = nil   -- nil = no filtering (single-tenant fallback)
     pcall(function()
         local q = kb_query_mod.new(self.pg_conn, self.system_name,
             self.site, self.own_instance_id, self.planner_namespace)
-        local boards = q:list_boards()
-        if boards[1] then
-            local board_data = q:get_board(boards[1])
-            if board_data and board_data.nodes and board_data.nodes[1] then
-                self._init_node = board_data.nodes[1].name
+        local robots = q:list_tenant_robots()
+        if robots and #robots > 0 then
+            local set = {}
+            for _, rid in ipairs(robots) do set[rid] = true end
+            self.allowed_robots = set
+            io.stderr:write(string.format(
+                "action_server[%s]: tenant=%s owns %d robot(s)\n",
+                tostring(self.own_instance_id),
+                tostring(self.planner_namespace),
+                #robots))
+            io.stderr:flush()
+        end
+        q:close()
+    end)
+    -- Original board-discovery probe (kb_query has no list_boards today
+    -- so this pcall has always been a silent no-op; _init_node stays nil
+    -- and link_manager.on_link_change skips the write_position call).
+    -- Left here as the agreed extension point when the boards listing
+    -- helper lands.
+    pcall(function()
+        local q = kb_query_mod.new(self.pg_conn, self.system_name,
+            self.site, self.own_instance_id, self.planner_namespace)
+        if type(q.list_boards) == "function" then
+            local boards = q:list_boards()
+            if boards and boards[1] and type(q.get_board) == "function" then
+                local board_data = q:get_board(boards[1])
+                if board_data and board_data.nodes and board_data.nodes[1] then
+                    self._init_node = board_data.nodes[1].name
+                end
             end
         end
         q:close()
@@ -163,6 +196,7 @@ function M.new(opts)
         self._link_kv_writer = kv_writer
         self.link_mgr = link_manager_mod.new(self.mqtt_hub, kv_writer, self.site, {
             planner_namespace = self.planner_namespace,
+            allowed_robots    = self.allowed_robots,
             on_link_exception = function(robot_id, reason)
                 self:_cancel_mission(robot_id, reason)
             end,
@@ -380,11 +414,12 @@ function M:_make_mission_coroutine(mission_cmd)
             or string.format("direct_%s_%d", robot_id, math.floor(os.time() * 1000))
 
         local ok_planner, planner_or_err = pcall(global_planner.new, {
-            pg_conn         = srv.pg_conn,
-            board_name      = board,
-            site            = srv.site,
-            system_name     = srv.system_name,
-            own_instance_id = srv.own_instance_id,
+            pg_conn           = srv.pg_conn,
+            board_name        = board,
+            site              = srv.site,
+            system_name       = srv.system_name,
+            own_instance_id   = srv.own_instance_id,
+            planner_namespace = srv.planner_namespace,
         })
         if not ok_planner then
             local err_str = tostring(planner_or_err)
@@ -1265,11 +1300,12 @@ function M:execute_mission(mission_cmd)
     end
 
     local planner = global_planner.new({
-        pg_conn         = self.pg_conn,
-        board_name      = board,
-        site            = self.site,
-        system_name     = self.system_name,
-        own_instance_id = self.own_instance_id,
+        pg_conn           = self.pg_conn,
+        board_name        = board,
+        site              = self.site,
+        system_name       = self.system_name,
+        own_instance_id   = self.own_instance_id,
+        planner_namespace = self.planner_namespace,
     })
 
     if mission_cmd.use_drive_v2 == nil then

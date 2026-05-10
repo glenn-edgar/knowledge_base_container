@@ -156,6 +156,21 @@ return {
             planner_namespace = "mission_planner_01",
             capabilities      = { "recharge", "dock_in", "dock_out" },
           } },
+        -- Phase 7 multi-tenant: second planner + robot under tunnel_ops namespace.
+        -- Validates per-tenant isolation (separate NATS bucket, separate KB
+        -- subtree, no board shadowing across tenants).
+        { name = "mission_planner_02", def = "mission_planner",
+          ports = { ui = 19009 },
+          params = {
+            planner_namespace = "tunnel_ops",
+          } },
+        { name = "robot_sim_rover_2", def = "robot_sim",
+          ports = {},
+          params = {
+            robot_id          = "rover_2",
+            planner_namespace = "tunnel_ops",
+            capabilities      = { "recharge", "dock_in", "dock_out" },
+          } },
       },
     },
 

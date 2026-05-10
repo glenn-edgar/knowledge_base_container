@@ -36,6 +36,13 @@ function M.new(host, port, site, opts)
         port      = port or error("mqtt_hub_transport: port required"),
         site      = site,
         site_path = site_path,
+        -- Phase 7 multi-tenant: client_id must be unique across all
+        -- planners attached to the same broker; otherwise MQTT 3.1.1
+        -- kicks out the older connection (rc=7 disconnect). The third
+        -- positional arg in v3 (planner_namespace) used to be optional
+        -- and absent in the original call sites; we accept it via opts
+        -- for backward compatibility.
+        namespace = opts.namespace,
         ps        = nil,  -- PubSub handle, set on connect()
         -- Topic prefixes
         robots_prefix     = site_path .. "/robots/",
@@ -56,7 +63,14 @@ end
 function M:connect()
     local ffi = require("ffi")
     local pubsub = require("lib.mqtt_pubsub")
-    local client_id = "planner_" .. (self.site:gsub("%.", "_"))
+    -- Phase 7: per-tenant client_id so multiple planners share a broker
+    -- without kicking each other out (MQTT 3.1.1: client_id is a global
+    -- identifier, second connection wins). Falls back to site-only when
+    -- no namespace was supplied (single-tenant deployments).
+    local ns_suffix = self.namespace
+        and ("_" .. self.namespace:gsub("[^%w]", "_"))
+        or ""
+    local client_id = "planner_" .. (self.site:gsub("%.", "_")) .. ns_suffix
     self.ps = pubsub.PubSub.new(self.host, self.port, client_id)
     -- Connect may return asynchronously on some platforms (WSL2 containers)
     local ok, err = pcall(self.ps.connect, self.ps, 5000)

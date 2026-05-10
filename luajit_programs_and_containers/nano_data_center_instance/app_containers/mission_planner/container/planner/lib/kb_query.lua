@@ -397,6 +397,37 @@ function M:get_planner_namespace()
     return self.planner_namespace
 end
 
+--- Phase 7: list robot_ids declared for THIS planner's tenant.
+-- Reads rows under `system.<sys>.site.<S>.planner.<ns>.robots.catalog.robot.*`
+-- (label="robot") emitted by subsystems/robots.lua at build time.
+-- Used by link_manager to filter inbound MQTT link messages so a planner
+-- only registers robots that belong to its tenant. Empty list is valid
+-- (a planner with zero owned robots).
+-- @return array of robot_id strings (sorted), or nil + err on query failure
+function M:list_tenant_robots()
+    assert(self.planner_namespace and self.planner_namespace ~= "",
+           "list_tenant_robots: planner_namespace required")
+    local prefix = string.format("system.%s.site.%s.planner.%s.robots.catalog.robot",
+        self.system_name, self.site, self.planner_namespace)
+    local sql = string.format(
+        "SELECT name FROM knowledge_base " ..
+        "WHERE knowledge_base = 'system' AND label = 'robot' " ..
+        "AND path <@ '%s'::ltree ORDER BY name",
+        pg_escape(prefix))
+    local sth, perr = self.kb.conn:prepare(sql)
+    if not sth then return nil, "prepare: " .. tostring(perr) end
+    local ok, eerr = sth:execute()
+    if not ok then sth:close(); return nil, "execute: " .. tostring(eerr) end
+    local out = {}
+    local row = sth:fetch(true)
+    while row do
+        out[#out + 1] = row.name
+        row = sth:fetch(true)
+    end
+    sth:close()
+    return out
+end
+
 function M:get_planner_state()
     -- runtime.planner.KB_STATUS_FIELD.state -- written by the planner worker
     -- under the "planner" runtime sub-namespace (state_name="planner",

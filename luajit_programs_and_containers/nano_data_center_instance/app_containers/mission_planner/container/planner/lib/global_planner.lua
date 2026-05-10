@@ -85,13 +85,20 @@ end
 function M.new(opts)
     local self = setmetatable({}, M)
 
-    local pg_conn         = opts.pg_conn         or error("global_planner: pg_conn required")
-    local board_name      = opts.board_name      or error("global_planner: board_name required")
-    local site            = opts.site            or error("global_planner: site required")
-    local system_name     = opts.system_name     or error("global_planner: system_name required (v3 kb_query positional arg)")
-    local own_instance_id = opts.own_instance_id or error("global_planner: own_instance_id required (this container's name)")
+    local pg_conn           = opts.pg_conn         or error("global_planner: pg_conn required")
+    local board_name        = opts.board_name      or error("global_planner: board_name required")
+    local site              = opts.site            or error("global_planner: site required")
+    local system_name       = opts.system_name     or error("global_planner: system_name required (v3 kb_query positional arg)")
+    local own_instance_id   = opts.own_instance_id or error("global_planner: own_instance_id required (this container's name)")
+    -- Phase 7 multi-tenant: planner_namespace scopes the per-tenant
+    -- `planner.<ns>.boards.*` subtree kb_query reads from. Defaults to
+    -- own_instance_id (single-tenant fallback), matching kb_query's
+    -- 5th-arg default. Without this, multi-tenant planners with a non-
+    -- default namespace look at the wrong boards subtree and report
+    -- "board not found".
+    local planner_namespace = opts.planner_namespace or own_instance_id
 
-    local q = kb_query.new(pg_conn, system_name, site, own_instance_id)
+    local q = kb_query.new(pg_conn, system_name, site, own_instance_id, planner_namespace)
 
     -- v3: boards are file_store-backed (content-addressable). Capture
     -- the sha256 at planner construction so the sequencer can detect
