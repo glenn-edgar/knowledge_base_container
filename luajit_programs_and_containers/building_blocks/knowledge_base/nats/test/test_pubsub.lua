@@ -88,6 +88,21 @@ test("namespace and client_name", function()
     ps:destroy()
 end)
 
+-- Helper: drain pubsub queue with a deadline so a test doesn't hang.
+local function drain_until(ps, predicate, total_ms)
+    total_ms = total_ms or 1000
+    local step_ms = 20
+    local elapsed = 0
+    while elapsed < total_ms do
+        ps:poll()
+        if predicate() then return true end
+        msleep(step_ms)
+        elapsed = elapsed + step_ms
+    end
+    ps:poll()  -- final drain
+    return predicate()
+end
+
 test("publish and subscribe", function()
     local ps = PubSub.new({ server = SERVER, namespace_ = "test_ps" })
     ps:connect()
@@ -99,7 +114,7 @@ test("publish and subscribe", function()
 
     msleep(100)  -- let subscription activate
     ps:publish_str("hello", "world")
-    msleep(200)  -- let message arrive
+    drain_until(ps, function() return received ~= nil end, 1000)
 
     expect(received ~= nil, "no message received")
     expect_eq(received.data, "world", "payload")
@@ -122,7 +137,7 @@ test("publish binary data", function()
     msleep(100)
     local binary = "\x00\x01\x02\xFF\xFE"
     ps:publish("binary", binary)
-    msleep(200)
+    drain_until(ps, function() return received ~= nil end, 1000)
 
     expect(received ~= nil, "no message")
     expect_eq(#received.data, 5, "binary length")
@@ -143,13 +158,14 @@ test("unsubscribe stops messages", function()
 
     msleep(100)
     ps:publish_str("counter", "1")
-    msleep(200)
+    drain_until(ps, function() return count >= 1 end, 1000)
     expect_eq(count, 1, "first message")
 
     ps:unsubscribe(sub)
     msleep(50)
     ps:publish_str("counter", "2")
-    msleep(200)
+    -- After unsubscribe, no further messages should accrue even if we drain.
+    for _ = 1, 10 do ps:poll(); msleep(20) end
     expect_eq(count, 1, "should not receive after unsub")
 
     ps:disconnect()

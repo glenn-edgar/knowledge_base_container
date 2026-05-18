@@ -38,6 +38,7 @@ typedef enum {
     PS_ERR_MEMORY,
     PS_ERR_NOT_CONNECTED,
     PS_ERR_NATS,
+    PS_EMPTY,
 } ps_status_t;
 
 const char *ps_status_str(ps_status_t st);
@@ -118,6 +119,27 @@ typedef struct {
 } PubSubStats;
 
 ps_status_t pubsub_get_stats(const PubSub *ps, PubSubStats *stats);
+
+/* ---- Queue+poll subscribe (LuaJIT-safe — no ffi.cast on nats.c thread) ---- */
+typedef struct {
+    char    *subject;
+    char    *original_subject;
+    uint8_t *data;
+    int      data_len;
+    char    *reply_to;
+} PubSubOwnedMsg;
+
+void pubsub_msg_free(PubSubOwnedMsg *msg);
+
+ps_status_t pubsub_subscribe_queue(PubSub *ps, const char *subject,
+                                   size_t queue_depth,
+                                   const char *queue_group,
+                                   bool raw,
+                                   PubSubSub **out_sub);
+ps_status_t pubsub_poll(PubSubSub *sub, PubSubOwnedMsg *out_msg);
+size_t      pubsub_pending(PubSubSub *sub);
+size_t      pubsub_dropped(PubSubSub *sub);
+void        pubsub_reset_dropped(PubSubSub *sub);
 ]]
 
 -- ----------------------------------------------------------------
@@ -141,7 +163,8 @@ end
 --  Keep Lua callbacks alive (prevent GC)
 -- ----------------------------------------------------------------
 
-local _callback_refs = {}
+-- (Previously kept ffi.cast callbacks alive; no longer needed — queue+poll
+--  replaces the cross-thread callback pattern entirely.)
 local _sub_callbacks = {}  -- keyed by PubSubSub* pointer
 
 -- ----------------------------------------------------------------
@@ -172,10 +195,6 @@ end
 --- Destroy the PubSub client.
 function PubSub:destroy()
     if self._handle ~= nil then
-        -- Clean up callback references
-        for _, info in pairs(self._subs) do
-            _callback_refs[info.ref_id] = nil
-        end
         C.pubsub_destroy(self._handle)
         self._handle = nil
     end
@@ -234,83 +253,90 @@ end
 
 --- Subscribe to a subject (namespace auto-prepended).
 -- @param subject     string
--- @param callback    function(msg_table)  where msg_table = { subject, original_subject, data, reply_to }
--- @param queue_group string or nil  (for load-balanced subscriptions)
+-- @param callback    function(msg_table) — invoked when PubSub:poll() drains
+-- @param queue_group string or nil  (NATS queue group for load balancing)
 -- @return subscription handle (opaque, pass to unsubscribe)
+--
+-- IMPORTANT: callbacks are NO LONGER called from nats.c's dispatch thread.
+-- They are invoked synchronously from PubSub:poll(), which the caller must
+-- drive from their main loop. This is the LuaJIT-safe pattern that
+-- replaces the previous ffi.cast async-callback model.
 function PubSub:subscribe(subject, callback, queue_group)
-    -- Wrap the Lua callback into a C callback
-    local c_cb = ffi.cast("pubsub_msg_cb", function(msg, _ud)
-        local t = {
-            subject          = ffi.string(msg.subject),
-            original_subject = ffi.string(msg.original_subject),
-            data             = msg.data_len > 0 and ffi.string(msg.data, msg.data_len) or "",
-            data_len         = msg.data_len,
-            reply_to         = msg.reply_to ~= nil and ffi.string(msg.reply_to) or nil,
-            _raw_msg         = msg,  -- for pubsub_reply
-        }
-        local ok, err = pcall(callback, t)
-        if not ok then
-            io.stderr:write("PubSub callback error: " .. tostring(err) .. "\n")
-        end
-    end)
-
-    local sub_handle = ffi.new("PubSubSub*[1]")
-    check(C.pubsub_subscribe(self._handle, subject, c_cb, nil,
-                             queue_group, sub_handle))
-
-    -- Keep callback alive
-    local ref_id = tostring(c_cb)
-    _callback_refs[ref_id] = c_cb
-
-    local sub = sub_handle[0]
-    self._subs[tostring(sub)] = { handle = sub, ref_id = ref_id }
-    return sub
+    return self:_do_subscribe(subject, callback, queue_group, false)
 end
 
 --- Subscribe to a raw (non-namespaced) subject.
 function PubSub:subscribe_raw(full_subject, callback, queue_group)
-    local c_cb = ffi.cast("pubsub_msg_cb", function(msg, _ud)
-        local t = {
-            subject          = ffi.string(msg.subject),
-            original_subject = ffi.string(msg.original_subject),
-            data             = msg.data_len > 0 and ffi.string(msg.data, msg.data_len) or "",
-            data_len         = msg.data_len,
-            reply_to         = msg.reply_to ~= nil and ffi.string(msg.reply_to) or nil,
-            _raw_msg         = msg,
-        }
-        pcall(callback, t)
-    end)
+    return self:_do_subscribe(full_subject, callback, queue_group, true)
+end
 
+--- Internal: subscribe via the C queue+poll API.
+function PubSub:_do_subscribe(subject, callback, queue_group, raw)
+    if type(callback) ~= "function" then
+        error("PubSub:subscribe: callback must be a function", 3)
+    end
     local sub_handle = ffi.new("PubSubSub*[1]")
-    check(C.pubsub_subscribe_raw(self._handle, full_subject, c_cb, nil,
-                                 queue_group, sub_handle))
-
-    local ref_id = tostring(c_cb)
-    _callback_refs[ref_id] = c_cb
-
+    check(C.pubsub_subscribe_queue(self._handle, subject, 64,
+                                   queue_group, raw, sub_handle))
     local sub = sub_handle[0]
-    self._subs[tostring(sub)] = { handle = sub, ref_id = ref_id }
+    self._subs[tostring(sub)] = { handle = sub, callback = callback }
     return sub
+end
+
+--- Drain pending messages from all subscriptions, invoking their
+--- registered callbacks on the caller's thread.
+--
+-- @param max_per_sub  optional limit per subscription per call (default unlimited)
+-- @return total number of messages dispatched
+function PubSub:poll(max_per_sub)
+    local total = 0
+    local msg = ffi.new("PubSubOwnedMsg")
+    for _, info in pairs(self._subs) do
+        local dispatched = 0
+        while max_per_sub == nil or dispatched < max_per_sub do
+            local st = C.pubsub_poll(info.handle, msg)
+            if st == C.PS_EMPTY then break end
+            if st ~= C.PS_OK then
+                error("PubSub:poll: " .. ffi.string(C.ps_status_str(st)), 2)
+            end
+            local t = {
+                subject          = msg.subject ~= nil and ffi.string(msg.subject) or "",
+                original_subject = msg.original_subject ~= nil and ffi.string(msg.original_subject) or "",
+                data             = msg.data_len > 0 and ffi.string(msg.data, msg.data_len) or "",
+                data_len         = msg.data_len,
+                reply_to         = msg.reply_to ~= nil and ffi.string(msg.reply_to) or nil,
+            }
+            C.pubsub_msg_free(msg)
+            local ok, err = pcall(info.callback, t)
+            if not ok then
+                io.stderr:write("PubSub callback error: " .. tostring(err) .. "\n")
+            end
+            dispatched = dispatched + 1
+            total = total + 1
+        end
+    end
+    return total
+end
+
+--- Return total pending (undrained) messages across all subscriptions.
+function PubSub:pending()
+    local total = 0
+    for _, info in pairs(self._subs) do
+        total = total + tonumber(C.pubsub_pending(info.handle))
+    end
+    return total
 end
 
 --- Unsubscribe from a subscription.
 -- @param sub  subscription handle returned by subscribe()
 function PubSub:unsubscribe(sub)
     check(C.pubsub_unsubscribe(self._handle, sub))
-    local key = tostring(sub)
-    local info = self._subs[key]
-    if info then
-        _callback_refs[info.ref_id] = nil
-        self._subs[key] = nil
-    end
+    self._subs[tostring(sub)] = nil
 end
 
 --- Unsubscribe from all subscriptions.
 function PubSub:unsubscribe_all()
     check(C.pubsub_unsubscribe_all(self._handle))
-    for _, info in pairs(self._subs) do
-        _callback_refs[info.ref_id] = nil
-    end
     self._subs = {}
 end
 

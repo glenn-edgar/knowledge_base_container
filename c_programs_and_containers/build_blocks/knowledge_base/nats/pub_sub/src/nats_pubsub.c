@@ -45,6 +45,25 @@ const char *ps_status_str(ps_status_t st)
 /*  Subscription handle                                                */
 /* ------------------------------------------------------------------ */
 
+/* Queue mode: incoming messages are heap-copied into ring buffer slots. */
+typedef struct {
+    char *subject;          /* malloc'd */
+    char *original_subject;
+    uint8_t *data;
+    int      data_len;
+    char *reply_to;
+} qmsg_t;
+
+typedef struct {
+    pthread_mutex_t lock;
+    qmsg_t  *ring;          /* depth slots */
+    size_t   depth;         /* power of two */
+    size_t   mask;
+    size_t   head;
+    size_t   tail;
+    size_t   dropped;
+} sub_queue_t;
+
 struct PubSubSub {
     natsSubscription *nsub;            /* nats.c subscription */
     char              original_subject[PS_SUBJECT_LEN]; /* without namespace */
@@ -53,6 +72,7 @@ struct PubSubSub {
     void             *user_data;
     PubSub           *ps;              /* back-pointer */
     int64_t           msgs_received;
+    sub_queue_t      *queue;           /* non-NULL = queue mode (no cb) */
 };
 
 /* ------------------------------------------------------------------ */
@@ -307,25 +327,57 @@ static void nats_msg_callback(natsConnection *nc, natsSubscription *nsub,
     (void)nsub;
 
     PubSubSub *sub = closure;
-    if (!sub || !sub->cb) {
-        natsMsg_Destroy(msg);
-        return;
-    }
+    if (!sub) { natsMsg_Destroy(msg); return; }
 
-    /* Build the PubSubMsg on the stack */
     char orig[PS_SUBJECT_LEN];
     remove_namespace(orig, sizeof(orig),
                      sub->ps->namespace_, natsMsg_GetSubject(msg));
 
-    PubSubMsg pmsg = {
-        .subject          = natsMsg_GetSubject(msg),
-        .original_subject = orig,
-        .data             = natsMsg_GetData(msg),
-        .data_len         = natsMsg_GetDataLength(msg),
-        .reply_to         = natsMsg_GetReply(msg),
-    };
+    if (sub->queue) {
+        /* Queue mode: heap-copy the message into a ring slot. */
+        sub_queue_t *q = sub->queue;
+        const char *subj = natsMsg_GetSubject(msg);
+        const char *reply = natsMsg_GetReply(msg);
+        const char *data  = natsMsg_GetData(msg);
+        int         dlen  = natsMsg_GetDataLength(msg);
 
-    sub->cb(&pmsg, sub->user_data);
+        qmsg_t copy = {0};
+        copy.subject          = subj   ? strdup(subj)  : NULL;
+        copy.original_subject = strdup(orig);
+        copy.reply_to         = reply  ? strdup(reply) : NULL;
+        copy.data_len         = dlen;
+        if (dlen > 0) {
+            copy.data = malloc(dlen);
+            if (copy.data) memcpy(copy.data, data, dlen);
+        }
+
+        pthread_mutex_lock(&q->lock);
+        size_t used = q->head - q->tail;
+        if (used >= q->depth) {
+            /* Overflow: drop oldest. */
+            qmsg_t *old = &q->ring[q->tail & q->mask];
+            free(old->subject);
+            free(old->original_subject);
+            free(old->data);
+            free(old->reply_to);
+            memset(old, 0, sizeof(*old));
+            q->tail++;
+            q->dropped++;
+        }
+        q->ring[q->head & q->mask] = copy;
+        q->head++;
+        pthread_mutex_unlock(&q->lock);
+    } else if (sub->cb) {
+        /* Callback mode (original): invoke on this dispatch thread. */
+        PubSubMsg pmsg = {
+            .subject          = natsMsg_GetSubject(msg),
+            .original_subject = orig,
+            .data             = natsMsg_GetData(msg),
+            .data_len         = natsMsg_GetDataLength(msg),
+            .reply_to         = natsMsg_GetReply(msg),
+        };
+        sub->cb(&pmsg, sub->user_data);
+    }
 
     pthread_mutex_lock(&sub->ps->mu);
     sub->msgs_received++;
@@ -342,9 +394,13 @@ static void nats_msg_callback(natsConnection *nc, natsSubscription *nsub,
 static ps_status_t do_subscribe(PubSub *ps, const char *full_subject,
                                 const char *original_subject,
                                 pubsub_msg_cb cb, void *user_data,
-                                const char *queue, PubSubSub **out)
+                                const char *queue, sub_queue_t *q_attach,
+                                PubSubSub **out)
 {
-    if (!ps || !full_subject || !cb || !out)
+    if (!ps || !full_subject || !out)
+        return PS_ERR_INVALID_ARG;
+    /* Either cb (callback mode) or q_attach (queue mode) must be set */
+    if (!cb && !q_attach)
         return PS_ERR_INVALID_ARG;
     if (!ps->connected)
         return PS_ERR_NOT_CONNECTED;
@@ -361,6 +417,7 @@ static ps_status_t do_subscribe(PubSub *ps, const char *full_subject,
     sub->cb        = cb;
     sub->user_data = user_data;
     sub->ps        = ps;
+    sub->queue     = q_attach;
 
     natsStatus ns;
     if (queue && queue[0]) {
@@ -404,7 +461,7 @@ ps_status_t pubsub_subscribe(PubSub *ps, const char *subject,
     add_namespace(full_subject, sizeof(full_subject),
                   ps->namespace_, subject);
 
-    return do_subscribe(ps, full_subject, subject, cb, user_data, queue, sub);
+    return do_subscribe(ps, full_subject, subject, cb, user_data, queue, NULL, sub);
 }
 
 ps_status_t pubsub_subscribe_raw(PubSub *ps, const char *subject,
@@ -412,7 +469,114 @@ ps_status_t pubsub_subscribe_raw(PubSub *ps, const char *subject,
                                  const char *queue, PubSubSub **sub)
 {
     if (!ps || !subject) return PS_ERR_INVALID_ARG;
-    return do_subscribe(ps, subject, subject, cb, user_data, queue, sub);
+    return do_subscribe(ps, subject, subject, cb, user_data, queue, NULL, sub);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Queue + poll subscribe (LuaJIT-safe)                               */
+/* ------------------------------------------------------------------ */
+
+static size_t round_up_pow2(size_t v) {
+    if (v <= 1) return 1;
+    size_t p = 1;
+    while (p < v) p <<= 1;
+    return p;
+}
+
+ps_status_t pubsub_subscribe_queue(PubSub *ps, const char *subject,
+                                   size_t queue_depth, const char *queue_group,
+                                   bool raw, PubSubSub **out)
+{
+    if (!ps || !subject || !out) return PS_ERR_INVALID_ARG;
+
+    size_t depth = round_up_pow2(queue_depth == 0 ? 64 : queue_depth);
+
+    sub_queue_t *q = calloc(1, sizeof(*q));
+    if (!q) return PS_ERR_MEMORY;
+    q->ring = calloc(depth, sizeof(qmsg_t));
+    if (!q->ring) { free(q); return PS_ERR_MEMORY; }
+    q->depth = depth;
+    q->mask  = depth - 1;
+    pthread_mutex_init(&q->lock, NULL);
+
+    char full_subject[PS_SUBJECT_LEN];
+    if (raw) {
+        snprintf(full_subject, sizeof(full_subject), "%s", subject);
+    } else {
+        add_namespace(full_subject, sizeof(full_subject),
+                      ps->namespace_, subject);
+    }
+    ps_status_t st = do_subscribe(ps, full_subject, subject,
+                                  NULL, NULL, queue_group, q, out);
+    if (st != PS_OK) {
+        free(q->ring);
+        pthread_mutex_destroy(&q->lock);
+        free(q);
+    }
+    return st;
+}
+
+ps_status_t pubsub_poll(PubSubSub *sub, PubSubOwnedMsg *out_msg)
+{
+    if (!sub || !out_msg) return PS_ERR_INVALID_ARG;
+    if (!sub->queue) return PS_ERR_INVALID_ARG;
+    sub_queue_t *q = sub->queue;
+
+    pthread_mutex_lock(&q->lock);
+    if (q->head == q->tail) {
+        pthread_mutex_unlock(&q->lock);
+        memset(out_msg, 0, sizeof(*out_msg));
+        return PS_EMPTY;
+    }
+    qmsg_t *slot = &q->ring[q->tail & q->mask];
+    out_msg->subject          = slot->subject;
+    out_msg->original_subject = slot->original_subject;
+    out_msg->data             = slot->data;
+    out_msg->data_len         = slot->data_len;
+    out_msg->reply_to         = slot->reply_to;
+    memset(slot, 0, sizeof(*slot));
+    q->tail++;
+    pthread_mutex_unlock(&q->lock);
+    return PS_OK;
+}
+
+void pubsub_msg_free(PubSubOwnedMsg *msg)
+{
+    if (!msg) return;
+    free(msg->subject);
+    free(msg->original_subject);
+    free(msg->data);
+    free(msg->reply_to);
+    memset(msg, 0, sizeof(*msg));
+}
+
+size_t pubsub_pending(PubSubSub *sub)
+{
+    if (!sub || !sub->queue) return 0;
+    sub_queue_t *q = sub->queue;
+    pthread_mutex_lock(&q->lock);
+    size_t n = q->head - q->tail;
+    pthread_mutex_unlock(&q->lock);
+    return n;
+}
+
+size_t pubsub_dropped(PubSubSub *sub)
+{
+    if (!sub || !sub->queue) return 0;
+    sub_queue_t *q = sub->queue;
+    pthread_mutex_lock(&q->lock);
+    size_t n = q->dropped;
+    pthread_mutex_unlock(&q->lock);
+    return n;
+}
+
+void pubsub_reset_dropped(PubSubSub *sub)
+{
+    if (!sub || !sub->queue) return;
+    sub_queue_t *q = sub->queue;
+    pthread_mutex_lock(&q->lock);
+    q->dropped = 0;
+    pthread_mutex_unlock(&q->lock);
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,6 +604,24 @@ ps_status_t pubsub_unsubscribe(PubSub *ps, PubSubSub *sub)
         }
     }
     pthread_mutex_unlock(&ps->mu);
+
+    /* Drain + free queue if queue-mode. */
+    if (sub->queue) {
+        sub_queue_t *q = sub->queue;
+        pthread_mutex_lock(&q->lock);
+        while (q->tail != q->head) {
+            qmsg_t *slot = &q->ring[q->tail & q->mask];
+            free(slot->subject);
+            free(slot->original_subject);
+            free(slot->data);
+            free(slot->reply_to);
+            q->tail++;
+        }
+        pthread_mutex_unlock(&q->lock);
+        pthread_mutex_destroy(&q->lock);
+        free(q->ring);
+        free(q);
+    }
 
     free(sub);
     return PS_OK;

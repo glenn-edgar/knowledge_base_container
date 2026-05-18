@@ -63,6 +63,7 @@ typedef enum {
     PS_ERR_MEMORY,
     PS_ERR_NOT_CONNECTED,
     PS_ERR_NATS,            /**< Generic nats.c error                 */
+    PS_EMPTY,               /**< pubsub_poll: queue empty             */
 } ps_status_t;
 
 const char *ps_status_str(ps_status_t st);
@@ -206,6 +207,60 @@ ps_status_t pubsub_auto_unsubscribe(PubSubSub *sub, int max_msgs);
  * Get the original (un-namespaced) subject of a subscription.
  */
 const char *pubsub_sub_subject(const PubSubSub *sub);
+
+/* ------------------------------------------------------------------ */
+/*  Queue + poll subscribe — LuaJIT-safe (no cross-thread callback)   */
+/*                                                                     */
+/*  nats.c's dispatch thread fills an internal ring buffer; caller     */
+/*  drains with pubsub_poll() from any thread (typically main loop).   */
+/*  Each polled message is heap-allocated; caller MUST free with       */
+/*  pubsub_msg_free() when done.                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Owned-message struct returned by pubsub_poll. The caller owns all
+ * malloc'd fields; call pubsub_msg_free to release them.
+ */
+typedef struct {
+    char *subject;          /* malloc'd full subject (includes namespace) */
+    char *original_subject; /* malloc'd unprefixed subject                */
+    uint8_t *data;          /* malloc'd payload bytes                     */
+    int      data_len;
+    char *reply_to;         /* malloc'd reply subject, or NULL            */
+} PubSubOwnedMsg;
+
+void pubsub_msg_free(PubSubOwnedMsg *msg);
+
+/**
+ * Queue-mode subscribe.
+ *
+ * @param queue_depth  Power-of-2-rounded ring size; 0 = default 64.
+ * @param queue_group  NATS queue group name, or NULL.
+ * @param raw          If true, no namespace prefixed onto subject.
+ */
+ps_status_t pubsub_subscribe_queue(PubSub      *ps,
+                                   const char  *subject,
+                                   size_t       queue_depth,
+                                   const char  *queue_group,
+                                   bool         raw,
+                                   PubSubSub  **out_sub);
+
+/**
+ * Drain one message from a queue subscription, non-blocking.
+ *
+ * On success, *out_msg is populated; caller MUST call pubsub_msg_free
+ * when done with the message.
+ *
+ * @return PS_OK on success, PS_EMPTY if queue is empty.
+ */
+ps_status_t pubsub_poll(PubSubSub *sub, PubSubOwnedMsg *out_msg);
+
+/** Pending unread messages in the queue. */
+size_t pubsub_pending(PubSubSub *sub);
+
+/** Messages dropped due to overflow since creation. */
+size_t pubsub_dropped(PubSubSub *sub);
+void   pubsub_reset_dropped(PubSubSub *sub);
 
 /* ------------------------------------------------------------------ */
 /*  Request / Reply                                                    */
