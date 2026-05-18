@@ -172,6 +172,81 @@ static int run_e2e_test(const char *locator) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Queue-mode E2E (the LuaJIT-safe path)                              */
+/* ------------------------------------------------------------------ */
+
+static int run_queue_e2e_test(const char *locator) {
+    fprintf(stderr, "\n=== Queue-mode E2E against %s ===\n", locator);
+
+    const char *locs[] = { locator };
+    ZenohPubSubConfig cfg;
+    zenoh_pubsub_config_defaults(&cfg);
+    cfg.locators = locs;
+    cfg.n_locators = 1;
+
+    ZenohPubSub *sub_ps = NULL, *pub_ps = NULL;
+    CHECK(zenoh_pubsub_create(&sub_ps, &cfg) == ZPS_OK, "queue: create sub session");
+    CHECK(zenoh_pubsub_create(&pub_ps, &cfg) == ZPS_OK, "queue: create pub session");
+    CHECK(zenoh_pubsub_connect(sub_ps) == ZPS_OK, "queue: connect sub");
+    CHECK(zenoh_pubsub_connect(pub_ps) == ZPS_OK, "queue: connect pub");
+
+    uint32_t topic = zt_hash("e2e/queue/test");
+    ZenohPubSubSub *sub = NULL;
+    CHECK(zenoh_pubsub_subscribe_queue(sub_ps, topic, 16, &sub) == ZPS_OK,
+          "queue: subscribe");
+    usleep(200000);   /* let declaration propagate */
+
+    /* Publish 5 messages. */
+    const char *msgs[] = { "qa", "qb", "qc", "qd", "qe" };
+    for (int i = 0; i < 5; ++i) {
+        CHECK(zenoh_pubsub_publish(pub_ps, topic,
+                                   (const uint8_t *)msgs[i], strlen(msgs[i])) == ZPS_OK,
+              "queue: publish");
+        usleep(20000);
+    }
+
+    /* Allow zenohd + read thread to deliver. */
+    usleep(500000);
+
+    /* Drain. */
+    int got = 0;
+    for (int i = 0; i < 10; ++i) {
+        uint32_t tok = 0;
+        uint8_t *payload = NULL;
+        size_t   len = 0;
+        zps_status_t st = zenoh_pubsub_poll(sub, &tok, &payload, &len);
+        if (st == ZPS_OK) {
+            CHECK(tok == topic, "queue: poll returns correct token");
+            CHECK(payload != NULL && len > 0, "queue: poll payload non-empty");
+            free(payload);
+            ++got;
+        } else if (st == ZPS_EMPTY) {
+            break;
+        } else {
+            ++fail;
+            fprintf(stderr, "FAIL: poll returned %d (%s:%d)\n", (int)st, __FILE__, __LINE__);
+            break;
+        }
+    }
+    CHECK(got == 5, "queue: drained all 5 messages");
+    CHECK(zenoh_pubsub_pending(sub) == 0, "queue: pending is 0 after drain");
+    CHECK(zenoh_pubsub_dropped(sub) == 0, "queue: no messages dropped (depth=16 vs 5 sent)");
+
+    zenoh_pubsub_unsubscribe(sub_ps, sub);
+    zenoh_pubsub_disconnect(pub_ps);
+    zenoh_pubsub_disconnect(sub_ps);
+    zenoh_pubsub_destroy(pub_ps);
+    zenoh_pubsub_destroy(sub_ps);
+    return 0;
+}
+
+/* Negative test: poll with no zenoh involvement (just the API). */
+static void test_queue_poll_invalid_args(void) {
+    uint32_t tok; uint8_t *p; size_t n;
+    CHECK(zenoh_pubsub_poll(NULL, &tok, &p, &n) == ZPS_ERR_INVALID_ARG, "poll NULL sub rejected");
+}
+
+/* ------------------------------------------------------------------ */
 /*  Serial PTY-loopback fixture                                        */
 /*                                                                     */
 /*  socat isn't installed, so we roll our own bridge in C: two PTYs    */
@@ -248,6 +323,7 @@ static void *connect_worker(void *p) {
     return NULL;
 }
 
+__attribute__((unused))
 static int run_serial_pty_test(void) {
     fprintf(stderr, "\n=== End-to-end test over serial via PTY pair ===\n");
 
@@ -372,6 +448,7 @@ int main(int argc, char **argv) {
     test_status_strings();
     test_config_defaults();
     test_create_invalid_args();
+    test_queue_poll_invalid_args();
 
     /* End-to-end if a transport is requested. */
     if (transport != NULL) {
@@ -398,6 +475,7 @@ int main(int argc, char **argv) {
                 /* Otherwise use --locator as provided. */
             }
             run_e2e_test(locator);
+            run_queue_e2e_test(locator);
         }
     }
 

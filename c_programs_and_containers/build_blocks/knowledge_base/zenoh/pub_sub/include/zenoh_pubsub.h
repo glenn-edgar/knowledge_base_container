@@ -55,6 +55,7 @@ typedef enum {
     ZPS_ERR_MEMORY,
     ZPS_ERR_NOT_CONNECTED,
     ZPS_ERR_ZENOH,            /**< Generic zenoh-pico error             */
+    ZPS_EMPTY,                /**< zenoh_pubsub_poll: queue empty       */
 } zps_status_t;
 
 const char *zps_status_str(zps_status_t st);
@@ -131,6 +132,61 @@ zps_status_t zenoh_pubsub_subscribe(ZenohPubSub *ps,
                                     ZenohPubSubSub **out);
 
 zps_status_t zenoh_pubsub_unsubscribe(ZenohPubSub *ps, ZenohPubSubSub *sub);
+
+/* ------------------------------------------------------------------ */
+/*  Queue/poll subscribe — safe for LuaJIT and other no-cross-thread- */
+/*  callback hosts.                                                    */
+/*                                                                     */
+/*  The subscriber pushes incoming messages onto an internal           */
+/*  thread-safe ring buffer; the caller drains them with               */
+/*  zenoh_pubsub_poll() from any thread (typically the main loop).     */
+/*  When the queue overflows, oldest messages are dropped silently —   */
+/*  use a queue_depth large enough for your worst-case burst.          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Subscribe with a queue-backed delivery model (no callback).
+ *
+ * @param ps           Connected session.
+ * @param token        FNV1a topic token to subscribe to.
+ * @param queue_depth  Max number of pending messages (rounded up to power of 2).
+ *                     0 = use default (64).
+ * @param[out] out_sub Subscriber handle.
+ */
+zps_status_t zenoh_pubsub_subscribe_queue(ZenohPubSub *ps,
+                                          uint32_t token,
+                                          size_t queue_depth,
+                                          ZenohPubSubSub **out_sub);
+
+/**
+ * Drain one message from a queue subscriber, non-blocking.
+ *
+ * On success, *out_payload is a malloc'd buffer the caller must free().
+ *
+ * @param sub          Queue subscriber.
+ * @param[out] out_token    Token of received message.
+ * @param[out] out_payload  Malloc'd payload bytes (caller frees).
+ * @param[out] out_len      Payload length.
+ * @return ZPS_OK on success, ZPS_EMPTY if queue is empty,
+ *         ZPS_ERR_INVALID_ARG on bad args.
+ */
+zps_status_t zenoh_pubsub_poll(ZenohPubSubSub *sub,
+                               uint32_t *out_token,
+                               uint8_t **out_payload,
+                               size_t *out_len);
+
+/**
+ * Return current queue depth (number of pending unread messages).
+ * Useful for diagnostics and back-pressure decisions.
+ */
+size_t zenoh_pubsub_pending(ZenohPubSubSub *sub);
+
+/**
+ * Return count of messages that were dropped due to queue overflow,
+ * since creation. Reset to 0 by zenoh_pubsub_reset_dropped().
+ */
+size_t zenoh_pubsub_dropped(ZenohPubSubSub *sub);
+void   zenoh_pubsub_reset_dropped(ZenohPubSubSub *sub);
 
 #ifdef __cplusplus
 }
