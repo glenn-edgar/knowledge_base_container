@@ -151,6 +151,78 @@ zrpc_status_t zenoh_rpc_client_call(ZenohRpcClient *cli,
                                     uint8_t **resp,
                                     size_t *resp_len);
 
+/* ------------------------------------------------------------------ */
+/*  Server-side queue+poll API — safe for LuaJIT and any host that    */
+/*  can't tolerate Lua-callbacks-on-foreign-threads.                  */
+/*                                                                     */
+/*  Flow:                                                              */
+/*    register_queue(srv, token, depth, &q)                            */
+/*    loop:                                                            */
+/*      poll(q, &request)                                              */
+/*      ... process request->payload ...                               */
+/*      request_reply(request, response_payload, len)                  */
+/*      // request is dropped after reply                              */
+/* ------------------------------------------------------------------ */
+
+typedef struct ZenohRpcServerQueue ZenohRpcServerQueue;
+typedef struct ZenohRpcRequest     ZenohRpcRequest;
+
+/**
+ * Register a queue-backed queryable for a method token. Pushes incoming
+ * queries to an internal ring buffer; drain with zenoh_rpc_server_poll.
+ *
+ * If the server is already running, the queryable is declared immediately.
+ * Otherwise it is declared on zenoh_rpc_server_start.
+ *
+ * @param queue_depth  Power-of-2-rounded ring size; 0 = default 32.
+ */
+zrpc_status_t zenoh_rpc_server_register_queue(ZenohRpcServer *srv,
+                                              uint32_t token,
+                                              size_t queue_depth,
+                                              ZenohRpcServerQueue **out_q);
+
+/**
+ * Drain one request from a queue, non-blocking.
+ *
+ * On success, *out_req owns the request; caller MUST eventually call
+ * zenoh_rpc_request_reply (or zenoh_rpc_request_drop) to release it.
+ *
+ * @return ZRPC_OK on success, ZRPC_ERR_NO_REPLY if queue is empty.
+ */
+zrpc_status_t zenoh_rpc_server_poll(ZenohRpcServerQueue *q,
+                                    ZenohRpcRequest **out_req);
+
+/** Number of pending unhandled requests in the queue. */
+size_t zenoh_rpc_server_pending(ZenohRpcServerQueue *q);
+
+/** Number of requests dropped due to queue overflow since creation. */
+size_t zenoh_rpc_server_dropped(ZenohRpcServerQueue *q);
+
+/* ----- Request accessors ----- */
+uint32_t       zenoh_rpc_request_token(const ZenohRpcRequest *req);
+const uint8_t *zenoh_rpc_request_payload(const ZenohRpcRequest *req);
+size_t         zenoh_rpc_request_payload_len(const ZenohRpcRequest *req);
+
+/**
+ * Send a successful reply for the request. Frees the request.
+ * After this call, req is invalid.
+ */
+zrpc_status_t zenoh_rpc_request_reply(ZenohRpcRequest *req,
+                                      const uint8_t *payload,
+                                      size_t len);
+
+/**
+ * Send an error reply for the request. Frees the request.
+ */
+zrpc_status_t zenoh_rpc_request_reply_error(ZenohRpcRequest *req,
+                                            const char *errmsg);
+
+/**
+ * Drop a request without replying (e.g., shutdown, malformed input).
+ * Frees the request.
+ */
+void zenoh_rpc_request_drop(ZenohRpcRequest *req);
+
 #ifdef __cplusplus
 }
 #endif

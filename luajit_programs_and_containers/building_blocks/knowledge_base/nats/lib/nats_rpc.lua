@@ -67,9 +67,29 @@ typedef char *(*rpc_handler_fn)(const char *request_json,
 rpc_status_t rpc_server_create(RpcServer **out, const RpcConfig *cfg);
 void         rpc_server_destroy(RpcServer *srv);
 rpc_status_t rpc_server_register(RpcServer *srv, const char *method,
-                                 rpc_handler_fn handler, void *user_data);
+                                 rpc_handler_fn handler, void *user_data,
+                                 bool instance_specific);
 rpc_status_t rpc_server_start(RpcServer *srv, const char *prefix);
 rpc_status_t rpc_server_stop(RpcServer *srv);
+
+/* Queue+poll server API (LuaJIT-safe — no ffi.cast callback on nats.c thread) */
+typedef struct RpcServerQueue RpcServerQueue;
+typedef struct RpcRequest     RpcRequest;
+
+rpc_status_t rpc_server_register_queue(RpcServer *srv, const char *method,
+                                       size_t queue_depth,
+                                       bool instance_specific,
+                                       RpcServerQueue **out_q);
+rpc_status_t rpc_server_poll(RpcServerQueue *q, RpcRequest **out_req);
+size_t rpc_server_pending(RpcServerQueue *q);
+size_t rpc_server_dropped(RpcServerQueue *q);
+
+const char *rpc_request_method(const RpcRequest *req);
+const char *rpc_request_params_json(const RpcRequest *req);
+const char *rpc_request_id(const RpcRequest *req);
+rpc_status_t rpc_request_reply(RpcRequest *req, const char *result_json);
+rpc_status_t rpc_request_reply_error(RpcRequest *req, int code, const char *message);
+void rpc_request_drop(RpcRequest *req);
 
 /* ---- Handler stats ---- */
 typedef struct {
@@ -157,18 +177,15 @@ function RpcServer.new(opts)
     check(C.rpc_server_create(handle, cfg))
     local self = setmetatable({}, RpcServer)
     self._handle = handle[0]
-    self._callbacks = {}
+    self._lua_handlers = {}
     return self
 end
 
 --- Destroy the server.
 function RpcServer:destroy()
     if self._handle ~= nil then
+        self._running = false
         C.rpc_server_destroy(self._handle)
-        -- Remove callback refs
-        for _, ref in pairs(self._callbacks) do
-            _callback_refs[ref] = nil
-        end
         self._handle = nil
     end
 end
@@ -176,37 +193,67 @@ end
 --- Register a method handler.
 -- @param method string  Method name (e.g. "math.add")
 -- @param handler function(request_json) -> response_json
+--
+-- Implementation: queue+poll (NOT ffi.cast). nats.c's read thread pushes
+-- requests onto a C-side ring buffer; the polling loop in :start() drains
+-- the queue and invokes the Lua handler from the main thread. Safe.
 function RpcServer:register(method, handler)
-    -- Create a C callback that wraps the Lua function.
-    -- The returned string must be malloc'd (library frees it).
-    local cb = ffi.cast("rpc_handler_fn", function(req_json, _ud)
-        local ok, result = pcall(handler, ffi.string(req_json))
-        if not ok then
-            result = '{"error":"' .. tostring(result):gsub('"', '\\"') .. '"}'
-        end
-        -- Must return a malloc'd copy
-        local len = #result
-        local buf = ffi.C.malloc(len + 1)
-        ffi.copy(buf, result, len + 1)
-        return ffi.cast("char*", buf)
-    end)
-
-    -- Keep reference alive
-    local ref_id = tostring(cb)
-    _callback_refs[ref_id] = cb
-    self._callbacks[method] = ref_id
-
-    check(C.rpc_server_register(self._handle, method, cb, nil))
+    self._lua_handlers       = self._lua_handlers       or {}
+    self._lua_handlers[method] = handler
+    -- Defer the C-side queue registration until :start(), so we know which
+    -- prefix and instance_specific to use. (Matches existing behavior.)
 end
 
---- Start the server (blocks, subscribes to method subjects).
+--- Start the server. Subscribes via queue+poll for each registered method,
+--- then enters a polling loop that dispatches to Lua handlers. Blocks
+--- until :stop() (or until a Lua handler explicitly raises).
 -- @param prefix string  Subject prefix (e.g. "rpc")
 function RpcServer:start(prefix)
+    -- Register a queue per method
+    self._queues = {}    -- method → RpcServerQueue*
+    for method, _ in pairs(self._lua_handlers or {}) do
+        local h = ffi.new("RpcServerQueue*[1]")
+        check(C.rpc_server_register_queue(self._handle, method, 64, false, h))
+        self._queues[method] = h[0]
+    end
+
+    -- Start the server (subscribes the queues we just registered)
     check(C.rpc_server_start(self._handle, prefix))
+
+    -- Polling loop
+    self._running = true
+    while self._running do
+        local did_work = false
+        for method, q in pairs(self._queues) do
+            local req_p = ffi.new("RpcRequest*[1]")
+            local st = C.rpc_server_poll(q, req_p)
+            if st == C.RPC_OK then
+                did_work = true
+                local req = req_p[0]
+                local params = C.rpc_request_params_json(req)
+                local params_str = params ~= nil and ffi.string(params) or "{}"
+                local handler = self._lua_handlers[method]
+                local ok, result = pcall(handler, params_str)
+                if ok then
+                    -- result expected to be a JSON string; library re-parses it.
+                    C.rpc_request_reply(req, tostring(result))
+                else
+                    C.rpc_request_reply_error(req, -32603, tostring(result))
+                end
+            elseif st ~= C.RPC_ERR_NOT_FOUND then
+                -- Unexpected poll error; surface it
+                error("rpc poll failed: " .. ffi.string(C.rpc_status_str(st)), 2)
+            end
+        end
+        if not did_work then
+            os.execute("sleep 0.005")  -- 5ms idle
+        end
+    end
 end
 
---- Stop the server.
+--- Stop the server (signals the polling loop in :start() to exit).
 function RpcServer:stop()
+    self._running = false
     check(C.rpc_server_stop(self._handle))
 end
 

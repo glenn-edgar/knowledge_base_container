@@ -66,6 +66,86 @@ test("Client:call against unregistered method raises", function()
     cli:destroy()
 end)
 
+-- ------------------------------------------------------------------
+--  Server-side queue+poll
+-- ------------------------------------------------------------------
+
+local function sleep_ms(ms) os.execute(string.format("sleep %f", ms / 1000.0)) end
+
+test("Server end-to-end queue+poll round trip", function()
+    -- Single-threaded Lua can't both call() and poll() in one process,
+    -- so we spawn a tiny client subprocess via io.popen, then poll +
+    -- reply from the parent. The subprocess writes its reply to a file
+    -- we read at the end.
+    local srv = zrpc.Server.new({ locators = { LOCATOR } })
+    local method = zt.hash("luajit/rpc/echo")
+    local q = srv:register(method, 32)
+    srv:start()
+    sleep_ms(200)   -- queryable propagation
+
+    local REPLY_FILE = "/tmp/zenoh_rpc_lj_reply.out"
+    os.execute("rm -f " .. REPLY_FILE)
+
+    -- Write the client driver to a tmp file (avoids shell quoting hell).
+    local CLIENT_SCRIPT = "/tmp/zenoh_rpc_lj_client.lua"
+    local f = io.open(CLIENT_SCRIPT, "w")
+    f:write(string.format([[
+package.path = package.path .. ";./?.lua"
+local zrpc = require("lib.zenoh_rpc")
+local cli  = zrpc.Client.new({ locators = { %q } })
+cli:connect()
+local r = cli:call(%d, "hello-from-client", 5000)
+io.open(%q, "w"):write(r):close()
+cli:disconnect(); cli:destroy()
+]], LOCATOR, method, REPLY_FILE))
+    f:close()
+
+    -- Spawn it in the background, inheriting our LD_LIBRARY_PATH and cwd.
+    local ld_path = os.getenv("LD_LIBRARY_PATH") or ""
+    local ztop   = os.getenv("PWD") or "."
+    local cmd = string.format(
+        "(cd %s && LD_LIBRARY_PATH=%s luajit %s >/dev/null 2>&1) &",
+        ztop, ld_path, CLIENT_SCRIPT)
+    os.execute(cmd)
+
+    -- Poll server-side and reply
+    local replied = false
+    for _ = 1, 250 do
+        local req = q:poll()
+        if req then
+            expect_eq(req:token(), method, "token matches")
+            expect_eq(req:payload(), "hello-from-client", "payload matches")
+            req:reply("echo:" .. req:payload())
+            replied = true
+            break
+        end
+        sleep_ms(20)
+    end
+    expect(replied, "server received and replied")
+
+    -- Wait for client subprocess to write the reply file
+    local reply = nil
+    for _ = 1, 250 do
+        local rf = io.open(REPLY_FILE, "r")
+        if rf then reply = rf:read("*a"); rf:close(); break end
+        sleep_ms(20)
+    end
+    expect_eq(reply, "echo:hello-from-client", "client got echo reply")
+
+    srv:stop()
+    srv:destroy()
+end)
+
+test("Server: poll on empty queue returns nil", function()
+    local srv = zrpc.Server.new({ locators = { LOCATOR } })
+    local q = srv:register(zt.hash("luajit/rpc/empty"), 8)
+    srv:start()
+    sleep_ms(100)
+    expect_eq(q:poll(), nil, "empty queue → nil")
+    srv:stop()
+    srv:destroy()
+end)
+
 print()
 print(string.format("zenoh_rpc tests: %d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

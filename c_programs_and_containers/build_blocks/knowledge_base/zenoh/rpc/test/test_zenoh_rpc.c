@@ -15,6 +15,7 @@
 #include "zenoh_token.h"
 
 #include <getopt.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -148,6 +149,87 @@ static int run_e2e_test(const char *locator) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Queue-mode server E2E                                              */
+/* ------------------------------------------------------------------ */
+
+static void *queue_poll_thread(void *arg) {
+    /* Drain queue, echo-reply, repeat until told to stop. */
+    ZenohRpcServerQueue *q = (ZenohRpcServerQueue *)arg;
+    for (int i = 0; i < 200; ++i) {     /* ~10s worth of polling */
+        ZenohRpcRequest *req = NULL;
+        zrpc_status_t st = zenoh_rpc_server_poll(q, &req);
+        if (st == ZRPC_OK && req) {
+            const uint8_t *p = zenoh_rpc_request_payload(req);
+            size_t plen = zenoh_rpc_request_payload_len(req);
+            /* Echo with "queue:" prefix */
+            size_t out_len = 6 + plen;
+            uint8_t *out = malloc(out_len);
+            memcpy(out, "queue:", 6);
+            if (plen) memcpy(out + 6, p, plen);
+            zenoh_rpc_request_reply(req, out, out_len);
+            free(out);
+        }
+        usleep(50000);
+    }
+    return NULL;
+}
+
+static int run_queue_server_e2e_test(const char *locator) {
+    fprintf(stderr, "\n=== Queue-mode RPC server E2E against %s ===\n", locator);
+
+    const char *locs[] = { locator };
+    ZenohRpcConfig cfg;
+    zenoh_rpc_config_defaults(&cfg);
+    cfg.locators = locs;
+    cfg.n_locators = 1;
+
+    ZenohRpcServer *srv = NULL;
+    ZenohRpcClient *cli = NULL;
+    CHECK(zenoh_rpc_server_create(&srv, &cfg) == ZRPC_OK, "queue: server create");
+    CHECK(zenoh_rpc_client_create(&cli, &cfg) == ZRPC_OK, "queue: client create");
+
+    uint32_t method = zt_hash("e2e/queue_server/echo");
+    ZenohRpcServerQueue *q = NULL;
+    CHECK(zenoh_rpc_server_register_queue(srv, method, 16, &q) == ZRPC_OK,
+          "queue: register_queue");
+
+    CHECK(zenoh_rpc_server_start(srv) == ZRPC_OK, "queue: server start");
+    CHECK(zenoh_rpc_client_connect(cli) == ZRPC_OK, "queue: client connect");
+
+    pthread_t tid;
+    pthread_create(&tid, NULL, queue_poll_thread, q);
+
+    usleep(200000);   /* propagation */
+
+    /* Issue a few calls. */
+    for (int i = 0; i < 3; ++i) {
+        char req_buf[16];
+        snprintf(req_buf, sizeof(req_buf), "req-%d", i);
+        uint8_t *resp = NULL; size_t resp_len = 0;
+        zrpc_status_t st = zenoh_rpc_client_call(cli, method,
+            (const uint8_t *)req_buf, strlen(req_buf), 3000, &resp, &resp_len);
+        CHECK(st == ZRPC_OK, "queue: call returned OK");
+        char expected[32];
+        snprintf(expected, sizeof(expected), "queue:%s", req_buf);
+        CHECK(resp_len == strlen(expected), "queue: reply length matches");
+        if (resp_len == strlen(expected)) {
+            CHECK(memcmp(resp, expected, resp_len) == 0, "queue: reply content matches");
+        }
+        free(resp);
+    }
+
+    /* Stop polling thread and tear down. */
+    /* (poll thread exits after its loop count; just wait for it) */
+    pthread_join(tid, NULL);
+
+    zenoh_rpc_client_disconnect(cli);
+    zenoh_rpc_server_stop(srv);
+    zenoh_rpc_client_destroy(cli);
+    zenoh_rpc_server_destroy(srv);
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /*  main                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -179,6 +261,7 @@ int main(int argc, char **argv) {
                 locator = locbuf;
             }
             run_e2e_test(locator);
+            run_queue_server_e2e_test(locator);
         }
     }
 

@@ -123,6 +123,55 @@ rpc_status_t rpc_server_register(RpcServer    *srv,
                                  void         *user_data,
                                  bool          instance_specific);
 
+/* ------------------------------------------------------------------ */
+/*  Queue + poll server-side API — LuaJIT-safe.                       */
+/*                                                                     */
+/*  Equivalent to rpc_server_register, but instead of invoking a       */
+/*  user-supplied C handler from nats.c's read thread, incoming        */
+/*  requests are pushed onto an internal ring buffer.  The caller      */
+/*  drains them with rpc_server_poll() from any thread (typically the  */
+/*  main loop), processes them, and calls rpc_request_reply() to send  */
+/*  the response.                                                      */
+/*                                                                     */
+/*  The C library handles JSON-RPC envelope parsing on the way in and  */
+/*  envelope construction on the way out.  Callers see plain payload   */
+/*  strings (the contents of the "params" object on the request side,  */
+/*  the value of "result" on the reply side).                          */
+/* ------------------------------------------------------------------ */
+
+typedef struct RpcServerQueue RpcServerQueue;
+typedef struct RpcRequest     RpcRequest;
+
+rpc_status_t rpc_server_register_queue(RpcServer    *srv,
+                                       const char   *method,
+                                       size_t        queue_depth,
+                                       bool          instance_specific,
+                                       RpcServerQueue **out_q);
+
+/** Drain one request, non-blocking. Returns RPC_ERR_NOT_FOUND when empty. */
+rpc_status_t rpc_server_poll(RpcServerQueue *q, RpcRequest **out_req);
+
+size_t rpc_server_pending(RpcServerQueue *q);
+size_t rpc_server_dropped(RpcServerQueue *q);
+
+/* ----- Request accessors ----- */
+const char *rpc_request_method(const RpcRequest *req);
+const char *rpc_request_params_json(const RpcRequest *req);
+const char *rpc_request_id(const RpcRequest *req);
+
+/**
+ * Send a successful reply.  `result_json` is embedded verbatim as the
+ * "result" field of the JSON-RPC response if it parses as JSON, else
+ * as a string.  Frees the request.
+ */
+rpc_status_t rpc_request_reply(RpcRequest *req, const char *result_json);
+
+/** Send an error reply.  Code defaults to -32603 if 0.  Frees the request. */
+rpc_status_t rpc_request_reply_error(RpcRequest *req, int code, const char *message);
+
+/** Drop without replying.  Frees the request (and sends a generic error). */
+void rpc_request_drop(RpcRequest *req);
+
 /**
  * Start the server: connect, subscribe to all registered methods,
  * and begin handling requests.

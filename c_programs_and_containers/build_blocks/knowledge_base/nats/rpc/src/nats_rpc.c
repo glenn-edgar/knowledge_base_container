@@ -105,15 +105,42 @@
  /*  Handler registration entry                                         */
  /* ------------------------------------------------------------------ */
  
+ struct RpcServerQueue;
+ struct RpcRequest;
+
  typedef struct {
-     char            method[128];
-     rpc_handler_fn  handler;
-     void           *user_data;
-     bool            instance_specific;
-     int64_t         call_count;
-     int64_t         error_count;
-     natsSubscription *sub;         /* nats subscription handle */
+     char                method[128];
+     rpc_handler_fn      handler;
+     void               *user_data;
+     bool                instance_specific;
+     int64_t             call_count;
+     int64_t             error_count;
+     natsSubscription   *sub;          /* nats subscription handle */
+     bool                is_queue_mode;
+     struct RpcServerQueue *queue;     /* non-NULL when is_queue_mode */
  } HandlerEntry;
+
+ struct RpcRequest {
+     char           *method;           /* malloc'd */
+     char           *params_json;      /* malloc'd */
+     char           *id;               /* malloc'd or NULL */
+     char           *reply_subject;    /* malloc'd */
+     natsConnection *conn;             /* borrowed */
+     char           *instance_id;      /* pointer into server */
+     double          recv_ms;
+     int             replied;
+ };
+
+ struct RpcServerQueue {
+     HandlerEntry      *owner;
+     pthread_mutex_t    lock;
+     struct RpcRequest **ring;
+     size_t             depth;
+     size_t             mask;
+     size_t             head;
+     size_t             tail;
+     size_t             dropped;
+ };
  
  /* ================================================================== */
  /*  RPC Server                                                         */
@@ -328,7 +355,52 @@
          params_str = cJSON_PrintUnformatted(params);
      if (!params_str)
          params_str = strdup("{}");
- 
+
+     /* Queue-mode branch: enqueue + return; user drains via rpc_server_poll. */
+     if (entry->is_queue_mode && entry->queue) {
+         struct RpcServerQueue *q = entry->queue;
+         struct RpcRequest *rq = calloc(1, sizeof(*rq));
+         if (rq) {
+             rq->method        = strdup(entry->method);
+             rq->params_json   = params_str;            /* transfer ownership */
+             rq->id            = req_id ? strdup(req_id) : NULL;
+             rq->reply_subject = strdup(reply);
+             rq->conn          = nc;
+             rq->instance_id   = srv->instance_id;
+             rq->recv_ms       = monotonic_ms();
+
+             pthread_mutex_lock(&q->lock);
+             size_t used = q->head - q->tail;
+             if (used >= q->depth) {
+                 struct RpcRequest *old = q->ring[q->tail & q->mask];
+                 q->tail++;
+                 q->dropped++;
+                 pthread_mutex_unlock(&q->lock);
+                 if (old) {
+                     const char *errpub =
+                         "{\"id\":null,\"result\":null,"
+                         "\"error\":{\"code\":-32603,"
+                         "\"message\":\"queue overflow\"}}";
+                     natsConnection_Publish(old->conn, old->reply_subject,
+                                            errpub, (int)strlen(errpub));
+                     free(old->method); free(old->params_json);
+                     free(old->id);     free(old->reply_subject);
+                     free(old);
+                 }
+                 pthread_mutex_lock(&q->lock);
+             }
+             q->ring[q->head & q->mask] = rq;
+             q->head++;
+             pthread_mutex_unlock(&q->lock);
+         } else {
+             free(params_str);
+         }
+         cJSON_Delete(req);
+         natsMsg_Destroy(msg);
+         return;
+     }
+
+     /* Callback-mode branch (original behavior). */
      /* Call user handler */
      double t0 = monotonic_ms();
  
@@ -391,7 +463,197 @@
      free(result_str);
      natsMsg_Destroy(msg);
  }
- 
+
+ /* ------------------------------------------------------------------ */
+ /*  Queue + poll API                                                   */
+ /* ------------------------------------------------------------------ */
+
+ static size_t round_up_pow2(size_t v) {
+     if (v <= 1) return 1;
+     size_t p = 1;
+     while (p < v) p <<= 1;
+     return p;
+ }
+
+ rpc_status_t rpc_server_register_queue(RpcServer *srv,
+                                        const char *method,
+                                        size_t queue_depth,
+                                        bool instance_specific,
+                                        RpcServerQueue **out_q)
+ {
+     if (!srv || !method || !out_q) return RPC_ERR_INVALID_ARG;
+     if (srv->handler_count >= RPC_MAX_HANDLERS) return RPC_ERR_HANDLER;
+
+     size_t depth = round_up_pow2(queue_depth == 0 ? 32 : queue_depth);
+
+     RpcServerQueue *q = calloc(1, sizeof(*q));
+     if (!q) return RPC_ERR_MEMORY;
+     q->ring = calloc(depth, sizeof(struct RpcRequest *));
+     if (!q->ring) { free(q); return RPC_ERR_MEMORY; }
+     q->depth = depth;
+     q->mask  = depth - 1;
+     pthread_mutex_init(&q->lock, NULL);
+
+     HandlerEntry *e = &srv->handlers[srv->handler_count++];
+     memset(e, 0, sizeof(*e));
+     snprintf(e->method, sizeof(e->method), "%s", method);
+     e->instance_specific = instance_specific;
+     e->is_queue_mode = true;
+     e->queue = q;
+     q->owner = e;
+
+     /* If server already running, subscribe immediately. */
+     if (srv->running) {
+         char subject[512];
+         build_subject(subject, sizeof(subject), srv->namespace_, srv->prefix,
+                       method,
+                       e->instance_specific ? srv->instance_id : NULL);
+         SubClosure *sc = calloc(1, sizeof(*sc));
+         if (sc) {
+             sc->srv = srv;
+             sc->entry = e;
+             natsConnection_Subscribe(&e->sub, srv->conn, subject,
+                                      server_msg_handler, sc);
+         }
+     }
+
+     *out_q = q;
+     return RPC_OK;
+ }
+
+ rpc_status_t rpc_server_poll(RpcServerQueue *q, RpcRequest **out_req) {
+     if (!q || !out_req) return RPC_ERR_INVALID_ARG;
+     pthread_mutex_lock(&q->lock);
+     if (q->head == q->tail) {
+         pthread_mutex_unlock(&q->lock);
+         *out_req = NULL;
+         return RPC_ERR_NOT_FOUND;
+     }
+     RpcRequest *r = q->ring[q->tail & q->mask];
+     q->ring[q->tail & q->mask] = NULL;
+     q->tail++;
+     pthread_mutex_unlock(&q->lock);
+     *out_req = r;
+     return RPC_OK;
+ }
+
+ size_t rpc_server_pending(RpcServerQueue *q) {
+     if (!q) return 0;
+     pthread_mutex_lock(&q->lock);
+     size_t n = q->head - q->tail;
+     pthread_mutex_unlock(&q->lock);
+     return n;
+ }
+
+ size_t rpc_server_dropped(RpcServerQueue *q) {
+     if (!q) return 0;
+     pthread_mutex_lock(&q->lock);
+     size_t n = q->dropped;
+     pthread_mutex_unlock(&q->lock);
+     return n;
+ }
+
+ const char *rpc_request_method(const RpcRequest *req) {
+     return req ? req->method : NULL;
+ }
+ const char *rpc_request_params_json(const RpcRequest *req) {
+     return req ? req->params_json : NULL;
+ }
+ const char *rpc_request_id(const RpcRequest *req) {
+     return req ? req->id : NULL;
+ }
+
+ static void rpc_request_free(RpcRequest *req) {
+     if (!req) return;
+     free(req->method);
+     free(req->params_json);
+     free(req->id);
+     free(req->reply_subject);
+     free(req);
+ }
+
+ rpc_status_t rpc_request_reply(RpcRequest *req, const char *result_json) {
+     if (!req) return RPC_ERR_INVALID_ARG;
+     if (req->replied) return RPC_ERR_INVALID_ARG;
+
+     double elapsed_ms = monotonic_ms() - req->recv_ms;
+
+     cJSON *resp = cJSON_CreateObject();
+     if (req->id) cJSON_AddStringToObject(resp, "id", req->id);
+     else         cJSON_AddNullToObject(resp, "id");
+
+     cJSON *robj = result_json ? cJSON_Parse(result_json) : NULL;
+     if (robj)          cJSON_AddItemToObject(resp, "result", robj);
+     else if (result_json) cJSON_AddStringToObject(resp, "result", result_json);
+     else               cJSON_AddNullToObject(resp, "result");
+
+     cJSON_AddNullToObject(resp, "error");
+     cJSON_AddStringToObject(resp, "instance_id", req->instance_id);
+     cJSON_AddNumberToObject(resp, "processing_time_ms", elapsed_ms);
+     char ts[32]; iso_now(ts, sizeof(ts));
+     cJSON_AddStringToObject(resp, "timestamp", ts);
+
+     char *resp_str = cJSON_PrintUnformatted(resp);
+     rpc_status_t st = RPC_OK;
+     if (resp_str) {
+         natsConnection_Publish(req->conn, req->reply_subject,
+                                resp_str, (int)strlen(resp_str));
+         free(resp_str);
+     } else {
+         st = RPC_ERR_MEMORY;
+     }
+     cJSON_Delete(resp);
+     req->replied = 1;
+     rpc_request_free(req);
+     return st;
+ }
+
+ rpc_status_t rpc_request_reply_error(RpcRequest *req, int code, const char *message) {
+     if (!req) return RPC_ERR_INVALID_ARG;
+     if (req->replied) return RPC_ERR_INVALID_ARG;
+     if (code == 0) code = -32603;
+     const char *m = message ? message : "Handler error";
+     double elapsed_ms = monotonic_ms() - req->recv_ms;
+
+     cJSON *resp = cJSON_CreateObject();
+     if (req->id) cJSON_AddStringToObject(resp, "id", req->id);
+     else         cJSON_AddNullToObject(resp, "id");
+     cJSON_AddNullToObject(resp, "result");
+
+     cJSON *err = cJSON_CreateObject();
+     cJSON_AddNumberToObject(err, "code", code);
+     cJSON_AddStringToObject(err, "message", m);
+     cJSON_AddItemToObject(resp, "error", err);
+
+     cJSON_AddStringToObject(resp, "instance_id", req->instance_id);
+     cJSON_AddNumberToObject(resp, "processing_time_ms", elapsed_ms);
+     char ts[32]; iso_now(ts, sizeof(ts));
+     cJSON_AddStringToObject(resp, "timestamp", ts);
+
+     char *resp_str = cJSON_PrintUnformatted(resp);
+     rpc_status_t st = RPC_OK;
+     if (resp_str) {
+         natsConnection_Publish(req->conn, req->reply_subject,
+                                resp_str, (int)strlen(resp_str));
+         free(resp_str);
+     } else {
+         st = RPC_ERR_MEMORY;
+     }
+     cJSON_Delete(resp);
+     req->replied = 1;
+     rpc_request_free(req);
+     return st;
+ }
+
+ void rpc_request_drop(RpcRequest *req) {
+     if (!req) return;
+     if (!req->replied) {
+         rpc_request_reply_error(req, -32603, "dropped");
+         return;   /* rpc_request_reply_error frees */
+     }
+     rpc_request_free(req);
+ }
+
  /* ---- Start / Stop / Wait ---- */
  
  /* ---- Start / Stop / Wait ---- */

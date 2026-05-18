@@ -74,12 +74,19 @@ static z_result_t open_session_from_cfg(z_owned_session_t *s, const ZenohRpcConf
 /*  Server                                                             */
 /* ------------------------------------------------------------------ */
 
+typedef enum { HENTRY_CALLBACK = 0, HENTRY_QUEUE = 1 } hentry_kind_t;
+
 typedef struct handler_entry {
+    hentry_kind_t             kind;        /* CALLBACK or QUEUE */
     uint32_t                  token;
+    /* Callback-mode fields */
     zenoh_rpc_handler_t       fn;
     void                     *ctx;
+    /* Common: queryable handle */
     z_owned_queryable_t       z_qable;
     int                       declared;
+    /* Queue-mode pointer (NULL if callback mode) */
+    struct ZenohRpcServerQueue *queue;
     struct handler_entry     *next;
 } handler_entry_t;
 
@@ -91,39 +98,126 @@ struct ZenohRpcServer {
     handler_entry_t  *handlers;
 };
 
-/* zenoh-pico query closure adapter — invoked on the read thread. */
+struct ZenohRpcRequest {
+    uint32_t        token;
+    uint8_t        *payload;       /* owned malloc'd copy */
+    size_t          payload_len;
+    z_owned_query_t z_query;       /* kept alive past the callback */
+    int             replied;       /* 1 = reply/drop already happened */
+};
+
+struct ZenohRpcServerQueue {
+    uint32_t              token;
+    handler_entry_t      *owner_entry;     /* back-pointer */
+    pthread_mutex_t       lock;
+    ZenohRpcRequest     **ring;            /* depth pointers */
+    size_t                depth;           /* power of two */
+    size_t                mask;
+    size_t                head;
+    size_t                tail;
+    size_t                dropped;
+};
+
+/* Extract request payload bytes into a freshly malloc'd buffer.
+ * Returns 0 on success; *out_data may be NULL with *out_len == 0 for empty body. */
+static int copy_query_payload(z_loaned_query_t *query, uint8_t **out_data, size_t *out_len) {
+    const z_loaned_bytes_t *zreq = z_query_payload(query);
+    z_owned_slice_t slice;
+    if (z_bytes_to_slice(zreq, &slice) < 0) {
+        *out_data = NULL; *out_len = 0;
+        return -1;
+    }
+    size_t n = z_slice_len(z_loan(slice));
+    if (n == 0) {
+        z_drop(z_move(slice));
+        *out_data = NULL; *out_len = 0;
+        return 0;
+    }
+    uint8_t *buf = malloc(n);
+    if (!buf) {
+        z_drop(z_move(slice));
+        *out_data = NULL; *out_len = 0;
+        return -1;
+    }
+    memcpy(buf, z_slice_data(z_loan(slice)), n);
+    z_drop(z_move(slice));
+    *out_data = buf;
+    *out_len  = n;
+    return 0;
+}
+
+/* zenoh-pico query closure adapter — invoked on the read thread.
+ * Branches on handler_entry's kind. */
 static void server_query_cb(z_loaned_query_t *query, void *ctx) {
     handler_entry_t *h = (handler_entry_t *)ctx;
-    if (!h || !h->fn) return;
+    if (!h) return;
 
-    /* Extract request payload (may be empty). */
-    const z_loaned_bytes_t *zreq = z_query_payload(query);
-    z_owned_slice_t reqslice;
-    z_bytes_to_slice(zreq, &reqslice);
-    const uint8_t *req_data = z_slice_data(z_loan(reqslice));
-    size_t         req_len  = z_slice_len(z_loan(reqslice));
+    if (h->kind == HENTRY_CALLBACK) {
+        if (!h->fn) return;
+        uint8_t *req_data = NULL;
+        size_t   req_len  = 0;
+        copy_query_payload(query, &req_data, &req_len);
 
-    /* Invoke user handler. */
-    uint8_t      *resp     = NULL;
-    size_t        resp_len = 0;
-    zrpc_status_t st       = h->fn(h->token, req_data, req_len, &resp, &resp_len, h->ctx);
+        uint8_t      *resp     = NULL;
+        size_t        resp_len = 0;
+        zrpc_status_t st       = h->fn(h->token, req_data, req_len, &resp, &resp_len, h->ctx);
+        free(req_data);
 
-    z_drop(z_move(reqslice));
-
-    if (st == ZRPC_OK) {
-        /* Send reply (even if zero-length). */
-        z_owned_bytes_t reply_body;
-        z_bytes_copy_from_buf(&reply_body, resp ? resp : (const uint8_t *)"", resp_len);
-        z_query_reply(query, z_query_keyexpr(query), z_move(reply_body), NULL);
-        free(resp);
-    } else {
-        /* Send reply_err with status string as payload. */
-        const char *errmsg = zrpc_status_str(st);
-        z_owned_bytes_t err_body;
-        z_bytes_copy_from_buf(&err_body, (const uint8_t *)errmsg, strlen(errmsg));
-        z_query_reply_err(query, z_move(err_body), NULL);
-        free(resp);
+        if (st == ZRPC_OK) {
+            z_owned_bytes_t reply_body;
+            z_bytes_copy_from_buf(&reply_body, resp ? resp : (const uint8_t *)"", resp_len);
+            z_query_reply(query, z_query_keyexpr(query), z_move(reply_body), NULL);
+            free(resp);
+        } else {
+            const char *errmsg = zrpc_status_str(st);
+            z_owned_bytes_t err_body;
+            z_bytes_copy_from_buf(&err_body, (const uint8_t *)errmsg, strlen(errmsg));
+            z_query_reply_err(query, z_move(err_body), NULL);
+            free(resp);
+        }
+        return;
     }
+
+    /* Queue mode: take the loaned query into an owned ref, copy payload,
+     * push onto the ring buffer. Reply happens later from the polling
+     * thread via zenoh_rpc_request_reply(). */
+    ZenohRpcServerQueue *q = h->queue;
+    if (!q) return;
+
+    ZenohRpcRequest *req = calloc(1, sizeof(*req));
+    if (!req) return;
+    req->token = h->token;
+    if (copy_query_payload(query, &req->payload, &req->payload_len) < 0) {
+        free(req);
+        return;
+    }
+    /* Take owns the query so we can reply asynchronously. */
+    if (z_query_take_from_loaned(&req->z_query, query) < 0) {
+        free(req->payload);
+        free(req);
+        return;
+    }
+
+    pthread_mutex_lock(&q->lock);
+    size_t used = q->head - q->tail;
+    if (used >= q->depth) {
+        /* Overflow: drop oldest (must reply-err so client doesn't hang). */
+        ZenohRpcRequest *old = q->ring[q->tail & q->mask];
+        q->tail++;
+        q->dropped++;
+        pthread_mutex_unlock(&q->lock);
+        const char *m = "queue overflow";
+        z_owned_bytes_t err_body;
+        z_bytes_copy_from_buf(&err_body, (const uint8_t *)m, strlen(m));
+        z_query_reply_err(z_loan_mut(old->z_query), z_move(err_body), NULL);
+        z_drop(z_move(old->z_query));
+        free(old->payload);
+        free(old);
+        pthread_mutex_lock(&q->lock);
+    }
+    q->ring[q->head & q->mask] = req;
+    q->head++;
+    pthread_mutex_unlock(&q->lock);
 }
 
 zrpc_status_t zenoh_rpc_server_create(ZenohRpcServer **out, const ZenohRpcConfig *cfg) {
@@ -144,6 +238,25 @@ void zenoh_rpc_server_destroy(ZenohRpcServer *srv) {
     handler_entry_t *h = srv->handlers;
     while (h) {
         handler_entry_t *next = h->next;
+        if (h->kind == HENTRY_QUEUE && h->queue) {
+            /* Drain any unprocessed requests (reply-err each one). */
+            ZenohRpcServerQueue *q = h->queue;
+            pthread_mutex_lock(&q->lock);
+            while (q->tail != q->head) {
+                ZenohRpcRequest *r = q->ring[q->tail & q->mask];
+                q->ring[q->tail & q->mask] = NULL;
+                q->tail++;
+                if (r) {
+                    pthread_mutex_unlock(&q->lock);
+                    zenoh_rpc_request_drop(r);
+                    pthread_mutex_lock(&q->lock);
+                }
+            }
+            pthread_mutex_unlock(&q->lock);
+            pthread_mutex_destroy(&q->lock);
+            free(q->ring);
+            free(q);
+        }
         free(h);
         h = next;
     }
@@ -160,6 +273,7 @@ zrpc_status_t zenoh_rpc_server_register(ZenohRpcServer *srv,
 
     handler_entry_t *h = calloc(1, sizeof(*h));
     if (!h) return ZRPC_ERR_MEMORY;
+    h->kind  = HENTRY_CALLBACK;
     h->token = token;
     h->fn    = handler;
     h->ctx   = ctx;
@@ -229,6 +343,165 @@ zrpc_status_t zenoh_rpc_server_stop(ZenohRpcServer *srv) {
     pthread_mutex_unlock(&srv->lock);
     if (was_running) z_drop(z_move(srv->session));
     return ZRPC_OK;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Queue + poll server-side API (LuaJIT-safe)                         */
+/* ------------------------------------------------------------------ */
+
+static size_t round_up_pow2(size_t v) {
+    if (v <= 1) return 1;
+    size_t p = 1;
+    while (p < v) p <<= 1;
+    return p;
+}
+
+zrpc_status_t zenoh_rpc_server_register_queue(ZenohRpcServer *srv,
+                                              uint32_t token,
+                                              size_t queue_depth,
+                                              ZenohRpcServerQueue **out_q) {
+    if (!srv || !out_q) return ZRPC_ERR_INVALID_ARG;
+
+    size_t depth = round_up_pow2(queue_depth == 0 ? 32 : queue_depth);
+
+    handler_entry_t *h = calloc(1, sizeof(*h));
+    if (!h) return ZRPC_ERR_MEMORY;
+
+    ZenohRpcServerQueue *q = calloc(1, sizeof(*q));
+    if (!q) { free(h); return ZRPC_ERR_MEMORY; }
+    q->ring = calloc(depth, sizeof(ZenohRpcRequest *));
+    if (!q->ring) { free(q); free(h); return ZRPC_ERR_MEMORY; }
+    q->depth       = depth;
+    q->mask        = depth - 1;
+    q->token       = token;
+    q->owner_entry = h;
+    pthread_mutex_init(&q->lock, NULL);
+
+    h->kind  = HENTRY_QUEUE;
+    h->token = token;
+    h->queue = q;
+
+    pthread_mutex_lock(&srv->lock);
+    h->next = srv->handlers;
+    srv->handlers = h;
+
+    if (srv->running) {
+        char keystr[32];
+        token_to_keyexpr(token, keystr, sizeof(keystr));
+        z_view_keyexpr_t ke;
+        if (z_view_keyexpr_from_str(&ke, keystr) >= 0) {
+            z_owned_closure_query_t closure;
+            z_closure(&closure, server_query_cb, NULL, h);
+            if (z_declare_queryable(z_loan(srv->session), &h->z_qable,
+                                    z_loan(ke), z_move(closure), NULL) >= 0) {
+                h->declared = 1;
+            }
+        }
+    }
+    pthread_mutex_unlock(&srv->lock);
+
+    *out_q = q;
+    return ZRPC_OK;
+}
+
+zrpc_status_t zenoh_rpc_server_poll(ZenohRpcServerQueue *q,
+                                    ZenohRpcRequest **out_req) {
+    if (!q || !out_req) return ZRPC_ERR_INVALID_ARG;
+    pthread_mutex_lock(&q->lock);
+    if (q->head == q->tail) {
+        pthread_mutex_unlock(&q->lock);
+        *out_req = NULL;
+        return ZRPC_ERR_NO_REPLY;     /* reused for "queue empty" */
+    }
+    ZenohRpcRequest *r = q->ring[q->tail & q->mask];
+    q->ring[q->tail & q->mask] = NULL;
+    q->tail++;
+    pthread_mutex_unlock(&q->lock);
+    *out_req = r;
+    return ZRPC_OK;
+}
+
+size_t zenoh_rpc_server_pending(ZenohRpcServerQueue *q) {
+    if (!q) return 0;
+    pthread_mutex_lock(&q->lock);
+    size_t n = q->head - q->tail;
+    pthread_mutex_unlock(&q->lock);
+    return n;
+}
+
+size_t zenoh_rpc_server_dropped(ZenohRpcServerQueue *q) {
+    if (!q) return 0;
+    pthread_mutex_lock(&q->lock);
+    size_t n = q->dropped;
+    pthread_mutex_unlock(&q->lock);
+    return n;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Request accessors                                                  */
+/* ------------------------------------------------------------------ */
+
+uint32_t zenoh_rpc_request_token(const ZenohRpcRequest *req) {
+    return req ? req->token : 0;
+}
+
+const uint8_t *zenoh_rpc_request_payload(const ZenohRpcRequest *req) {
+    return req ? req->payload : NULL;
+}
+
+size_t zenoh_rpc_request_payload_len(const ZenohRpcRequest *req) {
+    return req ? req->payload_len : 0;
+}
+
+zrpc_status_t zenoh_rpc_request_reply(ZenohRpcRequest *req,
+                                      const uint8_t *payload,
+                                      size_t len) {
+    if (!req) return ZRPC_ERR_INVALID_ARG;
+    if (req->replied) return ZRPC_ERR_INVALID_ARG;
+    z_owned_bytes_t body;
+    if (z_bytes_copy_from_buf(&body, payload ? payload : (const uint8_t *)"", len) < 0) {
+        return ZRPC_ERR_MEMORY;
+    }
+    int rc = z_query_reply(z_loan(req->z_query),
+                           z_query_keyexpr(z_loan(req->z_query)),
+                           z_move(body), NULL);
+    req->replied = 1;
+    z_drop(z_move(req->z_query));
+    free(req->payload);
+    free(req);
+    return rc < 0 ? ZRPC_ERR_ZENOH : ZRPC_OK;
+}
+
+zrpc_status_t zenoh_rpc_request_reply_error(ZenohRpcRequest *req,
+                                            const char *errmsg) {
+    if (!req) return ZRPC_ERR_INVALID_ARG;
+    if (req->replied) return ZRPC_ERR_INVALID_ARG;
+    const char *m = errmsg ? errmsg : "error";
+    z_owned_bytes_t body;
+    if (z_bytes_copy_from_buf(&body, (const uint8_t *)m, strlen(m)) < 0) {
+        return ZRPC_ERR_MEMORY;
+    }
+    int rc = z_query_reply_err(z_loan(req->z_query), z_move(body), NULL);
+    req->replied = 1;
+    z_drop(z_move(req->z_query));
+    free(req->payload);
+    free(req);
+    return rc < 0 ? ZRPC_ERR_ZENOH : ZRPC_OK;
+}
+
+void zenoh_rpc_request_drop(ZenohRpcRequest *req) {
+    if (!req) return;
+    if (!req->replied) {
+        /* Best effort: reply_err so client doesn't hang on timeout. */
+        z_owned_bytes_t body;
+        const char *m = "dropped";
+        if (z_bytes_copy_from_buf(&body, (const uint8_t *)m, strlen(m)) == 0) {
+            z_query_reply_err(z_loan(req->z_query), z_move(body), NULL);
+        }
+    }
+    z_drop(z_move(req->z_query));
+    free(req->payload);
+    free(req);
 }
 
 /* ------------------------------------------------------------------ */
