@@ -100,8 +100,6 @@ docker rm -f zenoh-test
 
 ## What's NOT in this session
 
-- **Serial SLIP transport e2e tests.** API surface accepts `--transport=serial`
-  but the PTY-loopback fixture wasn't built. Skipped with a `[SKIP]` message.
 - **Unix domain socket transport tests.** Same story — zenoh-pico supports it,
   Makefile/test driver don't exercise it yet.
 - **MCU port.** The C source files compile against zenoh-pico, but the
@@ -110,15 +108,55 @@ docker rm -f zenoh-test
 - **Install target.** `make install` is wired in each Makefile but untested
   (would need sudo and probably an actual PREFIX strategy).
 
+## Serial transport — investigated 2026-05-17, found platform limitation
+
+Attempted full PTY-loopback e2e test for `--transport=serial`. Required
+rebuilding zenoh-pico with `Z_FEATURE_LINK_SERIAL=1` (default is OFF on Linux).
+Added `listen_locators` field to `ZenohPubSubConfig` to support peer-mode
+testing.
+
+**Finding:** zenoh-pico's Linux POSIX serial transport supports CONNECT but
+NOT LISTEN. Look at `src/link/link.c` — `_z_open_link` has a `Z_FEATURE_LINK_SERIAL`
+branch (line 68); `_z_listen_link` does not. Bare-bones zenoh-pico-only
+peer-to-peer over a PTY bridge was empirically verified to fail handshake
+(-102 TRANSPORT_OPEN_FAILED) within 8 seconds.
+
+This matches zenoh-pico's documented deployment model: zenoh-pico is the
+**client** of a serial link; zenohd (the Rust router) is the **listener**.
+The README example is `zenohd -l serial//dev/ttyACM1#baudrate=112500`.
+
+Real serial e2e testing needs ONE of:
+1. zenohd running on the host (not in container) with a serial listener.
+   Extracting zenohd from `eclipse/zenoh:latest` doesn't work — it's an Alpine
+   musl-aarch64 binary, won't run on a glibc x86_64/aarch64 host.
+2. zenohd in Docker with `/dev/pts` bind-mounted and `--privileged` — fiddly,
+   security-suspect.
+3. Actual Pico 2 W hardware connected over USB, running zenoh-pico, talking
+   to a zenohd container on the same host with serial listen configured for
+   the CDC device path.
+
+Option 3 is the right test for the real deployment. Deferred to Pico 2 W
+port session.
+
+**API extension kept (useful regardless):** `ZenohPubSubConfig` now exposes
+`listen_locators` / `n_listen` fields. Sessions can listen on locators in
+peer mode (useful for UDP/TCP peer scenarios even though serial-listen isn't
+supported by zenoh-pico on Linux).
+
+**Build flag added:** Makefiles assume zenoh-pico was built with
+`-DZ_FEATURE_LINK_SERIAL=1` (so the serial config schema is registered
+in the library, even though full e2e isn't testable from zenoh-pico alone).
+
 ## Next session candidates
 
-1. **Serial SLIP test fixture** — PTY loopback (`openpty(3)`) to wire two
-   sessions back-to-back through serial transport. ~half a day.
-2. **MCU port to Pico 2 W** — separate target tree, pico-sdk CMake build,
+1. **MCU port to Pico 2 W** — separate target tree, pico-sdk CMake build,
    FreeRTOS task/mutex/cond instead of pthread. Probably reuse the source
-   files mostly unchanged. Substantial.
-3. **Robot controller scaffolding** — the downstream application that uses
+   files mostly unchanged. Real serial e2e tests can live here (USB CDC to
+   a zenohd container on the host with serial listener). Substantial.
+2. **Robot controller scaffolding** — the downstream application that uses
    these drivers. Lives elsewhere in the repo; not part of this build_block.
+3. **Unix domain socket e2e test** — short, useful for in-container
+   loopback testing (planner ↔ bundled zenohd via `unix:///var/run/zenoh.sock`).
 
 ## Related memory
 

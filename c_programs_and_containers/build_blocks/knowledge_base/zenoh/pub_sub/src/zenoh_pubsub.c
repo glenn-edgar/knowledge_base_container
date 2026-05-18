@@ -42,11 +42,13 @@ const char *zps_status_str(zps_status_t st) {
 
 void zenoh_pubsub_config_defaults(ZenohPubSubConfig *cfg) {
     if (!cfg) return;
-    cfg->locators     = NULL;
-    cfg->n_locators   = 0;
-    cfg->mode         = "client";
-    cfg->enable_scout = false;
-    cfg->client_name  = NULL;
+    cfg->locators        = NULL;
+    cfg->n_locators      = 0;
+    cfg->listen_locators = NULL;
+    cfg->n_listen        = 0;
+    cfg->mode            = "client";
+    cfg->enable_scout    = false;
+    cfg->client_name     = NULL;
 }
 
 /* ------------------------------------------------------------------ */
@@ -107,7 +109,10 @@ static void sample_dropper(void *ctx) {
 
 zps_status_t zenoh_pubsub_create(ZenohPubSub **out, const ZenohPubSubConfig *cfg) {
     if (!out || !cfg) return ZPS_ERR_INVALID_ARG;
-    if (cfg->n_locators == 0 || cfg->locators == NULL) return ZPS_ERR_INVALID_ARG;
+    /* Require at least one connect OR listen locator. */
+    int has_connect = (cfg->n_locators > 0 && cfg->locators != NULL);
+    int has_listen  = (cfg->n_listen   > 0 && cfg->listen_locators != NULL);
+    if (!has_connect && !has_listen) return ZPS_ERR_INVALID_ARG;
 
     ZenohPubSub *ps = calloc(1, sizeof(*ps));
     if (!ps) return ZPS_ERR_MEMORY;
@@ -132,6 +137,9 @@ zps_status_t zenoh_pubsub_connect(ZenohPubSub *ps) {
     zp_config_insert(z_loan_mut(cfg), Z_CONFIG_MODE_KEY, ps->cfg_copy.mode);
     for (size_t i = 0; i < ps->cfg_copy.n_locators; ++i) {
         zp_config_insert(z_loan_mut(cfg), Z_CONFIG_CONNECT_KEY, ps->cfg_copy.locators[i]);
+    }
+    for (size_t i = 0; i < ps->cfg_copy.n_listen; ++i) {
+        zp_config_insert(z_loan_mut(cfg), Z_CONFIG_LISTEN_KEY, ps->cfg_copy.listen_locators[i]);
     }
     /* Scouting: zenoh-pico defaults to no multicast scouting on TCP/UDP unicast,
      * so leaving enable_scout as false requires no extra config. */

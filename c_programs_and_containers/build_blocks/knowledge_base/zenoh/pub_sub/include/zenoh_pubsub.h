@@ -66,6 +66,15 @@ const char *zps_status_str(zps_status_t st);
 typedef struct {
     const char *const *locators;     /**< Connect locators, e.g. {"udp/host:7447"} */
     size_t             n_locators;   /**< Number of entries in locators            */
+
+    /**
+     * Listen locators (optional). Mainly used for peer-mode topologies,
+     * notably serial (point-to-point) where one side must listen on its
+     * local TTY for the other side to connect.
+     */
+    const char *const *listen_locators;
+    size_t             n_listen;
+
     const char        *mode;         /**< "client" (default) or "peer"             */
     bool               enable_scout; /**< Default false (fixed-set commissioning) */
     const char        *client_name;  /**< Optional, used in zenoh logs              */

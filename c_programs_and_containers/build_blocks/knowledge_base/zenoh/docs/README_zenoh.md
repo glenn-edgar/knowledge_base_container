@@ -57,6 +57,13 @@ docker pull eclipse/zenoh:latest
 The Makefiles spin up a test instance on port 17447 (to avoid clashing with any
 production zenohd on 7447).
 
+**Serial transport caveat:** zenoh-pico's Linux POSIX serial transport supports
+CONNECT but not LISTEN. End-to-end serial testing therefore needs zenohd as the
+listener (e.g. `zenohd -l serial//dev/ttyACM0#baudrate=115200`) or actual Pico 2 W
+hardware over USB CDC. The library compiles + links serial-capable; pure
+zenoh-pico ↔ zenoh-pico over a software PTY bridge will fail handshake.
+See `continue.md` for the full investigation.
+
 ## Build & Test
 
 Each module builds independently:
