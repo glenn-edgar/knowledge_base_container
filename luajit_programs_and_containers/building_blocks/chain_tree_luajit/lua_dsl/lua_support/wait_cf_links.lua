@@ -1,6 +1,29 @@
 local ColumnFlow = require("lua_support.column_flow")
 local bit = require("bit")
 
+-- Time-of-day window fields. Each must appear in both start and end, or in
+-- neither (the paired-or-absent rule) — see the CFL_WAIT_UNTIL_*_TIME_WINDOW
+-- builtins for window semantics.
+local TW_WINDOW_FIELDS = { "hour", "minute", "sec", "dow", "dom" }
+
+-- Validate the paired-or-absent rule and return the leaf node data.
+-- `end` is stored under a bracket key — it is a Lua keyword.
+local function tw_window_data(method, start, win_end)
+    if type(start) ~= "table" or type(win_end) ~= "table" then
+        error(method .. ": start and end must both be tables")
+    end
+    local sd, ed = {}, {}
+    for _, f in ipairs(TW_WINDOW_FIELDS) do
+        local s, e = start[f], win_end[f]
+        if (s == nil) ~= (e == nil) then
+            error(method .. ": window field '" .. f .. "' must be present "
+                .. "in both start and end, or neither")
+        end
+        sd[f], ed[f] = s, e
+    end
+    return { start = sd, ["end"] = ed }
+end
+
 local WaitCfLinks = setmetatable({}, { __index = ColumnFlow })
 WaitCfLinks.__index = WaitCfLinks
 
@@ -70,6 +93,34 @@ function WaitCfLinks:asm_wait_time(time_delay)
         "CFL_NULL",
         "CFL_NULL",
         element_data
+    )
+end
+
+-- HALT while the wall clock is OUTSIDE the configured time-of-day window;
+-- DISABLE on entry. `start` / `win_end` are field tables over
+-- {hour, minute, sec, dow, dom} (dow 0=Mon..6=Sun). Each field is present in
+-- both or neither; both absent => unconstrained. See the
+-- CFL_WAIT_UNTIL_IN_TIME_WINDOW builtin for full window semantics.
+function WaitCfLinks:asm_wait_until_in_time_window(start, win_end)
+    return self:define_column_link(
+        "CFL_WAIT_UNTIL_IN_TIME_WINDOW",
+        "CFL_NULL",
+        "CFL_NULL",
+        "CFL_NULL",
+        tw_window_data("asm_wait_until_in_time_window", start, win_end)
+    )
+end
+
+-- HALT while the wall clock is INSIDE the configured time-of-day window;
+-- DISABLE on exit. Idiomatic use: place after a one-shot action so the action
+-- fires once per window crossing. To re-arm, RESET the parent.
+function WaitCfLinks:asm_wait_until_out_of_time_window(start, win_end)
+    return self:define_column_link(
+        "CFL_WAIT_UNTIL_OUT_OF_TIME_WINDOW",
+        "CFL_NULL",
+        "CFL_NULL",
+        "CFL_NULL",
+        tw_window_data("asm_wait_until_out_of_time_window", start, win_end)
     )
 end
 
