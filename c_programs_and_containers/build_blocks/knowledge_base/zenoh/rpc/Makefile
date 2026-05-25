@@ -36,9 +36,16 @@ STATIC_LIB := $(BUILD_DIR)/libzenoh_rpc.a
 SHARED_LIB := $(BUILD_DIR)/libzenoh_rpc.so
 TEST_BIN   := $(BUILD_DIR)/test_zenoh_rpc
 
+STRESS_SRC := $(TEST_DIR)/stress_rpc.c
+STRESS_OBJ_ASAN := $(OBJ_DIR)/stress_rpc.asan.o
+LIB_OBJ_ASAN   := $(OBJ_DIR)/zenoh_rpc.asan.o
+STRESS_BIN_ASAN := $(BUILD_DIR)/stress_rpc.asan
+
+ASAN_CFLAGS := -fsanitize=address -fno-omit-frame-pointer -g -O1
+
 TOKEN_LIB := ../token/build/libzenoh_token.a
 
-.PHONY: all libs test clean install dirs run-test
+.PHONY: all libs test stress-asan clean install dirs run-test run-stress-asan
 
 all: libs test
 
@@ -73,6 +80,32 @@ run-test: $(TEST_BIN)
 	@echo "Running zenoh_rpc tests..."
 	@echo
 	LD_LIBRARY_PATH=$(BUILD_DIR):../token/build:$(ZENOH_PICO_LIB) $(TEST_BIN) $(TEST_ARGS)
+
+# ---------------------------------------------------------------------------
+# ASan stress test — links the rpc source with -fsanitize=address. zenoh-pico
+# itself stays unmodified (host of well-tested code; ASan would mostly be
+# noise there). Token lib is small, link against its non-ASan build.
+# ---------------------------------------------------------------------------
+
+$(LIB_OBJ_ASAN): $(LIB_SRC) $(INC_DIR)/zenoh_rpc.h | dirs
+	$(CC) $(CFLAGS) $(ASAN_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+$(STRESS_OBJ_ASAN): $(STRESS_SRC) $(INC_DIR)/zenoh_rpc.h | dirs
+	$(CC) $(CFLAGS) $(ASAN_CFLAGS) $(CPPFLAGS) -c -o $@ $<
+
+$(STRESS_BIN_ASAN): $(STRESS_OBJ_ASAN) $(LIB_OBJ_ASAN) $(TOKEN_LIB)
+	$(CC) $(CFLAGS) $(ASAN_CFLAGS) -o $@ $(STRESS_OBJ_ASAN) $(LIB_OBJ_ASAN) \
+	    $(LDFLAGS) $(LIBS)
+
+stress-asan: $(STRESS_BIN_ASAN)
+
+run-stress-asan: $(STRESS_BIN_ASAN)
+	@echo
+	@echo "Running stress_rpc under ASan..."
+	@echo
+	LD_LIBRARY_PATH=$(BUILD_DIR):../token/build:$(ZENOH_PICO_LIB) \
+	  ASAN_OPTIONS=detect_leaks=1:abort_on_error=0:halt_on_error=0:print_stacktrace=1 \
+	  $(STRESS_BIN_ASAN) $(STRESS_ARGS)
 
 install: libs
 	install -d $(PREFIX)/lib $(PREFIX)/include/zenoh_rpc

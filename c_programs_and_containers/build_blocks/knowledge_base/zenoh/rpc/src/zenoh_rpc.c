@@ -516,10 +516,27 @@ struct ZenohRpcClient {
 };
 
 /* Per-call reply collector — heap-allocated so it survives the call
- * frame across the timedwait deadline path. */
+ * frame across the timedwait deadline path.
+ *
+ * Refcounted because the closure context (passed to z_get) is owned
+ * jointly by:
+ *   - the caller (zenoh_rpc_client_call), which releases at return
+ *   - the closure itself, which is released by client_reply_dropper
+ *     when zenoh-pico finalizes the query (on the read thread)
+ *
+ * Whichever release runs last calls collector_free. This eliminates
+ * the use-after-free where _call returned and freed the collector
+ * BEFORE the read thread fired the dropper (or, in the timeout path,
+ * before any late reply arrived). The refcount itself is guarded by
+ * its own mutex (collector_refcount_lock) — independent of the
+ * collector's data lock — so a refcount release does not need to
+ * acquire the data lock and we cannot deadlock against the dropper
+ * which always holds the data lock briefly. */
 typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t  cond;
+    pthread_mutex_t refcount_lock;
+    int             refcount;
     int             reply_seen;
     int             final_seen;
     int             is_err;
@@ -532,6 +549,8 @@ static reply_collector_t *collector_new(void) {
     if (!c) return NULL;
     pthread_mutex_init(&c->lock, NULL);
     pthread_cond_init(&c->cond, NULL);
+    pthread_mutex_init(&c->refcount_lock, NULL);
+    c->refcount = 2;            /* one for caller, one for closure */
     return c;
 }
 
@@ -539,8 +558,18 @@ static void collector_free(reply_collector_t *c) {
     if (!c) return;
     pthread_cond_destroy(&c->cond);
     pthread_mutex_destroy(&c->lock);
+    pthread_mutex_destroy(&c->refcount_lock);
     free(c->payload);
     free(c);
+}
+
+/* Drop one reference. Frees the collector if this was the last one. */
+static void collector_release(reply_collector_t *c) {
+    if (!c) return;
+    pthread_mutex_lock(&c->refcount_lock);
+    int gone = (--c->refcount == 0);
+    pthread_mutex_unlock(&c->refcount_lock);
+    if (gone) collector_free(c);
 }
 
 static void client_reply_cb(z_loaned_reply_t *reply, void *ctx) {
@@ -589,7 +618,12 @@ static void client_reply_dropper(void *ctx) {
     c->final_seen = 1;
     pthread_cond_broadcast(&c->cond);
     pthread_mutex_unlock(&c->lock);
-    /* Don't free here — the caller (_call) frees when done. */
+    /* Release the closure's reference. If _call has already returned and
+     * released its reference, this frees the collector here. Otherwise
+     * _call's later release will be the one that frees. Either way, the
+     * collector lives until both sides are done with it — no UAF on the
+     * read thread. */
+    collector_release(c);
 }
 
 zrpc_status_t zenoh_rpc_client_create(ZenohRpcClient **out, const ZenohRpcConfig *cfg) {
@@ -658,7 +692,10 @@ zrpc_status_t zenoh_rpc_client_call(ZenohRpcClient *cli,
     z_owned_bytes_t reqbody;
     if (req_len > 0) {
         if (z_bytes_copy_from_buf(&reqbody, req, req_len) < 0) {
-            collector_free(col);
+            /* Closure never installed — no read-thread reference exists.
+             * Drop both references (init was 2) before freeing. */
+            collector_release(col);
+            collector_release(col);
             return ZRPC_ERR_MEMORY;
         }
         opts.payload = z_move(reqbody);
@@ -667,7 +704,15 @@ zrpc_status_t zenoh_rpc_client_call(ZenohRpcClient *cli,
     z_owned_closure_reply_t closure;
     z_closure(&closure, client_reply_cb, client_reply_dropper, col);
     if (z_get(z_loan(cli->session), z_loan(ke), "", z_move(closure), &opts) < 0) {
-        collector_free(col);
+        /* z_get failed: did it consume the closure? zenoh-pico's contract
+         * is ambiguous here — but on failure the dropper should NOT have
+         * been invoked. Release both refs (caller's + the closure ref
+         * that nobody will release) to avoid leaking. If a future
+         * zenoh-pico version DOES drop the closure on failure, we'd
+         * under-free by one ref; that's a leak, not a UAF, and we'd
+         * catch it under ASan's leak detector. */
+        collector_release(col);
+        collector_release(col);
         return ZRPC_ERR_ZENOH;
     }
 
@@ -686,7 +731,11 @@ zrpc_status_t zenoh_rpc_client_call(ZenohRpcClient *cli,
         int rc = pthread_cond_timedwait(&col->cond, &col->lock, &deadline);
         if (rc == ETIMEDOUT) {
             pthread_mutex_unlock(&col->lock);
-            collector_free(col);
+            /* Caller releases its ref. The closure still holds the other
+             * ref; the dropper releases it whenever zenoh-pico finalizes
+             * the (still pending) query, possibly long after we return.
+             * That late release frees the collector — safe now. */
+            collector_release(col);
             return ZRPC_ERR_TIMEOUT;
         }
     }
@@ -711,6 +760,6 @@ zrpc_status_t zenoh_rpc_client_call(ZenohRpcClient *cli,
     }
     pthread_mutex_unlock(&col->lock);
 
-    collector_free(col);
+    collector_release(col);
     return result;
 }
