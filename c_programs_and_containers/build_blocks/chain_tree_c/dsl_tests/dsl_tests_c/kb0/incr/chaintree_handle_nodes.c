@@ -2,14 +2,14 @@
 #include "chaintree_handle_nodes.h"
 
 /* Node array - preserves original indices; filtered nodes leave gaps */
-const chaintree_node_t ct_6sdu632b_nodes[24] = {
+const chaintree_node_t ct_bq6m6ozb_nodes[27] = {
     /* [0] _0 */
     {
         .node_index = 0,
         .parent_index = 65535,
         .depth = 0,
-        .link_start = 10,
-        .link_count = 0x0002,  /* count=2, auto_start=false */
+        .link_start = 9,
+        .link_count = 0x0003,  /* count=3, auto_start=false */
         .main_function_index = 3,
         .init_function_index = 3,
         .aux_function_index = 2,
@@ -21,8 +21,8 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .node_index = 1,
         .parent_index = 0,
         .depth = 1,
-        .link_start = 0,
-        .link_count = 0x8004,  /* count=4, auto_start=true */
+        .link_start = 12,
+        .link_count = 0x8003,  /* count=3, auto_start=true */
         .main_function_index = 1,
         .init_function_index = 1,
         .aux_function_index = 1,
@@ -34,12 +34,12 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .node_index = 2,
         .parent_index = 1,
         .depth = 2,
-        .link_start = 4,
+        .link_start = 0,
         .link_count = 0x0000,  /* count=0, auto_start=false */
-        .main_function_index = 2,
-        .init_function_index = 5,
-        .aux_function_index = 0,
-        .term_function_index = 0,
+        .main_function_index = 6,
+        .init_function_index = 6,
+        .aux_function_index = 3,
+        .term_function_index = 7,
         .node_data_id = 0
     },
     /* [3] _1 */
@@ -47,33 +47,20 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .node_index = 3,
         .parent_index = 1,
         .depth = 2,
-        .link_start = 4,
+        .link_start = 0,
         .link_count = 0x0000,  /* count=0, auto_start=false */
-        .main_function_index = 6,
-        .init_function_index = 7,
-        .aux_function_index = 3,
-        .term_function_index = 8,
-        .node_data_id = 1
+        .main_function_index = 2,
+        .init_function_index = 9,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
     },
     /* [4] _2 */
     {
         .node_index = 4,
         .parent_index = 1,
         .depth = 2,
-        .link_start = 4,
-        .link_count = 0x0000,  /* count=0, auto_start=false */
-        .main_function_index = 2,
-        .init_function_index = 10,
-        .aux_function_index = 0,
-        .term_function_index = 0,
-        .node_data_id = 65535
-    },
-    /* [5] _3 */
-    {
-        .node_index = 5,
-        .parent_index = 1,
-        .depth = 2,
-        .link_start = 4,
+        .link_start = 0,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 4,
         .init_function_index = 0,
@@ -81,12 +68,64 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [6] _1 [AUTO_START] */
+    /* [5] _1 [AUTO_START] */
     {
-        .node_index = 6,
+        .node_index = 5,
         .parent_index = 0,
         .depth = 1,
-        .link_start = 4,
+        .link_start = 0,
+        .link_count = 0x8003,  /* count=3, auto_start=true */
+        .main_function_index = 1,
+        .init_function_index = 1,
+        .aux_function_index = 1,
+        .term_function_index = 2,
+        .node_data_id = 65535
+    },
+    /* [6] _0 */
+    {
+        .node_index = 6,
+        .parent_index = 5,
+        .depth = 2,
+        .link_start = 3,
+        .link_count = 0x0000,  /* count=0, auto_start=false */
+        .main_function_index = 6,
+        .init_function_index = 6,
+        .aux_function_index = 3,
+        .term_function_index = 7,
+        .node_data_id = 1
+    },
+    /* [7] _1 */
+    {
+        .node_index = 7,
+        .parent_index = 5,
+        .depth = 2,
+        .link_start = 3,
+        .link_count = 0x0000,  /* count=0, auto_start=false */
+        .main_function_index = 2,
+        .init_function_index = 10,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [8] _2 */
+    {
+        .node_index = 8,
+        .parent_index = 5,
+        .depth = 2,
+        .link_start = 3,
+        .link_count = 0x0000,  /* count=0, auto_start=false */
+        .main_function_index = 4,
+        .init_function_index = 0,
+        .aux_function_index = 0,
+        .term_function_index = 0,
+        .node_data_id = 65535
+    },
+    /* [9] _2 [AUTO_START] */
+    {
+        .node_index = 9,
+        .parent_index = 0,
+        .depth = 1,
+        .link_start = 3,
         .link_count = 0x8006,  /* count=6, auto_start=true */
         .main_function_index = 1,
         .init_function_index = 1,
@@ -94,77 +133,77 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .term_function_index = 2,
         .node_data_id = 65535
     },
-    /* [7] _0 */
+    /* [10] _0 */
     {
-        .node_index = 7,
-        .parent_index = 6,
+        .node_index = 10,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 7,
-        .init_function_index = 9,
+        .init_function_index = 8,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 2
     },
-    /* [8] _1 */
+    /* [11] _1 */
     {
-        .node_index = 8,
-        .parent_index = 6,
+        .node_index = 11,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 2,
-        .init_function_index = 6,
+        .init_function_index = 5,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 3
     },
-    /* [9] _2 */
+    /* [12] _2 */
     {
-        .node_index = 9,
-        .parent_index = 6,
+        .node_index = 12,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 7,
-        .init_function_index = 9,
+        .init_function_index = 8,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 4
     },
-    /* [10] _3 */
+    /* [13] _3 */
     {
-        .node_index = 10,
-        .parent_index = 6,
+        .node_index = 13,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 2,
-        .init_function_index = 6,
+        .init_function_index = 5,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 5
     },
-    /* [11] _4 */
+    /* [14] _4 */
     {
-        .node_index = 11,
-        .parent_index = 6,
+        .node_index = 14,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 7,
-        .init_function_index = 9,
+        .init_function_index = 8,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 6
     },
-    /* [12] _5 */
+    /* [15] _5 */
     {
-        .node_index = 12,
-        .parent_index = 6,
+        .node_index = 15,
+        .parent_index = 9,
         .depth = 2,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 5,
         .init_function_index = 0,
@@ -172,39 +211,18 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .term_function_index = 0,
         .node_data_id = 65535
     },
-    /* [13] kb0 */
+    /* [16] kb0 */
     {
-        .node_index = 13,
+        .node_index = 16,
         .parent_index = 65535,
         .depth = 0,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 0,
         .init_function_index = 0,
         .aux_function_index = 0,
         .term_function_index = 0,
         .node_data_id = 65535
-    },
-    /* [14] FILTERED */ {
-        .node_index = 14, .parent_index = 0xFFFF, .depth = 0,
-        .link_start = 0, .link_count = 0,
-        .main_function_index = 0, .init_function_index = 0,
-        .aux_function_index = 0, .term_function_index = 0,
-        .node_data_id = 0xFFFF
-    },
-    /* [15] FILTERED */ {
-        .node_index = 15, .parent_index = 0xFFFF, .depth = 0,
-        .link_start = 0, .link_count = 0,
-        .main_function_index = 0, .init_function_index = 0,
-        .aux_function_index = 0, .term_function_index = 0,
-        .node_data_id = 0xFFFF
-    },
-    /* [16] FILTERED */ {
-        .node_index = 16, .parent_index = 0xFFFF, .depth = 0,
-        .link_start = 0, .link_count = 0,
-        .main_function_index = 0, .init_function_index = 0,
-        .aux_function_index = 0, .term_function_index = 0,
-        .node_data_id = 0xFFFF
     },
     /* [17] FILTERED */ {
         .node_index = 17, .parent_index = 0xFFFF, .depth = 0,
@@ -248,12 +266,33 @@ const chaintree_node_t ct_6sdu632b_nodes[24] = {
         .aux_function_index = 0, .term_function_index = 0,
         .node_data_id = 0xFFFF
     },
-    /* [23] event_string_table */
+    /* [23] FILTERED */ {
+        .node_index = 23, .parent_index = 0xFFFF, .depth = 0,
+        .link_start = 0, .link_count = 0,
+        .main_function_index = 0, .init_function_index = 0,
+        .aux_function_index = 0, .term_function_index = 0,
+        .node_data_id = 0xFFFF
+    },
+    /* [24] FILTERED */ {
+        .node_index = 24, .parent_index = 0xFFFF, .depth = 0,
+        .link_start = 0, .link_count = 0,
+        .main_function_index = 0, .init_function_index = 0,
+        .aux_function_index = 0, .term_function_index = 0,
+        .node_data_id = 0xFFFF
+    },
+    /* [25] FILTERED */ {
+        .node_index = 25, .parent_index = 0xFFFF, .depth = 0,
+        .link_start = 0, .link_count = 0,
+        .main_function_index = 0, .init_function_index = 0,
+        .aux_function_index = 0, .term_function_index = 0,
+        .node_data_id = 0xFFFF
+    },
+    /* [26] event_string_table */
     {
-        .node_index = 23,
+        .node_index = 26,
         .parent_index = 65535,
         .depth = 0,
-        .link_start = 10,
+        .link_start = 9,
         .link_count = 0x0000,  /* count=0, auto_start=false */
         .main_function_index = 0,
         .init_function_index = 0,
