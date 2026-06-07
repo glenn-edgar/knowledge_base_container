@@ -13,8 +13,11 @@ typedef enum {
     MAIN_FUNC_CFL_COLUMN_MAIN = 1,
     MAIN_FUNC_CFL_DISABLE = 2,
     MAIN_FUNC_CFL_GATE_NODE_MAIN = 3,
-    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 4,
-    MAIN_FUNC_COUNT = 5
+    MAIN_FUNC_CFL_RESET = 4,
+    MAIN_FUNC_CFL_TERMINATE_SYSTEM = 5,
+    MAIN_FUNC_CFL_WAIT = 6,
+    MAIN_FUNC_CFL_WAIT_TIME = 7,
+    MAIN_FUNC_COUNT = 8
 } MAIN_FUNC_t;
 
 /* One-shot function enum */
@@ -25,8 +28,13 @@ typedef enum {
     ONE_SHOT_FUNC_CFL_GATE_NODE_INIT = 3,
     ONE_SHOT_FUNC_CFL_GATE_NODE_TERM = 4,
     ONE_SHOT_FUNC_CFL_LOG_MESSAGE = 5,
-    ONE_SHOT_FUNC_MON_PING_REPLY = 6,
-    ONE_SHOT_FUNC_COUNT = 7
+    ONE_SHOT_FUNC_CFL_SEND_NAMED_EVENT = 6,
+    ONE_SHOT_FUNC_CFL_WAIT_INIT = 7,
+    ONE_SHOT_FUNC_CFL_WAIT_TERM = 8,
+    ONE_SHOT_FUNC_CFL_WAIT_TIME_INIT = 9,
+    ONE_SHOT_FUNC_MON_PING_REPLY = 10,
+    ONE_SHOT_FUNC_MON_CMD_TIMEOUT = 11,
+    ONE_SHOT_FUNC_COUNT = 12
 } ONE_SHOT_FUNC_t;
 
 /* Boolean function enum */
@@ -34,17 +42,18 @@ typedef enum {
     BOOL_FUNC_CFL_NULL = 0,
     BOOL_FUNC_CFL_COLUMN_NULL = 1,
     BOOL_FUNC_CFL_GATE_NODE_NULL = 2,
-    BOOL_FUNC_COUNT = 3
+    BOOL_FUNC_CFL_WAIT_FOR_EVENT = 3,
+    BOOL_FUNC_COUNT = 4
 } BOOL_FUNC_t;
 
-extern const main_function_t ct_6ctchrak_main_functions[5];
-extern const one_shot_function_t ct_6ctchrak_one_shot_functions[7];
-extern const boolean_function_t ct_6ctchrak_boolean_functions[3];
+extern const main_function_t ct_6sdu632b_main_functions[8];
+extern const one_shot_function_t ct_6sdu632b_one_shot_functions[12];
+extern const boolean_function_t ct_6sdu632b_boolean_functions[4];
 
-extern const uint16_t ct_6ctchrak_main_function_usage_count[5];
+extern const uint16_t ct_6sdu632b_main_function_usage_count[8];
 
-extern const char *ct_6ctchrak_main_function_names[5];
-extern const char *ct_6ctchrak_one_shot_function_names[7];
-extern const char *ct_6ctchrak_boolean_function_names[3];
+extern const char *ct_6sdu632b_main_function_names[8];
+extern const char *ct_6sdu632b_one_shot_function_names[12];
+extern const char *ct_6sdu632b_boolean_function_names[4];
 
 #endif /* CHAINTREE_HANDLE_FUNCTIONS_H */

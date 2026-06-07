@@ -3,41 +3,41 @@
 #include "chaintree_handle.h"
 
 const chaintree_handle_t g_chaintree_handle = {
-    .unique_id = "ct_6ctchrak",
+    .unique_id = "ct_6sdu632b",
 
-    .nodes = ct_6ctchrak_nodes,
-    .node_count = 8,
+    .nodes = ct_6sdu632b_nodes,
+    .node_count = 15,
 
-    .main_functions = ct_6ctchrak_main_functions,
-    .main_function_count = 5,
-    .one_shot_functions = ct_6ctchrak_one_shot_functions,
-    .one_shot_function_count = 7,
-    .boolean_functions = ct_6ctchrak_boolean_functions,
-    .boolean_function_count = 3,
+    .main_functions = ct_6sdu632b_main_functions,
+    .main_function_count = 8,
+    .one_shot_functions = ct_6sdu632b_one_shot_functions,
+    .one_shot_function_count = 12,
+    .boolean_functions = ct_6sdu632b_boolean_functions,
+    .boolean_function_count = 4,
 
-    .main_function_names = ct_6ctchrak_main_function_names,
-    .one_shot_function_names = ct_6ctchrak_one_shot_function_names,
-    .boolean_function_names = ct_6ctchrak_boolean_function_names,
+    .main_function_names = ct_6sdu632b_main_function_names,
+    .one_shot_function_names = ct_6sdu632b_one_shot_function_names,
+    .boolean_function_names = ct_6sdu632b_boolean_function_names,
 
-    .main_function_usage_count = ct_6ctchrak_main_function_usage_count,
+    .main_function_usage_count = ct_6sdu632b_main_function_usage_count,
 
-    .link_table = ct_6ctchrak_link_table,
-    .link_table_size = 5,
+    .link_table = ct_6sdu632b_link_table,
+    .link_table_size = 12,
 
-    .event_strings = (const char **)ct_6ctchrak_event_strings,
-    .event_count = 20,
+    .event_strings = (const char **)ct_6sdu632b_event_strings,
+    .event_count = 21,
 
-    .bitmask_names = (const char **)ct_6ctchrak_bitmask_names,
+    .bitmask_names = (const char **)ct_6sdu632b_bitmask_names,
     .bitmask_count = 0,
 
-    .kb_table = ct_6ctchrak_kb_table,
+    .kb_table = ct_6sdu632b_kb_table,
     .kb_count = 2,
 
-    .node_data_records = ct_6ctchrak_node_data_records,
-    .node_data_records_count = 63,
-    .node_data_strings = ct_6ctchrak_node_data_strings,
-    .node_data_strings_size = 481,
-    .node_data_controls = ct_6ctchrak_node_data_controls,
-    .node_data_controls_count = 5,
+    .node_data_records = ct_6sdu632b_node_data_records,
+    .node_data_records_count = 113,
+    .node_data_strings = ct_6sdu632b_node_data_strings,
+    .node_data_strings_size = 645,
+    .node_data_controls = ct_6sdu632b_node_data_controls,
+    .node_data_controls_count = 9,
     .bb_table = NULL
 };

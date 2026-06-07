@@ -8,7 +8,8 @@ export LUA_PATH="${CT}/lua_dsl/?.lua;${CT}/lua_dsl/?/init.lua;${CT}/?.lua;;"
 cd "$(dirname "$0")"
 rm -rf incr && mkdir -p incr
 
-echo "== gen: kb0.lua -> kb0.json -> incr/ =="
+export KB0_HOST_TEST=1     # include the host stimulus column (embed regens without this)
+echo "== gen: kb0.lua -> kb0.json -> incr/  (KB0_HOST_TEST=1) =="
 luajit kb0.lua kb0.json >/dev/null
 luajit "${CT}/lua_dsl/luajit_pipeline/main.lua" kb0.json incr chaintree_handle >/dev/null
 
