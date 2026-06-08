@@ -46,7 +46,21 @@ local function kb1(ct, name)
     ct:end_test()
 end
 
+-- 10 Hz analog streams: the central ADC service decimates the 3 channels to 10 Hz
+-- and the firmware publishes mean/max/rms (AC-rms = DC-removed std-dev, for CT-coupled
+-- current) into these blackboard fields each tick. KBs read them as data-flow inputs.
+local function adc_streams(ct)
+    ct:define_blackboard("adc_streams")
+    for _, ch in ipairs({ 0, 1, 2 }) do
+        ct:bb_field("adc" .. ch .. "_mean", "int32", 0)
+        ct:bb_field("adc" .. ch .. "_max",  "int32", 0)
+        ct:bb_field("adc" .. ch .. "_rms",  "int32", 0)
+    end
+    ct:end_blackboard()
+end
+
 local ct = ChainTreeMaster.new(arg[1])
 kb0(ct, "kb0")
 kb1(ct, "kb1")
+adc_streams(ct)
 ct:check_and_generate_yaml()
